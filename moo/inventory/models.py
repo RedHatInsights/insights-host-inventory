@@ -14,6 +14,14 @@ class Entity(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
     tags = models.ManyToManyField(Tag)
+    relationships = models.ManyToManyField("self", through="EntityRelationship")
 
     def __str__(self):
         return self.display_name
+
+
+class EntityRelationship(models.Model):
+
+    from_ = models.ForeignKey(Entity, on_delete=models.CASCADE)
+    to_ = models.ForeignKey(Entity, on_delete=models.CASCADE)
+    kind = models.CharField(max_length=200)
