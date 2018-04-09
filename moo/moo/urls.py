@@ -17,13 +17,18 @@ from django.contrib import admin
 from django.urls import path, include
 
 from rest_framework import routers
+from rest_framework_swagger.views import get_swagger_view
+
 from inventory import views
 
 router = routers.DefaultRouter()
 router.register("entities", views.EntityViewSet)
 
+schema_view = get_swagger_view(title="Inventory API")
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include(router.urls)),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
+    path("api", schema_view),
 ]

@@ -10,6 +10,7 @@ django-crispy-forms==1.7.2
 django-filter==1.1.0
 django-guardian==1.4.9
 django-rest-framework==0.1.0
+django-rest-swagger==2.1.2
 djangorestframework==3.8.0
 idna==2.6
 itypes==1.1.0
