@@ -89,11 +89,11 @@ WSGI_APPLICATION = "moo.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "insights",
-        "USER": "insights",
-        "PASSWORD": "insights",
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
+        "NAME": os.environ.get("DB_NAME", "insights"),
+        "USER": os.environ.get("DB_USER", "insights"),
+        "PASSWORD": os.environ.get("DB_PASS", "insights"),
+        "HOST": os.environ.get("DB_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
@@ -129,4 +129,3 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
 STATIC_URL = "/static/"
-
