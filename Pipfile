@@ -1,18 +1,18 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+
 [packages]
-attrs = "==17.4.0"
-black = "==18.4a0"
+
 certifi = "==2018.1.18"
 chardet = "==3.0.4"
-click = "==6.7"
 coreapi = "==2.3.3"
 coreschema = "==0.0.4"
-Django = "==2.0.4"
-django-crispy-forms = "==1.7.2"
+django = "==2.0.4"
+django-crispy-forms = "*"
 django-filter = "==1.1.0"
 django-guardian = "==1.4.9"
 django-rest-framework = "==0.1.0"
@@ -20,9 +20,8 @@ django-rest-swagger = "==2.1.2"
 djangorestframework = "==3.8.0"
 idna = "==2.6"
 itypes = "==1.1.0"
-"Jinja2" = "==2.10"
-Markdown = "==2.6.11"
-MarkupSafe = "==1.0"
+"jinja2" = "==2.10"
+markupsafe = "==1.0"
 pytz = "==2018.3"
 requests = "==2.18.4"
 six = "==1.11.0"
@@ -31,7 +30,14 @@ uritemplate = "==3.0.0"
 "psycopg2" = "*"
 django-extensions = "*"
 
+
 [dev-packages]
 
+black = "==18.4a0"
+attrs = "==17.4.0"
+click = "==6.7"
+
+
 [requires]
+
 python_version = "3.6"
