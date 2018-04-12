@@ -2,6 +2,7 @@
 
 import django.contrib.postgres.fields.hstore
 import django.contrib.postgres.fields.jsonb
+from django.contrib.postgres.operations import HStoreExtension
 from django.db import migrations, models
 import django.db.models.deletion
 import uuid
@@ -14,6 +15,7 @@ class Migration(migrations.Migration):
     dependencies = []
 
     operations = [
+        HStoreExtension(),
         migrations.CreateModel(
             name="Entity",
             fields=[
