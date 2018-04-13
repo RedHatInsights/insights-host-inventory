@@ -9,10 +9,6 @@ function is_django_installed() {
   python -c "import django" &>/dev/null
 }
 
-function should_migrate() {
-  is_django_installed && [[ -z "$DISABLE_MIGRATE" ]]
-}
-
 # Guess the number of workers according to the number of cores
 function get_default_web_concurrency() {
   limit_vars=$(cgroup-limits)
@@ -36,9 +32,6 @@ function get_default_web_concurrency() {
 APP_HOME=${APP_HOME:-.}
 # Look for 'manage.py' in the directory specified by APP_HOME, or the current direcotry
 manage_file=$APP_HOME/manage.py
-
-echo "---> Migrating database ..."
-python "$manage_file" migrate --noinput
 
 echo "---> Collecting static files ..."
 python "$manage_file" collectstatic --noinput
