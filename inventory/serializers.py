@@ -6,4 +6,4 @@ class EntitySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Entity
-        fields = ("id", "account_number", "display_name", "tags", "facts")
+        fields = ("account_number", "display_name", "ids", "tags", "facts")

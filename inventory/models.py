@@ -4,13 +4,13 @@ from django.contrib.postgres.fields import JSONField, HStoreField
 
 
 class Entity(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     account_number = models.CharField(max_length=10)
     facts = JSONField(null=True)
     display_name = models.CharField(max_length=200)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
     tags = HStoreField(null=True)
+    ids = HStoreField(null=True)
     relationships = models.ManyToManyField(
         "self",
         through="EntityRelationship",
@@ -26,7 +26,6 @@ class Entity(models.Model):
 
 
 class EntityRelationship(models.Model):
-
     from_entity = models.ForeignKey(
         Entity, on_delete=models.CASCADE, related_name="to_entity"
     )
