@@ -1,4 +1,4 @@
-from .models import Entity, EntityRelationship
+from .models import Entity
 from rest_framework import serializers
 
 
