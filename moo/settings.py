@@ -27,6 +27,7 @@ DEBUG = not any("KUBERNETES" in k for k in os.environ)
 
 ALLOWED_HOSTS = ["localhost", ".insights.openshiftapps.com"]
 
+INTERNAL_IPS = ["127.0.0.1"]
 
 # Application definition
 
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     "graphene_django",
 ]
 
+
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
@@ -64,6 +66,11 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG:
+    print("Installing djdt...")
+    INSTALLED_APPS.append("debug_toolbar")
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "moo.urls"
 

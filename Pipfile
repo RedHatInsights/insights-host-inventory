@@ -38,6 +38,7 @@ graphene-django = "*"
 black = "==18.4a0"
 attrs = "==17.4.0"
 click = "==6.7"
+django-debug-toolbar = "*"
 
 
 [requires]

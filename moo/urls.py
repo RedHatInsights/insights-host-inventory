@@ -15,6 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
 
 from rest_framework import routers
 from rest_framework_swagger.views import get_swagger_view
@@ -25,6 +26,9 @@ from inventory import views
 
 router = routers.DefaultRouter()
 router.register("entities", views.EntityViewSet)
+router.register("facts", views.FactViewSet)
+router.register("tags", views.TagViewSet)
+router.register("ids", views.AlternativeIdViewSet)
 
 schema_view = get_swagger_view(title="Inventory API")
 
@@ -36,3 +40,7 @@ urlpatterns = [
     path("api", schema_view),
     path("graphql", GraphQLView.as_view(graphiql=True)),
 ]
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns = [path("__debug__", include(debug_toolbar.urls))] + urlpatterns
