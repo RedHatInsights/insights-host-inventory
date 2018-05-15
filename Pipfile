@@ -1,9 +1,12 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+
 [packages]
+
 certifi = "==2018.1.18"
 chardet = "==3.0.4"
 coreapi = "==2.3.3"
@@ -27,11 +30,16 @@ uritemplate = "==3.0.0"
 "psycopg2" = "*"
 django-extensions = "*"
 gunicorn = "*"
+graphene-django = "*"
+
 
 [dev-packages]
+
 black = "==18.4a0"
 attrs = "==17.4.0"
 click = "==6.7"
 
+
 [requires]
+
 python_version = "3.6"

@@ -1,6 +1,6 @@
 import uuid
 from django.db import models
-from django.contrib.postgres.fields import JSONField, HStoreField
+from django.contrib.postgres.fields import JSONField
 
 
 class Entity(models.Model):
@@ -9,8 +9,8 @@ class Entity(models.Model):
     display_name = models.CharField(max_length=200)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-    tags = HStoreField(null=True)
-    ids = HStoreField(null=True)
+    tags = JSONField(null=True)
+    ids = JSONField(null=True)
 
     class Meta:
         indexes = [models.Index(fields=["account_number"])]
