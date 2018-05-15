@@ -2,13 +2,6 @@ from .models import Entity, Fact, Tag, AlternativeId
 from rest_framework import serializers
 
 
-class EntitySerializer(serializers.HyperlinkedModelSerializer):
-
-    class Meta:
-        model = Entity
-        fields = ("id", "account_number", "display_name", "ids", "tags", "facts")
-
-
 class FactSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Fact
@@ -25,3 +18,14 @@ class AlternativeIdSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = AlternativeId
         fields = ("namespace", "value")
+
+
+class EntitySerializer(serializers.HyperlinkedModelSerializer):
+
+    facts = FactSerializer(many=True)
+    tags = TagSerializer(many=True)
+    ids = AlternativeIdSerializer(many=True)
+
+    class Meta:
+        model = Entity
+        fields = "__all__"
