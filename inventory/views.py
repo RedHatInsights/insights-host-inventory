@@ -14,5 +14,13 @@ class EntityViewSet(viewsets.ModelViewSet):
     queryset = Entity.objects.all()
     serializer_class = EntitySerializer
 
+    _valid_fields = [f.name for f in Entity._meta.get_fields()]
+
     def get_queryset(self):
-        return self.queryset.filter(**dict(self.request.GET.items()))
+
+        f = {}
+        for k, v in self.request.GET.items():
+            if any(k.startswith(n) for n in self._valid_fields):
+                f[k] = v
+        
+        return self.queryset.filter(**f)
