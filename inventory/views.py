@@ -11,7 +11,11 @@ class EntityViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows entities to be viewed or edited.
     """
-    queryset = Entity.objects.prefetch_related("facts").prefetch_related("tags").prefetch_related("ids")
+    queryset = Entity.objects.prefetch_related("facts").prefetch_related(
+        "tags"
+    ).prefetch_related(
+        "ids"
+    )
     serializer_class = EntitySerializer
     filter_backends = (filters.DjangoFilterBackend,)
     search_fields = ("account_number", "display_name")

@@ -13,68 +13,68 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Entity',
+            name="Entity",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
-                ('account_number', models.CharField(max_length=10)),
-                ('facts', django.contrib.postgres.fields.jsonb.JSONField(null=True)),
-                ('display_name', models.CharField(max_length=200)),
-                ('created_on', models.DateTimeField(auto_now_add=True)),
-                ('modified_on', models.DateTimeField(auto_now=True)),
-                ('tags', django.contrib.postgres.fields.hstore.HStoreField(null=True)),
-                ('ids', django.contrib.postgres.fields.hstore.HStoreField(null=True)),
+                ("account_number", models.CharField(max_length=10)),
+                ("facts", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("display_name", models.CharField(max_length=200)),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("modified_on", models.DateTimeField(auto_now=True)),
+                ("tags", django.contrib.postgres.fields.hstore.HStoreField(null=True)),
+                ("ids", django.contrib.postgres.fields.hstore.HStoreField(null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='EntityRelationship',
+            name="EntityRelationship",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.AutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
-                ('kind', models.CharField(max_length=200)),
+                ("kind", models.CharField(max_length=200)),
                 (
-                    'from_entity',
+                    "from_entity",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='to_entity',
-                        to='inventory.Entity',
+                        related_name="to_entity",
+                        to="inventory.Entity",
                     ),
                 ),
                 (
-                    'to_entity',
+                    "to_entity",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='from_entity',
-                        to='inventory.Entity',
+                        related_name="from_entity",
+                        to="inventory.Entity",
                     ),
                 ),
             ],
         ),
         migrations.AddField(
-            model_name='entity',
-            name='relationships',
+            model_name="entity",
+            name="relationships",
             field=models.ManyToManyField(
-                through='inventory.EntityRelationship', to='inventory.Entity'
+                through="inventory.EntityRelationship", to="inventory.Entity"
             ),
         ),
         migrations.AddIndex(
-            model_name='entity',
+            model_name="entity",
             index=models.Index(
-                fields=['account_number'], name='inventory_e_account_2e1d53_idx'
+                fields=["account_number"], name="inventory_e_account_2e1d53_idx"
             ),
         ),
     ]

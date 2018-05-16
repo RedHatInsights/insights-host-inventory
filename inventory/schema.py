@@ -4,17 +4,20 @@ from graphene_django import DjangoConnectionField, DjangoObjectType
 
 from .models import Entity, Fact
 
+
 class FactNode(DjangoObjectType):
 
     class Meta:
         model = Fact
         interfaces = (relay.Node,)
 
+
 class EntityNode(DjangoObjectType):
 
     class Meta:
         model = Entity
         interfaces = (relay.Node,)
+
 
 class Query(graphene.ObjectType):
 

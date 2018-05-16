@@ -3,18 +3,21 @@ from rest_framework import serializers
 
 
 class FactSerializer(serializers.HyperlinkedModelSerializer):
+
     class Meta:
         model = Fact
         fields = ("namespace", "name", "value")
 
 
 class TagSerializer(serializers.HyperlinkedModelSerializer):
+
     class Meta:
         model = Tag
         fields = ("name", "value")
 
 
 class AlternativeIdSerializer(serializers.HyperlinkedModelSerializer):
+
     class Meta:
         model = AlternativeId
         fields = ("namespace", "value")

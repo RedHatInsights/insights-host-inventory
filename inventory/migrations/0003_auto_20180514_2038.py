@@ -6,19 +6,17 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('inventory', '0002_auto_20180514_1736'),
-    ]
+    dependencies = [("inventory", "0002_auto_20180514_1736")]
 
     operations = [
         migrations.AlterField(
-            model_name='entity',
-            name='ids',
+            model_name="entity",
+            name="ids",
             field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
         ),
         migrations.AlterField(
-            model_name='entity',
-            name='tags',
+            model_name="entity",
+            name="tags",
             field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
         ),
     ]

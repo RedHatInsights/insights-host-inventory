@@ -5,24 +5,11 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('inventory', '0001_initial'),
-    ]
+    dependencies = [("inventory", "0001_initial")]
 
     operations = [
-        migrations.RemoveField(
-            model_name='entityrelationship',
-            name='from_entity',
-        ),
-        migrations.RemoveField(
-            model_name='entityrelationship',
-            name='to_entity',
-        ),
-        migrations.RemoveField(
-            model_name='entity',
-            name='relationships',
-        ),
-        migrations.DeleteModel(
-            name='EntityRelationship',
-        ),
+        migrations.RemoveField(model_name="entityrelationship", name="from_entity"),
+        migrations.RemoveField(model_name="entityrelationship", name="to_entity"),
+        migrations.RemoveField(model_name="entity", name="relationships"),
+        migrations.DeleteModel(name="EntityRelationship"),
     ]

@@ -23,8 +23,7 @@ class Fact(models.Model):
     value = models.CharField(max_length=200)
 
     class Meta:
-        indexes = [models.Index(fields=["namespace"]),
-                   models.Index(fields=["name"])]
+        indexes = [models.Index(fields=["namespace"]), models.Index(fields=["name"])]
 
 
 class Tag(models.Model):
@@ -42,5 +41,4 @@ class AlternativeId(models.Model):
     value = models.CharField(max_length=200)
 
     class Meta:
-        indexes = [models.Index(fields=["namespace"]),
-                   models.Index(fields=["value"])]
+        indexes = [models.Index(fields=["namespace"]), models.Index(fields=["value"])]
