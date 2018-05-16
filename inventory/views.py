@@ -13,3 +13,6 @@ class EntityViewSet(viewsets.ModelViewSet):
     """
     queryset = Entity.objects.all()
     serializer_class = EntitySerializer
+
+    def get_queryset(self):
+        return self.queryset.filter(**dict(self.request.GET.items()))
