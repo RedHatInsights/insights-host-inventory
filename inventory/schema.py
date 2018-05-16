@@ -1,28 +1,20 @@
 import graphene
-from graphene import Node, relay
-from graphene_django import DjangoConnectionField, DjangoObjectType
+from graphene_django import DjangoObjectType
 
-from .models import Entity, Fact
-
-
-class FactNode(DjangoObjectType):
-
-    class Meta:
-        model = Fact
-        interfaces = (relay.Node,)
+from .models import Entity
 
 
 class EntityNode(DjangoObjectType):
 
     class Meta:
         model = Entity
-        interfaces = (relay.Node,)
 
 
 class Query(graphene.ObjectType):
+    entities = graphene.List(EntityNode)
 
-    entity = graphene.Field(EntityNode)
-    entities = DjangoConnectionField(EntityNode)
+    def resolve_users(self, info):
+        return User.objects.all()
 
 
-schema = graphene.Schema(query=Query, types=[EntityNode, FactNode])
+schema = graphene.Schema(query=Query)

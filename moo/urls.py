@@ -26,9 +26,6 @@ from inventory import views
 
 router = routers.DefaultRouter()
 router.register("entities", views.EntityViewSet)
-router.register("facts", views.FactViewSet)
-router.register("tags", views.TagViewSet)
-router.register("ids", views.AlternativeIdViewSet)
 
 schema_view = get_swagger_view(title="Inventory API")
 
