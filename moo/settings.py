@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     "django_extensions",
     "django_filters",
     "crispy_forms",
-    "graphene_django",
 ]
 
 
@@ -55,7 +54,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 100,
 }
 
-GRAPHENE = {"SCHEMA": "inventory.schema.schema"}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -68,7 +66,6 @@ MIDDLEWARE = [
 ]
 
 if DEBUG:
-    print("Installing djdt...")
     INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
