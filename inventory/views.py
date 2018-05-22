@@ -3,8 +3,8 @@ from django.shortcuts import render
 # Create your views here.
 from django_filters import rest_framework as filters
 from rest_framework import viewsets
-from .models import Entity
-from .serializers import EntitySerializer
+from .models import Entity, Tag
+from .serializers import EntitySerializer, TagSerializer
 
 
 class EntityViewSet(viewsets.ModelViewSet):
@@ -28,3 +28,8 @@ class EntityViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(**{k: v})
 
         return qs
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
