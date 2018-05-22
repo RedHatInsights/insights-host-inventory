@@ -18,9 +18,13 @@ class EntityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
 
-        f = {}
-        for k, v in self.request.GET.items():
-            if any(k.startswith(n) for n in self._valid_fields):
-                f[k] = v
+        qs = self.queryset
 
-        return self.queryset.filter(**f)
+        for k, vs in self.request.GET.lists():
+            if any(k.startswith(n) for n in self._valid_fields):
+                for v in vs:
+                    if k.endswith("__in"):
+                        v = v.split("|")
+                    qs = qs.filter(**{k: v})
+
+        return qs

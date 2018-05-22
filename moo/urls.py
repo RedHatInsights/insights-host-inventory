@@ -20,8 +20,6 @@ from django.conf import settings
 from rest_framework import routers
 from rest_framework_swagger.views import get_swagger_view
 
-from graphene_django.views import GraphQLView
-
 from inventory import views
 
 router = routers.DefaultRouter()
@@ -35,7 +33,6 @@ urlpatterns = [
     path("", include(router.urls)),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("api", schema_view),
-    path("graphql", GraphQLView.as_view(graphiql=True)),
 ]
 
 if settings.DEBUG:
