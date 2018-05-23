@@ -19,7 +19,7 @@ class Entity(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
     facts = JSONField(null=True)
-    tags = models.ManyToManyField(Tag)
+    tags = models.ManyToManyField(Tag, null=True)
     ids = JSONField(null=True)
 
     class Meta:
