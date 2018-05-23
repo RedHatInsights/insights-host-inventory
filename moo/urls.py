@@ -17,12 +17,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 
-from rest_framework import routers
+from dynamic_rest.routers import DynamicRouter
 from rest_framework_swagger.views import get_swagger_view
 
 from inventory import views
 
-router = routers.DefaultRouter()
+router = DynamicRouter()
 router.register("entities", views.EntityViewSet)
 router.register("tags", views.TagViewSet)
 
