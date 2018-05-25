@@ -14,11 +14,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from django.conf import settings
 
 from dynamic_rest.routers import DynamicRouter
-from rest_framework_swagger.views import get_swagger_view
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 
 from inventory import views
 
@@ -26,13 +27,27 @@ router = DynamicRouter()
 router.register("entities", views.EntityViewSet)
 router.register("tags", views.TagViewSet)
 
-schema_view = get_swagger_view(title="Inventory API")
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Inventory API",
+        default_version='v1',
+        description="Inventory Service API",
+        contact=openapi.Contact(email="insights-dev@redhat.com"),
+        license=openapi.License(name="Apache 2 License"),
+    ),
+    # validators=['flex', 'ssv'],
+    public=True
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include(router.urls)),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
-    path("api", schema_view),
+    re_path(r'^swagger(?P<format>\.json|\.yaml)$',
+         schema_view.without_ui(cache_timeout=None), name='schema-json'),
+    re_path(r'^swagger/$',
+         schema_view.with_ui('swagger', cache_timeout=None), name='schema-swagger-ui'),
 ]
 
 if settings.DEBUG:
