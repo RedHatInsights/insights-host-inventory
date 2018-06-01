@@ -19,11 +19,12 @@ class Entity(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
     facts = JSONField(null=True)
-    tags = models.ManyToManyField(Tag, null=True)
+    tags = models.ManyToManyField(Tag)
     ids = JSONField(null=True)
 
     class Meta:
         indexes = [models.Index(fields=["account_number"])]
+        ordering = ['id']
 
     def __str__(self):
         return self.display_name
