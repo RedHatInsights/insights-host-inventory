@@ -1,5 +1,5 @@
 """
-WSGI config for platform project.
+WSGI config for insights project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "platform.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "insights.settings")
 
 application = get_wsgi_application()

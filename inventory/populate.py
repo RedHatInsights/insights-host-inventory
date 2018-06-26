@@ -1,5 +1,6 @@
 import random
 
+import uuid
 import os
 import django
 from django.db.transaction import atomic
@@ -20,15 +21,23 @@ def populate(count=100):
             dict(namespace="default", name="version", value=random.choice(versions))
         ]
 
+    def make_ids():
+        return {
+            "pmaas": str(uuid.uuid4()),
+            "hccm": str(uuid.uuid4())
+        }
+
     for x in range(count):
         e = Entity.objects.create(
-            account_number=random.choice(accts), display_name="ent_%d" % x
+            account=random.choice(accts), display_name="ent_%d" % x
         )
         e.facts = make_facts()
+        e.ids = make_ids()
+        print(e.ids["pmaas"])
         e.save()
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "platform.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "insights.settings")
     django.setup()
     populate()
