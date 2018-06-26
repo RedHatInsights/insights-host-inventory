@@ -29,6 +29,6 @@ def populate(count=100):
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "moo.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "platform.settings")
     django.setup()
     populate()

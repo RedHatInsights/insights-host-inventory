@@ -3,7 +3,7 @@ import os
 import sys
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "moo.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "platform.settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
