@@ -12,14 +12,25 @@ accts = ["%07d" % n for n in range(1, 99)]
 
 @atomic
 def populate(count=100):
-    from inventory.models import Entity
+    from inventory.models import Entity, Tag
 
     def make_facts():
-        return [
-            dict(namespace="default", name="hostname", value=e.display_name.replace("ent", "host")),
-            dict(namespace="default", name="product", value=random.choice(products)),
-            dict(namespace="default", name="version", value=random.choice(versions))
-        ]
+        return {
+            "default": {
+                "hostname": e.display_name.replace("ent", "host"),
+                "product": random.choice(products),
+                "version": random.choice(versions)
+            }
+        }
+
+    def make_tags(namespace):
+        t = Tag.objects.create(
+            namespace=namespace,
+            name="fun",
+            value="times"
+        )
+        t.save()
+        return t
 
     def make_ids():
         return {
@@ -28,10 +39,12 @@ def populate(count=100):
         }
 
     for x in range(count):
+        acct = random.choice(accts)
         e = Entity.objects.create(
-            account=random.choice(accts), display_name="ent_%d" % x
+            account=acct, display_name="ent_%d" % x
         )
         e.facts = make_facts()
+        e.tags.add(make_tags(namespace=acct))
         e.ids = make_ids()
         print(e.ids["pmaas"])
         e.save()
