@@ -27,4 +27,4 @@ class Entity(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return self.display_name
+        return "[Entity '%s' ids=%s]" % (self.display_name, self.ids)
