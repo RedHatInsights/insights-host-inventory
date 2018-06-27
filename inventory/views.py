@@ -2,6 +2,7 @@ from collections import defaultdict
 import json
 
 from django.http import JsonResponse
+from django.http.response import HttpResponse
 from django.views.generic.base import View
 from inventory.models import Entity, Tag
 
@@ -44,12 +45,12 @@ class EntityListView(View):
 
     def post(self, request, namespace=None):
         if namespace:
-            return HttpResponse(400)
+            return HttpResponse(status=400)
 
         doc = json.loads(request.body)
 
         if "ids" not in doc or "account" not in doc:
-            return HttpResponse(400)
+            return HttpResponse(status=400)
 
         entity, created = Entity.objects.get_or_create(
                 ids__contains=doc["ids"],
@@ -70,18 +71,15 @@ class EntityListView(View):
             return JsonResponse(format_entity(entity), status=201)
         else:
             entity.facts.update(doc["facts"])
+            entity.save()
             return JsonResponse(format_entity(entity))
 
-
     def get(self, request, namespace=None):
-
         entities = BASE_QS
 
         if namespace:
             entities = entities.filter(ids__has_key=namespace)
 
         entities = add_tag_filter(entities, request)
-
         results = [format_entity(e) for e in entities]
-
         return JsonResponse(results)
