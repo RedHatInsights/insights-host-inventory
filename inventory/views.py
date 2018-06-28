@@ -62,17 +62,18 @@ class EntityListView(View):
             entity.save()
             return JsonResponse(format_entity(entity))
         except Exception:
-            entity = Entity(ids=doc["ids"],
-                            account=doc["account"],
-                            facts=doc["facts"],
-                            display_name=doc["display_name"])
+            entity = Entity.objects.create(
+                        ids=doc["ids"],
+                        account=doc["account"],
+                        facts=doc["facts"],
+                        display_name=doc["display_name"])
 
             for tag in doc["tags"]:
-                entity.tags.add(
-                    Tag.objects.get_or_create(
+                    t, created = Tag.objects.get_or_create(
                         namespace=tag["namespace"],
                         name=tag["name"],
-                        value=tag["value"]))
+                        value=tag["value"])
+                    entity.tags.add(t)
 
             entity.save()
             return JsonResponse(format_entity(entity), status=201)

@@ -74,6 +74,20 @@ class RequestsTest(TestCase):
         self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
         self.post("/entities/", test_data(facts={"test": "test"}))
 
+    def test_keeps_facts_namespaced(self):
+        self.post("/entities/", test_data(facts={"test": "test"}), 201)
+        data = self.post("/entities/", test_data(facts={"test2": "test"}))
+        self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
+
+    def test_saves_tags(self):
+        self.post("/entities/", test_data(tags=[{"namespace": "ns", "name": "test", "value": "testv"}]), 201)
+        data = self.get(f"/entities/{NS}/{ID}")
+        self.assertEquals(data["tags"], {
+            "ns": {
+                "test": "testv"
+            }
+        })
+
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
         self.post(f"/entities/{NS}", test_data(), 400)
