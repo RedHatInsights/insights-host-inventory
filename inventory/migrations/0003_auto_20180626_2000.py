@@ -4,24 +4,15 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
-    dependencies = [
-        ('inventory', '0002_auto_20180522_1256'),
-    ]
+    dependencies = [('inventory', '0002_auto_20180522_1256')]
 
     operations = [
-        migrations.AlterModelOptions(
-            name='entity',
-            options={'ordering': ['id']},
-        ),
+        migrations.AlterModelOptions(name='entity', options={'ordering': ['id']}),
         migrations.RemoveIndex(
-            model_name='entity',
-            name='inventory_e_account_2e1d53_idx',
+            model_name='entity', name='inventory_e_account_2e1d53_idx'
         ),
         migrations.RenameField(
-            model_name='entity',
-            old_name='account_number',
-            new_name='account',
+            model_name='entity', old_name='account_number', new_name='account'
         ),
         migrations.AlterField(
             model_name='entity',
@@ -30,6 +21,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='entity',
-            index=models.Index(fields=['account'], name='inventory_e_account_7f4862_idx'),
+            index=models.Index(
+                fields=['account'], name='inventory_e_account_7f4862_idx'
+            ),
         ),
     ]

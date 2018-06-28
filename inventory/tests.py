@@ -22,7 +22,7 @@ def test_data(display_name="hi", ids=None, tags=None, facts=None):
         "display_name": display_name,
         "ids": ids if ids else {NS: ID},
         "tags": tags if tags else [],
-        "facts": facts if facts else {}
+        "facts": facts if facts else {},
     }
 
 
@@ -42,7 +42,6 @@ class RequestsTest(TestCase):
         return response.json()
 
     def test_create(self):
-
         self.post("/entities/", test_data(), 201)
         data = self.get(f"/entities/{NS}/{ID}")
 
@@ -80,13 +79,13 @@ class RequestsTest(TestCase):
         self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
 
     def test_saves_tags(self):
-        self.post("/entities/", test_data(tags=[{"namespace": "ns", "name": "test", "value": "testv"}]), 201)
+        self.post(
+            "/entities/",
+            test_data(tags=[{"namespace": "ns", "name": "test", "value": "testv"}]),
+            201,
+        )
         data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], {
-            "ns": {
-                "test": "testv"
-            }
-        })
+        self.assertEquals(data["tags"], {"ns": {"test": "testv"}})
 
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""

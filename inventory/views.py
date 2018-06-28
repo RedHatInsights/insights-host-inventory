@@ -13,7 +13,9 @@ def add_tag_filter(qs, request):
     for k, vs in request.GET.lists():
         for v in vs:
             ns, n = k.split(".", 1)
-            qs = qs.filter(tags__namespace=ns).filter(tags__name=n).filter(tags__value=v)
+            qs = qs.filter(tags__namespace=ns).filter(tags__name=n).filter(
+                tags__value=v
+            )
     return qs
 
 
@@ -28,14 +30,16 @@ def format_entity(entity):
         "account": entity.account,
         "facts": entity.facts or {},
         "tags": tags,
-        "display_name": entity.display_name
+        "display_name": entity.display_name,
     }
 
 
 class EntityDetailView(View):
 
     def get(self, request, namespace, value):
-        qs = BASE_QS.filter(ids__has_key=namespace).filter(ids__contains={namespace: value})
+        qs = BASE_QS.filter(ids__has_key=namespace).filter(
+            ids__contains={namespace: value}
+        )
         qs = add_tag_filter(qs, request)
         entity = qs.get()
         return JsonResponse(format_entity(entity))
@@ -54,26 +58,28 @@ class EntityListView(View):
 
         try:
             entity = Entity.objects.get(
-                    Q(ids__contained_by=doc["ids"]) | Q(ids__contains=doc["ids"]),
-                    account=doc["account"])
+                Q(ids__contained_by=doc["ids"]) | Q(ids__contains=doc["ids"]),
+                account=doc["account"],
+            )
 
             entity.facts.update(doc["facts"])
             entity.ids.update(doc["ids"])
             entity.save()
             return JsonResponse(format_entity(entity))
+
         except Exception:
             entity = Entity.objects.create(
-                        ids=doc["ids"],
-                        account=doc["account"],
-                        facts=doc["facts"],
-                        display_name=doc["display_name"])
+                ids=doc["ids"],
+                account=doc["account"],
+                facts=doc["facts"],
+                display_name=doc["display_name"],
+            )
 
             for tag in doc["tags"]:
-                    t, created = Tag.objects.get_or_create(
-                        namespace=tag["namespace"],
-                        name=tag["name"],
-                        value=tag["value"])
-                    entity.tags.add(t)
+                t, created = Tag.objects.get_or_create(
+                    namespace=tag["namespace"], name=tag["name"], value=tag["value"]
+                )
+                entity.tags.add(t)
 
             entity.save()
             return JsonResponse(format_entity(entity), status=201)

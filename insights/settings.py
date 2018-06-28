@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django_extensions",
-    "inventory"
+    "inventory",
 ]
 
 MIDDLEWARE = [

@@ -19,30 +19,21 @@ def populate(count=100):
             "default": {
                 "hostname": e.display_name.replace("ent", "host"),
                 "product": random.choice(products),
-                "version": random.choice(versions)
+                "version": random.choice(versions),
             }
         }
 
     def make_tags(namespace):
-        t = Tag.objects.create(
-            namespace=namespace,
-            name="fun",
-            value="times"
-        )
+        t = Tag.objects.create(namespace=namespace, name="fun", value="times")
         t.save()
         return t
 
     def make_ids():
-        return {
-            "pmaas": str(uuid.uuid4()),
-            "hccm": str(uuid.uuid4())
-        }
+        return {"pmaas": str(uuid.uuid4()), "hccm": str(uuid.uuid4())}
 
     for x in range(count):
         acct = random.choice(accts)
-        e = Entity.objects.create(
-            account=acct, display_name="ent_%d" % x
-        )
+        e = Entity.objects.create(account=acct, display_name="ent_%d" % x)
         e.facts = make_facts()
         e.tags.add(make_tags(namespace=acct))
         e.ids = make_ids()
