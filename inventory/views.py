@@ -3,6 +3,7 @@ import json
 
 from django.http import JsonResponse
 from django.views.generic.base import View
+from django.db.models import Q
 from inventory.models import Entity, Tag
 
 BASE_QS = Entity.objects.prefetch_related("tags")
@@ -51,14 +52,21 @@ class EntityListView(View):
         if "ids" not in doc or "account" not in doc:
             return JsonResponse({}, status=400)
 
-        entity, created = Entity.objects.get_or_create(
-                ids__contained_by=doc["ids"],
-                account=doc["account"])
+        try:
+            entity = Entity.objects.get(
+                    Q(ids__contained_by=doc["ids"]) | Q(ids__contains=doc["ids"]),
+                    account=doc["account"])
 
-        if created:
-            entity.ids = doc["ids"]
-            entity.facts = doc["facts"]
-            entity.display_name = doc["display_name"]
+            entity.facts.update(doc["facts"])
+            entity.ids.update(doc["ids"])
+            entity.save()
+            return JsonResponse(format_entity(entity))
+        except Exception:
+            entity = Entity(ids=doc["ids"],
+                            account=doc["account"],
+                            facts=doc["facts"],
+                            display_name=doc["display_name"])
+
             for tag in doc["tags"]:
                 entity.tags.add(
                     Tag.objects.get_or_create(
@@ -68,11 +76,6 @@ class EntityListView(View):
 
             entity.save()
             return JsonResponse(format_entity(entity), status=201)
-        else:
-            entity.facts.update(doc["facts"])
-            entity.ids.update(doc["ids"])
-            entity.save()
-            return JsonResponse(format_entity(entity))
 
     def get(self, request, namespace=None):
         entities = BASE_QS
