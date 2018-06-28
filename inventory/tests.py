@@ -16,13 +16,13 @@ NS = "testns"
 ID = "whoabuddy"
 
 
-def test_data(display_name="hi", ids=None):
+def test_data(display_name="hi", ids=None, tags=None, facts=None):
     return {
         "account": "test",
         "display_name": display_name,
         "ids": ids if ids else {NS: ID},
-        "tags": [],
-        "facts": {}
+        "tags": tags if tags else [],
+        "facts": facts if facts else {}
     }
 
 
@@ -69,6 +69,10 @@ class RequestsTest(TestCase):
 
             self.assertEquals(data["facts"]["test2"], "foo")
             self.assertEquals(data["ids"]["test2"], "test2id")
+
+    def test_appends_single_alias_to_multiple_ids(self):
+        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        self.post("/entities/", test_data(facts={"test": "test"}))
 
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
