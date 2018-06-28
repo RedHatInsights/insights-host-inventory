@@ -26,7 +26,7 @@ def test_data(display_name="hi", ids=None, tags=None, facts=None):
     }
 
 
-class RequestsTest(TestCase):
+class HttpTestCase(TestCase):
 
     def setUp(self):
         self.client = MyClient()
@@ -40,6 +40,9 @@ class RequestsTest(TestCase):
     def _response_check(self, response, status):
         self.assertEquals(response.status_code, status)
         return response.json()
+
+
+class RequestsTest(HttpTestCase):
 
     def test_create(self):
         self.post("/entities/", test_data(), 201)
@@ -78,29 +81,6 @@ class RequestsTest(TestCase):
         data = self.post("/entities/", test_data(facts={"test2": "test"}))
         self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
 
-    def test_saves_tags(self):
-        self.post(
-            "/entities/",
-            test_data(tags=[{"namespace": "ns", "name": "test", "value": "testv"}]),
-            201,
-        )
-        data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], {"ns": {"test": "testv"}})
-
-    def test_appends_tags(self):
-        self.post(
-            "/entities/",
-            test_data(tags=[{"namespace": "ns", "name": "test", "value": "testv"}]),
-            201,
-        )
-        self.post(
-            "/entities/",
-            test_data(tags=[{"namespace": "ns", "name": "test2", "value": "test2v"}]),
-        )
-
-        data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], {"ns": {"test": "testv", "test2": "test2v"}})
-
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
         self.post(f"/entities/{NS}", test_data(), 400)
@@ -112,3 +92,30 @@ class RequestsTest(TestCase):
             del post_data[key]
 
             self.post("/entities/", post_data, 400)
+
+
+class TagTest(HttpTestCase):
+    tag_in = {"namespace": "ns", "name": "test", "value": "testv"}
+    tag_out = {"ns": {"test": "testv"}}
+
+    def test_saves_tags(self):
+        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
+        data = self.get(f"/entities/{NS}/{ID}")
+        self.assertEquals(data["tags"], self.tag_out)
+
+    def test_appends_tags(self):
+        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
+        self.post(
+            "/entities/",
+            test_data(tags=[{"namespace": "ns", "name": "test2", "value": "test2v"}]),
+        )
+
+        data = self.get(f"/entities/{NS}/{ID}")
+        self.assertEquals(data["tags"], {"ns": {"test": "testv", "test2": "test2v"}})
+
+    def test_does_not_dupe_tags(self):
+        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
+        self.post("/entities/", test_data(tags=[self.tag_in]))
+
+        data = self.get(f"/entities/{NS}/{ID}")
+        self.assertEquals(data["tags"], self.tag_out)

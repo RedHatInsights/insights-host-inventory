@@ -28,3 +28,10 @@ class Entity(models.Model):
 
     def __str__(self):
         return "[Entity '%s' ids=%s]" % (self.display_name, self.ids)
+
+    def add_tags(self, tags):
+        for tag in tags:
+            t, created = Tag.objects.get_or_create(
+                namespace=tag["namespace"], name=tag["name"], value=tag["value"]
+            )
+            self.tags.add(t)
