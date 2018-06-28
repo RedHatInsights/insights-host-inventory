@@ -45,6 +45,14 @@ class EntityDetailView(View):
         return JsonResponse(format_entity(entity))
 
 
+def add_tags(entity, tags):
+    for tag in tags:
+        t, created = Tag.objects.get_or_create(
+            namespace=tag["namespace"], name=tag["name"], value=tag["value"]
+        )
+        entity.tags.add(t)
+
+
 class EntityListView(View):
 
     def post(self, request, namespace=None):
@@ -64,6 +72,7 @@ class EntityListView(View):
 
             entity.facts.update(doc["facts"])
             entity.ids.update(doc["ids"])
+            add_tags(entity, doc["tags"])
             entity.save()
             return JsonResponse(format_entity(entity))
 
@@ -75,12 +84,7 @@ class EntityListView(View):
                 display_name=doc["display_name"],
             )
 
-            for tag in doc["tags"]:
-                t, created = Tag.objects.get_or_create(
-                    namespace=tag["namespace"], name=tag["name"], value=tag["value"]
-                )
-                entity.tags.add(t)
-
+            add_tags(entity, doc["tags"])
             entity.save()
             return JsonResponse(format_entity(entity), status=201)
 
