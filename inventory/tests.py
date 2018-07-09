@@ -81,6 +81,13 @@ class RequestsTest(HttpTestCase):
         data = self.post("/entities/", test_data(facts={"test2": "test"}))
         self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
 
+    def test_fetch_with_two_ids(self):
+        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        first = self.get(f"/entities/{NS}/{ID}")
+        second = self.get("/entities/foo/bar")
+
+        self.assertEquals(first, second)
+
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
         self.post(f"/entities/{NS}", test_data(), 400)
