@@ -4,9 +4,11 @@ import json
 from django.http import JsonResponse
 from django.views.generic.base import View
 from django.db.models import Q
-from inventory.models import Entity, Tag
+from inventory.models import Entity
 
-BASE_QS = Entity.objects.prefetch_related("tags")
+
+def base_qs():
+    return Entity.objects.prefetch_related("tags")
 
 
 def add_tag_filter(qs, request):
@@ -37,7 +39,7 @@ def format_entity(entity):
 class EntityDetailView(View):
 
     def get(self, request, namespace, value):
-        qs = BASE_QS.filter(ids__has_key=namespace).filter(
+        qs = base_qs().filter(ids__has_key=namespace).filter(
             ids__contains={namespace: value}
         )
         qs = add_tag_filter(qs, request)
@@ -81,7 +83,7 @@ class EntityListView(View):
             return JsonResponse(format_entity(entity), status=201)
 
     def get(self, request, namespace=None):
-        entities = BASE_QS
+        entities = base_qs()
 
         if namespace:
             entities = entities.filter(ids__has_key=namespace)
