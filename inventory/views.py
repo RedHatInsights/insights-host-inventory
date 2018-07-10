@@ -88,4 +88,4 @@ class EntityListView(View):
 
         entities = add_tag_filter(entities, request)
         results = [format_entity(e) for e in entities]
-        return JsonResponse(results)
+        return JsonResponse(results, safe=False)
