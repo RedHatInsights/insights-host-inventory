@@ -16,14 +16,35 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, re_path, include
 from django.conf import settings
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+from dynamic_rest.routers import DynamicRouter
 
 from inventory import views
 
+router = DynamicRouter()
+router.register("entities", views.DynamicEntityViewSet)
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Inventory",
+        default_version="v1",
+        description="Host-based Inventory",
+        contact=openapi.Contact(email="insights@redhat.com")
+    ),
+    # validators=["flex", "ssv"],
+    public=True,
+)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", include(router.urls)),
     path("entities/<str:namespace>", views.EntityListView.as_view()),
     path("entities/<str:namespace>/<str:value>", views.EntityDetailView.as_view()),
     re_path("entities/?", views.EntityListView.as_view()),
+    re_path("^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=None), name="schema-json"),
+    path("swagger/", schema_view.with_ui("swagger", cache_timeout=None), name="schema-swagger-ui")
 ]
 
 if settings.DEBUG:

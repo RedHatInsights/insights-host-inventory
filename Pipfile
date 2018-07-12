@@ -9,6 +9,8 @@ django-extensions = "*"
 gunicorn = "*"
 django = "*"
 "psycopg2" = "*"
+dynamic-rest = "*"
+drf-yasg = "*"
 
 [dev-packages]
 django-debug-toolbar = "*"

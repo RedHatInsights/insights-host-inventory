@@ -4,11 +4,18 @@ import json
 from django.http import JsonResponse
 from django.views.generic.base import View
 from django.db.models import Q
+from dynamic_rest.viewsets import DynamicModelViewSet
 from inventory.models import Entity
-
+from inventory.serializers import EntitySerializer
 
 def base_qs():
     return Entity.objects.prefetch_related("tags")
+
+
+class DynamicEntityViewSet(DynamicModelViewSet):
+    serializer_class = EntitySerializer
+    queryset = Entity.objects.all()
+
 
 
 def add_tag_filter(qs, request):

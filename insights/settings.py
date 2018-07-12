@@ -25,7 +25,7 @@ SECRET_KEY = "bww4f_v05jj*$to3%k7i)ky0^=+radtq+n@e&g!997u+-iz%2x"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not any("KUBERNETES" in k for k in os.environ)
 
-ALLOWED_HOSTS = ["localhost", ".insights.openshiftapps.com"]
+ALLOWED_HOSTS = ["localhost", ".insights.openshiftapps.com", "192.168.1.152"]
 
 INTERNAL_IPS = ["127.0.0.1"]
 
@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "django_extensions",
+    "rest_framework",
+    "dynamic_rest",
+    "drf_yasg",
     "inventory",
 ]
 
@@ -125,3 +128,39 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.environ.get("STATIC_ROOT", "/tmp/static")
+
+DYNAMIC_REST = {
+    # DEBUG: enable/disable internal debugging
+    "DEBUG": False,
+    # ENABLE_BROWSABLE_API: enable/disable the browsable API.
+    # It can be useful to disable it in production.
+    "ENABLE_BROWSABLE_API": True,
+    # ENABLE_LINKS: enable/disable relationship links
+    "ENABLE_LINKS": True,
+    # ENABLE_SERIALIZER_CACHE: enable/disable caching of related serializers
+    "ENABLE_SERIALIZER_CACHE": True,
+    # ENABLE_SERIALIZER_OPTIMIZATIONS: enable/disable representation speedups
+    "ENABLE_SERIALIZER_OPTIMIZATIONS": True,
+    # DEFER_MANY_RELATIONS: automatically defer many-relations, unless
+    # `deferred=False` is explicitly set on the field.
+    "DEFER_MANY_RELATIONS": False,
+    # MAX_PAGE_SIZE: global setting for max page size.
+    # Can be overriden at the viewset level.
+    "MAX_PAGE_SIZE": None,
+    # PAGE_QUERY_PARAM: global setting for the pagination query parameter.
+    # Can be overriden at the viewset level.
+    "PAGE_QUERY_PARAM": "page",
+    # PAGE_SIZE: global setting for page size.
+    # Can be overriden at the viewset level.
+    "PAGE_SIZE": 25,
+    # PAGE_SIZE_QUERY_PARAM: global setting for the page size query parameter.
+    # Can be overriden at the viewset level.
+    "PAGE_SIZE_QUERY_PARAM": "per_page",
+    # ADDITIONAL_PRIMARY_RESOURCE_PREFIX: String to prefix additional
+    # instances of the primary resource when sideloading.
+    "ADDITIONAL_PRIMARY_RESOURCE_PREFIX": "+",
+    # Enables host-relative links.  Only compatible with resources registered
+    # through the dynamic router.  If a resource doesn't have a canonical
+    # path registered, links will default back to being resource-relative urls
+    "ENABLE_HOST_RELATIVE_LINKS": True,
+}
