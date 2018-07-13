@@ -4,4 +4,4 @@ RUN pip install pipenv
 RUN mkdir /code
 WORKDIR /code
 ADD . /code
-RUN pipenv install --python /usr/local/bin/python
+RUN pipenv install --dev --pre --python /usr/local/bin/python
