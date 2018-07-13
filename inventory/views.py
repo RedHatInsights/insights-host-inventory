@@ -8,6 +8,7 @@ from dynamic_rest.viewsets import DynamicModelViewSet
 from inventory.models import Entity
 from inventory.serializers import EntitySerializer
 
+
 def base_qs():
     return Entity.objects.prefetch_related("tags")
 
@@ -17,13 +18,12 @@ class DynamicEntityViewSet(DynamicModelViewSet):
     queryset = Entity.objects.all()
 
 
-
 def add_tag_filter(qs, request):
     for k, vs in request.GET.lists():
         for v in vs:
             ns, n = k.split(".", 1)
-            qs = qs.filter(tags__namespace=ns).filter(tags__name=n).filter(
-                tags__value=v
+            qs = (
+                qs.filter(tags__namespace=ns).filter(tags__name=n).filter(tags__value=v)
             )
     return qs
 
@@ -44,10 +44,11 @@ def format_entity(entity):
 
 
 class EntityDetailView(View):
-
     def get(self, request, namespace, value):
-        qs = base_qs().filter(ids__has_key=namespace).filter(
-            ids__contains={namespace: value}
+        qs = (
+            base_qs()
+            .filter(ids__has_key=namespace)
+            .filter(ids__contains={namespace: value})
         )
         qs = add_tag_filter(qs, request)
         entity = qs.get()
@@ -55,7 +56,6 @@ class EntityDetailView(View):
 
 
 class EntityListView(View):
-
     def post(self, request, namespace=None):
         if namespace:
             return JsonResponse({}, status=400)

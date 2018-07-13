@@ -31,7 +31,7 @@ schema_view = get_schema_view(
         title="Inventory",
         default_version="v1",
         description="Host-based Inventory",
-        contact=openapi.Contact(email="insights@redhat.com")
+        contact=openapi.Contact(email="insights@redhat.com"),
     ),
     # validators=["flex", "ssv"],
     public=True,
@@ -43,8 +43,16 @@ urlpatterns = [
     path("entities/<str:namespace>", views.EntityListView.as_view()),
     path("entities/<str:namespace>/<str:value>", views.EntityDetailView.as_view()),
     re_path("entities/?", views.EntityListView.as_view()),
-    re_path("^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=None), name="schema-json"),
-    path("swagger/", schema_view.with_ui("swagger", cache_timeout=None), name="schema-swagger-ui")
+    re_path(
+        "^swagger(?P<format>\.json|\.yaml)$",
+        schema_view.without_ui(cache_timeout=None),
+        name="schema-json",
+    ),
+    path(
+        "swagger/",
+        schema_view.with_ui("swagger", cache_timeout=None),
+        name="schema-swagger-ui",
+    ),
 ]
 
 if settings.DEBUG:

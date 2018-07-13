@@ -3,7 +3,6 @@ from django.test import Client, TestCase
 
 
 class MyClient(Client):
-
     def post(self, *args, **kwargs):
         if "json" in kwargs:
             kwargs["content_type"] = "application/json"
@@ -27,7 +26,6 @@ def test_data(display_name="hi", ids=None, tags=None, facts=None):
 
 
 class HttpTestCase(TestCase):
-
     def setUp(self):
         self.client = MyClient()
 
@@ -43,7 +41,6 @@ class HttpTestCase(TestCase):
 
 
 class RequestsTest(HttpTestCase):
-
     def test_create(self):
         self.post("/entities/", test_data(), 201)
         data = self.get(f"/entities/{NS}/{ID}")

@@ -15,4 +15,5 @@ class EntitySerializer(DynamicModelSerializer):
         model = Entity
         name = "entity"
         fields = ("ids", "facts", "tags", "display_name")
-    tags = DynamicRelationField('TagSerializer', many=True)
+
+    tags = DynamicRelationField("TagSerializer", many=True)

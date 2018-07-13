@@ -24,7 +24,7 @@ class Entity(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["account"])]
-        ordering = ['id']
+        ordering = ["id"]
 
     def __str__(self):
         return "[Entity '%s' ids=%s]" % (self.display_name, self.ids)
