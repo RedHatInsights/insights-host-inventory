@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 
+import logging.config
 import os
+
+from logstash_formatter import LogstashFormatterV1
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -128,6 +131,39 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.environ.get("STATIC_ROOT", "/tmp/static")
+
+# Logging
+# Not sure if we want to disable base django logging or not yet
+LOGGING_CONFIG = None
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "logstash": {"()": LogstashFormatterV1},
+            "default": {
+                "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default" if DEBUG else "logstash",
+            }
+        },
+        "loggers": {
+            "inventory": {
+                "handlers": ["console"],
+                "level": "DEBUG" if DEBUG else "INFO",
+            },
+            "django": {
+                "handlers": ["console"],
+                "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            },
+        },
+    }
+)
+
 
 DYNAMIC_REST = {
     # DEBUG: enable/disable internal debugging

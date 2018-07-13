@@ -11,10 +11,12 @@ django = "*"
 "psycopg2" = "*"
 dynamic-rest = "*"
 drf-yasg = "*"
+logstash-formatter = "*"
 
 [dev-packages]
 django-debug-toolbar = "*"
 "flake8" = "*"
+black = "*"
 
 [requires]
 python_version = "3.6"
