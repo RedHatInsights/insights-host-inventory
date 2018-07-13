@@ -18,13 +18,17 @@ class DynamicEntityViewSet(DynamicModelViewSet):
     queryset = Entity.objects.all()
 
 
-def add_tag_filter(qs, request):
+def apply_filters(qs, request):
     for k, vs in request.GET.lists():
-        for v in vs:
+        if k == "account":
+            for v in vs:
+                qs = qs.filter(account=v)
+        else:
             ns, n = k.split(".", 1)
-            qs = (
-                qs.filter(tags__namespace=ns).filter(tags__name=n).filter(tags__value=v)
-            )
+            for v in vs:
+                qs = (
+                    qs.filter(tags__namespace=ns).filter(tags__name=n).filter(tags__value=v)
+                )
     return qs
 
 
@@ -50,7 +54,7 @@ class EntityDetailView(View):
             .filter(ids__has_key=namespace)
             .filter(ids__contains={namespace: value})
         )
-        qs = add_tag_filter(qs, request)
+        qs = apply_filters(qs, request)
         entity = qs.get()
         return JsonResponse(format_entity(entity))
 
@@ -95,6 +99,6 @@ class EntityListView(View):
         if namespace:
             entities = entities.filter(ids__has_key=namespace)
 
-        entities = add_tag_filter(entities, request)
+        entities = apply_filters(entities, request)
         results = [format_entity(e) for e in entities]
         return JsonResponse(results, safe=False)
