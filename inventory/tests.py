@@ -45,52 +45,52 @@ class HttpTestCase(TestCase):
 class RequestsTest(HttpTestCase):
 
     def test_create(self):
-        self.post("/entities/", test_data(), 201)
-        data = self.get(f"/entities/{NS}/{ID}")
+        self.post("/assets/", test_data(), 201)
+        data = self.get(f"/assets/{NS}/{ID}")
 
         self.assertEquals(data["account"], test_data()["account"])
         self.assertEquals(data["display_name"], test_data()["display_name"])
 
     def test_append(self):
         # initial create
-        self.post("/entities/", test_data(), 201)
+        self.post("/assets/", test_data(), 201)
 
         post_data = test_data()
         post_data["facts"]["test2"] = "foo"
         post_data["ids"]["test2"] = "test2id"
 
-        # update initial entity
-        data = self.post("/entities/", post_data)
+        # update initial asset
+        data = self.post("/assets/", post_data)
 
         self.assertEquals(data["facts"]["test2"], "foo")
         self.assertEquals(data["ids"]["test2"], "test2id")
 
-        # fetch same entity and validate merged data
+        # fetch same asset and validate merged data
         for ns, id_ in [(NS, ID), ("test2", "test2id")]:
-            data = self.get(f"/entities/{ns}/{id_}")
+            data = self.get(f"/assets/{ns}/{id_}")
 
             self.assertEquals(data["facts"]["test2"], "foo")
             self.assertEquals(data["ids"]["test2"], "test2id")
 
     def test_appends_single_alias_to_multiple_ids(self):
-        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
-        self.post("/entities/", test_data(facts={"test": "test"}))
+        self.post("/assets/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        self.post("/assets/", test_data(facts={"test": "test"}))
 
     def test_keeps_facts_namespaced(self):
-        self.post("/entities/", test_data(facts={"test": "test"}), 201)
-        data = self.post("/entities/", test_data(facts={"test2": "test"}))
+        self.post("/assets/", test_data(facts={"test": "test"}), 201)
+        data = self.post("/assets/", test_data(facts={"test2": "test"}))
         self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
 
     def test_fetch_with_two_ids(self):
-        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
-        first = self.get(f"/entities/{NS}/{ID}")
-        second = self.get("/entities/foo/bar")
+        self.post("/assets/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        first = self.get(f"/assets/{NS}/{ID}")
+        second = self.get("/assets/foo/bar")
 
         self.assertEquals(first, second)
 
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
-        self.post(f"/entities/{NS}", test_data(), 400)
+        self.post(f"/assets/{NS}", test_data(), 400)
 
     def test_missing_post_data(self):
         """Validate missing "ids" or "account" in post data fails the request"""
@@ -98,7 +98,7 @@ class RequestsTest(HttpTestCase):
             post_data = test_data()
             del post_data[key]
 
-            self.post("/entities/", post_data, 400)
+            self.post("/assets/", post_data, 400)
 
 
 class TagTest(HttpTestCase):
@@ -106,23 +106,23 @@ class TagTest(HttpTestCase):
     tag_out = {"ns": {"test": "testv"}}
 
     def test_saves_tags(self):
-        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
-        data = self.get(f"/entities/{NS}/{ID}")
+        self.post("/assets/", test_data(tags=[self.tag_in]), 201)
+        data = self.get(f"/assets/{NS}/{ID}")
         self.assertEquals(data["tags"], self.tag_out)
 
     def test_appends_tags(self):
-        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
+        self.post("/assets/", test_data(tags=[self.tag_in]), 201)
         self.post(
-            "/entities/",
+            "/assets/",
             test_data(tags=[{"namespace": "ns", "name": "test2", "value": "test2v"}]),
         )
 
-        data = self.get(f"/entities/{NS}/{ID}")
+        data = self.get(f"/assets/{NS}/{ID}")
         self.assertEquals(data["tags"], {"ns": {"test": "testv", "test2": "test2v"}})
 
     def test_does_not_dupe_tags(self):
-        self.post("/entities/", test_data(tags=[self.tag_in]), 201)
-        self.post("/entities/", test_data(tags=[self.tag_in]))
+        self.post("/assets/", test_data(tags=[self.tag_in]), 201)
+        self.post("/assets/", test_data(tags=[self.tag_in]))
 
-        data = self.get(f"/entities/{NS}/{ID}")
+        data = self.get(f"/assets/{NS}/{ID}")
         self.assertEquals(data["tags"], self.tag_out)

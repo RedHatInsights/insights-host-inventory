@@ -4,11 +4,11 @@ import json
 from django.http import JsonResponse
 from django.views.generic.base import View
 from django.db.models import Q
-from inventory.models import Entity
+from inventory.models import Asset
 
 
 def base_qs():
-    return Entity.objects.prefetch_related("tags")
+    return Asset.objects.prefetch_related("tags")
 
 
 def add_tag_filter(qs, request):
@@ -21,33 +21,33 @@ def add_tag_filter(qs, request):
     return qs
 
 
-def format_entity(entity):
+def format_asset(asset):
     tags = defaultdict(dict)
-    for t in entity.tags.all():
+    for t in asset.tags.all():
         tags[t.namespace][t.name] = t.value
 
     return {
-        "id": entity.id,
-        "ids": entity.ids or {},
-        "account": entity.account,
-        "facts": entity.facts or {},
+        "id": asset.id,
+        "ids": asset.ids or {},
+        "account": asset.account,
+        "facts": asset.facts or {},
         "tags": tags,
-        "display_name": entity.display_name,
+        "display_name": asset.display_name,
     }
 
 
-class EntityDetailView(View):
+class AssetDetailView(View):
 
     def get(self, request, namespace, value):
         qs = base_qs().filter(ids__has_key=namespace).filter(
             ids__contains={namespace: value}
         )
         qs = add_tag_filter(qs, request)
-        entity = qs.get()
-        return JsonResponse(format_entity(entity))
+        asset = qs.get()
+        return JsonResponse(format_asset(asset))
 
 
-class EntityListView(View):
+class AssetListView(View):
 
     def post(self, request, namespace=None):
         if namespace:
@@ -59,35 +59,35 @@ class EntityListView(View):
             return JsonResponse({}, status=400)
 
         try:
-            entity = Entity.objects.get(
+            asset = Asset.objects.get(
                 Q(ids__contained_by=doc["ids"]) | Q(ids__contains=doc["ids"]),
                 account=doc["account"],
             )
 
-            entity.facts.update(doc["facts"])
-            entity.ids.update(doc["ids"])
-            entity.add_tags(doc["tags"])
-            entity.save()
-            return JsonResponse(format_entity(entity))
+            asset.facts.update(doc["facts"])
+            asset.ids.update(doc["ids"])
+            asset.add_tags(doc["tags"])
+            asset.save()
+            return JsonResponse(format_asset(asset))
 
         except Exception:
-            entity = Entity.objects.create(
+            asset = Asset.objects.create(
                 ids=doc["ids"],
                 account=doc["account"],
                 facts=doc["facts"],
                 display_name=doc["display_name"],
             )
 
-            entity.add_tags(doc["tags"])
-            entity.save()
-            return JsonResponse(format_entity(entity), status=201)
+            asset.add_tags(doc["tags"])
+            asset.save()
+            return JsonResponse(format_asset(asset), status=201)
 
     def get(self, request, namespace=None):
-        entities = base_qs()
+        assets = base_qs()
 
         if namespace:
-            entities = entities.filter(ids__has_key=namespace)
+            assets = assets.filter(ids__has_key=namespace)
 
-        entities = add_tag_filter(entities, request)
-        results = [format_entity(e) for e in entities]
+        assets = add_tag_filter(assets, request)
+        results = [format_asset(e) for e in assets]
         return JsonResponse(results, safe=False)

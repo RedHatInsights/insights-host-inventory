@@ -21,9 +21,9 @@ from inventory import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("entities/<str:namespace>", views.EntityListView.as_view()),
-    path("entities/<str:namespace>/<str:value>", views.EntityDetailView.as_view()),
-    re_path("entities/?", views.EntityListView.as_view()),
+    path("assets/<str:namespace>", views.AssetListView.as_view()),
+    path("assets/<str:namespace>/<str:value>", views.AssetDetailView.as_view()),
+    re_path("assets/?", views.AssetListView.as_view()),
 ]
 
 if settings.DEBUG:
