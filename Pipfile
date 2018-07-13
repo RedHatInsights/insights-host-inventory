@@ -4,19 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-Django = "==2.0.4"
+Django = "*"
 django-extensions = "*"
 gunicorn = "*"
-django = "*"
 "psycopg2" = "*"
 dynamic-rest = "*"
 drf-yasg = "*"
-logstash-formatter = "*"
+logstash_formatter = "*"
 
 [dev-packages]
 django-debug-toolbar = "*"
 "flake8" = "*"
 black = "*"
-
-[requires]
-python_version = "3.6"
