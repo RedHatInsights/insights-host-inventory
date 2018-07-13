@@ -13,7 +13,7 @@ class Tag(models.Model):
         return "%s/%s=%s" % (self.namespace, self.name, self.value)
 
 
-class Entity(models.Model):
+class Asset(models.Model):
     account = models.CharField(max_length=10)
     display_name = models.CharField(max_length=200)
     created_on = models.DateTimeField(auto_now_add=True)
@@ -27,7 +27,7 @@ class Entity(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return "[Entity '%s' ids=%s]" % (self.display_name, self.ids)
+        return "[Asset '%s' ids=%s]" % (self.display_name, self.ids)
 
     def add_tags(self, tags):
         for tag in tags:
