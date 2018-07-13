@@ -7,7 +7,7 @@ class TagSerializer(DynamicModelSerializer):
     class Meta:
         model = Tag
         name = "tag"
-        fields = ("namespace", "name", "value")
+        fields = ("id", "namespace", "name", "value")
 
 
 class EntitySerializer(DynamicModelSerializer):
