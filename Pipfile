@@ -15,7 +15,4 @@ logstash_formatter = "*"
 [dev-packages]
 django-debug-toolbar = "*"
 "flake8" = "*"
-black = "*"
-
-[pipenv]
-allow_prereleases = true
+black = "==18.6b4"
