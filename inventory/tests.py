@@ -15,11 +15,11 @@ NS = "testns"
 ID = "whoabuddy"
 
 
-def test_data(display_name="hi", ids=None, tags=None, facts=None):
+def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
         "account": "test",
         "display_name": display_name,
-        "ids": ids if ids else {NS: ID},
+        "canonical_facts": canonical_facts if canonical_facts else {NS: ID},
         "tags": tags if tags else [],
         "facts": facts if facts else {},
     }
@@ -54,23 +54,23 @@ class RequestsTest(HttpTestCase):
 
         post_data = test_data()
         post_data["facts"]["test2"] = "foo"
-        post_data["ids"]["test2"] = "test2id"
+        post_data["canonical_facts"]["test2"] = "test2id"
 
         # update initial entity
         data = self.post("/entities/", post_data)
 
         self.assertEquals(data["facts"]["test2"], "foo")
-        self.assertEquals(data["ids"]["test2"], "test2id")
+        self.assertEquals(data["canonical_facts"]["test2"], "test2id")
 
         # fetch same entity and validate merged data
         for ns, id_ in [(NS, ID), ("test2", "test2id")]:
             data = self.get(f"/entities/{ns}/{id_}")
 
             self.assertEquals(data["facts"]["test2"], "foo")
-            self.assertEquals(data["ids"]["test2"], "test2id")
+            self.assertEquals(data["canonical_facts"]["test2"], "test2id")
 
     def test_appends_single_alias_to_multiple_ids(self):
-        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        self.post("/entities/", test_data(canonical_facts={NS: ID, "foo": "bar"}), 201)
         self.post("/entities/", test_data(facts={"test": "test"}))
 
     def test_keeps_facts_namespaced(self):
@@ -79,7 +79,7 @@ class RequestsTest(HttpTestCase):
         self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
 
     def test_fetch_with_two_ids(self):
-        self.post("/entities/", test_data(ids={NS: ID, "foo": "bar"}), 201)
+        self.post("/entities/", test_data(canonical_facts={NS: ID, "foo": "bar"}), 201)
         first = self.get(f"/entities/{NS}/{ID}")
         second = self.get("/entities/foo/bar")
 
@@ -90,8 +90,8 @@ class RequestsTest(HttpTestCase):
         self.post(f"/entities/{NS}", test_data(), 400)
 
     def test_missing_post_data(self):
-        """Validate missing "ids" or "account" in post data fails the request"""
-        for key in ("ids", "account"):
+        """Validate missing "canonical_facts" or "account" in post data fails the request"""
+        for key in ("canonical_facts", "account"):
             post_data = test_data()
             del post_data[key]
 

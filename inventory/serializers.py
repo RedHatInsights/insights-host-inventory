@@ -14,6 +14,6 @@ class EntitySerializer(DynamicModelSerializer):
     class Meta:
         model = Entity
         name = "entity"
-        fields = ("ids", "facts", "tags", "display_name", "account")
+        fields = ("canonical_facts", "facts", "tags", "display_name", "account")
 
     tags = DynamicRelationField("TagSerializer", many=True)

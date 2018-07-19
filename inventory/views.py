@@ -39,7 +39,7 @@ def format_entity(entity):
 
     return {
         "id": entity.id,
-        "ids": entity.ids or {},
+        "canonical_facts": entity.canonical_facts or {},
         "account": entity.account,
         "facts": entity.facts or {},
         "tags": tags,
@@ -51,12 +51,15 @@ class EntityDetailView(View):
     def get(self, request, namespace, value):
         qs = (
             base_qs()
-            .filter(ids__has_key=namespace)
-            .filter(ids__contains={namespace: value})
+            .filter(canonical_facts__has_key=namespace)
+            .filter(canonical_facts__contains={namespace: value})
         )
         qs = apply_filters(qs, request)
         entity = qs.get()
         return JsonResponse(format_entity(entity))
+
+
+REQUIRED_FIELDS = set(["canonical_facts", "account", "facts", "tags", "display_name"])
 
 
 class EntityListView(View):
@@ -66,24 +69,27 @@ class EntityListView(View):
 
         doc = json.loads(request.body)
 
-        if "ids" not in doc or "account" not in doc:
-            return JsonResponse({}, status=400)
+        missing_fields = REQUIRED_FIELDS - set(doc.keys())
+
+        if missing_fields:
+            return JsonResponse({"missing": list(missing_fields)}, status=400)
+
+        cf = doc["canonical_facts"]
 
         try:
             entity = Entity.objects.get(
-                Q(ids__contained_by=doc["ids"]) | Q(ids__contains=doc["ids"]),
+                Q(canonical_facts__contained_by=cf) | Q(canonical_facts__contains=cf),
                 account=doc["account"],
             )
 
             entity.facts.update(doc["facts"])
-            entity.ids.update(doc["ids"])
+            entity.canonical_facts.update(cf)
             entity.add_tags(doc["tags"])
             entity.save()
             return JsonResponse(format_entity(entity))
-
         except Exception:
             entity = Entity.objects.create(
-                ids=doc["ids"],
+                canonical_facts=cf,
                 account=doc["account"],
                 facts=doc["facts"],
                 display_name=doc["display_name"],
@@ -97,7 +103,7 @@ class EntityListView(View):
         entities = base_qs()
 
         if namespace:
-            entities = entities.filter(ids__has_key=namespace)
+            entities = entities.filter(canonical_facts__has_key=namespace)
 
         entities = apply_filters(entities, request)
         results = [format_entity(e) for e in entities]

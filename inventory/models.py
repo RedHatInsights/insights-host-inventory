@@ -20,14 +20,15 @@ class Entity(models.Model):
     modified_on = models.DateTimeField(auto_now=True)
     facts = JSONField(null=True)
     tags = models.ManyToManyField(Tag, related_name="tags")
-    ids = JSONField(null=True)
+    canonical_facts = JSONField(null=True)
 
     class Meta:
         indexes = [models.Index(fields=["account"])]
         ordering = ["id"]
 
     def __str__(self):
-        return "[Entity '%s' ids=%s]" % (self.display_name, self.ids)
+        tmpl = "[Entity '%s' canonical_facts=%s]"
+        return tmpl % (self.display_name, self.canonical_facts)
 
     def add_tags(self, tags):
         for tag in tags:

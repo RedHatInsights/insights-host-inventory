@@ -29,15 +29,15 @@ def populate(count=100):
         return t
 
     def make_ids():
-        return {"pmaas": str(uuid.uuid4()), "hccm": str(uuid.uuid4())}
+        return {"pmaas_id": str(uuid.uuid4()), "hccm_id": str(uuid.uuid4())}
 
     for x in range(count):
         acct = random.choice(accts)
         e = Entity.objects.create(account=acct, display_name="ent_%d" % x)
         e.facts = make_facts()
         e.tags.add(make_tags(namespace=acct))
-        e.ids = make_ids()
-        print(e.ids["pmaas"])
+        e.canonical_facts = make_ids()
+        print(e.canonical_facts["pmaas"])
         e.save()
 
 
