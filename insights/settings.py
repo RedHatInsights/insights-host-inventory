@@ -28,7 +28,7 @@ SECRET_KEY = "bww4f_v05jj*$to3%k7i)ky0^=+radtq+n@e&g!997u+-iz%2x"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not any("KUBERNETES" in k for k in os.environ)
 
-ALLOWED_HOSTS = ["localhost", ".insights.openshiftapps.com", "192.168.1.152"]
+ALLOWED_HOSTS = ["localhost", ".insights.openshiftapps.com", ".svc.cluster.local", "insights-inventory"]
 
 INTERNAL_IPS = ["127.0.0.1"]
 
