@@ -36,7 +36,7 @@ class HttpTestCase(TestCase):
         return self._response_check(self.client.post(path, json=json), status)
 
     def _response_check(self, response, status):
-        self.assertEqual(response.status_code, status)
+        self.assertEqual(response.status_code, status, response.content.decode("utf-8"))
         return response.json()
 
 
