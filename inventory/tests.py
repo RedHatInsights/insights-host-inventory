@@ -36,7 +36,7 @@ class HttpTestCase(TestCase):
         return self._response_check(self.client.post(path, json=json), status)
 
     def _response_check(self, response, status):
-        self.assertEquals(response.status_code, status)
+        self.assertEqual(response.status_code, status)
         return response.json()
 
 
@@ -45,8 +45,8 @@ class RequestsTest(HttpTestCase):
         self.post("/entities/", test_data(), 201)
         data = self.get(f"/entities/{NS}/{ID}")
 
-        self.assertEquals(data["account"], test_data()["account"])
-        self.assertEquals(data["display_name"], test_data()["display_name"])
+        self.assertEqual(data["account"], test_data()["account"])
+        self.assertEqual(data["display_name"], test_data()["display_name"])
 
     def test_append(self):
         # initial create
@@ -59,15 +59,15 @@ class RequestsTest(HttpTestCase):
         # update initial entity
         data = self.post("/entities/", post_data)
 
-        self.assertEquals(data["facts"]["test2"], "foo")
-        self.assertEquals(data["canonical_facts"]["test2"], "test2id")
+        self.assertEqual(data["facts"]["test2"], "foo")
+        self.assertEqual(data["canonical_facts"]["test2"], "test2id")
 
         # fetch same entity and validate merged data
         for ns, id_ in [(NS, ID), ("test2", "test2id")]:
             data = self.get(f"/entities/{ns}/{id_}")
 
-            self.assertEquals(data["facts"]["test2"], "foo")
-            self.assertEquals(data["canonical_facts"]["test2"], "test2id")
+            self.assertEqual(data["facts"]["test2"], "foo")
+            self.assertEqual(data["canonical_facts"]["test2"], "test2id")
 
     def test_appends_single_alias_to_multiple_ids(self):
         self.post("/entities/", test_data(canonical_facts={NS: ID, "foo": "bar"}), 201)
@@ -76,14 +76,14 @@ class RequestsTest(HttpTestCase):
     def test_keeps_facts_namespaced(self):
         self.post("/entities/", test_data(facts={"test": "test"}), 201)
         data = self.post("/entities/", test_data(facts={"test2": "test"}))
-        self.assertEquals(data["facts"], {"test": "test", "test2": "test"})
+        self.assertEqual(data["facts"], {"test": "test", "test2": "test"})
 
     def test_fetch_with_two_ids(self):
         self.post("/entities/", test_data(canonical_facts={NS: ID, "foo": "bar"}), 201)
         first = self.get(f"/entities/{NS}/{ID}")
         second = self.get("/entities/foo/bar")
 
-        self.assertEquals(first, second)
+        self.assertEqual(first, second)
 
     def test_namespace_in_post(self):
         """Cannot post to endpoint with namespace in path"""
@@ -105,7 +105,7 @@ class TagTest(HttpTestCase):
     def test_saves_tags(self):
         self.post("/entities/", test_data(tags=[self.tag_in]), 201)
         data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], self.tag_out)
+        self.assertEqual(data["tags"], self.tag_out)
 
     def test_appends_tags(self):
         self.post("/entities/", test_data(tags=[self.tag_in]), 201)
@@ -115,11 +115,11 @@ class TagTest(HttpTestCase):
         )
 
         data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], {"ns": {"test": "testv", "test2": "test2v"}})
+        self.assertEqual(data["tags"], {"ns": {"test": "testv", "test2": "test2v"}})
 
     def test_does_not_dupe_tags(self):
         self.post("/entities/", test_data(tags=[self.tag_in]), 201)
         self.post("/entities/", test_data(tags=[self.tag_in]))
 
         data = self.get(f"/entities/{NS}/{ID}")
-        self.assertEquals(data["tags"], self.tag_out)
+        self.assertEqual(data["tags"], self.tag_out)
