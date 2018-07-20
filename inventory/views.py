@@ -91,7 +91,7 @@ class EntityListView(View):
 
             entity.facts.update(doc["facts"])
             entity.canonical_facts.update(cf)
-            entity.add_tags(doc["tags"])
+            entity.add_tags(doc["tags"])  # TODO: How to remove tags?
             entity.save()
             return JsonResponse(format_entity(entity))
         except Exception:

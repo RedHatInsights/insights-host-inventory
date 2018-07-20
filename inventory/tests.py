@@ -97,6 +97,17 @@ class RequestsTest(HttpTestCase):
 
             self.post("/entities/", post_data, 400)
 
+    def test_unicode_post(self):
+        smiley = u"\U0001f600"  # smiley face emoji
+        post_data = test_data(display_name=smiley)
+        self.post("/entities/", post_data, 201)
+        post_data["canonical_facts"]["advisor"] = smiley
+        self.post("/entities/", post_data, 200)
+        post_data = test_data(tags=[{"namespace": "a", "name": "t", "value": smiley}])
+        self.post("/entities/", post_data, 200)
+        post_data = test_data(facts={"advisor": smiley})
+        self.post("/entities/", post_data, 200)
+
 
 class TagTest(HttpTestCase):
     tag_in = {"namespace": "ns", "name": "test", "value": "testv"}
