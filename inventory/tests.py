@@ -91,7 +91,7 @@ class RequestsTest(HttpTestCase):
 
     def test_missing_post_data(self):
         """Validate missing "canonical_facts" or "account" in post data fails the request"""
-        for key in ("canonical_facts", "account"):
+        for key in ("canonical_facts", "account", "facts", "tags", "display_name"):
             post_data = test_data()
             del post_data[key]
 
