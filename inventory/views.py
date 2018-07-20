@@ -72,7 +72,14 @@ class EntityListView(View):
         missing_fields = REQUIRED_FIELDS - set(doc.keys())
 
         if missing_fields:
-            return JsonResponse({"missing": list(missing_fields)}, status=400)
+            return JsonResponse({"error": f"missing {list(missing_fields)}"}, status=400)
+
+        if doc.get("tags") and type(doc["tags"]) != list:
+            return JsonResponse({"error": "tags must be a list"}, status=400)
+
+        for tag in doc["tags"]:
+            if any(k not in tag for k in ("namespace", "name", "value")):
+                return JsonResponse({"error": f"invalid tag spec: {tag}"}, status=400)
 
         cf = doc["canonical_facts"]
 
