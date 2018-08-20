@@ -28,10 +28,11 @@ SECRET_KEY = "bww4f_v05jj*$to3%k7i)ky0^=+radtq+n@e&g!997u+-iz%2x"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not any("KUBERNETES" in k for k in os.environ)
 
-ALLOWED_HOSTS = [
-    "localhost", ".insights.openshiftapps.com", ".svc.cluster.local",
-    "insights-inventory", ".lab.eng.rdu2.redhat.com"
-]
+_DEFAULT_ALLOWED_HOSTS = ",".join([
+    "localhost", ".insights.openshiftapps.com", ".svc.cluster.local", "insights-inventory"
+])
+
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", _DEFAULT_ALLOWED_HOSTS).split(",")
 
 INTERNAL_IPS = ["127.0.0.1"]
 
