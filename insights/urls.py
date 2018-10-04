@@ -19,12 +19,12 @@ from django.conf import settings
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from dynamic_rest.routers import DynamicRouter
+from rest_framework.routers import DefaultRouter
 
 from inventory import views
 
-router = DynamicRouter()
-router.register("entities", views.DynamicEntityViewSet)
+router = DefaultRouter()
+router.register("hosts", views.HostViewSet)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -40,9 +40,6 @@ schema_view = get_schema_view(
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
-    path("entities/<str:namespace>", views.EntityListView.as_view()),
-    path("entities/<str:namespace>/<str:value>", views.EntityDetailView.as_view()),
-    re_path("entities/?", views.EntityListView.as_view()),
     re_path(
         "^swagger(?P<format>\.json|\.yaml)$",
         schema_view.without_ui(cache_timeout=None),
