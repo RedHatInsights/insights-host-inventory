@@ -28,9 +28,15 @@ SECRET_KEY = "bww4f_v05jj*$to3%k7i)ky0^=+radtq+n@e&g!997u+-iz%2x"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not any("KUBERNETES" in k for k in os.environ)
 
-_DEFAULT_ALLOWED_HOSTS = ",".join([
-    "localhost", ".insights.openshiftapps.com", ".svc.cluster.local", "insights-inventory"
-])
+_DEFAULT_ALLOWED_HOSTS = ",".join(
+    [
+        "localhost",
+        ".insights.openshiftapps.com",
+        ".svc.cluster.local",
+        "insights-inventory",
+        ".compute-1.amazonaws.com",
+    ]
+)
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", _DEFAULT_ALLOWED_HOSTS).split(",")
 
@@ -166,3 +172,9 @@ logging.config.dictConfig(
         },
     }
 )
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 100,
+}

@@ -8,7 +8,6 @@ Django = "*"
 django-extensions = "*"
 gunicorn = "*"
 "psycopg2" = "*"
-dynamic-rest = "*"
 drf-yasg = "*"
 logstash_formatter = "*"
 
