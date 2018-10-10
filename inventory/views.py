@@ -1,8 +1,12 @@
 from django.db.models import Q
+from logging import getLogger
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from inventory.models import Host
 from inventory.serializers import HostSerializer
+
+
+logger = getLogger(__name__)
 
 
 class HostViewSet(viewsets.ModelViewSet):
@@ -21,7 +25,7 @@ class HostViewSet(viewsets.ModelViewSet):
                 account=serializer.validated_data["account"],
             )
 
-            print(found_host)
+            logger.info(found_host)
 
             found_host.canonical_facts.update(cf)
             found_host.facts.update(serializer.validated_data.get("facts", {}))
@@ -33,7 +37,7 @@ class HostViewSet(viewsets.ModelViewSet):
             )
 
         except Exception as e:
-            print(f"Couldn't find the {cf}, creating: {e}")
+            logger.info(f"Couldn't find the {cf}, creating: {e}")
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.validated_data)
             return Response(
