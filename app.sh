@@ -40,4 +40,4 @@ export WEB_CONCURRENCY=${WEB_CONCURRENCY:-$(get_default_web_concurrency)}
 echo "Web concurrency is $WEB_CONCURRENCY"
 
 echo "---> Serving application with gunicorn ($APP_MODULE) ..."
-exec gunicorn "$APP_MODULE" --bind=0.0.0.0:${GUNICORN_PORT:-8080} --access-logfile=- --config "$APP_CONFIG"
+exec gunicorn "insights.wsgi" --bind=0.0.0.0:${GUNICORN_PORT:-8080} --access-logfile=- --config "$APP_CONFIG"

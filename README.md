@@ -4,17 +4,13 @@ This project is the home of the host-based inventory for the Insights Platform.
 
 ## Getting Started
 
-This project uses pipenv to manage the development and deployment environments.
-To set the project up for development do the following:
+This project uses pip and venv to manage the development and deployment
+environments.  To set the project up for development do the following:
 
 ```
-pipenv install --dev
-```
-
-Afterwards you can activate the virtual environment by running:
-
-```
-pipenv shell
+python -m venv .
+. bin/activate
+pip install -e .[develop]
 ```
 
 Also provided are a couple of docker-compose configurations.  The default will
