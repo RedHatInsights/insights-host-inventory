@@ -6,6 +6,3 @@ pip-selfcheck.json
 pyvenv.cfg
 .python-version
 tags
-.pytest_cache/
-*.egg-info
-lib64

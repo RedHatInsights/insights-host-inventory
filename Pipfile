@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+Django = "*"
+django-extensions = "*"
+gunicorn = "*"
+"psycopg2" = "*"
+drf-yasg = "*"
+logstash_formatter = "*"
+
+[dev-packages]
+django-debug-toolbar = "*"
+"flake8" = "*"
+black = "==18.6b4"
