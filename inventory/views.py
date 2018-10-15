@@ -1,11 +1,12 @@
 from django.db.models import Q
-from rest_framework import viewsets, status
+from rest_framework import status
 from rest_framework.response import Response
 from inventory.models import Host
 from inventory.serializers import HostSerializer
+from dynamic_rest.viewsets import DynamicModelViewSet
 
 
-class HostViewSet(viewsets.ModelViewSet):
+class HostViewSet(DynamicModelViewSet):
     serializer_class = HostSerializer
     queryset = Host.objects.all()
 
