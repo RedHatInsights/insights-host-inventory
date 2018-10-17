@@ -10,8 +10,10 @@ gunicorn = "*"
 "psycopg2" = "*"
 drf-yasg = "*"
 logstash_formatter = "*"
+dynamic-rest = "*"
 
 [dev-packages]
+pip = "==18.0"
 django-debug-toolbar = "*"
 "flake8" = "*"
 black = "==18.6b4"
