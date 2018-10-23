@@ -71,6 +71,8 @@ MIDDLEWARE = [
 if DEBUG:
     INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+    # Must be at least before clickjacking.
+    MIDDLEWARE.insert(0, "inventory.auth.header_auth_middleware")
 
 ROOT_URLCONF = "insights.urls"
 
