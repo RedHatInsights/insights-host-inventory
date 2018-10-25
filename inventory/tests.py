@@ -1,6 +1,13 @@
 # import json
+from base64 import b64encode
 from rest_framework.test import APIClient
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
+from inventory.auth.identity import from_dict,\
+                                    from_http_header,\
+                                    from_json,\
+                                    Identity,\
+                                    validate
+from json import dumps
 
 
 NS = "testns"
@@ -69,9 +76,59 @@ class RequestsTest(HttpTestCase):
         #     self.assertEqual(data["canonical_facts"]["test2"], "test2id")
 
 
-class AuthTest(HttpTestCase):
+class AuthRequestsTest(HttpTestCase):
     def test_unauthorized(self):
         self.get("/api/", 403)
 
     def test_authorized(self):
         self.get("/api/", 200, HTTP_X_RH_IDENTITY="something")
+
+
+class AuthIdentityTest(SimpleTestCase):
+    identity = Identity(account_number="some number", org_id="some org id")
+
+    def test_from_dict(self):
+        """
+        Initialize the Identity object with a dictionary.
+        """
+        dict_ = {"account_number": self.identity.account_number,
+                 "org_id": self.identity.org_id}
+        identity = from_dict(dict_)
+        self.assertEqual(identity, self.identity)
+
+    def test_from_json(self):
+        """
+        Initialize the Identity object with a JSON string.
+        """
+        dict_ = self.identity._asdict()
+        json = dumps(dict_)
+        identity = from_json(json)
+        self.assertEqual(identity, self.identity)
+
+    def test_from_http_header(self):
+        """
+        Initialize the Identity object with a raw HTTP header value –
+        a base64-encoded JSON.
+        """
+        dict_ = self.identity._asdict()
+        json = dumps(dict_)
+        base64 = b64encode(json.encode())
+        identity = from_http_header(base64)
+        self.assertEqual(identity, self.identity)
+
+    def test_validate_valid(self):
+        try:
+            validate(self.identity)
+        except ValueError:
+            self.fail()
+
+    def test_validate_invalid(self):
+        identities = [
+            Identity(account_number=None, org_id=None),
+            Identity(account_number=None, org_id="some org_id"),
+            Identity(account_number="some account_number", org_id=None)
+        ]
+        for identity in identities:
+            with self.subTest(auth_data=identity):
+                with self.assertRaises(ValueError):
+                    validate(identity)
