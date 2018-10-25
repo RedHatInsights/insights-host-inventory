@@ -1,6 +1,9 @@
 # import json
 from rest_framework.test import APIClient
-from django.test import TestCase
+from django.http import JsonResponse, HttpResponseForbidden
+from django.test import SimpleTestCase, TestCase
+from inventory.auth import header_auth_middleware
+from unittest.mock import Mock, patch
 
 
 NS = "testns"
@@ -69,9 +72,100 @@ class RequestsTest(HttpTestCase):
         #     self.assertEqual(data["canonical_facts"]["test2"], "test2id")
 
 
-class AuthTest(HttpTestCase):
+class AuthRequestsTest(HttpTestCase):
     def test_unauthorized(self):
         self.get("/api/", 403)
 
     def test_authorized(self):
         self.get("/api/", 200, HTTP_X_RH_IDENTITY="something")
+
+
+class AuthMiddlewareTest(SimpleTestCase):
+    _auth_data = "some auth data"
+
+    def _mocks(self):
+        """
+        Mocks the response handler and request objects for the
+        middleware.
+        """
+        return Mock(), Mock(**{"META.get.return_value": self._auth_data})
+
+    @staticmethod
+    def _run(get_response, request):
+        """
+        Runs the middleware with the given response handler and request.
+        Expected to be run with mocks.
+        """
+        middleware = header_auth_middleware(get_response)
+        return middleware(request)
+
+    @patch("inventory.auth.validate")
+    @patch("inventory.auth.from_http_header")
+    def test_no_error(self, from_http_header, validate):
+        """
+        A request with a valid identity header goes through
+        successfully.
+        """
+        get_response, request = self._mocks()
+        response = self._run(get_response, request)
+
+        self.assertEqual(response, get_response.return_value)
+        from_http_header.assert_called_once_with(self._auth_data)
+        validate.assert_called_once_with(from_http_header.return_value)
+        get_response.assert_called_once_with(request)
+
+    @patch("inventory.auth.validate")
+    def test_init_error(self, validate):
+        """
+        Identity header in an invalid format causes the middleware to
+        return a Forbidden JSON response.
+        """
+        errors = [TypeError, ValueError]
+        for error in errors:
+            with self.subTest(error=error):
+                get_response, request = self._mocks()
+
+                with patch("inventory.auth.from_http_header",
+                           side_effect=error) as from_http_header:
+                    response = self._run(get_response, request)
+
+                self.assertIsInstance(response, JsonResponse)
+                self.assertEquals(response.status_code,
+                                  HttpResponseForbidden.status_code)
+                from_http_header.assert_called_once_with(self._auth_data)
+                validate.assert_not_called()
+                get_response.assert_not_called()
+
+    @patch("inventory.auth.validate", side_effect=ValueError)
+    @patch("inventory.auth.from_http_header")
+    def test_validate_error(self, from_http_header, validate):
+        """
+        Identity header with invalid values causes the middleware to
+        return a Forbidden JSON response.
+        """
+        get_response, request = self._mocks()
+
+        response = self._run(get_response, request)
+
+        self.assertIsInstance(response, JsonResponse)
+        self.assertEquals(response.status_code,
+                          HttpResponseForbidden.status_code)
+        from_http_header.assert_called_once_with(self._auth_data)
+        validate.assert_called_once_with(from_http_header.return_value)
+        get_response.assert_not_called()
+
+    @patch("inventory.auth.validate")
+    @patch("inventory.auth.from_http_header", side_effect=RuntimeError)
+    def test_other_error(self, from_http_header, validate):
+        """
+        An unexpected error in the middleware or validation is not
+        caught.
+        """
+        get_response, request = self._mocks()
+
+        with self.assertRaises(RuntimeError):
+            self._run(get_response, request)
+
+        from_http_header.assert_called_once_with(self._auth_data)
+        validate.assert_not_called()
+        get_response.assert_not_called()
