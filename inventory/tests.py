@@ -7,6 +7,18 @@ NS = "testns"
 ID = "whoabuddy"
 
 
+def bypass_auth(old_method):
+    """
+    A decorator preventing usage of header_auth_middleware in a test.
+    """
+    def new_method(self_):
+        with self_.modify_settings(
+            MIDDLEWARE={"remove": "inventory.auth.header_auth_middleware"}
+        ):
+            old_method(self_)
+    return new_method
+
+
 def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
         "account": "test",
@@ -21,8 +33,8 @@ class HttpTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def get(self, path, status=200):
-        return self._response_check(self.client.get(path), status)
+    def get(self, path, status=200, **extra):
+        return self._response_check(self.client.get(path, **extra), status)
 
     def post(self, path, json, status=200):
         return self._response_check(self.client.post(path, json, format="json"), status)
@@ -33,6 +45,8 @@ class HttpTestCase(TestCase):
 
 
 class RequestsTest(HttpTestCase):
+
+    @bypass_auth
     def test_append(self):
         # initial create
         self.post("/api/hosts/", test_data(), 201)
@@ -53,3 +67,11 @@ class RequestsTest(HttpTestCase):
 
         #     self.assertEqual(data["facts"]["test2"], "foo")
         #     self.assertEqual(data["canonical_facts"]["test2"], "test2id")
+
+
+class AuthTest(HttpTestCase):
+    def test_unauthorized(self):
+        self.get("/api/", 403)
+
+    def test_authorized(self):
+        self.get("/api/", 200, HTTP_X_RH_IDENTITY="something")
