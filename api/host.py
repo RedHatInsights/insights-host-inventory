@@ -2,11 +2,16 @@
 from app.models import Host
 from app import db
 
+from sqlalchemy.orm.attributes import flag_modified
+
 
 def addHost(host):
     print("addHost()")
     print("host:", host)
-    print("type(host):", type(host))
+
+    # Required inputs:
+    # account
+    # canonical_facts
 
     canonical_facts = host.get("canonical_facts")
 
@@ -16,11 +21,10 @@ def addHost(host):
                        ).first()
 
     if not found_host:
-        print("found_host:", found_host)
-        h = Host.from_json(host)
-        db.session.add(h)
-        db.session.commit()
-        return {'count': 0, 'results': h.to_json()}, 201
+        print("Creating a new host")
+        host = Host.from_json(host)
+        host.save()
+        return {'count': 0, 'results': host.to_json()}, 201
     else:
         print("Updating host...")
 
@@ -28,18 +32,25 @@ def addHost(host):
         # FIXME: The update logic needs to be moved into the model object
         # ---------------------------------------------------------------
 
+        # FIXME: make sure new canonical facts are added
         found_host.canonical_facts.update(canonical_facts)
 
-        facts = host.get("facts", []) 
+        display_name = host.get("display_name", None)
+        if display_name:
+            found_host.display_name = display_name
+
+        facts = host.get("facts", [])
         if facts:
             if found_host.facts:
                 found_host.facts.append(facts)
             else:
                 found_host.facts = facts
+            flag_modified(found_host, "facts")
 
         tags = host.get("tags", [])
         if tags:
             found_host.tags.append(tags)
+            flag_modified(found_host, "tags")
 
         print("*** Updated host:", found_host)
 
@@ -55,9 +66,7 @@ def getHostList(tag=None):
     else:
         host_list = Host.get_all()
 
-    json_host_list = []
-    for host in host_list:
-        json_host_list.append(host.to_json())
+    json_host_list = [host.to_json() for host in host_list]
 
     return json_host_list, 200
 
