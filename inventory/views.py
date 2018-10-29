@@ -13,9 +13,8 @@ class HostViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        cf = serializer.validated_data["canonical_facts"]
-
         try:
+            cf = serializer.validated_data["canonical_facts"]
             found_host = Host.objects.get(
                 Q(canonical_facts__contained_by=cf) | Q(canonical_facts__contains=cf),
                 account=serializer.validated_data["account"],
@@ -33,7 +32,7 @@ class HostViewSet(viewsets.ModelViewSet):
             )
 
         except Exception as e:
-            print(f"Couldn't find the {cf}, creating: {e}")
+            print(f"Couldn't find the canonical facts, creating: {e}")
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.validated_data)
             return Response(
