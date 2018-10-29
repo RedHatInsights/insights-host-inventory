@@ -2,7 +2,6 @@
 from app.models import Host, convert_json_facts_to_dict
 from app import db
 
-from sqlalchemy.orm.attributes import flag_modified
 
 
 def addHost(host):
@@ -29,39 +28,10 @@ def addHost(host):
     else:
         print("Updating host...")
 
-        # ---------------------------------------------------------------
-        # FIXME: The update logic needs to be moved into the model object
-        # ---------------------------------------------------------------
-
-        # FIXME: make sure new canonical facts are added
-        found_host.canonical_facts.update(canonical_facts)
-        flag_modified(found_host, "canonical_facts")
-
-        display_name = host.get("display_name", None)
-        if display_name:
-            found_host.display_name = display_name
-
-        facts = host.get("facts", [])
-        if facts:
-            facts_dict = convert_json_facts_to_dict(facts)
-            for input_namespace, input_facts in facts_dict.items():
-                if found_host.facts:
-                    if input_namespace in found_host.facts:
-                        found_host.facts[input_namespace].extend(input_facts)
-                    else:
-                        found_host.facts[input_namespace] = input_facts
-                else:
-                    found_host.facts = facts
-                flag_modified(found_host, "facts")
-
-        tags = host.get("tags", [])
-        if tags:
-            found_host.tags.extend(tags)
-            flag_modified(found_host, "tags")
+        found_host.update(host)
 
         print("*** Updated host:", found_host)
 
-        db.session.commit()
         return {'count': 0, 'results': found_host.to_json()}, 200
 
 

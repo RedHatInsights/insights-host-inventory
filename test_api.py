@@ -35,22 +35,37 @@ class HostsTestCase(unittest.TestCase):
             db.session.remove()
             db.drop_all()
 
+    def get(self, path, status=200, return_response_as_json=True):
+        return self._response_check(self.client().get(path),
+                                    status,
+                                    return_response_as_json)
+
+    def post(self, path, data, status=200, return_response_as_json=True):
+        json_data=json.dumps(data)
+        return self._response_check(self.client().post(path,
+                                                       data=json_data,
+                                                       headers={'content-type':'application/json'}),
+                                    status,
+                                    return_response_as_json)
+
+    def _response_check(self, response, status, return_response_as_json):
+        self.assertEqual(response.status_code, status)
+        if return_response_as_json:
+          return json.loads(response.data)
+        else:
+          return response
+
     def test_create_and_update(self):
         canonical_facts = {"test_id":"11-22-33", "another_test_id": "44-55-66"}
-        facts = {"replace_me_1":"value1", "replace_me_2":"value2"}
+        facts = None
         tags = ["/merge_me_1:value1"]
 
         host_data = test_data(canonical_facts=canonical_facts, facts=facts, tags=tags)
         print(host_data)
 
         # initial create
-        response_data = self.client().post(HOST_URL,
-                    data=json.dumps(host_data),
-                    headers={'content-type':'application/json'})
-        results = json.loads(response_data.data)
-        print("results:", results)
-        results = results["results"]
-        self.assertEqual(response_data.status_code, 201)
+        response_data = self.post(HOST_URL, host_data, 201)
+        results = response_data["results"]
 
         self.assertIsNotNone(results["id"])
 
@@ -68,23 +83,13 @@ class HostsTestCase(unittest.TestCase):
         print("post_data:", post_data)
 
         # update initial entity
-        data = self.client().post(HOST_URL,
-                     data=json.dumps(post_data),
-                    headers={'content-type':'application/json'})
-        self.assertEqual(data.status_code, 200)
-        results = json.loads(data.data)
-        print("results:",results)
-        results = results["results"]
+        data = self.post(HOST_URL, post_data, 200)
+        results = data["results"]
 
         self.assertEqual(results["id"], original_id)
 
-        data = self.client().get("%s/%d" % (HOST_URL, original_id))
-        self.assertEqual(data.status_code, 200)
-
-        print("data",data)
-        results = json.loads(data.data)
-        print("results:",results)
-        results = results["results"][0]
+        data = self.get("%s/%d" % (HOST_URL, original_id), 200)
+        results = data["results"][0]
         print("results:",results)
 
         self.assertEqual(len(results["facts"]), 2) 
@@ -100,11 +105,13 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(results["tags"]), 2)
         self.assertListEqual(results["tags"], expected_tags)
 
-
     def test_create_host_with_empty_tags_then_update_tags(self):
         pass
 
     def test_create_host_with_empty_facts_then_update_facts(self):
+        pass
+
+    def test_update_display_name(self):
         pass
 
     def test_query_all(self):

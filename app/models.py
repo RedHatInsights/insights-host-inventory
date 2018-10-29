@@ -1,6 +1,8 @@
 from app import db
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.orm.attributes import flag_modified
+
 
 def convert_json_facts_to_dict(fact_list):
     print("** fact_list:", fact_list)
@@ -49,6 +51,7 @@ class Host(db.Model):
               d.get("display_name"),
               d.get("account"),
               d.get("tags"),
+              # Internally store the facts in a dict
               convert_json_facts_to_dict( d.get("facts") )
           )
 
@@ -59,8 +62,48 @@ class Host(db.Model):
                  "account": self.account,
                  "display_name": self.display_name,
                  "tags": self.tags,
+                 # Internally store the facts in a dict
                  "facts": convert_dict_to_json_facts(self.facts)
                }
+
+    def update(self, input_host):
+
+        self.update_canonical_facts(input_host.get("canonical_facts"))
+
+        self.update_display_name(input_host.get("display_name", None))
+
+        self.update_facts(input_host.get("facts", []))
+
+        self.update_tags(input_host.get("tags", []))
+
+        db.session.commit()
+
+    def update_display_name(self, display_name):
+        if display_name:
+            self.display_name = display_name
+
+    def update_canonical_facts(self, canonical_facts):
+        # FIXME: make sure new canonical facts are added
+        self.canonical_facts.update(canonical_facts)
+        flag_modified(self, "canonical_facts")
+
+    def update_facts(self, facts):
+        if facts:
+            facts_dict = convert_json_facts_to_dict(facts)
+            for input_namespace, input_facts in facts_dict.items():
+                if self.facts:
+                    if input_namespace in self.facts:
+                        self.facts[input_namespace].extend(input_facts)
+                    else:
+                        self.facts[input_namespace] = input_facts
+                else:
+                    self.facts = facts
+                flag_modified(self, "facts")
+
+    def update_tags(self, tags):
+        if tags:
+            self.tags.extend(tags)
+            flag_modified(self, "tags")
 
     def save(self):
         db.session.add(self)
