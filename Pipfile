@@ -16,8 +16,11 @@ flask-sqlalchemy = "*"
 "psycopg2" = "*"
 flask-migrate = "*"
 itsdangerous = "*"
+pytest = "*"
+request = "*"
 
 [dev-packages]
+pytest = "*"
 
 [requires]
 python_version = "3.6"

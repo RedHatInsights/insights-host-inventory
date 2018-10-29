@@ -1,5 +1,5 @@
 #from insights_connexion.db.base import session
-from app.models import Host
+from app.models import Host, convert_json_facts_to_dict
 from app import db
 
 from sqlalchemy.orm.attributes import flag_modified
@@ -23,6 +23,7 @@ def addHost(host):
     if not found_host:
         print("Creating a new host")
         host = Host.from_json(host)
+        print("FACTS:", host.facts)
         host.save()
         return {'count': 0, 'results': host.to_json()}, 201
     else:
@@ -34,6 +35,7 @@ def addHost(host):
 
         # FIXME: make sure new canonical facts are added
         found_host.canonical_facts.update(canonical_facts)
+        flag_modified(found_host, "canonical_facts")
 
         display_name = host.get("display_name", None)
         if display_name:
@@ -41,15 +43,20 @@ def addHost(host):
 
         facts = host.get("facts", [])
         if facts:
-            if found_host.facts:
-                found_host.facts.append(facts)
-            else:
-                found_host.facts = facts
-            flag_modified(found_host, "facts")
+            facts_dict = convert_json_facts_to_dict(facts)
+            for input_namespace, input_facts in facts_dict.items():
+                if found_host.facts:
+                    if input_namespace in found_host.facts:
+                        found_host.facts[input_namespace].extend(input_facts)
+                    else:
+                        found_host.facts[input_namespace] = input_facts
+                else:
+                    found_host.facts = facts
+                flag_modified(found_host, "facts")
 
         tags = host.get("tags", [])
         if tags:
-            found_host.tags.append(tags)
+            found_host.tags.extend(tags)
             flag_modified(found_host, "tags")
 
         print("*** Updated host:", found_host)
@@ -68,6 +75,7 @@ def getHostList(tag=None):
 
     json_host_list = [host.to_json() for host in host_list]
 
+    # FIXME: pagination
     return json_host_list, 200
 
 
@@ -81,7 +89,16 @@ def findHostsByTag(tag):
 
 def getHostById(hostId):
     print(f"getHostById({hostId})")
-    return host
+
+    print(type(hostId[0]))
+
+    host_id_list = [int(host_id) for host_id in hostId]
+
+    found_host_list = Host.query.filter(Host.id.in_(host_id_list)).all()
+
+    json_host_list = [host.to_json() for host in found_host_list]
+
+    return {'count': 0, 'results': json_host_list}, 200
 
 
 def updateHostWithForm():
