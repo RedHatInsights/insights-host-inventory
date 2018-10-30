@@ -56,20 +56,22 @@ class HostsTestCase(unittest.TestCase):
     def _response_check(self, response, status, return_response_as_json):
         self.assertEqual(response.status_code, status)
         if return_response_as_json:
-          return json.loads(response.data)
+            return json.loads(response.data)
         else:
-          return response
+            return response
 
     def test_create_and_update(self):
         canonical_facts = {"test_id":"11-22-33", "another_test_id": "44-55-66"}
         facts = None
         tags = ["/merge_me_1:value1"]
 
-        host_data = test_data(canonical_facts=canonical_facts, facts=facts, tags=tags)
+        host_data = HostWrapper(test_data(canonical_facts=canonical_facts,
+                                          facts=facts,
+                                          tags=tags))
         print(host_data)
 
         # initial create
-        response_data = self.post(HOST_URL, host_data, 201)
+        response_data = self.post(HOST_URL, host_data.data(), 201)
         results = response_data["results"]
 
         self.assertIsNotNone(results["id"])
@@ -77,44 +79,51 @@ class HostsTestCase(unittest.TestCase):
         original_id = results["id"]
 
         post_data = host_data
-        post_data["facts"].clear()
-        post_data["facts"] = [{"namespace": "ns2", "facts": {"key2": "value2"}}]
-        post_data["canonical_facts"]["test2"] = "test2id"
-        post_data["tags"] = ["aws/new_tag_1:new_value_1"]
+        post_data.facts.clear()
+        post_data.facts = [{"namespace": "ns2", "facts": {"key2": "value2"}}]
+        post_data.canonical_facts["test2"] = "test2id"
+        post_data.tags = ["aws/new_tag_1:new_value_1"]
 
         expected_tags = tags
-        expected_tags.extend(post_data["tags"])
+        expected_tags.extend(post_data.tags)
 
         print("post_data:", post_data)
 
         # update initial entity
-        data = self.post(HOST_URL, post_data, 200)
+        data = self.post(HOST_URL, post_data.data(), 200)
         results = data["results"]
 
         self.assertEqual(results["id"], original_id)
 
         data = self.get("%s/%d" % (HOST_URL, original_id), 200)
-        results = data["results"][0]
+        results = HostWrapper(data["results"][0])
         print("results:",results)
 
-        self.assertEqual(len(results["facts"]), 2) 
+        self.assertEqual(len(results.facts), 2)
         # sanity check
         #post_data["facts"][0]["facts"]["key2"] = "blah"
-        self.assertEqual(results["facts"][1]["facts"], post_data["facts"][0]["facts"])
+        self.assertEqual(results.facts[1]["facts"], post_data.facts[0]["facts"])
 
         # make sure the canonical facts are merged
-        self.assertEqual(len(results["canonical_facts"]), 3)
-        self.assertEqual(results["canonical_facts"]["test2"], "test2id")
+        self.assertEqual(len(results.canonical_facts), 3)
+        self.assertEqual(results.canonical_facts["test2"], "test2id")
 
         # make sure the tags are merged
-        self.assertEqual(len(results["tags"]), 2)
-        self.assertListEqual(results["tags"], expected_tags)
+        self.assertEqual(len(results.tags), 2)
+        self.assertListEqual(results.tags, expected_tags)
 
     def test_post_same_facts(self):
         pass
 
-    def test_create_host_with_empty_tags_then_update_tags(self):
-        host_data = HostWrapper(test_data())
+    def test_create_host_with_empty_tags_facts_display_name_then_update(self):
+        # Create a host with empty tags, facts, and display_name
+        # then update those fields
+
+        host_data = HostWrapper(test_data(facts=None))
+        del host_data.tags
+        del host_data.display_name
+        del host_data.facts
+        print("DATA:", host_data.data())
 
         # initial create
         response_data = self.post(HOST_URL, host_data.data(), 201)
@@ -125,27 +134,38 @@ class HostsTestCase(unittest.TestCase):
         original_id = results["id"]
 
         host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
+        host_data.facts = FACTS
+        host_data.display_name = "expected_display_name"
 
         response_data = self.post(HOST_URL, host_data.data(), 200)
 
         data = self.get("%s/%d" % (HOST_URL, original_id), 200)
+        print(data["results"][0])
         results = HostWrapper(data["results"][0])
 
-        # make sure the tags were added
         self.assertListEqual(results.tags, host_data.tags)
 
+        self.assertListEqual(results.facts, host_data.facts)
 
-    def test_create_host_with_empty_facts_then_update_facts(self):
-        pass
-
-    def test_update_display_name(self):
-        pass
+        self.assertEqual(results.display_name, host_data.display_name)
 
     def test_create_host_without_canonical_facts(self):
-        pass
+        host_data = HostWrapper(test_data(facts=None))
+        del host_data.canonical_facts
+        print("DATA:", host_data.data())
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        # FIXME: Verify response?
 
     def test_create_host_without_account(self):
-        pass
+        host_data = HostWrapper(test_data(facts=None))
+        del host_data.account
+        print("DATA:", host_data.data())
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        # FIXME: Verify response?
 
     def test_query_all(self):
         response = self.client().get('/api/hosts')

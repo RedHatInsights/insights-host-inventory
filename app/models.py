@@ -1,10 +1,11 @@
 from app import db
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON, JSONB
-from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy import orm
 
 
 def convert_json_facts_to_dict(fact_list):
+    print("** convert_json_facts_to_dict")
     print("** fact_list:", fact_list)
     fact_dict = {}
     for fact in fact_list:
@@ -13,12 +14,15 @@ def convert_json_facts_to_dict(fact_list):
             fact_dict[fact["namespace"]].update(fact["facts"])
         else:
             fact_dict[fact["namespace"]] = fact["facts"]
+    print("** fact_dict:", fact_dict)
     return fact_dict
 
 def convert_dict_to_json_facts(fact_dict):
+    print("** convert_dict_to_json_facts")
     print("** fact_dict:", fact_dict)
     fact_list = [ { "namespace": namespace, "facts": facts }
       for namespace, facts in fact_dict.items()]
+    print("** fact_list:", fact_list)
     return fact_list
 
 
@@ -50,9 +54,9 @@ class Host(db.Model):
               d.get("canonical_facts"),
               d.get("display_name"),
               d.get("account"),
-              d.get("tags"),
+              d.get("tags", []),
               # Internally store the facts in a dict
-              convert_json_facts_to_dict( d.get("facts") )
+              convert_json_facts_to_dict( d.get("facts", []) )
           )
 
     def to_json(self):
@@ -85,7 +89,7 @@ class Host(db.Model):
     def update_canonical_facts(self, canonical_facts):
         # FIXME: make sure new canonical facts are added
         self.canonical_facts.update(canonical_facts)
-        flag_modified(self, "canonical_facts")
+        orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts):
         if facts:
@@ -100,13 +104,15 @@ class Host(db.Model):
                         # Create a new facts dict
                         self.facts[input_namespace] = input_facts
                 else:
-                    self.facts = facts
-                flag_modified(self, "facts")
+                    # Store a new set of facts
+                    self.facts = facts_dict
+
+                orm.attributes.flag_modified(self, "facts")
 
     def update_tags(self, tags):
         if tags:
             self.tags.extend(tags)
-            flag_modified(self, "tags")
+            orm.attributes.flag_modified(self, "tags")
 
     def save(self):
         db.session.add(self)

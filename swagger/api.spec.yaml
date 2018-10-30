@@ -200,7 +200,7 @@ definitions:
   Host:
     type: object
     required:
-      - display_name
+      - account
       - canonical_facts
     properties:
       display_name:
