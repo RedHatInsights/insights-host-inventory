@@ -4,14 +4,23 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-Django = "*"
-django-extensions = "*"
-gunicorn = "*"
+flask = "*"
+jsonify = "*"
+flask-restful = "*"
+requests = "*"
+flask-limiter = "*"
+connexion = "*"
+flask-script = "*"
+flask-api = "*"
+flask-sqlalchemy = "*"
 "psycopg2" = "*"
-drf-yasg = "*"
-logstash_formatter = "*"
+flask-migrate = "*"
+itsdangerous = "*"
+pytest = "*"
+request = "*"
 
 [dev-packages]
-django-debug-toolbar = "*"
-"flake8" = "*"
-black = "==18.6b4"
+pytest = "*"
+
+[requires]
+python_version = "3.6"

@@ -44,5 +44,5 @@ docker-compose down
 Running the tests is quite simple:
 
 ```
-./manage.py test
+./test_api.py
 ```
