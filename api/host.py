@@ -1,6 +1,4 @@
-#from insights_connexion.db.base import session
-from app.models import Host, convert_json_facts_to_dict
-from app import db
+from app.models import Host
 
 
 
@@ -24,7 +22,7 @@ def addHost(host):
         host = Host.from_json(host)
         print("FACTS:", host.facts)
         host.save()
-        return {'count': 0, 'results': host.to_json()}, 201
+        return host.to_json(), 201
     else:
         print("Updating host...")
 
@@ -32,7 +30,7 @@ def addHost(host):
 
         print("*** Updated host:", found_host)
 
-        return {'count': 0, 'results': found_host.to_json()}, 200
+        return found_host.to_json(), 200
 
 
 def getHostList(tag=None):
@@ -46,7 +44,7 @@ def getHostList(tag=None):
     json_host_list = [host.to_json() for host in host_list]
 
     # FIXME: pagination
-    return json_host_list, 200
+    return {'count': 0, 'results': json_host_list}, 200
 
 
 def findHostsByTag(tag):
@@ -85,13 +83,12 @@ def replaceFacts(hostId, namespace):
 
 def mergeFacts(hostId, namespace):
     print(f"mergeFacts({hostId}, {namespace})")
+    host_id_list = [int(host_id) for host_id in hostId]
     found_host = Host.query.filter(
-            Host.facts.contains([{"namespace": namespace}])).all()
-
-            # works
-            #Host.canonical_facts["key5"].astext == "value5" ).all()
-
+            Host.id.in_(host_id_list) &
+            Host.facts.has_key(namespace)).all()
     print("found_host:", found_host)
+    return 200
 
 
 def handleTagOperation(hostId, tag_op):

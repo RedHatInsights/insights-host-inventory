@@ -1,6 +1,6 @@
 from app import db
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSON, JSONB
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import orm
 
 
@@ -16,6 +16,7 @@ def convert_json_facts_to_dict(fact_list):
             fact_dict[fact["namespace"]] = fact["facts"]
     print("** fact_dict:", fact_dict)
     return fact_dict
+
 
 def convert_dict_to_json_facts(fact_dict):
     print("** convert_dict_to_json_facts")
