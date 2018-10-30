@@ -46,3 +46,11 @@ Running the tests is quite simple:
 ```
 ./test_api.py
 ```
+
+## Running the server
+
+Running the server:
+
+```
+./run.py
+```
