@@ -6,7 +6,8 @@ import django
 from django.db.transaction import atomic
 
 
-products = (["Red Hat Enterprise Linux"] * 75) + ["Openstack", "Red Hat Virtualization"]
+products = (["Red Hat Enterprise Linux"] * 75) +\
+            ["Openstack", "Red Hat Virtualization"]
 versions = ["7.0", "7.1", "7.2", "7.3", "7.4", "7.5"]
 accts = ["%07d" % n for n in range(1, 99)]
 
@@ -39,6 +40,7 @@ def populate(count=100):
 
 if __name__ == "__main__":
     import sys
+
     print(sys.path)
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "insights.settings")
     django.setup()

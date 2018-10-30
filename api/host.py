@@ -13,9 +13,9 @@ def addHost(host):
     canonical_facts = host.get("canonical_facts")
 
     found_host = Host.query.filter(
-                         Host.canonical_facts.comparator.contains(canonical_facts) |
-                         Host.canonical_facts.comparator.contained_by(canonical_facts)
-                       ).first()
+        Host.canonical_facts.comparator.contains(canonical_facts)
+        | Host.canonical_facts.comparator.contained_by(canonical_facts)
+    ).first()
 
     if not found_host:
         print("Creating a new host")
@@ -45,13 +45,13 @@ def getHostList(tag=None, display_name=None):
     json_host_list = [host.to_json() for host in host_list]
 
     # FIXME: pagination
-    return {'count': 0, 'results': json_host_list}, 200
+    return {"count": 0, "results": json_host_list}, 200
 
 
 def findHostsByTag(tag):
     print(f"findHostsByTag({tag})")
-    found_host_list = Host.query.filter(
-            Host.tags.comparator.contains(tag)).all()
+    condition = Host.tags.comparator.contains(tag)
+    found_host_list = Host.query.filter(condition).all()
     print("found_host_list:", found_host_list)
     return found_host_list
 
@@ -59,7 +59,8 @@ def findHostsByTag(tag):
 def findHostsByDisplayName(display_name):
     print(f"findHostsByDisplayName({display_name})")
     found_host_list = Host.query.filter(
-            Host.display_name.comparator.contains(display_name)).all()
+        Host.display_name.comparator.contains(display_name)
+    ).all()
     print("found_host_list:", found_host_list)
     return found_host_list
 
@@ -73,7 +74,7 @@ def getHostById(hostId):
 
     json_host_list = [host.to_json() for host in found_host_list]
 
-    return {'count': 0, 'results': json_host_list}, 200
+    return {"count": 0, "results": json_host_list}, 200
 
 
 def updateHostWithForm():
@@ -94,8 +95,8 @@ def mergeFacts(hostId, namespace, fact_dict):
     host_id_list = [int(host_id) for host_id in hostId]
 
     hosts_to_update = Host.query.filter(
-            Host.id.in_(host_id_list) &
-            Host.facts.has_key(namespace)).all()
+        Host.id.in_(host_id_list) & (namespace in Host.facts)
+    ).all()
 
     print("hosts_to_update:", hosts_to_update)
 

@@ -20,12 +20,11 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
         "display_name": display_name,
         "canonical_facts": canonical_facts if canonical_facts else {NS: ID},
         "tags": tags if tags else [],
-        "facts": facts if facts else FACTS
+        "facts": facts if facts else FACTS,
     }
 
 
 class HostsTestCase(unittest.TestCase):
-
     def setUp(self):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
@@ -42,41 +41,36 @@ class HostsTestCase(unittest.TestCase):
             db.drop_all()
 
     def get(self, path, status=200, return_response_as_json=True):
-        return self._response_check(self.client().get(path),
-                                    status,
-                                    return_response_as_json)
+        return self._response_check(
+            self.client().get(path), status, return_response_as_json
+        )
 
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
-                               self.client().post,
-                               path,
-                               data,
-                               status,
-                               return_response_as_json)
+            self.client().post, path, data, status, return_response_as_json
+        )
 
     def patch(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
-                               self.client().patch,
-                               path,
-                               data,
-                               status,
-                               return_response_as_json)
+            self.client().patch, path, data, status, return_response_as_json
+        )
 
     def put(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
-                               self.client().put,
-                               path,
-                               data,
-                               status,
-                               return_response_as_json)
+            self.client().put, path, data, status, return_response_as_json
+        )
 
-    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True):
+    def _make_http_call(
+        self, http_method, path, data, status, return_response_as_json=True
+    ):
         json_data = json.dumps(data)
-        return self._response_check(http_method(path,
-                                                data=json_data,
-                                                headers={'content-type':'application/json'}),
-                                    status,
-                                    return_response_as_json)
+        return self._response_check(
+            http_method(path,
+                        data=json_data,
+                        headers={"content-type": "application/json"}),
+            status,
+            return_response_as_json,
+        )
 
     def _response_check(self, response, status, return_response_as_json):
         self.assertEqual(response.status_code, status)
@@ -92,13 +86,14 @@ class HostsTestCase(unittest.TestCase):
         return ",".join(host_id_list)
 
     def test_create_and_update(self):
-        canonical_facts = {"test_id": "11-22-33", "another_test_id": "44-55-66"}
+        canonical_facts = {"test_id": "11-22-33",
+                           "another_test_id": "44-55-66"}
         facts = None
         tags = ["/merge_me_1:value1"]
 
-        host_data = HostWrapper(test_data(canonical_facts=canonical_facts,
-                                          facts=facts,
-                                          tags=tags))
+        host_data = HostWrapper(
+            test_data(canonical_facts=canonical_facts, facts=facts, tags=tags)
+        )
         print(host_data)
 
         # initial create
@@ -130,7 +125,8 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(results.facts), 2)
         # sanity check
         # post_data["facts"][0]["facts"]["key2"] = "blah"
-        self.assertEqual(results.facts[1]["facts"], post_data.facts[0]["facts"])
+        self.assertEqual(results.facts[1]["facts"],
+                         post_data.facts[0]["facts"])
 
         # make sure the canonical facts are merged
         self.assertEqual(len(results.canonical_facts), 3)
@@ -181,7 +177,7 @@ class HostsTestCase(unittest.TestCase):
         del host_data.canonical_facts
         print("DATA:", host_data.data())
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        self.post(HOST_URL, host_data.data(), 400)
 
         # FIXME: Verify response?
 
@@ -190,7 +186,7 @@ class HostsTestCase(unittest.TestCase):
         del host_data.account
         print("DATA:", host_data.data())
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        self.post(HOST_URL, host_data.data(), 400)
 
         # FIXME: Verify response?
 
@@ -198,7 +194,7 @@ class HostsTestCase(unittest.TestCase):
         # FIXME: make this more generic
         host_list = []
 
-        canonical_facts = {'insights_id': '12345'}
+        canonical_facts = {"insights_id": "12345"}
         display_name = "host1"
         tags = TAGS
         host_data = HostWrapper(test_data(display_name=display_name,
@@ -207,7 +203,7 @@ class HostsTestCase(unittest.TestCase):
         response_data = self.post(HOST_URL, host_data.data(), 201)
         host_list.append(HostWrapper(response_data))
 
-        canonical_facts = {'insights_id': '54321'}
+        canonical_facts = {"insights_id": "54321"}
         display_name = "host2"
         tags = TAGS
         host_data = HostWrapper(test_data(display_name=display_name,
@@ -220,7 +216,7 @@ class HostsTestCase(unittest.TestCase):
 
     def test_query_all(self):
 
-        host_list = self.add_2_hosts()
+        self.add_2_hosts()
 
         response = self.get(HOST_URL, 200)
         print("response:", response)
@@ -240,7 +236,7 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(response["results"]), 2)
 
     def test_query_using_single_tag(self):
-        host_list = self.add_2_hosts()
+        self.add_2_hosts()
 
         response = self.get(HOST_URL + "?tag=" + TAGS[0], 200)
 
@@ -248,9 +244,11 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(response["results"]), 2)
 
     def test_query_using_multiple_tags(self):
-        host_list = self.add_2_hosts()
+        self.add_2_hosts()
 
-        response = self.get(HOST_URL + "?tag=" + TAGS[0] +
+        response = self.get(HOST_URL +
+                            "?tag=" +
+                            TAGS[0] +
                             "&tag=" + TAGS[1], 200)
 
         # FIXME: check the results
@@ -271,7 +269,7 @@ class HostsTestCase(unittest.TestCase):
 
         host_name_substr = host_list[0].display_name[:-2]
 
-        response = self.get(HOST_URL + "?display_name="+host_name_substr)
+        response = self.get(HOST_URL + "?display_name=" + host_name_substr)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
@@ -281,24 +279,22 @@ class HostsTestCase(unittest.TestCase):
             url_host_id_list = self._build_host_id_list_for_url(host_list)
         else:
             url_host_id_list = str(host_list)
-        return HOST_URL+"/"+url_host_id_list+"/facts/"+namespace
+        return HOST_URL + "/" + url_host_id_list + "/facts/" + namespace
 
     def test_add_facts_without_fact_dict(self):
         patch_url = self._build_facts_url(1, "ns1")
         response = self.patch(patch_url, None, 400)
-        self.assertEqual(response['detail'], "Request body is not valid JSON")
+        self.assertEqual(response["detail"], "Request body is not valid JSON")
 
     def test_add_facts_to_multiple_hosts(self):
-        facts_to_add = {"newfact1": "newvalue1",
-                        "newfact2": "newvalue2"}
+        facts_to_add = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
         host_list = self.add_2_hosts()
 
         # This test assumes the set of facts are the same across
         # the hosts in the host_list
 
-        expected_facts = {**host_list[0].facts[0]["facts"],
-                          **facts_to_add}
+        expected_facts = {**host_list[0].facts[0]["facts"], **facts_to_add}
 
         target_namespace = host_list[0].facts[0]["namespace"]
 
@@ -315,8 +311,7 @@ class HostsTestCase(unittest.TestCase):
         for response_host in response["results"]:
             host_to_verify = HostWrapper(response_host)
 
-            self.assertEqual(host_to_verify.facts[0]["facts"],
-                             expected_facts)
+            self.assertEqual(host_to_verify.facts[0]["facts"], expected_facts)
 
             self.assertEqual(host_to_verify.facts[0]["namespace"],
                              target_namespace)
@@ -324,7 +319,9 @@ class HostsTestCase(unittest.TestCase):
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
         pass
 
-    def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(self):
+    def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(
+        self
+    ):
         pass
 
     def test_add_facts_to_multiple_hosts_one_host_does_not_exist(self):
@@ -336,7 +333,7 @@ class HostsTestCase(unittest.TestCase):
     def test_replace_facts_without_fact_dict(self):
         put_url = self._build_facts_url(1, "ns1")
         response = self.put(put_url, None, 400)
-        self.assertEqual(response['detail'], "Request body is not valid JSON")
+        self.assertEqual(response["detail"], "Request body is not valid JSON")
 
     def test_replace_facts_on_multiple_hosts(self):
         pass
