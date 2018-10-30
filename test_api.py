@@ -4,11 +4,14 @@ import unittest
 import os
 import json
 from app import create_app, db
+from app.utils import HostWrapper
 
 HOST_URL = "/api/hosts"
 
 NS = "testns"
 ID = "whoabuddy"
+
+FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
 def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
@@ -16,7 +19,7 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
         "display_name": display_name,
         "canonical_facts": canonical_facts if canonical_facts else {NS: ID},
         "tags": tags if tags else [],
-        "facts": [{"namespace": "ns1", "facts": {"key1": "value1"}}],
+        "facts": facts if facts else FACTS
     }
 
 
@@ -107,13 +110,41 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(results["tags"]), 2)
         self.assertListEqual(results["tags"], expected_tags)
 
-    def test_create_host_with_empty_tags_then_update_tags(self):
+    def test_post_same_facts(self):
         pass
+
+    def test_create_host_with_empty_tags_then_update_tags(self):
+        host_data = HostWrapper(test_data())
+
+        # initial create
+        response_data = self.post(HOST_URL, host_data.data(), 201)
+        results = response_data["results"]
+
+        self.assertIsNotNone(results["id"])
+
+        original_id = results["id"]
+
+        host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
+
+        response_data = self.post(HOST_URL, host_data.data(), 200)
+
+        data = self.get("%s/%d" % (HOST_URL, original_id), 200)
+        results = HostWrapper(data["results"][0])
+
+        # make sure the tags were added
+        self.assertListEqual(results.tags, host_data.tags)
+
 
     def test_create_host_with_empty_facts_then_update_facts(self):
         pass
 
     def test_update_display_name(self):
+        pass
+
+    def test_create_host_without_canonical_facts(self):
+        pass
+
+    def test_create_host_without_account(self):
         pass
 
     def test_query_all(self):

@@ -93,8 +93,11 @@ class Host(db.Model):
             for input_namespace, input_facts in facts_dict.items():
                 if self.facts:
                     if input_namespace in self.facts:
-                        self.facts[input_namespace].extend(input_facts)
+                        # Merge the input facts dict with the existing facts dict
+                        self.facts[input_namespace] = {**self.facts[input_namespace],
+                                                       **input_facts}
                     else:
+                        # Create a new facts dict
                         self.facts[input_namespace] = input_facts
                 else:
                     self.facts = facts
