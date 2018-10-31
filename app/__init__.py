@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
 import connexion
 
+import os
+
 # local import
 #from instance.config import app_config
 
@@ -30,7 +32,11 @@ def create_app(config_name):
     flask_app = connexion_app.app
 
     flask_app.config['SQLALCHEMY_ECHO'] = True 
-    flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://insights:insights@localhost/test_db'
+    user = os.getenv('INVENTORY_DB_USER', 'insights')
+    password = os.getenv('INVENTORY_DB_PASS', 'insights')
+    host = os.getenv('INVENTORY_DB_HOST', 'localhost')
+    db_name = os.getenv('INVENTORY_DB_NAME', 'test_db')
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{user}:{password}@{host}/{db_name}'
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     print("Calling db.init_app()")
