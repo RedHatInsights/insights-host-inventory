@@ -1,5 +1,5 @@
 from app.models import Host
-
+from app import db
 
 
 def addHost(host):
@@ -87,17 +87,28 @@ def deleteHost(hostId):
     print(f"deleteHost({hostId})")
 
 
-def replaceFacts(hostId, namespace):
-    print(f"replaceFacts({hostId}, {namespace})")
+def replaceFacts(hostId, namespace, fact_dict):
+    print(f"replaceFacts({hostId}, {namespace}, {fact_dict})")
 
 
-def mergeFacts(hostId, namespace):
-    print(f"mergeFacts({hostId}, {namespace})")
+def mergeFacts(hostId, namespace, fact_dict):
+    print(f"mergeFacts({hostId}, {namespace}, {fact_dict})")
+
     host_id_list = [int(host_id) for host_id in hostId]
-    found_host = Host.query.filter(
+
+    hosts_to_update = Host.query.filter(
             Host.id.in_(host_id_list) &
             Host.facts.has_key(namespace)).all()
-    print("found_host:", found_host)
+
+    print("hosts_to_update:", hosts_to_update)
+
+    for host in hosts_to_update:
+        host.merge_facts_into_namespace(namespace, fact_dict)
+
+    db.session.commit()
+
+    print("hosts_to_update:", hosts_to_update)
+
     return 200
 
 

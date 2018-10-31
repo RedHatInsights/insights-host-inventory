@@ -62,6 +62,14 @@ class HostsTestCase(unittest.TestCase):
                                status,
                                return_response_as_json)
 
+    def put(self, path, data, status=200, return_response_as_json=True):
+        return self._make_http_call(
+                               self.client().put,
+                               path,
+                               data,
+                               status,
+                               return_response_as_json)
+
     def _make_http_call(self, http_method, path, data, status, return_response_as_json=True):
         json_data = json.dumps(data)
         return self._response_check(http_method(path,
@@ -76,6 +84,12 @@ class HostsTestCase(unittest.TestCase):
             return json.loads(response.data)
         else:
             return response
+
+    def _build_host_id_list_for_url(self, host_list):
+
+        host_id_list = [str(h.id) for h in host_list]
+
+        return ",".join(host_id_list)
 
     def test_create_and_update(self):
         canonical_facts = {"test_id": "11-22-33", "another_test_id": "44-55-66"}
@@ -217,9 +231,10 @@ class HostsTestCase(unittest.TestCase):
     def test_query_using_host_id_list(self):
 
         host_list = self.add_2_hosts()
-        host_id_list = [str(h.id) for h in host_list]
 
-        response = self.get(HOST_URL + "/" + ",".join(host_id_list), 200)
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
@@ -261,28 +276,75 @@ class HostsTestCase(unittest.TestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
 
-    #@unittest.skip("Incomplete")
+    def _build_facts_url(self, host_list, namespace):
+        if type(host_list) == list:
+            url_host_id_list = self._build_host_id_list_for_url(host_list)
+        else:
+            url_host_id_list = str(host_list)
+        return HOST_URL+"/"+url_host_id_list+"/facts/"+namespace
+
+    def test_add_facts_without_fact_dict(self):
+        patch_url = self._build_facts_url(1, "ns1")
+        response = self.patch(patch_url, None, 400)
+        self.assertEqual(response['detail'], "Request body is not valid JSON")
+
     def test_add_facts_to_multiple_hosts(self):
+        facts_to_add = {"newfact1": "newvalue1",
+                        "newfact2": "newvalue2"}
+
         host_list = self.add_2_hosts()
 
-        response = self.get(HOST_URL, 200)
+        # This test assumes the set of facts are the same across
+        # the hosts in the host_list
 
-        # Currently a hack, but I wanted to play with the searching of the facts
-        # Needs more work, validation of results, etc
-        url = HOST_URL+"/"+str(host_list[0].id)+"/facts/ns1"
-        url = HOST_URL+"/1,2/facts/ns1"
-        print("url:", url)
-        response = self.patch(url,{"blah": "blah"}, 200)
+        expected_facts = {**host_list[0].facts[0]["facts"],
+                          **facts_to_add}
 
-        # FIXME: check the results
+        target_namespace = host_list[0].facts[0]["namespace"]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        patch_url = self._build_facts_url(host_list, target_namespace)
+
+        response = self.patch(patch_url, facts_to_add, 200)
+
+        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+
+        self.assertEqual(len(response["results"]), len(host_list))
+
+        for response_host in response["results"]:
+            host_to_verify = HostWrapper(response_host)
+
+            self.assertEqual(host_to_verify.facts[0]["facts"],
+                             expected_facts)
+
+            self.assertEqual(host_to_verify.facts[0]["namespace"],
+                             target_namespace)
+
+    def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
+        pass
+
+    def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(self):
+        pass
 
     def test_add_facts_to_multiple_hosts_one_host_does_not_exist(self):
         pass
+
+    def test_add_facts_to_namespace_that_does_not_exist(self):
+        pass
+
+    def test_replace_facts_without_fact_dict(self):
+        put_url = self._build_facts_url(1, "ns1")
+        response = self.put(put_url, None, 400)
+        self.assertEqual(response['detail'], "Request body is not valid JSON")
 
     def test_replace_facts_on_multiple_hosts(self):
         pass
 
     def test_replace_facts_on_multiple_hosts_one_host_does_not_exist(self):
+        pass
+
+    def test_replace_facts_on_namespace_that_does_not_exist(self):
         pass
 
 

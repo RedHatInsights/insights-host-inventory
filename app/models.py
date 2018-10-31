@@ -110,6 +110,10 @@ class Host(db.Model):
 
                 orm.attributes.flag_modified(self, "facts")
 
+    def merge_facts_into_namespace(self, namespace, facts_dict):
+        self.facts[namespace] = {**self.facts[namespace], **facts_dict}
+        orm.attributes.flag_modified(self, "facts")
+
     def update_tags(self, tags):
         if tags:
             self.tags.extend(tags)

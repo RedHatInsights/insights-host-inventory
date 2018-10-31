@@ -31,7 +31,7 @@ paths:
           in: query
           type: array
           items:
-             type: string
+            type: string
           description: Search by tags
           required: false
         - name: display_name
@@ -134,6 +134,12 @@ paths:
           description: Namespace of the fact
           required: true
           type: string
+        - in: body
+          name: fact_dict
+          description: Fact dictionary
+          required: true
+          schema:
+            $ref: '#/definitions/Facts'
       responses:
         '200':
           description: successful operation
@@ -163,6 +169,12 @@ paths:
           description: Namespace of the fact
           required: true
           type: string
+        - in: body
+          name: fact_dict
+          description: Fact dictionary
+          required: true
+          schema:
+            $ref: '#/definitions/Facts'
       responses:
         '200':
           description: successful operation
@@ -196,6 +208,13 @@ paths:
         '200':
           description: Successfully added or removed a tag
 definitions:
+  Facts:
+    type: object
+    additionalProperties:
+      type: string
+    example:
+      fact1: value1
+      fact2: value2
   FactSet:
     properties:
       namespace:
@@ -230,7 +249,7 @@ definitions:
     allOf:
       - $ref: '#/definitions/Host'
       - type: object
-        properties:    
+        properties:
           id:
             type: integer
             format: int64
