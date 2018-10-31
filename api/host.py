@@ -33,11 +33,13 @@ def addHost(host):
         return found_host.to_json(), 200
 
 
-def getHostList(tag=None):
-    print(f"getHostList(tag={tag})")
+def getHostList(tag=None, display_name=None):
+    print(f"getHostList(tag={tag}, display_name={display_name})")
 
     if tag:
         host_list = findHostsByTag(tag)
+    elif display_name:
+        host_list = findHostsByDisplayName(display_name)
     else:
         host_list = Host.get_all()
 
@@ -51,6 +53,14 @@ def findHostsByTag(tag):
     print(f"findHostsByTag({tag})")
     found_host_list = Host.query.filter(
             Host.tags.comparator.contains(tag)).all()
+    print("found_host_list:", found_host_list)
+    return found_host_list
+
+
+def findHostsByDisplayName(display_name):
+    print(f"findHostsByDisplayName({display_name})")
+    found_host_list = Host.query.filter(
+            Host.display_name.comparator.contains(display_name)).all()
     print("found_host_list:", found_host_list)
     return found_host_list
 

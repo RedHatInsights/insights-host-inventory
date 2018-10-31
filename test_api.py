@@ -236,12 +236,32 @@ class HostsTestCase(unittest.TestCase):
         host_list = self.add_2_hosts()
 
         response = self.get(HOST_URL + "?tag=" + TAGS[0] +
-                "&tag=" + TAGS[1], 200)
+                            "&tag=" + TAGS[1], 200)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
 
-    @unittest.skip("Incomplete")
+    def test_query_using_display_name(self):
+        host_list = self.add_2_hosts()
+
+        response = self.get(HOST_URL +
+                            "?display_name=" +
+                            host_list[0].display_name)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["results"]), 1)
+
+    def test_query_using_display_name_substring(self):
+        host_list = self.add_2_hosts()
+
+        host_name_substr = host_list[0].display_name[:-2]
+
+        response = self.get(HOST_URL + "?display_name="+host_name_substr)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["results"]), 2)
+
+    #@unittest.skip("Incomplete")
     def test_add_facts_to_multiple_hosts(self):
         host_list = self.add_2_hosts()
 

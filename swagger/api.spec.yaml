@@ -34,6 +34,11 @@ paths:
              type: string
           description: Search by tags
           required: false
+        - name: display_name
+          in: query
+          type: string
+          description: Search by display_name
+          required: false
       responses:
         '200':
           description: Successfully read hosts list operation
