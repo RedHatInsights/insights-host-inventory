@@ -20,7 +20,6 @@ def addHost(host):
     if not found_host:
         print("Creating a new host")
         host = Host.from_json(host)
-        print("FACTS:", host.facts)
         host.save()
         return host.to_json(), 201
     else:
@@ -67,8 +66,6 @@ def findHostsByDisplayName(display_name):
 
 def getHostById(hostId):
     print(f"getHostById({hostId})")
-
-    print(type(hostId[0]))
 
     host_id_list = [int(host_id) for host_id in hostId]
 
