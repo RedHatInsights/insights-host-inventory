@@ -1,7 +1,9 @@
 from app import db
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
+
+import uuid
 
 
 def convert_json_facts_to_dict(fact_list):
@@ -30,12 +32,12 @@ def convert_dict_to_json_facts(fact_dict):
 class Host(db.Model):
     __tablename__ = 'hosts'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200))
-    created_on = db.Column(db.DateTime, 
+    created_on = db.Column(db.DateTime,
                           default=datetime.utcnow)
-    modified_on = db.Column(db.DateTime, 
+    modified_on = db.Column(db.DateTime,
                           default=datetime.utcnow,
                           onupdate=datetime.utcnow)
     facts = db.Column(JSONB)
