@@ -1,6 +1,8 @@
 import json
 
+
 class HostWrapper:
+
     def __init__(self, data={}):
         self.__data = data
 
@@ -16,6 +18,7 @@ class HostWrapper:
     @property
     def canonical_facts(self):
         return self.__data["canonical_facts"]
+
     @canonical_facts.setter
     def canonical_facts(self, cf):
         self.__data["canonical_facts"] = cf
@@ -23,6 +26,7 @@ class HostWrapper:
     @property
     def facts(self):
         return self.__data["facts"]
+
     @facts.setter
     def facts(self, facts):
         self.__data["facts"] = facts
@@ -30,6 +34,7 @@ class HostWrapper:
     @property
     def tags(self):
         return self.__data["tags"]
+
     @tags.setter
     def tags(self, tags):
         self.__data["tags"] = tags
@@ -37,6 +42,7 @@ class HostWrapper:
     @property
     def id(self):
         return self.__data["id"]
+
     @id.setter
     def id(self, id):
         self.__data["id"] = id
@@ -44,6 +50,7 @@ class HostWrapper:
     @property
     def account(self):
         return self.__data["account"]
+
     @account.setter
     def account(self, account):
         self.__data["account"] = account
@@ -51,6 +58,7 @@ class HostWrapper:
     @property
     def display_name(self):
         return self.__data["display_name"]
+
     @display_name.setter
     def display_name(self, display_name):
         self.__data["display_name"] = display_name

@@ -39,6 +39,7 @@ def populate(count=100):
 
 if __name__ == "__main__":
     import sys
+
     print(sys.path)
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "insights.settings")
     django.setup()
