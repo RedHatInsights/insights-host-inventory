@@ -13,15 +13,16 @@ def addHost(host):
     canonical_facts = host.get("canonical_facts")
 
     found_host = Host.query.filter(
-                         Host.canonical_facts.comparator.contains(canonical_facts) |
-                         Host.canonical_facts.comparator.contained_by(canonical_facts)
-                       ).first()
+        Host.canonical_facts.comparator.contains(canonical_facts) |
+        Host.canonical_facts.comparator.contained_by(canonical_facts)
+    ).first()
 
     if not found_host:
         print("Creating a new host")
         host = Host.from_json(host)
         host.save()
         return host.to_json(), 201
+
     else:
         print("Updating host...")
 
@@ -50,8 +51,7 @@ def getHostList(tag=None, display_name=None):
 
 def findHostsByTag(tag):
     print(f"findHostsByTag({tag})")
-    found_host_list = Host.query.filter(
-            Host.tags.comparator.contains(tag)).all()
+    found_host_list = Host.query.filter(Host.tags.comparator.contains(tag)).all()
     print("found_host_list:", found_host_list)
     return found_host_list
 
@@ -59,7 +59,8 @@ def findHostsByTag(tag):
 def findHostsByDisplayName(display_name):
     print(f"findHostsByDisplayName({display_name})")
     found_host_list = Host.query.filter(
-            Host.display_name.comparator.contains(display_name)).all()
+        Host.display_name.comparator.contains(display_name)
+    ).all()
     print("found_host_list:", found_host_list)
     return found_host_list
 
