@@ -23,8 +23,10 @@ def convert_json_facts_to_dict(fact_list):
 def convert_dict_to_json_facts(fact_dict):
     # print("** convert_dict_to_json_facts")
     # print("** fact_dict:", fact_dict)
-    fact_list = [{"namespace": namespace, "facts": facts}
-                 for namespace, facts in fact_dict.items()]
+    fact_list = [
+        {"namespace": namespace, "facts": facts}
+        for namespace, facts in fact_dict.items()
+    ]
     # print("** fact_list:", fact_list)
     return fact_list
 
@@ -35,16 +37,22 @@ class Host(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200))
-    created_on = db.Column(db.DateTime,
-                          default=datetime.utcnow)
+    created_on = db.Column(db.DateTime, default=datetime.utcnow)
     modified_on = db.Column(db.DateTime,
-                          default=datetime.utcnow,
-                          onupdate=datetime.utcnow)
+                            default=datetime.utcnow,
+                            onupdate=datetime.utcnow)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
 
-    def __init__(self, canonical_facts, display_name=display_name, account=account, tags=None, facts=None):
+    def __init__(
+        self,
+        canonical_facts,
+        display_name=display_name,
+        account=account,
+        tags=None,
+        facts=None,
+    ):
         self.canonical_facts = canonical_facts
         self.display_name = display_name
         self.account = account
@@ -54,27 +62,26 @@ class Host(db.Model):
     @classmethod
     def from_json(cls, d):
         return cls(
-              d.get("canonical_facts"),
-              d.get("display_name"),
-              d.get("account"),
-              d.get("tags", []),
-              # Internally store the facts in a dict
-              convert_json_facts_to_dict( d.get("facts", []) )
-          )
+            d.get("canonical_facts"),
+            d.get("display_name"),
+            d.get("account"),
+            d.get("tags", []),
+            # Internally store the facts in a dict
+            convert_json_facts_to_dict(d.get("facts", [])),
+        )
 
     def to_json(self):
         return {
-                 "canonical_facts": self.canonical_facts,
-                 "id": self.id,
-                 "account": self.account,
-                 "display_name": self.display_name,
-                 "tags": self.tags,
-                 # Internally store the facts in a dict
-                 "facts": convert_dict_to_json_facts(self.facts)
-               }
+            "canonical_facts": self.canonical_facts,
+            "id": self.id,
+            "account": self.account,
+            "display_name": self.display_name,
+            "tags": self.tags,
+            # Internally store the facts in a dict
+            "facts": convert_dict_to_json_facts(self.facts),
+        }
 
     def update(self, input_host):
-
         self.update_canonical_facts(input_host.get("canonical_facts"))
 
         self.update_display_name(input_host.get("display_name", None))
@@ -100,9 +107,11 @@ class Host(db.Model):
             for input_namespace, input_facts in facts_dict.items():
                 if self.facts:
                     if input_namespace in self.facts:
-                        # Merge the input facts dict with the existing facts dict
-                        self.facts[input_namespace] = {**self.facts[input_namespace],
-                                                       **input_facts}
+                        # Merge the input facts dict with the
+                        # existing facts dict
+                        self.facts[input_namespace] = {
+                            **self.facts[input_namespace], **input_facts
+                        }
                     else:
                         # Create a new facts dict
                         self.facts[input_namespace] = input_facts
@@ -135,4 +144,6 @@ class Host(db.Model):
 
     def __repr__(self):
         tmpl = "<Host '%s' '%d' canonical_facts=%s facts=%s tags=%s>"
-        return tmpl % (self.display_name, self.id, self.canonical_facts, self.facts, self.tags)
+        return tmpl % (
+            self.display_name, self.id, self.canonical_facts, self.facts, self.tags
+        )
