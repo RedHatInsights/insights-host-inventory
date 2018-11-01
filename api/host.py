@@ -67,9 +67,7 @@ def findHostsByDisplayName(display_name):
 def getHostById(hostId):
     print(f"getHostById({hostId})")
 
-    host_id_list = [int(host_id) for host_id in hostId]
-
-    found_host_list = Host.query.filter(Host.id.in_(host_id_list)).all()
+    found_host_list = Host.query.filter(Host.id.in_(hostId)).all()
 
     json_host_list = [host.to_json() for host in found_host_list]
 
@@ -91,10 +89,8 @@ def replaceFacts(hostId, namespace, fact_dict):
 def mergeFacts(hostId, namespace, fact_dict):
     print(f"mergeFacts({hostId}, {namespace}, {fact_dict})")
 
-    host_id_list = [int(host_id) for host_id in hostId]
-
     hosts_to_update = Host.query.filter(
-            Host.id.in_(host_id_list) &
+            Host.id.in_(hostId) &
             Host.facts.has_key(namespace)).all()
 
     print("hosts_to_update:", hosts_to_update)
