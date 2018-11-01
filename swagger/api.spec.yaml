@@ -236,19 +236,24 @@ definitions:
         type: string
         example: "000102"
       insights-id:
-        type: uuid
+        type: string
+        format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
       rhel-machine-id:
-        type: uuid
+        type: string
+        format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
       subscription-manager-id:
-        type: uuid
+        type: string
+        format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
       satellite-id:
-        type: uuid
+        type: string
+        format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
       bios-uuid:
-        type: uuid
+        type: string
+        format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
       ip-addresses:
         type: array
@@ -284,8 +289,8 @@ definitions:
     - type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         created:
           type: string
           format: date-time
