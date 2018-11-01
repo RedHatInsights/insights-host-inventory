@@ -62,6 +62,8 @@ paths:
       responses:
         "201":
           description: Successfully created host in list
+        "200":
+          description: Successfully updated a host in list
   /hosts/{hostId}:
     get:
       tags:
