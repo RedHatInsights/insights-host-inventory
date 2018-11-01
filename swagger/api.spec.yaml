@@ -251,8 +251,8 @@ definitions:
       - type: object
         properties:
           id:
-            type: integer
-            format: int64
+            type: string
+            format: uuid
           created:
             type: string
             format: date-time
