@@ -124,7 +124,7 @@ class HostsTestCase(unittest.TestCase):
 
         self.assertEqual(results["id"], original_id)
 
-        data = self.get("%s/%d" % (HOST_URL, original_id), 200)
+        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
         results = HostWrapper(data["results"][0])
 
         self.assertEqual(len(results.facts), 2)
@@ -166,7 +166,7 @@ class HostsTestCase(unittest.TestCase):
 
         self.post(HOST_URL, host_data.data(), 200)
 
-        data = self.get("%s/%d" % (HOST_URL, original_id), 200)
+        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
         print(data["results"][0])
         results = HostWrapper(data["results"][0])
 
