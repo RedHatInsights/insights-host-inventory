@@ -1,46 +1,46 @@
-swagger: '2.0'
+swagger: "2.0"
 info:
   description: Swagger doc that describes the Host Inventory REST interface
   version: 1.0.0
   title: Host Inventory ReST Interface
 consumes:
-  - application/json
+- application/json
 produces:
-  - application/json
+- application/json
 basePath: /api
 paths:
   /hosts:
     get:
       operationId: api.host.getHostList
       tags:
-        - hosts
+      - hosts
       summary: Read the entire list of hosts
       description: Read the list of hosts
       parameters:
-        - name: length
-          in: query
-          type: integer
-          description: Number of hosts to get from hosts
-          required: false
-        - name: offset
-          in: query
-          type: integer
-          description: Offset from beginning of list where to start gathering hosts
-          required: false
-        - name: tag
-          in: query
-          type: array
-          items:
-            type: string
-          description: Search by tags
-          required: false
-        - name: display_name
-          in: query
+      - name: length
+        in: query
+        type: integer
+        description: Number of hosts to get from hosts
+        required: false
+      - name: offset
+        in: query
+        type: integer
+        description: Offset from beginning of list where to start gathering hosts
+        required: false
+      - name: tag
+        in: query
+        type: array
+        items:
           type: string
-          description: Search by display_name
-          required: false
+        description: Search by tags
+        required: false
+      - name: display_name
+        in: query
+        type: string
+        description: Search by display_name
+        required: false
       responses:
-        '200':
+        "200":
           description: Successfully read hosts list operation
           schema:
             type: array
@@ -49,163 +49,163 @@ paths:
     post:
       operationId: api.host.addHost
       tags:
-        - hosts
+      - hosts
       summary: Create a host and add it to the hosts list
       description: Create a new host in the hosts list
       parameters:
-        - in: body
-          name: host
-          description: Host object that needs to be added to the store
-          required: true
-          schema:
-            $ref: '#/definitions/Host'
+      - in: body
+        name: host
+        description: Host object that needs to be added to the store
+        required: true
+        schema:
+          $ref: '#/definitions/Host'
       responses:
-        '201':
+        "201":
           description: Successfully created host in list
-  '/hosts/{hostId}':
+  /hosts/{hostId}:
     get:
       tags:
-        - hosts
+      - hosts
       summary: Find host by ID
       description: Returns a single host or list of hosts
       operationId: api.host.getHostById
       produces:
-        - application/json
+      - application/json
       parameters:
-        - name: hostId
-          in: path
-          description: ID of host to return
-          required: true
-          type: array
-          collectionFormat: csv
-          items:
-            type: string
+      - name: hostId
+        in: path
+        description: ID of host to return
+        required: true
+        type: array
+        collectionFormat: csv
+        items:
+          type: string
       responses:
-        '200':
+        "200":
           description: successful operation
           schema:
             type: array
             items:
               $ref: '#/definitions/HostOut'
-        '400':
+        "400":
           description: Invalid ID supplied
-        '404':
+        "404":
           description: Host not found
     delete:
       tags:
-        - hosts
+      - hosts
       summary: Deletes a host
-      description: ''
+      description: ""
       operationId: api.host.deleteHost
       produces:
-        - application/json
+      - application/json
       parameters:
-        - name: hostId
-          in: path
-          description: Host id to delete
-          required: true
-          type: integer
-          format: int64
+      - name: hostId
+        in: path
+        description: Host id to delete
+        required: true
+        type: integer
+        format: int64
       responses:
-        '400':
+        "400":
           description: Invalid ID supplied
-        '404':
+        "404":
           description: Host not found
-  '/hosts/{hostId}/facts/{namespace}':
+  /hosts/{hostId}/facts/{namespace}:
     patch:
       tags:
-        - hosts
+      - hosts
       summary: Merge facts under a namespace
       description: Merge facts
       operationId: api.host.mergeFacts
       produces:
-        - application/json
+      - application/json
       parameters:
-        - name: hostId
-          in: path
-          description: ID of host to return
-          required: true
-          type: array
-          collectionFormat: csv
-          items:
-            type: string
-        - name: namespace
-          in: path
-          description: Namespace of the fact
-          required: true
+      - name: hostId
+        in: path
+        description: ID of host to return
+        required: true
+        type: array
+        collectionFormat: csv
+        items:
           type: string
-        - in: body
-          name: fact_dict
-          description: Fact dictionary
-          required: true
-          schema:
-            $ref: '#/definitions/Facts'
+      - name: namespace
+        in: path
+        description: Namespace of the fact
+        required: true
+        type: string
+      - in: body
+        name: fact_dict
+        description: Fact dictionary
+        required: true
+        schema:
+          $ref: '#/definitions/Facts'
       responses:
-        '200':
+        "200":
           description: successful operation
-        '400':
+        "400":
           description: Invalid ID supplied
-        '404':
+        "404":
           description: Host not found
     put:
       tags:
-        - hosts
+      - hosts
       summary: Replace facts under a namespace
       description: Replace facts
       operationId: api.host.replaceFacts
       produces:
-        - application/json
+      - application/json
       parameters:
-        - name: hostId
-          in: path
-          description: ID of host to return
-          required: true
-          type: array
-          collectionFormat: csv
-          items:
-            type: string
-        - name: namespace
-          in: path
-          description: Namespace of the fact
-          required: true
+      - name: hostId
+        in: path
+        description: ID of host to return
+        required: true
+        type: array
+        collectionFormat: csv
+        items:
           type: string
-        - in: body
-          name: fact_dict
-          description: Fact dictionary
-          required: true
-          schema:
-            $ref: '#/definitions/Facts'
+      - name: namespace
+        in: path
+        description: Namespace of the fact
+        required: true
+        type: string
+      - in: body
+        name: fact_dict
+        description: Fact dictionary
+        required: true
+        schema:
+          $ref: '#/definitions/Facts'
       responses:
-        '200':
+        "200":
           description: successful operation
-        '400':
+        "400":
           description: Invalid ID supplied
-        '404':
+        "404":
           description: Host not found
-  '/hosts/{hostId}/tags/':
+  /hosts/{hostId}/tags/:
     post:
       operationId: api.host.handleTagOperation
       tags:
-        - hosts
+      - hosts
       summary: Add or remove a tag from a number of hosts
       description: Add or remove a tag from a number of hosts
       parameters:
-        - name: hostId
-          in: path
-          description: ID of host to return
-          required: true
-          type: array
-          collectionFormat: csv
-          items:
-            type: string
-        - in: body
-          name: tag_op
-          description: Tag operation
-          required: true
-          schema:
-            $ref: '#/definitions/TagOperation'
+      - name: hostId
+        in: path
+        description: ID of host to return
+        required: true
+        type: array
+        collectionFormat: csv
+        items:
+          type: string
+      - in: body
+        name: tag_op
+        description: Tag operation
+        required: true
+        schema:
+          $ref: '#/definitions/TagOperation'
       responses:
-        '200':
+        "200":
           description: Successfully added or removed a tag
 definitions:
   Facts:
@@ -224,15 +224,46 @@ definitions:
   Host:
     type: object
     required:
-      - account
-      - canonical_facts
+    - account
+    - canonical_facts
     properties:
       display_name:
         type: string
         example: host1.mydomain.com
       account:
         type: string
-        example: '000102'
+        example: "000102"
+      insights-id:
+        type: uuid
+        example: 3f01b55457674041b75e41829bcee1dc
+      rhel-machine-id:
+        type: uuid
+        example: 3f01b55457674041b75e41829bcee1dc
+      subscription-manager-id:
+        type: uuid
+        example: 3f01b55457674041b75e41829bcee1dc
+      satellite-id:
+        type: uuid
+        example: 3f01b55457674041b75e41829bcee1dc
+      bios-uuid:
+        type: uuid
+        example: 3f01b55457674041b75e41829bcee1dc
+      ip-addresses:
+        type: array
+        items:
+          type: string
+        example:
+        - 10.10.0.1
+        - 10.0.0.2
+      fqdn:
+        type: string
+        example: my.host.example.com
+      mac-addresses:
+        type: array
+        items:
+          type: string
+        example:
+        - c2:00:d0:c8:61:01
       canonical_facts:
         type: object
         additionalProperties:
@@ -247,28 +278,28 @@ definitions:
           type: string
   HostOut:
     allOf:
-      - $ref: '#/definitions/Host'
-      - type: object
-        properties:
-          id:
-            type: integer
-            format: int64
-          created:
-            type: string
-            format: date-time
-          updated:
-            type: string
-            format: date-time
+    - $ref: '#/definitions/Host'
+    - type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
   TagOperation:
     type: object
     required:
-      - operation
-      - tag
+    - operation
+    - tag
     properties:
       operation:
         type: string
         enum:
-          - apply
-          - remove
+        - apply
+        - remove
       tag:
         type: string
