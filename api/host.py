@@ -97,7 +97,7 @@ def mergeFacts(hostId, namespace, fact_dict):
     print("hosts_to_update:", hosts_to_update)
 
     for host in hosts_to_update:
-        host.merge_facts_into_namespace(namespace, fact_dict)
+        host.merge_facts_in_namespace(namespace, fact_dict)
 
     db.session.commit()
 

@@ -104,24 +104,19 @@ class Host(db.Model):
     def update_facts(self, facts):
         if facts:
             facts_dict = convert_json_facts_to_dict(facts)
+
+            if not self.facts:
+                self.facts = facts_dict
+                return
+
             for input_namespace, input_facts in facts_dict.items():
-                if self.facts:
-                    if input_namespace in self.facts:
-                        # Merge the input facts dict with the
-                        # existing facts dict
-                        self.facts[input_namespace] = {
-                            **self.facts[input_namespace], **input_facts
-                        }
-                    else:
-                        # Create a new facts dict
-                        self.facts[input_namespace] = input_facts
-                else:
-                    # Store a new set of facts
-                    self.facts = facts_dict
+                self.replace_facts_in_namespace(input_namespace, input_facts)
 
-                orm.attributes.flag_modified(self, "facts")
+    def replace_facts_in_namespace(self, namespace, facts_dict):
+        self.facts[namespace] = facts_dict
+        orm.attributes.flag_modified(self, "facts")
 
-    def merge_facts_into_namespace(self, namespace, facts_dict):
+    def merge_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = {**self.facts[namespace], **facts_dict}
         orm.attributes.flag_modified(self, "facts")
 

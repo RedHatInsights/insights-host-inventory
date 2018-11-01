@@ -104,15 +104,25 @@ class HostsTestCase(unittest.TestCase):
         original_id = results["id"]
 
         post_data = host_data
-        post_data.facts.clear()
-        post_data.facts = [{"namespace": "ns2", "facts": {"key2": "value2"}}]
+        post_data.facts = FACTS
+
+        # Replace facts under the first namespace
+        post_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
+
+        # Add a new set of facts under a new namespace
+        post_data.facts.append({"namespace": "ns2", "facts":
+                               {"key2": "value2"}})
+
+        # Add a new canonical fact
         post_data.canonical_facts["test2"] = "test2id"
+
+        # Add a new tag
         post_data.tags = ["aws/new_tag_1:new_value_1"]
 
         expected_tags = tags
         expected_tags.extend(post_data.tags)
 
-        print("post_data:", post_data)
+        print("post_data:", post_data.data())
 
         # update initial entity
         results = self.post(HOST_URL, post_data.data(), 200)
@@ -122,21 +132,16 @@ class HostsTestCase(unittest.TestCase):
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
         results = HostWrapper(data["results"][0])
 
-        self.assertEqual(len(results.facts), 2)
         # sanity check
-        # post_data["facts"][0]["facts"]["key2"] = "blah"
-        self.assertEqual(results.facts[1]["facts"], post_data.facts[0]["facts"])
+        # post_data.facts[0]["facts"]["key2"] = "blah"
+        self.assertListEqual(results.facts, post_data.facts)
 
         # make sure the canonical facts are merged
         self.assertEqual(len(results.canonical_facts), 3)
         self.assertEqual(results.canonical_facts["test2"], "test2id")
 
         # make sure the tags are merged
-        self.assertEqual(len(results.tags), 2)
         self.assertListEqual(results.tags, expected_tags)
-
-    def test_post_same_facts(self):
-        pass
 
     def test_create_host_with_empty_tags_facts_display_name_then_update(self):
         # Create a host with empty tags, facts, and display_name
@@ -145,7 +150,6 @@ class HostsTestCase(unittest.TestCase):
         del host_data.tags
         del host_data.display_name
         del host_data.facts
-        print("DATA:", host_data.data())
 
         # initial create
         results = self.post(HOST_URL, host_data.data(), 201)
@@ -161,7 +165,6 @@ class HostsTestCase(unittest.TestCase):
         self.post(HOST_URL, host_data.data(), 200)
 
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
-        print(data["results"][0])
         results = HostWrapper(data["results"][0])
 
         self.assertListEqual(results.tags, host_data.tags)
@@ -173,7 +176,6 @@ class HostsTestCase(unittest.TestCase):
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.canonical_facts
-        print("DATA:", host_data.data())
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
@@ -182,7 +184,6 @@ class HostsTestCase(unittest.TestCase):
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
-        print("DATA:", host_data.data())
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
