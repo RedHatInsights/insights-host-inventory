@@ -24,7 +24,7 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     }
 
 
-class HostsTestCase(unittest.TestCase):
+class BaseAPITestCase(unittest.TestCase):
 
     def setUp(self):
         self.app = create_app(config_name="testing")
@@ -85,6 +85,9 @@ class HostsTestCase(unittest.TestCase):
         host_id_list = [str(h.id) for h in host_list]
 
         return ",".join(host_id_list)
+
+
+class CreateHostsTestCase(BaseAPITestCase):
 
     def test_create_and_update(self):
         canonical_facts = {"test_id": "11-22-33", "another_test_id": "44-55-66"}
@@ -174,17 +177,22 @@ class HostsTestCase(unittest.TestCase):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.canonical_facts
 
+        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
-
-    # FIXME: Verify response?
 
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
 
+        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-    # FIXME: Verify response?
+
+class PreCreatedHostsBaseTestCase(BaseAPITestCase):
+
+    def setUp(self):
+        super(PreCreatedHostsBaseTestCase, self).setUp()
+        self.added_hosts = self.add_2_hosts()
 
     def add_2_hosts(self):
         # FIXME: make this more generic
@@ -214,16 +222,17 @@ class HostsTestCase(unittest.TestCase):
 
         return host_list
 
-    def test_query_all(self):
-        host_list = self.add_2_hosts()
 
+class QueryTestCase(PreCreatedHostsBaseTestCase):
+
+    def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(self.added_hosts))
 
     def test_query_using_host_id_list(self):
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
@@ -233,7 +242,7 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(response["results"]), 2)
 
     def test_query_using_single_tag(self):
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         response = self.get(HOST_URL + "?tag=" + TAGS[0], 200)
 
@@ -241,15 +250,13 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(response["results"]), 2)
 
     def test_query_using_multiple_tags(self):
-        host_list = self.add_2_hosts()
-
         response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
 
     def test_query_using_display_name(self):
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         response = self.get(HOST_URL + "?display_name=" + host_list[0].display_name)
 
@@ -257,7 +264,7 @@ class HostsTestCase(unittest.TestCase):
         self.assertEqual(len(response["results"]), 1)
 
     def test_query_using_display_name_substring(self):
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         host_name_substr = host_list[0].display_name[:-2]
 
@@ -265,6 +272,9 @@ class HostsTestCase(unittest.TestCase):
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+
+
+class FactsTestCase(PreCreatedHostsBaseTestCase):
 
     def _build_facts_url(self, host_list, namespace):
         if type(host_list) == list:
@@ -281,7 +291,7 @@ class HostsTestCase(unittest.TestCase):
     def test_add_facts_to_multiple_hosts(self):
         facts_to_add = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         # This test assumes the set of facts are the same across
         # the hosts in the host_list
@@ -303,9 +313,11 @@ class HostsTestCase(unittest.TestCase):
         for response_host in response["results"]:
             host_to_verify = HostWrapper(response_host)
 
-            self.assertEqual(host_to_verify.facts[0]["facts"], expected_facts)
+            self.assertEqual(host_to_verify.facts[0]["facts"],
+                             expected_facts)
 
-            self.assertEqual(host_to_verify.facts[0]["namespace"], target_namespace)
+            self.assertEqual(host_to_verify.facts[0]["namespace"],
+                             target_namespace)
 
     @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
@@ -340,6 +352,9 @@ class HostsTestCase(unittest.TestCase):
     def test_replace_facts_on_namespace_that_does_not_exist(self):
         pass
 
+
+class TagsTestCase(PreCreatedHostsBaseTestCase):
+
     def _build_tag_op_doc(self, operation, tag):
         return {"operation": operation,
                 "tag": tag}
@@ -349,7 +364,7 @@ class HostsTestCase(unittest.TestCase):
 
         tag_op_doc = self._build_tag_op_doc("apply", tag_to_add)
 
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         expected_tags = host_list[0].tags
         expected_tags.append(tag_to_add)
@@ -380,7 +395,7 @@ class HostsTestCase(unittest.TestCase):
 
         tag_op_doc = self._build_tag_op_doc("remove", tag_to_remove)
 
-        host_list = self.add_2_hosts()
+        host_list = self.added_hosts
 
         expected_tags = host_list[0].tags
         expected_tags.remove(tag_to_remove)
