@@ -182,7 +182,7 @@ paths:
           description: Invalid ID supplied
         '404':
           description: Host not found
-  '/hosts/{hostId}/tags/':
+  '/hosts/{hostId}/tags':
     post:
       operationId: api.host.handleTagOperation
       tags:

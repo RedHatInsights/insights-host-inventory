@@ -1,6 +1,8 @@
 from app.models import Host
 from app import db
 
+TAG_OPERATIONS = ["apply", "remove"]
+
 
 def addHost(host):
     print("addHost()")
@@ -75,10 +77,6 @@ def getHostById(hostId):
     return {'count': 0, 'results': json_host_list}, 200
 
 
-def updateHostWithForm():
-    print("updateHostWithForm()")
-
-
 def deleteHost(hostId):
     print(f"deleteHost({hostId})")
 
@@ -109,5 +107,53 @@ def mergeFacts(hostId, namespace, fact_dict):
 def handleTagOperation(hostId, tag_op):
     print(f"handleTagOperation({hostId},{tag_op})")
 
-    found_host = Host.query.filter(Host.id.in_(hostId)).all()
-    print("found_host:", found_host)
+    try:
+        (operation, tag) = validate_tag_operation_request(tag_op)
+    except KeyError:
+        return "Invalid request", 400
+    # except InvalidTag:
+    #    return "Invalid request", 400
+    except:
+        return "Invalid request", 400
+
+    if operation == "apply":
+        apply_tag_to_hosts(hostId, tag)
+    else:
+        remove_tag_from_hosts(hostId, tag)
+
+    return 200
+
+
+def apply_tag_to_hosts(host_id_list, tag):
+    hosts_to_update = Host.query.filter(Host.id.in_(host_id_list)).all()
+
+    for h in hosts_to_update:
+        h.add_tag(tag)
+
+    db.session.commit()
+
+
+def remove_tag_from_hosts(host_id_list, tag):
+    hosts_to_update = Host.query.filter(
+                Host.id.in_(host_id_list) &
+                Host.tags.comparator.contains([tag])
+                ).all()
+
+    for h in hosts_to_update:
+        h.remove_tag(tag)
+
+    db.session.commit()
+
+
+def validate_tag_operation_request(tag_op_doc):
+    operation = tag_op_doc["operation"]
+    tag = tag_op_doc["tag"]
+
+    if (operation in TAG_OPERATIONS and tag is not None and is_valid_tag(tag)):
+        return (operation, tag)
+    else:
+        return None
+
+
+def is_valid_tag(tag):
+    return True

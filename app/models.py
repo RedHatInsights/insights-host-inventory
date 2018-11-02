@@ -122,8 +122,23 @@ class Host(db.Model):
 
     def update_tags(self, tags):
         if tags:
+            # FIXME: think about storing tags as a dict internally
             self.tags.extend(tags)
             orm.attributes.flag_modified(self, "tags")
+
+    def add_tag(self, tag):
+        if tag:
+            # FIXME: think about storing tags as a dict internally
+            if tag not in self.tags:
+                self.tags.append(tag)
+                orm.attributes.flag_modified(self, "tags")
+
+    def remove_tag(self, tag):
+        if tag:
+            # FIXME: think about storing tags as a dict internally
+            if tag in self.tags:
+                self.tags.remove(tag)
+                orm.attributes.flag_modified(self, "tags")
 
     def save(self):
         db.session.add(self)

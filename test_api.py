@@ -337,6 +337,62 @@ class HostsTestCase(unittest.TestCase):
     def test_replace_facts_on_namespace_that_does_not_exist(self):
         pass
 
+    def _build_tag_op_doc(self, operation, tag):
+        return {"operation": operation,
+                "tag": tag}
+
+    def test_add_tag_to_host(self):
+        tag_to_add = "aws/unique:value"
+
+        tag_op_doc = self._build_tag_op_doc("apply", tag_to_add)
+
+        host_list = self.add_2_hosts()
+
+        expected_tags = host_list[0].tags
+        expected_tags.append(tag_to_add)
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        self.post(f"{HOST_URL}/{url_host_id_list}/tags", tag_op_doc, 200)
+
+        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+
+        self.assertEqual(len(response["results"]), len(host_list))
+
+        for response_host in response["results"]:
+            host_to_verify = HostWrapper(response_host)
+
+            self.assertListEqual(host_to_verify.tags, expected_tags)
+
+    def test_add_invalid_tag_to_host(self):
+        pass
+
+    def test_add_duplicate_tags_to_host(self):
+        pass
+
+    def test_remove_tag_from_host(self):
+        tag_to_remove = "aws/k:v"
+
+        tag_op_doc = self._build_tag_op_doc("remove", tag_to_remove)
+
+        host_list = self.add_2_hosts()
+
+        expected_tags = host_list[0].tags
+        expected_tags.remove(tag_to_remove)
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        self.post(f"{HOST_URL}/{url_host_id_list}/tags", tag_op_doc, 200)
+
+        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+
+        self.assertEqual(len(response["results"]), len(host_list))
+
+        for response_host in response["results"]:
+            host_to_verify = HostWrapper(response_host)
+
+            self.assertListEqual(host_to_verify.tags, expected_tags)
+
 
 if __name__ == "__main__":
     unittest.main()
