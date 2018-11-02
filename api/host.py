@@ -1,12 +1,16 @@
+import os
+import logging
 from app.models import Host
 from app import db
 
 TAG_OPERATIONS = ["apply", "remove"]
 
 
+logger = logging.getLogger(__name__)
+
+
 def addHost(host):
-    print("addHost()")
-    print("host:", host)
+    logger.debug("addHost(%s)" % host)
 
     # Required inputs:
     # account
@@ -20,23 +24,23 @@ def addHost(host):
     ).first()
 
     if not found_host:
-        print("Creating a new host")
+        logger.debug("Creating a new host")
         host = Host.from_json(host)
         host.save()
         return host.to_json(), 201
 
     else:
-        print("Updating host...")
+        logger.debug("Updating an existing host")
 
         found_host.update(host)
 
-        print("*** Updated host:", found_host)
+        logger.debug("Updated host:%s" % found_host)
 
         return found_host.to_json(), 200
 
 
 def getHostList(tag=None, display_name=None):
-    print(f"getHostList(tag={tag}, display_name={display_name})")
+    logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
 
     if tag:
         host_list = findHostsByTag(tag)
@@ -52,23 +56,23 @@ def getHostList(tag=None, display_name=None):
 
 
 def findHostsByTag(tag):
-    print(f"findHostsByTag({tag})")
+    logger.debug("findHostsByTag(%s)" % tag)
     found_host_list = Host.query.filter(Host.tags.comparator.contains(tag)).all()
-    print("found_host_list:", found_host_list)
+    logger.debug("found_host_list:%s" % found_host_list)
     return found_host_list
 
 
 def findHostsByDisplayName(display_name):
-    print(f"findHostsByDisplayName({display_name})")
+    logger.debug("findHostsByDisplayName(%s)" % display_name)
     found_host_list = Host.query.filter(
         Host.display_name.comparator.contains(display_name)
     ).all()
-    print("found_host_list:", found_host_list)
+    logger.debug("found_host_list:%s" % found_host_list)
     return found_host_list
 
 
 def getHostById(hostId):
-    print(f"getHostById({hostId})")
+    logger.debug("getHostById(%s)" % hostId)
 
     found_host_list = Host.query.filter(Host.id.in_(hostId)).all()
 
@@ -78,34 +82,34 @@ def getHostById(hostId):
 
 
 def deleteHost(hostId):
-    print(f"deleteHost({hostId})")
+    logger.debug("deleteHost(%s)" % hostId)
 
 
 def replaceFacts(hostId, namespace, fact_dict):
-    print(f"replaceFacts({hostId}, {namespace}, {fact_dict})")
+    logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
 
 def mergeFacts(hostId, namespace, fact_dict):
-    print(f"mergeFacts({hostId}, {namespace}, {fact_dict})")
+    logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
     hosts_to_update = Host.query.filter(
             Host.id.in_(hostId) &
             Host.facts.has_key(namespace)).all()
 
-    print("hosts_to_update:", hosts_to_update)
+    logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     for host in hosts_to_update:
         host.merge_facts_in_namespace(namespace, fact_dict)
 
     db.session.commit()
 
-    print("hosts_to_update:", hosts_to_update)
+    logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     return 200
 
 
 def handleTagOperation(hostId, tag_op):
-    print(f"handleTagOperation({hostId},{tag_op})")
+    logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
 
     try:
         (operation, tag) = validate_tag_operation_request(tag_op)

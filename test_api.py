@@ -94,7 +94,6 @@ class HostsTestCase(unittest.TestCase):
         host_data = HostWrapper(
             test_data(canonical_facts=canonical_facts, facts=facts, tags=tags)
         )
-        print(host_data)
 
         # initial create
         results = self.post(HOST_URL, host_data.data(), 201)
@@ -121,8 +120,6 @@ class HostsTestCase(unittest.TestCase):
 
         expected_tags = tags
         expected_tags.extend(post_data.tags)
-
-        print("post_data:", post_data.data())
 
         # update initial entity
         results = self.post(HOST_URL, post_data.data(), 200)
@@ -221,7 +218,6 @@ class HostsTestCase(unittest.TestCase):
         host_list = self.add_2_hosts()
 
         response = self.get(HOST_URL, 200)
-        print("response:", response)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
@@ -311,15 +307,19 @@ class HostsTestCase(unittest.TestCase):
 
             self.assertEqual(host_to_verify.facts[0]["namespace"], target_namespace)
 
+    @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
         pass
 
+    @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(self):
         pass
 
+    @unittest.skip
     def test_add_facts_to_multiple_hosts_one_host_does_not_exist(self):
         pass
 
+    @unittest.skip
     def test_add_facts_to_namespace_that_does_not_exist(self):
         pass
 
@@ -328,12 +328,15 @@ class HostsTestCase(unittest.TestCase):
         response = self.put(put_url, None, 400)
         self.assertEqual(response['detail'], "Request body is not valid JSON")
 
+    @unittest.skip
     def test_replace_facts_on_multiple_hosts(self):
         pass
 
+    @unittest.skip
     def test_replace_facts_on_multiple_hosts_one_host_does_not_exist(self):
         pass
 
+    @unittest.skip
     def test_replace_facts_on_namespace_that_does_not_exist(self):
         pass
 
@@ -364,9 +367,11 @@ class HostsTestCase(unittest.TestCase):
 
             self.assertListEqual(host_to_verify.tags, expected_tags)
 
+    @unittest.skip
     def test_add_invalid_tag_to_host(self):
         pass
 
+    @unittest.skip
     def test_add_duplicate_tags_to_host(self):
         pass
 

@@ -1,15 +1,14 @@
+import os
+import logging
+import connexion
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
-
 from connexion.resolver import RestyResolver
-import connexion
 
-import os
 
-# local import
-# from instance.config import app_config
+LOGLEVEL = os.environ.get('INVENTORY_LOGLEVEL', 'WARNING')
+logging.basicConfig(level=LOGLEVEL.upper())
 
-# initialize sql-alchemy
 db = SQLAlchemy()
 
 
@@ -19,7 +18,6 @@ def create_app(config_name):
     # app.config.from_pyfile('config.py')
     # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     connexion_app = connexion.App("inventory", specification_dir='./swagger/')
-
 
     # Read the swagger.yml file to configure the endpoints
     connexion_app.add_api(
