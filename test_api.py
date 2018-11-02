@@ -13,6 +13,28 @@ ID = "whoabuddy"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 
+from unittest.mock import patch
+
+
+class Request:
+    headers = {"x-rh-identity": None}
+
+
+def validate_identity(payload):
+    pass
+
+
+def bypass_auth(func):
+    patchers = [
+        patch("app.auth.request", Request),
+        patch("app.auth._validate_identity", validate_identity)
+    ]
+
+    for patcher in patchers:
+        func = patcher(func)
+
+    return func
+
 
 def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
@@ -87,6 +109,7 @@ class BaseAPITestCase(unittest.TestCase):
         return ",".join(host_id_list)
 
 
+@bypass_auth
 class CreateHostsTestCase(BaseAPITestCase):
 
     def test_create_and_update(self):
@@ -194,6 +217,7 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.add_2_hosts()
 
+    @bypass_auth
     def add_2_hosts(self):
         # FIXME: make this more generic
         host_list = []
@@ -223,6 +247,7 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         return host_list
 
 
+@bypass_auth
 class QueryTestCase(PreCreatedHostsBaseTestCase):
 
     def test_query_all(self):
@@ -274,6 +299,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), 2)
 
 
+@bypass_auth
 class FactsTestCase(PreCreatedHostsBaseTestCase):
 
     def _build_facts_url(self, host_list, namespace):
@@ -353,6 +379,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         pass
 
 
+@bypass_auth
 class TagsTestCase(PreCreatedHostsBaseTestCase):
 
     def _build_tag_op_doc(self, operation, tag):
@@ -412,6 +439,27 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
             host_to_verify = HostWrapper(response_host)
 
             self.assertListEqual(host_to_verify.tags, expected_tags)
+
+
+class AuthTestCase(BaseAPITestCase):
+    def _get_hosts(self, headers):
+        return self.client().get(HOST_URL, headers=headers)
+
+    def test_validate_invalid_identity(self):
+        response = self._get_hosts({})
+        self.assertEqual(403, response.status_code)  # Forbidden
+
+    def test_validate_valid_identity(self):
+        response = self._get_hosts({"x-rh-identity": "some payload"})
+        self.assertEqual(200, response.status_code)  # OK
+
+    def test_get_identity(self):
+        payload = "some payload"
+        with self.app.test_request_context(HOST_URL,
+                                           method="GET",
+                                           headers={"x-rh-identity": payload}):
+            self.app.preprocess_request()
+            self.assertEquals(payload, self.app.auth_manager.identity())
 
 
 if __name__ == "__main__":

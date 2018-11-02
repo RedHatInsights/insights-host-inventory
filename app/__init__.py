@@ -1,6 +1,8 @@
 import os
 import logging
 import connexion
+
+from app.auth import AuthManager
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
@@ -39,6 +41,10 @@ def create_app(config_name):
         'SQLALCHEMY_DATABASE_URI'
     ] = f'postgresql://{user}:{password}@{host}/{db_name}'
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    if not flask_app.debug:
+        auth_manager = AuthManager()
+        auth_manager.init_app(flask_app)
 
     db.init_app(flask_app)
 
