@@ -15,13 +15,70 @@ class HostWrapper:
         else:
             raise AttributeError("No such attribute: " + name)
 
-    @property
-    def canonical_facts(self):
-        return self.__data["canonical_facts"]
+    CANONICAL_FACTS = ("insights-id",
+                       "rhel-machine-id",
+                       "subscription-manager-id",
+                       "satellite-id",
+                       "bios-uuid",
+                       "ip-addresses",
+                       "fqdn",
+                       "mac-addresses")
 
-    @canonical_facts.setter
-    def canonical_facts(self, cf):
-        self.__data["canonical_facts"] = cf
+    @property
+    def insights_id(self):
+        return self.__data["insights-id"]
+
+    @insights_id.setter
+    def insights_id(self, cf):
+        self.__data["insights-id"] = cf
+
+    @property
+    def rhel_machine_id(self):
+        return self.__data["rhel-machine-id"]
+
+    @rhel_machine_id.setter
+    def rhel_machine_id(self, cf):
+        self.__data["rhel-machine-id"] = cf
+
+    @property
+    def subscription_manager_id(self):
+        return self.__data["subscription-manager-id"]
+
+    @subscription_manager_id.setter
+    def subscription_manager_id(self, cf):
+        self.__data["subscription-manager-id"] = cf
+
+    @property
+    def bios_uuid(self):
+        return self.__data["bios-uuid"]
+
+    @bios_uuid.setter
+    def bios_uuid(self, cf):
+        self.__data["bios-uuid"] = cf
+
+    @property
+    def ip_addresses(self):
+        return self.__data["ip-addresses"]
+
+    @ip_addresses.setter
+    def ip_addresses(self, cf):
+        self.__data["ip-addresses"] = cf
+
+    @property
+    def fqdn(self):
+        return self.__data["fqdn"]
+
+    @fqdn.setter
+    def fqdn(self, cf):
+        self.__data["fqdn"] = cf
+
+    @property
+    def mac_addresses(self):
+        return self.__data["mac-addresses"]
+
+    @mac_addresses.setter
+    def mac_addresses(self, cf):
+        self.__data["mac-addresses"] = cf
 
     @property
     def facts(self):

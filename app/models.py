@@ -6,6 +6,31 @@ from sqlalchemy import orm
 import uuid
 
 
+class CFSquasher:
+    CANONICAL_FACTS = ("insights-id",
+                       "rhel-machine-id",
+                       "subscription-manager-id",
+                       "satellite-id",
+                       "bios-uuid",
+                       "ip-addresses",
+                       "fqdn",
+                       "mac-addresses")
+
+    def convert_fields_to_canonical_facts(self, json_dict):
+        canonical_fact_list = {}
+        for cf in self.CANONICAL_FACTS:
+            if cf in json_dict:
+                canonical_fact_list[cf] = json_dict[cf]
+        return canonical_fact_list
+
+    def convert_canonical_facts_to_fields(self, internal_dict):
+        canonical_fact_dict = dict.fromkeys(self.CANONICAL_FACTS, None)
+        for cf in self.CANONICAL_FACTS:
+            if cf in internal_dict:
+                canonical_fact_dict[cf] = internal_dict[cf]
+        return canonical_fact_dict
+
+
 def convert_json_facts_to_dict(fact_list):
     # print("** convert_json_facts_to_dict")
     # print("** fact_list:", fact_list)
@@ -71,15 +96,13 @@ class Host(db.Model):
         )
 
     def to_json(self):
-        return {
-            "canonical_facts": self.canonical_facts,
-            "id": self.id,
-            "account": self.account,
-            "display_name": self.display_name,
-            "tags": self.tags,
-            # Internally store the facts in a dict
-            "facts": convert_dict_to_json_facts(self.facts),
-        }
+        json_dict = CFSquasher().convert_canonical_facts_to_fields(self.canonical_facts)
+        json_dict["id"] = self.id
+        json_dict["account"] = self.account
+        json_dict["display_name"] = self.display_name
+        json_dict["tags"] = self.tags
+        json_dict["facts"] = convert_dict_to_json_facts(self.facts)
+        return json_dict
 
     def update(self, input_host):
         self.update_canonical_facts(input_host.get("canonical_facts"))
