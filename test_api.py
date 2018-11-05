@@ -10,19 +10,19 @@ HOST_URL = "/api/hosts"
 NS = "testns"
 ID = "whoabuddy"
 
+ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 
 
-def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
+def test_data(display_name="hi", tags=None, facts=None):
     return {
         "account": "test",
         "display_name": display_name,
         "insights-id": "1234-56-789",
-        "rhel-machine-id": "1234-56-789",
+        # "rhel-machine-id": "1234-56-789",
         "ip-addresses": ["10.10.0.1", "10.0.0.2"],
         "mac-addresses": ["c2:00:d0:c8:61:01"],
-        "canonical_facts": canonical_facts if canonical_facts else {NS: ID},
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
@@ -94,12 +94,11 @@ class BaseAPITestCase(unittest.TestCase):
 class CreateHostsTestCase(BaseAPITestCase):
 
     def test_create_and_update(self):
-        canonical_facts = {"test_id": "11-22-33", "another_test_id": "44-55-66"}
         facts = None
         tags = ["/merge_me_1:value1"]
 
         host_data = HostWrapper(
-            test_data(canonical_facts=canonical_facts, facts=facts, tags=tags)
+            test_data(facts=facts, tags=tags)
         )
 
         # initial create
@@ -121,7 +120,7 @@ class CreateHostsTestCase(BaseAPITestCase):
                                {"key2": "value2"}})
 
         # Add a new canonical fact
-        post_data.canonical_facts["test2"] = "test2id"
+        post_data.rhel_machine_id = "1234-56-789"
 
         # Add a new tag
         post_data.tags = ["aws/new_tag_1:new_value_1"]
@@ -144,7 +143,7 @@ class CreateHostsTestCase(BaseAPITestCase):
 
         # make sure the canonical facts are merged
         #self.assertEqual(len(results.canonical_facts), 3)
-        #self.assertEqual(results.canonical_facts["test2"], "test2id")
+        self.assertEqual(results.rhel_machine_id, post_data.rhel_machine_id)
 
         # make sure the tags are merged
         self.assertListEqual(results.tags, expected_tags)
@@ -181,7 +180,15 @@ class CreateHostsTestCase(BaseAPITestCase):
 
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
-        del host_data.canonical_facts
+        del host_data.insights_id
+        del host_data.rhel_machine_id
+        del host_data.subscription_manager_id
+        del host_data.satellite_id
+        del host_data.bios_uuid
+        del host_data.ip_addresses
+        del host_data.fqdn
+        del host_data.mac_addresses
+        print("host_data.data():", host_data.data())
 
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
@@ -204,26 +211,24 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         # FIXME: make this more generic
         host_list = []
 
-        canonical_facts = {'insights_id': '12345'}
-        display_name = "host1"
-        tags = TAGS
-        host_data = HostWrapper(
-            test_data(
-                display_name=display_name, canonical_facts=canonical_facts, tags=tags
-            )
-        )
-        response_data = self.post(HOST_URL, host_data.data(), 201)
+        host1 = HostWrapper()
+        host1.account = ACCOUNT
+        host1.tags = TAGS
+        host1.display_name = "host1"
+        host1.insights_id = '12345'
+        host1.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+
+        response_data = self.post(HOST_URL, host1.data(), 201)
         host_list.append(HostWrapper(response_data))
 
-        canonical_facts = {'insights_id': '54321'}
-        display_name = "host2"
-        tags = TAGS
-        host_data = HostWrapper(
-            test_data(
-                display_name=display_name, canonical_facts=canonical_facts, tags=tags
-            )
-        )
-        response_data = self.post(HOST_URL, host_data.data(), 201)
+        host2 = HostWrapper()
+        host2.account = ACCOUNT
+        host2.tags = TAGS
+        host2.display_name = "host2"
+        host2.insights_id = "54321"
+        host2.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+
+        response_data = self.post(HOST_URL, host2.data(), 201)
         host_list.append(HostWrapper(response_data))
 
         return host_list

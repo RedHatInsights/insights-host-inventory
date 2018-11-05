@@ -10,19 +10,11 @@ class HostWrapper:
         return self.__data
 
     def __delattr__(self, name):
+        name = name.replace("_", "-")
         if name in self.__data:
             del self.__data[name]
-        else:
-            raise AttributeError("No such attribute: " + name)
-
-    CANONICAL_FACTS = ("insights-id",
-                       "rhel-machine-id",
-                       "subscription-manager-id",
-                       "satellite-id",
-                       "bios-uuid",
-                       "ip-addresses",
-                       "fqdn",
-                       "mac-addresses")
+        #else:
+        #    raise AttributeError("No such attribute: " + name)
 
     @property
     def insights_id(self):

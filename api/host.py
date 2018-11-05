@@ -1,6 +1,6 @@
 import os
 import logging
-from app.models import Host, CFSquasher
+from app.models import Host
 from app import db
 
 TAG_OPERATIONS = ["apply", "remove"]
@@ -11,14 +11,17 @@ logger = logging.getLogger(__name__)
 
 def addHost(host):
     logger.debug("addHost(%s)" % host)
-    print("addHost(%s)" % host)
 
     # Required inputs:
     # account
     # canonical_facts
 
-    canonical_facts = CFSquasher().convert_fields_to_canonical_facts(host)
-    print("canonical_facts:", canonical_facts)
+    input_host = Host.from_json(host)
+
+    canonical_facts = input_host.canonical_facts
+
+    if not canonical_facts:
+        return "Invalid request", 400
 
     found_host = Host.query.filter(
         Host.canonical_facts.comparator.contains(canonical_facts) |
@@ -27,16 +30,13 @@ def addHost(host):
 
     if not found_host:
         logger.debug("Creating a new host")
-        host = Host.from_json(host)
-        # FIXME:
-        host.canonical_facts = canonical_facts
-        host.save()
-        return host.to_json(), 201
+        input_host.save()
+        return input_host.to_json(), 201
 
     else:
         logger.debug("Updating an existing host")
 
-        found_host.update(host)
+        found_host.update(input_host)
 
         logger.debug("Updated host:%s" % found_host)
 

@@ -6,29 +6,30 @@ from sqlalchemy import orm
 import uuid
 
 
-class CFSquasher:
-    CANONICAL_FACTS = ("insights-id",
-                       "rhel-machine-id",
-                       "subscription-manager-id",
-                       "satellite-id",
-                       "bios-uuid",
-                       "ip-addresses",
-                       "fqdn",
-                       "mac-addresses")
+CANONICAL_FACTS = ("insights-id",
+                   "rhel-machine-id",
+                   "subscription-manager-id",
+                   "satellite-id",
+                   "bios-uuid",
+                   "ip-addresses",
+                   "fqdn",
+                   "mac-addresses")
 
-    def convert_fields_to_canonical_facts(self, json_dict):
-        canonical_fact_list = {}
-        for cf in self.CANONICAL_FACTS:
-            if cf in json_dict:
-                canonical_fact_list[cf] = json_dict[cf]
-        return canonical_fact_list
 
-    def convert_canonical_facts_to_fields(self, internal_dict):
-        canonical_fact_dict = dict.fromkeys(self.CANONICAL_FACTS, None)
-        for cf in self.CANONICAL_FACTS:
-            if cf in internal_dict:
-                canonical_fact_dict[cf] = internal_dict[cf]
-        return canonical_fact_dict
+def convert_fields_to_canonical_facts(json_dict):
+    canonical_fact_list = {}
+    for cf in CANONICAL_FACTS:
+        if cf in json_dict:
+            canonical_fact_list[cf] = json_dict[cf]
+    return canonical_fact_list
+
+
+def convert_canonical_facts_to_fields(internal_dict):
+    canonical_fact_dict = dict.fromkeys(CANONICAL_FACTS, None)
+    for cf in CANONICAL_FACTS:
+        if cf in internal_dict:
+            canonical_fact_dict[cf] = internal_dict[cf]
+    return canonical_fact_dict
 
 
 def convert_json_facts_to_dict(fact_list):
@@ -87,8 +88,8 @@ class Host(db.Model):
     @classmethod
     def from_json(cls, d):
         return cls(
-            d.get("canonical_facts"),
-            d.get("display_name"),
+            convert_fields_to_canonical_facts(d),
+            d.get("display_name", None),
             d.get("account"),
             d.get("tags", []),
             # Internally store the facts in a dict
@@ -96,7 +97,7 @@ class Host(db.Model):
         )
 
     def to_json(self):
-        json_dict = CFSquasher().convert_canonical_facts_to_fields(self.canonical_facts)
+        json_dict = convert_canonical_facts_to_fields(self.canonical_facts)
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
@@ -105,13 +106,14 @@ class Host(db.Model):
         return json_dict
 
     def update(self, input_host):
-        self.update_canonical_facts(input_host.get("canonical_facts"))
 
-        self.update_display_name(input_host.get("display_name", None))
+        self.update_canonical_facts(input_host.canonical_facts)
 
-        self.update_facts(input_host.get("facts", []))
+        self.update_display_name(input_host.display_name)
 
-        self.update_tags(input_host.get("tags", []))
+        self.update_facts(input_host.facts)
+
+        self.update_tags(input_host.tags)
 
         db.session.commit()
 
@@ -124,10 +126,8 @@ class Host(db.Model):
         self.canonical_facts.update(canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
-    def update_facts(self, facts):
-        if facts:
-            facts_dict = convert_json_facts_to_dict(facts)
-
+    def update_facts(self, facts_dict):
+        if facts_dict:
             if not self.facts:
                 self.facts = facts_dict
                 return
