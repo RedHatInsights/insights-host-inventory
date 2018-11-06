@@ -3,6 +3,7 @@
 import unittest
 import json
 from app import create_app, db
+from app.auth import current_identity
 from app.utils import HostWrapper
 
 HOST_URL = "/api/hosts"
@@ -17,7 +18,7 @@ from unittest.mock import patch
 
 
 class Request:
-    headers = {"x-rh-identity": None}
+    headers = {"x-rh-identity": ""}
 
 
 def validate_identity(payload):
@@ -478,7 +479,7 @@ class AuthTestCase(BaseAPITestCase):
                                            method="GET",
                                            headers={"x-rh-identity": payload}):
             self.app.preprocess_request()
-            self.assertEquals(payload, self.app.auth_manager.identity())
+            self.assertEquals(payload, current_identity)
 
 
 if __name__ == "__main__":

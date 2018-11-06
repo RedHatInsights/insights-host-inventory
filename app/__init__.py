@@ -2,7 +2,7 @@ import os
 import logging
 import connexion
 
-from app.auth import AuthManager
+from app.auth import init_app as auth_init_app
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
@@ -43,8 +43,7 @@ def create_app(config_name):
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     if not flask_app.debug:
-        auth_manager = AuthManager()
-        auth_manager.init_app(flask_app)
+        auth_init_app(flask_app)
 
     db.init_app(flask_app)
 

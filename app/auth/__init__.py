@@ -1,7 +1,8 @@
-from flask import abort, request
+from flask import abort, request, _request_ctx_stack
+from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
 
-__all__ = ["AuthManager"]
+__all__ = ["init_app", "current_identity"]
 
 _IDENTITY_HEADER = "x-rh-identity"
 
@@ -14,40 +15,28 @@ def _validate_identity(payload):
         raise ValueError
 
 
-class AuthManager:
-    """
-    Authentication manager for a Flask app. Hooks to a request, parses the identity HTTP
-    header and either raises an error or makes the identity data available to the views.
-    """
+def _before_request():
+    try:
+        payload = request.headers[_IDENTITY_HEADER]
+    except KeyError:
+        abort(Forbidden.code)
 
-    def __init__(self):
-        """
-        Identities are stored by a request context.
-        """
-        self.identities = {}
+    try:
+        _validate_identity(payload)
+    except (TypeError, ValueError):
+        abort(Forbidden.code)
 
-    def _before_request(self):
-        """
-        Validates the identity HTTP header. Stores the value for it to be available in
-        the views. Fails with 403 otherwise.
-        """
-        try:
-            payload = request.headers[_IDENTITY_HEADER]
-            _validate_identity(payload)
-        except (KeyError, ValueError):
-            abort(Forbidden.code)
-        else:
-            self.identities[request] = payload
+    ctx = _request_ctx_stack.top
+    ctx.identity = payload
 
-    def identity(self):
-        """
-        Gets the identity data by the current request context.
-        """
-        return self.identities[request]
 
-    def init_app(self, flask_app):
-        """
-        Hooks the identity HTTP header parsing to every request.
-        """
-        flask_app.auth_manager = self
-        flask_app.before_request(self._before_request)
+def init_app(flask_app):
+    flask_app.before_request(_before_request)
+
+
+def _get_identity():
+    ctx = _request_ctx_stack.top
+    return ctx.identity
+
+
+current_identity = LocalProxy(_get_identity)
