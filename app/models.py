@@ -88,6 +88,7 @@ class Host(db.Model):
     @classmethod
     def from_json(cls, d):
         return cls(
+            # Internally store the canonical facts as a dict
             convert_fields_to_canonical_facts(d),
             d.get("display_name", None),
             d.get("account"),

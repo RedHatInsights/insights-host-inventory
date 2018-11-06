@@ -13,12 +13,12 @@ class HostWrapper:
         name = name.replace("_", "-")
         if name in self.__data:
             del self.__data[name]
-        #else:
+        # else:
         #    raise AttributeError("No such attribute: " + name)
 
     @property
     def insights_id(self):
-        return self.__data["insights-id"]
+        return self.__data.get("insights-id", None)
 
     @insights_id.setter
     def insights_id(self, cf):
@@ -26,7 +26,7 @@ class HostWrapper:
 
     @property
     def rhel_machine_id(self):
-        return self.__data["rhel-machine-id"]
+        return self.__data.get("rhel-machine-id", None)
 
     @rhel_machine_id.setter
     def rhel_machine_id(self, cf):
@@ -34,7 +34,7 @@ class HostWrapper:
 
     @property
     def subscription_manager_id(self):
-        return self.__data["subscription-manager-id"]
+        return self.__data.get("subscription-manager-id", None)
 
     @subscription_manager_id.setter
     def subscription_manager_id(self, cf):
@@ -42,7 +42,7 @@ class HostWrapper:
 
     @property
     def bios_uuid(self):
-        return self.__data["bios-uuid"]
+        return self.__data.get("bios-uuid", None)
 
     @bios_uuid.setter
     def bios_uuid(self, cf):
@@ -50,7 +50,7 @@ class HostWrapper:
 
     @property
     def ip_addresses(self):
-        return self.__data["ip-addresses"]
+        return self.__data.get("ip-addresses", None)
 
     @ip_addresses.setter
     def ip_addresses(self, cf):
@@ -58,7 +58,7 @@ class HostWrapper:
 
     @property
     def fqdn(self):
-        return self.__data["fqdn"]
+        return self.__data.get("fqdn")
 
     @fqdn.setter
     def fqdn(self, cf):
@@ -66,7 +66,7 @@ class HostWrapper:
 
     @property
     def mac_addresses(self):
-        return self.__data["mac-addresses"]
+        return self.__data.get("mac-addresses", None)
 
     @mac_addresses.setter
     def mac_addresses(self, cf):
@@ -74,7 +74,7 @@ class HostWrapper:
 
     @property
     def facts(self):
-        return self.__data["facts"]
+        return self.__data.get("facts", None)
 
     @facts.setter
     def facts(self, facts):
@@ -82,7 +82,7 @@ class HostWrapper:
 
     @property
     def tags(self):
-        return self.__data["tags"]
+        return self.__data.get("tags", None)
 
     @tags.setter
     def tags(self, tags):
@@ -90,7 +90,7 @@ class HostWrapper:
 
     @property
     def id(self):
-        return self.__data["id"]
+        return self.__data.get("id", None)
 
     @id.setter
     def id(self, id):
@@ -98,7 +98,7 @@ class HostWrapper:
 
     @property
     def account(self):
-        return self.__data["account"]
+        return self.__data.get("account", None)
 
     @account.setter
     def account(self, account):
@@ -106,7 +106,7 @@ class HostWrapper:
 
     @property
     def display_name(self):
-        return self.__data["display_name"]
+        return self.__data.get("display_name", None)
 
     @display_name.setter
     def display_name(self, display_name):
