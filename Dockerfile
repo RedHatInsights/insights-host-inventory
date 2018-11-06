@@ -1,7 +1,6 @@
-FROM python:3
+FROM python:3.6
 
-RUN pip install pipenv
-RUN mkdir /code
-WORKDIR /code
-ADD . /code
-RUN pipenv install --dev --python /usr/local/bin/python
+WORKDIR /usr/src/app
+COPY . ./
+RUN pip install -r requirements.txt
+CMD ['python', 'run.py']

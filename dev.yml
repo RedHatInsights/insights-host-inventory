@@ -6,6 +6,6 @@ services:
         environment:
             POSTGRES_PASSWORD: insights
             POSTGRES_USER: insights
-            POSTGRES_DB: insights
+            POSTGRES_DB: test_db
         ports: 
             - "5432:5432"

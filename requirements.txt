@@ -1,0 +1,13 @@
+flask
+jsonify
+flask-restful
+requests
+flask-limiter
+connexion
+flask-script
+flask-api
+flask-sqlalchemy
+psycopg2-binary
+flask-migrate
+itsdangerous
+request

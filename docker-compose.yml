@@ -6,16 +6,16 @@ services:
         environment:
             POSTGRES_PASSWORD: insights
             POSTGRES_USER: insights
-            POSTGRES_DB: insights
+            POSTGRES_DB: test_db
         ports: 
             - "5432:5432"
     web:
         build: .
         restart: always
-        command: bash -c "sleep 2 && pipenv run ./manage.py migrate --noinput && pipenv run gunicorn -b 0.0.0.0:8000 insights.wsgi"
+        command: bash -c "sleep 2 && python manage.py db upgrade && python manage.py db migrate && ./run.py"
         environment:
-            DB_HOST: db
+            INVENTORY_DB_HOST: db
         ports:
-            - "8000:8000"
+            - "5000:5000"
         depends_on:
             - db
