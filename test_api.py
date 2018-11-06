@@ -21,14 +21,19 @@ class Request:
     headers = {"x-rh-identity": ""}
 
 
-def validate_identity(payload):
+def from_encoded(payload):
+    return None
+
+
+def validate(identity):
     pass
 
 
 def bypass_auth(func):
     patchers = [
         patch("app.auth.request", Request),
-        patch("app.auth._validate_identity", validate_identity)
+        patch("app.auth.from_encoded", from_encoded),
+        patch("app.auth.validate", validate)
     ]
 
     for patcher in patchers:

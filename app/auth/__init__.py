@@ -1,3 +1,4 @@
+from app.auth.identity import from_encoded, validate
 from flask import abort, request, _request_ctx_stack
 from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
@@ -22,12 +23,17 @@ def _before_request():
         abort(Forbidden.code)
 
     try:
-        _validate_identity(payload)
+        identity = from_encoded(payload)
     except (TypeError, ValueError):
         abort(Forbidden.code)
 
+    try:
+        validate(identity)
+    except ValueError:
+        abort(Forbidden.code)
+
     ctx = _request_ctx_stack.top
-    ctx.identity = payload
+    ctx.identity = identity
 
 
 def init_app(flask_app):
