@@ -4,6 +4,11 @@ from unittest.mock import Mock, patch
 
 
 class AuthManagerTestCase(TestCase):
+    """
+    Tests the Authentication Manager, the binding between the Flask app and the identity
+    HTTP header parser/validator.
+    """
+
     def setUp(self):
         """
         Instantiates the Authentication Manager.
@@ -50,18 +55,60 @@ class AuthManagerTestCase(TestCase):
         abort.assert_not_called()
 
     @patch("app.auth.abort")
-    @patch("app.auth._validate_identity", side_effect=ValueError)
-    @patch("app.auth.request")
-    def test_before_request_abort(self, request, validate_identity, abort):
+    @patch("app.auth._validate_identity")
+    def test_before_request_missing_abort(self, validate_identity, abort):
         """
-        The identity payload is validated. Fails with 403 (Forbidden) if not valid.
+        The identity header is missing. Fails with 403 (Forbidden).
         """
-        payload = "some payload"
-        with patch("app.auth.request", **{"headers": {"x-rh-identity": payload}}):
+        with patch("app.auth.request", **{"headers": {}}):
             self.auth_manager._before_request()
 
-        validate_identity.assert_called_once_with(payload)
+        validate_identity.assert_not_called()
         abort.assert_called_once_with(403)  # Forbidden
+
+    def test_before_request_invalid_abort(self):
+        """
+        The identity payload is validated. Fails with 403 (Forbidden) if not valid,
+        assuming it can raise KeyError or ValueError.
+        """
+        payload = "some payload"
+
+        @patch("app.auth.abort")
+        def _test(abort):
+            with patch("app.auth.request", **{"headers": {"x-rh-identity": payload}}):
+                self.auth_manager._before_request()
+
+            abort.assert_called_once_with(403)  # Forbidden
+
+        errors = [KeyError, ValueError]
+        for error in errors:
+            with self.subTest(error=error):
+                with patch(
+                    "app.auth._validate_identity", side_effect=error
+                ) as validate_identity:
+                    _test()
+                    validate_identity.assert_called_once_with(payload)
+
+    @patch("app.auth.abort")
+    def test_before_request_error_not_caught(self, abort):
+        """
+        Any other error during the validation is not caught and does not result in a
+        controlled abort.
+        """
+        payload = "some payload"
+        error = RuntimeError
+        with patch(
+            "app.auth.request", **{"headers": {"x-rh-identity": payload}}
+        ) as request:
+            with patch(
+                "app.auth._validate_identity", side_effect=error
+            ) as validate_identity:
+                with self.assertRaises(error):
+                    self.auth_manager._before_request()
+
+                validate_identity.assert_called_once_with(payload)
+
+        abort.assert_not_called()
 
     @patch("app.auth._validate_identity")
     def test_before_request_identities(self, validate_identity):
@@ -90,11 +137,21 @@ class AuthManagerTestCase(TestCase):
 
 
 class ValidationTestCase(TestCase):
+    """
+    Tests the dummy identity validator.
+    """
+
     def test_valid(self):
+        """
+        Any non-empty identity payload is considered valid.
+        """
         _validate_identity("some payload")
         self.assertTrue(True)
 
     def test_invalid(self):
+        """
+        An empty identity payload is not valid.
+        """
         payloads = {None, ""}
         for payload in payloads:
             with self.subTest(payload=payload):

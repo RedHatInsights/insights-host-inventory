@@ -443,17 +443,36 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
 class AuthTestCase(BaseAPITestCase):
     def _get_hosts(self, headers):
+        """
+        Issues a GET request to the /hosts URL, providing given headers.
+        """
         return self.client().get(HOST_URL, headers=headers)
 
-    def test_validate_invalid_identity(self):
+    def test_validate_missing_identity(self):
+        """
+        Identity header is not present, 403 Forbidden is returned.
+        """
         response = self._get_hosts({})
         self.assertEqual(403, response.status_code)  # Forbidden
 
+    def test_validate_invalid_identity(self):
+        """
+        Identity header is not valid – empty in this case, 403 Forbidden is returned.
+        """
+        response = self._get_hosts({"x-rh-identity": ""})
+        self.assertEqual(403, response.status_code)  # Forbidden
+
     def test_validate_valid_identity(self):
+        """
+        Identity header is valid – non-empty in this case, 200 is returned.
+        """
         response = self._get_hosts({"x-rh-identity": "some payload"})
         self.assertEqual(200, response.status_code)  # OK
 
     def test_get_identity(self):
+        """
+        The identity payload is available by the request context = in the views.
+        """
         payload = "some payload"
         with self.app.test_request_context(HOST_URL,
                                            method="GET",
