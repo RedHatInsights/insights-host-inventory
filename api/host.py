@@ -1,6 +1,7 @@
 import os
 import logging
 from app.models import Host
+from app.auth import current_identity
 from app import db
 
 TAG_OPERATIONS = ["apply", "remove"]
@@ -41,6 +42,8 @@ def addHost(host):
 
 def getHostList(tag=None, display_name=None):
     logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
+    print("current identity:", current_identity)
+    print("current identity account number:", current_identity.account_number)
 
     if tag:
         host_list = findHostsByTag(tag)

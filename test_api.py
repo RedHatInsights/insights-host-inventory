@@ -57,6 +57,13 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
 
 class BaseAPITestCase(unittest.TestCase):
 
+    def _get_valid_auth_header(self):
+        identity = Identity(account_number="000501", org_id="some org id")
+        dict_ = identity._asdict()
+        json_doc = json.dumps(dict_)
+        auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
+        return auth_header
+
     def setUp(self):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
@@ -74,8 +81,9 @@ class BaseAPITestCase(unittest.TestCase):
 
     def get(self, path, status=200, return_response_as_json=True):
         return self._response_check(
-            self.client().get(path), status, return_response_as_json
-        )
+            self.client().get(path,
+                              headers=self._get_valid_auth_header()),
+                status, return_response_as_json)
 
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
@@ -96,9 +104,11 @@ class BaseAPITestCase(unittest.TestCase):
         self, http_method, path, data, status, return_response_as_json=True
     ):
         json_data = json.dumps(data)
+        headers = self._get_valid_auth_header()
+        headers['content-type'] = 'application/json'
         return self._response_check(
             http_method(
-                path, data=json_data, headers={'content-type': 'application/json'}
+                path, data=json_data, headers=headers
             ),
             status,
             return_response_as_json,
@@ -118,7 +128,6 @@ class BaseAPITestCase(unittest.TestCase):
         return ",".join(host_id_list)
 
 
-@bypass_auth
 class CreateHostsTestCase(BaseAPITestCase):
 
     def test_create_and_update(self):
@@ -226,7 +235,6 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.add_2_hosts()
 
-    @bypass_auth
     def add_2_hosts(self):
         # FIXME: make this more generic
         host_list = []
@@ -256,7 +264,6 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         return host_list
 
 
-@bypass_auth
 class QueryTestCase(PreCreatedHostsBaseTestCase):
 
     def test_query_all(self):
@@ -308,7 +315,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), 2)
 
 
-@bypass_auth
 class FactsTestCase(PreCreatedHostsBaseTestCase):
 
     def _build_facts_url(self, host_list, namespace):
@@ -388,7 +394,6 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         pass
 
 
-@bypass_auth
 class TagsTestCase(PreCreatedHostsBaseTestCase):
 
     def _build_tag_op_doc(self, operation, tag):
