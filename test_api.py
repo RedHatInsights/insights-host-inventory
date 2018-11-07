@@ -16,11 +16,12 @@ ID = "whoabuddy"
 
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
+ACCOUNT = "000501"
 
 
 def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
-        "account": "test",
+        "account": ACCOUNT,
         "display_name": display_name,
         "canonical_facts": canonical_facts if canonical_facts else {NS: ID},
         "tags": tags if tags else [],
@@ -31,7 +32,7 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
 class BaseAPITestCase(unittest.TestCase):
 
     def _get_valid_auth_header(self):
-        identity = Identity(account_number="000501", org_id="some org id")
+        identity = Identity(account_number=ACCOUNT, org_id="some org id")
         dict_ = identity._asdict()
         json_doc = json.dumps(dict_)
         auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
@@ -197,6 +198,13 @@ class CreateHostsTestCase(BaseAPITestCase):
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
+
+        # FIXME: Verify response?
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+    def test_create_host_with_mismatched_account_numbers(self):
+        host_data = HostWrapper(test_data(facts=None))
+        host_data.account = ACCOUNT[::-1]
 
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
