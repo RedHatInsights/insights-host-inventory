@@ -17,33 +17,6 @@ ID = "whoabuddy"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 
-from unittest.mock import patch
-
-
-class Request:
-    headers = {"x-rh-identity": ""}
-
-
-def from_encoded(payload):
-    return None
-
-
-def validate(identity):
-    pass
-
-
-def bypass_auth(func):
-    patchers = [
-        patch("app.auth.request", Request),
-        patch("app.auth.from_encoded", from_encoded),
-        patch("app.auth.validate", validate)
-    ]
-
-    for patcher in patchers:
-        func = patcher(func)
-
-    return func
-
 
 def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
     return {
