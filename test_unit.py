@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from app.auth import (
     _before_request,
     current_identity,
