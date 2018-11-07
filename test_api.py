@@ -2,12 +2,14 @@
 
 import unittest
 import json
+import dateutil.parser
 from app import create_app, db
 from app.auth import current_identity
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
 from json import dumps
+from datetime import datetime, timezone
 
 HOST_URL = "/api/hosts"
 
@@ -117,6 +119,9 @@ class CreateHostsTestCase(BaseAPITestCase):
         results = self.post(HOST_URL, host_data.data(), 201)
 
         self.assertIsNotNone(results["id"])
+        self.assertIsNotNone(results["created"])
+        created_time = dateutil.parser.parse(results["created"])
+        self.assertGreater(datetime.now(timezone.utc), created_time)
 
         original_id = results["id"]
 
@@ -143,6 +148,10 @@ class CreateHostsTestCase(BaseAPITestCase):
         results = self.post(HOST_URL, post_data.data(), 200)
 
         self.assertEqual(results["id"], original_id)
+
+        self.assertIsNotNone(results["updated"])
+        modified_time = dateutil.parser.parse(results["updated"])
+        self.assertGreater(modified_time, created_time)
 
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
         results = HostWrapper(data["results"][0])

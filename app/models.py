@@ -79,6 +79,8 @@ class Host(db.Model):
             "tags": self.tags,
             # Internally store the facts in a dict
             "facts": convert_dict_to_json_facts(self.facts),
+            "created": self.created_on,
+            "updated": self.modified_on,
         }
 
     def update(self, input_host):
