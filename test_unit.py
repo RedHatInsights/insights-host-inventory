@@ -74,21 +74,7 @@ class AuthBeforeRequestTestCase(TestCase):
         abort.assert_called_once_with(403)  # Forbidden
         validate_identity.assert_not_called()
 
-    @patch("app.auth._request_ctx_stack")
-    @patch("app.auth.abort", side_effect=Abort)
-    @patch("app.auth._validate_identity")
-    def test_validate_identity_valid(self, validate_identity, abort, request_ctx_stack):
-        """
-        The identity payload is validated. Doesn’t fail if valid.
-        """
-        payload = "some payload"
-        with patch("app.auth.request", **{"headers": {"x-rh-identity": payload}}):
-            _before_request()
-
-        validate_identity.assert_called_once_with(payload)
-        abort.assert_not_called()
-
-    def test_validate_identity_invalid(self):
+    def test_identity_invalid(self):
         """
         The identity payload is validated. Fails with 403 (Forbidden) if not parsable or
         otherwise invalid.
@@ -113,7 +99,8 @@ class AuthBeforeRequestTestCase(TestCase):
                     validate_identity.assert_called_once_with(payload)
 
     @patch("app.auth.abort")
-    def test_error_not_caught(self, abort):
+    @patch("app.auth._validate_identity", side_effect=RuntimeError)
+    def test_error_not_caught(self, validate_identity, abort):
         """
         Any other error during the validation is not caught and does not result in a
         controlled abort.
@@ -121,14 +108,24 @@ class AuthBeforeRequestTestCase(TestCase):
         payload = "some payload"
         error = RuntimeError
         with patch("app.auth.request", **{"headers": {"x-rh-identity": payload}}):
-            with patch(
-                "app.auth._validate_identity", side_effect=error
-            ) as validate_identity:
-                with self.assertRaises(error):
-                    _before_request()
+            with self.assertRaises(error):
+                _before_request()
 
-                validate_identity.assert_called_once_with(payload)
+        validate_identity.assert_called_once_with(payload)
+        abort.assert_not_called()
 
+    @patch("app.auth._request_ctx_stack")
+    @patch("app.auth.abort", side_effect=Abort)
+    @patch("app.auth._validate_identity")
+    def test_identity_valid(self, validate_identity, abort, request_ctx_stack):
+        """
+        The identity payload is validated. Doesn’t fail if valid.
+        """
+        payload = "some payload"
+        with patch("app.auth.request", **{"headers": {"x-rh-identity": payload}}):
+            _before_request()
+
+        validate_identity.assert_called_once_with(payload)
         abort.assert_not_called()
 
     @patch("app.auth._request_ctx_stack")
