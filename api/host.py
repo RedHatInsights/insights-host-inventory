@@ -167,6 +167,7 @@ def apply_tag_to_hosts(host_id_list, tag):
 
 def remove_tag_from_hosts(host_id_list, tag):
     hosts_to_update = Host.query.filter(
+                (Host.account == current_identity.account_number) &
                 Host.id.in_(host_id_list) &
                 Host.tags.comparator.contains([tag])
                 ).all()
