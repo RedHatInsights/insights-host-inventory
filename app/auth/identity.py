@@ -1,18 +1,46 @@
-__all__ = ["from_encoded", "validate"]
+from base64 import b64decode
+from collections import namedtuple
+from json import loads
 
 
-def from_encoded(payload):
+__all__ = ["Identity",
+           "from_dict",
+           "from_json",
+           "from_encoded",
+           "validate"]
+
+
+Identity = namedtuple("Identity", ("account_number", "org_id"))
+
+
+def from_dict(dict_):
     """
-    Encoded payload parser stub. Just returns what it gets – the raw data. Will convert
-    the data from an encoded string to an Identity object instance.
+    Build an Identity from a dictionary of values.
     """
-    return payload
+    return Identity(**dict_)
+
+
+def from_json(json):
+    """
+    Build an Identity from a JSON string.
+    """
+    dict_ = loads(json)
+    return from_dict(dict_)
+
+
+def from_encoded(base64):
+    """
+    Build an Identity from the raw HTTP header value – a Base64-encoded
+    JSON.
+    """
+    json = b64decode(base64)
+    return from_json(json)
 
 
 def validate(identity):
     """
-    Validation method stub: considers the identity valid if it contains any non-empty
-    data.
+    Ensure both values are present.
     """
-    if not identity:
-        raise ValueError
+    dict_ = identity._asdict()
+    if not all(dict_.values()):
+        raise ValueError("Both account_number and org_id are mandatory.")

@@ -4,7 +4,10 @@ import unittest
 import json
 from app import create_app, db
 from app.auth import current_identity
+from app.auth.identity import Identity
 from app.utils import HostWrapper
+from base64 import b64encode
+from json import dumps
 
 HOST_URL = "/api/hosts"
 
@@ -448,6 +451,23 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
 
 class AuthTestCase(BaseAPITestCase):
+    @staticmethod
+    def _valid_identity():
+        """
+        Provides a valid Identity object.
+        """
+        return Identity(account_number="some account number", org_id="some org id")
+
+    @staticmethod
+    def _valid_payload():
+        """
+        Builds a valid HTTP header payload – Base64 encoded JSON string with valid data.
+        """
+        identity = __class__._valid_identity()
+        dict_ = identity._asdict()
+        json = dumps(dict_)
+        return b64encode(json.encode())
+
     def _get_hosts(self, headers):
         """
         Issues a GET request to the /hosts URL, providing given headers.
@@ -472,19 +492,20 @@ class AuthTestCase(BaseAPITestCase):
         """
         Identity header is valid – non-empty in this case, 200 is returned.
         """
-        response = self._get_hosts({"x-rh-identity": "some payload"})
+        payload = self._valid_payload()
+        response = self._get_hosts({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
 
     def test_get_identity(self):
         """
         The identity payload is available by the request context = in the views.
         """
-        payload = "some payload"
+        payload = self._valid_payload()
         with self.app.test_request_context(HOST_URL,
                                            method="GET",
                                            headers={"x-rh-identity": payload}):
             self.app.preprocess_request()
-            self.assertEquals(payload, current_identity)
+            self.assertEquals(self._valid_identity(), current_identity)
 
 
 if __name__ == "__main__":
