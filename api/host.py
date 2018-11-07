@@ -1,6 +1,7 @@
 import os
 import logging
 from app.models import Host
+from app.auth import current_identity
 from app import db
 
 TAG_OPERATIONS = ["apply", "remove"]
@@ -10,11 +11,20 @@ logger = logging.getLogger(__name__)
 
 
 def addHost(host):
+    """
+    Add or update a host
+
+    Required parameters:
+     - at least one of the canonical facts fields is required
+     - account number
+    """
     logger.debug("addHost(%s)" % host)
 
-    # Required inputs:
-    # account
-    # canonical_facts
+    account_number = host.get("account", None)
+
+    if(current_identity.account_number != account_number):
+        return "The account number associated with the user does not match "\
+               "the account number associated with the host", 400
 
     input_host = Host.from_json(host)
 
@@ -24,8 +34,9 @@ def addHost(host):
         return "Invalid request", 400
 
     found_host = Host.query.filter(
-        Host.canonical_facts.comparator.contains(canonical_facts) |
-        Host.canonical_facts.comparator.contained_by(canonical_facts)
+        (Host.account == account_number) &
+        (Host.canonical_facts.comparator.contains(canonical_facts) |
+         Host.canonical_facts.comparator.contained_by(canonical_facts))
     ).first()
 
     if not found_host:
@@ -44,14 +55,23 @@ def addHost(host):
 
 
 def getHostList(tag=None, display_name=None):
+    """
+    Get the list of hosts.  Filtering can be done by the tag or display_name.
+
+    If multiple tags are passed along, they are AND'd together during
+    the filtering.
+
+    """
     logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
 
     if tag:
-        host_list = findHostsByTag(tag)
+        host_list = findHostsByTag(current_identity.account_number, tag)
     elif display_name:
-        host_list = findHostsByDisplayName(display_name)
+        host_list = findHostsByDisplayName(current_identity.account_number,
+                                           display_name)
     else:
-        host_list = Host.get_all()
+        host_list = Host.query.filter(
+                Host.account == current_identity.account_number).all()
 
     json_host_list = [host.to_json() for host in host_list]
 
@@ -59,16 +79,19 @@ def getHostList(tag=None, display_name=None):
     return {'count': 0, 'results': json_host_list}, 200
 
 
-def findHostsByTag(tag):
+def findHostsByTag(account, tag):
     logger.debug("findHostsByTag(%s)" % tag)
-    found_host_list = Host.query.filter(Host.tags.comparator.contains(tag)).all()
+    found_host_list = Host.query.filter(
+            (Host.account == account) &
+            Host.tags.comparator.contains(tag)).all()
     logger.debug("found_host_list:%s" % found_host_list)
     return found_host_list
 
 
-def findHostsByDisplayName(display_name):
+def findHostsByDisplayName(account, display_name):
     logger.debug("findHostsByDisplayName(%s)" % display_name)
     found_host_list = Host.query.filter(
+        (Host.account == account) &
         Host.display_name.comparator.contains(display_name)
     ).all()
     logger.debug("found_host_list:%s" % found_host_list)
@@ -78,7 +101,9 @@ def findHostsByDisplayName(display_name):
 def getHostById(hostId):
     logger.debug("getHostById(%s)" % hostId)
 
-    found_host_list = Host.query.filter(Host.id.in_(hostId)).all()
+    found_host_list = Host.query.filter(
+            (Host.account == current_identity.account_number) &
+            Host.id.in_(hostId)).all()
 
     json_host_list = [host.to_json() for host in found_host_list]
 
@@ -97,6 +122,7 @@ def mergeFacts(hostId, namespace, fact_dict):
     logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
     hosts_to_update = Host.query.filter(
+            (Host.account == current_identity.account_number) &
             Host.id.in_(hostId) &
             Host.facts.has_key(namespace)).all()
 
@@ -133,7 +159,9 @@ def handleTagOperation(hostId, tag_op):
 
 
 def apply_tag_to_hosts(host_id_list, tag):
-    hosts_to_update = Host.query.filter(Host.id.in_(host_id_list)).all()
+    hosts_to_update = Host.query.filter(
+            (Host.account == current_identity.account_number) &
+            Host.id.in_(host_id_list)).all()
 
     for h in hosts_to_update:
         h.add_tag(tag)
@@ -143,6 +171,7 @@ def apply_tag_to_hosts(host_id_list, tag):
 
 def remove_tag_from_hosts(host_id_list, tag):
     hosts_to_update = Host.query.filter(
+                (Host.account == current_identity.account_number) &
                 Host.id.in_(host_id_list) &
                 Host.tags.comparator.contains([tag])
                 ).all()

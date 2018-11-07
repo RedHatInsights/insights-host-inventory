@@ -45,6 +45,7 @@ Running the tests is quite simple:
 
 ```
 ./test_api.py
+./test_unit.py
 ```
 
 ## Running the server

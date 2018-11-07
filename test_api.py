@@ -3,7 +3,11 @@
 import unittest
 import json
 from app import create_app, db
+from app.auth import current_identity
+from app.auth.identity import Identity
 from app.utils import HostWrapper
+from base64 import b64encode
+from json import dumps
 
 HOST_URL = "/api/hosts"
 
@@ -13,6 +17,7 @@ ID = "whoabuddy"
 ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
+ACCOUNT = "000501"
 
 
 def test_data(display_name="hi", tags=None, facts=None):
@@ -31,6 +36,13 @@ def test_data(display_name="hi", tags=None, facts=None):
 
 class BaseAPITestCase(unittest.TestCase):
 
+    def _get_valid_auth_header(self):
+        identity = Identity(account_number=ACCOUNT, org_id="some org id")
+        dict_ = identity._asdict()
+        json_doc = json.dumps(dict_)
+        auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
+        return auth_header
+
     def setUp(self):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
@@ -48,8 +60,9 @@ class BaseAPITestCase(unittest.TestCase):
 
     def get(self, path, status=200, return_response_as_json=True):
         return self._response_check(
-            self.client().get(path), status, return_response_as_json
-        )
+            self.client().get(path,
+                              headers=self._get_valid_auth_header()),
+                status, return_response_as_json)
 
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
@@ -70,9 +83,11 @@ class BaseAPITestCase(unittest.TestCase):
         self, http_method, path, data, status, return_response_as_json=True
     ):
         json_data = json.dumps(data)
+        headers = self._get_valid_auth_header()
+        headers['content-type'] = 'application/json'
         return self._response_check(
             http_method(
-                path, data=json_data, headers={'content-type': 'application/json'}
+                path, data=json_data, headers=headers
             ),
             status,
             return_response_as_json,
@@ -201,6 +216,13 @@ class CreateHostsTestCase(BaseAPITestCase):
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
+
+        # FIXME: Verify response?
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+    def test_create_host_with_mismatched_account_numbers(self):
+        host_data = HostWrapper(test_data(facts=None))
+        host_data.account = ACCOUNT[::-1]
 
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
@@ -421,6 +443,64 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
             host_to_verify = HostWrapper(response_host)
 
             self.assertListEqual(host_to_verify.tags, expected_tags)
+
+
+class AuthTestCase(BaseAPITestCase):
+    @staticmethod
+    def _valid_identity():
+        """
+        Provides a valid Identity object.
+        """
+        return Identity(account_number="some account number", org_id="some org id")
+
+    @staticmethod
+    def _valid_payload():
+        """
+        Builds a valid HTTP header payload – Base64 encoded JSON string with valid data.
+        """
+        identity = __class__._valid_identity()
+        dict_ = identity._asdict()
+        json = dumps(dict_)
+        return b64encode(json.encode())
+
+    def _get_hosts(self, headers):
+        """
+        Issues a GET request to the /hosts URL, providing given headers.
+        """
+        return self.client().get(HOST_URL, headers=headers)
+
+    def test_validate_missing_identity(self):
+        """
+        Identity header is not present, 403 Forbidden is returned.
+        """
+        response = self._get_hosts({})
+        self.assertEqual(403, response.status_code)  # Forbidden
+
+    def test_validate_invalid_identity(self):
+        """
+        Identity header is not valid – empty in this case, 403 Forbidden is returned.
+        """
+        response = self._get_hosts({"x-rh-identity": ""})
+        self.assertEqual(403, response.status_code)  # Forbidden
+
+    def test_validate_valid_identity(self):
+        """
+        Identity header is valid – non-empty in this case, 200 is returned.
+        """
+        payload = self._valid_payload()
+        response = self._get_hosts({"x-rh-identity": payload})
+        self.assertEqual(200, response.status_code)  # OK
+
+    def test_get_identity(self):
+        """
+        The identity payload is available by the request context = in the views.
+        """
+        payload = self._valid_payload()
+        with self.app.test_request_context(HOST_URL,
+                                           method="GET",
+                                           headers={"x-rh-identity": payload}):
+            self.app.preprocess_request()
+            self.assertEquals(self._valid_identity(), current_identity)
 
 
 if __name__ == "__main__":
