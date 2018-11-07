@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
 from json import dumps
