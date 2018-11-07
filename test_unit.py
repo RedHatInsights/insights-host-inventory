@@ -6,16 +6,22 @@ from json import dumps
 from unittest import main, TestCase
 
 
-class IdentityConstructorTestCase(TestCase):
+class AuthIdentityConstructorTestCase(TestCase):
     """
-    Test the Identity module: the named tuple, its constructors and validation.
+    Tests the Identity module constructors.
     """
 
     @staticmethod
     def _identity():
         return Identity(account_number="some number", org_id="some org id")
 
-    def test_from_dict_valid(self):
+
+class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
+    """
+    Tests creating an Identity from a dictionary.
+    """
+
+    def test_valid(self):
         """
         Initialize the Identity object with a valid dictionary.
         """
@@ -25,7 +31,7 @@ class IdentityConstructorTestCase(TestCase):
 
         self.assertEqual(identity, from_dict(dict_))
 
-    def test_from_dict_invalid(self):
+    def test_invalid(self):
         """
         Initializing the Identity object with a dictionary with missing values or with
         anything else should raise TypeError.
@@ -41,7 +47,13 @@ class IdentityConstructorTestCase(TestCase):
             with self.assertRaises(TypeError):
                 from_dict(dict_)
 
-    def test_from_json_valid(self):
+
+class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
+    """
+    Tests creating an Identity from a JSON string.
+    """
+
+    def test_valid(self):
         """
         Initialize the Identity object with a valid JSON string.
         """
@@ -55,7 +67,7 @@ class IdentityConstructorTestCase(TestCase):
         except (TypeError, ValueError):
             self.fail()
 
-    def test_from_json_invalid_type(self):
+    def test_invalid_type(self):
         """
         Initializing the Identity object with an invalid type that can’t be JSON should
         raise a TypeError.
@@ -63,7 +75,7 @@ class IdentityConstructorTestCase(TestCase):
         with self.assertRaises(TypeError):
             from_json(["not", "a", "string"])
 
-    def test_from_json_invalid_value(self):
+    def test_invalid_value(self):
         """
         Initializing the Identity object with an invalid JSON string should raise a
         ValueError.
@@ -71,7 +83,14 @@ class IdentityConstructorTestCase(TestCase):
         with self.assertRaises(ValueError):
             from_json("invalid JSON")
 
-    def test_from_encoded_valid(self):
+
+class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
+    """
+    Tests creating an Identity from a Base64 encoded JSON string, which is what is in
+    the HTTP header.
+    """
+
+    def test_valid(self):
         """
         Initialize the Identity object with an encoded payload – a base64-encoded JSON.
         That would typically be a raw HTTP header content.
@@ -87,7 +106,7 @@ class IdentityConstructorTestCase(TestCase):
         except (TypeError, ValueError):
             self.fail()
 
-    def test_from_encoded_invalid_type(self):
+    def test_invalid_type(self):
         """
         Initializing the Identity object with an invalid type that can’t be a Base64
         encoded payload should raise a TypeError.
@@ -95,7 +114,7 @@ class IdentityConstructorTestCase(TestCase):
         with self.assertRaises(TypeError):
             from_encoded(["not", "a", "string"])
 
-    def test_from_encoded_invalid_value(self):
+    def test_invalid_value(self):
         """
         Initializing the Identity object with an invalid Base6č encoded payload should
         raise a ValueError.
@@ -104,8 +123,8 @@ class IdentityConstructorTestCase(TestCase):
             from_encoded("invalid Base64")
 
 
-class IdentityValidateTestCase(TestCase):
-    def test_validate_valid(self):
+class AuthIdentityValidateTestCase(TestCase):
+    def test_valid(self):
         try:
             identity = Identity(account_number="some number", org_id="some org id")
             validate(identity)
@@ -113,11 +132,14 @@ class IdentityValidateTestCase(TestCase):
         except ValueError:
             self.fail()
 
-    def test_validate_invalid(self):
+    def test_invalid(self):
         identities = [
             Identity(account_number=None, org_id=None),
+            Identity(account_number="", org_id=""),
             Identity(account_number=None, org_id="some org_id"),
+            Identity(account_number="", org_id="some org_id"),
             Identity(account_number="some account_number", org_id=None),
+            Identity(account_number="some account_number", org_id=""),
         ]
         for identity in identities:
             with self.subTest(identity=identity):
