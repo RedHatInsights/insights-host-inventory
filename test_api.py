@@ -520,7 +520,7 @@ class AuthTestCase(BaseAPITestCase):
                                            method="GET",
                                            headers={"x-rh-identity": payload}):
             self.app.preprocess_request()
-            self.assertEquals(self._valid_identity(), current_identity)
+            self.assertEqual(self._valid_identity(), current_identity)
 
 
 if __name__ == "__main__":
