@@ -241,7 +241,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         """
         identity = self._identity()
 
-        dict_ = identity._asdict()
+        dict_ = {"identity": identity._asdict()}
         json = dumps(dict_)
 
         try:
@@ -265,6 +265,19 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         with self.assertRaises(ValueError):
             from_json("invalid JSON")
 
+    def test_invalid_format(self):
+        """
+        Initializing the Identity object with a JSON string that is not
+        formatted correctly.
+        """
+        identity = self._identity()
+
+        dict_ = identity._asdict()
+        json = dumps(dict_)
+
+        with self.assertRaises(KeyError):
+            from_json(json)
+
 
 class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
     """
@@ -279,7 +292,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         """
         identity = self._identity()
 
-        dict_ = identity._asdict()
+        dict_ = {"identity": identity._asdict()}
         json = dumps(dict_)
         base64 = b64encode(json.encode())
 
@@ -303,6 +316,20 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         """
         with self.assertRaises(ValueError):
             from_encoded("invalid Base64")
+
+    def test_invalid_format(self):
+        """
+        Initializing the Identity object with an valid Base64 encoded payload
+        that does not contain the "identity" field.
+        """
+        identity = self._identity()
+
+        dict_ = identity._asdict()
+        json = dumps(dict_)
+        base64 = b64encode(json.encode())
+
+        with self.assertRaises(KeyError):
+            from_encoded(base64)
 
 
 class AuthIdentityValidateTestCase(TestCase):

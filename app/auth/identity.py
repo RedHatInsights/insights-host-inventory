@@ -25,7 +25,7 @@ def from_json(json):
     Build an Identity from a JSON string.
     """
     dict_ = loads(json)
-    return from_dict(dict_)
+    return from_dict(dict_["identity"])
 
 
 def from_encoded(base64):

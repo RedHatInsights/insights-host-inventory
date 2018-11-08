@@ -35,7 +35,7 @@ class BaseAPITestCase(unittest.TestCase):
 
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT, org_id="some org id")
-        dict_ = identity._asdict()
+        dict_ = {"identity": identity._asdict()}
         json_doc = json.dumps(dict_)
         auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
         return auth_header
@@ -479,7 +479,7 @@ class AuthTestCase(BaseAPITestCase):
         Builds a valid HTTP header payload – Base64 encoded JSON string with valid data.
         """
         identity = __class__._valid_identity()
-        dict_ = identity._asdict()
+        dict_ = {"identity": identity._asdict()}
         json = dumps(dict_)
         return b64encode(json.encode())
 

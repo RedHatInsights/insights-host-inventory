@@ -24,7 +24,7 @@ def _before_request():
 
     try:
         identity = from_encoded(payload)
-    except (TypeError, ValueError):
+    except (KeyError, TypeError, ValueError):
         abort(Forbidden.code)
 
     try:
