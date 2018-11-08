@@ -106,10 +106,6 @@ def getHostById(hostId):
     return {'count': 0, 'results': json_host_list}, 200
 
 
-def deleteHost(hostId):
-    logger.debug("deleteHost(%s)" % hostId)
-
-
 def replaceFacts(hostId, namespace, fact_dict):
     logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
