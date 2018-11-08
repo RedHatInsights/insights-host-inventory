@@ -314,6 +314,37 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
             url_host_id_list = str(host_list)
         return HOST_URL + "/" + url_host_id_list + "/facts/" + namespace
 
+    def _basic_fact_test(self, input_facts, expected_facts, replace_facts):
+
+        host_list = self.added_hosts
+
+        # This test assumes the set of facts are the same across
+        # the hosts in the host_list
+
+        target_namespace = host_list[0].facts[0]["namespace"]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        patch_url = self._build_facts_url(host_list, target_namespace)
+
+        if replace_facts:
+            response = self.put(patch_url, input_facts, 200)
+        else:
+            response = self.patch(patch_url, input_facts, 200)
+
+        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+
+        self.assertEqual(len(response["results"]), len(host_list))
+
+        for response_host in response["results"]:
+            host_to_verify = HostWrapper(response_host)
+
+            self.assertEqual(host_to_verify.facts[0]["facts"],
+                             expected_facts)
+
+            self.assertEqual(host_to_verify.facts[0]["namespace"],
+                             target_namespace)
+
     def test_add_facts_without_fact_dict(self):
         patch_url = self._build_facts_url(1, "ns1")
         response = self.patch(patch_url, None, 400)
@@ -329,26 +360,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
         expected_facts = {**host_list[0].facts[0]["facts"], **facts_to_add}
 
-        target_namespace = host_list[0].facts[0]["namespace"]
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        patch_url = self._build_facts_url(host_list, target_namespace)
-
-        response = self.patch(patch_url, facts_to_add, 200)
-
-        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
-
-        self.assertEqual(len(response["results"]), len(host_list))
-
-        for response_host in response["results"]:
-            host_to_verify = HostWrapper(response_host)
-
-            self.assertEqual(host_to_verify.facts[0]["facts"],
-                             expected_facts)
-
-            self.assertEqual(host_to_verify.facts[0]["namespace"],
-                             target_namespace)
+        self._basic_fact_test(facts_to_add, expected_facts, False)
 
     @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
@@ -371,9 +383,17 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         response = self.put(put_url, None, 400)
         self.assertEqual(response['detail'], "Request body is not valid JSON")
 
-    @unittest.skip
     def test_replace_facts_on_multiple_hosts(self):
-        pass
+        new_facts = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+        expected_facts = new_facts
+
+        self._basic_fact_test(new_facts, expected_facts, True)
+
+    def test_replace_facts_on_multiple_hosts_with_empty_fact_set(self):
+        new_facts = {}
+        expected_facts = new_facts
+
+        self._basic_fact_test(new_facts, expected_facts, True)
 
     @unittest.skip
     def test_replace_facts_on_multiple_hosts_one_host_does_not_exist(self):
