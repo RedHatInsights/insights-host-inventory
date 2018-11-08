@@ -233,6 +233,16 @@ paths:
       responses:
         "200":
           description: Successfully added or removed a tag
+  /health:
+    get:
+      operationId: api.health
+      tags:
+        - health
+      summary: Respond to a health check
+      description: Respond to a health check
+      responses:
+        '200':
+          description: The application is able to respond to requests
 definitions:
   Facts:
     type: object
