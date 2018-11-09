@@ -34,7 +34,7 @@ def test_data(display_name="hi", canonical_facts=None, tags=None, facts=None):
 class BaseAPITestCase(unittest.TestCase):
 
     def _get_valid_auth_header(self):
-        identity = Identity(account_number=ACCOUNT, org_id="some org id")
+        identity = Identity(account_number=ACCOUNT)
         dict_ = {"identity": identity._asdict()}
         json_doc = json.dumps(dict_)
         auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
@@ -471,7 +471,7 @@ class AuthTestCase(BaseAPITestCase):
         """
         Provides a valid Identity object.
         """
-        return Identity(account_number="some account number", org_id="some org id")
+        return Identity(account_number="some account number")
 
     @staticmethod
     def _valid_payload():

@@ -195,7 +195,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(account_number="some number", org_id="some org id")
+        return Identity(account_number="some number")
 
 
 class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
@@ -209,7 +209,11 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
         """
         identity = self._identity()
 
-        dict_ = {"account_number": identity.account_number, "org_id": identity.org_id}
+        dict_ = {
+                 "account_number": identity.account_number,
+                 "internal": {"org_id": "some org id",
+                              "extra_field": "extra value"},
+                 }
 
         self.assertEqual(identity, from_dict(dict_))
 
@@ -220,7 +224,6 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
         """
         dicts = [
             {},
-            {"account_number": "some account number"},
             {"org_id": "some org id"},
             "some string",
             ["some", "list"],
@@ -335,7 +338,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(account_number="some number", org_id="some org id")
+            identity = Identity(account_number="some number")
             validate(identity)
             self.assertTrue(True)
         except ValueError:
@@ -343,12 +346,10 @@ class AuthIdentityValidateTestCase(TestCase):
 
     def test_invalid(self):
         identities = [
-            Identity(account_number=None, org_id=None),
-            Identity(account_number="", org_id=""),
-            Identity(account_number=None, org_id="some org_id"),
-            Identity(account_number="", org_id="some org_id"),
-            Identity(account_number="some account_number", org_id=None),
-            Identity(account_number="some account_number", org_id=""),
+            Identity(account_number=None),
+            Identity(account_number=""),
+            Identity(account_number=None),
+            Identity(account_number=""),
         ]
         for identity in identities:
             with self.subTest(identity=identity):
