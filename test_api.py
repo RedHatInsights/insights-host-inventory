@@ -121,7 +121,6 @@ class CreateHostsTestCase(BaseAPITestCase):
 
         # initial create
         results = self.post(HOST_URL, host_data.data(), 201)
-        print("results:", results)
 
         self.assertIsNotNone(results["id"])
         self.assertIsNotNone(results["created"])
@@ -162,7 +161,6 @@ class CreateHostsTestCase(BaseAPITestCase):
         self.assertGreater(modified_time, created_time)
 
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
-        print("data:", data)
         results = HostWrapper(data["results"][0])
 
         # sanity check
@@ -217,7 +215,6 @@ class CreateHostsTestCase(BaseAPITestCase):
         del host_data.ip_addresses
         del host_data.fqdn
         del host_data.mac_addresses
-        print("host_data.data():", host_data.data())
 
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
