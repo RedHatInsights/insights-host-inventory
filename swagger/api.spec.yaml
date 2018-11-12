@@ -10,6 +10,12 @@ produces:
 basePath: /api
 paths:
   /hosts:
+    parameters:
+      - in: header
+        name: x-rh-identity
+        required: true
+        type: string
+        format: byte
     get:
       operationId: api.host.getHostList
       tags:
@@ -63,6 +69,12 @@ paths:
         '201':
           description: Successfully created host in list
   '/hosts/{hostId}':
+    parameters:
+      - in: header
+        name: x-rh-identity
+        required: true
+        type: string
+        format: byte
     get:
       tags:
         - hosts
@@ -112,6 +124,12 @@ paths:
    #     '404':
    #       description: Host not found
   '/hosts/{hostId}/facts/{namespace}':
+    parameters:
+      - in: header
+        name: x-rh-identity
+        required: true
+        type: string
+        format: byte
     patch:
       tags:
         - hosts
@@ -183,6 +201,12 @@ paths:
         '404':
           description: Host not found
   '/hosts/{hostId}/tags':
+    parameters:
+      - in: header
+        name: x-rh-identity
+        required: true
+        type: string
+        format: byte
     post:
       operationId: api.host.handleTagOperation
       tags:
