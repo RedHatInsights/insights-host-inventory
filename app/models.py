@@ -103,7 +103,10 @@ class Host(db.Model):
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
         json_dict["tags"] = self.tags
+        # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
+        json_dict["created"] = self.created_on
+        json_dict["updated"] = self.modified_on
         return json_dict
 
     def update(self, input_host):

@@ -93,26 +93,26 @@ paths:
           description: Invalid ID supplied
         "404":
           description: Host not found
-    delete:
-      tags:
-      - hosts
-      summary: Deletes a host
-      description: ""
-      operationId: api.host.deleteHost
-      produces:
-      - application/json
-      parameters:
-      - name: hostId
-        in: path
-        description: Host id to delete
-        required: true
-        type: integer
-        format: int64
-      responses:
-        "400":
-          description: Invalid ID supplied
-        "404":
-          description: Host not found
+   # delete:
+   #   tags:
+   #     - hosts
+   #   summary: Deletes a host
+   #   description: ''
+   #   operationId: api.host.deleteHost
+   #   produces:
+   #     - application/json
+   #   parameters:
+   #     - name: hostId
+   #       in: path
+   #       description: Host id to delete
+   #       required: true
+   #       type: integer
+   #       format: int64
+   #   responses:
+   #     '400':
+   #       description: Invalid ID supplied
+   #     '404':
+   #       description: Host not found
   /hosts/{hostId}/facts/{namespace}:
     patch:
       tags:
@@ -227,7 +227,6 @@ definitions:
     type: object
     required:
     - account
-#    - canonical_facts
     properties:
       display_name:
         type: string
@@ -271,10 +270,6 @@ definitions:
           type: string
         example:
         - c2:00:d0:c8:61:01
-#      canonical_facts:
-#        type: object
-#        additionalProperties:
-#          type: string
       facts:
         type: array
         items:

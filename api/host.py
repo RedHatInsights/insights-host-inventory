@@ -1,11 +1,12 @@
 import os
 import logging
+from enum import Enum
 from app.models import Host
 from app.auth import current_identity
 from app import db
 
 TAG_OPERATIONS = ["apply", "remove"]
-
+FactOperations = Enum("FactOperations", ["merge", "replace"])
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,8 @@ def addHost(host):
     canonical_facts = input_host.canonical_facts
 
     if not canonical_facts:
-        return "Invalid request", 400
+        return "Invalid request:  At least one of the canonical fact fields "\
+                "must be present.", 400
 
     found_host = Host.query.filter(
         (Host.account == account_number) &
@@ -110,26 +112,37 @@ def getHostById(hostId):
     return {'count': 0, 'results': json_host_list}, 200
 
 
-def deleteHost(hostId):
-    logger.debug("deleteHost(%s)" % hostId)
-
-
 def replaceFacts(hostId, namespace, fact_dict):
     logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
+
+    return updateFactsByNamespace(FactOperations.replace,
+                                  hostId,
+                                  namespace,
+                                  fact_dict)
 
 
 def mergeFacts(hostId, namespace, fact_dict):
     logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
+    return updateFactsByNamespace(FactOperations.merge,
+                                  hostId,
+                                  namespace,
+                                  fact_dict)
+
+
+def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
     hosts_to_update = Host.query.filter(
             (Host.account == current_identity.account_number) &
-            Host.id.in_(hostId) &
+            Host.id.in_(host_id_list) &
             Host.facts.has_key(namespace)).all()
 
     logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     for host in hosts_to_update:
-        host.merge_facts_in_namespace(namespace, fact_dict)
+        if operation is FactOperations.replace:
+            host.replace_facts_in_namespace(namespace, fact_dict)
+        else:
+            host.merge_facts_in_namespace(namespace, fact_dict)
 
     db.session.commit()
 
