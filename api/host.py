@@ -138,6 +138,12 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
 
     logger.debug("hosts_to_update:%s" % hosts_to_update)
 
+    if len(hosts_to_update) != len(host_id_list):
+        error_msg = "ERROR: The number of hosts requested does not match the "\
+                   "number of hosts found.  Rejecting the fact change request."
+        logger.debug(error_msg)
+        return error_msg, 400
+
     for host in hosts_to_update:
         if operation is FactOperations.replace:
             host.replace_facts_in_namespace(namespace, fact_dict)
@@ -164,11 +170,9 @@ def handleTagOperation(hostId, tag_op):
         return "Invalid request", 400
 
     if operation == "apply":
-        apply_tag_to_hosts(hostId, tag)
+        return apply_tag_to_hosts(hostId, tag)
     else:
-        remove_tag_from_hosts(hostId, tag)
-
-    return 200
+        return remove_tag_from_hosts(hostId, tag)
 
 
 def apply_tag_to_hosts(host_id_list, tag):
@@ -176,10 +180,18 @@ def apply_tag_to_hosts(host_id_list, tag):
             (Host.account == current_identity.account_number) &
             Host.id.in_(host_id_list)).all()
 
+    if len(hosts_to_update) != len(host_id_list):
+        error_msg = "ERROR: The number of hosts requested does not match the "\
+                   "number of hosts found.  Rejecting the tag change request."
+        logger.debug(error_msg)
+        return error_msg, 400
+
     for h in hosts_to_update:
         h.add_tag(tag)
 
     db.session.commit()
+
+    return 200
 
 
 def remove_tag_from_hosts(host_id_list, tag):
@@ -189,10 +201,18 @@ def remove_tag_from_hosts(host_id_list, tag):
                 Host.tags.comparator.contains([tag])
                 ).all()
 
+    if len(hosts_to_update) != len(host_id_list):
+        error_msg = "ERROR: The number of hosts requested does not match the "\
+                   "number of hosts found.  Rejecting the tag change request."
+        logger.debug(error_msg)
+        return error_msg, 400
+
     for h in hosts_to_update:
         h.remove_tag(tag)
 
     db.session.commit()
+
+    return 200
 
 
 def validate_tag_operation_request(tag_op_doc):

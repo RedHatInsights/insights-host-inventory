@@ -3,6 +3,7 @@
 import unittest
 import json
 import dateutil.parser
+import uuid
 from app import create_app, db
 from app.auth import current_identity
 from app.auth.identity import Identity
@@ -368,16 +369,32 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
         self._basic_fact_test(facts_to_add, expected_facts, False)
 
+    def test_replace_and_add_facts_to_multiple_hosts_including_nonexistent_host(self):
+        facts_to_add = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+
+        host_list = self.added_hosts
+
+        target_namespace = host_list[0].facts[0]["namespace"]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        # Add a couple of host ids that should not exist in the database
+        url_host_id_list = url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+
+        patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
+
+        # Add facts
+        self.patch(patch_url, facts_to_add, 400)
+
+        # Replace facts
+        self.put(patch_url, facts_to_add, 400)
+
     @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
         pass
 
     @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(self):
-        pass
-
-    @unittest.skip
-    def test_add_facts_to_multiple_hosts_one_host_does_not_exist(self):
         pass
 
     @unittest.skip
@@ -400,10 +417,6 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         expected_facts = new_facts
 
         self._basic_fact_test(new_facts, expected_facts, True)
-
-    @unittest.skip
-    def test_replace_facts_on_multiple_hosts_one_host_does_not_exist(self):
-        pass
 
     @unittest.skip
     def test_replace_facts_on_namespace_that_does_not_exist(self):
@@ -440,6 +453,11 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
             self.assertListEqual(host_to_verify.tags, expected_tags)
 
     @unittest.skip
+    def test_add_tag_to_host_include_nonexistent_host_ids(self):
+        pass
+        # Try to add tag to nonexistent host and valid hosts
+
+    @unittest.skip
     def test_add_invalid_tag_to_host(self):
         pass
 
@@ -469,6 +487,11 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
             host_to_verify = HostWrapper(response_host)
 
             self.assertListEqual(host_to_verify.tags, expected_tags)
+
+    @unittest.skip
+    def test_remove_tag_from_host_include_nonexistent_host_ids(self):
+        pass
+        # Try to remove tag from nonexistent host and valid hosts
 
 
 class AuthTestCase(BaseAPITestCase):
