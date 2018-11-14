@@ -314,6 +314,9 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
 
+    def _valid_fact_doc(self):
+        return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+
     def _build_facts_url(self, host_list, namespace):
         if type(host_list) == list:
             url_host_id_list = self._build_host_id_list_for_url(host_list)
@@ -358,7 +361,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response['detail'], "Request body is not valid JSON")
 
     def test_add_facts_to_multiple_hosts(self):
-        facts_to_add = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+        facts_to_add = self._valid_fact_doc()
 
         host_list = self.added_hosts
 
@@ -370,7 +373,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         self._basic_fact_test(facts_to_add, expected_facts, False)
 
     def test_replace_and_add_facts_to_multiple_hosts_including_nonexistent_host(self):
-        facts_to_add = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+        facts_to_add = self._valid_fact_doc()
 
         host_list = self.added_hosts
 
@@ -389,17 +392,30 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         # Replace facts
         self.put(patch_url, facts_to_add, 400)
 
-    @unittest.skip
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
-        pass
+        new_facts = {}
+        expected_facts = None
 
-    @unittest.skip
-    def test_add_facts_to_multiple_hosts_overwrite_existing_key_value_pair(self):
-        pass
+        # Set the value in the namespace to an empty fact set
+        self._basic_fact_test(new_facts, expected_facts, True)
 
-    @unittest.skip
-    def test_add_facts_to_namespace_that_does_not_exist(self):
-        pass
+        new_facts = self._valid_fact_doc()
+        expected_facts = new_facts
+
+        # Overwrite the empty fact set
+        self._basic_fact_test(new_facts, expected_facts, False)
+
+    def test_replace_and_add_facts_to_namespace_that_does_not_exist(self):
+        valid_host_id = self.added_hosts[0].id
+        facts_to_add = self._valid_fact_doc()
+        test_url = self._build_facts_url(valid_host_id,
+                                         "imanonexistentnamespace")
+
+        # Test replace
+        self.put(test_url, facts_to_add, 400)
+
+        # Test add/merge
+        self.patch(test_url, facts_to_add, 400)
 
     def test_replace_facts_without_fact_dict(self):
         put_url = self._build_facts_url(1, "ns1")
@@ -407,20 +423,27 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response['detail'], "Request body is not valid JSON")
 
     def test_replace_facts_on_multiple_hosts(self):
-        new_facts = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+        new_facts = self._valid_fact_doc()
         expected_facts = new_facts
 
         self._basic_fact_test(new_facts, expected_facts, True)
 
     def test_replace_facts_on_multiple_hosts_with_empty_fact_set(self):
         new_facts = {}
-        expected_facts = new_facts
+        expected_facts = None
 
         self._basic_fact_test(new_facts, expected_facts, True)
 
-    @unittest.skip
-    def test_replace_facts_on_namespace_that_does_not_exist(self):
-        pass
+    def test_replace_empty_facts_on_multiple_hosts(self):
+        new_facts = {}
+        expected_facts = None
+
+        self._basic_fact_test(new_facts, expected_facts, True)
+
+        new_facts = self._valid_fact_doc()
+        expected_facts = new_facts
+
+        self._basic_fact_test(new_facts, expected_facts, True)
 
 
 class TagsTestCase(PreCreatedHostsBaseTestCase):

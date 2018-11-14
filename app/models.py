@@ -144,7 +144,11 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
-        self.facts[namespace] = {**self.facts[namespace], **facts_dict}
+        if self.facts[namespace]:
+            self.facts[namespace] = {**self.facts[namespace], **facts_dict}
+        else:
+            # The value currently stored in the namespace is None so replace it
+            self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
     def update_tags(self, tags):

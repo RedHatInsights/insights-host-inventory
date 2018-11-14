@@ -140,7 +140,11 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = "ERROR: The number of hosts requested does not match the "\
-                   "number of hosts found.  Rejecting the fact change request."
+                   "number of hosts found in the host database.  This could "\
+                   " happen if the namespace "\
+                   "does not exist or the account number associated with the "\
+                   "call does not match the account number associated with "\
+                   "one or more the hosts.  Rejecting the fact change request."
         logger.debug(error_msg)
         return error_msg, 400
 
