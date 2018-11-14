@@ -119,8 +119,6 @@ class Host(db.Model):
 
         self.update_tags(input_host.tags)
 
-        db.session.commit()
-
     def update_display_name(self, display_name):
         if display_name:
             self.display_name = display_name
@@ -170,10 +168,6 @@ class Host(db.Model):
             if tag in self.tags:
                 self.tags.remove(tag)
                 orm.attributes.flag_modified(self, "tags")
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
 
     def __repr__(self):
         tmpl = "<Host '%s' '%d' canonical_facts=%s facts=%s tags=%s>"

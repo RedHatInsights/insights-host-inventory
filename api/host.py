@@ -43,16 +43,15 @@ def addHost(host):
 
     if not found_host:
         logger.debug("Creating a new host")
-        input_host.save()
+        db.session.add(input_host)
+        db.session.commit()
+        logger.debug("Created host:%s" % input_host)
         return input_host.to_json(), 201
-
     else:
         logger.debug("Updating an existing host")
-
         found_host.update(input_host)
-
+        db.session.commit()
         logger.debug("Updated host:%s" % found_host)
-
         return found_host.to_json(), 200
 
 
