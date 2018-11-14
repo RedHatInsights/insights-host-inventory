@@ -10,8 +10,6 @@ class HostWrapper:
         return self.__data
 
     def __delattr__(self, name):
-        if name != "display_name":
-            name = name.replace("_", "-")
         if name in self.__data:
             del self.__data[name]
         # else:

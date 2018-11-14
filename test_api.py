@@ -26,11 +26,11 @@ def test_data(display_name="hi", tags=None, facts=None):
     return {
         "account": ACCOUNT,
         "display_name": display_name,
-        #"insights-id": "1234-56-789",
-        # "rhel-machine-id": "1234-56-789",
-        #"ip-addresses": ["10.10.0.1", "10.0.0.2"],
-        "ip-addresses": ["10.10.0.1"],
-        #"mac-addresses": ["c2:00:d0:c8:61:01"],
+        #"insights_id": "1234-56-789",
+        # "rhel_machine_id": "1234-56-789",
+        #"ip_addresses": ["10.10.0.1", "10.0.0.2"],
+        "ip_addresses": ["10.10.0.1"],
+        #"mac_addresses": ["c2:00:d0:c8:61:01"],
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
