@@ -19,43 +19,43 @@ class HostWrapper:
 
     @property
     def insights_id(self):
-        return self.__data.get("insights-id", None)
+        return self.__data.get("insights_id", None)
 
     @insights_id.setter
     def insights_id(self, cf):
-        self.__data["insights-id"] = cf
+        self.__data["insights_id"] = cf
 
     @property
     def rhel_machine_id(self):
-        return self.__data.get("rhel-machine-id", None)
+        return self.__data.get("rhel_machine_id", None)
 
     @rhel_machine_id.setter
     def rhel_machine_id(self, cf):
-        self.__data["rhel-machine-id"] = cf
+        self.__data["rhel_machine_id"] = cf
 
     @property
     def subscription_manager_id(self):
-        return self.__data.get("subscription-manager-id", None)
+        return self.__data.get("subscription_manager_id", None)
 
     @subscription_manager_id.setter
     def subscription_manager_id(self, cf):
-        self.__data["subscription-manager-id"] = cf
+        self.__data["subscription_manager_id"] = cf
 
     @property
     def bios_uuid(self):
-        return self.__data.get("bios-uuid", None)
+        return self.__data.get("bios_uuid", None)
 
     @bios_uuid.setter
     def bios_uuid(self, cf):
-        self.__data["bios-uuid"] = cf
+        self.__data["bios_uuid"] = cf
 
     @property
     def ip_addresses(self):
-        return self.__data.get("ip-addresses", None)
+        return self.__data.get("ip_addresses", None)
 
     @ip_addresses.setter
     def ip_addresses(self, cf):
-        self.__data["ip-addresses"] = cf
+        self.__data["ip_addresses"] = cf
 
     @property
     def fqdn(self):
@@ -67,11 +67,11 @@ class HostWrapper:
 
     @property
     def mac_addresses(self):
-        return self.__data.get("mac-addresses", None)
+        return self.__data.get("mac_addresses", None)
 
     @mac_addresses.setter
     def mac_addresses(self, cf):
-        self.__data["mac-addresses"] = cf
+        self.__data["mac_addresses"] = cf
 
     @property
     def facts(self):

@@ -6,14 +6,14 @@ from sqlalchemy import orm
 import uuid
 
 
-CANONICAL_FACTS = ("insights-id",
-                   "rhel-machine-id",
-                   "subscription-manager-id",
-                   "satellite-id",
-                   "bios-uuid",
-                   "ip-addresses",
+CANONICAL_FACTS = ("insights_id",
+                   "rhel_machine_id",
+                   "subscription_manager_id",
+                   "satellite_id",
+                   "bios_uuid",
+                   "ip_addresses",
                    "fqdn",
-                   "mac-addresses")
+                   "mac_addresses")
 
 
 def convert_fields_to_canonical_facts(json_dict):
