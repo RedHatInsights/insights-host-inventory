@@ -161,7 +161,7 @@ def handleTagOperation(hostId, tag_op):
     logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
 
     try:
-        (operation, tag) = validate_tag_operation_request(tag_op)
+        (operation, tag) = validateTagOperationRequest(tag_op)
     except KeyError:
         return "Invalid request", 400
     # except InvalidTag:
@@ -170,12 +170,12 @@ def handleTagOperation(hostId, tag_op):
         return "Invalid request", 400
 
     if operation == "apply":
-        return apply_tag_to_hosts(hostId, tag)
+        return applyTagToHosts(hostId, tag)
     else:
-        return remove_tag_from_hosts(hostId, tag)
+        return removeTagFromHosts(hostId, tag)
 
 
-def apply_tag_to_hosts(host_id_list, tag):
+def applyTagToHosts(host_id_list, tag):
     hosts_to_update = Host.query.filter(
             (Host.account == current_identity.account_number) &
             Host.id.in_(host_id_list)).all()
@@ -194,7 +194,7 @@ def apply_tag_to_hosts(host_id_list, tag):
     return 200
 
 
-def remove_tag_from_hosts(host_id_list, tag):
+def removeTagFromHosts(host_id_list, tag):
     hosts_to_update = Host.query.filter(
                 (Host.account == current_identity.account_number) &
                 Host.id.in_(host_id_list) &
@@ -215,15 +215,15 @@ def remove_tag_from_hosts(host_id_list, tag):
     return 200
 
 
-def validate_tag_operation_request(tag_op_doc):
+def validateTagOperationRequest(tag_op_doc):
     operation = tag_op_doc["operation"]
     tag = tag_op_doc["tag"]
 
-    if (operation in TAG_OPERATIONS and tag is not None and is_valid_tag(tag)):
+    if (operation in TAG_OPERATIONS and tag is not None and isValidTag(tag)):
         return (operation, tag)
     else:
         return None
 
 
-def is_valid_tag(tag):
+def isValidTag(tag):
     return True
