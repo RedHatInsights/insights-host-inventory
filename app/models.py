@@ -175,10 +175,6 @@ class Host(db.Model):
         db.session.add(self)
         db.session.commit()
 
-    def delete(self):
-        db.session.delete(self)
-        db.session.commit()
-
     def __repr__(self):
         tmpl = "<Host '%s' '%d' canonical_facts=%s facts=%s tags=%s>"
         return tmpl % (
