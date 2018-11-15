@@ -4,6 +4,7 @@ from enum import Enum
 from app.models import Host
 from app.auth import current_identity
 from app import db
+from flask import current_app
 
 TAG_OPERATIONS = ["apply", "remove"]
 FactOperations = Enum("FactOperations", ["merge", "replace"])
@@ -19,7 +20,7 @@ def addHost(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    logger.debug("addHost(%s)" % host)
+    current_app.logger.debug("addHost(%s)" % host)
 
     account_number = host.get("account", None)
 
@@ -42,16 +43,16 @@ def addHost(host):
     ).first()
 
     if not found_host:
-        logger.debug("Creating a new host")
+        current_app.logger.debug("Creating a new host")
         db.session.add(input_host)
         db.session.commit()
-        logger.debug("Created host:%s" % input_host)
+        current_app.logger.debug("Created host:%s" % input_host)
         return input_host.to_json(), 201
     else:
-        logger.debug("Updating an existing host")
+        current_app.logger.debug("Updating an existing host")
         found_host.update(input_host)
         db.session.commit()
-        logger.debug("Updated host:%s" % found_host)
+        current_app.logger.debug("Updated host:%s" % found_host)
         return found_host.to_json(), 200
 
 
@@ -63,7 +64,7 @@ def getHostList(tag=None, display_name=None):
     the filtering.
 
     """
-    logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
+    current_app.logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
 
     if tag:
         host_list = findHostsByTag(current_identity.account_number, tag)
@@ -81,26 +82,26 @@ def getHostList(tag=None, display_name=None):
 
 
 def findHostsByTag(account, tag):
-    logger.debug("findHostsByTag(%s)" % tag)
+    current_app.logger.debug("findHostsByTag(%s)" % tag)
     found_host_list = Host.query.filter(
             (Host.account == account) &
             Host.tags.comparator.contains(tag)).all()
-    logger.debug("found_host_list:%s" % found_host_list)
+    current_app.logger.debug("found_host_list:%s" % found_host_list)
     return found_host_list
 
 
 def findHostsByDisplayName(account, display_name):
-    logger.debug("findHostsByDisplayName(%s)" % display_name)
+    current_app.logger.debug("findHostsByDisplayName(%s)" % display_name)
     found_host_list = Host.query.filter(
         (Host.account == account) &
         Host.display_name.comparator.contains(display_name)
     ).all()
-    logger.debug("found_host_list:%s" % found_host_list)
+    current_app.logger.debug("found_host_list:%s" % found_host_list)
     return found_host_list
 
 
 def getHostById(hostId):
-    logger.debug("getHostById(%s)" % hostId)
+    current_app.logger.debug("getHostById(%s)" % hostId)
 
     found_host_list = Host.query.filter(
             (Host.account == current_identity.account_number) &
@@ -112,7 +113,7 @@ def getHostById(hostId):
 
 
 def replaceFacts(hostId, namespace, fact_dict):
-    logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
+    current_app.logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
     return updateFactsByNamespace(FactOperations.replace,
                                   hostId,
@@ -121,7 +122,7 @@ def replaceFacts(hostId, namespace, fact_dict):
 
 
 def mergeFacts(hostId, namespace, fact_dict):
-    logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
+    current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
     return updateFactsByNamespace(FactOperations.merge,
                                   hostId,
@@ -135,7 +136,7 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
             Host.id.in_(host_id_list) &
             Host.facts.has_key(namespace)).all()
 
-    logger.debug("hosts_to_update:%s" % hosts_to_update)
+    current_app.logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = "ERROR: The number of hosts requested does not match the "\
@@ -144,7 +145,7 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
                    "does not exist or the account number associated with the "\
                    "call does not match the account number associated with "\
                    "one or more the hosts.  Rejecting the fact change request."
-        logger.debug(error_msg)
+        current_app.logger.debug(error_msg)
         return error_msg, 400
 
     for host in hosts_to_update:
@@ -155,13 +156,13 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
 
     db.session.commit()
 
-    logger.debug("hosts_to_update:%s" % hosts_to_update)
+    current_app.logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     return 200
 
 
 def handleTagOperation(hostId, tag_op):
-    logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
+    current_app.logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
 
     try:
         (operation, tag) = validateTagOperationRequest(tag_op)
@@ -186,7 +187,7 @@ def applyTagToHosts(host_id_list, tag):
     if len(hosts_to_update) != len(host_id_list):
         error_msg = "ERROR: The number of hosts requested does not match the "\
                    "number of hosts found.  Rejecting the tag change request."
-        logger.debug(error_msg)
+        current_app.logger.debug(error_msg)
         return error_msg, 400
 
     for h in hosts_to_update:
@@ -207,7 +208,7 @@ def removeTagFromHosts(host_id_list, tag):
     if len(hosts_to_update) != len(host_id_list):
         error_msg = "ERROR: The number of hosts requested does not match the "\
                    "number of hosts found.  Rejecting the tag change request."
-        logger.debug(error_msg)
+        current_app.logger.debug(error_msg)
         return error_msg, 400
 
     for h in hosts_to_update:
