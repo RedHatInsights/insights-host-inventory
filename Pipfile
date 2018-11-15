@@ -22,6 +22,7 @@ gunicorn = "*"
 
 [dev-packages]
 pytest = "*"
+connexion = {extras = ["swagger-ui"]}
 
 [requires]
 python_version = "3.6"

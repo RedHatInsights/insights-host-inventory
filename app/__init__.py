@@ -10,8 +10,14 @@ db = SQLAlchemy()
 
 
 def create_app(config_name):
-    connexion_app = connexion.App("inventory", specification_dir='./swagger/',
-                                  options={'swagger_ui': False})
+    connexion_options = {'swagger_ui': False}
+
+    if config_name == "development":
+        connexion_options['swagger_ui'] = True
+
+    connexion_app = connexion.App("inventory",
+                                  specification_dir='./swagger/',
+                                  options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
     connexion_app.add_api(
