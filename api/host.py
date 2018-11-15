@@ -56,7 +56,7 @@ def addHost(host):
         return found_host.to_json(), 200
 
 
-def getHostList(tag=None, display_name=None):
+def getHostList(tag=None, display_name=None, page=1, per_page=100):
     """
     Get the list of hosts.  Filtering can be done by the tag or display_name.
 
@@ -67,49 +67,67 @@ def getHostList(tag=None, display_name=None):
     current_app.logger.debug("getHostList(tag=%s, display_name=%s)" % (tag, display_name))
 
     if tag:
-        host_list = findHostsByTag(current_identity.account_number, tag)
+        (total, host_list) = findHostsByTag(
+                                 current_identity.account_number,
+                                 tag,
+                                 page,
+                                 per_page)
     elif display_name:
-        host_list = findHostsByDisplayName(current_identity.account_number,
-                                           display_name)
+        (total, host_list) = findHostsByDisplayName(
+                                 current_identity.account_number,
+                                 display_name,
+                                 page,
+                                 per_page)
     else:
-        host_list = Host.query.filter(
-                Host.account == current_identity.account_number).all()
+        query_results = Host.query.filter(
+                  Host.account == current_identity.account_number
+                ).paginate(page, per_page, True)
+        total = query_results.total
+        host_list = query_results.items
 
+    return _build_paginated_host_list_response(total, page, per_page, host_list)
+
+
+def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
+    return {'total': total,
+            'count': len(host_list),
+            'page': page,
+            'per_page': per_page,
+            'results': json_host_list}, 200
 
-    # FIXME: pagination
-    return {'count': 0, 'results': json_host_list}, 200
 
-
-def findHostsByTag(account, tag):
+def findHostsByTag(account, tag, page, per_page):
     current_app.logger.debug("findHostsByTag(%s)" % tag)
-    found_host_list = Host.query.filter(
+    query_results = Host.query.filter(
             (Host.account == account) &
-            Host.tags.comparator.contains(tag)).all()
+            Host.tags.comparator.contains(tag)).paginate(page, per_page, True)
+    total = query_results.total
+    found_host_list = query_results.items
     current_app.logger.debug("found_host_list:%s" % found_host_list)
-    return found_host_list
+    return (total, found_host_list)
 
 
-def findHostsByDisplayName(account, display_name):
+def findHostsByDisplayName(account, display_name, page, per_page):
     current_app.logger.debug("findHostsByDisplayName(%s)" % display_name)
-    found_host_list = Host.query.filter(
+    query_results = Host.query.filter(
         (Host.account == account) &
-        Host.display_name.comparator.contains(display_name)
-    ).all()
+        Host.display_name.comparator.contains(display_name)).paginate(page, per_page, True)
+    total = query_results.total
+    found_host_list = query_results.items
     current_app.logger.debug("found_host_list:%s" % found_host_list)
-    return found_host_list
+    return (total, found_host_list)
 
 
-def getHostById(hostId):
-    current_app.logger.debug("getHostById(%s)" % hostId)
-
-    found_host_list = Host.query.filter(
+def getHostById(hostId, page=1, per_page=100):
+    current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
+    query_results = Host.query.filter(
             (Host.account == current_identity.account_number) &
-            Host.id.in_(hostId)).all()
+            Host.id.in_(hostId)).paginate(page, per_page, True)
+    total = query_results.total
+    found_host_list = query_results.items
 
-    json_host_list = [host.to_json() for host in found_host_list]
-
-    return {'count': 0, 'results': json_host_list}, 200
+    return _build_paginated_host_list_response(total, page, per_page, found_host_list)
 
 
 def replaceFacts(hostId, namespace, fact_dict):

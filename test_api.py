@@ -269,10 +269,48 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(self.added_hosts))
 
+        self._base_paging_test(HOST_URL)
+
+    def test_query_all_with_invalid_paging_parameters(self):
+        invalid_limit_parameters = ["-1", "0", "notanumber"]
+        for invalid_parameter in invalid_limit_parameters:
+            self.get(HOST_URL+"?per_page="+invalid_parameter, 400)
+
+            self.get(HOST_URL+"?page="+invalid_parameter, 400)
+
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        test_url = HOST_URL + "/" + url_host_id_list
+
+        response = self.get(test_url, 200)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["results"]), 2)
+
+        self._base_paging_test(test_url)
+
+    def test_query_using_host_id_list_with_invalid_paging_parameters(self):
+        host_list = self.added_hosts
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+        base_url = HOST_URL + "/" + url_host_id_list
+
+        invalid_limit_parameters = ["-1", "0", "notanumber"]
+        for invalid_parameter in invalid_limit_parameters:
+            self.get(base_url + "?per_page="+invalid_parameter, 400)
+
+            self.get(base_url + "?page="+invalid_parameter, 400)
+
+    def test_query_using_host_id_list_include_nonexistent_host_ids(self):
+        host_list = self.added_hosts
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        # Add some host ids to the list that do not exist
+        url_host_id_list = url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
 
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
@@ -282,10 +320,14 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_using_single_tag(self):
         host_list = self.added_hosts
 
-        response = self.get(HOST_URL + "?tag=" + TAGS[0], 200)
+        test_url = HOST_URL + "?tag=" + TAGS[0]
+
+        response = self.get(test_url, 200)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+
+        self._base_paging_test(test_url)
 
     def test_query_using_multiple_tags(self):
         response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
@@ -306,10 +348,32 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         host_name_substr = host_list[0].display_name[:-2]
 
-        response = self.get(HOST_URL + "?display_name=" + host_name_substr)
+        test_url = HOST_URL + "?display_name=" + host_name_substr
+
+        response = self.get(test_url)
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+
+        self._base_paging_test(test_url)
+
+    def _base_paging_test(self, url):
+        if "?" not in url:
+            url = url + "?"
+
+        response = self.get(url+"&per_page=1&page=1", 200)
+
+        self.assertEqual(len(response["results"]), 1)
+        self.assertEqual(response["count"], 1)
+        self.assertEqual(response["total"], 2)
+
+        response = self.get(url+"&per_page=1&page=2", 200)
+
+        self.assertEqual(len(response["results"]), 1)
+        self.assertEqual(response["count"], 1)
+        self.assertEqual(response["total"], 2)
+
+        response = self.get(url+"&per_page=1&page=3", 404)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
@@ -394,7 +458,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
     def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
         new_facts = {}
-        expected_facts = None
+        expected_facts = new_facts
 
         # Set the value in the namespace to an empty fact set
         self._basic_fact_test(new_facts, expected_facts, True)
@@ -430,13 +494,13 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
     def test_replace_facts_on_multiple_hosts_with_empty_fact_set(self):
         new_facts = {}
-        expected_facts = None
+        expected_facts = new_facts
 
         self._basic_fact_test(new_facts, expected_facts, True)
 
     def test_replace_empty_facts_on_multiple_hosts(self):
         new_facts = {}
-        expected_facts = None
+        expected_facts = new_facts
 
         self._basic_fact_test(new_facts, expected_facts, True)
 
