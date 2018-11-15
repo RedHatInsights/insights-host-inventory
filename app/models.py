@@ -33,27 +33,20 @@ def convert_canonical_facts_to_fields(internal_dict):
 
 
 def convert_json_facts_to_dict(fact_list):
-    # print("** convert_json_facts_to_dict")
-    # print("** fact_list:", fact_list)
     fact_dict = {}
     for fact in fact_list:
-        # print("** fact:", fact)
         if fact["namespace"] in fact_dict:
             fact_dict[fact["namespace"]].update(fact["facts"])
         else:
             fact_dict[fact["namespace"]] = fact["facts"]
-    # print("** fact_dict:", fact_dict)
     return fact_dict
 
 
 def convert_dict_to_json_facts(fact_dict):
-    # print("** convert_dict_to_json_facts")
-    # print("** fact_dict:", fact_dict)
     fact_list = [
         {"namespace": namespace, "facts": facts if facts else {}}
         for namespace, facts in fact_dict.items()
     ]
-    # print("** fact_list:", fact_list)
     return fact_list
 
 
