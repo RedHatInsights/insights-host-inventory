@@ -50,7 +50,7 @@ def convert_dict_to_json_facts(fact_dict):
     # print("** convert_dict_to_json_facts")
     # print("** fact_dict:", fact_dict)
     fact_list = [
-        {"namespace": namespace, "facts": facts}
+        {"namespace": namespace, "facts": facts if facts else {}}
         for namespace, facts in fact_dict.items()
     ]
     # print("** fact_list:", fact_list)
