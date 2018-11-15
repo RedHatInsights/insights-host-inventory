@@ -6,7 +6,7 @@ from app.auth import current_identity
 from app import db
 from flask import current_app
 
-TAG_OPERATIONS = ["apply", "remove"]
+TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
 logger = logging.getLogger(__name__)
@@ -85,10 +85,10 @@ def getHostList(tag=None, display_name=None, page=1, per_page=100):
         total = query_results.total
         host_list = query_results.items
 
-    return _build_paginated_host_list_response(total, page, per_page, host_list)
+    return _buildPaginatedHostListResponse(total, page, per_page, host_list)
 
 
-def _build_paginated_host_list_response(total, page, per_page, host_list):
+def _buildPaginatedHostListResponse(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
     return {'total': total,
             'count': len(host_list),
@@ -127,7 +127,7 @@ def getHostById(hostId, page=1, per_page=100):
     total = query_results.total
     found_host_list = query_results.items
 
-    return _build_paginated_host_list_response(total, page, per_page, found_host_list)
+    return _buildPaginatedHostListResponse(total, page, per_page, found_host_list)
 
 
 def replaceFacts(hostId, namespace, fact_dict):
