@@ -11,6 +11,7 @@ from app.utils import HostWrapper
 from base64 import b64encode
 from json import dumps
 from datetime import datetime, timezone
+from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/api/hosts"
 
@@ -35,6 +36,14 @@ def test_data(display_name="hi", tags=None, facts=None):
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
+
+
+def inject_qs(url, **kwargs):
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    params = parse_qs(query)
+    params.update(kwargs)
+    new_query = urlencode(params, doseq=True)
+    return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
 class BaseAPITestCase(unittest.TestCase):
@@ -262,22 +271,22 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
         return host_list
 
     def _base_paging_test(self, url):
-        if "?" not in url:
-            url = url + "?"
-
-        response = self.get(url+"&per_page=1&page=1", 200)
+        test_url = inject_qs(url, page="1", per_page="1")
+        response = self.get(test_url, 200)
 
         self.assertEqual(len(response["results"]), 1)
         self.assertEqual(response["count"], 1)
         self.assertEqual(response["total"], 2)
 
-        response = self.get(url+"&per_page=1&page=2", 200)
+        test_url = inject_qs(url, page="2", per_page="1")
+        response = self.get(test_url, 200)
 
         self.assertEqual(len(response["results"]), 1)
         self.assertEqual(response["count"], 1)
         self.assertEqual(response["total"], 2)
 
-        response = self.get(url+"&per_page=1&page=3", 404)
+        test_url = inject_qs(url, page="3", per_page="1")
+        response = self.get(test_url, 404)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
