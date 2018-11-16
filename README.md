@@ -53,7 +53,7 @@ Running the tests is quite simple:
 Running the server:
 
 ```
-./run.py
+gunicorn --log-level=debug run
 ```
 
 Configuration system properties:
