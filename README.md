@@ -55,3 +55,14 @@ Running the server:
 ```
 ./run.py
 ```
+
+Configuration system properties:
+
+```
+ INVENTORY_DB_USER="insights"
+ INVENTORY_DB_PASS="insights"
+ INVENTORY_DB_HOST="localhost"
+ INVENTORY_DB_NAME="test_db"
+ INVENTORY_DB_POOL_TIMEOUT="5"
+ INVENTORY_DB_POOL_SIZE="5"
+```
