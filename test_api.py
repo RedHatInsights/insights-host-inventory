@@ -148,8 +148,7 @@ class CreateHostsTestCase(BaseAPITestCase):
         # Add a new tag
         post_data.tags = ["aws/new_tag_1:new_value_1"]
 
-        expected_tags = tags
-        expected_tags.extend(post_data.tags)
+        expected_tags = []
 
         # update initial entity
         results = self.post(HOST_URL, post_data.data(), 200)
@@ -184,6 +183,8 @@ class CreateHostsTestCase(BaseAPITestCase):
         del host_data.display_name
         del host_data.facts
 
+        expected_tags = []
+
         # initial create
         results = self.post(HOST_URL, host_data.data(), 201)
 
@@ -200,7 +201,7 @@ class CreateHostsTestCase(BaseAPITestCase):
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
         results = HostWrapper(data["results"][0])
 
-        self.assertListEqual(results.tags, host_data.tags)
+        self.assertListEqual(results.tags, expected_tags)
 
         self.assertListEqual(results.facts, host_data.facts)
 
@@ -260,6 +261,24 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
 
         return host_list
 
+    def _base_paging_test(self, url):
+        if "?" not in url:
+            url = url + "?"
+
+        response = self.get(url+"&per_page=1&page=1", 200)
+
+        self.assertEqual(len(response["results"]), 1)
+        self.assertEqual(response["count"], 1)
+        self.assertEqual(response["total"], 2)
+
+        response = self.get(url+"&per_page=1&page=2", 200)
+
+        self.assertEqual(len(response["results"]), 1)
+        self.assertEqual(response["count"], 1)
+        self.assertEqual(response["total"], 2)
+
+        response = self.get(url+"&per_page=1&page=3", 404)
+
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
 
@@ -317,24 +336,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
 
-    def test_query_using_single_tag(self):
-        host_list = self.added_hosts
-
-        test_url = HOST_URL + "?tag=" + TAGS[0]
-
-        response = self.get(test_url, 200)
-
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
-
-        self._base_paging_test(test_url)
-
-    def test_query_using_multiple_tags(self):
-        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
-
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
-
     def test_query_using_display_name(self):
         host_list = self.added_hosts
 
@@ -357,23 +358,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         self._base_paging_test(test_url)
 
-    def _base_paging_test(self, url):
-        if "?" not in url:
-            url = url + "?"
-
-        response = self.get(url+"&per_page=1&page=1", 200)
-
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
-
-        response = self.get(url+"&per_page=1&page=2", 200)
-
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
-
-        response = self.get(url+"&per_page=1&page=3", 404)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
@@ -518,13 +502,11 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
     def test_add_tag_to_host(self):
         tag_to_add = "aws/unique:value"
+        expected_tags = [tag_to_add]
 
         tag_op_doc = self._build_tag_op_doc("apply", tag_to_add)
 
         host_list = self.added_hosts
-
-        expected_tags = host_list[0].tags
-        expected_tags.append(tag_to_add)
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
@@ -552,12 +534,26 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
     def test_add_duplicate_tags_to_host(self):
         pass
 
+    def _add_tag_to_hosts(self, tag_to_add):
+        tag_op_doc = self._build_tag_op_doc("apply", tag_to_add)
+
+        host_list = self.added_hosts
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        self.post(f"{HOST_URL}/{url_host_id_list}/tags", tag_op_doc, 200)
+
+        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+
+        return [HostWrapper(response_data)
+                for response_data in response["results"]]
+
     def test_remove_tag_from_host(self):
         tag_to_remove = "aws/k:v"
 
-        tag_op_doc = self._build_tag_op_doc("remove", tag_to_remove)
+        host_list = self._add_tag_to_hosts(tag_to_remove)
 
-        host_list = self.added_hosts
+        tag_op_doc = self._build_tag_op_doc("remove", tag_to_remove)
 
         expected_tags = host_list[0].tags
         expected_tags.remove(tag_to_remove)
@@ -579,6 +575,28 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
     def test_remove_tag_from_host_include_nonexistent_host_ids(self):
         pass
         # Try to remove tag from nonexistent host and valid hosts
+
+    def test_query_using_single_tag(self):
+        self._add_tag_to_hosts(TAGS[0])
+
+        test_url = HOST_URL + "?tag=" + TAGS[0]
+
+        response = self.get(test_url, 200)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["results"]), 2)
+
+        self._base_paging_test(test_url)
+
+    def test_query_using_multiple_tags(self):
+        self._add_tag_to_hosts(TAGS[0])
+        self._add_tag_to_hosts(TAGS[1])
+
+        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["results"]), 2)
+
 
 
 class AuthTestCase(BaseAPITestCase):

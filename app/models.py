@@ -85,7 +85,7 @@ class Host(db.Model):
             convert_fields_to_canonical_facts(d),
             d.get("display_name", None),
             d.get("account"),
-            d.get("tags", []),
+            [],  # For now...ignore tags when creating/updating hosts
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
         )
@@ -109,8 +109,6 @@ class Host(db.Model):
         self.update_display_name(input_host.display_name)
 
         self.update_facts(input_host.facts)
-
-        self.update_tags(input_host.tags)
 
     def update_display_name(self, display_name):
         if display_name:
@@ -141,12 +139,6 @@ class Host(db.Model):
             # The value currently stored in the namespace is None so replace it
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
-
-    def update_tags(self, tags):
-        if tags:
-            # FIXME: think about storing tags as a dict internally
-            self.tags.extend(tags)
-            orm.attributes.flag_modified(self, "tags")
 
     def add_tag(self, tag):
         if tag:
