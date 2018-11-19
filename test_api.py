@@ -462,6 +462,17 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         # Overwrite the empty fact set
         self._basic_fact_test(new_facts, expected_facts, False)
 
+    def test_add_facts_to_multiple_hosts_add_empty_fact_set(self):
+        new_facts = {}
+        target_namespace = self.added_hosts[0].facts[0]["namespace"]
+        valid_host_id = self.added_hosts[0].id
+
+        test_url = self._build_facts_url(valid_host_id,
+                                         target_namespace)
+
+        # Test merging empty facts set
+        self.patch(test_url, new_facts, 400)
+
     def test_replace_and_add_facts_to_namespace_that_does_not_exist(self):
         valid_host_id = self.added_hosts[0].id
         facts_to_add = self._valid_fact_doc()

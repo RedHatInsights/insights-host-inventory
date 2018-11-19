@@ -133,6 +133,9 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
+        if not facts_dict:
+            return
+
         if self.facts[namespace]:
             self.facts[namespace] = {**self.facts[namespace], **facts_dict}
         else:

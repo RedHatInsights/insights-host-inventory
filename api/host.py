@@ -142,6 +142,12 @@ def replaceFacts(hostId, namespace, fact_dict):
 def mergeFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
+    if not fact_dict:
+        error_msg = "ERROR: Invalid request.  Merging empty facts into "\
+                    "existing facts is a no-op."
+        current_app.logger.debug(error_msg)
+        return error_msg, 400
+
     return updateFactsByNamespace(FactOperations.merge,
                                   hostId,
                                   namespace,
