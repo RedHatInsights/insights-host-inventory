@@ -155,7 +155,7 @@ class Host(db.Model):
                 orm.attributes.flag_modified(self, "tags")
 
     def __repr__(self):
-        tmpl = "<Host '%s' '%d' canonical_facts=%s facts=%s tags=%s>"
+        tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s tags=%s>"
         return tmpl % (
             self.display_name, self.id, self.canonical_facts, self.facts, self.tags
         )
