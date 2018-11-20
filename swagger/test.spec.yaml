@@ -1,0 +1,18 @@
+swagger: "2.0"
+info:
+  description: Swagger doc that describes the Host Inventory REST interface for its test suite
+  version: 1.0.0
+  title: Host Inventory ReST Interface for tests
+consumes:
+- application/json
+produces:
+- application/json
+basePath: /test
+
+paths:
+  /noauth:
+    get:
+      operationId: test_api.operation_noauth
+      responses:
+        "200":
+          description: A successful response even without an identity header

@@ -5,7 +5,7 @@ import json
 import dateutil.parser
 import uuid
 from app import create_app, db
-from app.auth import current_identity
+from app.auth import bypass_auth, current_identity, NoIdentityError
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/api/hosts"
+NOAUTH_URL = "/test/noauth"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -22,6 +23,15 @@ ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
+
+
+@bypass_auth
+def operation_noauth():
+    """
+    REST API operation that does not require authentication by the HTTP identity header.
+    Referenced in test.spec.yaml.
+    """
+    return None, 200
 
 
 def test_data(display_name="hi", tags=None, facts=None):
@@ -61,6 +71,9 @@ class BaseAPITestCase(unittest.TestCase):
 
     def setUp(self):
         self.connexion_app = create_app(config_name="testing")
+        self.connexion_app.add_api(
+            "test.spec.yaml", validate_responses=True, strict_validation=True
+        )
         self.client = self.flask_app.test_client
 
         # binds the app to the current context
@@ -669,6 +682,22 @@ class AuthTestCase(BaseAPITestCase):
         response = self._get_hosts({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
 
+    def test_bypass_auth_no_identity(self):
+        """
+        Operation with bypassed authentication is accessible without passing the
+        identity header.
+        """
+        response = self.client().get(NOAUTH_URL)
+        self.assertEqual(200, response.status_code)
+
+    def test_bypass_auth_invalid_identity(self):
+        """
+        The identity header is not validated if the authentication is bypassed on the
+        accessed operation.
+        """
+        response = self.client().get(NOAUTH_URL, headers={"x-rh-identity": "gibberish"})
+        self.assertEqual(200, response.status_code)
+
     def test_get_identity(self):
         """
         The identity payload is available by the request context = in the views.
@@ -679,6 +708,19 @@ class AuthTestCase(BaseAPITestCase):
                                                      headers={"x-rh-identity": payload}):
             self.flask_app.preprocess_request()
             self.assertEqual(self._valid_identity(), current_identity)
+
+    def test_dont_get_identity(self):
+        """
+        The identity payload is not available if the view has bypassed authentication.
+        The current_identity call explodes.
+        """
+        payload = self._valid_payload()
+        with self.flask_app.test_request_context(
+            NOAUTH_URL, method="GET", headers={"x-rh-identity": payload}
+        ):
+            self.flask_app.preprocess_request()
+            with self.assertRaises(NoIdentityError):
+                self._valid_identity()._asdict() == current_identity
 
 
 if __name__ == "__main__":
