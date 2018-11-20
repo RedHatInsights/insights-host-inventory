@@ -5,7 +5,7 @@ import json
 import dateutil.parser
 import uuid
 from app import create_app, db
-from app.auth import current_identity
+from app.auth import current_identity, NoIdentityError, requires_identity
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/api/hosts"
+AUTH_URL = "/test/auth"
+NOAUTH_URL = "/test/noauth"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -22,6 +24,21 @@ ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
+
+
+@requires_identity
+def operation_auth():
+    """
+    REST API operation that requires the HTTP identity header.
+    """
+    return None, 200
+
+
+def operation_noauth():
+    """
+    REST API operation that does not require (default) the HTTP identity header.
+    """
+    return None, 200
 
 
 def test_data(display_name="hi", tags=None, facts=None):
@@ -61,6 +78,9 @@ class BaseAPITestCase(unittest.TestCase):
 
     def setUp(self):
         self.connexion_app = create_app(config_name="testing")
+        self.connexion_app.add_api(
+            "test.spec.yaml", validate_responses=True, strict_validation=True
+        )
         self.client = self.flask_app.test_client
 
         # binds the app to the current context
@@ -649,44 +669,79 @@ class AuthTestCase(BaseAPITestCase):
         json = dumps(dict_)
         return b64encode(json.encode())
 
-    def _get_hosts(self, headers):
+    def _get_auth(self, headers):
         """
-        Issues a GET request to the /hosts URL, providing given headers.
+        Issues a GET request to the /test/auth URL, providing given headers.
         """
-        return self.client().get(HOST_URL, headers=headers)
+        return self.client().get(AUTH_URL, headers=headers)
 
-    def test_validate_missing_identity(self):
+    def _get_noauth(self, headers):
+        """
+        Issues a GET request to the /test/auth URL, providing given headers.
+        """
+        return self.client().get(NOAUTH_URL, headers=headers)
+
+    def test_auth_missing_identity(self):
         """
         Identity header is not present, 403 Forbidden is returned.
         """
-        response = self._get_hosts({})
+        response = self._get_auth({})
         self.assertEqual(403, response.status_code)  # Forbidden
 
-    def test_validate_invalid_identity(self):
+    def test_auth_invalid_identity(self):
         """
         Identity header is not valid – empty in this case, 403 Forbidden is returned.
         """
-        response = self._get_hosts({"x-rh-identity": ""})
+        response = self._get_auth({"x-rh-identity": ""})
         self.assertEqual(403, response.status_code)  # Forbidden
 
-    def test_validate_valid_identity(self):
+    def test_auth_valid_identity(self):
         """
-        Identity header is valid – non-empty in this case, 200 is returned.
+        Identity header is valid, 200 is returned.
         """
         payload = self._valid_payload()
-        response = self._get_hosts({"x-rh-identity": payload})
+        response = self._get_auth({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
 
-    def test_get_identity(self):
+    def test_noauth_no_identity(self):
+        """
+        Operation with bypassed authentication is accessible without passing the
+        identity header.
+        """
+        response = self._get_noauth({})
+        self.assertEqual(200, response.status_code)
+
+    def test_noauth_invalid_identity(self):
+        """
+        The identity header is not validated if the operation doesn’t require it.
+        """
+        response = self._get_noauth({"x-rh-identity": "gibberish"})
+        self.assertEqual(200, response.status_code)
+
+    def test_auth_get_identity(self):
         """
         The identity payload is available by the request context = in the views.
         """
         payload = self._valid_payload()
-        with self.flask_app.test_request_context(HOST_URL,
-                                                     method="GET",
-                                                     headers={"x-rh-identity": payload}):
+        with self.flask_app.test_request_context(
+            AUTH_URL, method="GET", headers={"x-rh-identity": payload}
+        ):
             self.flask_app.preprocess_request()
             self.assertEqual(self._valid_identity(), current_identity)
+
+    def test_noauth_dont_get_identity(self):
+        """
+        The identity payload is not available if the view has bypassed authentication.
+        The current_identity call explodes.
+        """
+        payload = self._valid_payload()
+        with self.flask_app.test_request_context(
+            NOAUTH_URL, method="GET", headers={"x-rh-identity": payload}
+        ):
+            self.flask_app.preprocess_request()
+            with self.assertRaises(NoIdentityError):
+                # Must do some operation as current_identity is a proxy
+                self._valid_identity()._asdict() == current_identity
 
 
 if __name__ == "__main__":
