@@ -8,6 +8,10 @@ __all__ = ["bypass_auth", "init_app", "current_identity"]
 _IDENTITY_HEADER = "x-rh-identity"
 
 
+class NoIdentityError(RuntimeError):
+    pass
+
+
 def _validate_identity(payload):
     """
     Identity payload validation dummy. Fails if the data is empty.
@@ -54,7 +58,11 @@ def bypass_auth(view_func):
 
 def _get_identity():
     ctx = _request_ctx_stack.top
-    return ctx.identity
+
+    try:
+        return ctx.identity
+    except AttributeError:
+        raise NoIdentityError
 
 
 def _get_view_func():

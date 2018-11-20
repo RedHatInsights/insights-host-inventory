@@ -6,7 +6,8 @@ from app.auth import (
     current_identity,
     _get_identity,
     _get_view_func,
-    init_app
+    init_app,
+    NoIdentityError
 )
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
@@ -71,11 +72,10 @@ class AuthGetIdentityTestCase(TestCase):
     @patch("app.auth._request_ctx_stack", top=EmptyRequest())
     def test_no_identity(self, request_ctx_stack):
         """
-        An error is raised if there is no identity in the current request context = if
-        the authentication is bypassed for the request. The identity attribute is not
-        present.
+        A specific error is raised if there is no identity in the current request
+        context = if the authentication is bypassed for the request.
         """
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(NoIdentityError):
             _get_identity()
 
     @patch("app.auth._request_ctx_stack")
