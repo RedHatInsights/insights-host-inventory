@@ -58,4 +58,4 @@ def create_app(config_name):
 
     db.init_app(flask_app)
 
-    return flask_app
+    return connexion_app
