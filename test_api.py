@@ -55,17 +55,21 @@ class BaseAPITestCase(unittest.TestCase):
         auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
         return auth_header
 
+    @property
+    def flask_app(self):
+        return self.connexion_app.app
+
     def setUp(self):
-        self.app = create_app(config_name="testing")
-        self.client = self.app.test_client
+        self.connexion_app = create_app(config_name="testing")
+        self.client = self.flask_app.test_client
 
         # binds the app to the current context
-        with self.app.app_context():
+        with self.flask_app.app_context():
             # create all tables
             db.create_all()
 
     def tearDown(self):
-        with self.app.app_context():
+        with self.flask_app.app_context():
             # drop all tables
             db.session.remove()
             db.drop_all()
@@ -670,10 +674,10 @@ class AuthTestCase(BaseAPITestCase):
         The identity payload is available by the request context = in the views.
         """
         payload = self._valid_payload()
-        with self.app.test_request_context(HOST_URL,
-                                           method="GET",
-                                           headers={"x-rh-identity": payload}):
-            self.app.preprocess_request()
+        with self.flask_app.test_request_context(HOST_URL,
+                                                     method="GET",
+                                                     headers={"x-rh-identity": payload}):
+            self.flask_app.preprocess_request()
             self.assertEqual(self._valid_identity(), current_identity)
 
 
