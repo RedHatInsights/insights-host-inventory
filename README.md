@@ -66,3 +66,9 @@ Configuration system properties:
  INVENTORY_DB_POOL_TIMEOUT="5"
  INVENTORY_DB_POOL_SIZE="5"
 ```
+
+## Deployment
+
+There is a health check endpoint at _/api/health_ responding with_200_ to any
+GET request. Point your OpenShift or whatever health probe there, so your pods
+are replaced once they stop responding.
