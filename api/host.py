@@ -4,7 +4,7 @@ from enum import Enum
 from flask import current_app
 
 from app.models import Host
-from app.auth import current_identity, requires_identity
+from app.auth import current_identity
 from app import db
 from api import metrics
 
@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 @metrics.api_request_time.time()
-@requires_identity
 def addHost(host):
     """
     Add or update a host
@@ -72,7 +71,6 @@ def addHost(host):
 
 
 @metrics.api_request_time.time()
-@requires_identity
 def getHostList(tag=None, display_name=None, page=1, per_page=100):
     """
     Get the list of hosts.  Filtering can be done by the tag or display_name.
@@ -140,7 +138,6 @@ def findHostsByDisplayName(account, display_name, page, per_page):
 
 
 @metrics.api_request_time.time()
-@requires_identity
 def getHostById(hostId, page=1, per_page=100):
     current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
     query_results = Host.query.filter(
@@ -153,7 +150,6 @@ def getHostById(hostId, page=1, per_page=100):
 
 
 @metrics.api_request_time.time()
-@requires_identity
 def replaceFacts(hostId, namespace, fact_dict):
     current_app.logger.debug(
         "replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict)
@@ -163,7 +159,6 @@ def replaceFacts(hostId, namespace, fact_dict):
 
 
 @metrics.api_request_time.time()
-@requires_identity
 def mergeFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 

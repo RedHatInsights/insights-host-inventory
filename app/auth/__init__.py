@@ -1,11 +1,13 @@
 import os
 from functools import wraps
+from app.auth.connexion import get_authenticated_views
 from app.auth.identity import from_encoded, validate, Identity
 from flask import abort, request, _request_ctx_stack
+from app.utils import decorate
 from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
 
-__all__ = ["init_app", "current_identity", "NoIdentityError", "requires_identity"]
+__all__ = ["init_api", "current_identity", "NoIdentityError", "requires_identity"]
 
 _IDENTITY_HEADER = "x-rh-identity"
 
@@ -54,6 +56,14 @@ def _get_identity():
         return ctx.identity
     except AttributeError:
         raise NoIdentityError
+
+
+def init_api(api):
+    """
+    Decorate functions that require the identity header.
+    """
+    for view_func in get_authenticated_views(api.specification):
+        decorate(view_func, requires_identity)
 
 
 current_identity = LocalProxy(_get_identity)

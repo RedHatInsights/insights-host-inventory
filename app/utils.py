@@ -1,4 +1,5 @@
 import json
+from importlib import import_module
 
 
 class HostWrapper:
@@ -116,3 +117,10 @@ class HostWrapper:
     @classmethod
     def from_json(cls, d):
         return cls(json.loads(d))
+
+
+def decorate(func, decorator):
+    decorated = decorator(func)
+    module = import_module(func.__module__)
+    setattr(module, func.__name__, decorated)
+    return decorated

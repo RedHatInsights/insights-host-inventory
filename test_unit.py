@@ -1,18 +1,352 @@
 #!/usr/bin/env python
 
+import api.host
 import os
 
-from app.auth import (
-    _validate,
-    _pick_identity,
+import test_unit
+from app import create_app
+from app.auth import init_api, _validate, _pick_identity
+from app.auth.connexion import (
+    _is_requires_identity_param,
+    _methods,
+    get_authenticated_views,
+    _requires_identity
 )
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
+from app.utils import decorate
 from base64 import b64encode
+from collections import namedtuple
+from functools import wraps
 from json import dumps
 from unittest import main, TestCase
 import pytest
 from werkzeug.exceptions import Forbidden
+
+
+class Abort(Exception):
+    pass
+
+
+MockApi = namedtuple("MockApi", ("specification",))
+
+
+class AuthRequiresIdentityTests:
+    """
+    Mixin for the TestCases that test the auth.requires_identity decorator. It patches
+    the view functions in-place. This makes the tests not interfere with each other.
+    """
+
+    @staticmethod
+    def _defined_in_auth(view_func):
+        """
+        The function is defined in the app.auth module’s __init__ file. That is enough
+        to assume the requires_identity decorator has been applied.
+        """
+        path = os.path.relpath(view_func.__code__.co_filename)
+        return hasattr(view_func, "__wrapped__") and "app/auth/__init__.py" == path
+
+    @staticmethod
+    def _view_funcs():
+        """
+        Lists all API requests view functions.
+        """
+        return (
+            api.host.addHost,
+            api.host.getHostList,
+            api.host.mergeFacts,
+            api.host.replaceFacts
+        )
+
+    def setUp(self):
+        """
+        Backs up the api.host functions that are replaced in-place in some tests.
+        """
+        self._view_funcs_backup = self._view_funcs()
+
+    def tearDown(self):
+        """
+        Restores the backed up api.host functions that are replaced in-place in some
+        tests. This makes the tests not order dependent.
+        """
+        for view_func in self._view_funcs_backup:
+            setattr(api.host, view_func.__name__, view_func)
+
+
+class CreateAppTestCase(AuthRequiresIdentityTests, TestCase):
+    """
+    Tests the Flask application initialization.
+    """
+
+    config_name = "testing"
+
+    def test_init_api_decorates_functions(self):
+        """
+        After calling create_app, all API request handlers are decorated.
+        """
+        create_app(self.config_name)
+
+        # The functions are replaced in the module, so it’s necessary to access them
+        # from inside the module instead of assigning them to local variables.
+        for view_func in self._view_funcs():
+            with self.subTest(view_func=view_func):
+                # It’s not possible to find the exact decorator. That it’s from the auth
+                # module must suffice.
+                self.assertTrue(self._defined_in_auth(view_func))
+
+    def test_functions_not_decorated(self):
+        """
+        Before calling create_app, no API request handlers are decorated.
+        """
+        for view_func in self._view_funcs():
+            with self.subTest(view_func=view_func):
+                # It’s not possible to find the exact decorator. That it isn’t from the
+                # auth module must suffice.
+                self.assertFalse(self._defined_in_auth(view_func))
+
+
+class AuthInitApiTestCase(AuthRequiresIdentityTests, TestCase):
+    """
+    Tests getting the specification from the API and decoration each operation that
+    requires the identity header.
+    """
+
+    def test_decorate(self):
+        """
+        The specification is taken from the API and parsed. The view functions that
+        belong to operations with authenticated path are decorated
+        """
+        specification = {
+            "paths": {
+                "/auth": {
+                    "parameters": [
+                        {"in": "header", "name": "x-rh-identity", "required": True}
+                    ],
+                    "GET": {"operationId": "api.host.getHostList"}
+                },
+                "/noauth": {
+                    "GET": {"operationId": "api.host.getHostById"}
+                }
+            }
+        }
+        init_api(MockApi(specification))
+        self.assertTrue(self._defined_in_auth(api.host.getHostList))
+        self.assertFalse(self._defined_in_auth(api.host.getHostById))
+
+
+class AuthConnexionIsRequiresIdentityParamTestCase(TestCase):
+    """
+    Tests the check whether an OpenAPI parameter specification describes a required
+    x-rh-identity header.
+    """
+    def test_is(self):
+        """
+        The parameter dictionary is correctly recognized as a required identity header.
+        """
+        params = [
+            {"required": True, "in": "header", "name": "x-rh-identity"},
+            {
+                "in": "header",
+                "something": "else",
+                "name": "x-rh-identity",
+                "required": True
+            },
+            {
+                "in": "header",
+                "name": "x-rh-identity",
+                "required": True,
+                "type": "string",
+                "format": "byte"
+            }
+        ]
+        for param in params:
+            with self.subTest(params=param):
+                self.assertTrue(_is_requires_identity_param(param))
+
+    def test_is_not(self):
+        """
+        The parameter dictionary is correctly recognized as not a required identity
+        header.
+        """
+        params = [
+            {"required": False, "in": "header", "name": "x-rh-identity"},
+            {"required": True, "in": "query", "name": "x-rh-identity"},
+            {"required": True, "in": "header", "name": "identity"},
+            # For header fields, "required" is optional and its default is false.
+            {"in": "header", "name": "x-rh-identity"}
+        ]
+        for param in params:
+            with self.subTest(param=param):
+                self.assertFalse(_is_requires_identity_param(param))
+
+
+class AuthConnexionRequiresIdentityTestCase(TestCase):
+    """
+    Tests the check whether among the items parameter is (at least) one that says that
+    the identity header is required.
+    """
+
+    def test_present(self):
+        """
+        If there is a parameter requiring the identity header, the request is recognized
+        as authenticated.
+        """
+        item = {
+            "parameters": [
+                {"required": True, "in": "header", "name": "x-rh-identity"},
+                {"required": True, "in": "header", "name": "x-rh-insights-request-id"}
+            ]
+        }
+        self.assertTrue(_requires_identity(item))
+
+    def test_absent(self):
+        """
+        If there is not a parameter requiring the identity header, the request is not
+        as not authenticated.
+        """
+        item = {
+            "parameters": [
+                {"required": True, "in": "header", "name": "x-rh-insights-request-id"}
+            ]
+        }
+        self.assertFalse(_requires_identity(item))
+
+    def test_empty(self):
+        """
+        If there is an empty parameter list, the request is recognized as not
+        authenticated.
+        """
+        item = {"parameters": []}
+        self.assertFalse(_requires_identity(item))
+
+    def test_missing(self):
+        """
+        If there is no parameter list at all, the request is recognized as not
+        authenticated.
+        """
+        item = {}
+        self.assertFalse(_requires_identity(item))
+
+
+class AuthConnexionMethodsTestCase(TestCase):
+    """
+    Tests getting the method objects as a generator from a path specification,
+    omitting the parameters object and the keys.
+    """
+    def test_reject_parameters(self):
+        tests = [
+            (
+                {
+                    "get": {"some": "thing"},
+                    "parameters": {"a": "parameter"}
+                },
+                [{"some": "thing"}]
+            ),
+            (
+                {
+                    "get": {"some": "thing"},
+                    "parameters": {},
+                    "post": {"other": "stuff"}
+                },
+                [{"some": "thing"}, {"other": "stuff"}]
+            ),
+            ({"parameters": {"a": "parameter"}}, [])
+        ]
+        for original, filtered in tests:
+            with self.subTest(path=original):
+                self.assertEqual(filtered, list(_methods(original)))
+
+
+class AuthConnectionGetAuthenticatedViewsTestCase(TestCase):
+    """
+    Tests parsing the OpenAPI specification, finding all the operations view functions
+    with an information on whether it requires authentication.
+    """
+
+    def test_no_paths(self):
+        """
+        If there is no paths object at all, no view functions are found.
+        """
+        spec = {}
+        result = get_authenticated_views(spec)
+        self.assertEqual([], list(result))
+
+    def test_empty_paths(self):
+        """
+        If there are no paths in the list, no view functions are found.
+        """
+        spec = {"paths": {}}
+        result = get_authenticated_views(spec)
+        self.assertEqual([], list(result))
+
+    def test_no_operations(self):
+        """
+        If there are no operations in the authenticated paths, no view functions are
+        found.
+        """
+        spec = {"paths": {
+            "/first": {
+                "get": {"operationId": "api.host.getHostList"}
+            },
+            "/second": {
+                "parameters": [
+                    {"in": "header", "name": "x-rh-identity", "required": True}
+                ]
+            }
+        }}
+        result = get_authenticated_views(spec)
+        self.assertEqual([], list(result))
+
+    def test_no_authenticated_paths(self):
+        """
+        If there are no authenticated paths, no view functions are found.
+        """
+        spec = {"paths": {
+            "/first": {
+                "get": {"operationId": "api.host.getHostList"}
+            },
+            "/second": {
+                "parameters": [],
+                "get": {"operationId": "api.host.getHostList"}
+            },
+            "/third": {
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "x-rh-insights-request-id",
+                        "required": True
+                    }
+                ],
+                "get": {"operationId": "api.host.getHostList"}
+            }
+        }}
+        result = get_authenticated_views(spec)
+        self.assertEqual([], list(result))
+
+    def test_authenticated(self):
+        """
+        Operations of paths with a required identity header parameter are found. These
+        are resolved to view functions.
+        """
+        spec = {"paths": {
+            "/first": {
+                "get": {"operationId": "api.host.getHostList"}
+            },
+            "/second": {
+                "parameters": [
+                    {"in": "header", "name": "x-rh-identity", "required": True}
+                ],
+                "get": {"operationId": "api.host.getHostById"}
+            },
+            "/third": {
+                "parameters": [
+                    {"in": "header", "name": "x-rh-identity", "required": True}
+                ],
+                "get": {"operationId": "api.host.addHost"}
+            }
+        }}
+        result = get_authenticated_views(spec)
+        self.assertEqual([api.host.getHostById, api.host.addHost], list(result))
 
 
 class AuthIdentityConstructorTestCase(TestCase):
@@ -184,6 +518,56 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+class UtilsDecorateTestCase(TestCase):
+    """
+    Tests decorating a function by reference.
+    """
+
+    def setUp(self):
+        """
+        Backup the original method that is being replaced.
+        """
+        self.backup = test_unit.Abort
+
+    def tearDown(self):
+        """
+        Restore the replaced method from the backup.
+        """
+        test_unit.Abort = self.backup
+
+    def test_return(self):
+        """
+        The decorated function is returned.
+        """
+        def new_func():
+            pass
+
+        def decorator(old_func):
+            wrapper = wraps(old_func)
+            return wrapper(new_func)
+
+        result = decorate(test_unit.Abort, decorator)
+        self.assertIs(result, new_func)
+        self.assertTrue(hasattr(result, "__wrapped__"))
+        self.assertIs(result.__wrapped__, self.backup)
+
+    def test_replace(self):
+        """
+        The original module function is replaced by the decorated one.
+        """
+        def new_func():
+            pass
+
+        def decorator(old_func):
+            wrapper = wraps(old_func)
+            return wrapper(new_func)
+
+        decorate(test_unit.Abort, decorator)
+        self.assertIs(test_unit.Abort, new_func)
+        self.assertTrue(hasattr(test_unit.Abort, "__wrapped__"))
+        self.assertIs(test_unit.Abort.__wrapped__, self.backup)
 
 
 @pytest.mark.usefixtures("monkeypatch")
