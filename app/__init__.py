@@ -2,9 +2,11 @@ import os
 import connexion
 import yaml
 
+from connexion import Api
 from connexion.resolver import RestyResolver
 from flask import jsonify
 
+from app.auth import init_api as auth_init_api
 from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
@@ -22,13 +24,16 @@ def create_app(config_name):
 
     app_config = Config(config_name)
 
-    connexion_app = connexion.App(
-        "inventory", specification_dir="./swagger/", options=connexion_options
-    )
-
     # Read the swagger.yml file to configure the endpoints
     with open("swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
+
+    api = Api(spec)
+    auth_init_api(api)
+
+    connexion_app = connexion.App(
+        "inventory", specification_dir="./swagger/", options=connexion_options
+    )
 
     # If we want to disable auth we first make the header not required
     if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):

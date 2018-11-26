@@ -14,7 +14,6 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def add_host(host):
     """
     Add or update a host
@@ -112,7 +111,6 @@ def update_existing_host(existing_host, input_host):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     """
     Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
@@ -198,7 +196,6 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
     current_app.logger.debug(
             "get_host_by_id(%s, %d, %d)" % (host_id_list, page, per_page)
@@ -216,7 +213,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
     current_app.logger.debug(
         "replace_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
@@ -228,7 +224,6 @@ def replace_facts(host_id_list, namespace, fact_dict):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
     current_app.logger.debug(
             "merge_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
