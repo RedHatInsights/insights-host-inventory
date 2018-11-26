@@ -603,8 +603,8 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url, 200)
 
-        # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(response["count"], 2)
 
         self._base_paging_test(test_url)
 
@@ -612,11 +612,19 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
         self._add_tag_to_hosts(TAGS[0])
         self._add_tag_to_hosts(TAGS[1])
 
-        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
+        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1],
+                            200)
 
-        # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(response["count"], 2)
 
+    def test_query_using_multiple_tags_one_tag_does_not_match(self):
+        self._add_tag_to_hosts(TAGS[0])
+
+        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=nomatch", 200)
+
+        self.assertEqual(len(response["results"]), 0)
+        self.assertEqual(response["count"], 0)
 
 
 class AuthTestCase(BaseAPITestCase):
