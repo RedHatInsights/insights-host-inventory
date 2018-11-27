@@ -608,6 +608,14 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
         self._base_paging_test(test_url)
 
+    def test_query_using_single_tag_no_matches(self):
+        test_url = HOST_URL + "?tag=notgonnafindme"
+
+        response = self.get(test_url, 200)
+
+        self.assertEqual(len(response["results"]), 0)
+        self.assertEqual(response["count"], 0)
+
     def test_query_using_multiple_tags(self):
         self._add_tag_to_hosts(TAGS[0])
         self._add_tag_to_hosts(TAGS[1])
