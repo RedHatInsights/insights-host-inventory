@@ -7,9 +7,11 @@ from app import models
 # import models
 
 
-app = create_app(config_name=os.getenv('APP_SETTINGS'))
-migrate = Migrate(app, db)
-manager = Manager(app)
+connexion_app = create_app(config_name=os.getenv('APP_SETTINGS'))
+flask_app = connexion_app.app
+
+migrate = Migrate(flask_app.app, db)
+manager = Manager(flask_app.app)
 
 manager.add_command('db', MigrateCommand)
 
