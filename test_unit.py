@@ -7,6 +7,7 @@ from app.auth import (
     _get_current_view_func,
     _get_identity,
     init_app,
+    NoIdentityError,
     requires_identity,
     _view_requires_identity
 )
@@ -19,6 +20,13 @@ from werkzeug.local import LocalProxy
 
 
 class Abort(Exception):
+    pass
+
+
+class EmptyRequest:
+    """
+    A request stub that doesn’t have the identity attribute.
+    """
     pass
 
 
@@ -63,10 +71,19 @@ class AuthGetIdentityTestCase(TestCase):
     Tests retrieving the identity from the request context.
     """
 
+    @patch("app.auth._request_ctx_stack", top=EmptyRequest())
+    def test_no_identity(self, request_ctx_stack):
+        """
+        A specific error is raised if there is no identity in the current request
+        context.
+        """
+        with self.assertRaises(NoIdentityError):
+            _get_identity()
+
     @patch("app.auth._request_ctx_stack")
     def test_get_identity(self, request_ctx_stack):
         """
-        The Authentication Manager request hook is bound to every request.
+        The identity from the current request context is returned.
         """
         self.assertEqual(request_ctx_stack.top.identity, _get_identity())
 
