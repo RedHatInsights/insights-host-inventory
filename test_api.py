@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/api/hosts"
+HEALTH_URL = "/api/health"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -56,19 +57,11 @@ class BaseAPITestCase(unittest.TestCase):
         return auth_header
 
     def setUp(self):
+        """
+        Creates the application and a test client to make requests.
+        """
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
-
-        # binds the app to the current context
-        with self.app.app_context():
-            # create all tables
-            db.create_all()
-
-    def tearDown(self):
-        with self.app.app_context():
-            # drop all tables
-            db.session.remove()
-            db.drop_all()
 
     def get(self, path, status=200, return_response_as_json=True):
         return self._response_check(
@@ -113,13 +106,36 @@ class BaseAPITestCase(unittest.TestCase):
         else:
             return response
 
+
+class DBAPITestCase(BaseAPITestCase):
+
+    def setUp(self):
+        """
+        Initializes the database by creating all tables.
+        """
+        super(DBAPITestCase, self).setUp()
+
+        # binds the app to the current context
+        with self.app.app_context():
+            # create all tables
+            db.create_all()
+
+    def tearDown(self):
+        """
+        Cleans up the database by dropping all tables.
+        """
+        with self.app.app_context():
+            # drop all tables
+            db.session.remove()
+            db.drop_all()
+
     def _build_host_id_list_for_url(self, host_list):
         host_id_list = [str(h.id) for h in host_list]
 
         return ",".join(host_id_list)
 
 
-class CreateHostsTestCase(BaseAPITestCase):
+class CreateHostsTestCase(DBAPITestCase):
 
     def test_create_and_update(self):
         facts = None
@@ -245,7 +261,7 @@ class CreateHostsTestCase(BaseAPITestCase):
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
 
-class PreCreatedHostsBaseTestCase(BaseAPITestCase):
+class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
@@ -627,7 +643,7 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["count"], 0)
 
 
-class AuthTestCase(BaseAPITestCase):
+class AuthTestCase(DBAPITestCase):
     @staticmethod
     def _valid_identity():
         """
@@ -683,6 +699,21 @@ class AuthTestCase(BaseAPITestCase):
                                            headers={"x-rh-identity": payload}):
             self.app.preprocess_request()
             self.assertEqual(self._valid_identity(), current_identity)
+
+
+class HealthTestCase(BaseAPITestCase):
+    """
+    Tests the health check endpoint.
+    """
+
+    def test_heath(self):
+        """
+        The health check simply returns 200 to any GET request. The response body is
+        irrelevant.
+        """
+        headers = self._get_valid_auth_header()
+        response = self.client().get(HEALTH_URL, headers=headers)
+        self.assertEqual(200, response.status_code)
 
 
 if __name__ == "__main__":
