@@ -53,8 +53,7 @@ def create_app(config_name):
     flask_app.config['SQLALCHEMY_POOL_SIZE'] = _get_db_pool_size()
     flask_app.config['SQLALCHEMY_POOL_TIMEOUT'] = _get_db_pool_timeout()
 
-    if not flask_app.debug:
-        auth_init_app(flask_app)
+    auth_init_app(flask_app)
 
     db.init_app(flask_app)
 
