@@ -2,7 +2,7 @@ import os
 import logging
 from enum import Enum
 from app.models import Host
-from app.auth import current_identity
+from app.auth import current_identity, requires_identity
 from app import db
 from flask import current_app
 
@@ -12,6 +12,7 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 logger = logging.getLogger(__name__)
 
 
+@requires_identity
 def addHost(host):
     """
     Add or update a host
@@ -56,6 +57,7 @@ def addHost(host):
         return found_host.to_json(), 200
 
 
+@requires_identity
 def getHostList(tag=None, display_name=None, page=1, per_page=100):
     """
     Get the list of hosts.  Filtering can be done by the tag or display_name.
@@ -119,6 +121,7 @@ def findHostsByDisplayName(account, display_name, page, per_page):
     return (total, found_host_list)
 
 
+@requires_identity
 def getHostById(hostId, page=1, per_page=100):
     current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
     query_results = Host.query.filter(
@@ -130,6 +133,7 @@ def getHostById(hostId, page=1, per_page=100):
     return _buildPaginatedHostListResponse(total, page, per_page, found_host_list)
 
 
+@requires_identity
 def replaceFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
@@ -139,6 +143,7 @@ def replaceFacts(hostId, namespace, fact_dict):
                                   fact_dict)
 
 
+@requires_identity
 def mergeFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
 
@@ -185,6 +190,7 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
     return 200
 
 
+@requires_identity
 def handleTagOperation(hostId, tag_op):
     current_app.logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
 
