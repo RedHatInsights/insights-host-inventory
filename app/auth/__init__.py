@@ -1,5 +1,7 @@
-from app.auth.identity import from_encoded, validate
-from flask import abort, current_app, request, _request_ctx_stack
+import os
+from functools import wraps
+from app.auth.identity import from_encoded, validate, Identity
+from flask import abort, request, _request_ctx_stack
 from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
 
@@ -12,44 +14,38 @@ class NoIdentityError(RuntimeError):
     pass
 
 
-def _validate_identity(payload):
-    """
-    Identity payload validation dummy. Fails if the data is empty.
-    """
-    if not payload:
-        raise ValueError
+def _pick_identity():
+    if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):
+        return Identity(account_number="0000001")
+    else:
+        try:
+            payload = request.headers[_IDENTITY_HEADER]
+        except KeyError:
+            abort(Forbidden.code)
+
+        try:
+            return from_encoded(payload)
+        except (KeyError, TypeError, ValueError):
+            abort(Forbidden.code)
 
 
-def _before_request():
-    if not _current_view_requires_identity():
-        return  # This function does not require authentication.
-
-    try:
-        payload = request.headers[_IDENTITY_HEADER]
-    except KeyError:
-        abort(Forbidden.code)
-
-    try:
-        identity = from_encoded(payload)
-    except (KeyError, TypeError, ValueError):
-        abort(Forbidden.code)
-
+def _validate(identity):
     try:
         validate(identity)
-    except ValueError:
+    except Exception:
         abort(Forbidden.code)
-
-    ctx = _request_ctx_stack.top
-    ctx.identity = identity
-
-
-def init_app(flask_app):
-    flask_app.before_request(_before_request)
 
 
 def requires_identity(view_func):
-    view_func.requires_identity = True
-    return view_func
+    @wraps(view_func)
+    def _wrapper(*args, **kwargs):
+        identity = _pick_identity()
+        _validate(identity)
+        ctx = _request_ctx_stack.top
+        ctx.identity = identity
+        return view_func(*args, **kwargs)
+
+    return _wrapper
 
 
 def _get_identity():
@@ -58,19 +54,6 @@ def _get_identity():
         return ctx.identity
     except AttributeError:
         raise NoIdentityError
-
-
-def _current_view_requires_identity():
-    return _view_requires_identity(_get_current_view_func())
-
-
-def _view_requires_identity(view_func):
-    return hasattr(view_func, "requires_identity") and view_func.requires_identity
-
-
-def _get_current_view_func():
-    endpoint = request.url_rule.endpoint
-    return current_app.view_functions[endpoint]
 
 
 current_identity = LocalProxy(_get_identity)

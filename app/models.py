@@ -6,14 +6,16 @@ from sqlalchemy import orm
 import uuid
 
 
-CANONICAL_FACTS = ("insights_id",
-                   "rhel_machine_id",
-                   "subscription_manager_id",
-                   "satellite_id",
-                   "bios_uuid",
-                   "ip_addresses",
-                   "fqdn",
-                   "mac_addresses")
+CANONICAL_FACTS = (
+    "insights_id",
+    "rhel_machine_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+)
 
 
 def convert_fields_to_canonical_facts(json_dict):
@@ -51,15 +53,15 @@ def convert_dict_to_json_facts(fact_dict):
 
 
 class Host(db.Model):
-    __tablename__ = 'hosts'
+    __tablename__ = "hosts"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(db.DateTime,
-                            default=datetime.utcnow,
-                            onupdate=datetime.utcnow)
+    modified_on = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -160,5 +162,9 @@ class Host(db.Model):
     def __repr__(self):
         tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s tags=%s>"
         return tmpl % (
-            self.display_name, self.id, self.canonical_facts, self.facts, self.tags
+            self.display_name,
+            self.id,
+            self.canonical_facts,
+            self.facts,
+            self.tags,
         )
