@@ -3,11 +3,7 @@ from collections import namedtuple
 from json import loads
 
 
-__all__ = ["Identity",
-           "from_dict",
-           "from_json",
-           "from_encoded",
-           "validate"]
+__all__ = ["Identity", "from_dict", "from_json", "from_encoded", "validate"]
 
 
 Identity = namedtuple("Identity", ("account_number"))
