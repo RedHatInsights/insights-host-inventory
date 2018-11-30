@@ -106,6 +106,20 @@ class BaseAPITestCase(unittest.TestCase):
 
 
 class DBAPITestCase(BaseAPITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Temporarily rename the host table while the tests run.  This is done
+        to make dropping the table at the end of the tests a bit safer.
+        """
+        from app.models import Host
+        temp_table_name_suffix = "__unit_tests__"
+        if temp_table_name_suffix not in Host.__table__.name:
+            Host.__table__.name = Host.__table__.name + temp_table_name_suffix
+        if temp_table_name_suffix not in Host.__table__.fullname:
+            Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
+
     def setUp(self):
         """
         Initializes the database by creating all tables.
