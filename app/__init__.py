@@ -27,10 +27,7 @@ def _get_db_pool_size():
 
 
 def create_app(config_name):
-    connexion_options = {"swagger_ui": False}
-
-    if config_name == "development":
-        connexion_options["swagger_ui"] = True
+    connexion_options = {"swagger_ui": True}
 
     connexion_app = connexion.App(
         "inventory", specification_dir="./swagger/", options=connexion_options
