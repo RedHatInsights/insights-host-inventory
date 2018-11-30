@@ -691,8 +691,7 @@ class HealthTestCase(BaseAPITestCase):
         The health check simply returns 200 to any GET request. The response body is
         irrelevant.
         """
-        headers = self._get_valid_auth_header()
-        response = self.client().get(HEALTH_URL, headers=headers)
+        response = self.client().get(HEALTH_URL)  # No identity header.
         self.assertEqual(200, response.status_code)
 
 
