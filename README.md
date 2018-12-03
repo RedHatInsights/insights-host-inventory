@@ -59,6 +59,8 @@ gunicorn --log-level=debug run
 Configuration system properties:
 
 ```
+ APP_NAME="inventory"
+ PATH_PREFIX="/r/insights/platform"
  INVENTORY_DB_USER="insights"
  INVENTORY_DB_PASS="insights"
  INVENTORY_DB_HOST="localhost"
