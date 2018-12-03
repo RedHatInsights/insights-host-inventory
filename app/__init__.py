@@ -32,9 +32,8 @@ def _get_api_path():
     version = "v1"
 
     path = f"{path_prefix}/{app_name}/api/{version}"
-    print("path:", path)
+    print("URL Path:%s" % path)
     return path
-    # "`/api/v1/status` and became `/r/insights/platform/upload/api/v1/status`
 
 
 def create_app(config_name):
