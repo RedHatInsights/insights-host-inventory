@@ -239,6 +239,19 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self.assertEqual(results.display_name, host_data.display_name)
 
+    def test_create_host_with_display_name_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+
+        # initial create
+        results = self.post(HOST_URL, host_data.data(), 201)
+
+        self.assertIsNotNone(results["id"])
+
+        self.assertIsNone(results["display_name"])
+
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.insights_id

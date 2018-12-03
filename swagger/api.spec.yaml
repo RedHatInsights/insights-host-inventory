@@ -266,6 +266,7 @@ definitions:
       display_name:
         type: string
         example: host1.mydomain.com
+        x-nullable: true
       account:
         type: string
         example: "000102"
