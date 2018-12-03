@@ -13,8 +13,8 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-HOST_URL = "inventory/api/v1/hosts"
-HEALTH_URL = "inventory/api/v1/health"
+HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
+HEALTH_URL = "/r/insights/platform/inventory/api/v1/health"
 
 NS = "testns"
 ID = "whoabuddy"

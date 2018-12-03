@@ -28,7 +28,8 @@ def _get_db_pool_size():
 
 def _get_api_path():
     app_name = os.getenv("APP_NAME", "inventory")
-    path_prefix = os.getenv("PATH_PREFIX", "")
+    path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
+
     version = "v1"
 
     path = f"{path_prefix}/{app_name}/api/{version}"
