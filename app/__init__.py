@@ -32,7 +32,6 @@ def _get_api_path():
     version = "v1"
 
     path = f"{path_prefix}/{app_name}/api/{version}"
-    print("URL Path:%s" % path)
     return path
 
 
@@ -40,6 +39,8 @@ def create_app(config_name):
     connexion_options = {"swagger_ui": True}
 
     url_path = _get_api_path()
+    if config_name != "testing":
+        print("URL Path:%s" % url_path)
 
     connexion_app = connexion.App(
         "inventory", specification_dir="./swagger/", options=connexion_options
