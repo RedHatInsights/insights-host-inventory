@@ -17,15 +17,8 @@ Afterwards you can activate the virtual environment by running:
 pipenv shell
 ```
 
-Also provided are a couple of docker-compose configurations.  The default will
-build a container with the Django project and start a database and the wsgi
-server.
-
-```
-docker-compose up
-```
-
-Additionally, the `dev.yml` configuration will simply start a database:
+Included is a docker-compose file `dev.yml` that will start a postgres database that is
+useful for development.
 
 ```
 docker-compose -f dev.yml up
