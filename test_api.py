@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
-HEALTH_URL = "/r/insights/platform/inventory/api/v1/health"
+HEALTH_URL = "/r/insights/platform/inventory/health"
+METRICS_URL = "/r/insights/platform/inventory/metrics"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -719,6 +720,13 @@ class HealthTestCase(BaseAPITestCase):
         irrelevant.
         """
         response = self.client().get(HEALTH_URL)  # No identity header.
+        self.assertEqual(200, response.status_code)
+
+    def test_metrics(self):
+        """
+        The metrics endpoint simply returns 200 to any GET request.
+        """
+        response = self.client().get(METRICS_URL)  # No identity header.
         self.assertEqual(200, response.status_code)
 
 

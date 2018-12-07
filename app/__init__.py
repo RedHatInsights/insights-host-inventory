@@ -26,13 +26,17 @@ def _get_db_pool_size():
     return int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
 
 
-def _get_api_path():
+def _get_base_url_path():
     app_name = os.getenv("APP_NAME", "inventory")
     path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
+    path = f"{path_prefix}/{app_name}"
+    return path
 
+
+def _get_api_path():
+    base_url_path = _get_base_url_path()
     version = "v1"
-
-    path = f"{path_prefix}/{app_name}/api/{version}"
+    path = f"{base_url_path}/api/{version}"
     return path
 
 
@@ -73,5 +77,7 @@ def create_app(config_name):
     flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = _get_db_pool_timeout()
 
     db.init_app(flask_app)
+
+    flask_app.register_blueprint(management, url_prefix=_get_base_url_path())
 
     return flask_app
