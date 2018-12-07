@@ -7,7 +7,7 @@ consumes:
 - application/json
 produces:
 - application/json
-basePath: /api
+basePath: /r/insights/platform/inventory/api/v1
 
 parameters:
   rhIdentityHeader:
