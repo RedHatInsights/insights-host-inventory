@@ -4,6 +4,7 @@ import yaml
 
 from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
+from api.mgmt import management
 
 
 db = SQLAlchemy()
