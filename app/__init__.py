@@ -4,6 +4,7 @@ import yaml
 
 from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
+from prometheus_client import make_wsgi_app
 from werkzeug.wsgi import DispatcherMiddleware
 
 
@@ -82,4 +83,11 @@ def dispatch(flask_app):
     """
     Create a combined app that allows to mount other WSGI apps.
     """
-    return DispatcherMiddleware(flask_app)
+    app_name = os.getenv("APP_NAME", "inventory")
+    path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
+
+    prometheus_app = make_wsgi_app()
+
+    return DispatcherMiddleware(
+        flask_app, {f"{path_prefix}/{app_name}/metrics": prometheus_app}
+    )
