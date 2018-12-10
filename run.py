@@ -3,7 +3,7 @@
 import os
 import logging
 
-from app import create_app
+from app import create_app, dispatch
 
 config_name = os.getenv('APP_SETTINGS', "development")
 application = create_app(config_name)
@@ -17,3 +17,5 @@ else:
     gunicorn_logger = logging.getLogger("gunicorn.error")
     application.logger.handlers = gunicorn_logger.handlers
     application.logger.setLevel(gunicorn_logger.level)
+
+    application = dispatch(application)
