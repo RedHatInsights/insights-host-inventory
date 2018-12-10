@@ -91,11 +91,9 @@ def dispatch(flask_app):
     """
     Create a combined app that allows to mount other WSGI apps.
     """
-    app_name = os.getenv("APP_NAME", "inventory")
-    path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
-
+    base_path = _get_base_path()
     prometheus_app = make_wsgi_app()
 
     return DispatcherMiddleware(
-        flask_app, {f"{path_prefix}/{app_name}/metrics": prometheus_app}
+        flask_app, {f"{base_path}/metrics": prometheus_app}
     )
