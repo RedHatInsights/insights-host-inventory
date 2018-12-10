@@ -26,14 +26,22 @@ def _get_db_pool_size():
     return int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
 
 
-def _get_api_path():
-    app_name = os.getenv("APP_NAME", "inventory")
+def _get_base_path():
+    """
+    Composes the base URL path for the whole applications.
+    """
     path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
+    app_name = os.getenv("APP_NAME", "inventory")
+    return f"{path_prefix}/{app_name}"
 
+
+def _get_api_path():
+    """
+    Composes the whole URL path the API in its current version.
+    """
+    base_path = _get_base_path()
     version = "v1"
-
-    path = f"{path_prefix}/{app_name}/api/{version}"
-    return path
+    return f"{base_path}/api/{version}"
 
 
 def create_app(config_name):
