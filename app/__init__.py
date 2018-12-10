@@ -2,11 +2,11 @@ import os
 import connexion
 import yaml
 
-from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
+from flask import jsonify
 
-
-db = SQLAlchemy()
+from app.models import db
+from app.exceptions import InventoryException
 
 
 def _build_database_uri():
@@ -36,6 +36,12 @@ def _get_api_path():
     return path
 
 
+def render_exception(exception):
+    response = jsonify(exception.to_json())
+    response.status_code = exception.status
+    return response
+
+
 def create_app(config_name):
     connexion_options = {"swagger_ui": True}
 
@@ -63,6 +69,10 @@ def create_app(config_name):
         strict_validation=True,
         base_path=url_path,
     )
+
+    # Add an error handler that will convert our top level exceptions
+    # into error responses
+    connexion_app.add_error_handler(InventoryException, render_exception)
 
     flask_app = connexion_app.app
 

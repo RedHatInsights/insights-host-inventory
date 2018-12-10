@@ -4,6 +4,7 @@ import unittest
 import json
 import dateutil.parser
 import uuid
+import copy
 from app import create_app, db
 from app.auth import current_identity
 from app.auth.identity import Identity
@@ -279,6 +280,30 @@ class CreateHostsTestCase(DBAPITestCase):
 
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+    def test_create_host_with_invalid_facts_no_namespace(self):
+        facts = copy.deepcopy(FACTS)
+        del facts[0]["namespace"]
+        host_data = HostWrapper(test_data(facts=facts))
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert response_data["title"] == "Invalid request"
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
+
+    def test_create_host_with_invalid_facts_no_facts(self):
+        facts = copy.deepcopy(FACTS)
+        del facts[0]["facts"]
+        host_data = HostWrapper(test_data(facts=facts))
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert response_data["title"] == "Invalid request"
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):

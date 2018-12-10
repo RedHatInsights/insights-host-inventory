@@ -1,9 +1,14 @@
-from app import db
+import uuid
+
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
-import uuid
+from app.exceptions import InputFormatException
+
+
+db = SQLAlchemy()
 
 
 CANONICAL_FACTS = (
@@ -37,10 +42,15 @@ def convert_canonical_facts_to_fields(internal_dict):
 def convert_json_facts_to_dict(fact_list):
     fact_dict = {}
     for fact in fact_list:
-        if fact["namespace"] in fact_dict:
-            fact_dict[fact["namespace"]].update(fact["facts"])
+        if "namespace" in fact and "facts" in fact:
+            if fact["namespace"] in fact_dict:
+                fact_dict[fact["namespace"]].update(fact["facts"])
+            else:
+                fact_dict[fact["namespace"]] = fact["facts"]
         else:
-            fact_dict[fact["namespace"]] = fact["facts"]
+            # The facts from the request are formatted incorrectly
+            raise InputFormatException("Invalid format of Fact object.  Fact "
+                                       "must contain 'namespace' and 'facts' keys.")
     return fact_dict
 
 
