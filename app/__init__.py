@@ -4,6 +4,7 @@ import yaml
 
 from flask_sqlalchemy import SQLAlchemy
 from connexion.resolver import RestyResolver
+from werkzeug.wsgi import DispatcherMiddleware
 
 
 db = SQLAlchemy()
@@ -75,3 +76,11 @@ def create_app(config_name):
     db.init_app(flask_app)
 
     return flask_app
+
+
+def dispatch(flask_app):
+    """
+    Create a combined app that allows to mount other WSGI apps.
+    """
+    # return DispatcherMiddleware(flask_app)
+    return DispatcherMiddleware(flask_app)
