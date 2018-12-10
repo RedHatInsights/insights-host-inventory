@@ -4,7 +4,7 @@ import unittest
 import json
 import dateutil.parser
 import uuid
-from app import create_app, db
+from app import _create_flask_app, db
 from app.auth import current_identity
 from app.auth.identity import Identity
 from app.utils import HostWrapper
@@ -59,7 +59,7 @@ class BaseAPITestCase(unittest.TestCase):
         """
         Creates the application and a test client to make requests.
         """
-        self.app = create_app(config_name="testing")
+        self.app = _create_flask_app(config_name="testing")
         self.client = self.app.test_client
 
     def get(self, path, status=200, return_response_as_json=True):

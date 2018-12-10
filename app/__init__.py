@@ -37,7 +37,10 @@ def _get_api_path():
     return path
 
 
-def create_app(config_name):
+def _create_flask_app(config_name):
+    """
+    Creates the Flask (Connexion) application itself.
+    """
     connexion_options = {"swagger_ui": True}
 
     url_path = _get_api_path()
@@ -78,9 +81,9 @@ def create_app(config_name):
     return flask_app
 
 
-def dispatch(flask_app):
+def create_app(config_name):
     """
-    Create a combined app that allows to mount other WSGI apps.
+    Dispatches the combined Flask (Connexion) application.
     """
-    # return DispatcherMiddleware(flask_app)
+    flask_app = _create_flask_app(config_name)
     return DispatcherMiddleware(flask_app)
