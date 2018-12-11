@@ -15,8 +15,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
-HEALTH_URL = "/r/insights/platform/inventory/health"
-METRICS_URL = "/r/insights/platform/inventory/metrics"
+HEALTH_URL = "/health"
+METRICS_URL = "/metrics"
 
 NS = "testns"
 ID = "whoabuddy"

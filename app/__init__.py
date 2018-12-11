@@ -40,7 +40,7 @@ def create_app(config_name):
         resolver=RestyResolver("api"),
         validate_responses=True,
         strict_validation=True,
-        base_path=app_config.getApiPath(),
+        base_path=app_config.getApiUrlPathPrefix(),
     )
 
     # Add an error handler that will convert our top level exceptions
@@ -57,6 +57,7 @@ def create_app(config_name):
 
     db.init_app(flask_app)
 
-    flask_app.register_blueprint(management, url_prefix=app_config.getBaseUrlPath())
+    flask_app.register_blueprint(management,
+                            url_prefix=app_config.getMgmtUrlPathPrefix())
 
     return flask_app

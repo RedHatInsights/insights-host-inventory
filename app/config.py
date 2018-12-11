@@ -15,10 +15,12 @@ class Config:
         self.base_url_path = self._get_base_url_path()
         self.api_path = self._get_api_path()
 
+        self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
+
         if config_name != "testing":
             print("Insights Host Inventory Configuration:")
-            print("Base URL Path: %s" % self.base_url_path)
             print("API URL Path: %s" % self.api_path)
+            print("Management URL Path Preifx: %s" % self.mgmt_url_path_prefix)
             print("DB Host: %s" % self.db_host)
             print("DB Name: %s" % self.db_name)
 
@@ -31,11 +33,11 @@ class Config:
     def getDBPoolSize(self):
         return self.db_pool_size
 
-    def getApiPath(self):
+    def getApiUrlPathPrefix(self):
         return self.api_path
 
-    def getBaseUrlPath(self):
-        return self.base_url_path
+    def getMgmtUrlPathPrefix(self):
+        return self.mgmt_url_path_prefix
 
     def _get_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
