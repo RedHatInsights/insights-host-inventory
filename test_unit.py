@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
+import os
+
 from app.auth import (
     _validate,
     _pick_identity,
 )
+from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
 from json import dumps
@@ -189,6 +192,56 @@ def test_noauthmode(monkeypatch):
         m.setenv("FLASK_DEBUG", "1")
         m.setenv("NOAUTH", "1")
         assert _pick_identity() == Identity(account_number="0000001")
+
+
+@pytest.mark.usefixtures("monkeypatch")
+def test_config(monkeypatch):
+    with monkeypatch.context() as m:
+        m.setenv("INVENTORY_DB_USER", "fredflintstone")
+        m.setenv("INVENTORY_DB_PASS", "bedrock1234")
+        m.setenv("INVENTORY_DB_HOST", "localhost")
+        m.setenv("INVENTORY_DB_NAME", "SlateRockAndGravel")
+        m.setenv("INVENTORY_DB_POOL_TIMEOUT", "3")
+        m.setenv("INVENTORY_DB_POOL_SIZE", "8")
+        m.setenv("APP_NAME", "brontocrane")
+        m.setenv("PATH_PREFIX", "/r/slaterock/platform")
+
+        conf = Config("testing")
+
+        assert conf.getDBUri() == "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel"
+        assert conf.getDBPoolTimeout() == 3
+        assert conf.getDBPoolSize() == 8
+        assert conf.getApiPath() == "/r/slaterock/platform/brontocrane/api/v1"
+
+
+@pytest.mark.usefixtures("monkeypatch")
+def test_config_default_settings(monkeypatch):
+    with monkeypatch.context() as m:
+        # Make sure the environment variables are not set
+        for env_var in ("INVENTORY_DB_USER", "INVENTORY_DB_PASS",
+                        "INVENTORY_DB_HOST", "INVENTORY_DB_NAME",
+                        "INVENTORY_DB_POOL_TIMEOUT", "INVENTORY_DB_POOL_SIZE",
+                        "APP_NAME", "PATH_PREFIX"):
+            if env_var in os.environ:
+                m.delenv(env_var)
+
+        conf = Config("testing")
+
+        assert conf.getDBUri() == "postgresql://insights:insights@localhost/test_db"
+        assert conf.getApiPath() == "/r/insights/platform/inventory/api/v1"
+        assert conf.getDBPoolTimeout() == 5
+        assert conf.getDBPoolSize() == 5
+
+
+@pytest.mark.usefixtures("monkeypatch")
+def test_config_development(monkeypatch):
+    with monkeypatch.context() as m:
+        m.setenv("INVENTORY_DB_POOL_TIMEOUT", "3")
+
+        # Test a different "type" (development) of config settings
+        conf = Config("development")
+
+        assert conf.getDBPoolTimeout() == 3
 
 
 if __name__ == "__main__":
