@@ -46,12 +46,13 @@ Running the tests is quite simple:
 Running the server:
 
 ```
-gunicorn --log-level=debug run
+gunicorn --log-level=debug -c gunicorn.conf run
 ```
 
 Configuration system properties:
 
 ```
+ prometheus_multiproc_dir=/path/to/prometheus_dir
  APP_NAME="inventory"
  PATH_PREFIX="/r/insights/platform"
  INVENTORY_DB_USER="insights"

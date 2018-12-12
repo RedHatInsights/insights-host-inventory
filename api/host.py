@@ -1,10 +1,13 @@
-import os
 import logging
+
 from enum import Enum
+from flask import current_app
+
 from app.models import Host
 from app.auth import current_identity, requires_identity
 from app import db
-from flask import current_app
+from api import metrics
+
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
@@ -12,6 +15,7 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 logger = logging.getLogger(__name__)
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def addHost(host):
     """
@@ -55,16 +59,19 @@ def addHost(host):
         current_app.logger.debug("Creating a new host")
         db.session.add(input_host)
         db.session.commit()
+        metrics.create_host_count.inc()
         current_app.logger.debug("Created host:%s" % input_host)
         return input_host.to_json(), 201
     else:
         current_app.logger.debug("Updating an existing host")
         found_host.update(input_host)
         db.session.commit()
+        metrics.update_host_count.inc()
         current_app.logger.debug("Updated host:%s" % found_host)
         return found_host.to_json(), 200
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def getHostList(tag=None, display_name=None, page=1, per_page=100):
     """
@@ -132,6 +139,7 @@ def findHostsByDisplayName(account, display_name, page, per_page):
     return (total, found_host_list)
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def getHostById(hostId, page=1, per_page=100):
     current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
@@ -144,6 +152,7 @@ def getHostById(hostId, page=1, per_page=100):
     return _buildPaginatedHostListResponse(total, page, per_page, found_host_list)
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def replaceFacts(hostId, namespace, fact_dict):
     current_app.logger.debug(
@@ -153,6 +162,7 @@ def replaceFacts(hostId, namespace, fact_dict):
     return updateFactsByNamespace(FactOperations.replace, hostId, namespace, fact_dict)
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def mergeFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
@@ -192,6 +202,7 @@ def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
     return 200
 
 
+@metrics.api_request_time.time()
 @requires_identity
 def handleTagOperation(hostId, tag_op):
     current_app.logger.debug("handleTagOperation(%s, %s)" % (hostId, tag_op))
