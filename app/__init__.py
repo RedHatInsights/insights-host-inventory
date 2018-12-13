@@ -5,7 +5,7 @@ import yaml
 from connexion.resolver import RestyResolver
 from flask import jsonify
 
-from api.mgmt import management
+from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
@@ -57,7 +57,7 @@ def create_app(config_name):
 
     db.init_app(flask_app)
 
-    flask_app.register_blueprint(management,
+    flask_app.register_blueprint(monitoring_blueprint,
                                  url_prefix=app_config.mgmt_url_path_prefix)
 
     return flask_app
