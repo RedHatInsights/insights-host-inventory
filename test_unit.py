@@ -215,11 +215,11 @@ def test_config(monkeypatch):
 
         conf = Config("testing")
 
-        assert conf.getDBUri() == "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel"
-        assert conf.getDBPoolTimeout() == 3
-        assert conf.getDBPoolSize() == 8
-        assert conf.getApiUrlPathPrefix() == expected_api_path
-        assert conf.getMgmtUrlPathPrefix() == expected_mgmt_url_path_prefix
+        assert conf.db_uri == "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel"
+        assert conf.db_pool_timeout == 3
+        assert conf.db_pool_size == 8
+        assert conf.api_url_path_prefix == expected_api_path
+        assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
 
 
 @pytest.mark.usefixtures("monkeypatch")
@@ -240,11 +240,11 @@ def test_config_default_settings(monkeypatch):
 
         conf = Config("testing")
 
-        assert conf.getDBUri() == "postgresql://insights:insights@localhost/test_db"
-        assert conf.getApiUrlPathPrefix() == expected_api_path
-        assert conf.getMgmtUrlPathPrefix() == expected_mgmt_url_path_prefix
-        assert conf.getDBPoolTimeout() == 5
-        assert conf.getDBPoolSize() == 5
+        assert conf.db_uri == "postgresql://insights:insights@localhost/test_db"
+        assert conf.api_url_path_prefix == expected_api_path
+        assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
+        assert conf.db_pool_timeout == 5
+        assert conf.db_pool_size == 5
 
 
 @pytest.mark.usefixtures("monkeypatch")
@@ -255,7 +255,7 @@ def test_config_development(monkeypatch):
         # Test a different "type" (development) of config settings
         conf = Config("development")
 
-        assert conf.getDBPoolTimeout() == 3
+        assert conf.db_pool_timeout == 3
 
 
 if __name__ == "__main__":
