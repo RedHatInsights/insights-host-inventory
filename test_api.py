@@ -4,6 +4,7 @@ import unittest
 import json
 import dateutil.parser
 import uuid
+import copy
 from app import create_app, db
 from app.auth import current_identity
 from app.auth.identity import Identity
@@ -13,7 +14,8 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-HOST_URL = "/api/hosts"
+HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
+HEALTH_URL = "/r/insights/platform/inventory/api/v1/health"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -28,11 +30,11 @@ def test_data(display_name="hi", tags=None, facts=None):
     return {
         "account": ACCOUNT,
         "display_name": display_name,
-        #"insights_id": "1234-56-789",
+        # "insights_id": "1234-56-789",
         # "rhel_machine_id": "1234-56-789",
-        #"ip_addresses": ["10.10.0.1", "10.0.0.2"],
+        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
         "ip_addresses": ["10.10.0.1"],
-        #"mac_addresses": ["c2:00:d0:c8:61:01"],
+        # "mac_addresses": ["c2:00:d0:c8:61:01"],
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
@@ -47,7 +49,6 @@ def inject_qs(url, **kwargs):
 
 
 class BaseAPITestCase(unittest.TestCase):
-
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT)
         dict_ = {"identity": identity._asdict()}
@@ -56,25 +57,18 @@ class BaseAPITestCase(unittest.TestCase):
         return auth_header
 
     def setUp(self):
+        """
+        Creates the application and a test client to make requests.
+        """
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
 
-        # binds the app to the current context
-        with self.app.app_context():
-            # create all tables
-            db.create_all()
-
-    def tearDown(self):
-        with self.app.app_context():
-            # drop all tables
-            db.session.remove()
-            db.drop_all()
-
     def get(self, path, status=200, return_response_as_json=True):
         return self._response_check(
-            self.client().get(path,
-                              headers=self._get_valid_auth_header()),
-                status, return_response_as_json)
+            self.client().get(path, headers=self._get_valid_auth_header()),
+            status,
+            return_response_as_json,
+        )
 
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
@@ -96,11 +90,9 @@ class BaseAPITestCase(unittest.TestCase):
     ):
         json_data = json.dumps(data)
         headers = self._get_valid_auth_header()
-        headers['content-type'] = 'application/json'
+        headers["content-type"] = "application/json"
         return self._response_check(
-            http_method(
-                path, data=json_data, headers=headers
-            ),
+            http_method(path, data=json_data, headers=headers),
             status,
             return_response_as_json,
         )
@@ -113,21 +105,54 @@ class BaseAPITestCase(unittest.TestCase):
         else:
             return response
 
+
+class DBAPITestCase(BaseAPITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Temporarily rename the host table while the tests run.  This is done
+        to make dropping the table at the end of the tests a bit safer.
+        """
+        from app.models import Host
+        temp_table_name_suffix = "__unit_tests__"
+        if temp_table_name_suffix not in Host.__table__.name:
+            Host.__table__.name = Host.__table__.name + temp_table_name_suffix
+        if temp_table_name_suffix not in Host.__table__.fullname:
+            Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
+
+    def setUp(self):
+        """
+        Initializes the database by creating all tables.
+        """
+        super(DBAPITestCase, self).setUp()
+
+        # binds the app to the current context
+        with self.app.app_context():
+            # create all tables
+            db.create_all()
+
+    def tearDown(self):
+        """
+        Cleans up the database by dropping all tables.
+        """
+        with self.app.app_context():
+            # drop all tables
+            db.session.remove()
+            db.drop_all()
+
     def _build_host_id_list_for_url(self, host_list):
         host_id_list = [str(h.id) for h in host_list]
 
         return ",".join(host_id_list)
 
 
-class CreateHostsTestCase(BaseAPITestCase):
-
+class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
         facts = None
         tags = ["/merge_me_1:value1"]
 
-        host_data = HostWrapper(
-            test_data(facts=facts, tags=tags)
-        )
+        host_data = HostWrapper(test_data(facts=facts, tags=tags))
 
         # initial create
         results = self.post(HOST_URL, host_data.data(), 201)
@@ -146,8 +171,7 @@ class CreateHostsTestCase(BaseAPITestCase):
         post_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
 
         # Add a new set of facts under a new namespace
-        post_data.facts.append({"namespace": "ns2", "facts":
-                               {"key2": "value2"}})
+        post_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
 
         # Add a new canonical fact
         post_data.rhel_machine_id = "1234-56-789"
@@ -216,6 +240,19 @@ class CreateHostsTestCase(BaseAPITestCase):
 
         self.assertEqual(results.display_name, host_data.display_name)
 
+    def test_create_host_with_display_name_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+
+        # initial create
+        results = self.post(HOST_URL, host_data.data(), 201)
+
+        self.assertIsNotNone(results["id"])
+
+        self.assertIsNone(results["display_name"])
+
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.insights_id
@@ -244,16 +281,38 @@ class CreateHostsTestCase(BaseAPITestCase):
         # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
+    def test_create_host_with_invalid_facts_no_namespace(self):
+        facts = copy.deepcopy(FACTS)
+        del facts[0]["namespace"]
+        host_data = HostWrapper(test_data(facts=facts))
 
-class PreCreatedHostsBaseTestCase(BaseAPITestCase):
+        response_data = self.post(HOST_URL, host_data.data(), 400)
 
+        assert response_data["title"] == "Invalid request"
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
+
+    def test_create_host_with_invalid_facts_no_facts(self):
+        facts = copy.deepcopy(FACTS)
+        del facts[0]["facts"]
+        host_data = HostWrapper(test_data(facts=facts))
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert response_data["title"] == "Invalid request"
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
+
+
+class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.create_hosts()
 
     def create_hosts(self):
-        hosts_to_create = [("host1", "12345"),
-                           ("host2", "54321")]
+        hosts_to_create = [("host1", "12345"), ("host2", "54321")]
         host_list = []
 
         for host in hosts_to_create:
@@ -262,8 +321,7 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
             host_wrapper.tags = TAGS
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
-            host_wrapper.facts = [{"namespace": "ns1",
-                                   "facts": {"key1": "value1"}}]
+            host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, host_wrapper.data(), 201)
             host_list.append(HostWrapper(response_data))
@@ -290,7 +348,6 @@ class PreCreatedHostsBaseTestCase(BaseAPITestCase):
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
-
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
@@ -302,9 +359,9 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all_with_invalid_paging_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
         for invalid_parameter in invalid_limit_parameters:
-            self.get(HOST_URL+"?per_page="+invalid_parameter, 400)
+            self.get(HOST_URL + "?per_page=" + invalid_parameter, 400)
 
-            self.get(HOST_URL+"?page="+invalid_parameter, 400)
+            self.get(HOST_URL + "?page=" + invalid_parameter, 400)
 
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
@@ -328,9 +385,9 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         invalid_limit_parameters = ["-1", "0", "notanumber"]
         for invalid_parameter in invalid_limit_parameters:
-            self.get(base_url + "?per_page="+invalid_parameter, 400)
+            self.get(base_url + "?per_page=" + invalid_parameter, 400)
 
-            self.get(base_url + "?page="+invalid_parameter, 400)
+            self.get(base_url + "?page=" + invalid_parameter, 400)
 
     def test_query_using_host_id_list_include_nonexistent_host_ids(self):
         host_list = self.added_hosts
@@ -338,7 +395,9 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
         # Add some host ids to the list that do not exist
-        url_host_id_list = url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+        url_host_id_list = (
+            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+        )
 
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
@@ -368,9 +427,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url)
 
 
-
 class FactsTestCase(PreCreatedHostsBaseTestCase):
-
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
@@ -406,16 +463,14 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         for response_host in response["results"]:
             host_to_verify = HostWrapper(response_host)
 
-            self.assertEqual(host_to_verify.facts[0]["facts"],
-                             expected_facts)
+            self.assertEqual(host_to_verify.facts[0]["facts"], expected_facts)
 
-            self.assertEqual(host_to_verify.facts[0]["namespace"],
-                             target_namespace)
+            self.assertEqual(host_to_verify.facts[0]["namespace"], target_namespace)
 
     def test_add_facts_without_fact_dict(self):
         patch_url = self._build_facts_url(1, "ns1")
         response = self.patch(patch_url, None, 400)
-        self.assertEqual(response['detail'], "Request body is not valid JSON")
+        self.assertEqual(response["detail"], "Request body is not valid JSON")
 
     def test_add_facts_to_multiple_hosts(self):
         facts_to_add = self._valid_fact_doc()
@@ -439,7 +494,9 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
         # Add a couple of host ids that should not exist in the database
-        url_host_id_list = url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+        url_host_id_list = (
+            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+        )
 
         patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
 
@@ -462,11 +519,20 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         # Overwrite the empty fact set
         self._basic_fact_test(new_facts, expected_facts, False)
 
+    def test_add_facts_to_multiple_hosts_add_empty_fact_set(self):
+        new_facts = {}
+        target_namespace = self.added_hosts[0].facts[0]["namespace"]
+        valid_host_id = self.added_hosts[0].id
+
+        test_url = self._build_facts_url(valid_host_id, target_namespace)
+
+        # Test merging empty facts set
+        self.patch(test_url, new_facts, 400)
+
     def test_replace_and_add_facts_to_namespace_that_does_not_exist(self):
         valid_host_id = self.added_hosts[0].id
         facts_to_add = self._valid_fact_doc()
-        test_url = self._build_facts_url(valid_host_id,
-                                         "imanonexistentnamespace")
+        test_url = self._build_facts_url(valid_host_id, "imanonexistentnamespace")
 
         # Test replace
         self.put(test_url, facts_to_add, 400)
@@ -477,7 +543,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
     def test_replace_facts_without_fact_dict(self):
         put_url = self._build_facts_url(1, "ns1")
         response = self.put(put_url, None, 400)
-        self.assertEqual(response['detail'], "Request body is not valid JSON")
+        self.assertEqual(response["detail"], "Request body is not valid JSON")
 
     def test_replace_facts_on_multiple_hosts(self):
         new_facts = self._valid_fact_doc()
@@ -504,10 +570,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
 
 class TagsTestCase(PreCreatedHostsBaseTestCase):
-
     def _build_tag_op_doc(self, operation, tag):
-        return {"operation": operation,
-                "tag": tag}
+        return {"operation": operation, "tag": tag}
 
     def test_add_tag_to_host(self):
         tag_to_add = "aws/unique:value"
@@ -554,8 +618,7 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
 
-        return [HostWrapper(response_data)
-                for response_data in response["results"]]
+        return [HostWrapper(response_data) for response_data in response["results"]]
 
     def test_remove_tag_from_host(self):
         tag_to_remove = "aws/k:v"
@@ -592,10 +655,18 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url, 200)
 
-        # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(response["count"], 2)
 
         self._base_paging_test(test_url)
+
+    def test_query_using_single_tag_no_matches(self):
+        test_url = HOST_URL + "?tag=notgonnafindme"
+
+        response = self.get(test_url, 200)
+
+        self.assertEqual(len(response["results"]), 0)
+        self.assertEqual(response["count"], 0)
 
     def test_query_using_multiple_tags(self):
         self._add_tag_to_hosts(TAGS[0])
@@ -603,12 +674,19 @@ class TagsTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=" + TAGS[1], 200)
 
-        # FIXME: check the results
         self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(response["count"], 2)
+
+    def test_query_using_multiple_tags_one_tag_does_not_match(self):
+        self._add_tag_to_hosts(TAGS[0])
+
+        response = self.get(HOST_URL + "?tag=" + TAGS[0] + "&tag=nomatch", 200)
+
+        self.assertEqual(len(response["results"]), 0)
+        self.assertEqual(response["count"], 0)
 
 
-
-class AuthTestCase(BaseAPITestCase):
+class AuthTestCase(DBAPITestCase):
     @staticmethod
     def _valid_identity():
         """
@@ -634,10 +712,10 @@ class AuthTestCase(BaseAPITestCase):
 
     def test_validate_missing_identity(self):
         """
-        Identity header is not present, 403 Forbidden is returned.
+        Identity header is not present, 400 Bad Request is returned.
         """
         response = self._get_hosts({})
-        self.assertEqual(403, response.status_code)  # Forbidden
+        self.assertEqual(400, response.status_code)  # Bad Request
 
     def test_validate_invalid_identity(self):
         """
@@ -654,16 +732,19 @@ class AuthTestCase(BaseAPITestCase):
         response = self._get_hosts({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
 
-    def test_get_identity(self):
+
+class HealthTestCase(BaseAPITestCase):
+    """
+    Tests the health check endpoint.
+    """
+
+    def test_heath(self):
         """
-        The identity payload is available by the request context = in the views.
+        The health check simply returns 200 to any GET request. The response body is
+        irrelevant.
         """
-        payload = self._valid_payload()
-        with self.app.test_request_context(HOST_URL,
-                                           method="GET",
-                                           headers={"x-rh-identity": payload}):
-            self.app.preprocess_request()
-            self.assertEqual(self._valid_identity(), current_identity)
+        response = self.client().get(HEALTH_URL)  # No identity header.
+        self.assertEqual(200, response.status_code)
 
 
 if __name__ == "__main__":

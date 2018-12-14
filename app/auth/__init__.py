@@ -1,48 +1,59 @@
-from app.auth.identity import from_encoded, validate
+import os
+from functools import wraps
+from app.auth.identity import from_encoded, validate, Identity
 from flask import abort, request, _request_ctx_stack
 from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
 
-__all__ = ["init_app", "current_identity"]
+__all__ = ["init_app", "current_identity", "NoIdentityError", "requires_identity"]
 
 _IDENTITY_HEADER = "x-rh-identity"
 
 
-def _validate_identity(payload):
-    """
-    Identity payload validation dummy. Fails if the data is empty.
-    """
-    if not payload:
-        raise ValueError
+class NoIdentityError(RuntimeError):
+    pass
 
 
-def _before_request():
-    try:
-        payload = request.headers[_IDENTITY_HEADER]
-    except KeyError:
-        abort(Forbidden.code)
+def _pick_identity():
+    if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):
+        return Identity(account_number="0000001")
+    else:
+        try:
+            payload = request.headers[_IDENTITY_HEADER]
+        except KeyError:
+            abort(Forbidden.code)
 
-    try:
-        identity = from_encoded(payload)
-    except (KeyError, TypeError, ValueError):
-        abort(Forbidden.code)
+        try:
+            return from_encoded(payload)
+        except (KeyError, TypeError, ValueError):
+            abort(Forbidden.code)
 
+
+def _validate(identity):
     try:
         validate(identity)
-    except ValueError:
+    except Exception:
         abort(Forbidden.code)
 
-    ctx = _request_ctx_stack.top
-    ctx.identity = identity
 
+def requires_identity(view_func):
+    @wraps(view_func)
+    def _wrapper(*args, **kwargs):
+        identity = _pick_identity()
+        _validate(identity)
+        ctx = _request_ctx_stack.top
+        ctx.identity = identity
+        return view_func(*args, **kwargs)
 
-def init_app(flask_app):
-    flask_app.before_request(_before_request)
+    return _wrapper
 
 
 def _get_identity():
     ctx = _request_ctx_stack.top
-    return ctx.identity
+    try:
+        return ctx.identity
+    except AttributeError:
+        raise NoIdentityError
 
 
 current_identity = LocalProxy(_get_identity)

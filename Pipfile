@@ -9,20 +9,21 @@ jsonify = "*"
 flask-restful = "*"
 requests = "*"
 flask-limiter = "*"
-connexion = "*"
 flask-script = "*"
 flask-api = "*"
 flask-sqlalchemy = "*"
 "psycopg2-binary" = "*"
 flask-migrate = "*"
 itsdangerous = "*"
-pytest = "*"
 request = "*"
 gunicorn = "*"
+connexion = {extras = ["swagger-ui"]}
+pyyaml = ">=3.13"
 
 [dev-packages]
 pytest = "*"
-connexion = {extras = ["swagger-ui"]}
+pytest-cov = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.6"

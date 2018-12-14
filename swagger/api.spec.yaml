@@ -7,7 +7,7 @@ consumes:
 - application/json
 produces:
 - application/json
-basePath: /api
+basePath: /r/insights/platform/inventory/api/v1
 
 parameters:
   rhIdentityHeader:
@@ -52,6 +52,7 @@ paths:
             type: string
           description: Search by tags
           required: false
+          collectionFormat: multi
         - name: display_name
           in: query
           type: string
@@ -73,15 +74,19 @@ paths:
       parameters:
       - in: body
         name: host
-        description: Host object that needs to be added to the store
+        description: Host object that needs to be added to the list of hosts
         required: true
         schema:
           $ref: '#/definitions/Host'
       responses:
         "201":
           description: Successfully created host in list
+          schema:
+            $ref: '#/definitions/HostOut'
         "200":
           description: Successfully updated a host in list
+          schema:
+            $ref: '#/definitions/HostOut'
   '/hosts/{hostId}':
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
@@ -106,11 +111,11 @@ paths:
         - $ref: '#/parameters/pageParam'
       responses:
         "200":
-          description: successful operation
+          description: Successful operation
           schema:
             $ref: '#/definitions/HostQueryOutput'
         '400':
-          description: Invalid ID supplied
+          description: Invalid request
         "404":
           description: Host not found
    # delete:
@@ -140,14 +145,14 @@ paths:
       tags:
       - hosts
       summary: Merge facts under a namespace
-      description: Merge facts
+      description: Merge facts under a namespace
       operationId: api.host.mergeFacts
       produces:
       - application/json
       parameters:
       - name: hostId
         in: path
-        description: ID of host to return
+        description: ID of the host that owns the facts
         required: true
         type: array
         collectionFormat: csv
@@ -168,21 +173,21 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid ID supplied
+          description: Invalid request
         "404":
-          description: Host not found
+          description: Host or namespace not found
     put:
       tags:
       - hosts
       summary: Replace facts under a namespace
-      description: Replace facts
+      description: Replace facts under a namespace
       operationId: api.host.replaceFacts
       produces:
       - application/json
       parameters:
       - name: hostId
         in: path
-        description: ID of host to return
+        description: ID of the host that owns the facts
         required: true
         type: array
         collectionFormat: csv
@@ -203,9 +208,9 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid ID supplied
+          description: Invalid request
         "404":
-          description: Host not found
+          description: Host or namespace not found
   '/hosts/{hostId}/tags':
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
@@ -218,7 +223,7 @@ paths:
       parameters:
       - name: hostId
         in: path
-        description: ID of host to return
+        description: ID of the host that owns the facts
         required: true
         type: array
         collectionFormat: csv
@@ -233,6 +238,16 @@ paths:
       responses:
         "200":
           description: Successfully added or removed a tag
+  /health:
+    get:
+      operationId: api.health
+      tags:
+        - health
+      summary: Respond to a health check
+      description: Respond to a health check
+      responses:
+        '200':
+          description: The application is able to respond to requests
 definitions:
   Facts:
     type: object
@@ -255,6 +270,7 @@ definitions:
       display_name:
         type: string
         example: host1.mydomain.com
+        x-nullable: true
       account:
         type: string
         example: "000102"

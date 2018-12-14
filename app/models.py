@@ -1,19 +1,26 @@
-from app import db
+import uuid
+
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
-import uuid
+from app.exceptions import InputFormatException
 
 
-CANONICAL_FACTS = ("insights_id",
-                   "rhel_machine_id",
-                   "subscription_manager_id",
-                   "satellite_id",
-                   "bios_uuid",
-                   "ip_addresses",
-                   "fqdn",
-                   "mac_addresses")
+db = SQLAlchemy()
+
+
+CANONICAL_FACTS = (
+    "insights_id",
+    "rhel_machine_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+)
 
 
 def convert_fields_to_canonical_facts(json_dict):
@@ -35,10 +42,15 @@ def convert_canonical_facts_to_fields(internal_dict):
 def convert_json_facts_to_dict(fact_list):
     fact_dict = {}
     for fact in fact_list:
-        if fact["namespace"] in fact_dict:
-            fact_dict[fact["namespace"]].update(fact["facts"])
+        if "namespace" in fact and "facts" in fact:
+            if fact["namespace"] in fact_dict:
+                fact_dict[fact["namespace"]].update(fact["facts"])
+            else:
+                fact_dict[fact["namespace"]] = fact["facts"]
         else:
-            fact_dict[fact["namespace"]] = fact["facts"]
+            # The facts from the request are formatted incorrectly
+            raise InputFormatException("Invalid format of Fact object.  Fact "
+                                       "must contain 'namespace' and 'facts' keys.")
     return fact_dict
 
 
@@ -51,15 +63,15 @@ def convert_dict_to_json_facts(fact_dict):
 
 
 class Host(db.Model):
-    __tablename__ = 'hosts'
+    __tablename__ = "hosts"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(db.DateTime,
-                            default=datetime.utcnow,
-                            onupdate=datetime.utcnow)
+    modified_on = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -133,6 +145,9 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
+        if not facts_dict:
+            return
+
         if self.facts[namespace]:
             self.facts[namespace] = {**self.facts[namespace], **facts_dict}
         else:
@@ -155,7 +170,11 @@ class Host(db.Model):
                 orm.attributes.flag_modified(self, "tags")
 
     def __repr__(self):
-        tmpl = "<Host '%s' '%d' canonical_facts=%s facts=%s tags=%s>"
+        tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s tags=%s>"
         return tmpl % (
-            self.display_name, self.id, self.canonical_facts, self.facts, self.tags
+            self.display_name,
+            self.id,
+            self.canonical_facts,
+            self.facts,
+            self.tags,
         )

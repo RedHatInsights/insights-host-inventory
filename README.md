@@ -17,15 +17,8 @@ Afterwards you can activate the virtual environment by running:
 pipenv shell
 ```
 
-Also provided are a couple of docker-compose configurations.  The default will
-build a container with the Django project and start a database and the wsgi
-server.
-
-```
-docker-compose up
-```
-
-Additionally, the `dev.yml` configuration will simply start a database:
+Included is a docker-compose file `dev.yml` that will start a postgres database that is
+useful for development.
 
 ```
 docker-compose -f dev.yml up
@@ -59,6 +52,8 @@ gunicorn --log-level=debug run
 Configuration system properties:
 
 ```
+ APP_NAME="inventory"
+ PATH_PREFIX="/r/insights/platform"
  INVENTORY_DB_USER="insights"
  INVENTORY_DB_PASS="insights"
  INVENTORY_DB_HOST="localhost"
@@ -66,3 +61,9 @@ Configuration system properties:
  INVENTORY_DB_POOL_TIMEOUT="5"
  INVENTORY_DB_POOL_SIZE="5"
 ```
+
+## Deployment
+
+There is a health check endpoint at _/api/health_ responding with_200_ to any
+GET request. Point your OpenShift or whatever health probe there, so your pods
+are replaced once they stop responding.
