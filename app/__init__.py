@@ -5,6 +5,7 @@ import yaml
 from connexion.resolver import RestyResolver
 from flask import jsonify
 
+from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
@@ -39,7 +40,7 @@ def create_app(config_name):
         resolver=RestyResolver("api"),
         validate_responses=True,
         strict_validation=True,
-        base_path=app_config.getApiPath(),
+        base_path=app_config.api_url_path_prefix,
     )
 
     # Add an error handler that will convert our top level exceptions
@@ -50,10 +51,13 @@ def create_app(config_name):
 
     flask_app.config["SQLALCHEMY_ECHO"] = False
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    flask_app.config["SQLALCHEMY_DATABASE_URI"] = app_config.getDBUri()
-    flask_app.config["SQLALCHEMY_POOL_SIZE"] = app_config.getDBPoolSize()
-    flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.getDBPoolTimeout()
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = app_config.db_uri
+    flask_app.config["SQLALCHEMY_POOL_SIZE"] = app_config.db_pool_size
+    flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.db_pool_timeout
 
     db.init_app(flask_app)
+
+    flask_app.register_blueprint(monitoring_blueprint,
+                                 url_prefix=app_config.mgmt_url_path_prefix)
 
     return flask_app

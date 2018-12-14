@@ -43,15 +43,30 @@ Running the tests is quite simple:
 
 ## Running the server
 
+Prometheus was designed to run in a multi-threaded
+environment whereas gunicorn uses a multi-process
+architecture.  As a result, there is some work
+to be done to make prometheus integrate with
+gunicorn.
+
+A temp directory for prometheus needs to be created
+before the server starts.  The prometheus_multiproc_dir
+environment needs to point to this directory.  The
+contents of this directory need to be removed between
+runs.
+
 Running the server:
 
 ```
-gunicorn --log-level=debug run
+mkdir /path/to/prometheus_dir
+gunicorn --log-level=debug -c gunicorn.conf.py run
+rm /path/to/prometheus_dir/*
 ```
 
 Configuration system properties:
 
 ```
+ prometheus_multiproc_dir=/path/to/prometheus_dir
  APP_NAME="inventory"
  PATH_PREFIX="/r/insights/platform"
  INVENTORY_DB_USER="insights"
@@ -64,6 +79,9 @@ Configuration system properties:
 
 ## Deployment
 
-There is a health check endpoint at _/api/health_ responding with_200_ to any
+There is a health check endpoint at _/health_ responding with_200_ to any
 GET request. Point your OpenShift or whatever health probe there, so your pods
 are replaced once they stop responding.
+
+There is a prometheus metrics endpoint at _/metrics_.  Point your Prometheus
+scraper there.
