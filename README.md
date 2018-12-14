@@ -64,6 +64,6 @@ Configuration system properties:
 
 ## Deployment
 
-There is a health check endpoint at _/api/health_ responding with_200_ to any
-GET request. Point your OpenShift or whatever health probe there, so your pods
-are replaced once they stop responding.
+There is a health check endpoint at _/r/insights/platform/inventory/api/v1/health_
+responding with _200_ to any GET request. Point your OpenShift or whatever health
+probe there, so your pods are restarted once they stop responding.
