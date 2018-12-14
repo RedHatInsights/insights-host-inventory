@@ -26,6 +26,7 @@ def addHost(host):
      - account number
     """
     current_app.logger.debug("addHost(%s)" % host)
+    metrics.api_request_count.inc()
 
     account_number = host.get("account", None)
 
@@ -84,6 +85,7 @@ def getHostList(tag=None, display_name=None, page=1, per_page=100):
     current_app.logger.debug(
         "getHostList(tag=%s, display_name=%s)" % (tag, display_name)
     )
+    metrics.api_request_count.inc()
 
     if tag:
         (total, host_list) = findHostsByTag(
@@ -143,6 +145,8 @@ def findHostsByDisplayName(account, display_name, page, per_page):
 @requires_identity
 def getHostById(hostId, page=1, per_page=100):
     current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
+    metrics.api_request_count.inc()
+
     query_results = Host.query.filter(
         (Host.account == current_identity.account_number) & Host.id.in_(hostId)
     ).paginate(page, per_page, True)
@@ -158,6 +162,7 @@ def replaceFacts(hostId, namespace, fact_dict):
     current_app.logger.debug(
         "replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict)
     )
+    metrics.api_request_count.inc()
 
     return updateFactsByNamespace(FactOperations.replace, hostId, namespace, fact_dict)
 
@@ -166,6 +171,7 @@ def replaceFacts(hostId, namespace, fact_dict):
 @requires_identity
 def mergeFacts(hostId, namespace, fact_dict):
     current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
+    metrics.api_request_count.inc()
 
     if not fact_dict:
         error_msg = "ERROR: Invalid request.  Merging empty facts into " "existing facts is a no-op."
