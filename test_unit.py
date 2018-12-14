@@ -2,6 +2,15 @@
 
 import os
 
+from api.host import (
+    addHost,
+    getHostById,
+    getHostList,
+    handleTagOperation,
+    mergeFacts,
+    replaceFacts
+)
+from api.metrics import count_inc
 from app.auth import (
     _validate,
     _pick_identity,
@@ -11,6 +20,7 @@ from app.auth.identity import from_dict, from_encoded, from_json, Identity, vali
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
+from unittest.mock import Mock, patch
 import pytest
 from werkzeug.exceptions import Forbidden
 
@@ -184,6 +194,171 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+class TestMetricsCountIncTestCase(TestCase):
+    """
+    Test the metrics helper decorator that increases every time an operation is called.
+    """
+
+    def test_increment(self):
+        """
+        The counter increments.
+        """
+        counter = Mock()
+
+        @count_inc(counter)
+        def func():
+            pass
+
+        func()
+        counter.inc.assert_called_once_with()
+
+    def test_args(self):
+        """
+        The decorated function is called with the original arguments.
+        """
+        original_func = Mock()
+        decorator = count_inc(original_func)
+        decorated_func = decorator(original_func)
+
+        args = (Mock(),)
+        kwargs = {"some_arg": Mock()}
+
+        decorated_func(*args, **kwargs)
+        original_func.assert_called_once_with(*args, **kwargs)
+
+    def test_return(self):
+        """
+        The decorated function result is passed.
+        """
+        original_func = Mock()
+        decorator = count_inc(original_func)
+        decorated_func = decorator(original_func)
+        self.assertEqual(original_func.return_value, decorated_func())
+
+
+@patch("api.host.current_app")
+@patch("api.host.metrics.api_request_count.inc")
+@patch("app.auth._request_ctx_stack")
+@patch("app.auth._validate")
+@patch("app.auth._pick_identity")
+class TestApiRequestCountTestCase(TestCase):
+    """
+    Tests that the API request count metrics counter is incremented on every API
+    operation call.
+    """
+
+    @patch("api.host.current_identity")
+    def test_add_host(
+        self,
+        current_identity,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the addHost operation is invoked,
+        even if the request fails.
+        """
+        addHost(Mock())  # Fails with 400
+        inc.assert_called_once_with()
+
+    @patch("api.host._buildPaginatedHostListResponse")
+    @patch("api.host.Host")
+    @patch("api.host.current_identity")
+    def test_get_host_list(
+        self,
+        current_identity,
+        host,
+        build_paginated_host_list_response,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the getHostList operation is
+        invoked.
+        """
+        getHostList()  # Succeeds
+        inc.assert_called_once_with()
+
+    @patch("api.host._buildPaginatedHostListResponse")
+    @patch("api.host.Host")
+    @patch("api.host.current_identity")
+    def test_get_host_by_id(
+        self,
+        current_identity,
+        host,
+        build_paginated_host_list_response,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the getHostById operation is
+        invoked.
+        """
+        getHostById(Mock())  # Succeeds
+        inc.assert_called_once_with()
+
+    @patch("api.host.updateFactsByNamespace")
+    def test_replace_facts(
+        self,
+        update_facts_by_namespace,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the replaceFacts operation is
+        invoked.
+        """
+        replaceFacts(Mock(), Mock(), Mock())  # Succeeds
+        inc.assert_called_once_with()
+
+    @patch("api.host.updateFactsByNamespace")
+    def test_merge_facts(
+        self,
+        update_facts_by_namespace,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the mergeFacts operation is invoked.
+        """
+        mergeFacts(Mock(), Mock(), Mock())  # Succeeds
+        inc.assert_called_once_with()
+
+    @patch("api.host.removeTagFromHosts")
+    @patch("api.host.validateTagOperationRequest")
+    def test_handle_fact_operation(
+        self,
+        validate_tag_operation_request,
+        remove_tag_from_hosts,
+        pick_identity,
+        validate,
+        request_ctx_stack,
+        inc,
+        current_app
+    ):
+        """
+        The counter is incremented every time when the handleFactOperation operation is
+        invoked.
+        """
+        handleTagOperation(Mock(), Mock())  # Succeeds
+        inc.assert_called_once_with()
 
 
 @pytest.mark.usefixtures("monkeypatch")

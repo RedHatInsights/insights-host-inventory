@@ -13,6 +13,7 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 
 
 @metrics.api_request_time.time()
+@metrics.count_inc(metrics.api_request_count)
 @requires_identity
 def add_host(host):
     """
@@ -86,7 +87,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     Returns first match for a host containing given canonical facts
     """
     current_app.logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
-    host = _canonical_facts_host_query(account_number, canonical_facts).first()    
+    host = _canonical_facts_host_query(account_number, canonical_facts).first()
     current_app.logger.debug("found_host:%s", host)
     return host
 
@@ -110,6 +111,7 @@ def update_existing_host(existing_host, input_host):
 
 
 @metrics.api_request_time.time()
+@metrics.count_inc(metrics.api_request_count)
 @requires_identity
 def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     """
@@ -194,6 +196,7 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
     return (total, found_host_list)
 
 
+@metrics.count_inc(metrics.api_request_count)
 @metrics.api_request_time.time()
 @requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
@@ -211,6 +214,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
                                                per_page, found_host_list)
 
 
+@metrics.count_inc(metrics.api_request_count)
 @metrics.api_request_time.time()
 @requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
@@ -222,6 +226,7 @@ def replace_facts(host_id_list, namespace, fact_dict):
                                      namespace, fact_dict)
 
 
+@metrics.count_inc(metrics.api_request_count)
 @metrics.api_request_time.time()
 @requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
