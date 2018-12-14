@@ -79,9 +79,12 @@ Configuration system properties:
 
 ## Deployment
 
-There is a health check endpoint at _/health_ responding with_200_ to any
-GET request. Point your OpenShift or whatever health probe there, so your pods
-are replaced once they stop responding.
+The application provides some management information about itself. These
+endpoints are exposed at the root path _/_ and thus are accessible only
+from inside of the deployment cluster.
 
-There is a prometheus metrics endpoint at _/metrics_.  Point your Prometheus
-scraper there.
+* _/health_ responds with _200_ to any GET requests, point your liveness
+  or readiness probe here.
+* _/metrics_ offers metrics and monitoring intended to be pulled by
+  [Prometheus](https://prometheus.io). 
+
