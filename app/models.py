@@ -155,20 +155,6 @@ class Host(db.Model):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def add_tag(self, tag):
-        if tag:
-            # FIXME: think about storing tags as a dict internally
-            if tag not in self.tags:
-                self.tags.append(tag)
-                orm.attributes.flag_modified(self, "tags")
-
-    def remove_tag(self, tag):
-        if tag:
-            # FIXME: think about storing tags as a dict internally
-            if tag in self.tags:
-                self.tags.remove(tag)
-                orm.attributes.flag_modified(self, "tags")
-
     def __repr__(self):
         tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s tags=%s>"
         return tmpl % (
