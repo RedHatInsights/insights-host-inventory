@@ -55,12 +55,18 @@ environment needs to point to this directory.  The
 contents of this directory need to be removed between
 runs.
 
-Running the server:
+A command to run the server in a cluster.
 
 ```
-mkdir /path/to/prometheus_dir
-gunicorn --log-level=debug -c gunicorn.conf.py run
-rm /path/to/prometheus_dir/*
+gunicorn -c gunicorn.conf.py run
+```
+
+Running the server locally for development. In this case it’s not necessary to
+care about the Prometheus temp directory or to set the
+_prometheus_multiproc_dir_ environment variable. This is done automatically.
+
+```
+python run_gunicorn.py 
 ```
 
 Configuration system properties:
