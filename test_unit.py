@@ -230,7 +230,7 @@ class ConfigTestCase(TestCase):
 
             conf = Config("testing")
 
-            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/test_db")
+            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
