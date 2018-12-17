@@ -55,12 +55,18 @@ environment needs to point to this directory.  The
 contents of this directory need to be removed between
 runs.
 
-Running the server:
+A command to run the server in a cluster.
 
 ```
-mkdir /path/to/prometheus_dir
-gunicorn --log-level=debug -c gunicorn.conf.py run
-rm /path/to/prometheus_dir/*
+gunicorn -c gunicorn.conf.py run
+```
+
+Running the server locally for development. In this case it’s not necessary to
+care about the Prometheus temp directory or to set the
+_prometheus_multiproc_dir_ environment variable. This is done automatically.
+
+```
+python run_gunicorn.py 
 ```
 
 Configuration system properties:
@@ -79,9 +85,12 @@ Configuration system properties:
 
 ## Deployment
 
-There is a health check endpoint at _/health_ responding with_200_ to any
-GET request. Point your OpenShift or whatever health probe there, so your pods
-are replaced once they stop responding.
+The application provides some management information about itself. These
+endpoints are exposed at the root path _/_ and thus are accessible only
+from inside of the deployment cluster.
 
-There is a prometheus metrics endpoint at _/metrics_.  Point your Prometheus
-scraper there.
+* _/health_ responds with _200_ to any GET requests, point your liveness
+  or readiness probe here.
+* _/metrics_ offers metrics and monitoring intended to be pulled by
+  [Prometheus](https://prometheus.io). 
+
