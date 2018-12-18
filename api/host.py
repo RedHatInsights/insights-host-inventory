@@ -257,13 +257,20 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         current_app.logger.debug(error_msg)
         return error_msg, 400
 
+    replaced_count = 0
+    merged_count = 0
     for host in hosts_to_update:
         if operation is FactOperations.replace:
             host.replace_facts_in_namespace(namespace, fact_dict)
+            replaced_count += 1
         else:
             host.merge_facts_in_namespace(namespace, fact_dict)
+            merged_count += 1
 
     db.session.commit()
+
+    metrics.replace_facts_count.inc(replaced_count)
+    metrics.merge_facts_count.inc(merged_count)
 
     current_app.logger.debug("hosts_to_update:%s" % hosts_to_update)
 

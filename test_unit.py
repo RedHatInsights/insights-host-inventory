@@ -3,6 +3,7 @@
 import os
 
 from api import api_operation
+from api.host import FactOperations, update_facts_by_namespace
 from app.auth import (
     _validate,
     _pick_identity,
@@ -12,9 +13,16 @@ from app.auth.identity import from_dict, from_encoded, from_json, Identity, vali
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, call, DEFAULT, Mock, patch
 import pytest
 from werkzeug.exceptions import Forbidden
+
+
+def list_of_mocks(count):
+    mocks = []
+    for _ in range(count):
+        mocks.append(Mock())
+    return mocks
 
 
 class ApiOperationTestCase(TestCase):
@@ -216,6 +224,103 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+@patch("api.host.db.session.commit")
+@patch("api.host.current_app")
+@patch("api.host.current_identity")
+class ApiHostUpdateFactsFromNamespaceTestCase(TestCase):
+    """
+    Tests updating host facts, a function shared between facts replacement and merge.
+    """
+
+    def _sub_test_fact_operations(self, mocks=()):
+        for fact_operation in [FactOperations.replace, FactOperations.merge]:
+            with self.subTest(fact_operation=fact_operation):
+                yield fact_operation
+
+                for mock in mocks:
+                    mock.reset_mock()
+
+    @patch(
+        "api.host.Host",
+        **{"query.filter.return_value.all.return_value": list_of_mocks(2)}
+    )
+    def _test_counter_is_incremented_for_every_host(
+        self, target_counter_name, other_counter_name, fact_operation, _h
+    ):
+        with patch.multiple(
+            "api.host.metrics",
+            **{target_counter_name: DEFAULT, other_counter_name: DEFAULT}
+        ) as metrics:
+            update_facts_by_namespace(fact_operation, range(2), "", {})
+
+            metrics[target_counter_name].inc.assert_called_once_with(2)
+            metrics[other_counter_name].inc.assert_called_once_with(0)
+
+    def test_replace_facts_counter_is_incremented_for_every_host(self, _ci, _ca, _c):
+        self._test_counter_is_incremented_for_every_host(
+            "replace_facts_count", "merge_facts_count", FactOperations.replace
+        )
+
+    def test_merge_facts_count_is_incremented_for_every_host(self, _ci, _ca, _c):
+        self._test_counter_is_incremented_for_every_host(
+            "merge_facts_count", "replace_facts_count", FactOperations.merge
+        )
+
+    @patch("api.host.metrics.merge_facts_count.inc")
+    @patch("api.host.metrics.replace_facts_count.inc")
+    @patch(
+        "api.host.Host",
+        **{"query.filter.return_value.all.return_value": list_of_mocks(0)}
+    )
+    def test_counters_are_not_incremented_when_there_are_no_hosts(
+        self, _h, replace_inc, merge_inc, _ci, _ca, _c
+    ):
+        sub_tests = self._sub_test_fact_operations((replace_inc, merge_inc))
+        for fact_operation in sub_tests:
+            update_facts_by_namespace(fact_operation, range(0), "", {})
+            replace_inc.assert_called_once_with(0)
+            merge_inc.assert_called_once_with(0)
+
+    @patch("api.host.metrics.merge_facts_count.inc")
+    @patch("api.host.metrics.replace_facts_count.inc")
+    @patch(
+        "api.host.Host",
+        **{"query.filter.return_value.all.return_value": list_of_mocks(0)}
+    )
+    def test_counters_are_incremented_after_db_commit(
+        self, _h, replace_inc, merge_inc, _ci, _ca, commit
+    ):
+        sub_tests = self._sub_test_fact_operations((replace_inc, merge_inc, commit))
+        for fact_operation in sub_tests:
+            mock_manager = Mock()
+            mock_manager.attach_mock(replace_inc, "replace_inc")
+            mock_manager.attach_mock(merge_inc, "merge_inc")
+            mock_manager.attach_mock(commit, "commit")
+
+            update_facts_by_namespace(fact_operation, range(0), "", {})
+
+            mock_manager.assert_has_calls([
+                call.commit(),
+                call.replace_inc(ANY),
+                call.merge_inc(ANY)
+            ])
+
+    @patch("api.host.metrics.merge_facts_count.inc")
+    @patch("api.host.metrics.replace_facts_count.inc")
+    @patch(
+        "api.host.Host",
+        **{"query.filter.return_value.all.return_value": list_of_mocks(1)}
+    )
+    def test_counters_are_not_incremented_on_failed_search(
+        self, _h, replace_inc, merge_inc, _ci, _ca, _c
+    ):
+        sub_tests = self._sub_test_fact_operations((replace_inc, merge_inc))
+        for fact_operation in sub_tests:
+            update_facts_by_namespace(fact_operation, range(0), "", {})
+            replace_inc.assert_not_called()
+            merge_inc.assert_not_called()
 
 
 @pytest.mark.usefixtures("monkeypatch")
