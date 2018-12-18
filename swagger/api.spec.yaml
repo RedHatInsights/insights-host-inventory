@@ -211,33 +211,6 @@ paths:
           description: Invalid request
         "404":
           description: Host or namespace not found
-  '/hosts/{hostId}/tags':
-    parameters:
-      - $ref: '#/parameters/rhIdentityHeader'
-    post:
-      operationId: api.host.handleTagOperation
-      tags:
-      - hosts
-      summary: Add or remove a tag from a number of hosts
-      description: Add or remove a tag from a number of hosts
-      parameters:
-      - name: hostId
-        in: path
-        description: ID of the host that owns the facts
-        required: true
-        type: array
-        collectionFormat: csv
-        items:
-          type: string
-      - in: body
-        name: tag_op
-        description: Tag operation
-        required: true
-        schema:
-          $ref: '#/definitions/TagOperation'
-      responses:
-        "200":
-          description: Successfully added or removed a tag
 definitions:
   Facts:
     type: object
@@ -351,16 +324,3 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/HostOut'
-  TagOperation:
-    type: object
-    required:
-    - operation
-    - tag
-    properties:
-      operation:
-        type: string
-        enum:
-        - apply
-        - remove
-      tag:
-        type: string
