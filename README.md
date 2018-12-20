@@ -94,3 +94,9 @@ from inside of the deployment cluster.
 * _/metrics_ offers metrics and monitoring intended to be pulled by
   [Prometheus](https://prometheus.io). 
 
+## API Documentation
+
+The API is described by an OpenAPI specification file
+[_swagger/api/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
+a browsable Swagger UI Console at
+[_/r/insights/platform/inventory/api/v1/ui/_](http://localhost:8080/r/insights/platform/inventory/api/v1/ui/).
