@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
-  description: Swagger doc that describes the Host Inventory REST interface
+  description: REST interface for the Insights Platform Host Inventory application.
   version: 1.0.0
-  title: Host Inventory ReST Interface
+  title: Insights Host Inventory REST Interface
 consumes:
 - application/json
 produces:
@@ -16,6 +16,9 @@ parameters:
     required: true
     type: string
     format: byte
+    description: 'Base64-encoded JSON identity header provided by 3Scale.
+      Contains an account number of the user issuing the request. Format of the
+      JSON: {"identity": {"account_number": "12345678"}}'
   pageParam:
     in: query
     name: page
@@ -23,7 +26,7 @@ parameters:
     type: integer
     minimum: 1
     default: 1
-    description: The page number of the items to return.
+    description: A page number of the items to return.
   perPageParam:
     in: query
     name: per_page
@@ -32,7 +35,7 @@ parameters:
     minimum: 1
     maximum: 100
     default: 50
-    description: The numbers of items to return per page.
+    description: A number of items to return per page.
 
 paths:
   /hosts:
@@ -43,48 +46,53 @@ paths:
       tags:
       - hosts
       summary: Read the entire list of hosts
-      description: Read the list of hosts
+      description: Read the entire list of all hosts available to the account.
+        The list can be filtered either by tags or by a display name.
       parameters:
         - name: tag
           in: query
           type: array
           items:
             type: string
-          description: Search by tags
+          description: 'A comma separated list of all tags that a matched host
+            must own. Example: namespace/tag:value,somens/sometag:someval'
           required: false
           collectionFormat: multi
         - name: display_name
           in: query
           type: string
-          description: Search by display_name
+          description: A part of a searched host’s display name. Doesn’t apply
+            if a search by tag query is provided.
           required: false
         - $ref: '#/parameters/perPageParam'
         - $ref: '#/parameters/pageParam'
       responses:
         "200":
-          description: Successfully read hosts list operation
+          description: Successfully read the hosts list.
           schema:
             $ref: '#/definitions/HostQueryOutput'
     post:
       operationId: api.host.addHost
       tags:
       - hosts
-      summary: Create a host and add it to the hosts list
-      description: Create a new host in the hosts list
+      summary: Create/update a host and add it to the host list
+      description: Create a new host and add it to the host list or update an
+        existing hosts. A host is updated if there is already one with the same
+        canonicals facts and belonging to the same account.
       parameters:
       - in: body
         name: host
-        description: Host object that needs to be added to the list of hosts
+        description: A host object to be added to the host list
         required: true
         schema:
           $ref: '#/definitions/Host'
       responses:
         "201":
-          description: Successfully created host in list
+          description: Successfully created a host.
           schema:
             $ref: '#/definitions/HostOut'
         "200":
-          description: Successfully updated a host in list
+          description: Successfully updated a host.
           schema:
             $ref: '#/definitions/HostOut'
   '/hosts/{hostId}':
@@ -93,15 +101,15 @@ paths:
     get:
       tags:
       - hosts
-      summary: Find host by ID
-      description: Returns a single host or list of hosts
+      summary: Find hosts by their IDs
+      description: Find one or more hosts by their ID.
       operationId: api.host.getHostById
       produces:
       - application/json
       parameters:
         - name: hostId
           in: path
-          description: ID of host to return
+          description: A comma separated list of host IDs.
           required: true
           type: array
           collectionFormat: csv
@@ -111,13 +119,13 @@ paths:
         - $ref: '#/parameters/pageParam'
       responses:
         "200":
-          description: Successful operation
+          description: Successfully searched for hosts.
           schema:
             $ref: '#/definitions/HostQueryOutput'
         '400':
-          description: Invalid request
+          description: Invalid request.
         "404":
-          description: Host not found
+          description: Host not found.
    # delete:
    #   tags:
    #     - hosts
@@ -145,14 +153,14 @@ paths:
       tags:
       - hosts
       summary: Merge facts under a namespace
-      description: Merge facts under a namespace
+      description: Merge one or multiple hosts facts under a namespace.
       operationId: api.host.mergeFacts
       produces:
       - application/json
       parameters:
       - name: hostId
         in: path
-        description: ID of the host that owns the facts
+        description: IDs of the hosts that own the facts to be merged.
         required: true
         type: array
         collectionFormat: csv
@@ -160,22 +168,23 @@ paths:
           type: string
       - name: namespace
         in: path
-        description: Namespace of the fact
+        description: A namespace of the merged facts.
         required: true
         type: string
       - in: body
         name: fact_dict
-        description: Fact dictionary
+        description: A dictionary with the new facts to merge with the original
+          ones.
         required: true
         schema:
           $ref: '#/definitions/Facts'
       responses:
         "200":
-          description: successful operation
+          description: Successfully merged facts.
         "400":
-          description: Invalid request
+          description: Invalid request.
         "404":
-          description: Host or namespace not found
+          description: Host or namespace not found.
     put:
       tags:
       - hosts
@@ -187,7 +196,7 @@ paths:
       parameters:
       - name: hostId
         in: path
-        description: ID of the host that owns the facts
+        description: IDs of the hosts that own the facts to be replaced.
         required: true
         type: array
         collectionFormat: csv
@@ -195,24 +204,27 @@ paths:
           type: string
       - name: namespace
         in: path
-        description: Namespace of the fact
+        description: A namespace of the merged facts.
         required: true
         type: string
       - in: body
         name: fact_dict
-        description: Fact dictionary
+        description: A dictionary with the new facts to replace the original
+          ones.
         required: true
         schema:
           $ref: '#/definitions/Facts'
       responses:
         "200":
-          description: successful operation
+          description: Successfully replaced facts.
         "400":
-          description: Invalid request
+          description: Invalid request.
         "404":
-          description: Host or namespace not found
+          description: Host or namespace not found.
 definitions:
   Facts:
+    title: Host facts
+    description: A set of string facts about a host.
     type: object
     additionalProperties:
       type: string
@@ -220,49 +232,65 @@ definitions:
       fact1: value1
       fact2: value2
   FactSet:
+    title: Host facts under a namespace
+    description: A set of string facts belonging to a single namespace.
     properties:
       namespace:
         type: string
+        description: A namespace the facts belong to.
       facts:
         type: object
+        description: The facts themselves.
   Host:
+    title: Host data
+    description: Data of a single host belonging to an account. Represents the
+      hosts without its Inventory metadata.
     type: object
     required:
     - account
     properties:
       display_name:
+        description: A host’s human-readable display name, e.g. in a form of a
+          domain name.
         type: string
         example: host1.mydomain.com
         x-nullable: true
       account:
+        description: A Red Hat Account number that owns the host.
         type: string
         example: "000102"
       insights_id:
+        description: An Insights Platform ID of the host.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       rhel_machine_id:
+        description: A Machine ID of a RHEL host.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       subscription_manager_id:
+        description: A Red Hat Subcription Manager ID of a RHEL host.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       satellite_id:
+        description: A Red Hat Satellite ID of a RHEL host.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       bios_uuid:
+        description: A UUID of the host machine BIOS.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       ip_addresses:
+        description: Host’s network IP addresses.
         type: array
         items:
           type: string
@@ -271,10 +299,12 @@ definitions:
         - 10.10.0.1
         - 10.0.0.2
       fqdn:
+        description: A host’s Fully Qualified Domain Name.
         type: string
         example: my.host.example.com
         x-nullable: true
       mac_addresses:
+        description: Host’s network interfaces MAC addresses.
         type: array
         items:
           type: string
@@ -282,28 +312,39 @@ definitions:
         example:
         - c2:00:d0:c8:61:01
       facts:
+        description: A set of facts belonging to the host.
         type: array
         items:
           $ref: '#/definitions/FactSet'
       tags:
+        description: A set of tags assigned to the host.
         type: array
         items:
           type: string
   HostOut:
+    title: A Host Inventory entry
+    description: A database entry representing a single host with its Inventory
+      metadata.
     allOf:
       - $ref: '#/definitions/Host'
       - type: object
         properties:
           id:
+            description: An internal Inventory ID of the host.
             type: string
             format: uuid
           created:
+            description: A timestamp when the entry was created.
             type: string
             format: date-time
           updated:
+            description: A timestamp when the entry was last updated.
             type: string
             format: date-time
   HostQueryOutput:
+    title: A Host Inventory query result
+    description: A paginated host search query result with host entries and
+      their Inventory metadata.
     type: object
     required:
       - count
@@ -313,14 +354,19 @@ definitions:
       - results
     properties:
       count:
+        description: A number of entries on the current page.
         type: integer
       page:
+        description: A current page number.
         type: integer
       per_page:
+        description: A page size – a number of entries per single page.
         type: integer
       total:
+        description: A total count of the found entries.
         type: integer
       results:
+        description: Actual host search query result entries.
         type: array
         items:
           $ref: '#/definitions/HostOut'
