@@ -11,6 +11,16 @@ _IDENTITY_HEADER = "x-rh-identity"
 
 
 class NoIdentityError(RuntimeError):
+    """
+    There is no current identity. The request is not authenticated.
+    """
+    pass
+
+
+class InvalidIdentityError(ValueError):
+    """
+    The identity header is missing or invalid.
+    """
     pass
 
 
@@ -21,26 +31,30 @@ def _pick_identity():
         try:
             payload = request.headers[_IDENTITY_HEADER]
         except KeyError:
-            abort(Forbidden.code)
+            raise InvalidIdentityError("The identity header is missing.")
 
         try:
             return from_encoded(payload)
         except (KeyError, TypeError, ValueError):
-            abort(Forbidden.code)
+            raise InvalidIdentityError("The identity header cannot be decoded.")
 
 
 def _validate(identity):
     try:
         validate(identity)
     except Exception:
-        abort(Forbidden.code)
+        raise InvalidIdentityError("The identity header is invalid.")
 
 
 def requires_identity(view_func):
     @wraps(view_func)
     def _wrapper(*args, **kwargs):
-        identity = _pick_identity()
-        _validate(identity)
+        try:
+            identity = _pick_identity()
+            _validate(identity)
+        except InvalidIdentityError:
+            abort(Forbidden.code)
+
         ctx = _request_ctx_stack.top
         ctx.identity = identity
         return view_func(*args, **kwargs)

@@ -2,30 +2,41 @@
 
 import os
 
+from app import create_app
 from app.auth import (
+    _IDENTITY_HEADER,
+    InvalidIdentityError,
     _validate,
     _pick_identity,
+    requires_identity,
 )
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
+from collections import Counter
+from contextlib import contextmanager
 from json import dumps
 from unittest import main, TestCase
 import pytest
 from werkzeug.exceptions import Forbidden
 
 
-class AuthIdentityConstructorTestCase(TestCase):
+def _encode_header(dict_):
     """
-    Tests the Identity module constructors.
+    Encode the header payload dictionary.
     """
-
-    @staticmethod
-    def _identity():
-        return Identity(account_number="some number")
+    json = dumps(dict_)
+    return b64encode(json.encode())
 
 
-class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
+def _identity():
+    """
+    Create a valid Identity object.
+    """
+    return Identity(account_number="some number")
+
+
+class AuthIdentityFromDictTest(TestCase):
     """
     Tests creating an Identity from a dictionary.
     """
@@ -34,7 +45,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
         """
         Initialize the Identity object with a valid dictionary.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = {
             "account_number": identity.account_number,
@@ -54,7 +65,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
                 from_dict(dict_)
 
 
-class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromJsonTest(TestCase):
     """
     Tests creating an Identity from a JSON string.
     """
@@ -63,7 +74,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         """
         Initialize the Identity object with a valid JSON string.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = {"identity": identity._asdict()}
         json = dumps(dict_)
@@ -94,7 +105,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         Initializing the Identity object with a JSON string that is not
         formatted correctly.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = identity._asdict()
         json = dumps(dict_)
@@ -103,7 +114,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
             from_json(json)
 
 
-class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromEncodedTest(TestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
@@ -114,11 +125,10 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         Initialize the Identity object with an encoded payload – a base64-encoded JSON.
         That would typically be a raw HTTP header content.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = {"identity": identity._asdict()}
-        json = dumps(dict_)
-        base64 = b64encode(json.encode())
+        base64 = _encode_header(dict_)
 
         try:
             self.assertEqual(identity, from_encoded(base64))
@@ -146,7 +156,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         Initializing the Identity object with an valid Base64 encoded payload
         that does not contain the "identity" field.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = identity._asdict()
         json = dumps(dict_)
@@ -178,12 +188,227 @@ class AuthIdentityValidateTestCase(TestCase):
                     validate(identity)
 
     def test__validate_identity(self):
-        with self.assertRaises(Forbidden):
+        """
+        A specific exception is raised if the identity cannot be decoded.
+        """
+        with self.assertRaises(InvalidIdentityError):
             _validate(None)
-        with self.assertRaises(Forbidden):
+        with self.assertRaises(InvalidIdentityError):
             _validate("")
-        with self.assertRaises(Forbidden):
+        with self.assertRaises(InvalidIdentityError):
             _validate({})
+
+
+class AuthPickIdentityTestCase(TestCase):
+    """
+    The identity is read and decoded from the header. If it’s missing or undecodeable,
+    an Exception is raised.
+    """
+
+    def setUp(self):
+        self.app = create_app(config_name="testing")
+
+    @contextmanager
+    def _request(self, headers):
+        with self.app.test_request_context(headers=headers) as context:
+            yield context
+
+    def test_header_missing(self):
+        """
+        If the identity header is missing, the identity is considered invalid.
+        """
+        with self._request({}):
+            with self.assertRaises(InvalidIdentityError):
+                _pick_identity()
+
+    def test_decode_fail_invalid_payload(self):
+        """
+        If the identity header decode fails, the identity is considered invalid.
+        """
+        payload = "invalid"
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(InvalidIdentityError):
+                # b64decode raises ValueError.
+                _pick_identity()
+
+    def test_decode_fail_missing_identity(self):
+        """
+        If the identity header doesn’t contain the "identity" key, the identity is
+        considered invalid.
+        """
+        payload = _encode_header({})
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(InvalidIdentityError):
+                # dict["_identity"] raises KeyError.
+                _pick_identity()
+
+    def test_decode_fail_missing_account_number(self):
+        """
+        If the identity header doesn’t contain the "identity.account_number" key, the
+        identity is considered invalid.
+        """
+        payload = _encode_header({"identity": {}})
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(InvalidIdentityError):
+                # Failed "account_number" in dict check raises TypeError.
+                _pick_identity()
+
+    def test_return(self):
+        """
+        The decoded identity is returned.
+        """
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}):
+            result = _pick_identity()
+        self.assertEqual(identity, result)
+
+
+class AuthValidate(TestCase):
+    """
+    The retrieved identity is validated and if it’s not valid, an exception is raised.
+    """
+
+    def test_valid(self):
+        """
+        The identity is valid.
+        """
+        identity = Identity(account_number="some account")
+        try:
+            _validate(identity)
+            self.assertTrue(True)
+        except InvalidIdentityError:
+            self.fail()
+
+    def test_invalid(self):
+        """
+        If the identity is invalid, the login attempt is considered failed.
+        """
+        with self.assertRaises(InvalidIdentityError):
+            _validate(Identity(account_number=None))
+
+
+class AuthRequiresIdentityTestCase(TestCase):
+    """
+    Tests the requires_identity decorator for that it doesn’t accept a request with an
+    invalid identity header.
+    """
+    def setUp(self):
+        self.app = create_app(config_name="testing")
+
+    @contextmanager
+    def _request(self, headers):
+        with self.app.test_request_context(headers=headers) as context:
+            yield context
+
+    def test_pick_identity_fail(self):
+        """
+        If the identity cannot be picked, the request is aborted as Forbidden before
+        assigning anything to the current request context.
+        """
+        @requires_identity
+        def view_func():
+            """
+            Just a dummy to apply the decorator.
+            """
+            pass
+
+        headers = {}
+        with self._request(headers) as request:
+            with self.assertRaises(Forbidden):
+                view_func()
+            self.assertFalse(hasattr(request, "identity"))
+
+    def test_validate_fail(self):
+        """
+        If the identity is not valid, the request is aborted as Forbidden before
+        assigning anything to the current request context.
+        """
+        @requires_identity
+        def view_func():
+            """
+            Just a dummy to apply the decorator.
+            """
+            pass
+
+        identity = {"account_number": None}
+        payload = _encode_header({"identity": identity})
+        with self._request({_IDENTITY_HEADER: payload}) as request:
+            with self.assertRaises(Forbidden):
+                view_func()
+            self.assertFalse(hasattr(request, "identity"))
+
+    def test_identity_assignment(self):
+        """
+        If the identity is valid, it is assigned to the current request context.
+        """
+        @requires_identity
+        def view_func():
+            """
+            Just a dummy to apply the decorator.
+            """
+            pass
+
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}) as request:
+            view_func()
+            self.assertTrue(hasattr(request, "identity"))
+            self.assertEqual(identity, request.identity)
+
+    def test_view_func_call(self):
+        """
+        If the identity is valid, the original view function is called.
+        """
+        @requires_identity
+        def view_func():
+            counter["calls"] += 1
+
+        counter = Counter(calls=0)
+
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}):
+            view_func()
+
+        self.assertEqual(1, counter["calls"])
+
+    def test_view_func_args(self):
+        """
+        If the identity is valid, the original view function passed the original
+        arguments.
+        """
+        @requires_identity
+        def view_func(*a, **kwa):
+            calls.append((a, kwa))
+
+        calls = []
+        args, kwargs = ("some", "args"), {"some": "kwargs"}
+
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}):
+            view_func(*args, **kwargs)
+
+        self.assertEqual(calls[0], (args, kwargs))
+
+    def test_return(self):
+        """
+        If the identity is valid, the return value of the original view function is
+        returned.
+        """
+        @requires_identity
+        def view_func():
+            return return_value
+
+        return_value = "some return value"
+
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}):
+            result = view_func()
+
+        self.assertEqual(return_value, result)
 
 
 @pytest.mark.usefixtures("monkeypatch")
