@@ -2,30 +2,31 @@
 
 import os
 
-from app.auth import (
-    _validate,
-    _pick_identity,
-)
+from app import create_app
+from app.auth import _IDENTITY_HEADER, _login_failed, _validate, _pick_identity
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
+from contextlib import contextmanager
 from json import dumps
 from unittest import main, TestCase
 import pytest
 from werkzeug.exceptions import Forbidden
 
 
-class AuthIdentityConstructorTestCase(TestCase):
+def _encode_header(dict_):
     """
-    Tests the Identity module constructors.
+    Encode the header payload dictionary.
     """
-
-    @staticmethod
-    def _identity():
-        return Identity(account_number="some number")
+    json = dumps(dict_)
+    return b64encode(json.encode())
 
 
-class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
+def _identity():
+    return Identity(account_number="some number")
+
+
+class AuthIdentityFromDictTest(TestCase):
     """
     Tests creating an Identity from a dictionary.
     """
@@ -34,7 +35,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
         """
         Initialize the Identity object with a valid dictionary.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = {
             "account_number": identity.account_number,
@@ -54,7 +55,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
                 from_dict(dict_)
 
 
-class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromJsonTest(TestCase):
     """
     Tests creating an Identity from a JSON string.
     """
@@ -63,7 +64,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         """
         Initialize the Identity object with a valid JSON string.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = {"identity": identity._asdict()}
         json = dumps(dict_)
@@ -94,7 +95,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         Initializing the Identity object with a JSON string that is not
         formatted correctly.
         """
-        identity = self._identity()
+        identity = _identity()
 
         dict_ = identity._asdict()
         json = dumps(dict_)
@@ -103,7 +104,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
             from_json(json)
 
 
-class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromEncodedTest(TestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
@@ -114,11 +115,8 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         Initialize the Identity object with an encoded payload – a base64-encoded JSON.
         That would typically be a raw HTTP header content.
         """
-        identity = self._identity()
-
-        dict_ = {"identity": identity._asdict()}
-        json = dumps(dict_)
-        base64 = b64encode(json.encode())
+        identity = _identity()
+        base64 = _encode_header({"identity": identity._asdict()})
 
         try:
             self.assertEqual(identity, from_encoded(base64))
@@ -135,7 +133,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
 
     def test_invalid_value(self):
         """
-        Initializing the Identity object with an invalid Base6č encoded payload should
+        Initializing the Identity object with an invalid Base64 encoded payload should
         raise a ValueError.
         """
         with self.assertRaises(ValueError):
@@ -143,13 +141,10 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
 
     def test_invalid_format(self):
         """
-        Initializing the Identity object with an valid Base64 encoded payload
-        that does not contain the "identity" field.
+        Initializing the Identity object with a valid Base64 encoded payload that does
+        not contain the "identity" field.
         """
-        identity = self._identity()
-
-        dict_ = identity._asdict()
-        json = dumps(dict_)
+        json = dumps({})
         base64 = b64encode(json.encode())
 
         with self.assertRaises(KeyError):
@@ -169,8 +164,6 @@ class AuthIdentityValidateTestCase(TestCase):
         identities = [
             Identity(account_number=None),
             Identity(account_number=""),
-            Identity(account_number=None),
-            Identity(account_number=""),
         ]
         for identity in identities:
             with self.subTest(identity=identity):
@@ -184,6 +177,108 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+class AuthPickIdentityTestCase(TestCase):
+    """
+    The identity is read and decoded from the header.
+    """
+
+    def setUp(self):
+        self.app = create_app(config_name="testing")
+
+    @contextmanager
+    def _request(self, headers):
+        with self.app.test_request_context(headers=headers) as context:
+            yield context
+
+    def test_header_missing(self):
+        """
+        If the identity header is missing, the login attempt is considered failed.
+        """
+        with self._request({}):
+            with self.assertRaises(Forbidden):
+                _pick_identity()
+
+    def test_decode_fail_invalid_payload(self):
+        """
+        If the identity header decode fails, the login attempt is considered failed.
+        """
+        payload = "invalid"
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(Forbidden):
+                # b64decode raises ValueError.
+                _pick_identity()
+
+    def test_decode_fail_missing_identity(self):
+        """
+        If the identity header doesn’t contain the "identity" key, the login attempt is
+        considered failed.
+        """
+        payload = _encode_header({})
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(Forbidden):
+                # dict["_identity"] raises KeyError.
+                _pick_identity()
+
+    def test_decode_fail_missing_account_number(self):
+        """
+        If the identity header doesn’t contain the "identity.account_number" key, the
+        login attempt is considered failed.
+        """
+        payload = _encode_header({"identity": {}})
+        with self._request({_IDENTITY_HEADER: payload}):
+            with self.assertRaises(Forbidden):
+                # Failed "account_number" in dict check raises TypeError.
+                _pick_identity()
+
+    def test_return(self):
+        """
+        The decoded identity is returned.
+        """
+        identity = _identity()
+        payload = _encode_header({"identity": identity._asdict()})
+        with self._request({_IDENTITY_HEADER: payload}):
+            result = _pick_identity()
+        self.assertEqual(identity, result)
+
+
+class AuthValidateTestCase(TestCase):
+    """
+    The retrieved identity is validated and if it’s not valid, the login attempt is
+    considered failed – the request is aborted.
+    """
+
+    def test_valid(self):
+        """
+        If the identity is valid, the login attempt is not considered failed.
+        """
+        identity = Identity(account_number="some account")
+        try:
+            _validate(identity)
+            self.assertTrue(True)
+        except Forbidden:
+            self.fail()
+
+    def test_login_failed(self):
+        """
+        If the identity is invalid, the login attempt is considered failed.
+        """
+        with self.assertRaises(Forbidden):
+            _validate(Identity(account_number=None))
+
+
+class AuthLoginFailedTestCase(TestCase):
+    """
+    The request is aborted with a Forbidden status.
+    """
+
+    def test_abort(self):
+        """
+        The current request is aborted with a Forbidden status.
+        """
+        with self.assertRaises(Forbidden):
+            _login_failed()
 
 
 @pytest.mark.usefixtures("monkeypatch")
