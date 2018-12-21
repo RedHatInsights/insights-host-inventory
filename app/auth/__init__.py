@@ -1,5 +1,6 @@
 import os
 from functools import wraps
+from api.metrics import login_failure_count
 from app.auth.identity import from_encoded, validate, Identity
 from flask import abort, request, _request_ctx_stack
 from werkzeug.local import LocalProxy
@@ -21,19 +22,27 @@ def _pick_identity():
         try:
             payload = request.headers[_IDENTITY_HEADER]
         except KeyError:
-            abort(Forbidden.code)
+            _login_failed()
 
         try:
             return from_encoded(payload)
         except (KeyError, TypeError, ValueError):
-            abort(Forbidden.code)
+            _login_failed()
 
 
 def _validate(identity):
     try:
         validate(identity)
     except Exception:
-        abort(Forbidden.code)
+        _login_failed()
+
+
+def _login_failed():
+    """
+    The identity header is either missing or invalid, login failed – aborting.
+    """
+    login_failure_count.inc()
+    abort(Forbidden.code)
 
 
 def requires_identity(view_func):

@@ -3,10 +3,7 @@
 import os
 
 from api import api_operation
-from app.auth import (
-    _validate,
-    _pick_identity,
-)
+from app.auth import _IDENTITY_HEADER, _login_failed, _validate, _pick_identity
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
@@ -216,6 +213,116 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+class AuthPickIdentityTestCase(TestCase):
+    """
+    The identity is read and decoded from the header.
+    """
+    @patch("app.auth.from_encoded")
+    @patch("app.auth._login_failed", side_effect=RuntimeError)
+    @patch("app.auth.request", headers={})
+    def test_header_missing(self, request, login_failed, from_encoded):
+        """
+        If the identity header is missing, the login attempt is considered failed.
+        """
+        with self.assertRaises(RuntimeError):
+            _pick_identity()
+        login_failed.assert_called_once_with()
+        from_encoded.assert_not_called()
+
+    @patch("app.auth.from_encoded")
+    @patch("app.auth._login_failed")
+    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
+    def test_decode(self, request, login_failed, from_encoded):
+        """
+        If the identity header is present, it is decoded to obtain the identity object.
+        """
+        _pick_identity()
+        login_failed.assert_not_called()
+        from_encoded.assert_called_once_with(request.headers[_IDENTITY_HEADER])
+
+    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
+    def test_decode_fail(self, request):
+        """
+        If the identity header decode fails, the login attempt is considered failed.
+        """
+        @patch("app.auth._login_failed", side_effect=RuntimeError)
+        def test(error, login_failed):
+            with patch("app.auth.from_encoded", side_effect=error) as from_encoded:
+                with self.assertRaises(RuntimeError):
+                    _pick_identity()
+            login_failed.assert_called_once_with()
+
+        for error in [KeyError, TypeError, ValueError]:
+            with self.subTest(error=error):
+                test(error)
+
+    @patch("app.auth.from_encoded")
+    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
+    def test_return(self, request, from_encoded):
+        """
+        The decoded identity is returned.
+        """
+        result = _pick_identity()
+        self.assertEqual(result, from_encoded.return_value)
+
+
+class AuthValidateTestCase(TestCase):
+    """
+    The retrieved identity is validated and if it’s not valid, the login attempt is
+    considered failed – the request is aborted.
+    """
+
+    @patch("app.auth.validate")
+    def test_validate(self, validate):
+        """
+        The identity is validated.
+        """
+        identity = Mock()
+        _validate(identity)
+        validate.assert_called_once_with(identity)
+
+    @patch("app.auth._login_failed")
+    @patch("app.auth.validate")
+    def test_login_not_failed(self, validate, login_failed):
+        """
+        If the identity is valid, the login attempt is not considered failed.
+        """
+        _validate(Mock())
+        login_failed.assert_not_called()
+
+    @patch("app.auth._login_failed")
+    @patch("app.auth.validate", side_effect=ValueError)
+    def test_login_failed(self, validate, login_failed):
+        """
+        If the identity is invalid, the login attempt is considered failed.
+        """
+        _validate(Mock())
+        login_failed.assert_called_once_with()
+
+
+@patch("app.auth.abort")
+@patch("app.auth.login_failure_count.inc")
+class AuthLoginFailedTestCase(TestCase):
+    """
+    A login failure is logged and the current request is aborted with a Forbidden
+    status.
+    """
+
+    def test_counter(self, inc, abort):
+        """
+        The login failure counter is incremented.
+        """
+        _login_failed()
+        inc.assert_called_once_with()
+
+    def test_abort(self, inc, abort):
+        """
+        The current request is aborted with a Forbidden status.
+        """
+        _login_failed()
+        abort.assert_called_once_with(Forbidden.code)
 
 
 @pytest.mark.usefixtures("monkeypatch")
