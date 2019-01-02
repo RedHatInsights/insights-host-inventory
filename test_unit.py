@@ -13,7 +13,6 @@ from app.auth import (
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
-from flask import abort
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
@@ -205,7 +204,8 @@ class AuthPickIdentityTestCase(TestCase):
     @patch("app.auth.request", headers={})
     def test_header_missing(self, request, from_encoded):
         """
-        If the identity header is missing, the identity is considered invalid.
+        If the identity header is missing, the identity is considered invalid and a
+        specific exception is raised.
         """
         with self.assertRaises(InvalidIdentityError):
             _pick_identity()
@@ -223,7 +223,8 @@ class AuthPickIdentityTestCase(TestCase):
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
     def test_decode_fail(self, request):
         """
-        If the identity header decode fails, the identity is considered invalid.
+        If the identity header decode fails, the identity is considered invalid and a
+        specific exception is raised.
         """
         for error in [KeyError, TypeError, ValueError]:
             with self.subTest(error=error):
@@ -274,10 +275,10 @@ class AuthRequiresIdentityTestCase(TestCase):
         pass
 
     @patch("app.auth._request_ctx_stack")
-    @patch("app.auth.abort", wraps=abort)
+    @patch("app.auth._login_failed", side_effect=Forbidden)
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity", side_effect=InvalidIdentityError)
-    def test_pick_identity_fail(self, pick_identity, validate, abort, request_ctx_stack):
+    def test_pick_identity_fail(self, pick_identity, validate, login_failed, request_ctx_stack):
         """
         If an InvalidIdentityError is raised while grabbing the identity header, the
         request is aborted as Forbidden before assigning anything to the current
@@ -288,25 +289,25 @@ class AuthRequiresIdentityTestCase(TestCase):
         with self.assertRaises(Forbidden):
             self._view_func()
 
-        abort.assert_called_once_with(Forbidden.code)
+        login_failed.assert_called_once_with()
         self.assertIs(original_identity, request_ctx_stack.top.identity)
 
     @patch("app.auth._request_ctx_stack")
-    @patch("app.auth.abort", wraps=abort)
+    @patch("app.auth._login_failed", side_effect=Forbidden)
     @patch("app.auth._validate", side_effect=InvalidIdentityError)
     @patch("app.auth._pick_identity")
-    def test_validate_fail(self, pick_identity, validate, abort, request_ctx_stack):
+    def test_validate_fail(self, pick_identity, validate, login_failed, request_ctx_stack):
         """
         If an InvalidIdentityError is raised while validating the identity header, the
-        request is aborted as Forbidden before assigning anything to the current
-        request context.
+        request is considered failed before assigning anything to the current request
+        context.
         """
         original_identity = request_ctx_stack.top.identity
 
         with self.assertRaises(Forbidden):
             self._view_func()
 
-        abort.assert_called_once_with(Forbidden.code)
+        login_failed.assert_called_once_with()
         self.assertIs(original_identity, request_ctx_stack.top.identity)
 
     @patch("app.auth._request_ctx_stack")
@@ -349,63 +350,10 @@ class AuthRequiresIdentityTestCase(TestCase):
         self.assertEqual(result, mock.return_value)
 
 
-class AuthPickIdentityTestCase(TestCase):
-    """
-    The identity is read and decoded from the header.
-    """
-    @patch("app.auth.from_encoded")
-    @patch("app.auth._login_failed", side_effect=RuntimeError)
-    @patch("app.auth.request", headers={})
-    def test_header_missing(self, request, login_failed, from_encoded):
-        """
-        If the identity header is missing, the login attempt is considered failed.
-        """
-        with self.assertRaises(RuntimeError):
-            _pick_identity()
-        login_failed.assert_called_once_with()
-        from_encoded.assert_not_called()
-
-    @patch("app.auth.from_encoded")
-    @patch("app.auth._login_failed")
-    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode(self, request, login_failed, from_encoded):
-        """
-        If the identity header is present, it is decoded to obtain the identity object.
-        """
-        _pick_identity()
-        login_failed.assert_not_called()
-        from_encoded.assert_called_once_with(request.headers[_IDENTITY_HEADER])
-
-    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode_fail(self, request):
-        """
-        If the identity header decode fails, the login attempt is considered failed.
-        """
-        @patch("app.auth._login_failed", side_effect=RuntimeError)
-        def test(error, login_failed):
-            with patch("app.auth.from_encoded", side_effect=error) as from_encoded:
-                with self.assertRaises(RuntimeError):
-                    _pick_identity()
-            login_failed.assert_called_once_with()
-
-        for error in [KeyError, TypeError, ValueError]:
-            with self.subTest(error=error):
-                test(error)
-
-    @patch("app.auth.from_encoded")
-    @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_return(self, request, from_encoded):
-        """
-        The decoded identity is returned.
-        """
-        result = _pick_identity()
-        self.assertEqual(result, from_encoded.return_value)
-
-
 class AuthValidateTestCase(TestCase):
     """
     The retrieved identity is validated and if it’s not valid, the login attempt is
-    considered failed – the request is aborted.
+    considered failed – a specific exception is raised.
     """
 
     @patch("app.auth.validate")
@@ -417,23 +365,21 @@ class AuthValidateTestCase(TestCase):
         _validate(identity)
         validate.assert_called_once_with(identity)
 
-    @patch("app.auth._login_failed")
     @patch("app.auth.validate")
-    def test_login_not_failed(self, validate, login_failed):
+    def test_valid(self, validate):
         """
-        If the identity is valid, the login attempt is not considered failed.
+        If the identity is valid, no exception is raised.
         """
         _validate(Mock())
-        login_failed.assert_not_called()
+        self.assertTrue(True)
 
-    @patch("app.auth._login_failed")
     @patch("app.auth.validate", side_effect=ValueError)
-    def test_login_failed(self, validate, login_failed):
+    def test_invalid(self, validate):
         """
-        If the identity is invalid, the login attempt is considered failed.
+        If the identity is invalid, a specific exception is raised.
         """
-        _validate(Mock())
-        login_failed.assert_called_once_with()
+        with self.assertRaises(InvalidIdentityError):
+            _validate(Mock())
 
 
 @patch("app.auth.abort")
