@@ -39,6 +39,14 @@ class HostWrapper:
         self.__data["subscription_manager_id"] = cf
 
     @property
+    def satellite_id(self):
+        return self.__data.get("satellite_id", None)
+
+    @satellite_id.setter
+    def satellite_id(self, cf):
+        self.__data["satellite_id"] = cf
+
+    @property
     def bios_uuid(self):
         return self.__data.get("bios_uuid", None)
 

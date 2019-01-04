@@ -166,7 +166,7 @@ class CreateHostsTestCase(DBAPITestCase):
         original_id = results["id"]
 
         post_data = host_data
-        post_data.facts = FACTS
+        post_data.facts = copy.deepcopy(FACTS)
 
         # Replace facts under the first namespace
         post_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
@@ -209,6 +209,85 @@ class CreateHostsTestCase(DBAPITestCase):
         # make sure the tags are merged
         self.assertListEqual(results.tags, expected_tags)
 
+    def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
+        facts = None
+        tags = None
+        original_insights_id = str(uuid.uuid4())
+        expected_ip_addresses = ["192.168.1.44", "10.0.0.2",]
+        expected_facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
+
+        original_rhel_machine_id = str(uuid.uuid4())
+        expected_rhel_machine_id = str(uuid.uuid4())
+        original_subscription_manager_id = "123456"
+        expected_subscription_manager_id = "654321"
+        original_satellite_id = "123456"
+        expected_satellite_id = "654321"
+        original_bios_uuid = "123456"
+        expected_bios_uuid = "654321"
+        original_fqdn = "original_fqdn"
+        expected_fqdn = "expected_fqdn"
+        original_mac_addresses = [ "aa:bb:cc:dd:ee:ff" ]
+        expected_mac_addresses = [ "ff:ee:dd:cc:bb:aa" ]
+
+        host_data = HostWrapper(test_data(facts=facts, tags=tags))
+        host_data.insights_id = original_insights_id
+        host_data.rhel_machine_id = original_rhel_machine_id
+        host_data.subscription_manager_id = original_subscription_manager_id
+        host_data.satellite_id = original_satellite_id
+        host_data.bios_uuid = original_bios_uuid
+        host_data.fqdn = original_fqdn
+        host_data.mac_addresses = original_mac_addresses
+
+        print("host_data:", host_data)
+        # initial create
+        created_host = self.post(HOST_URL, host_data.data(), 201)
+        print("created_host:", created_host)
+        results = HostWrapper(created_host)
+
+        self.assertIsNotNone(results.id)
+
+        original_id = results.id
+
+        self.assertEqual(results.insights_id, original_insights_id)
+        self.assertEqual(results.rhel_machine_id, original_rhel_machine_id)
+        self.assertEqual(host_data.subscription_manager_id, original_subscription_manager_id)
+        self.assertEqual(host_data.satellite_id, original_satellite_id)
+        self.assertEqual(host_data.bios_uuid, original_bios_uuid)
+        self.assertEqual(host_data.fqdn, original_fqdn)
+        self.assertEqual(host_data.mac_addresses, original_mac_addresses)
+        self.assertEqual(results.ip_addresses, host_data.ip_addresses)
+        self.assertEqual(results.facts, host_data.facts)
+
+        # Change the canonical facts except for the insights_id
+        host_data.rhel_machine_id = expected_rhel_machine_id
+        host_data.ip_addresses = expected_ip_addresses
+        host_data.rhel_machine_id = expected_rhel_machine_id
+        host_data.subscription_manager_id = expected_subscription_manager_id
+        host_data.satellite_id = expected_satellite_id
+        host_data.bios_uuid = expected_bios_uuid
+        host_data.fqdn = expected_fqdn
+        host_data.mac_addresses = expected_mac_addresses
+        host_data.facts = expected_facts
+
+        print("host_data:", host_data)
+        created_host = self.post(HOST_URL, host_data.data(), 200)
+        print("created_host:", created_host)
+
+        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
+        results = HostWrapper(data["results"][0])
+
+        self.assertEqual(results.id, original_id)
+        self.assertEqual(results.facts, expected_facts)
+        self.assertEqual(results.insights_id, original_insights_id)
+        self.assertEqual(results.rhel_machine_id, expected_rhel_machine_id)
+        self.assertEqual(results.subscription_manager_id, expected_subscription_manager_id)
+        self.assertEqual(results.satellite_id, expected_satellite_id)
+        self.assertEqual(results.bios_uuid, expected_bios_uuid)
+        self.assertEqual(results.fqdn, expected_fqdn)
+        self.assertEqual(results.mac_addresses, expected_mac_addresses)
+        self.assertEqual(results.ip_addresses, host_data.ip_addresses)
+        self.assertEqual(results.facts, host_data.facts)
+
     def test_create_host_with_empty_tags_facts_display_name_then_update(self):
         # Create a host with empty tags, facts, and display_name
         # then update those fields
@@ -227,7 +306,7 @@ class CreateHostsTestCase(DBAPITestCase):
         original_id = results["id"]
 
         host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
-        host_data.facts = FACTS
+        host_data.facts = copy.deepcopy(FACTS)
         host_data.display_name = "expected_display_name"
 
         self.post(HOST_URL, host_data.data(), 200)
@@ -319,7 +398,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         for host in hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
-            host_wrapper.tags = TAGS
+            host_wrapper.tags = copy.deepcopy(TAGS)
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]

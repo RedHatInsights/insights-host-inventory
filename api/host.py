@@ -47,13 +47,31 @@ def addHost(host):
             400,
         )
 
-    found_host = Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
-    ).first()
+    found_host = None
+    insights_id = canonical_facts.get("insights_id", None)
+    print("insights_id:", insights_id)
+
+    # no insights_id
+    # same insights_id 
+    # new insights_id
+
+    if insights_id:
+        found_host = Host.query.filter(
+            (Host.account == account_number)
+            & (Host.canonical_facts["insights_id"].astext == insights_id)).first()
+
+        print("found_host insights_id:", found_host)
+
+    if not found_host:
+        found_host = Host.query.filter(
+            (Host.account == account_number)
+            & (
+                Host.canonical_facts.comparator.contains(canonical_facts)
+                | Host.canonical_facts.comparator.contained_by(canonical_facts)
+            )
+        ).first()
+
+        print("found_host cf:", found_host)
 
     if not found_host:
         current_app.logger.debug("Creating a new host")
