@@ -213,7 +213,7 @@ class AuthPickIdentityTestCase(TestCase):
         If the identity header is missing, the login attempt is considered failed.
         """
         with self._request({}):
-            with self.assertRaises(Forbidden):
+            with self.assertRaises(InvalidIdentityError):
                 _pick_identity()
 
     def test_decode_fail_invalid_payload(self):
@@ -222,7 +222,7 @@ class AuthPickIdentityTestCase(TestCase):
         """
         payload = "invalid"
         with self._request({_IDENTITY_HEADER: payload}):
-            with self.assertRaises(Forbidden):
+            with self.assertRaises(InvalidIdentityError):
                 # b64decode raises ValueError.
                 _pick_identity()
 
@@ -233,7 +233,7 @@ class AuthPickIdentityTestCase(TestCase):
         """
         payload = _encode_header({})
         with self._request({_IDENTITY_HEADER: payload}):
-            with self.assertRaises(Forbidden):
+            with self.assertRaises(InvalidIdentityError):
                 # dict["_identity"] raises KeyError.
                 _pick_identity()
 
@@ -244,7 +244,7 @@ class AuthPickIdentityTestCase(TestCase):
         """
         payload = _encode_header({"identity": {}})
         with self._request({_IDENTITY_HEADER: payload}):
-            with self.assertRaises(Forbidden):
+            with self.assertRaises(InvalidIdentityError):
                 # Failed "account_number" in dict check raises TypeError.
                 _pick_identity()
 
@@ -273,14 +273,14 @@ class AuthValidateTestCase(TestCase):
         try:
             _validate(identity)
             self.assertTrue(True)
-        except Forbidden:
+        except InvalidIdentityError:
             self.fail()
 
     def test_login_failed(self):
         """
         If the identity is invalid, the login attempt is considered failed.
         """
-        with self.assertRaises(Forbidden):
+        with self.assertRaises(InvalidIdentityError):
             _validate(Identity(account_number=None))
 
 
