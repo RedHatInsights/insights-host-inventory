@@ -210,8 +210,6 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertListEqual(results.tags, expected_tags)
 
     def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
-        facts = None
-        tags = None
         original_insights_id = str(uuid.uuid4())
         expected_ip_addresses = ["192.168.1.44", "10.0.0.2", ]
         expected_facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
@@ -229,7 +227,7 @@ class CreateHostsTestCase(DBAPITestCase):
         original_mac_addresses = ["aa:bb:cc:dd:ee:ff"]
         expected_mac_addresses = ["ff:ee:dd:cc:bb:aa"]
 
-        host_data = HostWrapper(test_data(facts=facts, tags=tags))
+        host_data = HostWrapper(test_data(facts=None, tags=None))
         host_data.insights_id = original_insights_id
         host_data.rhel_machine_id = original_rhel_machine_id
         host_data.subscription_manager_id = original_subscription_manager_id
@@ -238,10 +236,9 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.fqdn = original_fqdn
         host_data.mac_addresses = original_mac_addresses
 
-        print("host_data:", host_data)
         # Create the host
         created_host = self.post(HOST_URL, host_data.data(), 201)
-        print("created_host:", created_host)
+
         results = HostWrapper(created_host)
 
         self.assertIsNotNone(results.id)
@@ -250,11 +247,11 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self.assertEqual(results.insights_id, original_insights_id)
         self.assertEqual(results.rhel_machine_id, original_rhel_machine_id)
-        self.assertEqual(host_data.subscription_manager_id, original_subscription_manager_id)
-        self.assertEqual(host_data.satellite_id, original_satellite_id)
-        self.assertEqual(host_data.bios_uuid, original_bios_uuid)
-        self.assertEqual(host_data.fqdn, original_fqdn)
-        self.assertEqual(host_data.mac_addresses, original_mac_addresses)
+        self.assertEqual(results.subscription_manager_id, original_subscription_manager_id)
+        self.assertEqual(results.satellite_id, original_satellite_id)
+        self.assertEqual(results.bios_uuid, original_bios_uuid)
+        self.assertEqual(results.fqdn, original_fqdn)
+        self.assertEqual(results.mac_addresses, original_mac_addresses)
         self.assertEqual(results.ip_addresses, host_data.ip_addresses)
         self.assertEqual(results.facts, host_data.facts)
 
@@ -269,15 +266,14 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.mac_addresses = expected_mac_addresses
         host_data.facts = expected_facts
 
-        print("host_data:", host_data)
         # Update the host
         updated_host = self.post(HOST_URL, host_data.data(), 200)
 
         # Verify that the id did not change on the update
         self.assertEqual(updated_host["id"], original_id)
-        print("created_host:", created_host)
 
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
         results = HostWrapper(data["results"][0])
 
         self.assertEqual(results.id, original_id)

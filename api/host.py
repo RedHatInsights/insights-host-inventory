@@ -47,43 +47,45 @@ def addHost(host):
             400,
         )
 
-    found_host = findHostToUpdate(account_number, canonical_facts)
+    existing_host = findExistingHost(account_number, canonical_facts)
 
-    if not found_host:
-        return createNewHost(input_host)
+    if existing_host:
+        return updateExistingHost(existing_host, input_host)
     else:
-        return updateExistingHost(found_host, input_host)
+        return createNewHost(input_host)
 
 
-def findHostToUpdate(account_number, canonical_facts):
-    found_host = None
+def findExistingHost(account_number, canonical_facts):
+    existing_host = None
     insights_id = canonical_facts.get("insights_id", None)
-    print("insights_id:", insights_id)
-
-    # no insights_id
-    # same insights_id
-    # new insights_id
 
     if insights_id:
-        found_host = Host.query.filter(
+        # The insights_id is the most important canonical fact.  If there
+        # is a matching insights_id, then update that host.
+        existing_host = findHostByInsightsId(account_number, insights_id)
+
+    if not existing_host:
+        existing_host = findHostByCanonicalFacts(account_number,
+                                                 canonical_facts)
+
+    return existing_host
+
+
+def findHostByInsightsId(account_number, insights_id):
+    return Host.query.filter(
             (Host.account == account_number)
             & (Host.canonical_facts["insights_id"].astext == insights_id)
         ).first()
 
-        print("found_host insights_id:", found_host)
 
-    if not found_host:
-        found_host = Host.query.filter(
+def findHostByCanonicalFacts(account_number, canonical_facts):
+        return Host.query.filter(
             (Host.account == account_number)
             & (
                 Host.canonical_facts.comparator.contains(canonical_facts)
                 | Host.canonical_facts.comparator.contained_by(canonical_facts)
             )
         ).first()
-
-        print("found_host cf:", found_host)
-
-    return found_host
 
 
 def createNewHost(input_host):
@@ -95,13 +97,13 @@ def createNewHost(input_host):
     return input_host.to_json(), 201
 
 
-def updateExistingHost(found_host, input_host):
+def updateExistingHost(existing_host, input_host):
     current_app.logger.debug("Updating an existing host")
-    found_host.update(input_host)
+    existing_host.update(input_host)
     db.session.commit()
     metrics.update_host_count.inc()
-    current_app.logger.debug("Updated host:%s" % found_host)
-    return found_host.to_json(), 200
+    current_app.logger.debug("Updated host:%s" % existing_host)
+    return existing_host.to_json(), 200
 
 
 @metrics.api_request_time.time()
