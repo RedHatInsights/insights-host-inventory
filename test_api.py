@@ -213,7 +213,7 @@ class CreateHostsTestCase(DBAPITestCase):
         facts = None
         tags = None
         original_insights_id = str(uuid.uuid4())
-        expected_ip_addresses = ["192.168.1.44", "10.0.0.2",]
+        expected_ip_addresses = ["192.168.1.44", "10.0.0.2", ]
         expected_facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
 
         original_rhel_machine_id = str(uuid.uuid4())
@@ -226,8 +226,8 @@ class CreateHostsTestCase(DBAPITestCase):
         expected_bios_uuid = "654321"
         original_fqdn = "original_fqdn"
         expected_fqdn = "expected_fqdn"
-        original_mac_addresses = [ "aa:bb:cc:dd:ee:ff" ]
-        expected_mac_addresses = [ "ff:ee:dd:cc:bb:aa" ]
+        original_mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+        expected_mac_addresses = ["ff:ee:dd:cc:bb:aa"]
 
         host_data = HostWrapper(test_data(facts=facts, tags=tags))
         host_data.insights_id = original_insights_id
@@ -239,7 +239,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.mac_addresses = original_mac_addresses
 
         print("host_data:", host_data)
-        # initial create
+        # Create the host
         created_host = self.post(HOST_URL, host_data.data(), 201)
         print("created_host:", created_host)
         results = HostWrapper(created_host)
@@ -270,7 +270,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.facts = expected_facts
 
         print("host_data:", host_data)
-        created_host = self.post(HOST_URL, host_data.data(), 200)
+        # Update the host
+        updated_host = self.post(HOST_URL, host_data.data(), 200)
+
+        # Verify that the id did not change on the update
+        self.assertEqual(updated_host["id"], original_id)
         print("created_host:", created_host)
 
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)

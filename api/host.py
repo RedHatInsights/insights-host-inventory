@@ -47,18 +47,28 @@ def addHost(host):
             400,
         )
 
+    found_host = findHostToUpdate(account_number, canonical_facts)
+
+    if not found_host:
+        return createNewHost(input_host)
+    else:
+        return updateExistingHost(found_host, input_host)
+
+
+def findHostToUpdate(account_number, canonical_facts):
     found_host = None
     insights_id = canonical_facts.get("insights_id", None)
     print("insights_id:", insights_id)
 
     # no insights_id
-    # same insights_id 
+    # same insights_id
     # new insights_id
 
     if insights_id:
         found_host = Host.query.filter(
             (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)).first()
+            & (Host.canonical_facts["insights_id"].astext == insights_id)
+        ).first()
 
         print("found_host insights_id:", found_host)
 
@@ -73,20 +83,25 @@ def addHost(host):
 
         print("found_host cf:", found_host)
 
-    if not found_host:
-        current_app.logger.debug("Creating a new host")
-        db.session.add(input_host)
-        db.session.commit()
-        metrics.create_host_count.inc()
-        current_app.logger.debug("Created host:%s" % input_host)
-        return input_host.to_json(), 201
-    else:
-        current_app.logger.debug("Updating an existing host")
-        found_host.update(input_host)
-        db.session.commit()
-        metrics.update_host_count.inc()
-        current_app.logger.debug("Updated host:%s" % found_host)
-        return found_host.to_json(), 200
+    return found_host
+
+
+def createNewHost(input_host):
+    current_app.logger.debug("Creating a new host")
+    db.session.add(input_host)
+    db.session.commit()
+    metrics.create_host_count.inc()
+    current_app.logger.debug("Created host:%s" % input_host)
+    return input_host.to_json(), 201
+
+
+def updateExistingHost(found_host, input_host):
+    current_app.logger.debug("Updating an existing host")
+    found_host.update(input_host)
+    db.session.commit()
+    metrics.update_host_count.inc()
+    current_app.logger.debug("Updated host:%s" % found_host)
+    return found_host.to_json(), 200
 
 
 @metrics.api_request_time.time()
