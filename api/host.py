@@ -1,5 +1,3 @@
-import logging
-
 from enum import Enum
 from flask import current_app
 
@@ -11,8 +9,6 @@ from api import metrics
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
-
-logger = logging.getLogger(__name__)
 
 
 @metrics.api_request_time.time()
