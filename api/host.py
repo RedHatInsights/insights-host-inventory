@@ -1,9 +1,10 @@
 from enum import Enum
 from flask import current_app
 
+from app import db
 from app.models import Host
 from app.auth import current_identity, requires_identity
-from app import db
+from app.exceptions import InventoryException
 from api import metrics
 
 
@@ -26,22 +27,18 @@ def addHost(host):
     account_number = host.get("account", None)
 
     if current_identity.account_number != account_number:
-        return (
-            "The account number associated with the user does not match "
-            "the account number associated with the host",
-            400,
-        )
+        raise InventoryException(title="Invalid request",
+                detail="The account number associated with the user does not "
+                "match the account number associated with the host")
 
     input_host = Host.from_json(host)
 
     canonical_facts = input_host.canonical_facts
 
     if not canonical_facts:
-        return (
-            "Invalid request:  At least one of the canonical fact fields "
-            "must be present.",
-            400,
-        )
+        raise InventoryException(title="Invalid request",
+                                 detail="At least one of the canonical fact "
+                                 "fields must be present.")
 
     existing_host = findExistingHost(account_number, canonical_facts)
 

@@ -305,22 +305,34 @@ class CreateHostsTestCase(DBAPITestCase):
         del host_data.fqdn
         del host_data.mac_addresses
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Invalid request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Bad Request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_with_mismatched_account_numbers(self):
         host_data = HostWrapper(test_data(facts=None))
         host_data.account = ACCOUNT[::-1]
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Invalid request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_with_invalid_facts_no_namespace(self):
         facts = copy.deepcopy(FACTS)
