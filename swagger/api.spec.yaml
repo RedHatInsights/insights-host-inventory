@@ -42,7 +42,7 @@ paths:
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
     get:
-      operationId: api.host.getHostList
+      operationId: api.host.get_host_list
       tags:
       - hosts
       summary: Read the entire list of hosts
@@ -72,7 +72,7 @@ paths:
           schema:
             $ref: '#/definitions/HostQueryOutput'
     post:
-      operationId: api.host.addHost
+      operationId: api.host.add_host
       tags:
       - hosts
       summary: Create/update a host and add it to the host list
@@ -95,7 +95,7 @@ paths:
           description: Successfully updated a host.
           schema:
             $ref: '#/definitions/HostOut'
-  '/hosts/{hostId}':
+  '/hosts/{host_id_list}':
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
     get:
@@ -103,11 +103,11 @@ paths:
       - hosts
       summary: Find hosts by their IDs
       description: Find one or more hosts by their ID.
-      operationId: api.host.getHostById
+      operationId: api.host.get_host_by_id
       produces:
       - application/json
       parameters:
-        - name: hostId
+        - name: host_id_list
           in: path
           description: A comma separated list of host IDs.
           required: true
@@ -135,7 +135,7 @@ paths:
    #   produces:
    #     - application/json
    #   parameters:
-   #     - name: hostId
+   #     - name: host_id
    #       in: path
    #       description: Host id to delete
    #       required: true
@@ -146,7 +146,7 @@ paths:
    #       description: Invalid ID supplied
    #     '404':
    #       description: Host not found
-  '/hosts/{hostId}/facts/{namespace}':
+  '/hosts/{host_id_list}/facts/{namespace}':
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
     patch:
@@ -154,11 +154,11 @@ paths:
       - hosts
       summary: Merge facts under a namespace
       description: Merge one or multiple hosts facts under a namespace.
-      operationId: api.host.mergeFacts
+      operationId: api.host.merge_facts
       produces:
       - application/json
       parameters:
-      - name: hostId
+      - name: host_id_list
         in: path
         description: IDs of the hosts that own the facts to be merged.
         required: true
@@ -190,11 +190,11 @@ paths:
       - hosts
       summary: Replace facts under a namespace
       description: Replace facts under a namespace
-      operationId: api.host.replaceFacts
+      operationId: api.host.replace_facts
       produces:
       - application/json
       parameters:
-      - name: hostId
+      - name: host_id_list
         in: path
         description: IDs of the hosts that own the facts to be replaced.
         required: true
