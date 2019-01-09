@@ -1,5 +1,3 @@
-import logging
-
 from enum import Enum
 from flask import current_app
 
@@ -12,8 +10,6 @@ from api import metrics
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
-
-logger = logging.getLogger(__name__)
 
 
 @metrics.api_request_time.time()
@@ -44,28 +40,63 @@ def addHost(host):
                                  detail="At least one of the canonical fact "
                                  "fields must be present.")
 
-    found_host = Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
-    ).first()
+    existing_host = findExistingHost(account_number, canonical_facts)
 
-    if not found_host:
-        current_app.logger.debug("Creating a new host")
-        db.session.add(input_host)
-        db.session.commit()
-        metrics.create_host_count.inc()
-        current_app.logger.debug("Created host:%s" % input_host)
-        return input_host.to_json(), 201
+    if existing_host:
+        return updateExistingHost(existing_host, input_host)
     else:
-        current_app.logger.debug("Updating an existing host")
-        found_host.update(input_host)
-        db.session.commit()
-        metrics.update_host_count.inc()
-        current_app.logger.debug("Updated host:%s" % found_host)
-        return found_host.to_json(), 200
+        return createNewHost(input_host)
+
+
+def findExistingHost(account_number, canonical_facts):
+    existing_host = None
+    insights_id = canonical_facts.get("insights_id", None)
+
+    if insights_id:
+        # The insights_id is the most important canonical fact.  If there
+        # is a matching insights_id, then update that host.
+        existing_host = findHostByInsightsId(account_number, insights_id)
+
+    if not existing_host:
+        existing_host = findHostByCanonicalFacts(account_number,
+                                                 canonical_facts)
+
+    return existing_host
+
+
+def findHostByInsightsId(account_number, insights_id):
+    return Host.query.filter(
+            (Host.account == account_number)
+            & (Host.canonical_facts["insights_id"].astext == insights_id)
+        ).first()
+
+
+def findHostByCanonicalFacts(account_number, canonical_facts):
+        return Host.query.filter(
+            (Host.account == account_number)
+            & (
+                Host.canonical_facts.comparator.contains(canonical_facts)
+                | Host.canonical_facts.comparator.contained_by(canonical_facts)
+            )
+        ).first()
+
+
+def createNewHost(input_host):
+    current_app.logger.debug("Creating a new host")
+    db.session.add(input_host)
+    db.session.commit()
+    metrics.create_host_count.inc()
+    current_app.logger.debug("Created host:%s" % input_host)
+    return input_host.to_json(), 201
+
+
+def updateExistingHost(existing_host, input_host):
+    current_app.logger.debug("Updating an existing host")
+    existing_host.update(input_host)
+    db.session.commit()
+    metrics.update_host_count.inc()
+    current_app.logger.debug("Updated host:%s" % existing_host)
+    return existing_host.to_json(), 200
 
 
 @metrics.api_request_time.time()
