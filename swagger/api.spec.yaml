@@ -240,37 +240,43 @@ definitions:
         type: string
         example: "000102"
       insights_id:
-        description: An Insights Platform ID of the host.
+        description: An Insights Platform ID of the host.  This field is
+          considered a canonical fact.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       rhel_machine_id:
-        description: A Machine ID of a RHEL host.
+        description: A Machine ID of a RHEL host.  This field is considered
+          to be a canonical fact.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       subscription_manager_id:
-        description: A Red Hat Subcription Manager ID of a RHEL host.
+        description: A Red Hat Subcription Manager ID of a RHEL host.  This
+          field is considered to be a canonical fact.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       satellite_id:
-        description: A Red Hat Satellite ID of a RHEL host.
+        description: A Red Hat Satellite ID of a RHEL host.  This field is
+          considered to be a canonical fact.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       bios_uuid:
-        description: A UUID of the host machine BIOS.
+        description: A UUID of the host machine BIOS.  This field is considered
+          to be a canonical fact.
         type: string
         format: uuid
         example: 3f01b55457674041b75e41829bcee1dc
         x-nullable: true
       ip_addresses:
-        description: Host’s network IP addresses.
+        description: Host’s network IP addresses.  This field is considered
+          to be a canonical fact.
         type: array
         items:
           type: string
@@ -279,12 +285,14 @@ definitions:
         - 10.10.0.1
         - 10.0.0.2
       fqdn:
-        description: A host’s Fully Qualified Domain Name.
+        description: A host’s Fully Qualified Domain Name.  This field is
+          considered to be a canonical fact.
         type: string
         example: my.host.example.com
         x-nullable: true
       mac_addresses:
-        description: Host’s network interfaces MAC addresses.
+        description: Host’s network interfaces MAC addresses.  This field
+          is considered to be a canonical fact.
         type: array
         items:
           type: string
