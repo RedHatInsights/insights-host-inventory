@@ -2,6 +2,7 @@
 
 import os
 
+from api import api_operation
 from api.host import (
     addHost,
     getHostById,
@@ -10,7 +11,6 @@ from api.host import (
     mergeFacts,
     replaceFacts
 )
-from api.metrics import count_inc
 from app.auth import (
     _validate,
     _pick_identity,
@@ -23,6 +23,36 @@ from unittest import main, TestCase
 from unittest.mock import Mock, patch
 import pytest
 from werkzeug.exceptions import Forbidden
+
+
+class ApiOperationTestCase(TestCase):
+    """
+    Test the API operation decorator that increments the request counter with every
+    call.
+    """
+    @patch("api.api_request_count.inc")
+    def test_counter_is_incremented(self, inc):
+        @api_operation
+        def func():
+            pass
+
+        func()
+        inc.assert_called_once_with()
+
+    def test_arguments_are_passed(self):
+        old_func = Mock()
+        new_func = api_operation(old_func)
+
+        args = (Mock(),)
+        kwargs = {"some_arg": Mock()}
+
+        new_func(*args, **kwargs)
+        old_func.assert_called_once_with(*args, **kwargs)
+
+    def test_return_value_is_passed(self):
+        old_func = Mock()
+        new_func = api_operation(old_func)
+        self.assertEqual(old_func.return_value, new_func())
 
 
 class AuthIdentityConstructorTestCase(TestCase):
@@ -194,48 +224,6 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
-
-
-class TestMetricsCountIncTestCase(TestCase):
-    """
-    Test the metrics helper decorator that increases every time an operation is called.
-    """
-
-    def test_increment(self):
-        """
-        The counter increments.
-        """
-        counter = Mock()
-
-        @count_inc(counter)
-        def func():
-            pass
-
-        func()
-        counter.inc.assert_called_once_with()
-
-    def test_args(self):
-        """
-        The decorated function is called with the original arguments.
-        """
-        original_func = Mock()
-        decorator = count_inc(original_func)
-        decorated_func = decorator(original_func)
-
-        args = (Mock(),)
-        kwargs = {"some_arg": Mock()}
-
-        decorated_func(*args, **kwargs)
-        original_func.assert_called_once_with(*args, **kwargs)
-
-    def test_return(self):
-        """
-        The decorated function result is passed.
-        """
-        original_func = Mock()
-        decorator = count_inc(original_func)
-        decorated_func = decorator(original_func)
-        self.assertEqual(original_func.return_value, decorated_func())
 
 
 @patch("api.host.current_app")
