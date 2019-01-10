@@ -398,7 +398,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def create_hosts(self):
         hosts_to_create = [
             ("host1", "12345", "host1.domain.test"),
-            ("host2", "54321", "host2.domain.test")
+            ("host2", "54321", "host1.domain.test"),  # the same fqdn is intentional
+            ("host3", "56789", "host2.domain.test"),
         ]
         host_list = []
 
@@ -417,21 +418,18 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         return host_list
 
     def _base_paging_test(self, url):
-        test_url = inject_qs(url, page="1", per_page="1")
-        response = self.get(test_url, 200)
+        def _test_get_page(page):
+            test_url = inject_qs(url, page=page, per_page="1")
+            response = self.get(test_url, 200)
 
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
+            self.assertEqual(len(response["results"]), 1)
+            self.assertEqual(response["count"], 1)
+            self.assertEqual(response["total"], len(self.added_hosts))
 
-        test_url = inject_qs(url, page="2", per_page="1")
-        response = self.get(test_url, 200)
-
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
-
-        test_url = inject_qs(url, page="3", per_page="1")
+        _test_get_page("1")
+        _test_get_page("2")
+        _test_get_page("3")
+        test_url = inject_qs(url, page="4", per_page="1")
         response = self.get(test_url, 404)
 
 
@@ -461,7 +459,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url, 200)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
         self._base_paging_test(test_url)
 
@@ -490,7 +488,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
@@ -502,15 +500,27 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"][0]["insights_id"], host_list[0].insights_id)
         self.assertEqual(response["results"][0]["display_name"], host_list[0].display_name)
 
-    def test_query_using_fqdn(self):
-        host_list = self.added_hosts
+    def test_query_using_fqdn_two_results(self):
+        expected_host_list = [self.added_hosts[0], self.added_hosts[1]]
 
-        response = self.get(HOST_URL + "?fqdn=" + host_list[0].fqdn)
+        response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
+
+        self.assertEqual(len(response["results"]), 2)
+        for result in response["results"]:
+            self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
+            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] == host.display_name for host in expected_host_list)
+
+    def test_query_using_fqdn_one_result(self):
+        expected_host_list = [self.added_hosts[2]]
+
+        response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
 
         self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["results"][0]["fqdn"], host_list[0].fqdn)
-        self.assertEqual(response["results"][0]["insights_id"], host_list[0].insights_id)
-        self.assertEqual(response["results"][0]["display_name"], host_list[0].display_name)
+        for result in response["results"]:
+            self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
+            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] == host.display_name for host in expected_host_list)
 
     def test_query_using_non_existant_fqdn(self):
         host_list = self.added_hosts
@@ -529,7 +539,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
         self._base_paging_test(test_url)
 
