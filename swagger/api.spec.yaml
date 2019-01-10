@@ -126,26 +126,6 @@ paths:
           description: Invalid request.
         "404":
           description: Host not found.
-   # delete:
-   #   tags:
-   #     - hosts
-   #   summary: Deletes a host
-   #   description: ''
-   #   operationId: api.host.deleteHost
-   #   produces:
-   #     - application/json
-   #   parameters:
-   #     - name: host_id
-   #       in: path
-   #       description: Host id to delete
-   #       required: true
-   #       type: integer
-   #       format: int64
-   #   responses:
-   #     '400':
-   #       description: Invalid ID supplied
-   #     '404':
-   #       description: Host not found
   '/hosts/{host_id_list}/facts/{namespace}':
     parameters:
       - $ref: '#/parameters/rhIdentityHeader'
