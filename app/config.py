@@ -36,6 +36,6 @@ class Config:
         if self._config_name != "testing":
             print("Insights Host Inventory Configuration:")
             print("API URL Path: %s" % self.api_url_path_prefix)
-            print("Management URL Path Preifx: %s" % self.mgmt_url_path_prefix)
+            print("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
             print("DB Host: %s" % self._db_host)
             print("DB Name: %s" % self._db_name)

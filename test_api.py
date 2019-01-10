@@ -705,7 +705,7 @@ class HealthTestCase(BaseAPITestCase):
     Tests the health check endpoint.
     """
 
-    def test_heath(self):
+    def test_health(self):
         """
         The health check simply returns 200 to any GET request. The response body is
         irrelevant.
