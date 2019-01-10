@@ -64,6 +64,11 @@ paths:
           description: A part of a searched host’s display name. Doesn’t apply
             if a search by tag query is provided.
           required: false
+        - name: fqdn
+          in: query
+          type: string
+          description: Filter by a host's FQDN
+          required: false
         - $ref: '#/parameters/perPageParam'
         - $ref: '#/parameters/pageParam'
       responses:

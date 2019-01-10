@@ -72,13 +72,16 @@ def find_host_by_insights_id(account_number, insights_id):
 
 
 def find_host_by_canonical_facts(account_number, canonical_facts):
-        return Host.query.filter(
-            (Host.account == account_number)
-            & (
-                Host.canonical_facts.comparator.contains(canonical_facts)
-                | Host.canonical_facts.comparator.contained_by(canonical_facts)
-            )
-        ).first()
+    current_app.logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
+    host = Host.query.filter(
+        (Host.account == account_number)
+        & (
+            Host.canonical_facts.comparator.contains(canonical_facts)
+            | Host.canonical_facts.comparator.contained_by(canonical_facts)
+        )
+    ).first()
+    current_app.logger.debug("found_host:%s", host)
+    return host
 
 
 def create_new_host(input_host):
@@ -101,9 +104,9 @@ def update_existing_host(existing_host, input_host):
 
 @metrics.api_request_time.time()
 @requires_identity
-def get_host_list(tag=None, display_name=None, page=1, per_page=100):
+def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     """
-    Get the list of hosts.  Filtering can be done by the tag or display_name.
+    Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
 
     If multiple tags are passed along, they are AND'd together during
     the filtering.
@@ -113,7 +116,15 @@ def get_host_list(tag=None, display_name=None, page=1, per_page=100):
         "get_host_list(tag=%s, display_name=%s)" % (tag, display_name)
     )
 
-    if tag:
+    if fqdn:
+        host = find_host_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
+        if host:
+            total = 1
+            host_list = [host]
+        else:
+            total = 0
+            host_list = []
+    elif tag:
         (total, host_list) = find_hosts_by_tag(
             current_identity.account_number, tag, page, per_page
         )
