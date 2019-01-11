@@ -1,4 +1,3 @@
-from functools import wraps
 from prometheus_client import Counter, Summary
 
 api_request_time = Summary("inventory_request_processing_seconds", "Time spent processing request")
