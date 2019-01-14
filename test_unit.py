@@ -2,6 +2,7 @@
 
 import os
 
+from api import api_operation
 from app.auth import (
     _validate,
     _pick_identity,
@@ -11,8 +12,39 @@ from app.auth.identity import from_dict, from_encoded, from_json, Identity, vali
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
+from unittest.mock import Mock, patch
 import pytest
 from werkzeug.exceptions import Forbidden
+
+
+class ApiOperationTestCase(TestCase):
+    """
+    Test the API operation decorator that increments the request counter with every
+    call.
+    """
+    @patch("api.api_request_count.inc")
+    def test_counter_is_incremented(self, inc):
+        @api_operation
+        def func():
+            pass
+
+        func()
+        inc.assert_called_once_with()
+
+    def test_arguments_are_passed(self):
+        old_func = Mock()
+        new_func = api_operation(old_func)
+
+        args = (Mock(),)
+        kwargs = {"some_arg": Mock()}
+
+        new_func(*args, **kwargs)
+        old_func.assert_called_once_with(*args, **kwargs)
+
+    def test_return_value_is_passed(self):
+        old_func = Mock()
+        new_func = api_operation(old_func)
+        self.assertEqual(old_func.return_value, new_func())
 
 
 class AuthIdentityConstructorTestCase(TestCase):
