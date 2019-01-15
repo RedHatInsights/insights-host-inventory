@@ -173,10 +173,10 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
 
         # Add a new canonical fact
-        host_data.rhel_machine_id = "1234-56-789"
+        host_data.rhel_machine_id = str(uuid.uuid4())
         host_data.ip_addresses = ["10.10.0.1", "10.0.0.2"]
         host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
-        host_data.insights_id = "0987-65-4321"
+        host_data.insights_id = str(uuid.uuid4())
 
         # Update the host with the new data
         updated_host = self.post(HOST_URL, host_data.data(), 200)
@@ -204,9 +204,9 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data = HostWrapper(test_data(facts=None, tags=None))
         host_data.insights_id = original_insights_id
         host_data.rhel_machine_id = str(uuid.uuid4())
-        host_data.subscription_manager_id = "123456"
-        host_data.satellite_id = "123456"
-        host_data.bios_uuid = "123456"
+        host_data.subscription_manager_id = str(uuid.uuid4())
+        host_data.satellite_id = str(uuid.uuid4())
+        host_data.bios_uuid = str(uuid.uuid4())
         host_data.fqdn = "original_fqdn"
         host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
 
@@ -220,9 +220,9 @@ class CreateHostsTestCase(DBAPITestCase):
         # Change the canonical facts except for the insights_id
         host_data.rhel_machine_id = str(uuid.uuid4())
         host_data.ip_addresses = ["192.168.1.44", "10.0.0.2", ]
-        host_data.subscription_manager_id = "654321"
-        host_data.satellite_id = "654321"
-        host_data.bios_uuid = "654321"
+        host_data.subscription_manager_id = str(uuid.uuid4())
+        host_data.satellite_id = str(uuid.uuid4())
+        host_data.bios_uuid = str(uuid.uuid4())
         host_data.fqdn = "expected_fqdn"
         host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
         host_data.facts = [{"namespace": "ns1",
@@ -397,9 +397,9 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", "12345", "host1.domain.test"),
-            ("host2", "54321", "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", "56789", "host2.domain.test"),
+            ("host1", str(uuid.uuid4()), "host1.domain.test"),
+            ("host2", str(uuid.uuid4()), "host1.domain.test"),  # the same fqdn is intentional
+            ("host3", str(uuid.uuid4()), "host2.domain.test"),
         ]
         host_list = []
 

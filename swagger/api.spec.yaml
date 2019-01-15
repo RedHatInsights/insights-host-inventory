@@ -120,6 +120,7 @@ paths:
           collectionFormat: csv
           items:
             type: string
+            format: uuid
         - $ref: '#/parameters/perPageParam'
         - $ref: '#/parameters/pageParam'
       responses:
