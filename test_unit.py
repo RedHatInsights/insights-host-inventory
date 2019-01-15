@@ -20,10 +20,6 @@ import pytest
 from werkzeug.exceptions import Forbidden
 
 
-def _abort():
-    raise Forbidden
-
-
 class ApiOperationTestCase(TestCase):
     """
     Test the API operation decorator that increments the request counter with every
@@ -271,7 +267,7 @@ class AuthRequiresIdentityTestCase(TestCase):
     def _dummy_view_func(self):
         pass
 
-    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth.abort", side_effect=Forbidden)
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity", side_effect=InvalidIdentityError)
     def test_request_is_aborted_with_forbidden_if_identity_pick_fails(
@@ -281,7 +277,7 @@ class AuthRequiresIdentityTestCase(TestCase):
             self._dummy_view_func()
         abort.assert_called_once_with(Forbidden.code)
 
-    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth.abort", side_effect=Forbidden)
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity", side_effect=InvalidIdentityError)
     def test_request_context_is_untouched_if_identity_pick_fails(
@@ -292,7 +288,7 @@ class AuthRequiresIdentityTestCase(TestCase):
             self._dummy_view_func()
         self.assertIs(original_identity, request_ctx_stack.top.identity)
 
-    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth.abort", side_effect=Forbidden)
     @patch("app.auth._validate", side_effect=InvalidIdentityError)
     @patch("app.auth._pick_identity")
     def test_request_is_aborted_with_forbidden_if_identity_validation_fails(
@@ -302,7 +298,7 @@ class AuthRequiresIdentityTestCase(TestCase):
             self._dummy_view_func()
         abort.assert_called_once_with(Forbidden.code)
 
-    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth.abort", side_effect=Forbidden)
     @patch("app.auth._validate", side_effect=InvalidIdentityError)
     @patch("app.auth._pick_identity")
     def test_request_context_is_untouched_if_identity_validation_fails(
