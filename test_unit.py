@@ -222,10 +222,7 @@ class AuthPickIdentityTestCase(TestCase):
     @patch("app.auth.from_encoded")
     @patch("app.auth._login_failed", side_effect=RuntimeError)
     @patch("app.auth.request", headers={})
-    def test_header_missing(self, request, login_failed, from_encoded):
-        """
-        If the identity header is missing, the login attempt is considered failed.
-        """
+    def test_login_fails_if_header_is_missing(self, _, login_failed, from_encoded):
         with self.assertRaises(RuntimeError):
             _pick_identity()
         login_failed.assert_called_once_with()
@@ -234,36 +231,27 @@ class AuthPickIdentityTestCase(TestCase):
     @patch("app.auth.from_encoded")
     @patch("app.auth._login_failed")
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode(self, request, login_failed, from_encoded):
-        """
-        If the identity header is present, it is decoded to obtain the identity object.
-        """
+    def test_identity_is_decoded_if_header_is_present(
+        self, request, login_failed, from_encoded
+    ):
         _pick_identity()
         login_failed.assert_not_called()
         from_encoded.assert_called_once_with(request.headers[_IDENTITY_HEADER])
 
+    @patch("app.auth._login_failed", side_effect=RuntimeError)
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode_fail(self, request):
-        """
-        If the identity header decode fails, the login attempt is considered failed.
-        """
-        @patch("app.auth._login_failed", side_effect=RuntimeError)
-        def test(error, login_failed):
-            with patch("app.auth.from_encoded", side_effect=error) as from_encoded:
-                with self.assertRaises(RuntimeError):
-                    _pick_identity()
-            login_failed.assert_called_once_with()
-
-        for error in [KeyError, TypeError, ValueError]:
+    def test_login_fails_if_decode_fails(self, _, login_failed):
+        for error in KeyError, TypeError, ValueError:
             with self.subTest(error=error):
-                test(error)
+                with patch("app.auth.from_encoded", side_effect=error):
+                    with self.assertRaises(RuntimeError):
+                        _pick_identity()
+                login_failed.assert_called_once_with()
+                login_failed.reset_mock()
 
     @patch("app.auth.from_encoded")
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_return(self, request, from_encoded):
-        """
-        The decoded identity is returned.
-        """
+    def test_decoded_identity_is_returned(self, _, from_encoded):
         result = _pick_identity()
         self.assertEqual(result, from_encoded.return_value)
 
@@ -271,33 +259,23 @@ class AuthPickIdentityTestCase(TestCase):
 class AuthValidateTestCase(TestCase):
     """
     The retrieved identity is validated and if it’s not valid, the login attempt is
-    considered failed – the request is aborted.
+    considered failed.
     """
-
     @patch("app.auth.validate")
-    def test_validate(self, validate):
-        """
-        The identity is validated.
-        """
+    def test_identity_is_validated(self, validate):
         identity = Mock()
         _validate(identity)
         validate.assert_called_once_with(identity)
 
     @patch("app.auth._login_failed")
     @patch("app.auth.validate")
-    def test_login_not_failed(self, validate, login_failed):
-        """
-        If the identity is valid, the login attempt is not considered failed.
-        """
+    def test_login_does_not_fail_if_identity_is_valid(self, _, login_failed):
         _validate(Mock())
         login_failed.assert_not_called()
 
     @patch("app.auth._login_failed")
     @patch("app.auth.validate", side_effect=ValueError)
-    def test_login_failed(self, validate, login_failed):
-        """
-        If the identity is invalid, the login attempt is considered failed.
-        """
+    def test_login_fails_if_identity_is_not_valid(self, _, login_failed):
         _validate(Mock())
         login_failed.assert_called_once_with()
 
@@ -309,18 +287,11 @@ class AuthLoginFailedTestCase(TestCase):
     A login failure is logged and the current request is aborted with a Forbidden
     status.
     """
-
-    def test_counter(self, inc, abort):
-        """
-        The login failure counter is incremented.
-        """
+    def test_counter_is_incremented(self, inc, _):
         _login_failed()
         inc.assert_called_once_with()
 
-    def test_abort(self, inc, abort):
-        """
-        The current request is aborted with a Forbidden status.
-        """
+    def test_request_is_aborted_as_forbidden(self, _, abort):
         _login_failed()
         abort.assert_called_once_with(Forbidden.code)
 
