@@ -13,12 +13,15 @@ from app.auth import (
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
-from flask import abort
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
 import pytest
 from werkzeug.exceptions import Forbidden
+
+
+def _abort():
+    raise Forbidden
 
 
 class ApiOperationTestCase(TestCase):
@@ -228,34 +231,24 @@ class AuthIdentityValidateTestCase(TestCase):
 class AuthPickIdentityTestCase(TestCase):
     """
     The identity is read and decoded from the header. If it’s missing or undecodeable,
-    an Exception is raised.
+    a specific Exception is raised.
     """
-
     @patch("app.auth.from_encoded")
     @patch("app.auth.request", headers={})
-    def test_header_missing(self, request, from_encoded):
-        """
-        If the identity header is missing, the identity is considered invalid.
-        """
+    def test_identity_is_not_valid_if_header_is_missing(self, _, from_encoded):
         with self.assertRaises(InvalidIdentityError):
             _pick_identity()
         from_encoded.assert_not_called()
 
     @patch("app.auth.from_encoded")
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode(self, request, from_encoded):
-        """
-        If the identity header is present, it is decoded to obtain the identity object.
-        """
+    def test_identity_is_decoded(self, request, from_encoded):
         _pick_identity()
         from_encoded.assert_called_once_with(request.headers[_IDENTITY_HEADER])
 
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_decode_fail(self, request):
-        """
-        If the identity header decode fails, the identity is considered invalid.
-        """
-        for error in [KeyError, TypeError, ValueError]:
+    def test_identity_is_not_valid_if_decode_fails(self, _):
+        for error in KeyError, TypeError, ValueError:
             with self.subTest(error=error):
                 with patch("app.auth.from_encoded", side_effect=error) as from_encoded:
                     with self.assertRaises(InvalidIdentityError):
@@ -263,97 +256,88 @@ class AuthPickIdentityTestCase(TestCase):
 
     @patch("app.auth.from_encoded")
     @patch("app.auth.request", headers={_IDENTITY_HEADER: Mock()})
-    def test_return(self, request, from_encoded):
-        """
-        The decoded identity is returned.
-        """
+    def test_decoded_identity_is_returned(self, _, from_encoded):
         result = _pick_identity()
         self.assertEqual(result, from_encoded.return_value)
 
 
+@patch("app.auth._request_ctx_stack")
 class AuthRequiresIdentityTestCase(TestCase):
     """
     Tests the requires_identity decorator for that it doesn’t accept a request with an
     invalid identity header.
     """
     @requires_identity
-    def _view_func(self):
+    def _dummy_view_func(self):
         pass
 
-    @patch("app.auth._request_ctx_stack")
-    @patch("app.auth.abort", wraps=abort)
+    @patch("app.auth.abort", wraps=_abort)
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity", side_effect=InvalidIdentityError)
-    def test_pick_identity_fail(self, pick_identity, validate, abort, request_ctx_stack):
-        """
-        If an InvalidIdentityError is raised while grabbing the identity header, the
-        request is aborted as Forbidden before assigning anything to the current
-        request context.
-        """
-        original_identity = request_ctx_stack.top.identity
-
+    def test_request_is_aborted_with_forbidden_if_identity_pick_fails(
+        self, _pi, _v, abort, _rcs
+    ):
         with self.assertRaises(Forbidden):
-            self._view_func()
-
+            self._dummy_view_func()
         abort.assert_called_once_with(Forbidden.code)
+
+    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth._validate")
+    @patch("app.auth._pick_identity", side_effect=InvalidIdentityError)
+    def test_request_context_is_untouched_if_identity_pick_fails(
+        self, _pi, _v, _a, request_ctx_stack
+    ):
+        original_identity = request_ctx_stack.top.identity
+        with self.assertRaises(Forbidden):
+            self._dummy_view_func()
         self.assertIs(original_identity, request_ctx_stack.top.identity)
 
-    @patch("app.auth._request_ctx_stack")
-    @patch("app.auth.abort", wraps=abort)
+    @patch("app.auth.abort", wraps=_abort)
     @patch("app.auth._validate", side_effect=InvalidIdentityError)
     @patch("app.auth._pick_identity")
-    def test_validate_fail(self, pick_identity, validate, abort, request_ctx_stack):
-        """
-        If an InvalidIdentityError is raised while validating the identity header, the
-        request is aborted as Forbidden before assigning anything to the current
-        request context.
-        """
-        original_identity = request_ctx_stack.top.identity
-
+    def test_request_is_aborted_with_forbidden_if_identity_validation_fails(
+        self, _pi, _v, abort, _rcs
+    ):
         with self.assertRaises(Forbidden):
-            self._view_func()
-
+            self._dummy_view_func()
         abort.assert_called_once_with(Forbidden.code)
+
+    @patch("app.auth.abort", wraps=_abort)
+    @patch("app.auth._validate", side_effect=InvalidIdentityError)
+    @patch("app.auth._pick_identity")
+    def test_request_context_is_untouched_if_identity_validation_fails(
+        self, _pi, _v, _a, request_ctx_stack
+    ):
+        original_identity = request_ctx_stack.top.identity
+        with self.assertRaises(Forbidden):
+            self._dummy_view_func()
         self.assertIs(original_identity, request_ctx_stack.top.identity)
 
-    @patch("app.auth._request_ctx_stack")
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity")
-    def test_identity_assignment(self, pick_identity, validate, request_ctx_stack):
-        """
-        If the identity is valid, it is assigned to the current request context.
-        """
-        self._view_func()
+    def test_identity_is_assigned_to_request_context_if_identity_is_valid(
+        self, pick_identity, _, request_ctx_stack
+    ):
+        self._dummy_view_func()
         self.assertEqual(request_ctx_stack.top.identity, pick_identity.return_value)
 
-    @patch("app.auth._request_ctx_stack")
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity")
-    def test_view_func_call(self, pick_identity, validate, request_ctx_stack):
-        """
-        If the identity is valid, the original view function is called with the original
-        arguments.
-        """
-        mock = Mock()
-        view_func = requires_identity(mock)
+    def test_view_func_is_called_if_identity_is_valid(self, _pi, _v, _rcs):
+        original_view_func = Mock()
+        decorated_view_func = requires_identity(original_view_func)
 
         args = (Mock(),)
         kwargs = {"mock": Mock()}
-        view_func(*args, **kwargs)
-        mock.assert_called_once_with(*args, **kwargs)
+        decorated_view_func(*args, **kwargs)
+        original_view_func.assert_called_once_with(*args, **kwargs)
 
-    @patch("app.auth._request_ctx_stack")
     @patch("app.auth._validate")
     @patch("app.auth._pick_identity")
-    def test_return(self, pick_identity, validate, request_ctx_stack):
-        """
-        If the identity is valid, the return value of the original view function is
-        returned.
-        """
-        mock = Mock()
-        view_func = requires_identity(mock)
-        result = view_func()
-        self.assertEqual(result, mock.return_value)
+    def test_view_func_result_is_returned(self, _pi, _v, _rcs):
+        original_view_func = Mock()
+        decorated_view_func = requires_identity(original_view_func)
+        self.assertEqual(decorated_view_func(), original_view_func.return_value)
 
 
 @pytest.mark.usefixtures("monkeypatch")
