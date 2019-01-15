@@ -17,9 +17,6 @@ from werkzeug.exceptions import Forbidden
 
 
 def _encode_header(dict_):
-    """
-    Encode the header payload dictionary.
-    """
     json = dumps(dict_)
     return b64encode(json.encode())
 
@@ -224,50 +221,33 @@ class AuthPickIdentityTestCase(TestCase):
         with self.app.test_request_context(headers=headers) as context:
             yield context
 
-    def test_header_missing(self):
-        """
-        If the identity header is missing, the login attempt is considered failed.
-        """
+    def test_login_fails_if_header_is_missing(self):
         with self._request({}):
             with self.assertRaises(Forbidden):
                 _pick_identity()
 
-    def test_decode_fail_invalid_payload(self):
-        """
-        If the identity header decode fails, the login attempt is considered failed.
-        """
+    def test_login_fails_if_payload_is_invalid(self):
         payload = "invalid"
         with self._request({_IDENTITY_HEADER: payload}):
             with self.assertRaises(Forbidden):
                 # b64decode raises ValueError.
                 _pick_identity()
 
-    def test_decode_fail_missing_identity(self):
-        """
-        If the identity header doesn’t contain the "identity" key, the login attempt is
-        considered failed.
-        """
+    def test_login_fails_if_identity_is_missing(self):
         payload = _encode_header({})
         with self._request({_IDENTITY_HEADER: payload}):
             with self.assertRaises(Forbidden):
                 # dict["_identity"] raises KeyError.
                 _pick_identity()
 
-    def test_decode_fail_missing_account_number(self):
-        """
-        If the identity header doesn’t contain the "identity.account_number" key, the
-        login attempt is considered failed.
-        """
+    def test_login_fails_if_account_number_is_missing(self):
         payload = _encode_header({"identity": {}})
         with self._request({_IDENTITY_HEADER: payload}):
             with self.assertRaises(Forbidden):
                 # Failed "account_number" in dict check raises TypeError.
                 _pick_identity()
 
-    def test_return(self):
-        """
-        The decoded identity is returned.
-        """
+    def test_identity_is_returned(self):
         identity = _identity()
         payload = _encode_header({"identity": identity._asdict()})
         with self._request({_IDENTITY_HEADER: payload}):
@@ -280,11 +260,7 @@ class AuthValidateTestCase(TestCase):
     The retrieved identity is validated and if it’s not valid, the login attempt is
     considered failed – the request is aborted.
     """
-
-    def test_valid(self):
-        """
-        If the identity is valid, the login attempt is not considered failed.
-        """
+    def test_login_does_not_fail_if_identity_is_valid(self):
         identity = Identity(account_number="some account")
         try:
             _validate(identity)
@@ -292,10 +268,7 @@ class AuthValidateTestCase(TestCase):
         except Forbidden:
             self.fail()
 
-    def test_login_failed(self):
-        """
-        If the identity is invalid, the login attempt is considered failed.
-        """
+    def test_login_fails_if_identity_is_not_valid(self):
         with self.assertRaises(Forbidden):
             _validate(Identity(account_number=None))
 
@@ -304,11 +277,7 @@ class AuthLoginFailedTestCase(TestCase):
     """
     The request is aborted with a Forbidden status.
     """
-
-    def test_abort(self):
-        """
-        The current request is aborted with a Forbidden status.
-        """
+    def test_request_is_aborted_with_forbidden(self):
         with self.assertRaises(Forbidden):
             _login_failed()
 
