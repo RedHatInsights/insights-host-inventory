@@ -8,7 +8,7 @@ def test_valid_uuid():
     assert verify_uuid_format(valid_uuid) is True
 
 
-def test_valid_uuid_no_dashes():
+def test_valid_uuid_no_hyphens():
     valid_uuid = uuid.uuid4().hex
     assert verify_uuid_format(valid_uuid) is True
 

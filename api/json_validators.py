@@ -6,7 +6,9 @@ from jsonschema import draft4_format_checker
 @draft4_format_checker.checks('uuid')
 def verify_uuid_format(uuid_str):
     if uuid_str is None:
-        # UUID fields are nullable
+        # UUID fields are nullable...currently.
+        # FIXME:  I'm not really happy with this.  It would be nice to
+        # look at the "x-nullable" flag in the schema.
         return True
 
     try:
