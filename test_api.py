@@ -362,6 +362,43 @@ class CreateHostsTestCase(DBAPITestCase):
         self.verify_error_response(response_data,
                                    expected_title="Invalid request")
 
+    def test_create_host_with_invalid_uuid_field_values(self):
+        uuid_field_names = (
+                "insights_id",
+                "rhel_machine_id",
+                "subscription_manager_id",
+                "satellite_id",
+                "bios_uuid",
+                )
+
+        for field_name in uuid_field_names:
+            host_data = copy.deepcopy(test_data(facts=None))
+
+            host_data[field_name] = "notauuid"
+
+            response_data = self.post(HOST_URL, host_data, 400)
+
+            self.verify_error_response(response_data,
+                                       expected_title="Bad Request")
+
+    def test_create_host_with_invalid_ip_address(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.ip_addresses.append("blah")
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        self.verify_error_response(response_data, expected_title="Bad Request")
+
+    def test_create_host_with_invalid_mac_address(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.mac_addresses = ["11:22:33:44:55:66", "blah"]
+
+        response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        self.verify_error_response(response_data, expected_title="Bad Request")
+
     def _validate_host(self, received_host, expected_host,
                        expected_id=id, verify_tags=True):
         self.assertIsNotNone(received_host["id"])
