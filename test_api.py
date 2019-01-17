@@ -86,6 +86,20 @@ class BaseAPITestCase(unittest.TestCase):
             self.client().put, path, data, status, return_response_as_json
         )
 
+    def verify_error_response(self, response, expected_title=None,
+                              expected_status=None, expected_detail=None,
+                              expected_type=None):
+
+        def _verify_value(field_name, expected_value):
+            assert field_name in response
+            if expected_value is not None:
+                self.assertEqual(response[field_name], expected_value)
+
+        _verify_value("title", expected_title)
+        _verify_value("status", expected_status)
+        _verify_value("detail", expected_detail)
+        _verify_value("type", expected_type)
+
     def _make_http_call(
         self, http_method, path, data, status, return_response_as_json=True
     ):
@@ -307,10 +321,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-        assert "Invalid request" in response_data["title"]
-        assert "status" in response_data
-        assert "detail" in response_data
-        assert "type" in response_data
+        self.verify_error_response(response_data,
+                                   expected_title="Invalid request",
+                                   expected_status=400)
 
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -318,10 +331,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-        assert "Bad Request" in response_data["title"]
-        assert "status" in response_data
-        assert "detail" in response_data
-        assert "type" in response_data
+        self.verify_error_response(response_data, expected_title="Bad Request")
 
     def test_create_host_with_mismatched_account_numbers(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -329,10 +339,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-        assert "Invalid request" in response_data["title"]
-        assert "status" in response_data
-        assert "detail" in response_data
-        assert "type" in response_data
+        self.verify_error_response(response_data,
+                                   expected_title="Invalid request")
 
     def test_create_host_with_invalid_facts_no_namespace(self):
         facts = copy.deepcopy(FACTS)
@@ -341,10 +349,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-        assert response_data["title"] == "Invalid request"
-        assert "status" in response_data
-        assert "detail" in response_data
-        assert "type" in response_data
+        self.verify_error_response(response_data,
+                                   expected_title="Invalid request")
 
     def test_create_host_with_invalid_facts_no_facts(self):
         facts = copy.deepcopy(FACTS)
@@ -353,10 +359,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
-        assert response_data["title"] == "Invalid request"
-        assert "status" in response_data
-        assert "detail" in response_data
-        assert "type" in response_data
+        self.verify_error_response(response_data,
+                                   expected_title="Invalid request")
 
     def _validate_host(self, received_host, expected_host,
                        expected_id=id, verify_tags=True):
@@ -463,6 +467,30 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         self._base_paging_test(test_url)
 
+    def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
+        expected_host_list = self.added_hosts
+
+        original_id = expected_host_list[0].id
+
+        # Remove the hyphens from one of the valid hosts
+        expected_host_list[0].id = uuid.UUID(original_id, version=4).hex
+
+        url_host_id_list = self._build_host_id_list_for_url(expected_host_list)
+
+        test_url = HOST_URL + "/" + url_host_id_list
+
+        response = self.get(test_url, 200)
+
+        expected_host_list[0].id = original_id
+
+        self.assertEqual(len(response["results"]), len(expected_host_list))
+
+        for result in response["results"]:
+            # Verify that the expected ids are returned
+            assert any(result["id"] == host.id for host in expected_host_list)
+
+        self._base_paging_test(test_url)
+
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
 
@@ -489,6 +517,22 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(host_list))
+
+    def test_query_using_host_id_list_include_badly_formatted_host_ids(self):
+        host_list = self.added_hosts
+
+        bad_id_list = ["1234blahblahinvalid", ""]
+
+        valid_url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        for bad_id in bad_id_list:
+            # Construct the host id list for the url...adding in the "bad" id
+            url_host_id_list = valid_url_host_id_list + "," + bad_id
+
+            response = self.get(HOST_URL + "/" + url_host_id_list, 400)
+
+            self.verify_error_response(response, expected_title="Bad Request",
+                                       expected_status=400)
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
