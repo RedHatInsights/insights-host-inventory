@@ -246,7 +246,7 @@ definitions:
         type: string
         example: "000102"
       insights_id:
-        description: An Insights Platform ID of the host.  This field is
+        description: An ID defined in /etc/insights-client/machine-id. This field is
           considered a canonical fact.
         type: string
         format: uuid
@@ -326,7 +326,7 @@ definitions:
       - type: object
         properties:
           id:
-            description: An internal Inventory ID of the host.
+            description: A durable and reliable platform-wide host identifier. Applications should use this identifier to reference hosts.
             type: string
             format: uuid
           created:
