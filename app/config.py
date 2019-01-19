@@ -1,8 +1,10 @@
+import logging
 import os
 
 
 class Config:
     def __init__(self, config_name):
+        self.logger = logging.getLogger(__name__)
         self._config_name = config_name
 
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
@@ -34,8 +36,8 @@ class Config:
 
     def _log_configuration(self):
         if self._config_name != "testing":
-            print("Insights Host Inventory Configuration:")
-            print("API URL Path: %s" % self.api_url_path_prefix)
-            print("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
-            print("DB Host: %s" % self._db_host)
-            print("DB Name: %s" % self._db_name)
+            self.logger.info("Insights Host Inventory Configuration:")
+            self.logger.info("API URL Path: %s" % self.api_url_path_prefix)
+            self.logger.info("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
+            self.logger.info("DB Host: %s" % self._db_host)
+            self.logger.info("DB Name: %s" % self._db_name)

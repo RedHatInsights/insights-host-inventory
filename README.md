@@ -81,6 +81,7 @@ Configuration system properties:
  INVENTORY_DB_NAME="test_db"
  INVENTORY_DB_POOL_TIMEOUT="5"
  INVENTORY_DB_POOL_SIZE="5"
+ INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
 ```
 
 ## Deployment

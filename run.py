@@ -11,9 +11,3 @@ listen_port = os.getenv('LISTEN_PORT', 8080)
 
 if __name__ == '__main__':
     application.run(host="0.0.0.0", port=listen_port)
-else:
-    # Running within gunicorn...tie the flask_app logging
-    # into the gunicorn loggging
-    gunicorn_logger = logging.getLogger("gunicorn.error")
-    application.logger.handlers = gunicorn_logger.handlers
-    application.logger.setLevel(gunicorn_logger.level)
