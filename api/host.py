@@ -1,23 +1,21 @@
-import logging
-
 from enum import Enum
 from flask import current_app
 
+from app import db
 from app.models import Host
 from app.auth import current_identity, requires_identity
-from app import db
-from api import metrics
+from app.exceptions import InventoryException
+from api import api_operation, metrics
 
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
-logger = logging.getLogger(__name__)
 
-
+@api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def addHost(host):
+def add_host(host):
     """
     Add or update a host
 
@@ -25,72 +23,118 @@ def addHost(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    current_app.logger.debug("addHost(%s)" % host)
+    current_app.logger.debug("add_host(%s)" % host)
 
     account_number = host.get("account", None)
 
     if current_identity.account_number != account_number:
-        return (
-            "The account number associated with the user does not match "
-            "the account number associated with the host",
-            400,
-        )
+        raise InventoryException(title="Invalid request",
+                detail="The account number associated with the user does not "
+                "match the account number associated with the host")
 
     input_host = Host.from_json(host)
 
     canonical_facts = input_host.canonical_facts
 
     if not canonical_facts:
-        return (
-            "Invalid request:  At least one of the canonical fact fields "
-            "must be present.",
-            400,
-        )
+        raise InventoryException(title="Invalid request",
+                                 detail="At least one of the canonical fact "
+                                 "fields must be present.")
 
-    found_host = Host.query.filter(
+    existing_host = find_existing_host(account_number, canonical_facts)
+
+    if existing_host:
+        return update_existing_host(existing_host, input_host)
+    else:
+        return create_new_host(input_host)
+
+
+def find_existing_host(account_number, canonical_facts):
+    existing_host = None
+    insights_id = canonical_facts.get("insights_id", None)
+
+    if insights_id:
+        # The insights_id is the most important canonical fact.  If there
+        # is a matching insights_id, then update that host.
+        existing_host = find_host_by_insights_id(account_number, insights_id)
+
+    if not existing_host:
+        existing_host = find_host_by_canonical_facts(account_number,
+                                                     canonical_facts)
+
+    return existing_host
+
+
+def find_host_by_insights_id(account_number, insights_id):
+    return Host.query.filter(
+            (Host.account == account_number)
+            & (Host.canonical_facts["insights_id"].astext == insights_id)
+        ).first()
+
+
+def _canonical_facts_host_query(account_number, canonical_facts):
+    return Host.query.filter(
         (Host.account == account_number)
         & (
             Host.canonical_facts.comparator.contains(canonical_facts)
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
-    ).first()
-
-    if not found_host:
-        current_app.logger.debug("Creating a new host")
-        db.session.add(input_host)
-        db.session.commit()
-        metrics.create_host_count.inc()
-        current_app.logger.debug("Created host:%s" % input_host)
-        return input_host.to_json(), 201
-    else:
-        current_app.logger.debug("Updating an existing host")
-        found_host.update(input_host)
-        db.session.commit()
-        metrics.update_host_count.inc()
-        current_app.logger.debug("Updated host:%s" % found_host)
-        return found_host.to_json(), 200
+    )
 
 
+def find_host_by_canonical_facts(account_number, canonical_facts):
+    """
+    Returns first match for a host containing given canonical facts
+    """
+    current_app.logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
+    host = _canonical_facts_host_query(account_number, canonical_facts).first()
+    current_app.logger.debug("found_host:%s", host)
+    return host
+
+
+def create_new_host(input_host):
+    current_app.logger.debug("Creating a new host")
+    db.session.add(input_host)
+    db.session.commit()
+    metrics.create_host_count.inc()
+    current_app.logger.debug("Created host:%s" % input_host)
+    return input_host.to_json(), 201
+
+
+def update_existing_host(existing_host, input_host):
+    current_app.logger.debug("Updating an existing host")
+    existing_host.update(input_host)
+    db.session.commit()
+    metrics.update_host_count.inc()
+    current_app.logger.debug("Updated host:%s" % existing_host)
+    return existing_host.to_json(), 200
+
+
+@api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def getHostList(tag=None, display_name=None, page=1, per_page=100):
+def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     """
-    Get the list of hosts.  Filtering can be done by the tag or display_name.
+    Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
 
     If multiple tags are passed along, they are AND'd together during
     the filtering.
 
     """
     current_app.logger.debug(
-        "getHostList(tag=%s, display_name=%s)" % (tag, display_name)
+        "get_host_list(tag=%s, display_name=%s)" % (tag, display_name)
     )
 
-    if tag:
-        (total, host_list) = findHostsByTag(
+    if fqdn:
+        (total, host_list) = find_hosts_by_canonical_facts(
+            current_identity.account_number, {"fqdn": fqdn}, page, per_page
+        )
+    elif tag:
+        (total, host_list) = find_hosts_by_tag(
             current_identity.account_number, tag, page, per_page
         )
     elif display_name:
-        (total, host_list) = findHostsByDisplayName(
+        (total, host_list) = find_hosts_by_display_name(
             current_identity.account_number, display_name, page, per_page
         )
     else:
@@ -100,10 +144,10 @@ def getHostList(tag=None, display_name=None, page=1, per_page=100):
         total = query_results.total
         host_list = query_results.items
 
-    return _buildPaginatedHostListResponse(total, page, per_page, host_list)
+    return _build_paginated_host_list_response(total, page, per_page, host_list)
 
 
-def _buildPaginatedHostListResponse(total, page, per_page, host_list):
+def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
     return (
         {
@@ -117,8 +161,8 @@ def _buildPaginatedHostListResponse(total, page, per_page, host_list):
     )
 
 
-def findHostsByTag(account, tag, page, per_page):
-    current_app.logger.debug("findHostsByTag(%s)" % tag)
+def find_hosts_by_tag(account, tag, page, per_page):
+    current_app.logger.debug("find_hosts_by_tag(%s)" % tag)
     query_results = Host.query.filter(
         (Host.account == account) & Host.tags.comparator.contains(tag)
     ).paginate(page, per_page, True)
@@ -128,10 +172,11 @@ def findHostsByTag(account, tag, page, per_page):
     return (total, found_host_list)
 
 
-def findHostsByDisplayName(account, display_name, page, per_page):
-    current_app.logger.debug("findHostsByDisplayName(%s)" % display_name)
+def find_hosts_by_display_name(account, display_name, page, per_page):
+    current_app.logger.debug("find_hosts_by_display_name(%s)" % display_name)
     query_results = Host.query.filter(
-        (Host.account == account) & Host.display_name.comparator.contains(display_name)
+        (Host.account == account)
+        & Host.display_name.comparator.contains(display_name)
     ).paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
@@ -139,43 +184,66 @@ def findHostsByDisplayName(account, display_name, page, per_page):
     return (total, found_host_list)
 
 
+def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_page):
+    """
+    Returns paginated results for all hosts containing given canonical facts
+    """
+    current_app.logger.debug("find_hosts_by_canonical_facts(%s)", canonical_facts)
+    query_results = _canonical_facts_host_query(account_number, canonical_facts).paginate(page, per_page, True)
+    total = query_results.total
+    found_host_list = query_results.items
+    current_app.logger.debug("found_host_list:%s", found_host_list)
+    return (total, found_host_list)
+
+
+@api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def getHostById(hostId, page=1, per_page=100):
-    current_app.logger.debug("getHostById(%s, %d, %d)" % (hostId, page, per_page))
+def get_host_by_id(host_id_list, page=1, per_page=100):
+    current_app.logger.debug(
+            "get_host_by_id(%s, %d, %d)" % (host_id_list, page, per_page)
+    )
     query_results = Host.query.filter(
-        (Host.account == current_identity.account_number) & Host.id.in_(hostId)
+        (Host.account == current_identity.account_number)
+        & Host.id.in_(host_id_list)
     ).paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
 
-    return _buildPaginatedHostListResponse(total, page, per_page, found_host_list)
+    return _build_paginated_host_list_response(total, page,
+                                               per_page, found_host_list)
 
 
+@api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def replaceFacts(hostId, namespace, fact_dict):
+def replace_facts(host_id_list, namespace, fact_dict):
     current_app.logger.debug(
-        "replaceFacts(%s, %s, %s)" % (hostId, namespace, fact_dict)
+        "replace_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
     )
 
-    return updateFactsByNamespace(FactOperations.replace, hostId, namespace, fact_dict)
+    return update_facts_by_namespace(FactOperations.replace, host_id_list,
+                                     namespace, fact_dict)
 
 
+@api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def mergeFacts(hostId, namespace, fact_dict):
-    current_app.logger.debug("mergeFacts(%s, %s, %s)" % (hostId, namespace, fact_dict))
+def merge_facts(host_id_list, namespace, fact_dict):
+    current_app.logger.debug(
+            "merge_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
+    )
 
     if not fact_dict:
-        error_msg = "ERROR: Invalid request.  Merging empty facts into " "existing facts is a no-op."
+        error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         current_app.logger.debug(error_msg)
         return error_msg, 400
 
-    return updateFactsByNamespace(FactOperations.merge, hostId, namespace, fact_dict)
+    return update_facts_by_namespace(FactOperations.merge, host_id_list,
+                                     namespace, fact_dict)
 
 
-def updateFactsByNamespace(operation, host_id_list, namespace, fact_dict):
+def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     hosts_to_update = Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)

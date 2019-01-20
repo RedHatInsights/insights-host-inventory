@@ -6,7 +6,6 @@ import dateutil.parser
 import uuid
 import copy
 from app import create_app, db
-from app.auth import current_identity
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
@@ -151,63 +150,95 @@ class DBAPITestCase(BaseAPITestCase):
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
         facts = None
-        tags = ["/merge_me_1:value1"]
+        tags = []
 
         host_data = HostWrapper(test_data(facts=facts, tags=tags))
 
-        # initial create
-        results = self.post(HOST_URL, host_data.data(), 201)
+        # Create the host
+        created_host = self.post(HOST_URL, host_data.data(), 201)
 
-        self.assertIsNotNone(results["id"])
-        self.assertIsNotNone(results["created"])
-        created_time = dateutil.parser.parse(results["created"])
+        original_id = created_host["id"]
+
+        self._validate_host(created_host, host_data, expected_id=original_id)
+        created_time = dateutil.parser.parse(created_host["created"])
         self.assertGreater(datetime.now(timezone.utc), created_time)
 
-        original_id = results["id"]
-
-        post_data = host_data
-        post_data.facts = FACTS
+        host_data.facts = copy.deepcopy(FACTS)
 
         # Replace facts under the first namespace
-        post_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
+        host_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
 
         # Add a new set of facts under a new namespace
-        post_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
+        host_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
 
         # Add a new canonical fact
-        post_data.rhel_machine_id = "1234-56-789"
-        post_data.ip_addresses = ["10.10.0.1", "10.0.0.2"]
-        post_data.mac_addresses = ["c2:00:d0:c8:61:01"]
+        host_data.rhel_machine_id = "1234-56-789"
+        host_data.ip_addresses = ["10.10.0.1", "10.0.0.2"]
+        host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
+        host_data.insights_id = "0987-65-4321"
 
-        # Add a new tag
-        post_data.tags = ["aws/new_tag_1:new_value_1"]
+        # Update the host with the new data
+        updated_host = self.post(HOST_URL, host_data.data(), 200)
 
-        expected_tags = []
+        # Make sure the id from the update post matches the id from the create
+        self.assertEqual(updated_host["id"], original_id)
 
-        # update initial entity
-        results = self.post(HOST_URL, post_data.data(), 200)
-
-        # make sure the id from the update post matches the id from the create
-        self.assertEqual(results["id"], original_id)
-
-        self.assertIsNotNone(results["updated"])
-        modified_time = dateutil.parser.parse(results["updated"])
+        # Verify the timestamp has been modified
+        self.assertIsNotNone(updated_host["updated"])
+        modified_time = dateutil.parser.parse(updated_host["updated"])
         self.assertGreater(modified_time, created_time)
 
-        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
-        results = HostWrapper(data["results"][0])
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
 
         # sanity check
-        # post_data.facts[0]["facts"]["key2"] = "blah"
-        self.assertListEqual(results.facts, post_data.facts)
+        # host_lookup_results["results"][0]["facts"][0]["facts"]["key2"] = "blah"
+        # host_lookup_results["results"][0]["insights_id"] = "1.2.3.4"
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id)
 
-        # make sure the canonical facts are merged
-        self.assertEqual(results.rhel_machine_id, post_data.rhel_machine_id)
-        self.assertListEqual(results.ip_addresses, post_data.ip_addresses)
-        self.assertListEqual(results.mac_addresses, post_data.mac_addresses)
+    def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
+        original_insights_id = str(uuid.uuid4())
 
-        # make sure the tags are merged
-        self.assertListEqual(results.tags, expected_tags)
+        host_data = HostWrapper(test_data(facts=None, tags=None))
+        host_data.insights_id = original_insights_id
+        host_data.rhel_machine_id = str(uuid.uuid4())
+        host_data.subscription_manager_id = "123456"
+        host_data.satellite_id = "123456"
+        host_data.bios_uuid = "123456"
+        host_data.fqdn = "original_fqdn"
+        host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+
+        # Create the host
+        created_host = self.post(HOST_URL, host_data.data(), 201)
+
+        original_id = created_host["id"]
+
+        self._validate_host(created_host, host_data, expected_id=original_id)
+
+        # Change the canonical facts except for the insights_id
+        host_data.rhel_machine_id = str(uuid.uuid4())
+        host_data.ip_addresses = ["192.168.1.44", "10.0.0.2", ]
+        host_data.subscription_manager_id = "654321"
+        host_data.satellite_id = "654321"
+        host_data.bios_uuid = "654321"
+        host_data.fqdn = "expected_fqdn"
+        host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
+        host_data.facts = [{"namespace": "ns1",
+                            "facts": {"newkey": "newvalue"}}]
+
+        # Update the host
+        updated_host = self.post(HOST_URL, host_data.data(), 200)
+
+        # Verify that the id did not change on the update
+        self.assertEqual(updated_host["id"], original_id)
+
+        # Retrieve the host using the id that we first received
+        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        self._validate_host(data["results"][0],
+                            host_data,
+                            expected_id=original_id)
 
     def test_create_host_with_empty_tags_facts_display_name_then_update(self):
         # Create a host with empty tags, facts, and display_name
@@ -217,29 +248,34 @@ class CreateHostsTestCase(DBAPITestCase):
         del host_data.display_name
         del host_data.facts
 
+        # Tags are currently ignored on create and update
         expected_tags = []
 
-        # initial create
+        # Create the host
         results = self.post(HOST_URL, host_data.data(), 201)
 
         self.assertIsNotNone(results["id"])
 
         original_id = results["id"]
 
+        # Update the tags, facts and display name
         host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
-        host_data.facts = FACTS
+        host_data.facts = copy.deepcopy(FACTS)
         host_data.display_name = "expected_display_name"
 
+        # Update the hosts
         self.post(HOST_URL, host_data.data(), 200)
 
-        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
-        results = HostWrapper(data["results"][0])
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
 
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id,
+                            verify_tags=False)
+
+        # Tagging is not supported at the moment.  Verity the tag was ignored
+        results = HostWrapper(host_lookup_results["results"][0])
         self.assertListEqual(results.tags, expected_tags)
-
-        self.assertListEqual(results.facts, host_data.facts)
-
-        self.assertEqual(results.display_name, host_data.display_name)
 
     def test_create_host_with_display_name_as_None(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -247,12 +283,15 @@ class CreateHostsTestCase(DBAPITestCase):
         # Explicitly set the display name to None
         host_data.display_name = None
 
-        # initial create
-        results = self.post(HOST_URL, host_data.data(), 201)
+        # Create the host
+        created_host = self.post(HOST_URL, host_data.data(), 201)
 
-        self.assertIsNotNone(results["id"])
+        self.assertIsNotNone(created_host["id"])
 
-        self.assertIsNone(results["display_name"])
+        self._validate_host(created_host,
+                            host_data,
+                            expected_id=created_host["id"],
+                            verify_tags=False)
 
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -265,22 +304,34 @@ class CreateHostsTestCase(DBAPITestCase):
         del host_data.fqdn
         del host_data.mac_addresses
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Invalid request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Bad Request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_with_mismatched_account_numbers(self):
         host_data = HostWrapper(test_data(facts=None))
         host_data.account = ACCOUNT[::-1]
 
-        # FIXME: Verify response?
         response_data = self.post(HOST_URL, host_data.data(), 400)
+
+        assert "Invalid request" in response_data["title"]
+        assert "status" in response_data
+        assert "detail" in response_data
+        assert "type" in response_data
 
     def test_create_host_with_invalid_facts_no_namespace(self):
         facts = copy.deepcopy(FACTS)
@@ -306,6 +357,37 @@ class CreateHostsTestCase(DBAPITestCase):
         assert "detail" in response_data
         assert "type" in response_data
 
+    def _validate_host(self, received_host, expected_host,
+                       expected_id=id, verify_tags=True):
+        self.assertIsNotNone(received_host["id"])
+        self.assertEqual(received_host["id"], expected_id)
+        self.assertEqual(received_host["account"], expected_host.account)
+        self.assertEqual(received_host["insights_id"],
+                         expected_host.insights_id)
+        self.assertEqual(received_host["rhel_machine_id"],
+                         expected_host.rhel_machine_id)
+        self.assertEqual(received_host["subscription_manager_id"],
+                         expected_host.subscription_manager_id)
+        self.assertEqual(received_host["satellite_id"],
+                         expected_host.satellite_id)
+        self.assertEqual(received_host["bios_uuid"], expected_host.bios_uuid)
+        self.assertEqual(received_host["fqdn"], expected_host.fqdn)
+        self.assertEqual(received_host["mac_addresses"],
+                         expected_host.mac_addresses)
+        self.assertEqual(received_host["ip_addresses"],
+                         expected_host.ip_addresses)
+        self.assertEqual(received_host["display_name"],
+                         expected_host.display_name)
+        self.assertEqual(received_host["facts"], expected_host.facts)
+
+        if verify_tags:
+            self.assertEqual(received_host["tags"], expected_host.tags)
+        else:
+            self.assertIsNotNone(received_host["tags"])
+
+        self.assertIsNotNone(received_host["created"])
+        self.assertIsNotNone(received_host["updated"])
+
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
@@ -313,15 +395,20 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         self.added_hosts = self.create_hosts()
 
     def create_hosts(self):
-        hosts_to_create = [("host1", "12345"), ("host2", "54321")]
+        hosts_to_create = [
+            ("host1", "12345", "host1.domain.test"),
+            ("host2", "54321", "host1.domain.test"),  # the same fqdn is intentional
+            ("host3", "56789", "host2.domain.test"),
+        ]
         host_list = []
 
         for host in hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
-            host_wrapper.tags = TAGS
+            host_wrapper.tags = copy.deepcopy(TAGS)
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
+            host_wrapper.fqdn = host[2]
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, host_wrapper.data(), 201)
@@ -330,21 +417,18 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         return host_list
 
     def _base_paging_test(self, url):
-        test_url = inject_qs(url, page="1", per_page="1")
-        response = self.get(test_url, 200)
+        def _test_get_page(page):
+            test_url = inject_qs(url, page=page, per_page="1")
+            response = self.get(test_url, 200)
 
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
+            self.assertEqual(len(response["results"]), 1)
+            self.assertEqual(response["count"], 1)
+            self.assertEqual(response["total"], len(self.added_hosts))
 
-        test_url = inject_qs(url, page="2", per_page="1")
-        response = self.get(test_url, 200)
-
-        self.assertEqual(len(response["results"]), 1)
-        self.assertEqual(response["count"], 1)
-        self.assertEqual(response["total"], 2)
-
-        test_url = inject_qs(url, page="3", per_page="1")
+        _test_get_page("1")
+        _test_get_page("2")
+        _test_get_page("3")
+        test_url = inject_qs(url, page="4", per_page="1")
         response = self.get(test_url, 404)
 
 
@@ -374,7 +458,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url, 200)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
         self._base_paging_test(test_url)
 
@@ -403,15 +487,46 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
 
         response = self.get(HOST_URL + "?display_name=" + host_list[0].display_name)
 
-        # FIXME: check the results
         self.assertEqual(len(response["results"]), 1)
+        self.assertEqual(response["results"][0]["fqdn"], host_list[0].fqdn)
+        self.assertEqual(response["results"][0]["insights_id"], host_list[0].insights_id)
+        self.assertEqual(response["results"][0]["display_name"], host_list[0].display_name)
+
+    def test_query_using_fqdn_two_results(self):
+        expected_host_list = [self.added_hosts[0], self.added_hosts[1]]
+
+        response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
+
+        self.assertEqual(len(response["results"]), 2)
+        for result in response["results"]:
+            self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
+            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] == host.display_name for host in expected_host_list)
+
+    def test_query_using_fqdn_one_result(self):
+        expected_host_list = [self.added_hosts[2]]
+
+        response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
+
+        self.assertEqual(len(response["results"]), 1)
+        for result in response["results"]:
+            self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
+            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] == host.display_name for host in expected_host_list)
+
+    def test_query_using_non_existant_fqdn(self):
+        host_list = self.added_hosts
+
+        response = self.get(HOST_URL + "?fqdn=ROFLSAUCE.com")
+
+        self.assertEqual(len(response["results"]), 0)
 
     def test_query_using_display_name_substring(self):
         host_list = self.added_hosts
@@ -423,7 +538,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url)
 
         # FIXME: check the results
-        self.assertEqual(len(response["results"]), 2)
+        self.assertEqual(len(response["results"]), len(host_list))
 
         self._base_paging_test(test_url)
 
@@ -622,7 +737,7 @@ class HealthTestCase(BaseAPITestCase):
     Tests the health check endpoint.
     """
 
-    def test_heath(self):
+    def test_health(self):
         """
         The health check simply returns 200 to any GET request. The response body is
         irrelevant.
