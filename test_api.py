@@ -6,7 +6,6 @@ import dateutil.parser
 import uuid
 import copy
 from app import create_app, db
-from app.auth import current_identity
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
