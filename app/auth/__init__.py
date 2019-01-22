@@ -1,7 +1,7 @@
 import os
 from functools import wraps
 from app.auth.identity import from_encoded, validate, Identity
-from flask import abort, request, _request_ctx_stack
+from flask import abort, current_app, request, _request_ctx_stack
 from werkzeug.local import LocalProxy
 from werkzeug.exceptions import Forbidden
 
@@ -30,20 +30,23 @@ def _pick_identity():
     else:
         try:
             payload = request.headers[_IDENTITY_HEADER]
-        except KeyError:
-            raise InvalidIdentityError("The identity header is missing.")
+        except KeyError as error:
+            raise InvalidIdentityError(f"Identity header missing: KeyError {error}")
 
         try:
             return from_encoded(payload)
-        except (KeyError, TypeError, ValueError):
-            raise InvalidIdentityError("The identity header cannot be decoded.")
+        except (KeyError, TypeError, ValueError) as error:
+            error_type = type(error).__name__
+            message = f"Identity header undecodable: {error_type} {error}"
+            raise InvalidIdentityError(message)
+
 
 
 def _validate(identity):
     try:
         validate(identity)
-    except Exception:
-        raise InvalidIdentityError("The identity header is invalid.")
+    except Exception as error:
+        raise InvalidIdentityError(f"Identity header invalid: {error}")
 
 
 def requires_identity(view_func):
@@ -52,7 +55,8 @@ def requires_identity(view_func):
         try:
             identity = _pick_identity()
             _validate(identity)
-        except InvalidIdentityError:
+        except InvalidIdentityError as exc:
+            current_app.logger.warn(exc)
             abort(Forbidden.code)
 
         ctx = _request_ctx_stack.top

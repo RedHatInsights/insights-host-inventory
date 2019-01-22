@@ -17,7 +17,7 @@ def from_dict(dict_):
         # This doesn't feel like the correct thing to do here
         # but I think it matches the way it was expected to work
         # previously
-        raise TypeError
+        raise TypeError("'account_number'")
     return Identity(account_number=dict_["account_number"])
 
 
