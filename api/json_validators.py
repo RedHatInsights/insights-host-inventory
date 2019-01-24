@@ -12,29 +12,23 @@ def verify_uuid_format(uuid_str):
         return True
 
     try:
-        uuid.UUID(uuid_str, version=4)
-        return True
-    except:
+        return uuid.UUID(uuid_str) is not None
+    except Exception:
         pass
     return False
 
 
 @draft4_format_checker.checks('ip_address')
 def verify_ip_address_format(ip_address):
-    try:
-        if(validators.ip_address.ipv4(ip_address) or
-                validators.ip_address.ipv6(ip_address)):
-            return True
-    except:
-        pass
-    return False
+    if ip_address is None:
+        return True
+
+    return validators.ipv4(ip_address) or validators.ipv6(ip_address)
 
 
 @draft4_format_checker.checks('mac_address')
 def verify_mac_address_format(mac_address):
-    try:
-        if validators.mac_address(mac_address):
-            return True
-    except:
-        pass
-    return False
+    if mac_address is None:
+        return True
+
+    return validators.mac_address(mac_address)

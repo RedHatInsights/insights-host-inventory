@@ -371,14 +371,15 @@ class CreateHostsTestCase(DBAPITestCase):
                 )
 
         for field_name in uuid_field_names:
-            host_data = copy.deepcopy(test_data(facts=None))
+            with self.subTest(uuid_field=field_name):
+                host_data = copy.deepcopy(test_data(facts=None))
 
-            host_data[field_name] = "notauuid"
+                host_data[field_name] = "notauuid"
 
-            response_data = self.post(HOST_URL, host_data, 400)
+                response_data = self.post(HOST_URL, host_data, 400)
 
-            self.verify_error_response(response_data,
-                                       expected_title="Bad Request")
+                self.verify_error_response(response_data,
+                                           expected_title="Bad Request")
 
     def test_create_host_with_invalid_ip_address(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -504,28 +505,21 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url)
 
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
-        expected_host_list = self.added_hosts
+        added_host_list = copy.deepcopy(self.added_hosts)
+        expected_host_list = [h.data() for h in self.added_hosts]
 
-        original_id = expected_host_list[0].id
+        original_id = added_host_list[0].id
 
         # Remove the hyphens from one of the valid hosts
-        expected_host_list[0].id = uuid.UUID(original_id, version=4).hex
+        added_host_list[0].id = uuid.UUID(original_id, version=4).hex
 
-        url_host_id_list = self._build_host_id_list_for_url(expected_host_list)
+        url_host_id_list = self._build_host_id_list_for_url(added_host_list)
 
         test_url = HOST_URL + "/" + url_host_id_list
 
         response = self.get(test_url, 200)
 
-        expected_host_list[0].id = original_id
-
-        self.assertEqual(len(response["results"]), len(expected_host_list))
-
-        for result in response["results"]:
-            # Verify that the expected ids are returned
-            assert any(result["id"] == host.id for host in expected_host_list)
-
-        self._base_paging_test(test_url)
+        self.assertEqual(response["results"], expected_host_list)
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
