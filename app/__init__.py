@@ -1,5 +1,7 @@
 import os
 import connexion
+import logging
+import logging.config
 import yaml
 
 from connexion.resolver import RestyResolver
@@ -19,6 +21,8 @@ def render_exception(exception):
 
 def create_app(config_name):
     connexion_options = {"swagger_ui": True}
+
+    configure_logging()
 
     app_config = Config(config_name)
 
@@ -61,3 +65,14 @@ def create_app(config_name):
                                  url_prefix=app_config.mgmt_url_path_prefix)
 
     return flask_app
+
+
+def configure_logging():
+    """
+    This feels like a hack but it is needed.  The logging configuration
+    needs to be setup as soon as possible during the startup process.
+    This method needs to be called before the flask app is initialized.
+    """
+    log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE")
+    if log_config_file is not None:
+        logging.config.fileConfig(fname=log_config_file)

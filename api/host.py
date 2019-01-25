@@ -1,5 +1,6 @@
+import logging
+
 from enum import Enum
-from flask import current_app
 
 from app import db
 from app.models import Host
@@ -10,6 +11,8 @@ from api import api_operation, metrics
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
+
+logger = logging.getLogger(__name__)
 
 
 @api_operation
@@ -23,7 +26,7 @@ def add_host(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    current_app.logger.debug("add_host(%s)" % host)
+    logger.debug("add_host(%s)" % host)
 
     account_number = host.get("account", None)
 
@@ -86,27 +89,27 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     Returns first match for a host containing given canonical facts
     """
-    current_app.logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
+    logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
     host = _canonical_facts_host_query(account_number, canonical_facts).first()
-    current_app.logger.debug("found_host:%s", host)
+    logger.debug("found_host:%s", host)
     return host
 
 
 def create_new_host(input_host):
-    current_app.logger.debug("Creating a new host")
+    logger.debug("Creating a new host")
     db.session.add(input_host)
     db.session.commit()
     metrics.create_host_count.inc()
-    current_app.logger.debug("Created host:%s" % input_host)
+    logger.debug("Created host:%s" % input_host)
     return input_host.to_json(), 201
 
 
 def update_existing_host(existing_host, input_host):
-    current_app.logger.debug("Updating an existing host")
+    logger.debug("Updating an existing host")
     existing_host.update(input_host)
     db.session.commit()
     metrics.update_host_count.inc()
-    current_app.logger.debug("Updated host:%s" % existing_host)
+    logger.debug("Updated host:%s" % existing_host)
     return existing_host.to_json(), 200
 
 
@@ -121,9 +124,7 @@ def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     the filtering.
 
     """
-    current_app.logger.debug(
-        "get_host_list(tag=%s, display_name=%s)" % (tag, display_name)
-    )
+    logger.debug("get_host_list(tag=%s, display_name=%s)" % (tag, display_name))
 
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
@@ -162,25 +163,25 @@ def _build_paginated_host_list_response(total, page, per_page, host_list):
 
 
 def find_hosts_by_tag(account, tag, page, per_page):
-    current_app.logger.debug("find_hosts_by_tag(%s)" % tag)
+    logger.debug("find_hosts_by_tag(%s)" % tag)
     query_results = Host.query.filter(
         (Host.account == account) & Host.tags.comparator.contains(tag)
     ).paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
-    current_app.logger.debug("found_host_list:%s" % found_host_list)
+    logger.debug("found_host_list:%s" % found_host_list)
     return (total, found_host_list)
 
 
 def find_hosts_by_display_name(account, display_name, page, per_page):
-    current_app.logger.debug("find_hosts_by_display_name(%s)" % display_name)
+    logger.debug("find_hosts_by_display_name(%s)" % display_name)
     query_results = Host.query.filter(
         (Host.account == account)
         & Host.display_name.comparator.contains(display_name)
     ).paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
-    current_app.logger.debug("found_host_list:%s" % found_host_list)
+    logger.debug("found_host_list:%s" % found_host_list)
     return (total, found_host_list)
 
 
@@ -188,11 +189,11 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
     """
     Returns paginated results for all hosts containing given canonical facts
     """
-    current_app.logger.debug("find_hosts_by_canonical_facts(%s)", canonical_facts)
+    logger.debug("find_hosts_by_canonical_facts(%s)", canonical_facts)
     query_results = _canonical_facts_host_query(account_number, canonical_facts).paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
-    current_app.logger.debug("found_host_list:%s", found_host_list)
+    logger.debug("found_host_list:%s", found_host_list)
     return (total, found_host_list)
 
 
@@ -200,7 +201,7 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
 @metrics.api_request_time.time()
 @requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    current_app.logger.debug(
+    logger.debug(
             "get_host_by_id(%s, %d, %d)" % (host_id_list, page, per_page)
     )
     query_results = Host.query.filter(
@@ -218,7 +219,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 @metrics.api_request_time.time()
 @requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
-    current_app.logger.debug(
+    logger.debug(
         "replace_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
     )
 
@@ -230,13 +231,13 @@ def replace_facts(host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 @requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
-    current_app.logger.debug(
+    logger.debug(
             "merge_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
     )
 
     if not fact_dict:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
-        current_app.logger.debug(error_msg)
+        logger.debug(error_msg)
         return error_msg, 400
 
     return update_facts_by_namespace(FactOperations.merge, host_id_list,
@@ -250,11 +251,11 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         & Host.facts.has_key(namespace)
     ).all()
 
-    current_app.logger.debug("hosts_to_update:%s" % hosts_to_update)
+    logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = "ERROR: The number of hosts requested does not match the " "number of hosts found in the host database.  This could " " happen if the namespace " "does not exist or the account number associated with the " "call does not match the account number associated with " "one or more the hosts.  Rejecting the fact change request."
-        current_app.logger.debug(error_msg)
+        logger.debug(error_msg)
         return error_msg, 400
 
     for host in hosts_to_update:
@@ -265,6 +266,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     db.session.commit()
 
-    current_app.logger.debug("hosts_to_update:%s" % hosts_to_update)
+    logger.debug("hosts_to_update:%s" % hosts_to_update)
 
     return 200
