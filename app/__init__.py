@@ -2,6 +2,7 @@ import os
 import connexion
 import logging
 import logging.config
+import pathlib
 import yaml
 
 from connexion.resolver import RestyResolver
@@ -22,6 +23,8 @@ def render_exception(exception):
 def create_app(config_name):
     connexion_options = {"swagger_ui": True}
 
+    # This feels like a hack but it is needed.  The logging configuration
+    # needs to be setup before the flask app is initialized.
     configure_logging()
 
     app_config = Config(config_name)
@@ -68,17 +71,14 @@ def create_app(config_name):
 
 
 def configure_logging():
-    """
-    This feels like a hack but it is needed.  The logging configuration
-    needs to be setup as soon as possible during the startup process.
-    This method needs to be called before the flask app is initialized.
-    """
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
     log_config_file = os.getenv(env_var_name)
     if log_config_file is not None:
+        # The logging module throws an odd error (KeyError) if the
+        # config file is not found.  Hopefully, this makes it more clear.
         try:
-            with open(log_config_file):
-                pass
+            fh = open(log_config_file)
+            fh.close()
         except FileNotFoundError:
             print("Error reading the logging configuration file.  "
                   "Verify the %s environment variable is set "
