@@ -73,6 +73,16 @@ def configure_logging():
     needs to be setup as soon as possible during the startup process.
     This method needs to be called before the flask app is initialized.
     """
-    log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE")
+    env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
+    log_config_file = os.getenv(env_var_name)
     if log_config_file is not None:
+        try:
+            with open(log_config_file):
+                pass
+        except FileNotFoundError:
+            print("Error reading the logging configuration file.  "
+                  "Verify the %s environment variable is set "
+                  "correctly. Aborting..." % env_var_name)
+            raise
+
         logging.config.fileConfig(fname=log_config_file)
