@@ -2,7 +2,6 @@ import os
 import connexion
 import logging
 import logging.config
-import pathlib
 import yaml
 
 from connexion.resolver import RestyResolver
