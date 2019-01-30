@@ -26,8 +26,6 @@ def add_host(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    logger.debug("add_host(%s)" % host)
-
     account_number = host.get("account", None)
 
     if current_identity.account_number != account_number:
@@ -124,8 +122,6 @@ def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
     the filtering.
 
     """
-    logger.debug("get_host_list(tag=%s, display_name=%s)" % (tag, display_name))
-
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
@@ -201,9 +197,6 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
 @metrics.api_request_time.time()
 @requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    logger.debug(
-            "get_host_by_id(%s, %d, %d)" % (host_id_list, page, per_page)
-    )
     query_results = Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
@@ -219,10 +212,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 @metrics.api_request_time.time()
 @requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
-    logger.debug(
-        "replace_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
-    )
-
     return update_facts_by_namespace(FactOperations.replace, host_id_list,
                                      namespace, fact_dict)
 
@@ -231,10 +220,6 @@ def replace_facts(host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 @requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
-    logger.debug(
-            "merge_facts(%s, %s, %s)" % (host_id_list, namespace, fact_dict)
-    )
-
     if not fact_dict:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         logger.debug(error_msg)
