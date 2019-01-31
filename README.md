@@ -24,6 +24,19 @@ useful for development.
 docker-compose -f dev.yml up
 ```
 
+#### Initialize/update the database tables
+
+Run the following commands to run the db migration scripts which will
+maintain the db tables.
+
+The database migration scripts determine the DB location, username,
+password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
+INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
+```
+python manage.py db migrate
+python manage.py db upgrade
+```
+
 By default the database container will use a bit of local storage so that data
 you enter will be persisted across multiple starts of the container.  If you
 want to destroy that data do the following:
@@ -58,7 +71,7 @@ runs.
 A command to run the server in a cluster.
 
 ```
-gunicorn -c gunicorn.conf.py run
+gunicorn -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run
 ```
 
 Running the server locally for development. In this case it’s not necessary to
@@ -69,7 +82,23 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py 
 ```
 
-Configuration system properties:
+#### Disable authentication checks
+
+It is also possible to disable authentication (mainly useful for developement).
+This is accomplished by setting the FLASK_DEBUG=1 and NOAUTH=1 environment 
+variables.
+
+```
+FLASK_DEBUG=1 NOAUTH=1 gunicorn -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run
+```
+
+By default, the the auth header usually contains the account number.
+When adding/updating a host, the account
+number from the auth header is checked against what is provided along with the host.
+When running in disabled authentication mode, the account number passed along with
+the hosts should be "0000001".
+
+## Configuration environment variables
 
 ```
  prometheus_multiproc_dir=/path/to/prometheus_dir
@@ -122,21 +151,19 @@ Hosts are added and updated by sending a POST to the /hosts endpoint.
 This method returns an *id* which should be used to reference the host
 by other services in the Insights platform.
 
-Overview of the deduplication process:
+#### Overview of the deduplication process
 
-```
-  If the update request includes an insights_id, then the inventory service
-  will lookup the host using the insights_id.  If the inventory service
-  finds a host with a matching insights_id, then the host will be updated
-  and the canonical facts from the update request will replace the existing
-  canonical facts.
+If the update request includes an insights_id, then the inventory service
+will lookup the host using the insights_id.  If the inventory service
+finds a host with a matching insights_id, then the host will be updated
+and the canonical facts from the update request will replace the existing
+canonical facts.
 
-  If the update request does not include an insights_id, then the canonical facts
-  will be used to lookup the host.  If the canonical facts from the update
-  request are a subset or a superset of the previously stored canonical facts,
-  then the host will be updated and any new canonical facts from the request
-  will be added to the existing host entry.
+If the update request does not include an insights_id, then the canonical facts
+will be used to lookup the host.  If the canonical facts from the update
+request are a subset or a superset of the previously stored canonical facts,
+then the host will be updated and any new canonical facts from the request
+will be added to the existing host entry.
 
-  If the canonical facts based lookup does not locate an existing host, then
-  a new host entry is created.
-```
+If the canonical facts based lookup does not locate an existing host, then
+a new host entry is created.
