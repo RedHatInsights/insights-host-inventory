@@ -1,5 +1,10 @@
-from flask import Blueprint
-from prometheus_client import CollectorRegistry, multiprocess, generate_latest, CONTENT_TYPE_LATEST
+from flask import Blueprint, current_app, jsonify
+from prometheus_client import (CollectorRegistry,
+                               multiprocess,
+                               generate_latest,
+                               CONTENT_TYPE_LATEST,)
+
+from app.common import get_build_version
 
 monitoring_blueprint = Blueprint("monitoring", __name__)
 
@@ -16,3 +21,8 @@ def metrics():
     multiprocess.MultiProcessCollector(registry)
     prometheus_data = generate_latest(registry)
     return prometheus_data, 200, headers
+
+
+@monitoring_blueprint.route("/version", methods=['GET'])
+def version():
+    return jsonify({'version': get_build_version()})
