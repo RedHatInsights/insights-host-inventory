@@ -123,6 +123,8 @@ from inside of the deployment cluster.
   or readiness probe here.
 * _/metrics_ offers metrics and monitoring intended to be pulled by
   [Prometheus](https://prometheus.io). 
+* _/version_ responds with a json doc that contains the build version info
+  (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
 ## API Documentation
 
