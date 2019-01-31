@@ -1,6 +1,8 @@
 import logging
 import os
 
+from app.common import get_build_version
+
 
 class Config:
     def __init__(self, config_name):
@@ -37,6 +39,7 @@ class Config:
     def _log_configuration(self):
         if self._config_name != "testing":
             self.logger.info("Insights Host Inventory Configuration:")
+            self.logger.info("Build Version: %s" % get_build_version())
             self.logger.info("API URL Path: %s" % self.api_url_path_prefix)
             self.logger.info("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
             self.logger.info("DB Host: %s" % self._db_host)
