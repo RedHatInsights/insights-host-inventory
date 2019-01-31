@@ -39,7 +39,7 @@ with application.app_context():
         print("looking up host using display_name, fqdn")
         query_results = Host.query.filter(
                 Host.display_name.comparator.contains(args.hostname)
-                | Host.canonical_facts.comparator.contains({'fqdn':args.hostname})
+                | Host.canonical_facts['fqdn'].astext.contains(args.hostname)
                     ).all()
     elif args.insights_id:
         print("looking up host using insights_id")
