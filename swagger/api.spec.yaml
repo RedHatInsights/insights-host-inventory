@@ -69,6 +69,22 @@ paths:
           type: string
           description: Filter by a host's FQDN
           required: false
+        - name: hostname_or_id
+          in: query
+          type: string
+          description: Search for a host by display_name, fqdn, id
+          required: false
+        - name: insights_id
+          in: query
+          type: string
+          format: uuid
+          description: Search for a host by insights_id
+          required: false
+        - name: sort_by
+          in: query
+          type: string
+          description: Data to sort by
+          required: false
         - $ref: '#/parameters/perPageParam'
         - $ref: '#/parameters/pageParam'
       responses:
