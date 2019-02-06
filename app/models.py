@@ -127,7 +127,6 @@ class Host(db.Model):
             self.display_name = display_name
 
     def update_canonical_facts(self, canonical_facts):
-        # FIXME: make sure new canonical facts are added
         self.canonical_facts.update(canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
