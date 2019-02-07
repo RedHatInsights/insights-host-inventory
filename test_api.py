@@ -16,6 +16,7 @@ from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
+VERSION_URL = "/version"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -827,6 +828,9 @@ class HealthTestCase(BaseAPITestCase):
         response = self.client().get(METRICS_URL)  # No identity header.
         self.assertEqual(200, response.status_code)
 
+    def test_version(self):
+        response = self.get(VERSION_URL, 200)
+        assert response['version'] is not None
 
 if __name__ == "__main__":
     unittest.main()

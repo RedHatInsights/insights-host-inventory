@@ -1,4 +1,6 @@
+import logging
 import os
+
 from functools import wraps
 from app.auth.identity import from_encoded, validate, Identity
 from flask import abort, request, _request_ctx_stack
@@ -8,6 +10,8 @@ from werkzeug.exceptions import Forbidden
 __all__ = ["init_app", "current_identity", "NoIdentityError", "requires_identity"]
 
 _IDENTITY_HEADER = "x-rh-identity"
+
+logger = logging.getLogger(__name__)
 
 
 class NoIdentityError(RuntimeError):
@@ -21,11 +25,13 @@ def _pick_identity():
         try:
             payload = request.headers[_IDENTITY_HEADER]
         except KeyError:
+            logger.debug("Unable to retrieve identity header from request")
             abort(Forbidden.code)
 
         try:
             return from_encoded(payload)
         except (KeyError, TypeError, ValueError):
+            logger.debug("Unable to decode identity header")
             abort(Forbidden.code)
 
 
@@ -33,6 +39,7 @@ def _validate(identity):
     try:
         validate(identity)
     except Exception:
+        logger.debug("Failed to validate identity header value")
         abort(Forbidden.code)
 
 
