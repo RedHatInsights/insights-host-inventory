@@ -20,7 +20,6 @@ gunicorn = "*"
 connexion = {extras = ["swagger-ui"]}
 pyyaml = ">=3.13"
 prometheus-client = "*"
-validators = "*"
 logstash-formatter = "*"
 
 [dev-packages]
