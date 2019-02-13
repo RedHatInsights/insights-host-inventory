@@ -38,7 +38,7 @@ def create_app(config_name):
 
     # If we want to disable auth we first make the header not required
     if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):
-        spec["parameters"]["rhIdentityHeader"]["required"] = False
+        spec["components"]["parameters"]["rhIdentityHeader"]["required"] = False
 
     connexion_app.add_api(
         spec,
