@@ -258,16 +258,18 @@ components:
     ErrorResponse:
       type: object
       properties:
-        status_code:
+        status:
           type: integer
-        message:
+        title:
+          type: string
+        detail:
           type: string
     BulkHostOut:
       type: object
       properties:
-        status_code:
+        status:
           type: integer
-        body:
+        host:
           $ref: '#/components/schemas/HostOut'
     Facts:
       title: Host facts
