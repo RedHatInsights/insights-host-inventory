@@ -80,11 +80,6 @@ paths:
           format: uuid
           description: Search for a host by insights_id
           required: false
-        - name: sort_by
-          in: query
-          type: string
-          description: Data to sort by
-          required: false
         - $ref: '#/parameters/perPageParam'
         - $ref: '#/parameters/pageParam'
       responses:

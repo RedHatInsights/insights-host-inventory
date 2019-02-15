@@ -117,7 +117,7 @@ def update_existing_host(existing_host, input_host):
 @metrics.api_request_time.time()
 @requires_identity
 def get_host_list(tag=None, display_name=None, fqdn=None,
-        hostname_or_id=None, insights_id=None, sort_by=None,
+        hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
 
     """
@@ -141,7 +141,7 @@ def get_host_list(tag=None, display_name=None, fqdn=None,
         )
     elif hostname_or_id:
         (total, host_list) = find_hosts_by_hostname_or_id(
-            current_identity.account_number, hostname_or_id, sort_by, page, per_page)
+            current_identity.account_number, hostname_or_id, page, per_page)
     elif insights_id:
         (total, host_list) = find_hosts_by_insights_id(
             current_identity.account_number, insights, page, per_page)
@@ -204,7 +204,7 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
     return (total, found_host_list)
 
 
-def find_hosts_by_hostname_or_id(account_number, hostname, sort_by, page, per_page):
+def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
     filter_list = [Host.display_name.comparator.contains(hostname),
              Host.canonical_facts['fqdn'].astext.contains(hostname), ]
 
@@ -219,16 +219,10 @@ def find_hosts_by_hostname_or_id(account_number, hostname, sort_by, page, per_pa
     print(filter_list)
     query = Host.query.filter(sqlalchemy.or_(*filter_list))
 
-    if sort_by == "asc(hostname)":
-        print("sort_by:", sort_by)
-        query = query.order_by(Host.display_name, Host.canonical_facts['fqdn'])
-    if sort_by == "desc(updated)":
-        print("sort_by:", sort_by)
-        query = query.order_by(Host.modified_on.desc())
-
     query_results = query.paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
+    print("found_host_list:",found_host_list)
 
     return (total, found_host_list)
 
