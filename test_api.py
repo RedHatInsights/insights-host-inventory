@@ -390,6 +390,54 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertIsNotNone(received_host["updated"])
 
 
+class BulkCreateHostsTestCase(DBAPITestCase):
+
+    def _get_valid_auth_header(self):
+        auth_header = {"Authorization": "Bearer SuperSecretStuff"}
+        return auth_header
+
+    def test_create_and_update_multiple_hosts_with_different_accounts(self):
+        facts = None
+        tags = []
+
+        host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+        host1.account = "111111"
+        host1.ip_addresses = ["10.0.0.1"]
+        host1.rhel_machine_id = str(uuid.uuid4())
+
+        host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+        host1.account = "222222"
+        host2.ip_addresses = ["10.0.0.2"]
+        host2.rhel_machine_id = str(uuid.uuid4())
+
+        host_list = [host1.data(), host2.data()]
+
+        # Create the host
+        created_host = self.post(HOST_URL+"bulk", host_list, 207)
+        print("created_host:", created_host)
+
+        self.assertEqual(len(host_list), len(created_host))
+
+        for host in created_host:
+            self.assertEqual(host["status"], 201)
+
+        host1_id = created_host[0]["host"]["id"]
+        host2_id = created_host[1]["host"]["id"]
+
+        host_list[0]["bios_uuid"] = str(uuid.uuid4())
+        host_list[0]["display_name"] = "fred"
+
+        host_list[1]["bios_uuid"] = str(uuid.uuid4())
+        host_list[1]["display_name"] = "barney"
+
+        # Update the host
+        updated_host = self.post(HOST_URL+"bulk", host_list, 207)
+        print("updated_host:", updated_host)
+
+        self.assertEqual(host1_id, updated_host[0]["host"]["id"])
+        self.assertEqual(host2_id, updated_host[1]["host"]["id"])
+
+
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()

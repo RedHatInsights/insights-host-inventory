@@ -18,7 +18,39 @@ logger = logging.getLogger(__name__)
 @api_operation
 @metrics.api_request_time.time()
 @requires_identity
+def add_host_list(host_list):
+    print("host_list:", host_list)
+    print("type(host_list):", type(host_list))
+
+    if type(host_list) is dict:
+        return _add_host(host_list)
+
+    response = []
+    for host in host_list:
+        try:
+            (host, status_code) = _add_host(host)
+            response.append({'status': status_code, 'host': host})
+        except InventoryException as e:
+            logger.warning(e)
+            response.append(e.to_json())
+        except Exception as e:
+            logger.warning(e)
+            response.append({'status': 500, 'detail': "Could not complete operation"})
+
+    print("response:", response)
+
+    return response, 207
+
+
+
+@api_operation
+@metrics.api_request_time.time()
+@requires_identity
 def add_host(host):
+    return _add_host(host)
+
+
+def _add_host(host):
     """
     Add or update a host
 

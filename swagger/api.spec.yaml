@@ -5,8 +5,8 @@ info:
   title: Insights Host Inventory REST Interface
 paths:
   /hostsbulk:
-    parameters:
-      - $ref: '#/components/parameters/rhIdentityHeader'
+    #parameters:
+    #  - $ref: '#/components/parameters/rhIdentityHeader'
     post:
       operationId: api.host.add_host_list
       tags:

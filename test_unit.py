@@ -8,7 +8,7 @@ from app.auth import (
     _pick_identity,
 )
 from app.config import Config
-from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
+from app.auth.identity import IdentityBuilder, Identity, validate
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
@@ -85,7 +85,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
             "internal": {"org_id": "some org id", "extra_field": "extra value"},
         }
 
-        self.assertEqual(identity, from_dict(dict_))
+        self.assertEqual(identity, IdentityBuilder.from_dict(dict_))
 
     def test_invalid(self):
         """
@@ -95,7 +95,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
         dicts = [{}, {"org_id": "some org id"}, "some string", ["some", "list"]]
         for dict_ in dicts:
             with self.assertRaises(TypeError):
-                from_dict(dict_)
+                IdentityBuilder.from_dict(dict_)
 
 
 class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
@@ -113,7 +113,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         json = dumps(dict_)
 
         try:
-            self.assertEqual(identity, from_json(json))
+            self.assertEqual(identity, IdentityBuilder.from_json(json))
         except (TypeError, ValueError):
             self.fail()
 
@@ -123,7 +123,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         raise a TypeError.
         """
         with self.assertRaises(TypeError):
-            from_json(["not", "a", "string"])
+            IdentityBuilder.from_json(["not", "a", "string"])
 
     def test_invalid_value(self):
         """
@@ -131,7 +131,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         ValueError.
         """
         with self.assertRaises(ValueError):
-            from_json("invalid JSON")
+            IdentityBuilder.from_json("invalid JSON")
 
     def test_invalid_format(self):
         """
@@ -144,7 +144,7 @@ class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
         json = dumps(dict_)
 
         with self.assertRaises(KeyError):
-            from_json(json)
+            IdentityBuilder.from_json(json)
 
 
 class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
@@ -165,7 +165,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         base64 = b64encode(json.encode())
 
         try:
-            self.assertEqual(identity, from_encoded(base64))
+            self.assertEqual(identity, IdentityBuilder.from_encoded_json(base64))
         except (TypeError, ValueError):
             self.fail()
 
@@ -175,7 +175,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         encoded payload should raise a TypeError.
         """
         with self.assertRaises(TypeError):
-            from_encoded(["not", "a", "string"])
+            IdentityBuilder.from_encoded_json(["not", "a", "string"])
 
     def test_invalid_value(self):
         """
@@ -183,7 +183,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         raise a ValueError.
         """
         with self.assertRaises(ValueError):
-            from_encoded("invalid Base64")
+            IdentityBuilder.from_encoded_json("invalid Base64")
 
     def test_invalid_format(self):
         """
@@ -197,7 +197,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         base64 = b64encode(json.encode())
 
         with self.assertRaises(KeyError):
-            from_encoded(base64)
+            IdentityBuilder.from_encoded_json(base64)
 
 
 class AuthIdentityValidateTestCase(TestCase):
@@ -228,6 +228,34 @@ class AuthIdentityValidateTestCase(TestCase):
             _validate("")
         with self.assertRaises(Forbidden):
             _validate({})
+
+
+class TrustedIdentityTestCase(TestCase):
+    valid_account_numbers = ["123456", "654321", "1", "2",]
+
+    def _build_id(self):
+        identity = IdentityBuilder.from_bearer_token("ImaSecret")
+        return identity
+
+    def test_account_number_str(self):
+        trusted_id = self._build_id()
+        self.assertEqual(str(trusted_id.account_number), "*")
+
+    def test_account_number_repr(self):
+        trusted_id = self._build_id()
+        self.assertEqual(repr(trusted_id.account_number), "*")
+
+    def test_account_number_eq(self):
+        trusted_id = self._build_id()
+        for account_number in self.valid_account_numbers:
+            with self.subTest(account_number=account_number):
+                self.assertTrue(trusted_id.account_number == account_number)
+
+    def test_account_number_ne(self):
+        trusted_id = self._build_id()
+        for account_number in self.valid_account_numbers:
+            with self.subTest(account_number=account_number):
+                self.assertFalse(trusted_id.account_number != account_number)
 
 
 @pytest.mark.usefixtures("monkeypatch")
