@@ -588,6 +588,26 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
         self._base_query_test(str(uuid.uuid4()), 0)
 
 
+class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
+
+    def _base_query_test(self, query_value, expected_number_of_hosts):
+        test_url = HOST_URL + "?insights_id=" + query_value
+
+        response = self.get(test_url)
+
+        self.assertEqual(len(response["results"]), expected_number_of_hosts)
+
+        self._base_paging_test(test_url, expected_number_of_hosts)
+
+    def test_query_with_matching_insights_id(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].insights_id, 1)
+
+    def test_query_with_no_matching_insights_id(self):
+        self._base_query_test("NotGonnaFindThisInsightsId", 0)
+
+
 class FactsTestCase(PreCreatedHostsBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}

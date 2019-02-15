@@ -143,8 +143,8 @@ def get_host_list(tag=None, display_name=None, fqdn=None,
         (total, host_list) = find_hosts_by_hostname_or_id(
             current_identity.account_number, hostname_or_id, page, per_page)
     elif insights_id:
-        (total, host_list) = find_hosts_by_insights_id(
-            current_identity.account_number, insights, page, per_page)
+        (total, host_list) = find_hosts_by_canonical_facts(
+            current_identity.account_number, {"insights_id": insights_id}, page, per_page)
     else:
         query_results = Host.query.filter(
             Host.account == current_identity.account_number
