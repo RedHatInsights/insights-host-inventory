@@ -555,7 +555,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url, len(self.added_hosts))
 
 
-class HostnameOrIdQueryTestCase(PreCreatedHostsBaseTestCase):
+class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
     def _base_query_test(self, query_value, expected_number_of_hosts):
         test_url = HOST_URL + "?hostname_or_id=" + query_value
