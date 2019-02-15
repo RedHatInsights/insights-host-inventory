@@ -205,24 +205,25 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
 
 
 def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
+    logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
     filter_list = [Host.display_name.comparator.contains(hostname),
-             Host.canonical_facts['fqdn'].astext.contains(hostname), ]
+                   Host.canonical_facts['fqdn'].astext.contains(hostname), ]
 
     try:
         uuid.UUID(hostname)
         host_id = hostname
-        print("UUID filter")
         filter_list.append(Host.id == host_id)
+        logger.debug("Adding id (uuid) to the filter list")
     except Exception as e:
-        print("NOT A UUID")
+        # Ignore the exception...do not filter using the id
+        pass
 
-    print(filter_list)
     query = Host.query.filter(sqlalchemy.or_(*filter_list))
 
     query_results = query.paginate(page, per_page, True)
     total = query_results.total
     found_host_list = query_results.items
-    print("found_host_list:",found_host_list)
+    logger.debug("found_host_list:%s", found_host_list)
 
     return (total, found_host_list)
 
