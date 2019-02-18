@@ -50,8 +50,8 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(app):
     assert existing_host.display_name is None
 
     # Update the host
-    update_host = Host({}, display_name='')
-    existing_host.update(update_host)
+    input_host = Host({}, display_name='')
+    existing_host.update(input_host)
 
     assert existing_host.display_name == expected_fqdn
 
@@ -68,8 +68,8 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(app):
 
     # Update the host
     expected_fqdn = "different.domain1.com"
-    update_host = Host({"fqdn": expected_fqdn}, display_name='')
-    existing_host.update(update_host)
+    input_host = Host({"fqdn": expected_fqdn}, display_name='')
+    existing_host.update(input_host)
 
     assert existing_host.display_name == expected_fqdn
 
@@ -84,7 +84,7 @@ def test_update_existing_host_fix_display_name_using_id(app):
     assert existing_host.display_name is None
 
     # Update the host
-    update_host = Host({}, display_name='')
-    existing_host.update(update_host)
+    input_host = Host({}, display_name='')
+    existing_host.update(input_host)
 
     assert existing_host.display_name == existing_host.id
