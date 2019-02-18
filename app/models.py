@@ -62,12 +62,20 @@ def convert_dict_to_json_facts(fact_dict):
     return fact_list
 
 
+def _set_display_name_on_save(context):
+    if not context.get_current_parameters()['display_name']:
+        try:
+            return context.get_current_parameters()["canonical_facts"]["fqdn"]
+        except Exception as e:
+            return context.get_current_parameters()['id']
+
+
 class Host(db.Model):
     __tablename__ = "hosts"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    display_name = db.Column(db.String(200))
+    display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     modified_on = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -89,6 +97,7 @@ class Host(db.Model):
         self.account = account
         self.tags = tags
         self.facts = facts
+
 
     @classmethod
     def from_json(cls, d):
@@ -114,17 +123,28 @@ class Host(db.Model):
         json_dict["updated"] = self.modified_on
         return json_dict
 
-    def update(self, input_host):
+    def save(self):
+        db.session.add(self)
 
+    def update(self, input_host):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        self.update_display_name(input_host.display_name)
+        self.update_display_name(input_host)
 
         self.update_facts(input_host.facts)
 
-    def update_display_name(self, display_name):
-        if display_name:
-            self.display_name = display_name
+    def update_display_name(self, input_host):
+        if input_host.display_name:
+            self.display_name = input_host.display_name
+        elif not self.display_name:
+            # This is the case where the display_name is not set on the
+            # existing host record and the input host does not have it set
+            if "fqdn" in input_host.canonical_facts:
+                self.display_name = input_host.canonical_facts["fqdn"]
+            elif "fqdn" in self.canonical_facts:
+                self.display_name = self.canonical_facts["fqdn"]
+            else:
+                self.display_name = self.id
 
     def update_canonical_facts(self, canonical_facts):
         self.canonical_facts.update(canonical_facts)
