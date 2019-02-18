@@ -1,3 +1,5 @@
+import os
+
 from base64 import b64decode
 from json import loads
 
@@ -94,7 +96,7 @@ def validate(identity):
     Ensure the account number is present.
     """
     if isinstance(identity, TrustedIdentity):
-        if identity.token != "SuperSecretStuff":
+        if identity.token != os.getenv("INVENTORY_SHARED_SECRET"):
             raise ValueError("Invalid credentials")
     else:
         dict_ = identity._asdict()

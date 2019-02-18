@@ -20,10 +20,25 @@ class NoIdentityError(RuntimeError):
     pass
 
 
+def requires_identity(view_func):
+    """
+    Decorator that enforces authentication checks
+    """
+    @wraps(view_func)
+    def _wrapper(*args, **kwargs):
+        identity = _pick_identity()
+        _validate(identity)
+        ctx = _request_ctx_stack.top
+        ctx.identity = identity
+        return view_func(*args, **kwargs)
+
+    return _wrapper
+
+
 def _pick_identity():
     identity = None
 
-    if _disabled_authentication():
+    if _is_authentication_disabled():
         identity = Identity(account_number="0000001")
 
     if identity is None:
@@ -35,7 +50,7 @@ def _pick_identity():
     return identity
 
 
-def _disabled_authentication():
+def _is_authentication_disabled():
     return os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH")
 
 
@@ -75,18 +90,6 @@ def _validate(identity):
     except Exception as e:
         logger.debug("Failed to validate identity header value: %s" % e)
         abort(Forbidden.code)
-
-
-def requires_identity(view_func):
-    @wraps(view_func)
-    def _wrapper(*args, **kwargs):
-        identity = _pick_identity()
-        _validate(identity)
-        ctx = _request_ctx_stack.top
-        ctx.identity = identity
-        return view_func(*args, **kwargs)
-
-    return _wrapper
 
 
 def _get_identity():

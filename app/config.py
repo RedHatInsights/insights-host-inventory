@@ -22,6 +22,8 @@ class Config:
         self.api_url_path_prefix = self._build_api_path()
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
+        self._shared_secret = os.getenv("INVENTORY_SHARED_SECRET", "insights")
+
         self._log_configuration()
 
     def _build_base_url_path(self):

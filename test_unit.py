@@ -14,6 +14,7 @@ from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
 import pytest
+from test.support import EnvironmentVarGuard
 from werkzeug.exceptions import Forbidden
 
 
@@ -232,9 +233,14 @@ class AuthIdentityValidateTestCase(TestCase):
 
 class TrustedIdentityTestCase(TestCase):
     valid_account_numbers = ["123456", "654321", "1", "2",]
+    shared_secret = "ImaSecret"
+
+    def setUp(self):
+        self.env = EnvironmentVarGuard()
+        self.env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
 
     def _build_id(self):
-        identity = IdentityBuilder.from_bearer_token("ImaSecret")
+        identity = IdentityBuilder.from_bearer_token(self.shared_secret)
         return identity
 
     def test_account_number_str(self):
@@ -256,6 +262,26 @@ class TrustedIdentityTestCase(TestCase):
         for account_number in self.valid_account_numbers:
             with self.subTest(account_number=account_number):
                 self.assertFalse(trusted_id.account_number != account_number)
+
+    def test_validation(self):
+        identity = self._build_id()
+
+        with self.env:
+            validate(identity)
+
+    def test_validation_with_invalid_identity(self):
+        identity = IdentityBuilder.from_bearer_token("InvalidPassword")
+
+        with self.assertRaises(ValueError):
+            validate(identity)
+
+    def test_validation_env_var_not_set(self):
+        identity = self._build_id()
+
+        self.env.unset("INVENTORY_SHARED_SECRET")
+        with self.env:
+            with self.assertRaises(ValueError):
+                validate(identity)
 
 
 @pytest.mark.usefixtures("monkeypatch")
