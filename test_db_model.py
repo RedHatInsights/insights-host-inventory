@@ -3,6 +3,9 @@ import pytest
 from app import create_app, db
 from app.models import Host
 
+"""
+These tests are for testing the db model classes outside of the api.
+"""
 
 
 @pytest.fixture
