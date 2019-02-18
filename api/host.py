@@ -19,12 +19,6 @@ logger = logging.getLogger(__name__)
 @metrics.api_request_time.time()
 @requires_identity
 def add_host_list(host_list):
-    print("host_list:", host_list)
-    print("type(host_list):", type(host_list))
-
-    if type(host_list) is dict:
-        return _add_host(host_list)
-
     response = []
     for host in host_list:
         try:
@@ -32,15 +26,18 @@ def add_host_list(host_list):
             response.append({'status': status_code, 'host': host})
         except InventoryException as e:
             logger.warning(e)
-            response.append(e.to_json())
+            dict_ = e.to_json()
+            dict_["host"] = host
+            response.append(dict_)
         except Exception as e:
             logger.warning(e)
-            response.append({'status': 500, 'detail': "Could not complete operation"})
+            response.append({'status': 500,
+                             'detail': "Could not complete operation",
+                             'host': host})
 
     print("response:", response)
 
     return response, 207
-
 
 
 @api_operation

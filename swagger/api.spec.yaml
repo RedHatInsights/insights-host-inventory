@@ -23,11 +23,9 @@ paths:
           application/json:
             schema:
               x-body-name: host_list
-              oneOf:
-                - $ref: '#/components/schemas/Host'
-                - type: array
-                  items:
-                    $ref: '#/components/schemas/Host'
+              type: array
+              items:
+                $ref: '#/components/schemas/Host'
       responses:
         '207':
           description: Successfully created a host.
