@@ -97,7 +97,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
 
 def create_new_host(input_host):
     logger.debug("Creating a new host")
-    db.session.add(input_host)
+    input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)

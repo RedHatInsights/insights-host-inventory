@@ -278,21 +278,6 @@ class CreateHostsTestCase(DBAPITestCase):
         results = HostWrapper(host_lookup_results["results"][0])
         self.assertListEqual(results.tags, expected_tags)
 
-    def test_create_host_with_display_name_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        # Explicitly set the display name to None
-        host_data.display_name = None
-
-        # Create the host
-        created_host = self.post(HOST_URL, host_data.data(), 201)
-
-        self.assertIsNotNone(created_host["id"])
-
-        self._validate_host(created_host,
-                            host_data,
-                            expected_id=created_host["id"],
-                            verify_tags=False)
 
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -389,6 +374,58 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
 
+    def test_create_host_with_display_name_as_None_no_fqdn(self):
+        """
+        This test should verify that the display_name is set to the id
+        when neither the display name or fqdn is set.
+        """
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+
+        # Create the host
+        created_host = self.post(HOST_URL, host_data.data(), 201)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        # Explicitly set the display_name to the be id...this is expected here
+        host_data.display_name = created_host["id"]
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id,
+                            verify_tags=False)
+
+    def test_create_host_with_display_name_as_None_with_fqdn(self):
+        """
+        This test should verify that the display_name is set to the
+        fqdn when a display_name is not passed in but the fqdn is passed in.
+        """
+        expected_display_name = "fred.flintstone.bedrock.com"
+
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+        host_data.fqdn = expected_display_name
+
+        # Create the host
+        created_host = self.post(HOST_URL, host_data.data(), 201)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        # Explicitly set the display_name ...this is expected here
+        host_data.display_name = expected_display_name
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id,
+                            verify_tags=False)
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
