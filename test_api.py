@@ -454,20 +454,31 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
         return host_list
 
-    def _base_paging_test(self, url):
-        def _test_get_page(page):
+    def _base_paging_test(self, url, expected_number_of_hosts):
+        def _test_get_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
             response = self.get(test_url, 200)
 
-            self.assertEqual(len(response["results"]), 1)
-            self.assertEqual(response["count"], 1)
-            self.assertEqual(response["total"], len(self.added_hosts))
+            self.assertEqual(len(response["results"]), expected_count)
+            self.assertEqual(response["count"], expected_count)
+            self.assertEqual(response["total"], expected_number_of_hosts)
 
-        _test_get_page("1")
-        _test_get_page("2")
-        _test_get_page("3")
-        test_url = inject_qs(url, page="4", per_page="1")
-        response = self.get(test_url, 404)
+        if expected_number_of_hosts == 0:
+            _test_get_page(1, expected_count=0)
+            return
+
+        i = 0
+
+        # Iterate through the pages
+        for i in range(1, expected_number_of_hosts + 1):
+            with self.subTest(pagination_test=i):
+                _test_get_page(str(i))
+
+        # Go one page past the last page and look for an error
+        i = i + 1
+        with self.subTest(pagination_test=i):
+            test_url = inject_qs(url, page=str(i), per_page="1")
+            self.get(test_url, 404)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
@@ -477,7 +488,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(self.added_hosts))
 
-        self._base_paging_test(HOST_URL)
+        self._base_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_all_with_invalid_paging_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
@@ -498,7 +509,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(host_list))
 
-        self._base_paging_test(test_url)
+        self._base_paging_test(test_url, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -578,7 +589,60 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(host_list))
 
-        self._base_paging_test(test_url)
+        self._base_paging_test(test_url, len(self.added_hosts))
+
+
+class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
+
+    def _base_query_test(self, query_value, expected_number_of_hosts):
+        test_url = HOST_URL + "?hostname_or_id=" + query_value
+
+        response = self.get(test_url)
+
+        self.assertEqual(len(response["results"]), expected_number_of_hosts)
+
+        self._base_paging_test(test_url, expected_number_of_hosts)
+
+    def test_query_using_display_name_as_hostname(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].display_name, 2)
+
+    def test_query_using_fqdn_as_hostname(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[2].fqdn, 1)
+
+    def test_query_using_id(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].id, 1)
+
+    def test_query_using_non_existent_hostname(self):
+        self._base_query_test("NotGonnaFindMe", 0)
+
+    def test_query_using_non_existent_id(self):
+        self._base_query_test(str(uuid.uuid4()), 0)
+
+
+class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
+
+    def _base_query_test(self, query_value, expected_number_of_hosts):
+        test_url = HOST_URL + "?insights_id=" + query_value
+
+        response = self.get(test_url)
+
+        self.assertEqual(len(response["results"]), expected_number_of_hosts)
+
+        self._base_paging_test(test_url, expected_number_of_hosts)
+
+    def test_query_with_matching_insights_id(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].insights_id, 1)
+
+    def test_query_with_no_matching_insights_id(self):
+        self._base_query_test("NotGonnaFindThisInsightsId", 0)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

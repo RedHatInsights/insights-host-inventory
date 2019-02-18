@@ -1,4 +1,6 @@
 import logging
+import sqlalchemy
+import uuid
 
 from enum import Enum
 
@@ -114,7 +116,10 @@ def update_existing_host(existing_host, input_host):
 @api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
+def get_host_list(tag=None, display_name=None, fqdn=None,
+        hostname_or_id=None, insights_id=None,
+        page=1, per_page=100):
+
     """
     Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
 
@@ -134,6 +139,12 @@ def get_host_list(tag=None, display_name=None, fqdn=None, page=1, per_page=100):
         (total, host_list) = find_hosts_by_display_name(
             current_identity.account_number, display_name, page, per_page
         )
+    elif hostname_or_id:
+        (total, host_list) = find_hosts_by_hostname_or_id(
+            current_identity.account_number, hostname_or_id, page, per_page)
+    elif insights_id:
+        (total, host_list) = find_hosts_by_canonical_facts(
+            current_identity.account_number, {"insights_id": insights_id}, page, per_page)
     else:
         query_results = Host.query.filter(
             Host.account == current_identity.account_number
@@ -190,6 +201,30 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
     total = query_results.total
     found_host_list = query_results.items
     logger.debug("found_host_list:%s", found_host_list)
+    return (total, found_host_list)
+
+
+def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
+    logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
+    filter_list = [Host.display_name.comparator.contains(hostname),
+                   Host.canonical_facts['fqdn'].astext.contains(hostname), ]
+
+    try:
+        uuid.UUID(hostname)
+        host_id = hostname
+        filter_list.append(Host.id == host_id)
+        logger.debug("Adding id (uuid) to the filter list")
+    except Exception as e:
+        # Ignore the exception...do not filter using the id
+        pass
+
+    query = Host.query.filter(sqlalchemy.or_(*filter_list))
+
+    query_results = query.paginate(page, per_page, True)
+    total = query_results.total
+    found_host_list = query_results.items
+    logger.debug("found_host_list:%s", found_host_list)
+
     return (total, found_host_list)
 
 
