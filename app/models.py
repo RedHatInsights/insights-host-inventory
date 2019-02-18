@@ -139,9 +139,7 @@ class Host(db.Model):
         elif not self.display_name:
             # This is the case where the display_name is not set on the
             # existing host record and the input host does not have it set
-            if "fqdn" in input_host.canonical_facts:
-                self.display_name = input_host.canonical_facts["fqdn"]
-            elif "fqdn" in self.canonical_facts:
+            if "fqdn" in self.canonical_facts:
                 self.display_name = self.canonical_facts["fqdn"]
             else:
                 self.display_name = self.id
