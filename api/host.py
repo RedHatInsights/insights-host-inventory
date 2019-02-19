@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @api_operation
 @metrics.api_request_time.time()
 @requires_identity
-def add_host_list(host_list):
+def add_host(host_list):
     response = []
     for host in host_list:
         try:
@@ -38,13 +38,6 @@ def add_host_list(host_list):
     print("response:", response)
 
     return response, 207
-
-
-@api_operation
-@metrics.api_request_time.time()
-@requires_identity
-def add_host(host):
-    return _add_host(host)
 
 
 def _add_host(host):

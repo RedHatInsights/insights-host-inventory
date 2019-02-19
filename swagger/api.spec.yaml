@@ -4,37 +4,7 @@ info:
   version: 1.0.0
   title: Insights Host Inventory REST Interface
 paths:
-  /hostsbulk:
-    #parameters:
-    #  - $ref: '#/components/parameters/rhIdentityHeader'
-    post:
-      operationId: api.host.add_host_list
-      tags:
-        - hosts
-      summary: Create/update a host and add it to the host list
-      description: >-
-        Create a new host and add it to the host list or update an existing
-        hosts. A host is updated if there is already one with the same
-        canonicals facts and belonging to the same account.
-      requestBody:
-        description: A host object to be added to the host list
-        required: true
-        content:
-          application/json:
-            schema:
-              x-body-name: host_list
-              type: array
-              items:
-                $ref: '#/components/schemas/Host'
-      responses:
-        '207':
-          description: Successfully created a host.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BulkHostOut'
+
   /hosts:
     parameters:
       - $ref: '#/components/parameters/rhIdentityHeader'
@@ -90,27 +60,43 @@ paths:
         Create a new host and add it to the host list or update an existing
         hosts. A host is updated if there is already one with the same
         canonicals facts and belonging to the same account.
+      #security:
+      #  - ApiKeyAuth: []
+      #  - BearerAuth: []
       requestBody:
         description: A host object to be added to the host list
         required: true
         content:
           application/json:
             schema:
-              x-body-name: host
-              $ref: '#/components/schemas/Host'
+              x-body-name: host_list
+              type: array
+              items:
+                $ref: '#/components/schemas/Host'
       responses:
-        '200':
-          description: Successfully updated a host.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostOut'
-        '201':
+        '207':
           description: Successfully created a host.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HostOut'
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulkHostOut'
+              examples:
+                update:
+                  value:
+                    status: 200
+                    host: Host details
+                create:
+                  value:
+                    status: 201
+                    host: Host details
+                error:
+                  value:
+                    status: 400
+                    title: Invalid Request
+                    detail: Could not process request
+                    host: Input host data
   '/hosts/{host_id_list}':
     parameters:
       - $ref: '#/components/parameters/rhIdentityHeader'
@@ -221,6 +207,14 @@ paths:
         '404':
           description: Host or namespace not found.
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-rh-identity
   parameters:
     rhIdentityHeader:
       name: x-rh-identity
@@ -253,15 +247,6 @@ components:
         default: 50
       description: A number of items to return per page.
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        status:
-          type: integer
-        title:
-          type: string
-        detail:
-          type: string
     BulkHostOut:
       type: object
       properties:
@@ -269,6 +254,10 @@ components:
           type: integer
         host:
           $ref: '#/components/schemas/HostOut'
+        title:
+          type: string
+        detail:
+          type: string
     Facts:
       title: Host facts
       description: A set of string facts about a host.
