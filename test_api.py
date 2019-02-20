@@ -100,7 +100,6 @@ class BaseAPITestCase(unittest.TestCase):
         )
 
     def _response_check(self, response, status, return_response_as_json):
-        print("response:", response.data)
         self.assertEqual(response.status_code, status)
         if return_response_as_json:
             return json.loads(response.data)
@@ -810,7 +809,7 @@ class AuthTestCase(DBAPITestCase):
         Identity header is not present, 400 Bad Request is returned.
         """
         response = self._get_hosts({})
-        self.assertEqual(400, response.status_code)  # Bad Request
+        self.assertEqual(401, response.status_code)
 
     def test_validate_invalid_identity(self):
         """
