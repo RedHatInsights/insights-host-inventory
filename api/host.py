@@ -25,9 +25,7 @@ def add_host(host_list):
             response.append({'status': status_code, 'host': host})
         except InventoryException as e:
             logger.warning(e)
-            dict_ = e.to_json()
-            dict_["host"] = host
-            response.append(dict_)
+            response.append({**e.to_json(), "host": host})
         except Exception as e:
             logger.warning(e)
             response.append({'status': 500,

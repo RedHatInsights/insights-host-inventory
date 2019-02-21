@@ -218,19 +218,12 @@ components:
       type: apiKey
       in: header
       name: x-rh-identity
-      x-apikeyInfoFunc: app.auth.header_validator
-  parameters:
-    rhIdentityHeader:
-      name: x-rh-identity
-      in: header
-      required: true
-      schema:
-        type: string
-        format: byte
       description: >-
         Base64-encoded JSON identity header provided by 3Scale. Contains an
         account number of the user issuing the request. Format of the JSON:
         {"identity": {"account_number": "12345678"}}
+      x-apikeyInfoFunc: app.auth.header_validator
+  parameters:
     pageParam:
       name: page
       in: query

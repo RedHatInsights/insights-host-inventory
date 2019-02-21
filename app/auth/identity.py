@@ -10,6 +10,10 @@ __all__ = ["Identity", "IdentityBuilder", "validate"]
 class IdentityBuilder:
 
     @staticmethod
+    def for_disabled_authentication():
+        return Identity(account_number="0000001")
+
+    @staticmethod
     def from_dict(dict_):
         """
         Build an Identity from a dictionary of values.

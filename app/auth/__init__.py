@@ -2,10 +2,11 @@ import connexion
 import logging
 import os
 
-from app.auth.identity import validate, Identity, IdentityBuilder
+from app.auth.identity import validate, IdentityBuilder
 from werkzeug.local import LocalProxy
 
-__all__ = ["current_identity", "NoIdentityError", "requires_identity"]
+__all__ = ["current_identity", "NoIdentityError",
+           "token_validator", "header_validator"]
 
 _IDENTITY_HEADER = "x-rh-identity"
 _AUTHORIZATION_HEADER = "Authorization"
@@ -21,7 +22,7 @@ class NoIdentityError(RuntimeError):
 def token_validator(token):
     print("token:", token)
     if _is_authentication_disabled():
-        identity = Identity(account_number="0000001")
+        identity = IdentityBuilder.for_disabled_authentication()
     else:
         try:
             identity = IdentityBuilder.from_bearer_token(token)
@@ -38,7 +39,7 @@ def token_validator(token):
 def header_validator(apikey, required_scopes=None):
     print("apikey:", apikey)
     if _is_authentication_disabled():
-        identity = Identity(account_number="0000001")
+        identity = IdentityBuilder.for_disabled_authentication()
     else:
         try:
             identity = IdentityBuilder.from_encoded_json(apikey)
