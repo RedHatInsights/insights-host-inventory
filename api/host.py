@@ -32,8 +32,6 @@ def add_host(host_list):
                              'detail': "Could not complete operation",
                              'host': host})
 
-    print("response:", response)
-
     return response, 207
 
 

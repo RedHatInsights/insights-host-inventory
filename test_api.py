@@ -26,6 +26,7 @@ ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
+SHARED_SECRET = "SuperSecretStuff"
 
 
 def test_data(display_name="hi", tags=None, facts=None):
@@ -40,6 +41,15 @@ def test_data(display_name="hi", tags=None, facts=None):
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
+
+
+def build_auth_header(token):
+    auth_header = {"Authorization": f"Bearer {token}"}
+    return auth_header
+
+
+def build_valid_auth_header():
+    return build_auth_header(SHARED_SECRET)
 
 
 def inject_qs(url, **kwargs):
@@ -433,15 +443,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
 class BulkCreateHostsTestCase(DBAPITestCase):
 
-    shared_secret = "SuperSecretStuff"
-
     def _get_valid_auth_header(self):
-        auth_header = {"Authorization": f"Bearer {self.shared_secret}"}
-        return auth_header
+        return build_valid_auth_header()
 
     def test_create_and_update_multiple_hosts_with_different_accounts(self):
         with test.support.EnvironmentVarGuard() as env:
-            env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
+            env.set("INVENTORY_SHARED_SECRET", SHARED_SECRET)
 
             facts = None
             tags = []
@@ -479,6 +486,9 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             # Update the host
             updated_host = self.post(HOST_URL, host_list, 207)
             print("updated_host:", updated_host)
+
+            for host in updated_host:
+                self.assertEqual(host["status"], 200)
 
             self.assertEqual(host1_id, updated_host[0]["host"]["id"])
             self.assertEqual(host2_id, updated_host[1]["host"]["id"])
@@ -780,7 +790,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         self._basic_fact_test(new_facts, expected_facts, True)
 
 
-class AuthTestCase(DBAPITestCase):
+class HeaderAuthTestCase(DBAPITestCase):
     @staticmethod
     def _valid_identity():
         """
@@ -825,6 +835,30 @@ class AuthTestCase(DBAPITestCase):
         payload = self._valid_payload()
         response = self._get_hosts({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
+
+
+class TokenAuthTestCase(DBAPITestCase):
+    """
+    A couple of sanity checks to make sure the service is denying access
+    """
+
+    def test_validate_invalid_token_on_GET(self):
+        auth_header = build_auth_header("NotTheSuperSecretValue")
+        response = self.client().get(HOST_URL, headers=auth_header)
+        self.assertEqual(401, response.status_code)
+
+    def test_validate_invalid_token_on_POST(self):
+        auth_header = build_auth_header("NotTheSuperSecretValue")
+        response = self.client().post(HOST_URL, headers=auth_header)
+        self.assertEqual(401, response.status_code)
+
+    def test_validate_token_on_POST_shared_secret_not_set(self):
+        with test.support.EnvironmentVarGuard() as env:
+            env.unset("INVENTORY_SHARED_SECRET")
+
+            auth_header = build_valid_auth_header()
+            response = self.client().post(HOST_URL, headers=auth_header)
+            self.assertEqual(401, response.status_code)
 
 
 class HealthTestCase(BaseAPITestCase):

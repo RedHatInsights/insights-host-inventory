@@ -20,36 +20,30 @@ class NoIdentityError(RuntimeError):
 
 
 def token_validator(token):
-    print("token:", token)
     if _is_authentication_disabled():
         identity = IdentityBuilder.for_disabled_authentication()
     else:
         try:
             identity = IdentityBuilder.from_bearer_token(token)
-            # FIXME:
             validate(identity)
         except Exception as e:
-            logger.debug("Failed to validate bearer token value: %s" % e)
+            logger.debug("Failed to validate bearer token value: %s", e)
             return None
 
-    #return {'sub': identity}
     return {'uid': identity}
 
 
 def header_validator(apikey, required_scopes=None):
-    print("apikey:", apikey)
     if _is_authentication_disabled():
         identity = IdentityBuilder.for_disabled_authentication()
     else:
         try:
             identity = IdentityBuilder.from_encoded_json(apikey)
-            # FIXME:
             validate(identity)
         except Exception as e:
-            logger.debug("Failed to validate identity header value: %s" % e)
+            logger.debug("Failed to validate identity header value: %s", e)
             return None
 
-    #return {'sub': identity}
     return {'uid': identity}
 
 
