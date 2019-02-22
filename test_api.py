@@ -22,7 +22,6 @@ VERSION_URL = "/version"
 NS = "testns"
 ID = "whoabuddy"
 
-ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
@@ -160,6 +159,14 @@ class DBAPITestCase(BaseAPITestCase):
 
 
 class CreateHostsTestCase(DBAPITestCase):
+
+    def _verify_host_status(self, response, host_index, expected_status):
+        self.assertEqual(response["data"][host_index]["status"],
+                         expected_status)
+
+    def _pluck_host_from_response(self, response, host_index):
+        return response["data"][host_index]["host"]
+
     def test_create_and_update(self):
         facts = None
         tags = []
@@ -167,11 +174,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data = HostWrapper(test_data(facts=facts, tags=tags))
 
         # Create the host
-        created_host = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(created_host[0]["status"], 201)
+        self._verify_host_status(response, 0, 201)
 
-        created_host = created_host[0]["host"]
+        created_host = self._pluck_host_from_response(response, 0)
 
         original_id = created_host["id"]
 
@@ -194,11 +201,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.insights_id = "0987-65-4321"
 
         # Update the host with the new data
-        updated_host = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(updated_host[0]["status"], 200)
+        self._verify_host_status(response, 0, 200)
 
-        updated_host = updated_host[0]["host"]
+        updated_host = self._pluck_host_from_response(response, 0)
 
         # Make sure the id from the update post matches the id from the create
         self.assertEqual(updated_host["id"], original_id)
@@ -230,11 +237,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
 
         # Create the host
-        created_host = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(created_host[0]["status"], 201)
+        self._verify_host_status(response, 0, 201)
 
-        created_host = created_host[0]["host"]
+        created_host = self._pluck_host_from_response(response, 0)
 
         original_id = created_host["id"]
 
@@ -252,11 +259,11 @@ class CreateHostsTestCase(DBAPITestCase):
                             "facts": {"newkey": "newvalue"}}]
 
         # Update the host
-        updated_host = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(updated_host[0]["status"], 200)
+        self._verify_host_status(response, 0, 200)
 
-        updated_host = updated_host[0]["host"]
+        updated_host = self._pluck_host_from_response(response, 0)
 
         # Verify that the id did not change on the update
         self.assertEqual(updated_host["id"], original_id)
@@ -280,15 +287,15 @@ class CreateHostsTestCase(DBAPITestCase):
         expected_tags = []
 
         # Create the host
-        results = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(results[0]["status"], 201)
+        self._verify_host_status(response, 0, 201)
 
-        results = results[0]["host"]
+        created_host = self._pluck_host_from_response(response, 0)
 
-        self.assertIsNotNone(results["id"])
+        self.assertIsNotNone(created_host["id"])
 
-        original_id = results["id"]
+        original_id = created_host["id"]
 
         # Update the tags, facts and display name
         host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
@@ -316,11 +323,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.display_name = None
 
         # Create the host
-        created_host = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(created_host[0]["status"], 201)
+        self._verify_host_status(response, 0, 201)
 
-        created_host = created_host[0]["host"]
+        created_host = self._pluck_host_from_response(response, 0)
 
         self.assertIsNotNone(created_host["id"])
 
@@ -328,6 +335,36 @@ class CreateHostsTestCase(DBAPITestCase):
                             host_data,
                             expected_id=created_host["id"],
                             verify_tags=False)
+
+    def test_create_and_update_multiple_hosts_with_account_mismatch(self):
+        """
+        Attempt to create multiple hosts, one host has the wrong account number.
+        Verify this causes an error response to be returned.
+        """
+        tags = []
+        facts = None
+
+        host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+        host1.ip_addresses = ["10.0.0.1"]
+        host1.rhel_machine_id = str(uuid.uuid4())
+
+        host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+        # Set the account number to the wrong account for this request
+        host2.account = "222222"
+        host2.ip_addresses = ["10.0.0.2"]
+        host2.rhel_machine_id = str(uuid.uuid4())
+
+        host_list = [host1.data(), host2.data()]
+
+        # Create the host
+        created_host = self.post(HOST_URL, host_list, 207)
+
+        self.assertEqual(len(host_list), len(created_host["data"]))
+
+        self.assertEqual(created_host["errors"], 1)
+
+        self.assertEqual(created_host["data"][0]["status"], 201)
+        self.assertEqual(created_host["data"][1]["status"], 400)
 
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -342,9 +379,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(response_data[0]["status"], 400)
+        self._verify_host_status(response_data, 0, 400)
 
-        response_data = response_data[0]
+        response_data = response_data["data"][0]
 
         assert "Invalid request" in response_data["title"]
         assert "status" in response_data
@@ -368,9 +405,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(response_data[0]["status"], 400)
+        self._verify_host_status(response_data, 0, 400)
 
-        response_data = response_data[0]
+        response_data = response_data["data"][0]
 
         assert "Invalid request" in response_data["title"]
         assert "status" in response_data
@@ -384,9 +421,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(response_data[0]["status"], 400)
+        self._verify_host_status(response_data, 0, 400)
 
-        response_data = response_data[0]
+        response_data = response_data["data"][0]
 
         assert response_data["title"] == "Invalid request"
         assert "status" in response_data
@@ -400,9 +437,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertEqual(response_data[0]["status"], 400)
+        self._verify_host_status(response_data, 0, 400)
 
-        response_data = response_data[0]
+        response_data = response_data["data"][0]
 
         assert response_data["title"] == "Invalid request"
         assert "status" in response_data
@@ -459,7 +496,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             host1.rhel_machine_id = str(uuid.uuid4())
 
             host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
-            host1.account = "222222"
+            host2.account = "222222"
             host2.ip_addresses = ["10.0.0.2"]
             host2.rhel_machine_id = str(uuid.uuid4())
 
@@ -471,11 +508,13 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
             self.assertEqual(len(host_list), len(created_host))
 
-            for host in created_host:
+            self.assertEqual(created_host["errors"], 0)
+
+            for host in created_host["data"]:
                 self.assertEqual(host["status"], 201)
 
-            host1_id = created_host[0]["host"]["id"]
-            host2_id = created_host[1]["host"]["id"]
+            host1_id = created_host["data"][0]["host"]["id"]
+            host2_id = created_host["data"][1]["host"]["id"]
 
             host_list[0]["bios_uuid"] = str(uuid.uuid4())
             host_list[0]["display_name"] = "fred"
@@ -487,11 +526,13 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             updated_host = self.post(HOST_URL, host_list, 207)
             print("updated_host:", updated_host)
 
-            for host in updated_host:
+            self.assertEqual(updated_host["errors"], 0)
+
+            for host in updated_host["data"]:
                 self.assertEqual(host["status"], 200)
 
-            self.assertEqual(host1_id, updated_host[0]["host"]["id"])
-            self.assertEqual(host2_id, updated_host[1]["host"]["id"])
+            self.assertEqual(host1_id, updated_host["data"][0]["host"]["id"])
+            self.assertEqual(host2_id, updated_host["data"][1]["host"]["id"])
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
@@ -517,7 +558,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
-            host_list.append(HostWrapper(response_data[0]["host"]))
+            host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
 

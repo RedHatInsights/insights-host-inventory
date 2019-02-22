@@ -17,21 +17,25 @@ logger = logging.getLogger(__name__)
 
 @api_operation
 @metrics.api_request_time.time()
-def add_host(host_list):
-    response = []
+def add_host_list(host_list):
+    response_host_list = []
+    number_of_errors = 0
     for host in host_list:
         try:
             (host, status_code) = _add_host(host)
-            response.append({'status': status_code, 'host': host})
+            response_host_list.append({'status': status_code, 'host': host})
         except InventoryException as e:
+            number_of_errors += 1
             logger.warning(e)
-            response.append({**e.to_json(), "host": host})
+            response_host_list.append({**e.to_json(), "host": host})
         except Exception as e:
+            number_of_errors += 1
             logger.warning(e)
-            response.append({'status': 500,
+            response_host_list.append({'status': 500,
                              'detail': "Could not complete operation",
                              'host': host})
 
+    response = {'errors': number_of_errors, 'data': response_host_list}
     return response, 207
 
 

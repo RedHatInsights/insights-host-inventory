@@ -52,10 +52,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     post:
-      operationId: api.host.add_host
+      operationId: api.host.add_host_list
       tags:
         - hosts
-      summary: Create/update a host and add it to the host list
+      summary: Create/update multiple host and add them to the host list
       description: >-
         Create a new host and add it to the host list or update an existing
         hosts. A host is updated if there is already one with the same
@@ -64,7 +64,7 @@ paths:
         - ApiKeyAuth: []
         - BearerAuth: []
       requestBody:
-        description: A host object to be added to the host list
+        description: A list of host objects to be added to the host list
         required: true
         content:
           application/json:
@@ -79,9 +79,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BulkHostOut'
+                $ref: '#/components/schemas/BulkHostOut'
               examples:
                 update:
                   value:
@@ -245,6 +243,15 @@ components:
       description: A number of items to return per page.
   schemas:
     BulkHostOut:
+      type: object
+      properties:
+        errors:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkHostOutDetails"
+    BulkHostOutDetails:
       type: object
       properties:
         status:

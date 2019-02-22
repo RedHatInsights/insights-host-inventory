@@ -287,7 +287,7 @@ def test_noauthmode_token_auth(monkeypatch):
     with monkeypatch.context() as m:
         m.setenv("FLASK_DEBUG", "1")
         m.setenv("NOAUTH", "1")
-        authenticator_result = header_validator("blah")
+        authenticator_result = token_validator("blah")
         assert authenticator_result["uid"] == Identity(account_number="0000001")
 
 
