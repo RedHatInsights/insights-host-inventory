@@ -316,26 +316,6 @@ class CreateHostsTestCase(DBAPITestCase):
         results = HostWrapper(host_lookup_results["results"][0])
         self.assertListEqual(results.tags, expected_tags)
 
-    def test_create_host_with_display_name_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        # Explicitly set the display name to None
-        host_data.display_name = None
-
-        # Create the host
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        self.assertIsNotNone(created_host["id"])
-
-        self._validate_host(created_host,
-                            host_data,
-                            expected_id=created_host["id"],
-                            verify_tags=False)
-
     def test_create_and_update_multiple_hosts_with_account_mismatch(self):
         """
         Attempt to create multiple hosts, one host has the wrong account number.
@@ -477,6 +457,66 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
 
+    def test_create_host_with_display_name_as_None_no_fqdn(self):
+        """
+        This test should verify that the display_name is set to the id
+        when neither the display name or fqdn is set.
+        """
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        # Explicitly set the display_name to the be id...this is expected here
+        host_data.display_name = created_host["id"]
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id,
+                            verify_tags=False)
+
+    def test_create_host_with_display_name_as_None_with_fqdn(self):
+        """
+        This test should verify that the display_name is set to the
+        fqdn when a display_name is not passed in but the fqdn is passed in.
+        """
+        expected_display_name = "fred.flintstone.bedrock.com"
+
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Explicitly set the display name to None
+        host_data.display_name = None
+        host_data.fqdn = expected_display_name
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        # Explicitly set the display_name ...this is expected here
+        host_data.display_name = expected_display_name
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id,
+                            verify_tags=False)
 
 class BulkCreateHostsTestCase(DBAPITestCase):
 
@@ -562,20 +602,31 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
         return host_list
 
-    def _base_paging_test(self, url):
-        def _test_get_page(page):
+    def _base_paging_test(self, url, expected_number_of_hosts):
+        def _test_get_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
             response = self.get(test_url, 200)
 
-            self.assertEqual(len(response["results"]), 1)
-            self.assertEqual(response["count"], 1)
-            self.assertEqual(response["total"], len(self.added_hosts))
+            self.assertEqual(len(response["results"]), expected_count)
+            self.assertEqual(response["count"], expected_count)
+            self.assertEqual(response["total"], expected_number_of_hosts)
 
-        _test_get_page("1")
-        _test_get_page("2")
-        _test_get_page("3")
-        test_url = inject_qs(url, page="4", per_page="1")
-        response = self.get(test_url, 404)
+        if expected_number_of_hosts == 0:
+            _test_get_page(1, expected_count=0)
+            return
+
+        i = 0
+
+        # Iterate through the pages
+        for i in range(1, expected_number_of_hosts + 1):
+            with self.subTest(pagination_test=i):
+                _test_get_page(str(i))
+
+        # Go one page past the last page and look for an error
+        i = i + 1
+        with self.subTest(pagination_test=i):
+            test_url = inject_qs(url, page=str(i), per_page="1")
+            self.get(test_url, 404)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
@@ -585,7 +636,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(self.added_hosts))
 
-        self._base_paging_test(HOST_URL)
+        self._base_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_all_with_invalid_paging_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
@@ -606,7 +657,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(host_list))
 
-        self._base_paging_test(test_url)
+        self._base_paging_test(test_url, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -686,7 +737,60 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["results"]), len(host_list))
 
-        self._base_paging_test(test_url)
+        self._base_paging_test(test_url, len(self.added_hosts))
+
+
+class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
+
+    def _base_query_test(self, query_value, expected_number_of_hosts):
+        test_url = HOST_URL + "?hostname_or_id=" + query_value
+
+        response = self.get(test_url)
+
+        self.assertEqual(len(response["results"]), expected_number_of_hosts)
+
+        self._base_paging_test(test_url, expected_number_of_hosts)
+
+    def test_query_using_display_name_as_hostname(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].display_name, 2)
+
+    def test_query_using_fqdn_as_hostname(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[2].fqdn, 1)
+
+    def test_query_using_id(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].id, 1)
+
+    def test_query_using_non_existent_hostname(self):
+        self._base_query_test("NotGonnaFindMe", 0)
+
+    def test_query_using_non_existent_id(self):
+        self._base_query_test(str(uuid.uuid4()), 0)
+
+
+class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
+
+    def _base_query_test(self, query_value, expected_number_of_hosts):
+        test_url = HOST_URL + "?insights_id=" + query_value
+
+        response = self.get(test_url)
+
+        self.assertEqual(len(response["results"]), expected_number_of_hosts)
+
+        self._base_paging_test(test_url, expected_number_of_hosts)
+
+    def test_query_with_matching_insights_id(self):
+        host_list = self.added_hosts
+
+        self._base_query_test(host_list[0].insights_id, 1)
+
+    def test_query_with_no_matching_insights_id(self):
+        self._base_query_test("NotGonnaFindThisInsightsId", 0)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

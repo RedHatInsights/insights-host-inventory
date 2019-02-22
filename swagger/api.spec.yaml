@@ -42,6 +42,19 @@ paths:
             type: string
           description: Filter by a host's FQDN
           required: false
+        - in: query
+          name: hostname_or_id
+          schema:
+            type: string
+          description: 'Search for a host by display_name, fqdn, id'
+          required: false
+        - in: query
+          name: insights_id
+          schema:
+            type: string
+            format: uuid
+          description: Search for a host by insights_id
+          required: false
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -250,7 +263,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/BulkHostOutDetails"
+            $ref: '#/components/schemas/BulkHostOutDetails'
     BulkHostOutDetails:
       type: object
       properties:
