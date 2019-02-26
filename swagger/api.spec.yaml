@@ -315,6 +315,12 @@ definitions:
         x-nullable: true
         example:
         - c2:00:d0:c8:61:01
+      source_ref:
+        description: Host’s reference in the external source e.g. AWS EC2, Azure,
+          OpenStack, etc. This field is considered to be a canonical fact.
+        type: string
+        x-nullable: true
+        example: i-05d2313e6b9a42b16
       facts:
         description: A set of facts belonging to the host.
         type: array

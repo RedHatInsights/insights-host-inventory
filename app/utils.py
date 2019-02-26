@@ -79,6 +79,14 @@ class HostWrapper:
         self.__data["mac_addresses"] = cf
 
     @property
+    def source_ref(self):
+        return self.__data.get("source_ref")
+
+    @source_ref.setter
+    def source_ref(self, cf):
+        self.__data["source_ref"] = cf
+
+    @property
     def facts(self):
         return self.__data.get("facts", None)
 
