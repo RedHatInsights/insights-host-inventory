@@ -108,6 +108,8 @@ paths:
                     title: Invalid Request
                     detail: Could not process request
                     host: Input host data
+        '400':
+          description: Invalid request.
   '/hosts/{host_id_list}':
     get:
       tags:
