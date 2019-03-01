@@ -35,12 +35,25 @@ def app():
 
 def _create_host(fqdn=None, display_name=None):
     canonical_facts = {}
-    if fqdn:
+    if fqdn is not None:
         canonical_facts = {'fqdn': fqdn}
     host = Host(canonical_facts, display_name=display_name, account="00102")
     db.session.add(host)
     db.session.commit()
     return host
+
+
+def test_create_host_with_fqdn_and_display_name_as_empty_str(app):
+    # Verify that the display_name is populated from the fqdn
+    fqdn = "spacely_space_sprockets.orbitcity.com"
+    created_host = _create_host(fqdn=fqdn, display_name="")
+    assert created_host.display_name == fqdn
+
+
+def test_create_host_with_display_name_and_fqdn_as_empty_str(app):
+    # Verify that the display_name is populated from the id
+    created_host = _create_host(fqdn="", display_name="")
+    assert created_host.display_name == str(created_host.id)
 
 
 def test_update_existing_host_fix_display_name_using_existing_fqdn(app):
