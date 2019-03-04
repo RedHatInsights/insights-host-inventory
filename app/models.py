@@ -63,10 +63,16 @@ def convert_dict_to_json_facts(fact_dict):
 
 
 def _set_display_name_on_save(context):
+    """
+    This method sets the display_name if it has not been set previously.
+    This logic happens during the saving of the host record so that
+    the id exists and can be used as the display_name if necessary.
+    """
     if not context.get_current_parameters()['display_name']:
-        try:
-            return context.get_current_parameters()["canonical_facts"]["fqdn"]
-        except Exception as e:
+        fqdn = context.get_current_parameters()["canonical_facts"].get("fqdn", None)
+        if fqdn:
+            return fqdn
+        else:
             return context.get_current_parameters()['id']
 
 
@@ -93,11 +99,14 @@ class Host(db.Model):
         facts=None,
     ):
         self.canonical_facts = canonical_facts
-        self.display_name = display_name
+        if display_name:
+            # Only set the display_name field if input the display_name has
+            # been set...this will make it so that the "default" logic will
+            # get called during the save to fill in an empty display_name
+            self.display_name = display_name
         self.account = account
         self.tags = tags
         self.facts = facts
-
 
     @classmethod
     def from_json(cls, d):
