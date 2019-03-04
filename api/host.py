@@ -28,11 +28,11 @@ def add_host_list(host_list):
             response_host_list.append({'status': status_code, 'host': host})
         except InventoryException as e:
             number_of_errors += 1
-            logger.warning(e)
+            logger.exception("Error adding host: %s" % host)
             response_host_list.append({**e.to_json(), "host": host})
         except Exception as e:
             number_of_errors += 1
-            logger.warning(e)
+            logger.exception("Error adding host: %s" % host)
             response_host_list.append({'status': 500,
                              'detail': "Could not complete operation",
                              'host': host})
