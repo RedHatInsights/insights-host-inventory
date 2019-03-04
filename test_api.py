@@ -577,18 +577,18 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             host_list = [host1.data(), host2.data()]
 
             # Create the host
-            created_host = self.post(HOST_URL, host_list, 207)
-            print("created_host:", created_host)
+            response = self.post(HOST_URL, host_list, 207)
 
-            self.assertEqual(len(host_list), len(created_host))
+            self.assertEqual(len(host_list), len(response["data"]))
+            self.assertEqual(response["total"], len(response["data"]))
 
-            self.assertEqual(created_host["errors"], 0)
+            self.assertEqual(response["errors"], 0)
 
-            for host in created_host["data"]:
+            for host in response["data"]:
                 self.assertEqual(host["status"], 201)
 
-            host1_id = created_host["data"][0]["host"]["id"]
-            host2_id = created_host["data"][1]["host"]["id"]
+            host1_id = response["data"][0]["host"]["id"]
+            host2_id = response["data"][1]["host"]["id"]
 
             host_list[0]["bios_uuid"] = str(uuid.uuid4())
             host_list[0]["display_name"] = "fred"
@@ -598,7 +598,6 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
             # Update the host
             updated_host = self.post(HOST_URL, host_list, 207)
-            print("updated_host:", updated_host)
 
             self.assertEqual(updated_host["errors"], 0)
 
@@ -606,7 +605,12 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(host["status"], 200)
 
             self.assertEqual(host1_id, updated_host["data"][0]["host"]["id"])
+            self.assertEqual(host_list[0]["display_name"],
+                             updated_host["data"][0]["host"]["display_name"])
+
             self.assertEqual(host2_id, updated_host["data"][1]["host"]["id"])
+            self.assertEqual(host_list[1]["display_name"],
+                             updated_host["data"][1]["host"]["display_name"])
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):

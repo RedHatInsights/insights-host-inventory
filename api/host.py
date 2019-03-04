@@ -37,7 +37,9 @@ def add_host_list(host_list):
                              'detail': "Could not complete operation",
                              'host': host})
 
-    response = {'errors': number_of_errors, 'data': response_host_list}
+    response = {'total': len(response_host_list),
+                'errors': number_of_errors,
+                'data': response_host_list}
     return response, 207
 
 

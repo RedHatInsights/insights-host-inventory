@@ -260,6 +260,9 @@ components:
     BulkHostOut:
       type: object
       properties:
+        total:
+          type: integer
+          description: Total number of items in the "data" list.
         errors:
           type: integer
           description: Number of items in the "data" list that contain errors.
