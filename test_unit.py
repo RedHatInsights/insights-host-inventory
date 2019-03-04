@@ -95,6 +95,12 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
             with self.assertRaises(TypeError):
                 IdentityBuilder.from_dict(dict_)
 
+    def test_is_trusted_system(self):
+        identity = self._identity()
+
+        self.assertEqual(identity.is_trusted_system, False)
+
+
 
 class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
     """
@@ -229,28 +235,8 @@ class TrustedIdentityTestCase(TestCase):
         self.env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
 
     def _build_id(self):
-        identity = IdentityBuilder.from_bearer_token(self.shared_secret)
+        identity = IdentityBuilder.from_bearer_token(token=self.shared_secret)
         return identity
-
-    def test_account_number_str(self):
-        trusted_id = self._build_id()
-        self.assertEqual(str(trusted_id.account_number), "*")
-
-    def test_account_number_repr(self):
-        trusted_id = self._build_id()
-        self.assertEqual(repr(trusted_id.account_number), "*")
-
-    def test_account_number_eq(self):
-        trusted_id = self._build_id()
-        for account_number in self.valid_account_numbers:
-            with self.subTest(account_number=account_number):
-                self.assertTrue(trusted_id.account_number == account_number)
-
-    def test_account_number_ne(self):
-        trusted_id = self._build_id()
-        for account_number in self.valid_account_numbers:
-            with self.subTest(account_number=account_number):
-                self.assertFalse(trusted_id.account_number != account_number)
 
     def test_validation(self):
         identity = self._build_id()
@@ -271,6 +257,11 @@ class TrustedIdentityTestCase(TestCase):
         with self.env:
             with self.assertRaises(ValueError):
                 validate(identity)
+
+    def test_is_trusted_system(self):
+        identity = self._build_id()
+
+        self.assertEqual(identity.is_trusted_system, True)
 
 
 @pytest.mark.usefixtures("monkeypatch")

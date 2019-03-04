@@ -53,7 +53,8 @@ def _add_host(host):
     """
     account_number = host.get("account", None)
 
-    if current_identity.account_number != account_number:
+    if (not current_identity.is_trusted_system and
+       current_identity.account_number != account_number):
         raise InventoryException(title="Invalid request",
                 detail="The account number associated with the user does not "
                 "match the account number associated with the host")
