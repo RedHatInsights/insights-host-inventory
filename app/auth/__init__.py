@@ -1,16 +1,11 @@
 import connexion
 import logging
-import os
 
 from app.auth.identity import validate, IdentityBuilder
 from werkzeug.local import LocalProxy
 
 __all__ = ["current_identity", "NoIdentityError",
            "token_validator", "header_validator"]
-
-_IDENTITY_HEADER = "x-rh-identity"
-_AUTHORIZATION_HEADER = "Authorization"
-
 
 logger = logging.getLogger(__name__)
 
