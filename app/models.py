@@ -68,12 +68,9 @@ def _set_display_name_on_save(context):
     This logic happens during the saving of the host record so that
     the id exists and can be used as the display_name if necessary.
     """
-    if not context.get_current_parameters()['display_name']:
-        fqdn = context.get_current_parameters()["canonical_facts"].get("fqdn", None)
-        if fqdn:
-            return fqdn
-        else:
-            return context.get_current_parameters()['id']
+    params = context.get_current_parameters()
+    if not params['display_name']:
+        return params["canonical_facts"].get("fqdn") or params['id']
 
 
 class Host(db.Model):
