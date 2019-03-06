@@ -237,8 +237,10 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
         filter_list.append(Host.id == host_id)
         logger.debug("Adding id (uuid) to the filter list")
     except Exception as e:
-        # Ignore the exception...do not filter using the id
-        pass
+        # Do not filter using the id
+        logger.debug("The hostname (%s) could not be converted into a UUID",
+                     hostname,
+                     exc_info=True)
 
     query = Host.query.filter(sqlalchemy.or_(*filter_list))
 
