@@ -20,6 +20,7 @@ CANONICAL_FACTS = (
     "ip_addresses",
     "fqdn",
     "mac_addresses",
+    "external_id",
 )
 
 
