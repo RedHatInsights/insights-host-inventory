@@ -400,9 +400,10 @@ class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
         # Explicitly set the display name to an empty string
         host_display_name_empty_str.display_name = ""
 
-        test_host_list = {"no display_name": host_without_display_name,
-                          "display_name is None": host_with_display_name_as_none,
-                          "display_name is empty string": host_display_name_empty_str}
+        test_host_list = [("no display_name", host_without_display_name),
+                          ("display_name is None", host_with_display_name_as_none),
+                          ("display_name is empty string", host_display_name_empty_str),
+                          ]
 
         return test_host_list
 
@@ -418,9 +419,10 @@ class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
         host_fqdn_is_empty_str.display_name = ""
         host_fqdn_is_empty_str.fqdn = ""
 
-        test_host_list["fqdn and display_name are empty strings"] = host_fqdn_is_empty_str
+        test_host_list.append(("fqdn and display_name are empty strings",
+                               host_fqdn_is_empty_str))
 
-        for test_name, host_data in test_host_list.items():
+        for (test_name, host_data) in test_host_list:
             with self.subTest(test_name=test_name):
 
                 # Create the host
@@ -447,7 +449,7 @@ class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
 
         test_host_list = self._build_test_host_list()
 
-        for test_name, host_data in test_host_list.items():
+        for (test_name, host_data) in test_host_list:
 
             host_data.fqdn = expected_display_name
 
