@@ -147,7 +147,7 @@ The canonical facts are:
 * ip_addresses
 * fqdn
 * mac_addresses
-* source_ref
+* external_id
 
 Hosts are added and updated by sending a POST to the /hosts endpoint.
 (See the API Documentation for more details on the POST method).

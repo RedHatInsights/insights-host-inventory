@@ -36,7 +36,7 @@ def test_data(display_name="hi", tags=None, facts=None):
         # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
         "ip_addresses": ["10.10.0.1"],
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
-        # "source_ref": "i-05d2313e6b9a42b16"
+        # "external_id": "i-05d2313e6b9a42b16"
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
@@ -177,7 +177,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.rhel_machine_id = "1234-56-789"
         host_data.ip_addresses = ["10.10.0.1", "10.0.0.2"]
         host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
-        host_data.source_ref = "i-05d2313e6b9a42b16"
+        host_data.external_id = "i-05d2313e6b9a42b16"
         host_data.insights_id = "0987-65-4321"
 
         # Update the host with the new data
@@ -211,7 +211,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.bios_uuid = "123456"
         host_data.fqdn = "original_fqdn"
         host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
-        host_data.source_ref = "abcdef"
+        host_data.external_id = "abcdef"
 
         # Create the host
         created_host = self.post(HOST_URL, host_data.data(), 201)
@@ -228,7 +228,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.bios_uuid = "654321"
         host_data.fqdn = "expected_fqdn"
         host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
-        host_data.source_ref = "fedcba"
+        host_data.external_id = "fedcba"
         host_data.facts = [{"namespace": "ns1",
                             "facts": {"newkey": "newvalue"}}]
 
@@ -293,7 +293,7 @@ class CreateHostsTestCase(DBAPITestCase):
         del host_data.ip_addresses
         del host_data.fqdn
         del host_data.mac_addresses
-        del host_data.source_ref
+        del host_data.external_id
 
         response_data = self.post(HOST_URL, host_data.data(), 400)
 
@@ -365,8 +365,8 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertEqual(received_host["fqdn"], expected_host.fqdn)
         self.assertEqual(received_host["mac_addresses"],
                          expected_host.mac_addresses)
-        self.assertEqual(received_host["source_ref"],
-                         expected_host.source_ref)
+        self.assertEqual(received_host["external_id"],
+                         expected_host.external_id)
         self.assertEqual(received_host["ip_addresses"],
                          expected_host.ip_addresses)
         self.assertEqual(received_host["display_name"],
