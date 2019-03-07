@@ -47,12 +47,23 @@ docker-compose down
 
 ## Running the Tests
 
-Running the tests is quite simple:
+It is possible to run the tests using pytest:
 
 ```
-./test_api.py
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest --cov=.
+```
+
+Or you can run the tests individually:
+
+```
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ ./test_api.py
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest test_db_model.py
 ./test_unit.py
 ```
+
+Depending on the environment, it might be necessary to set the DB related environment
+variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).  See information on
+_prometheus_multiproc_dir_ environment variable below.
 
 ## Running the server
 
