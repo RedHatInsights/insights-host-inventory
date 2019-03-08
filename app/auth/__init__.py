@@ -23,7 +23,7 @@ def bearer_token_handler(token):
                      exc_info=True)
         return None
 
-    return {'uid': identity}
+    return {"uid": identity}
 
 
 def authentication_header_handler(apikey, required_scopes=None):
@@ -35,7 +35,7 @@ def authentication_header_handler(apikey, required_scopes=None):
                      exc_info=True)
         return None
 
-    return {'uid': identity}
+    return {"uid": identity}
 
 
 def _get_identity():
