@@ -117,14 +117,6 @@ def update_existing_host(existing_host, input_host):
 def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
-
-    """
-    Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
-
-    If multiple tags are passed along, they are AND'd together during
-    the filtering.
-
-    """
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
