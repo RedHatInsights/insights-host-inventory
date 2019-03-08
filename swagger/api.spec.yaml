@@ -11,28 +11,16 @@ paths:
         - hosts
       summary: Read the entire list of hosts
       description: >-
-        Read the entire list of all hosts available to the account. The list can
-        be filtered either by tags or by a display name.
+        Read the entire list of all hosts available to the account.
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: query
-          name: tag
-          schema:
-            type: array
-            items:
-              type: string
-          description: >-
-            A comma separated list of all tags that a matched host must own.
-            Example: namespace/tag:value,somens/sometag:someval
-          required: false
         - in: query
           name: display_name
           schema:
             type: string
           description: >-
-            A part of a searched host’s display name. Doesn’t apply if a search
-            by tag query is provided.
+            A part of a searched host’s display name.
           required: false
         - in: query
           name: fqdn
@@ -387,11 +375,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
-        tags:
-          description: A set of tags assigned to the host.
-          type: array
-          items:
-            type: string
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

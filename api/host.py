@@ -114,7 +114,7 @@ def update_existing_host(existing_host, input_host):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_list(tag=None, display_name=None, fqdn=None,
+def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
 
@@ -128,10 +128,6 @@ def get_host_list(tag=None, display_name=None, fqdn=None,
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
-        )
-    elif tag:
-        (total, host_list) = find_hosts_by_tag(
-            current_identity.account_number, tag, page, per_page
         )
     elif display_name:
         (total, host_list) = find_hosts_by_display_name(
@@ -165,17 +161,6 @@ def _build_paginated_host_list_response(total, page, per_page, host_list):
         },
         200,
     )
-
-
-def find_hosts_by_tag(account, tag, page, per_page):
-    logger.debug("find_hosts_by_tag(%s)" % tag)
-    query_results = Host.query.filter(
-        (Host.account == account) & Host.tags.comparator.contains(tag)
-    ).paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-    logger.debug("found_host_list:%s" % found_host_list)
-    return (total, found_host_list)
 
 
 def find_hosts_by_display_name(account, display_name, page, per_page):
