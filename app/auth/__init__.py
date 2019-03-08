@@ -40,7 +40,7 @@ def authentication_header_handler(apikey, required_scopes=None):
 
 def _get_identity():
     try:
-        return connexion.context['user']
+        return connexion.context["user"]
     except AttributeError:
         raise NoIdentityError
 
