@@ -4,7 +4,7 @@ import os
 
 from api import api_operation, REQUEST_ID_HEADER
 from app.config import Config
-from app.auth import token_validator, header_validator
+from app.auth import bearer_token_handler, authentication_header_handler
 from app.auth.identity import IdentityBuilder, Identity, validate
 from base64 import b64encode
 from json import dumps
@@ -269,7 +269,7 @@ def test_noauthmode_header_auth(monkeypatch):
     with monkeypatch.context() as m:
         m.setenv("FLASK_DEBUG", "1")
         m.setenv("NOAUTH", "1")
-        authenticator_result = header_validator("blah")
+        authenticator_result = authentication_header_handler("blah")
         assert authenticator_result["uid"] == Identity(account_number="0000001")
 
 
@@ -278,7 +278,7 @@ def test_noauthmode_token_auth(monkeypatch):
     with monkeypatch.context() as m:
         m.setenv("FLASK_DEBUG", "1")
         m.setenv("NOAUTH", "1")
-        authenticator_result = token_validator("blah")
+        authenticator_result = bearer_token_handler("blah")
         assert authenticator_result["uid"] == Identity(account_number="0000001")
 
 

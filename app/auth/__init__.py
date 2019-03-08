@@ -14,7 +14,7 @@ class NoIdentityError(RuntimeError):
     pass
 
 
-def token_validator(token):
+def bearer_token_handler(token):
     try:
         identity = IdentityBuilder.from_bearer_token(token)
         validate(identity)
@@ -26,7 +26,7 @@ def token_validator(token):
     return {'uid': identity}
 
 
-def header_validator(apikey, required_scopes=None):
+def authentication_header_handler(apikey, required_scopes=None):
     try:
         identity = IdentityBuilder.from_auth_header(apikey)
         validate(identity)
