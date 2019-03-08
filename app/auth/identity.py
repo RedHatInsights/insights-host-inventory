@@ -19,31 +19,22 @@ def from_bearer_token(token):
 
 class Identity:
     def __init__(self, account_number=None, token=None):
-        self._is_trusted_system = False
-        self._account_number = account_number
-
-        if token:
-            self.token = token
-            self._is_trusted_system = True
-            self._account_number = "*"
-
-    def _asdict(self):
-        return {"account_number": self._account_number}
-
-    @property
-    def account_number(self):
-        return self._account_number
-
-    @property
-    def is_trusted_system(self):
         """
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
         """
-        return self._is_trusted_system
+        self.is_trusted_system = False
+        self.account_number = account_number
+
+        if token:
+            self.token = token
+            self.is_trusted_system = True
+
+    def _asdict(self):
+        return {"account_number": self.account_number}
 
     def __eq__(self, other):
-        return self._account_number == other._account_number
+        return self.account_number == other.account_number
 
 
 def validate(identity):
@@ -52,6 +43,5 @@ def validate(identity):
             raise ValueError("Invalid credentials")
     else:
         # Ensure the account number is present.
-        dict_ = identity._asdict()
-        if not all(dict_.values()):
+        if not identity.account_number:
             raise ValueError("The account_number is mandatory.")

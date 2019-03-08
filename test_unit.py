@@ -4,8 +4,10 @@ import os
 
 from api import api_operation, REQUEST_ID_HEADER
 from app.config import Config
-from app.auth import bearer_token_handler, authentication_header_handler
-from app.auth.identity import  Identity, validate, from_auth_header, from_bearer_token
+from app.auth.identity import (Identity,
+                               validate,
+                               from_auth_header,
+                               from_bearer_token)
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
@@ -78,16 +80,19 @@ class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
         Initialize the Identity object with an encoded payload – a base64-encoded JSON.
         That would typically be a raw HTTP header content.
         """
-        identity = self._identity()
+        expected_identity = self._identity()
 
-        dict_ = {"identity": identity._asdict()}
+        dict_ = {"identity": expected_identity._asdict()}
         json = dumps(dict_)
         base64 = b64encode(json.encode())
 
         try:
-            self.assertEqual(identity, from_auth_header(base64))
+            actual_identity = from_auth_header(base64)
+            self.assertEqual(expected_identity, actual_identity)
         except (TypeError, ValueError):
             self.fail()
+
+        self.assertEqual(actual_identity.is_trusted_system, False)
 
     def test_invalid_type(self):
         """
@@ -143,7 +148,6 @@ class AuthIdentityValidateTestCase(TestCase):
 
 
 class TrustedIdentityTestCase(TestCase):
-    valid_account_numbers = ["123456", "654321", "1", "2",]
     shared_secret = "ImaSecret"
 
     def setUp(self):
@@ -151,7 +155,7 @@ class TrustedIdentityTestCase(TestCase):
         self.env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
 
     def _build_id(self):
-        identity = from_bearer_token(token=self.shared_secret)
+        identity = from_bearer_token(self.shared_secret)
         return identity
 
     def test_validation(self):
