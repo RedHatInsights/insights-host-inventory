@@ -19,7 +19,31 @@ logger = logging.getLogger(__name__)
 
 @api_operation
 @metrics.api_request_time.time()
-def add_host(host):
+def add_host_list(host_list):
+    response_host_list = []
+    number_of_errors = 0
+    for host in host_list:
+        try:
+            (host, status_code) = _add_host(host)
+            response_host_list.append({'status': status_code, 'host': host})
+        except InventoryException as e:
+            number_of_errors += 1
+            logger.exception("Error adding host: %s" % host)
+            response_host_list.append({**e.to_json(), "host": host})
+        except Exception as e:
+            number_of_errors += 1
+            logger.exception("Error adding host: %s" % host)
+            response_host_list.append({'status': 500,
+                             'detail': "Could not complete operation",
+                             'host': host})
+
+    response = {'total': len(response_host_list),
+                'errors': number_of_errors,
+                'data': response_host_list}
+    return response, 207
+
+
+def _add_host(host):
     """
     Add or update a host
 
@@ -117,14 +141,6 @@ def update_existing_host(existing_host, input_host):
 def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
-
-    """
-    Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
-
-    If multiple tags are passed along, they are AND'd together during
-    the filtering.
-
-    """
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
