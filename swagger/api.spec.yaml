@@ -194,10 +194,6 @@ paths:
           description: Host or namespace not found.
 components:
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      x-bearerInfoFunc: app.auth.bearer_token_handler
     ApiKeyAuth:
       type: apiKey
       in: header
