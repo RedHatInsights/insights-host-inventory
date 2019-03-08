@@ -6,7 +6,7 @@ from enum import Enum
 
 from app import db
 from app.models import Host
-from app.auth import current_identity, requires_identity
+from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
 
@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def add_host(host):
     """
     Add or update a host
@@ -115,7 +114,6 @@ def update_existing_host(existing_host, input_host):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def get_host_list(tag=None, display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
@@ -232,7 +230,6 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
     query_results = Host.query.filter(
         (Host.account == current_identity.account_number)
@@ -247,7 +244,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
     return update_facts_by_namespace(FactOperations.replace, host_id_list,
                                      namespace, fact_dict)
@@ -255,7 +251,6 @@ def replace_facts(host_id_list, namespace, fact_dict):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
     if not fact_dict:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."

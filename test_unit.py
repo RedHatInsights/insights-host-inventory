@@ -3,10 +3,6 @@
 import os
 
 from api import api_operation, REQUEST_ID_HEADER
-from app.auth import (
-    _validate,
-    _pick_identity,
-)
 from app.config import Config
 from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
 from base64 import b64encode
@@ -220,22 +216,6 @@ class AuthIdentityValidateTestCase(TestCase):
             with self.subTest(identity=identity):
                 with self.assertRaises(ValueError):
                     validate(identity)
-
-    def test__validate_identity(self):
-        with self.assertRaises(Forbidden):
-            _validate(None)
-        with self.assertRaises(Forbidden):
-            _validate("")
-        with self.assertRaises(Forbidden):
-            _validate({})
-
-
-@pytest.mark.usefixtures("monkeypatch")
-def test_noauthmode(monkeypatch):
-    with monkeypatch.context() as m:
-        m.setenv("FLASK_DEBUG", "1")
-        m.setenv("NOAUTH", "1")
-        assert _pick_identity() == Identity(account_number="0000001")
 
 
 @pytest.mark.usefixtures("monkeypatch")

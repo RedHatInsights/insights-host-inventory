@@ -856,17 +856,17 @@ class AuthTestCase(DBAPITestCase):
 
     def test_validate_missing_identity(self):
         """
-        Identity header is not present, 400 Bad Request is returned.
+        Identity header is not present, 401 Unauthorized is returned.
         """
         response = self._get_hosts({})
-        self.assertEqual(400, response.status_code)  # Bad Request
+        self.assertEqual(401, response.status_code)
 
     def test_validate_invalid_identity(self):
         """
-        Identity header is not valid – empty in this case, 403 Forbidden is returned.
+        Identity header is not valid – empty in this case, 401 Unauthorized is returned.
         """
         response = self._get_hosts({"x-rh-identity": ""})
-        self.assertEqual(403, response.status_code)  # Forbidden
+        self.assertEqual(401, response.status_code)
 
     def test_validate_valid_identity(self):
         """

@@ -36,10 +36,6 @@ def create_app(config_name):
     with open("swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
 
-    # If we want to disable auth we first make the header not required
-    if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):
-        spec["parameters"]["rhIdentityHeader"]["required"] = False
-
     connexion_app.add_api(
         spec,
         arguments={"title": "RestyResolver Example"},
