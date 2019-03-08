@@ -5,7 +5,7 @@ from app.auth.identity import validate, IdentityBuilder
 from werkzeug.local import LocalProxy
 
 __all__ = ["current_identity", "NoIdentityError",
-           "token_validator", "header_validator"]
+           "bearer_token_handler", "authentication_header_handler"]
 
 logger = logging.getLogger(__name__)
 
