@@ -3,6 +3,7 @@
 import unittest
 import json
 import dateutil.parser
+import test.support
 import uuid
 import copy
 from app import create_app, db
@@ -21,10 +22,10 @@ VERSION_URL = "/version"
 NS = "testns"
 ID = "whoabuddy"
 
-ACCOUNT = "000031"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
+SHARED_SECRET = "SuperSecretStuff"
 
 
 def test_data(display_name="hi", tags=None, facts=None):
@@ -40,6 +41,15 @@ def test_data(display_name="hi", tags=None, facts=None):
         "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
+
+
+def build_auth_header(token):
+    auth_header = {"Authorization": f"Bearer {token}"}
+    return auth_header
+
+
+def build_valid_auth_header():
+    return build_auth_header(SHARED_SECRET)
 
 
 def inject_qs(url, **kwargs):
@@ -548,6 +558,67 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
                                     expected_id=original_id,
                                     verify_tags=False)
 
+class BulkCreateHostsTestCase(DBAPITestCase):
+
+    def _get_valid_auth_header(self):
+        return build_valid_auth_header()
+
+    def test_create_and_update_multiple_hosts_with_different_accounts(self):
+        with test.support.EnvironmentVarGuard() as env:
+            env.set("INVENTORY_SHARED_SECRET", SHARED_SECRET)
+
+            facts = None
+            tags = []
+
+            host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+            host1.account = "111111"
+            host1.ip_addresses = ["10.0.0.1"]
+            host1.rhel_machine_id = str(uuid.uuid4())
+
+            host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+            host2.account = "222222"
+            host2.ip_addresses = ["10.0.0.2"]
+            host2.rhel_machine_id = str(uuid.uuid4())
+
+            host_list = [host1.data(), host2.data()]
+
+            # Create the host
+            response = self.post(HOST_URL, host_list, 207)
+
+            self.assertEqual(len(host_list), len(response["data"]))
+            self.assertEqual(response["total"], len(response["data"]))
+
+            self.assertEqual(response["errors"], 0)
+
+            for host in response["data"]:
+                self.assertEqual(host["status"], 201)
+
+            host_list[0]["id"] = response["data"][0]["host"]["id"]
+            host_list[0]["bios_uuid"] = str(uuid.uuid4())
+            host_list[0]["display_name"] = "fred"
+
+            host_list[1]["id"] = response["data"][1]["host"]["id"]
+            host_list[1]["bios_uuid"] = str(uuid.uuid4())
+            host_list[1]["display_name"] = "barney"
+
+            # Update the host
+            updated_host = self.post(HOST_URL, host_list, 207)
+
+            self.assertEqual(updated_host["errors"], 0)
+
+            i = 0
+            for host in updated_host["data"]:
+                self.assertEqual(host["status"], 200)
+
+                expected_host = HostWrapper(host_list[i])
+
+                self._validate_host(host["host"],
+                                    expected_host,
+                                    expected_id=expected_host.id)
+
+                i += 1
+
+
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
@@ -908,7 +979,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         self._basic_fact_test(new_facts, expected_facts, True)
 
 
-class AuthTestCase(DBAPITestCase):
+class HeaderAuthTestCase(DBAPITestCase):
     @staticmethod
     def _valid_identity():
         """
@@ -934,25 +1005,49 @@ class AuthTestCase(DBAPITestCase):
 
     def test_validate_missing_identity(self):
         """
-        Identity header is not present, 401 Unauthorized is returned.
+        Identity header is not present.
         """
         response = self._get_hosts({})
         self.assertEqual(401, response.status_code)
 
     def test_validate_invalid_identity(self):
         """
-        Identity header is not valid – empty in this case, 401 Unauthorized is returned.
+        Identity header is not valid – empty in this case
         """
         response = self._get_hosts({"x-rh-identity": ""})
         self.assertEqual(401, response.status_code)
 
     def test_validate_valid_identity(self):
         """
-        Identity header is valid – non-empty in this case, 200 is returned.
+        Identity header is valid – non-empty in this case
         """
         payload = self._valid_payload()
         response = self._get_hosts({"x-rh-identity": payload})
         self.assertEqual(200, response.status_code)  # OK
+
+
+class TokenAuthTestCase(DBAPITestCase):
+    """
+    A couple of sanity checks to make sure the service is denying access
+    """
+
+    def test_validate_invalid_token_on_GET(self):
+        auth_header = build_auth_header("NotTheSuperSecretValue")
+        response = self.client().get(HOST_URL, headers=auth_header)
+        self.assertEqual(401, response.status_code)
+
+    def test_validate_invalid_token_on_POST(self):
+        auth_header = build_auth_header("NotTheSuperSecretValue")
+        response = self.client().post(HOST_URL, headers=auth_header)
+        self.assertEqual(401, response.status_code)
+
+    def test_validate_token_on_POST_shared_secret_not_set(self):
+        with test.support.EnvironmentVarGuard() as env:
+            env.unset("INVENTORY_SHARED_SECRET")
+
+            auth_header = build_valid_auth_header()
+            response = self.client().post(HOST_URL, headers=auth_header)
+            self.assertEqual(401, response.status_code)
 
 
 class HealthTestCase(BaseAPITestCase):

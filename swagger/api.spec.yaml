@@ -62,6 +62,7 @@ paths:
         canonicals facts and belonging to the same account.
       security:
         - ApiKeyAuth: []
+        - BearerAuth: []
       requestBody:
         description: A list of host objects to be added to the host list
         required: true
@@ -206,6 +207,10 @@ paths:
           description: Host or namespace not found.
 components:
   securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.auth.bearer_token_handler
     ApiKeyAuth:
       type: apiKey
       in: header

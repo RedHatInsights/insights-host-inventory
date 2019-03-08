@@ -4,12 +4,14 @@ import os
 
 from api import api_operation, REQUEST_ID_HEADER
 from app.config import Config
-from app.auth.identity import from_dict, from_encoded, from_json, Identity, validate
+from app.auth import bearer_token_handler, authentication_header_handler
+from app.auth.identity import  Identity, validate, from_auth_header, from_bearer_token
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
 import pytest
+from test.support import EnvironmentVarGuard
 from werkzeug.exceptions import Forbidden
 
 
@@ -65,85 +67,7 @@ class AuthIdentityConstructorTestCase(TestCase):
         return Identity(account_number="some number")
 
 
-class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
-    """
-    Tests creating an Identity from a dictionary.
-    """
-
-    def test_valid(self):
-        """
-        Initialize the Identity object with a valid dictionary.
-        """
-        identity = self._identity()
-
-        dict_ = {
-            "account_number": identity.account_number,
-            "internal": {"org_id": "some org id", "extra_field": "extra value"},
-        }
-
-        self.assertEqual(identity, from_dict(dict_))
-
-    def test_invalid(self):
-        """
-        Initializing the Identity object with a dictionary with missing values or with
-        anything else should raise TypeError.
-        """
-        dicts = [{}, {"org_id": "some org id"}, "some string", ["some", "list"]]
-        for dict_ in dicts:
-            with self.assertRaises(TypeError):
-                from_dict(dict_)
-
-
-class AuthIdentityFromJsonTest(AuthIdentityConstructorTestCase):
-    """
-    Tests creating an Identity from a JSON string.
-    """
-
-    def test_valid(self):
-        """
-        Initialize the Identity object with a valid JSON string.
-        """
-        identity = self._identity()
-
-        dict_ = {"identity": identity._asdict()}
-        json = dumps(dict_)
-
-        try:
-            self.assertEqual(identity, from_json(json))
-        except (TypeError, ValueError):
-            self.fail()
-
-    def test_invalid_type(self):
-        """
-        Initializing the Identity object with an invalid type that can’t be JSON should
-        raise a TypeError.
-        """
-        with self.assertRaises(TypeError):
-            from_json(["not", "a", "string"])
-
-    def test_invalid_value(self):
-        """
-        Initializing the Identity object with an invalid JSON string should raise a
-        ValueError.
-        """
-        with self.assertRaises(ValueError):
-            from_json("invalid JSON")
-
-    def test_invalid_format(self):
-        """
-        Initializing the Identity object with a JSON string that is not
-        formatted correctly.
-        """
-        identity = self._identity()
-
-        dict_ = identity._asdict()
-        json = dumps(dict_)
-
-        with self.assertRaises(KeyError):
-            from_json(json)
-
-
-class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
@@ -161,7 +85,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         base64 = b64encode(json.encode())
 
         try:
-            self.assertEqual(identity, from_encoded(base64))
+            self.assertEqual(identity, from_auth_header(base64))
         except (TypeError, ValueError):
             self.fail()
 
@@ -171,7 +95,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         encoded payload should raise a TypeError.
         """
         with self.assertRaises(TypeError):
-            from_encoded(["not", "a", "string"])
+            from_auth_header(["not", "a", "string"])
 
     def test_invalid_value(self):
         """
@@ -179,7 +103,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         raise a ValueError.
         """
         with self.assertRaises(ValueError):
-            from_encoded("invalid Base64")
+            from_auth_header("invalid Base64")
 
     def test_invalid_format(self):
         """
@@ -193,7 +117,7 @@ class AuthIdentityFromEncodedTest(AuthIdentityConstructorTestCase):
         base64 = b64encode(json.encode())
 
         with self.assertRaises(KeyError):
-            from_encoded(base64)
+            from_auth_header(base64)
 
 
 class AuthIdentityValidateTestCase(TestCase):
@@ -216,6 +140,44 @@ class AuthIdentityValidateTestCase(TestCase):
             with self.subTest(identity=identity):
                 with self.assertRaises(ValueError):
                     validate(identity)
+
+
+class TrustedIdentityTestCase(TestCase):
+    valid_account_numbers = ["123456", "654321", "1", "2",]
+    shared_secret = "ImaSecret"
+
+    def setUp(self):
+        self.env = EnvironmentVarGuard()
+        self.env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
+
+    def _build_id(self):
+        identity = from_bearer_token(token=self.shared_secret)
+        return identity
+
+    def test_validation(self):
+        identity = self._build_id()
+
+        with self.env:
+            validate(identity)
+
+    def test_validation_with_invalid_identity(self):
+        identity = from_bearer_token("InvalidPassword")
+
+        with self.assertRaises(ValueError):
+            validate(identity)
+
+    def test_validation_env_var_not_set(self):
+        identity = self._build_id()
+
+        self.env.unset("INVENTORY_SHARED_SECRET")
+        with self.env:
+            with self.assertRaises(ValueError):
+                validate(identity)
+
+    def test_is_trusted_system(self):
+        identity = self._build_id()
+
+        self.assertEqual(identity.is_trusted_system, True)
 
 
 @pytest.mark.usefixtures("monkeypatch")
