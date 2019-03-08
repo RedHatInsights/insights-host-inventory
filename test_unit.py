@@ -10,7 +10,7 @@ from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
-import pytest
+import test.support
 from test.support import EnvironmentVarGuard
 from werkzeug.exceptions import Forbidden
 
@@ -180,68 +180,65 @@ class TrustedIdentityTestCase(TestCase):
         self.assertEqual(identity.is_trusted_system, True)
 
 
-@pytest.mark.usefixtures("monkeypatch")
-def test_config(monkeypatch):
-    app_name = "brontocrane"
-    path_prefix = "/r/slaterock/platform"
-    expected_base_url = f"{path_prefix}/{app_name}"
-    expected_api_path = f"{expected_base_url}/api/v1"
-    expected_mgmt_url_path_prefix = "/mgmt_testing"
+class ConfigTestCase(TestCase):
 
-    with monkeypatch.context() as m:
-        m.setenv("INVENTORY_DB_USER", "fredflintstone")
-        m.setenv("INVENTORY_DB_PASS", "bedrock1234")
-        m.setenv("INVENTORY_DB_HOST", "localhost")
-        m.setenv("INVENTORY_DB_NAME", "SlateRockAndGravel")
-        m.setenv("INVENTORY_DB_POOL_TIMEOUT", "3")
-        m.setenv("INVENTORY_DB_POOL_SIZE", "8")
-        m.setenv("APP_NAME", app_name)
-        m.setenv("PATH_PREFIX", path_prefix)
-        m.setenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", expected_mgmt_url_path_prefix)
+    def test_configuration_with_env_vars(self):
+        app_name = "brontocrane"
+        path_prefix = "/r/slaterock/platform"
+        expected_base_url = f"{path_prefix}/{app_name}"
+        expected_api_path = f"{expected_base_url}/api/v1"
+        expected_mgmt_url_path_prefix = "/mgmt_testing"
 
-        conf = Config("testing")
+        with test.support.EnvironmentVarGuard() as env:
+            env.unset("INVENTORY_SHARED_SECRET")
+            env.set("INVENTORY_DB_USER", "fredflintstone")
+            env.set("INVENTORY_DB_PASS", "bedrock1234")
+            env.set("INVENTORY_DB_HOST", "localhost")
+            env.set("INVENTORY_DB_NAME", "SlateRockAndGravel")
+            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
+            env.set("INVENTORY_DB_POOL_SIZE", "8")
+            env.set("APP_NAME", app_name)
+            env.set("PATH_PREFIX", path_prefix)
+            env.set("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", expected_mgmt_url_path_prefix)
 
-        assert conf.db_uri == "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel"
-        assert conf.db_pool_timeout == 3
-        assert conf.db_pool_size == 8
-        assert conf.api_url_path_prefix == expected_api_path
-        assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
+            conf = Config("testing")
 
+            self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
+            self.assertEqual(conf.db_pool_timeout, 3)
+            self.assertEqual(conf.db_pool_size, 8)
+            self.assertEqual(conf.api_url_path_prefix, expected_api_path)
+            self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
 
-@pytest.mark.usefixtures("monkeypatch")
-def test_config_default_settings(monkeypatch):
-    expected_base_url = "/r/insights/platform/inventory"
-    expected_api_path = f"{expected_base_url}/api/v1"
-    expected_mgmt_url_path_prefix = "/"
+    def test_config_default_settings(self):
+        expected_base_url = "/r/insights/platform/inventory"
+        expected_api_path = f"{expected_base_url}/api/v1"
+        expected_mgmt_url_path_prefix = "/"
 
-    with monkeypatch.context() as m:
-        # Make sure the environment variables are not set
-        for env_var in ("INVENTORY_DB_USER", "INVENTORY_DB_PASS",
-                        "INVENTORY_DB_HOST", "INVENTORY_DB_NAME",
-                        "INVENTORY_DB_POOL_TIMEOUT", "INVENTORY_DB_POOL_SIZE",
-                        "APP_NAME", "PATH_PREFIX"
-                        "INVENTORY_MANAGEMENT_URL_PATH_PREFIX",):
-            if env_var in os.environ:
-                m.delenv(env_var)
+        with test.support.EnvironmentVarGuard() as env:
+            # Make sure the environment variables are not set
+            for env_var in ("INVENTORY_DB_USER", "INVENTORY_DB_PASS",
+                            "INVENTORY_DB_HOST", "INVENTORY_DB_NAME",
+                            "INVENTORY_DB_POOL_TIMEOUT", "INVENTORY_DB_POOL_SIZE",
+                            "APP_NAME", "PATH_PREFIX"
+                            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX",):
+                env.unset(env_var)
 
-        conf = Config("testing")
+            conf = Config("testing")
 
-        assert conf.db_uri == "postgresql://insights:insights@localhost/test_db"
-        assert conf.api_url_path_prefix == expected_api_path
-        assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
-        assert conf.db_pool_timeout == 5
-        assert conf.db_pool_size == 5
+            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/test_db")
+            self.assertEqual(conf.api_url_path_prefix, expected_api_path)
+            self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
+            self.assertEqual(conf.db_pool_timeout, 5)
+            self.assertEqual(conf.db_pool_size, 5)
 
+    def test_config_development_settings(self):
+        with test.support.EnvironmentVarGuard() as env:
+            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
 
-@pytest.mark.usefixtures("monkeypatch")
-def test_config_development(monkeypatch):
-    with monkeypatch.context() as m:
-        m.setenv("INVENTORY_DB_POOL_TIMEOUT", "3")
+            # Test a different "type" (development) of config settings
+            conf = Config("development")
 
-        # Test a different "type" (development) of config settings
-        conf = Config("development")
-
-        assert conf.db_pool_timeout == 3
+            self.assertEqual(conf.db_pool_timeout, 3)
 
 
 if __name__ == "__main__":
