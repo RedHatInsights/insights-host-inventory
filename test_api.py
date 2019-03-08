@@ -148,6 +148,44 @@ class DBAPITestCase(BaseAPITestCase):
 
         return ",".join(host_id_list)
 
+    def _verify_host_status(self, response, host_index, expected_status):
+        self.assertEqual(response["data"][host_index]["status"],
+                         expected_status)
+
+    def _pluck_host_from_response(self, response, host_index):
+        return response["data"][host_index]["host"]
+
+    def _validate_host(self, received_host, expected_host,
+                       expected_id=id, verify_tags=True):
+        self.assertIsNotNone(received_host["id"])
+        self.assertEqual(received_host["id"], expected_id)
+        self.assertEqual(received_host["account"], expected_host.account)
+        self.assertEqual(received_host["insights_id"],
+                         expected_host.insights_id)
+        self.assertEqual(received_host["rhel_machine_id"],
+                         expected_host.rhel_machine_id)
+        self.assertEqual(received_host["subscription_manager_id"],
+                         expected_host.subscription_manager_id)
+        self.assertEqual(received_host["satellite_id"],
+                         expected_host.satellite_id)
+        self.assertEqual(received_host["bios_uuid"], expected_host.bios_uuid)
+        self.assertEqual(received_host["fqdn"], expected_host.fqdn)
+        self.assertEqual(received_host["mac_addresses"],
+                         expected_host.mac_addresses)
+        self.assertEqual(received_host["ip_addresses"],
+                         expected_host.ip_addresses)
+        self.assertEqual(received_host["display_name"],
+                         expected_host.display_name)
+        self.assertEqual(received_host["facts"], expected_host.facts)
+
+        if verify_tags:
+            self.assertEqual(received_host["tags"], expected_host.tags)
+        else:
+            self.assertIsNotNone(received_host["tags"])
+
+        self.assertIsNotNone(received_host["created"])
+        self.assertIsNotNone(received_host["updated"])
+
 
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
@@ -157,7 +195,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data = HostWrapper(test_data(facts=facts, tags=tags))
 
         # Create the host
-        created_host = self.post(HOST_URL, host_data.data(), 201)
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
 
         original_id = created_host["id"]
 
@@ -181,7 +223,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.insights_id = "0987-65-4321"
 
         # Update the host with the new data
-        updated_host = self.post(HOST_URL, host_data.data(), 200)
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 200)
+
+        updated_host = self._pluck_host_from_response(response, 0)
 
         # Make sure the id from the update post matches the id from the create
         self.assertEqual(updated_host["id"], original_id)
@@ -214,7 +260,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.external_id = "abcdef"
 
         # Create the host
-        created_host = self.post(HOST_URL, host_data.data(), 201)
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
 
         original_id = created_host["id"]
 
@@ -233,7 +283,11 @@ class CreateHostsTestCase(DBAPITestCase):
                             "facts": {"newkey": "newvalue"}}]
 
         # Update the host
-        updated_host = self.post(HOST_URL, host_data.data(), 200)
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 200)
+
+        updated_host = self._pluck_host_from_response(response, 0)
 
         # Verify that the id did not change on the update
         self.assertEqual(updated_host["id"], original_id)
@@ -257,11 +311,15 @@ class CreateHostsTestCase(DBAPITestCase):
         expected_tags = []
 
         # Create the host
-        results = self.post(HOST_URL, host_data.data(), 201)
+        response = self.post(HOST_URL, [host_data.data()], 207)
 
-        self.assertIsNotNone(results["id"])
+        self._verify_host_status(response, 0, 201)
 
-        original_id = results["id"]
+        created_host = self._pluck_host_from_response(response, 0)
+
+        self.assertIsNotNone(created_host["id"])
+
+        original_id = created_host["id"]
 
         # Update the tags, facts and display name
         host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
@@ -269,7 +327,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.display_name = "expected_display_name"
 
         # Update the hosts
-        self.post(HOST_URL, host_data.data(), 200)
+        self.post(HOST_URL, [host_data.data()], 207)
 
         host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
 
@@ -282,6 +340,35 @@ class CreateHostsTestCase(DBAPITestCase):
         results = HostWrapper(host_lookup_results["results"][0])
         self.assertListEqual(results.tags, expected_tags)
 
+    def test_create_and_update_multiple_hosts_with_account_mismatch(self):
+        """
+        Attempt to create multiple hosts, one host has the wrong account number.
+        Verify this causes an error response to be returned.
+        """
+        tags = []
+        facts = None
+
+        host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+        host1.ip_addresses = ["10.0.0.1"]
+        host1.rhel_machine_id = str(uuid.uuid4())
+
+        host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+        # Set the account number to the wrong account for this request
+        host2.account = "222222"
+        host2.ip_addresses = ["10.0.0.2"]
+        host2.rhel_machine_id = str(uuid.uuid4())
+
+        host_list = [host1.data(), host2.data()]
+
+        # Create the host
+        created_host = self.post(HOST_URL, host_list, 207)
+
+        self.assertEqual(len(host_list), len(created_host["data"]))
+
+        self.assertEqual(created_host["errors"], 1)
+
+        self.assertEqual(created_host["data"][0]["status"], 201)
+        self.assertEqual(created_host["data"][1]["status"], 400)
 
     def test_create_host_without_canonical_facts(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -295,7 +382,11 @@ class CreateHostsTestCase(DBAPITestCase):
         del host_data.mac_addresses
         del host_data.external_id
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        response_data = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response_data, 0, 400)
+
+        response_data = response_data["data"][0]
 
         assert "Invalid request" in response_data["title"]
         assert "status" in response_data
@@ -306,7 +397,7 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data = HostWrapper(test_data(facts=None))
         del host_data.account
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        response_data = self.post(HOST_URL, [host_data.data()], 400)
 
         assert "Bad Request" in response_data["title"]
         assert "status" in response_data
@@ -317,7 +408,11 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data = HostWrapper(test_data(facts=None))
         host_data.account = ACCOUNT[::-1]
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        response_data = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response_data, 0, 400)
+
+        response_data = response_data["data"][0]
 
         assert "Invalid request" in response_data["title"]
         assert "status" in response_data
@@ -329,7 +424,11 @@ class CreateHostsTestCase(DBAPITestCase):
         del facts[0]["namespace"]
         host_data = HostWrapper(test_data(facts=facts))
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        response_data = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response_data, 0, 400)
+
+        response_data = response_data["data"][0]
 
         assert response_data["title"] == "Invalid request"
         assert "status" in response_data
@@ -341,48 +440,19 @@ class CreateHostsTestCase(DBAPITestCase):
         del facts[0]["facts"]
         host_data = HostWrapper(test_data(facts=facts))
 
-        response_data = self.post(HOST_URL, host_data.data(), 400)
+        response_data = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response_data, 0, 400)
+
+        response_data = response_data["data"][0]
 
         assert response_data["title"] == "Invalid request"
         assert "status" in response_data
         assert "detail" in response_data
         assert "type" in response_data
 
-    def _validate_host(self, received_host, expected_host,
-                       expected_id=id, verify_tags=True):
-        self.assertIsNotNone(received_host["id"])
-        self.assertEqual(received_host["id"], expected_id)
-        self.assertEqual(received_host["account"], expected_host.account)
-        self.assertEqual(received_host["insights_id"],
-                         expected_host.insights_id)
-        self.assertEqual(received_host["rhel_machine_id"],
-                         expected_host.rhel_machine_id)
-        self.assertEqual(received_host["subscription_manager_id"],
-                         expected_host.subscription_manager_id)
-        self.assertEqual(received_host["satellite_id"],
-                         expected_host.satellite_id)
-        self.assertEqual(received_host["bios_uuid"], expected_host.bios_uuid)
-        self.assertEqual(received_host["fqdn"], expected_host.fqdn)
-        self.assertEqual(received_host["mac_addresses"],
-                         expected_host.mac_addresses)
-        self.assertEqual(received_host["external_id"],
-                         expected_host.external_id)
-        self.assertEqual(received_host["ip_addresses"],
-                         expected_host.ip_addresses)
-        self.assertEqual(received_host["display_name"],
-                         expected_host.display_name)
-        self.assertEqual(received_host["facts"], expected_host.facts)
 
-        if verify_tags:
-            self.assertEqual(received_host["tags"], expected_host.tags)
-        else:
-            self.assertIsNotNone(received_host["tags"])
-
-        self.assertIsNotNone(received_host["created"])
-        self.assertIsNotNone(received_host["updated"])
-
-
-class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
+class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
     def _build_test_host_list(self):
         host_with_display_name_as_none = HostWrapper(test_data(facts=None))
@@ -426,7 +496,11 @@ class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
             with self.subTest(test_name=test_name):
 
                 # Create the host
-                created_host = self.post(HOST_URL, host_data.data(), 201)
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                self._verify_host_status(response, 0, 201)
+
+                created_host = self._pluck_host_from_response(response, 0)
 
                 original_id = created_host["id"]
 
@@ -456,7 +530,11 @@ class ResolveDisplayNameOnCreationTestCase(CreateHostsTestCase):
             with self.subTest(test_name=test_name):
 
                 # Create the host
-                created_host = self.post(HOST_URL, host_data.data(), 201)
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                self._verify_host_status(response, 0, 201)
+
+                created_host = self._pluck_host_from_response(response, 0)
 
                 original_id = created_host["id"]
 
@@ -492,8 +570,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
             host_wrapper.fqdn = host[2]
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
-            response_data = self.post(HOST_URL, host_wrapper.data(), 201)
-            host_list.append(HostWrapper(response_data))
+            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+            host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
 
