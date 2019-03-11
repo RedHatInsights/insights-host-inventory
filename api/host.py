@@ -6,7 +6,7 @@ from enum import Enum
 
 from app import db
 from app.models import Host
-from app.auth import current_identity, requires_identity
+from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
 
@@ -19,8 +19,31 @@ logger = logging.getLogger(__name__)
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
-def add_host(host):
+def add_host_list(host_list):
+    response_host_list = []
+    number_of_errors = 0
+    for host in host_list:
+        try:
+            (host, status_code) = _add_host(host)
+            response_host_list.append({'status': status_code, 'host': host})
+        except InventoryException as e:
+            number_of_errors += 1
+            logger.exception("Error adding host: %s" % host)
+            response_host_list.append({**e.to_json(), "host": host})
+        except Exception as e:
+            number_of_errors += 1
+            logger.exception("Error adding host: %s" % host)
+            response_host_list.append({'status': 500,
+                             'detail': "Could not complete operation",
+                             'host': host})
+
+    response = {'total': len(response_host_list),
+                'errors': number_of_errors,
+                'data': response_host_list}
+    return response, 207
+
+
+def _add_host(host):
     """
     Add or update a host
 
@@ -30,7 +53,8 @@ def add_host(host):
     """
     account_number = host.get("account", None)
 
-    if current_identity.account_number != account_number:
+    if (not current_identity.is_trusted_system and
+            current_identity.account_number != account_number):
         raise InventoryException(title="Invalid request",
                 detail="The account number associated with the user does not "
                 "match the account number associated with the host")
@@ -115,25 +139,12 @@ def update_existing_host(existing_host, input_host):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
-def get_host_list(tag=None, display_name=None, fqdn=None,
+def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
-
-    """
-    Get the list of hosts.  Filtering can be done by the tag, display_name, or fqdn.
-
-    If multiple tags are passed along, they are AND'd together during
-    the filtering.
-
-    """
     if fqdn:
         (total, host_list) = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
-        )
-    elif tag:
-        (total, host_list) = find_hosts_by_tag(
-            current_identity.account_number, tag, page, per_page
         )
     elif display_name:
         (total, host_list) = find_hosts_by_display_name(
@@ -167,17 +178,6 @@ def _build_paginated_host_list_response(total, page, per_page, host_list):
         },
         200,
     )
-
-
-def find_hosts_by_tag(account, tag, page, per_page):
-    logger.debug("find_hosts_by_tag(%s)" % tag)
-    query_results = Host.query.filter(
-        (Host.account == account) & Host.tags.comparator.contains(tag)
-    ).paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-    logger.debug("found_host_list:%s" % found_host_list)
-    return (total, found_host_list)
 
 
 def find_hosts_by_display_name(account, display_name, page, per_page):
@@ -232,7 +232,6 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def get_host_by_id(host_id_list, page=1, per_page=100):
     query_results = Host.query.filter(
         (Host.account == current_identity.account_number)
@@ -247,7 +246,6 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def replace_facts(host_id_list, namespace, fact_dict):
     return update_facts_by_namespace(FactOperations.replace, host_id_list,
                                      namespace, fact_dict)
@@ -255,7 +253,6 @@ def replace_facts(host_id_list, namespace, fact_dict):
 
 @api_operation
 @metrics.api_request_time.time()
-@requires_identity
 def merge_facts(host_id_list, namespace, fact_dict):
     if not fact_dict:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
