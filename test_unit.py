@@ -84,12 +84,13 @@ class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
 
         identity_data = expected_identity._asdict()
 
-        identities = [{"identity": identity_data},
-                      {"identity": {**identity_data, **{"extra_data": "value"}}},
-                     ]
+        identity_data_dicts = [identity_data,
+                               # Test with extra data in the identity dict
+                               {**identity_data, **{"extra_data": "value"}}, ]
 
-        for identity in identities:
-            with self.subTest(identity=identity):
+        for identity_data in identity_data_dicts:
+            with self.subTest(identity_data=identity_data):
+                identity = {"identity": identity_data}
                 json = dumps(identity)
                 base64 = b64encode(json.encode())
 
