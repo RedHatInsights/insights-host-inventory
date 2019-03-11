@@ -82,17 +82,24 @@ class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
         """
         expected_identity = self._identity()
 
-        dict_ = {"identity": expected_identity._asdict()}
-        json = dumps(dict_)
-        base64 = b64encode(json.encode())
+        identity_data = expected_identity._asdict()
 
-        try:
-            actual_identity = from_auth_header(base64)
-            self.assertEqual(expected_identity, actual_identity)
-        except (TypeError, ValueError):
-            self.fail()
+        identities = [{"identity": identity_data},
+                      {"identity": {**identity_data, **{"extra_data": "value"}}},
+                     ]
 
-        self.assertEqual(actual_identity.is_trusted_system, False)
+        for identity in identities:
+            with self.subTest(identity=identity):
+                json = dumps(identity)
+                base64 = b64encode(json.encode())
+
+                try:
+                    actual_identity = from_auth_header(base64)
+                    self.assertEqual(expected_identity, actual_identity)
+                except (TypeError, ValueError):
+                    self.fail()
+
+                self.assertEqual(actual_identity.is_trusted_system, False)
 
     def test_invalid_type(self):
         """

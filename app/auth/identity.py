@@ -10,7 +10,7 @@ __all__ = ["Identity", "from_auth_header", "from_bearer_token", "validate"]
 def from_auth_header(base64):
     json = b64decode(base64)
     identity_dict = loads(json)
-    return Identity(**identity_dict["identity"])
+    return Identity(identity_dict["identity"]["account_number"])
 
 
 def from_bearer_token(token):
