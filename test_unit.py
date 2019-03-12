@@ -143,16 +143,11 @@ class AuthIdentityValidateTestCase(TestCase):
             self.fail()
 
     def test_invalid(self):
-        identities = [
-            Identity(account_number=None),
-            Identity(account_number=""),
-            Identity(account_number=None),
-            Identity(account_number=""),
-        ]
-        for identity in identities:
-            with self.subTest(identity=identity):
+        account_numbers = [None, ""]
+        for account_number in account_numbers:
+            with self.subTest(account_number=account_number):
                 with self.assertRaises(ValueError):
-                    validate(identity)
+                    Identity(account_number=account_number)
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -185,6 +180,13 @@ class TrustedIdentityTestCase(TestCase):
         with self.env:
             with self.assertRaises(ValueError):
                 validate(identity)
+
+    def test_validation_token_is_None(self):
+        tokens = [None, ""]
+        for token in tokens:
+            with self.subTest(token_value=token):
+                with self.assertRaises(ValueError):
+                    Identity(token=token)
 
     def test_is_trusted_system(self):
         identity = self._build_id()

@@ -28,6 +28,9 @@ class Identity:
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
         """
+        if not account_number and not token:
+            raise ValueError("Neither the account_number or token has been set")
+
         self.is_trusted_system = False
         self.account_number = account_number
 
