@@ -87,6 +87,7 @@ class Host(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
+    system_profile_facts = {} #db.Column(JSONB)
 
     def __init__(
         self,
@@ -95,6 +96,7 @@ class Host(db.Model):
         account=account,
         tags=None,
         facts=None,
+        system_profile_facts=None,
     ):
         self.canonical_facts = canonical_facts
         if display_name:
@@ -105,6 +107,7 @@ class Host(db.Model):
         self.account = account
         self.tags = tags
         self.facts = facts
+        self.system_profile_facts = system_profile_facts
 
     @classmethod
     def from_json(cls, d):
@@ -116,6 +119,7 @@ class Host(db.Model):
             [],  # For now...ignore tags when creating/updating hosts
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
+            d.get("system_profile", {}),
         )
 
     def to_json(self):
@@ -126,6 +130,7 @@ class Host(db.Model):
         json_dict["tags"] = self.tags
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
+        json_dict["system_profile"] = self.system_profile_facts
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict

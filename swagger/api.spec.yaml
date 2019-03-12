@@ -4,15 +4,13 @@ info:
   version: 1.0.0
   title: Insights Host Inventory REST Interface
 paths:
-
   /hosts:
     get:
       operationId: api.host.get_host_list
       tags:
         - hosts
       summary: Read the entire list of hosts
-      description: >-
-        Read the entire list of all hosts available to the account.
+      description: Read the entire list of all hosts available to the account.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -20,8 +18,7 @@ paths:
           name: display_name
           schema:
             type: string
-          description: >-
-            A part of a searched host’s display name.
+          description: A part of a searched host’s display name.
           required: false
         - in: query
           name: fqdn
@@ -254,7 +251,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BulkHostOutDetails'
-          description: List of hosts that were created, updated or failed to be processed.
+          description: 'List of hosts that were created, updated or failed to be processed.'
     BulkHostOutDetails:
       type: object
       properties:
@@ -383,6 +380,96 @@ components:
           type: string
           nullable: true
           example: i-05d2313e6b9a42b16
+        system_profile:
+          description: FIXME
+          type: object
+          properties:
+            number_of_cpus:
+              type: integer
+            number_of_sockets:
+              type: integer
+            cores_per_socket:
+              type: integer
+            system_memory:
+              type: string
+            infrastructure_type:
+              type: string
+            infrastructure_vendor:
+              type: string
+            serial_number:
+              type: string
+            ipv4_addresses:
+              type: array
+              items:
+                type: string
+            mac_addresses:
+              type: array
+              items:
+                type: string
+            network_interfaces:
+              type: array
+              items:
+                type: string
+            disk_devices:
+              type: array
+              items:
+                type: string
+            bios_vendor:
+              type: string
+            bios_version:
+              type: string
+            bios_release_date:
+              type: string
+            bios_compatible_support_modules:
+              type: string
+            os_release:
+              type: string
+            os_kernel_version:
+              type: string
+            arch:
+              type: string
+            kernel_modules:
+              type: array
+              items:
+                type: string
+            last_boot_time:
+              type: string
+            running_processes:
+              type: array
+              items:
+                type: string
+            subscription_status:
+              type: string
+            subscription_auto_attach:
+              type: string
+            katello_agent_running:
+              type: string
+            satellite_managed:
+              type: boolean
+            rpm_repos_enabled:
+              type: array
+              items:
+                type: string
+            installed_products:
+              type: array
+              items:
+                type: string
+            insights_client_version:
+              type: string
+            insights_egg_version:
+              type: string
+            installed_packages:
+              type: array
+              items:
+                type: string
+            installed_services:
+              type: array
+              items:
+                type: string
+            enabled_services:
+              type: array
+              items:
+                type: string
         facts:
           description: A set of facts belonging to the host.
           type: array
