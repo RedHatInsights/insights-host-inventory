@@ -1,3 +1,4 @@
+import logging
 import os
 
 from base64 import b64decode
@@ -5,6 +6,10 @@ from json import loads
 
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token", "validate"]
+
+logger = logging.getLogger(__name__)
+
+SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 
 
 def from_auth_header(base64):
@@ -23,6 +28,9 @@ class Identity:
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
         """
+        if not account_number and not token:
+            raise ValueError("Neither the account_number or token has been set")
+
         self.is_trusted_system = False
         self.account_number = account_number
 
@@ -39,7 +47,13 @@ class Identity:
 
 def validate(identity):
     if identity.is_trusted_system:
-        if identity.token != os.getenv("INVENTORY_SHARED_SECRET"):
+        # This needs to be moved.
+        # The logic for reading the environment variable and logging
+        # a warning should go into the Config class
+        shared_secret = os.getenv(SHARED_SECRET_ENV_VAR)
+        if not shared_secret:
+            logging.warn(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
+        if identity.token != shared_secret:
             raise ValueError("Invalid credentials")
     else:
         # Ensure the account number is present.

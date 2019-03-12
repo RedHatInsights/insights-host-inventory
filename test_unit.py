@@ -7,7 +7,8 @@ from app.config import Config
 from app.auth.identity import (Identity,
                                validate,
                                from_auth_header,
-                               from_bearer_token)
+                               from_bearer_token,
+                               SHARED_SECRET_ENV_VAR)
 from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
@@ -143,16 +144,11 @@ class AuthIdentityValidateTestCase(TestCase):
             self.fail()
 
     def test_invalid(self):
-        identities = [
-            Identity(account_number=None),
-            Identity(account_number=""),
-            Identity(account_number=None),
-            Identity(account_number=""),
-        ]
-        for identity in identities:
-            with self.subTest(identity=identity):
+        account_numbers = [None, ""]
+        for account_number in account_numbers:
+            with self.subTest(account_number=account_number):
                 with self.assertRaises(ValueError):
-                    validate(identity)
+                    Identity(account_number=account_number)
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -160,7 +156,7 @@ class TrustedIdentityTestCase(TestCase):
 
     def setUp(self):
         self.env = EnvironmentVarGuard()
-        self.env.set("INVENTORY_SHARED_SECRET", self.shared_secret)
+        self.env.set(SHARED_SECRET_ENV_VAR, self.shared_secret)
 
     def _build_id(self):
         identity = from_bearer_token(self.shared_secret)
@@ -181,10 +177,17 @@ class TrustedIdentityTestCase(TestCase):
     def test_validation_env_var_not_set(self):
         identity = self._build_id()
 
-        self.env.unset("INVENTORY_SHARED_SECRET")
+        self.env.unset(SHARED_SECRET_ENV_VAR)
         with self.env:
             with self.assertRaises(ValueError):
                 validate(identity)
+
+    def test_validation_token_is_None(self):
+        tokens = [None, ""]
+        for token in tokens:
+            with self.subTest(token_value=token):
+                with self.assertRaises(ValueError):
+                    Identity(token=token)
 
     def test_is_trusted_system(self):
         identity = self._build_id()
@@ -202,7 +205,7 @@ class ConfigTestCase(TestCase):
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
         with test.support.EnvironmentVarGuard() as env:
-            env.unset("INVENTORY_SHARED_SECRET")
+            env.unset(SHARED_SECRET_ENV_VAR)
             env.set("INVENTORY_DB_USER", "fredflintstone")
             env.set("INVENTORY_DB_PASS", "bedrock1234")
             env.set("INVENTORY_DB_HOST", "localhost")
