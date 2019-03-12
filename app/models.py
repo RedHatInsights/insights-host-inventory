@@ -27,7 +27,8 @@ CANONICAL_FACTS = (
 def convert_fields_to_canonical_facts(json_dict):
     canonical_fact_list = {}
     for cf in CANONICAL_FACTS:
-        if cf in json_dict:
+        # Do not allow the incoming canonical facts to be None or ''
+        if cf in json_dict and json_dict[cf]:
             canonical_fact_list[cf] = json_dict[cf]
     return canonical_fact_list
 
