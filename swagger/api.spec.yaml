@@ -392,84 +392,113 @@ components:
               type: integer
             system_memory:
               type: string
+              maxLength: 20
             infrastructure_type:
               type: string
+              maxLength: 50
             infrastructure_vendor:
               type: string
+              maxLength: 50
             serial_number:
               type: string
+              maxLength: 20
             ipv4_addresses:
               type: array
               items:
                 type: string
+                maxLength: 20
             mac_addresses:
               type: array
               items:
                 type: string
+                maxLength: 20
             network_interfaces:
               type: array
               items:
                 type: string
+                maxLength: 20
             disk_devices:
               type: array
               items:
                 type: string
+                maxLength: 20
             bios_vendor:
               type: string
+              maxLength: 50
             bios_version:
               type: string
+              maxLength: 50
             bios_release_date:
               type: string
+              maxLength: 25
             bios_compatible_support_modules:
-              type: string
+              type: array
+              items:
+                type: string
+                maxLength: 50
             os_release:
               type: string
+              maxLength: 50
             os_kernel_version:
               type: string
+              maxLength: 50
             arch:
               type: string
+              maxLength: 50
             kernel_modules:
               type: array
               items:
                 type: string
+                maxLength: 50
             last_boot_time:
               type: string
+              maxLength: 50
             running_processes:
               type: array
               items:
                 type: string
+                maxLength: 50
             subscription_status:
               type: string
+              maxLength: 50
             subscription_auto_attach:
               type: string
+              maxLength: 50
             katello_agent_running:
-              type: string
+              type: boolean
             satellite_managed:
               type: boolean
             rpm_repos_enabled:
               type: array
               items:
                 type: string
+                maxLength: 100
             installed_products:
               type: array
               items:
                 type: string
+                maxLength: 100
             insights_client_version:
               type: string
+              maxLength: 50
             insights_egg_version:
               type: string
+              maxLength: 50
             installed_packages:
               type: array
               items:
                 type: string
+                maxLength: 100
             installed_services:
               type: array
               items:
                 type: string
+                maxLength: 100
             enabled_services:
               type: array
               items:
                 type: string
+                maxLength: 100
         facts:
           description: A set of facts belonging to the host.
           type: array
