@@ -28,7 +28,7 @@ ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
 
 
-def test_data(display_name="hi", tags=None, facts=None):
+def test_data(display_name="hi", facts=None):
     return {
         "account": ACCOUNT,
         "display_name": display_name,
@@ -38,7 +38,6 @@ def test_data(display_name="hi", tags=None, facts=None):
         "ip_addresses": ["10.10.0.1"],
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
-        "tags": tags if tags else [],
         "facts": facts if facts else FACTS,
     }
 
@@ -166,7 +165,7 @@ class DBAPITestCase(BaseAPITestCase):
         return response["data"][host_index]["host"]
 
     def _validate_host(self, received_host, expected_host,
-                       expected_id=id, verify_tags=True):
+                       expected_id=id):
         self.assertIsNotNone(received_host["id"])
         self.assertEqual(received_host["id"], expected_id)
         self.assertEqual(received_host["account"], expected_host.account)
@@ -188,11 +187,6 @@ class DBAPITestCase(BaseAPITestCase):
                          expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
 
-        if verify_tags:
-            self.assertEqual(received_host["tags"], expected_host.tags)
-        else:
-            self.assertIsNotNone(received_host["tags"])
-
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
 
@@ -200,9 +194,8 @@ class DBAPITestCase(BaseAPITestCase):
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
         facts = None
-        tags = []
 
-        host_data = HostWrapper(test_data(facts=facts, tags=tags))
+        host_data = HostWrapper(test_data(facts=facts))
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -259,7 +252,7 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
         original_insights_id = str(uuid.uuid4())
 
-        host_data = HostWrapper(test_data(facts=None, tags=None))
+        host_data = HostWrapper(test_data(facts=None))
         host_data.insights_id = original_insights_id
         host_data.rhel_machine_id = str(uuid.uuid4())
         host_data.subscription_manager_id = "123456"
@@ -309,16 +302,12 @@ class CreateHostsTestCase(DBAPITestCase):
                             host_data,
                             expected_id=original_id)
 
-    def test_create_host_with_empty_tags_facts_display_name_then_update(self):
-        # Create a host with empty tags, facts, and display_name
+    def test_create_host_with_empty_facts_display_name_then_update(self):
+        # Create a host with empty facts, and display_name
         # then update those fields
         host_data = HostWrapper(test_data(facts=None))
-        del host_data.tags
         del host_data.display_name
         del host_data.facts
-
-        # Tags are currently ignored on create and update
-        expected_tags = []
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -331,8 +320,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        # Update the tags, facts and display name
-        host_data.tags = ["aws/new_tag_1:new_value_1", "aws/k:v"]
+        # Update the facts and display name
         host_data.facts = copy.deepcopy(FACTS)
         host_data.display_name = "expected_display_name"
 
@@ -343,26 +331,20 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self._validate_host(host_lookup_results["results"][0],
                             host_data,
-                            expected_id=original_id,
-                            verify_tags=False)
-
-        # Tagging is not supported at the moment.  Verity the tag was ignored
-        results = HostWrapper(host_lookup_results["results"][0])
-        self.assertListEqual(results.tags, expected_tags)
+                            expected_id=original_id)
 
     def test_create_and_update_multiple_hosts_with_account_mismatch(self):
         """
         Attempt to create multiple hosts, one host has the wrong account number.
         Verify this causes an error response to be returned.
         """
-        tags = []
         facts = None
 
-        host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+        host1 = HostWrapper(test_data(display_name="host1", facts=facts))
         host1.ip_addresses = ["10.0.0.1"]
         host1.rhel_machine_id = str(uuid.uuid4())
 
-        host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+        host2 = HostWrapper(test_data(display_name="host2", facts=facts))
         # Set the account number to the wrong account for this request
         host2.account = "222222"
         host2.ip_addresses = ["10.0.0.2"]
@@ -521,8 +503,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0],
                                     host_data,
-                                    expected_id=original_id,
-                                    verify_tags=False)
+                                    expected_id=original_id)
 
     def test_create_host_without_display_name_and_with_fqdn(self):
         """
@@ -555,8 +536,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0],
                                     host_data,
-                                    expected_id=original_id,
-                                    verify_tags=False)
+                                    expected_id=original_id)
 
 class BulkCreateHostsTestCase(DBAPITestCase):
 
@@ -568,14 +548,13 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             env.set("INVENTORY_SHARED_SECRET", SHARED_SECRET)
 
             facts = None
-            tags = []
 
-            host1 = HostWrapper(test_data(display_name="host1", facts=facts, tags=tags))
+            host1 = HostWrapper(test_data(display_name="host1", facts=facts))
             host1.account = "111111"
             host1.ip_addresses = ["10.0.0.1"]
             host1.rhel_machine_id = str(uuid.uuid4())
 
-            host2 = HostWrapper(test_data(display_name="host2", facts=facts, tags=tags))
+            host2 = HostWrapper(test_data(display_name="host2", facts=facts))
             host2.account = "222222"
             host2.ip_addresses = ["10.0.0.2"]
             host2.rhel_machine_id = str(uuid.uuid4())
@@ -635,7 +614,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         for host in hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
-            host_wrapper.tags = copy.deepcopy(TAGS)
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
             host_wrapper.fqdn = host[2]

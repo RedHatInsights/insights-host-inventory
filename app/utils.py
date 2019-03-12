@@ -95,14 +95,6 @@ class HostWrapper:
         self.__data["facts"] = facts
 
     @property
-    def tags(self):
-        return self.__data.get("tags", None)
-
-    @tags.setter
-    def tags(self, tags):
-        self.__data["tags"] = tags
-
-    @property
     def id(self):
         return self.__data.get("id", None)
 
