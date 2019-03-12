@@ -87,7 +87,7 @@ class Host(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
-    system_profile_facts = {} #db.Column(JSONB)
+    system_profile_facts = db.Column(JSONB)
 
     def __init__(
         self,
