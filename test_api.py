@@ -489,6 +489,34 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self.verify_error_response(response_data, expected_title="Bad Request")
 
+    def test_create_host_with_display_name_as_empty_string(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_display_names = ["", None]
+
+        for display_name in invalid_display_names:
+            with self.subTest(display_name=display_name):
+                host_data.display_name = display_name
+
+                response_data = self.post(HOST_URL, [host_data.data()], 400)
+
+                self.verify_error_response(response_data,
+                                           expected_title="Bad Request")
+
+    def test_create_host_with_fqdn_as_empty_string(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_fqdns = ["", None]
+
+        for fqdn in invalid_fqdns:
+            with self.subTest(fqdn=fqdn):
+                host_data.fqdn = fqdn
+
+                response_data = self.post(HOST_URL, [host_data.data()], 400)
+
+                self.verify_error_response(response_data,
+                                           expected_title="Bad Request")
+
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
@@ -503,14 +531,8 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         # Remove the display name
         del host_without_display_name.display_name
 
-        host_display_name_empty_str = HostWrapper(test_data(facts=None))
-        host_display_name_empty_str.insights_id = generate_uuid()
-        # Explicitly set the display name to an empty string
-        host_display_name_empty_str.display_name = ""
-
         test_host_list = [("no display_name", host_without_display_name),
                           ("display_name is None", host_with_display_name_as_none),
-                          ("display_name is empty string", host_display_name_empty_str),
                           ]
 
         return test_host_list
@@ -521,15 +543,6 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         when neither the display name or fqdn is set.
         """
         test_host_list = self._build_test_host_list()
-
-        host_fqdn_is_empty_str = HostWrapper(test_data(facts=None))
-        host_fqdn_is_empty_str.insights_id = generate_uuid()
-        host_fqdn_is_empty_str.display_name = ""
-        host_fqdn_is_empty_str.fqdn = ""
-
-        # FIXME: skip this for now
-        #test_host_list.append(("fqdn and display_name are empty strings",
-        #                       host_fqdn_is_empty_str))
 
         for (test_name, host_data) in test_host_list:
             with self.subTest(test_name=test_name):
