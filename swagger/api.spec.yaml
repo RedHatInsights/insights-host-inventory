@@ -282,6 +282,7 @@ components:
       properties:
         namespace:
           type: string
+          minLength: 1
           description: A namespace the facts belong to.
         facts:
           type: object
