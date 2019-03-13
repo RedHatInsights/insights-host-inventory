@@ -301,13 +301,13 @@ components:
             name.
           type: string
           minLength: 1
-          maxLength: 255
+          maxLength: 200
           example: host1.mydomain.com
         account:
           description: A Red Hat Account number that owns the host.
           type: string
           minLength: 1
-          maxLength: 25
+          maxLength: 10
           example: '000102'
         insights_id:
           description: >-
@@ -421,14 +421,14 @@ components:
             name.
           type: string
           minLength: 1
-          maxLength: 255
+          maxLength: 200
           example: host1.mydomain.com
           nullable: true
         account:
           description: A Red Hat Account number that owns the host.
           type: string
           minLength: 1
-          maxLength: 25
+          maxLength: 10
           example: '000102'
         insights_id:
           description: >-
