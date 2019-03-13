@@ -46,7 +46,7 @@ def create_app(config_name):
                 spec,
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
-                validate_responses=True,
+                validate_responses=False,
                 strict_validation=True,
                 base_path=api_url,
             )

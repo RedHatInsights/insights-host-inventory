@@ -14,31 +14,10 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: query
-          name: display_name
-          schema:
-            type: string
-          description: A part of a searched host’s display name.
-          required: false
-        - in: query
-          name: fqdn
-          schema:
-            type: string
-          description: Filter by a host's FQDN
-          required: false
-        - in: query
-          name: hostname_or_id
-          schema:
-            type: string
-          description: 'Search for a host by display_name, fqdn, id'
-          required: false
-        - in: query
-          name: insights_id
-          schema:
-            type: string
-            format: uuid
-          description: Search for a host by insights_id
-          required: false
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -94,6 +73,32 @@ paths:
                     host: Input host data
         '400':
           description: Invalid request.
+  /hosts/download:
+    get:
+      operationId: api.host.download_hosts
+      tags:
+        - hosts
+      summary: Download the entire list of hosts
+      description: >-
+        Download the entire list of all hosts available to the account. The
+        records are sent as a chunked response, one record per chunk, without
+        any result set or pagination metadata.
+
+        For now, it’s still using pagination and the chunking is used only only
+        exercise the purpose. The response is sent as plain text as it’s not
+        valid JSON – it’s a concatenated list of JSON documents.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+      responses:
+        '200':
+          description: Successfully downloaded the hosts list.
+          content:
+            application/x-ndjson: {}
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -302,6 +307,35 @@ components:
         maximum: 100
         default: 50
       description: A number of items to return per page.
+    displayName:
+      name: display_name
+      in: query
+      required: false
+      schema:
+        type: string
+      description: A part of a searched host’s display name.
+    fqdn:
+      name: fqdn
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter by a host's FQDN
+    hostnameOrId:
+      name: hostname_or_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: 'Search for a host by display_name, fqdn, id'
+    insightsId:
+      name: insights_id
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Search for a host by insights_id
   schemas:
     BulkHostOut:
       type: object

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 HOST_URL = "/api/inventory/v1/hosts"
+DOWNLOAD_URL = f"{HOST_URL}/download"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -1464,6 +1465,128 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
+
+
+class DownloadHostsTestCase(PreCreatedHostsBaseTestCase):
+
+    def get_streamed(self, path, status=200):
+        response = self.client().get(path, headers=self._get_valid_auth_header())
+        response = self._response_check(response, status, False)
+
+        self.assertTrue(response.is_streamed)
+        self.assertEqual(response.mimetype, 'application/x-ndjson')
+
+        return [json.loads(chunk) for chunk in response.response]
+
+
+class DownloadHostsQueryTestCase(DownloadHostsTestCase):
+
+    def _download_url(self, query):
+        return f"{DOWNLOAD_URL}?{urlencode(query)}"
+
+    def test_query_all(self):
+        results = self.get_streamed(DOWNLOAD_URL, 200)
+        self.assertEqual(len(results), len(self.added_hosts))
+
+    def test_query_using_display_name(self):
+        first_added_host = self.added_hosts[0]
+
+        url = self._download_url({"display_name": first_added_host.display_name})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), 1)
+
+        sole_result = results[0]
+        self.assertEqual(sole_result["fqdn"], first_added_host.fqdn)
+        self.assertEqual(sole_result["insights_id"], first_added_host.insights_id)
+        self.assertEqual(sole_result["display_name"], first_added_host.display_name)
+
+    def test_query_using_fqdn(self):
+        expected_hosts = [self.added_hosts[0], self.added_hosts[1]]
+        fqdn = self.added_hosts[0].fqdn
+
+        url = self._download_url({"fqdn": fqdn})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), len(expected_hosts))
+        for result in results:
+            self.assertEqual(result["fqdn"], fqdn)
+            assert any(
+                result["insights_id"] == host.insights_id for host in expected_hosts
+            )
+            assert any(
+                result["display_name"] == host.display_name for host in expected_hosts
+            )
+
+    def test_query_using_insights_id(self):
+        expected_host = self.added_hosts[0]
+
+        url = self._download_url({"insights_id": expected_host.insights_id})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["insights_id"], expected_host.insights_id)
+
+    def test_query_using_display_name_as_hostname(self):
+        expected_host = self.added_hosts[2]
+
+        url = self._download_url({"hostname_or_id": expected_host.display_name})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["display_name"], expected_host.display_name)
+
+    def test_query_using_fqdn_as_hostname(self):
+        expected_host = self.added_hosts[2]
+
+        url = self._download_url({"hostname_or_id": expected_host.fqdn})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["fqdn"], expected_host.fqdn)
+
+    def test_query_using_id_as_hostname(self):
+        expected_host = self.added_hosts[0]
+
+        url = self._download_url({"hostname_or_id": expected_host.id})
+        results = self.get_streamed(url, 200)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], expected_host.id)
+
+
+class DownloadHostsPaginationTestCase(DownloadHostsTestCase):
+
+    def _create_more_hosts(self):
+        hosts = []
+        for _ in range(100):  # The total will be more than one page.
+            # The {} is a hack to prevent HostWrapper’s buggy behavior.
+            host_wrapper = HostWrapper({})
+            host_wrapper.account = ACCOUNT
+            host_wrapper.insights_id = generate_uuid()
+
+            hosts.append(host_wrapper.data())
+
+        response = self.post(HOST_URL, hosts, 207)
+
+        self.assertTrue(all(item["status"] == 201 for item in response["data"]))
+        return [HostWrapper(item["host"]) for item in response["data"]]
+
+    def setUp(self):
+        super().setUp()
+        self.added_hosts += self._create_more_hosts()
+
+    def test_no_missing_records(self):
+        results = self.get_streamed(DOWNLOAD_URL, 200)
+        self.assertEqual(len(self.added_hosts), len(results))
+
+    def test_no_duplicate_records(self):
+        results = self.get_streamed(DOWNLOAD_URL, 200)
+        for result in results:
+            self.assertEqual(results.count(result), 1)
+
+    # Order is untested, it’s there only for the marker pagination. Order is not
+    # guaranteed in the results.
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

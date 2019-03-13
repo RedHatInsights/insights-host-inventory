@@ -5,6 +5,8 @@ import ujson
 import uuid
 
 from enum import Enum
+from flask import Response, stream_with_context
+from flask.json import dumps
 from flask_api import status
 from marshmallow import ValidationError
 
@@ -163,43 +165,79 @@ def update_existing_host(existing_host, input_host):
 def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
-    if fqdn:
-        query = find_hosts_by_canonical_facts(
-            current_identity.account_number, {"fqdn": fqdn}
-        )
-    elif display_name:
-        query = find_hosts_by_display_name(
-            current_identity.account_number, display_name
-        )
-    elif hostname_or_id:
-        query = find_hosts_by_hostname_or_id(
-            current_identity.account_number, hostname_or_id)
-    elif insights_id:
-        query = find_hosts_by_canonical_facts(
-            current_identity.account_number, {"insights_id": insights_id})
-    else:
-        query = Host.query.filter(
-            Host.account == current_identity.account_number
-        )
+    query = _query_hosts(display_name, fqdn, hostname_or_id, insights_id)
 
     query = query.order_by(Host.created_on, Host.id)
     query_results = query.paginate(page, per_page, True)
-    logger.debug(f"Found hosts: {query_results.items}")
+    logger.debug("Found hosts: %s", query_results.items)
 
-    return _build_paginated_host_list_response(
+    json_output = _build_paginated_host_list(
         query_results.total, page, per_page, query_results.items
     )
-
-
-def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
-    json_output = {"total": total,
-                   "count": len(host_list),
-                   "page": page,
-                   "per_page": per_page,
-                   "results": json_host_list,
-                   }
     return _build_json_response(json_output, status=200)
+
+
+def download_hosts(display_name=None, fqdn=None, hostname_or_id=None, insights_id=None):
+    def generate():
+        page = 1  # Counter used only for logging.
+        marker = None
+        base_query = _query_hosts(display_name, fqdn, hostname_or_id, insights_id)
+        while True:
+            logger.debug("download_hosts: Page #%d", page)
+
+            if marker:
+                query = base_query.filter((Host.created_on, Host.id) > marker)
+                logger.debug("download_hosts: From %s", marker)
+            else:
+                query = base_query.filter()
+                logger.debug("download_hosts: From the beginning")
+
+            query = query.order_by(Host.created_on, Host.id).limit(100)
+
+            eof = True
+            for host in query:
+                yield f"{ujson.dumps(host.to_json())}\n"
+                marker = (host.created_on, host.id)
+                eof = False
+
+            if eof:
+                break
+
+            page += 1
+
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
+
+
+def _query_hosts(display_name, fqdn, hostname_or_id, insights_id):
+    if fqdn:
+        return find_hosts_by_canonical_facts(
+            current_identity.account_number, {"fqdn": fqdn}
+        )
+    elif display_name:
+        return find_hosts_by_display_name(
+            current_identity.account_number, display_name
+        )
+    elif hostname_or_id:
+        return find_hosts_by_hostname_or_id(
+            current_identity.account_number, hostname_or_id)
+    elif insights_id:
+        return find_hosts_by_canonical_facts(
+            current_identity.account_number, {"insights_id": insights_id})
+    else:
+        return Host.query.filter(
+            Host.account == current_identity.account_number
+        )
+
+
+def _build_paginated_host_list(total, page, per_page, host_list):
+    json_host_list = [host.to_json() for host in host_list]
+    return {
+        "total": total,
+        "count": len(host_list),
+        "page": page,
+        "per_page": per_page,
+        "results": json_host_list,
+    }
 
 
 def _build_json_response(json_data, status=200):
@@ -254,9 +292,10 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 
     logger.debug(f"Found hosts: {query_results.items}")
 
-    return _build_paginated_host_list_response(
+    host_list = _build_paginated_host_list(
         query_results.total, page, per_page, query_results.items
     )
+    return host_list, 200
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
