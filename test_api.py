@@ -505,10 +505,10 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(response_data,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_display_name_as_empty_string(self):
+    def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_display_names = ["", None]
+        invalid_display_names = ["", None, "a"*201]
 
         for display_name in invalid_display_names:
             with self.subTest(display_name=display_name):
@@ -519,10 +519,10 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(response_data,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_fqdn_as_empty_string(self):
+    def test_create_host_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_fqdns = ["", None]
+        invalid_fqdns = ["", None, "a"*256]
 
         for fqdn in invalid_fqdns:
             with self.subTest(fqdn=fqdn):
