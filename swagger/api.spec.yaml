@@ -408,7 +408,7 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
     CreateHostOut:
-      title: Host data
+      title: Create Host Out
       description: >-
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
@@ -502,6 +502,7 @@ components:
             A durable and reliable platform-wide host identifier. Applications
             should use this identifier to reference hosts.
           type: string
+          example: 3f01b55457674041b75e41829bcee1dc
         created:
           description: A timestamp when the entry was created.
           type: string
@@ -517,19 +518,11 @@ components:
         - $ref: '#/components/schemas/CreateHostOut'
         - type: object
           properties:
-            id:
-              description: >-
-                A durable and reliable platform-wide host identifier.
-                Applications should use this identifier to reference hosts.
-              type: string
-            created:
-              description: A timestamp when the entry was created.
-              type: string
-              format: date-time
-            updated:
-              description: A timestamp when the entry was last updated.
-              type: string
-              format: date-time
+            facts:
+              description: A set of facts belonging to the host.
+              type: array
+              items:
+                $ref: '#/components/schemas/FactSet'
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
