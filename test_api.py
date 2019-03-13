@@ -430,15 +430,11 @@ class CreateHostsTestCase(DBAPITestCase):
         facts_with_no_facts = copy.deepcopy(FACTS)
         del facts_with_no_facts[0]["facts"]
 
-        facts_with_mixed_types = copy.deepcopy(FACTS)
-        facts_with_mixed_types[0]["facts"]["int_value"] = 101
-
         facts_with_empty_str_namespace = copy.deepcopy(FACTS)
         facts_with_empty_str_namespace[0]["namespace"] = ""
 
         invalid_facts = [facts_with_no_namespace,
                          facts_with_no_facts,
-                         facts_with_mixed_types,
                          facts_with_empty_str_namespace,
                          ]
 

@@ -271,8 +271,6 @@ components:
       title: Host facts
       description: A set of string facts about a host.
       type: object
-      additionalProperties:
-        type: string
       example:
         fact1: value1
         fact2: value2
@@ -286,8 +284,6 @@ components:
           description: A namespace the facts belong to.
         facts:
           type: object
-          additionalProperties:
-            type: string
           description: The facts themselves.
           example:
             fact1: value1
