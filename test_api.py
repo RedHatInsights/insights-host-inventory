@@ -782,18 +782,21 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_using_host_id_list_include_badly_formatted_host_ids(self):
         host_list = self.added_hosts
 
-        bad_id_list = ["1234blahblahinvalid", ""]
+        bad_id_list = ["1234blahblahinvalid", "", ]
 
         valid_url_host_id_list = self._build_host_id_list_for_url(host_list)
 
         for bad_id in bad_id_list:
-            # Construct the host id list for the url...adding in the "bad" id
-            url_host_id_list = valid_url_host_id_list + "," + bad_id
+            with self.subTest(bad_id=bad_id):
+                # Construct the host id list for the url...
+                # add in the "bad" id
+                url_host_id_list = valid_url_host_id_list + "," + bad_id
 
-            response = self.get(HOST_URL + "/" + url_host_id_list, 400)
+                response = self.get(HOST_URL + "/" + url_host_id_list, 400)
 
-            self.verify_error_response(response, expected_title="Bad Request",
-                                       expected_status=400)
+                self.verify_error_response(response,
+                                           expected_title="Bad Request",
+                                           expected_status=400)
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
