@@ -25,15 +25,15 @@ class Config:
         self._log_configuration()
 
     def _build_base_url_path(self):
-        app_name = os.getenv("APP_NAME", "inventory")
-        path_prefix = os.getenv("PATH_PREFIX", "/r/insights/platform")
-        base_url_path = f"{path_prefix}/{app_name}"
+        app_name = os.getenv("APP_NAME", "inventory/api")
+        path_prefix = os.getenv("PATH_PREFIX", "r/insights/platform")
+        base_url_path = f"/{path_prefix}/{app_name}"
         return base_url_path
 
     def _build_api_path(self):
         base_url_path = self._build_base_url_path()
         version = "v1"
-        api_path = f"{base_url_path}/api/{version}"
+        api_path = f"{base_url_path}/{version}"
         return api_path
 
     def _log_configuration(self):

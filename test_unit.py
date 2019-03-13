@@ -199,9 +199,9 @@ class ConfigTestCase(TestCase):
 
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
-        path_prefix = "/r/slaterock/platform"
-        expected_base_url = f"{path_prefix}/{app_name}"
-        expected_api_path = f"{expected_base_url}/api/v1"
+        path_prefix = "r/slaterock/platform"
+        expected_base_url = f"/{path_prefix}/{app_name}"
+        expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
         with test.support.EnvironmentVarGuard() as env:
