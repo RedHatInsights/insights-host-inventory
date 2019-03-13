@@ -27,7 +27,8 @@ CANONICAL_FACTS = (
 def convert_fields_to_canonical_facts(json_dict):
     canonical_fact_list = {}
     for cf in CANONICAL_FACTS:
-        if cf in json_dict:
+        # Do not allow the incoming canonical facts to be None or ''
+        if cf in json_dict and json_dict[cf]:
             canonical_fact_list[cf] = json_dict[cf]
     return canonical_fact_list
 
@@ -94,7 +95,6 @@ class Host(db.Model):
         canonical_facts,
         display_name=display_name,
         account=account,
-        tags=None,
         facts=None,
         system_profile_facts=None,
     ):
@@ -105,7 +105,6 @@ class Host(db.Model):
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
         self.account = account
-        self.tags = tags
         self.facts = facts
         self.system_profile_facts = system_profile_facts
 
@@ -116,7 +115,6 @@ class Host(db.Model):
             convert_fields_to_canonical_facts(d),
             d.get("display_name", None),
             d.get("account"),
-            [],  # For now...ignore tags when creating/updating hosts
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
             d.get("system_profile", {}),
@@ -127,7 +125,6 @@ class Host(db.Model):
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
-        json_dict["tags"] = self.tags
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
         json_dict["system_profile"] = self.system_profile_facts
@@ -185,11 +182,10 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def __repr__(self):
-        tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s tags=%s>"
+        tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s>"
         return tmpl % (
             self.display_name,
             self.id,
             self.canonical_facts,
             self.facts,
-            self.tags,
         )
