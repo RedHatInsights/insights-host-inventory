@@ -423,33 +423,28 @@ class CreateHostsTestCase(DBAPITestCase):
         self.verify_error_response(response_data,
                                    expected_title="Invalid request")
 
-    def test_create_host_with_invalid_facts_no_namespace(self):
-        facts = copy.deepcopy(FACTS)
-        del facts[0]["namespace"]
-        host_data = HostWrapper(test_data(facts=facts))
+    def test_create_host_with_invalid_facts(self):
+        facts_with_no_namespace = copy.deepcopy(FACTS)
+        del facts_with_no_namespace[0]["namespace"]
 
-        response_data = self.post(HOST_URL, [host_data.data()], 207)
+        facts_with_no_facts = copy.deepcopy(FACTS)
+        del facts_with_no_facts[0]["facts"]
 
-        self._verify_host_status(response_data, 0, 400)
+        facts_with_mixed_types = copy.deepcopy(FACTS)
+        facts_with_mixed_types[0]["facts"]["int_value"] = 101
 
-        response_data = response_data["data"][0]
+        invalid_facts = [facts_with_no_namespace,
+                         facts_with_no_facts,
+                         facts_with_mixed_types, ]
 
-        self.verify_error_response(response_data,
-                                   expected_title="Invalid request")
+        for invalid_fact in invalid_facts:
+            with self.subTest(invalid_fact=invalid_fact):
+                host_data = HostWrapper(test_data(facts=invalid_fact))
 
-    def test_create_host_with_invalid_facts_no_facts(self):
-        facts = copy.deepcopy(FACTS)
-        del facts[0]["facts"]
-        host_data = HostWrapper(test_data(facts=facts))
+                response_data = self.post(HOST_URL, [host_data.data()], 400)
 
-        response_data = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response_data, 0, 400)
-
-        response_data = response_data["data"][0]
-
-        self.verify_error_response(response_data,
-                                   expected_title="Invalid request")
+                self.verify_error_response(response_data,
+                                           expected_title="Bad Request")
 
     def test_create_host_with_invalid_uuid_field_values(self):
         uuid_field_names = (

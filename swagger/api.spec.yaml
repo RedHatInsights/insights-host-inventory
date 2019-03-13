@@ -285,7 +285,15 @@ components:
           description: A namespace the facts belong to.
         facts:
           type: object
+          additionalProperties:
+            type: string
           description: The facts themselves.
+          example:
+            fact1: value1
+            fact2: value2
+      required:
+        - namespace
+        - facts
     CreateHostIn:
       title: Host data
       description: >-
@@ -531,8 +539,8 @@ components:
           maxLength: 255
         id:
           description: >-
-            A durable and reliable platform-wide host identifier.
-            Applications should use this identifier to reference hosts.
+            A durable and reliable platform-wide host identifier. Applications
+            should use this identifier to reference hosts.
           type: string
           format: uuid
         created:
