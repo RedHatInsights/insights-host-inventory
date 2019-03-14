@@ -238,7 +238,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         # Add a new canonical fact
         host_data.rhel_machine_id = generate_uuid()
-        host_data.ip_addresses = ["10.10.0.1", "10.0.0.2"]
+        host_data.ip_addresses = ["10.10.0.1", "10.0.0.2", "fe80::d46b:2807:f258:c319"]
         host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
         host_data.external_id = "i-05d2313e6b9a42b16"
         host_data.insights_id = generate_uuid()

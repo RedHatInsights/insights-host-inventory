@@ -368,7 +368,7 @@ components:
             type: string
             format: ip_address
             minLength: 7
-            maxLength: 15
+            maxLength: 45
           minItems: 1
           example:
             - 10.10.0.1
