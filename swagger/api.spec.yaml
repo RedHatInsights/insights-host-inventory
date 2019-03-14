@@ -521,61 +521,61 @@ components:
           maxLength: 20
         infrastructure_type:
           type: string
-          maxLength: 50
+          maxLength: 100
         infrastructure_vendor:
           type: string
-          maxLength: 50
+          maxLength: 100
         serial_number:
           type: string
-          maxLength: 20
+          maxLength: 100
         ipv4_addresses:
           type: array
           items:
             type: string
-            maxLength: 20
+            maxLength: 15
         mac_addresses:
           type: array
           items:
             type: string
-            maxLength: 20
+            maxLength: 23
         network_interfaces:
           type: array
           items:
             type: string
-            maxLength: 20
+            maxLength: 100
         disk_devices:
           type: array
           items:
             type: string
-            maxLength: 20
+            maxLength: 100
         bios_vendor:
           type: string
-          maxLength: 50
+          maxLength: 100
         bios_version:
           type: string
-          maxLength: 50
+          maxLength: 100
         bios_release_date:
           type: string
-          maxLength: 25
+          maxLength: 50
         bios_compatible_support_modules:
           type: array
           items:
             type: string
-            maxLength: 50
+            maxLength: 100
         os_release:
           type: string
-          maxLength: 50
+          maxLength: 100
         os_kernel_version:
           type: string
-          maxLength: 50
+          maxLength: 100
         arch:
           type: string
-          maxLength: 50
+          maxLength: 100
         kernel_modules:
           type: array
           items:
             type: string
-            maxLength: 50
+            maxLength: 100
         last_boot_time:
           type: string
           maxLength: 50
@@ -583,13 +583,13 @@ components:
           type: array
           items:
             type: string
-            maxLength: 50
+            maxLength: 100
         subscription_status:
           type: string
-          maxLength: 50
+          maxLength: 100
         subscription_auto_attach:
           type: string
-          maxLength: 50
+          maxLength: 100
         katello_agent_running:
           type: boolean
         satellite_managed:
