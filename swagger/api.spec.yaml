@@ -511,6 +511,11 @@ components:
           description: A timestamp when the entry was last updated.
           type: string
           format: date-time
+        facts:
+          description: A set of facts belonging to the host.
+          type: array
+          items:
+            $ref: '#/components/schemas/FactSet'
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.
