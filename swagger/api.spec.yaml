@@ -202,6 +202,37 @@ paths:
           description: Invalid request.
         '404':
           description: Host or namespace not found.
+  '/hosts/{host_id_list}/system_profile':
+    get:
+      tags:
+        - hosts
+      summary: Find hosts by their IDs
+      description: Find one or more hosts by their ID.
+      operationId: api.host.get_host_system_profile_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: host_id_list
+          description: A comma separated list of host IDs.
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileByHostOut'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -381,124 +412,7 @@ components:
           nullable: true
           example: i-05d2313e6b9a42b16
         system_profile:
-          description: FIXME
-          type: object
-          properties:
-            number_of_cpus:
-              type: integer
-            number_of_sockets:
-              type: integer
-            cores_per_socket:
-              type: integer
-            system_memory:
-              type: string
-              maxLength: 20
-            infrastructure_type:
-              type: string
-              maxLength: 50
-            infrastructure_vendor:
-              type: string
-              maxLength: 50
-            serial_number:
-              type: string
-              maxLength: 20
-            ipv4_addresses:
-              type: array
-              items:
-                type: string
-                maxLength: 20
-            mac_addresses:
-              type: array
-              items:
-                type: string
-                maxLength: 20
-            network_interfaces:
-              type: array
-              items:
-                type: string
-                maxLength: 20
-            disk_devices:
-              type: array
-              items:
-                type: string
-                maxLength: 20
-            bios_vendor:
-              type: string
-              maxLength: 50
-            bios_version:
-              type: string
-              maxLength: 50
-            bios_release_date:
-              type: string
-              maxLength: 25
-            bios_compatible_support_modules:
-              type: array
-              items:
-                type: string
-                maxLength: 50
-            os_release:
-              type: string
-              maxLength: 50
-            os_kernel_version:
-              type: string
-              maxLength: 50
-            arch:
-              type: string
-              maxLength: 50
-            kernel_modules:
-              type: array
-              items:
-                type: string
-                maxLength: 50
-            last_boot_time:
-              type: string
-              maxLength: 50
-            running_processes:
-              type: array
-              items:
-                type: string
-                maxLength: 50
-            subscription_status:
-              type: string
-              maxLength: 50
-            subscription_auto_attach:
-              type: string
-              maxLength: 50
-            katello_agent_running:
-              type: boolean
-            satellite_managed:
-              type: boolean
-            rpm_repos_enabled:
-              type: array
-              items:
-                type: string
-                maxLength: 100
-            installed_products:
-              type: array
-              items:
-                type: string
-                maxLength: 100
-            insights_client_version:
-              type: string
-              maxLength: 50
-            insights_egg_version:
-              type: string
-              maxLength: 50
-            installed_packages:
-              type: array
-              items:
-                type: string
-                maxLength: 100
-            installed_services:
-              type: array
-              items:
-                type: string
-                maxLength: 100
-            enabled_services:
-              type: array
-              items:
-                type: string
-                maxLength: 100
+          $ref: '#/components/schemas/SystemProfileIn'
         facts:
           description: A set of facts belonging to the host.
           type: array
@@ -555,3 +469,159 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HostOut'
+    SystemProfileByHostOut:
+      title: FIXME
+      description: FIXME
+      type: object
+      required:
+        - count
+        - page
+        - per_page
+        - total
+        - results
+      properties:
+        count:
+          description: A number of entries on the current page.
+          type: integer
+        page:
+          description: A current page number.
+          type: integer
+        per_page:
+          description: A page size – a number of entries per single page.
+          type: integer
+        total:
+          description: A total count of the found entries.
+          type: integer
+        results:
+          description: Actual host search query result entries.
+          type: array
+          items:
+            $ref: '#/components/schemas/HostSystemProfileOut'
+    HostSystemProfileOut:
+      title: FIXME
+      description: FIXME
+      properties:
+        id:
+          type: string
+        system_profile:
+          $ref: '#/components/schemas/SystemProfileIn'
+    SystemProfileIn:
+      title: System profile fields
+      description: FIXME
+      type: object
+      properties:
+        number_of_cpus:
+          type: integer
+        number_of_sockets:
+          type: integer
+        cores_per_socket:
+          type: integer
+        system_memory:
+          type: string
+          maxLength: 20
+        infrastructure_type:
+          type: string
+          maxLength: 50
+        infrastructure_vendor:
+          type: string
+          maxLength: 50
+        serial_number:
+          type: string
+          maxLength: 20
+        ipv4_addresses:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+        mac_addresses:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+        network_interfaces:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+        disk_devices:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+        bios_vendor:
+          type: string
+          maxLength: 50
+        bios_version:
+          type: string
+          maxLength: 50
+        bios_release_date:
+          type: string
+          maxLength: 25
+        bios_compatible_support_modules:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+        os_release:
+          type: string
+          maxLength: 50
+        os_kernel_version:
+          type: string
+          maxLength: 50
+        arch:
+          type: string
+          maxLength: 50
+        kernel_modules:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+        last_boot_time:
+          type: string
+          maxLength: 50
+        running_processes:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+        subscription_status:
+          type: string
+          maxLength: 50
+        subscription_auto_attach:
+          type: string
+          maxLength: 50
+        katello_agent_running:
+          type: boolean
+        satellite_managed:
+          type: boolean
+        rpm_repos_enabled:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+        installed_products:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+        insights_client_version:
+          type: string
+          maxLength: 50
+        insights_egg_version:
+          type: string
+          maxLength: 50
+        installed_packages:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+        installed_services:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+        enabled_services:
+          type: array
+          items:
+            type: string
+            maxLength: 100
