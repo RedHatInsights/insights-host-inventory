@@ -648,52 +648,69 @@ components:
           type: array
           items:
             type: string
+            maxLength: 15
         ipv6_addresses:
           type: array
           items:
             type: string
+            maxLength: 45
         mac_addresses:
           type: array
           items:
             type: string
+            maxLength: 23
         network_interfaces:
           type: array
           items:
             type: string
+            maxLength: 50
         disk_devices:
           type: array
           items:
             type: string
+            maxLength: 50
         bios_vendor:
           type: string
+          maxLength: 100
         bios_version:
           type: string
+          maxLength: 100
         bios_release_date:
           type: string
+          maxLength: 50
         bios_compatible_support_modules:
           type: array
           items:
             type: string
+            maxLength: 100
         os_release:
           type: string
+          maxLength: 100
         os_kernel_version:
           type: string
+          maxLength: 100
         arch:
           type: string
+          maxLength: 50
         kernel_modules:
           type: array
           items:
             type: string
+            maxLength: 100
         last_boot_time:
           type: string
+          maxLength: 50
         running_processes:
           type: array
           items:
             type: string
+            maxLength: 100
         subscription_status:
           type: string
+          maxLength: 100
         subscription_auto_attach:
           type: string
+          maxLength: 100
         katello_agent_running:
           type: boolean
         satellite_managed:
@@ -702,23 +719,30 @@ components:
           type: array
           items:
             type: string
+            maxLength: 100
         installed_products:
           type: array
           items:
             type: string
+            maxLength: 100
         insights_client_version:
           type: string
+          maxLength: 50
         insights_egg_version:
           type: string
+          maxLength: 50
         installed_packages:
           type: array
           items:
             type: string
+            maxLength: 100
         installed_services:
           type: array
           items:
             type: string
+            maxLength: 100
         enabled_services:
           type: array
           items:
             type: string
+            maxLength: 100
