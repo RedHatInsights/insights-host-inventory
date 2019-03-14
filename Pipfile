@@ -22,6 +22,7 @@ pyyaml = ">=3.13"
 prometheus-client = "*"
 logstash-formatter = "*"
 pytest = "*"
+validators = "*"
 
 [dev-packages]
 pytest = "*"
