@@ -76,6 +76,7 @@ def _add_host(host):
         return create_new_host(input_host)
 
 
+@metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
     insights_id = canonical_facts.get("insights_id", None)
@@ -119,6 +120,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
+@metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host):
     logger.debug("Creating a new host")
     input_host.save()
@@ -128,6 +130,7 @@ def create_new_host(input_host):
     return input_host.to_json(), 201
 
 
+@metrics.update_host_commit_processing_time.time()
 def update_existing_host(existing_host, input_host):
     logger.debug("Updating an existing host")
     existing_host.update(input_host)
