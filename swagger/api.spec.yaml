@@ -622,6 +622,139 @@ components:
           type: string
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
+    DiskDevice:
+      title: Disk Device
+      description: Representation of one mounted device
+      properties:
+        device:
+          examples:
+            device:
+              summary: device example
+              value: "/dev/fdd0"
+          type: string
+        label:
+          description: user-defined mount label
+          type: string
+        options:
+          description: mount options
+          examples:
+            options:
+              summary: Options example
+              value: {"uid": "0", "ro": true}
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+        mount_point:
+          description: mount point
+          examples:
+            mountpoint:
+              summary: mount point example
+              value: "/mnt/remote_nfs_share"
+          type: string
+        type:
+          description: mount type
+          examples:
+            mounttype:
+              summary: mount type example
+              value: "ext3"
+          type: string
+    YumRepo:
+      title: Yum Repository
+      description: Representation of one yum repository
+      properties:
+        name:
+          type: string
+        gpgcheck:
+          type: boolean
+        enabled:
+          type: boolean
+        baseurl:
+          type: uri
+    InstalledProduct:
+      title: Installed Product
+      description: Representation of one installed product
+      properties:
+        name:
+          type: string
+        id:
+          description: the product ID
+          examples:
+            product_id:
+              summary: product ID example
+              value: "71"
+          type: string
+        status:
+          description: subscription status for product
+          examples:
+            status:
+              summary: status example
+              value: "Subscribed"
+          type: string
+    NetworkInterface:
+      title: Network Interface
+      description: Representation of one network interface
+      properties:
+        ipv4_addresses:
+          type: array
+          items:
+            type: string
+            format: ipv4
+        ipv6_addresses:
+          type: array
+          items:
+            type: string
+            format: ipv6
+        mtu:
+          description: MTU
+          type: integer
+        mac_address:
+          description: MAC address
+          examples:
+            mac_colons:
+              summary: mac address with colons
+              value: "00:00:00:00:00:00"
+            mac_hex:
+              summary: mac address
+              value: "000000000000"
+          type: string
+          maxLength: 18
+        name:
+          description: name of interface
+          type: string
+          maxLength: 50
+          minLength: 1
+          examples:
+            eth0:
+              summary: eth0 example
+              value: "eth0"
+        state:
+          description: interface state
+          type: string
+          maxLength: 25
+          examples:
+            up:
+              summary: up example
+              value: "UP"
+            down:
+              summary: down example
+              value: "DOWN"
+            unknown:
+              summary: unknown example
+              value: "UNKNOWN"
+        type:
+          description: interface type
+          type: string
+          maxLength: 18
+          examples:
+            ether:
+              summary: ether example
+              value: "ether"
+            loop:
+              summary: loopback example
+              value: "loopback"
     SystemProfileIn:
       title: System profile fields
       description: FIXME
@@ -633,7 +766,7 @@ components:
           type: integer
         cores_per_socket:
           type: integer
-        system_memory:
+        system_memory_bytes:
           type: integer
         infrastructure_type:
           type: string
@@ -641,34 +774,14 @@ components:
         infrastructure_vendor:
           type: string
           maxLength: 100
-        serial_number:
-          type: string
-          maxLength: 100
-        ipv4_addresses:
-          type: array
-          items:
-            type: string
-            maxLength: 15
-        ipv6_addresses:
-          type: array
-          items:
-            type: string
-            maxLength: 45
-        mac_addresses:
-          type: array
-          items:
-            type: string
-            maxLength: 23
         network_interfaces:
-          type: array
+          type: array  # techincally a set, ordering is not important
           items:
-            type: string
-            maxLength: 50
+            $ref: '#/components/schemas/NetworkInterface'
         disk_devices:
-          type: array
+          type: array  # techincally a set, ordering is not important
           items:
-            type: string
-            maxLength: 50
+            $ref: '#/components/schemas/DiskDevice'
         bios_vendor:
           type: string
           maxLength: 100
@@ -678,11 +791,11 @@ components:
         bios_release_date:
           type: string
           maxLength: 50
-        bios_compatible_support_modules:
-          type: array
+        cpu_flags:
           items:
             type: string
-            maxLength: 100
+            maxLength: 30
+          type: array
         os_release:
           type: string
           maxLength: 100
@@ -696,15 +809,17 @@ components:
           type: array
           items:
             type: string
-            maxLength: 100
+            maxLength: 255
         last_boot_time:
           type: string
+          format: date-time
           maxLength: 50
         running_processes:
-          type: array
+          type: array  # techincally a set, ordering is not important
           items:
+            description: a single running process. This will be truncated to 1000 characters when saved.
             type: string
-            maxLength: 100
+            maxLength: 1000
         subscription_status:
           type: string
           maxLength: 100
@@ -715,16 +830,14 @@ components:
           type: boolean
         satellite_managed:
           type: boolean
-        rpm_repos_enabled:
-          type: array
+        yum_repos:
+          type: array  # technically a set, ordering is not important
           items:
-            type: string
-            maxLength: 100
+            $ref: '#/components/schemas/YumRepo'
         installed_products:
-          type: array
+          type: array  # technically a set, ordering is not important
           items:
-            type: string
-            maxLength: 100
+            $ref: '#/components/schemas/InstalledProduct'
         insights_client_version:
           type: string
           maxLength: 50
@@ -732,17 +845,19 @@ components:
           type: string
           maxLength: 50
         installed_packages:
-          type: array
+          type: array  # technically a set, ordering is not important
           items:
+            description: a NEVRA string for a single installed package
             type: string
-            maxLength: 100
+            examples:
+              package:
+                summary: package example
+                value: "0:krb5-libs-1.16.1-23.fc29.i686"
         installed_services:
           type: array
           items:
             type: string
-            maxLength: 100
         enabled_services:
           type: array
           items:
             type: string
-            maxLength: 100
