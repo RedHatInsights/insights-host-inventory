@@ -246,6 +246,12 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
+def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
+    pass
+
+
+@api_operation
+@metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, fact_dict):
     return update_facts_by_namespace(FactOperations.replace, host_id_list,
                                      namespace, fact_dict)

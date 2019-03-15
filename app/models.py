@@ -23,6 +23,49 @@ CANONICAL_FACTS = (
     "external_id",
 )
 
+SYSTEM_PROFILE_FIELDS = (
+    "number_of_cpus",
+    "number_of_sockets",
+    "cores_per_socket",
+    "system_memory",
+    "infrastructure_type",
+    "infrastructure_vendor",
+    "serial_number",
+    "ipv4_addresses",
+    "ipv6_addresses",
+    "mac_addresses",
+    "network_interfaces",
+    "disk_devices",
+    "bios_vendor",
+    "bios_version",
+    "bios_release_date",
+    "bios_compatible_support_modules",
+    "os_release",
+    "os_kernel_version",
+    "arch",
+    "kernel_modules",
+    "last_boot_time",
+    "running_processes",
+    "subscription_status",
+    "subscription_auto_attach",
+    "katello_agent_running",
+    "satellite_managed",
+    "rpm_repos_enabled",
+    "installed_products",
+    "insights_client_version",
+    "insights_egg_version",
+    "installed_packages",
+    "installed_services",
+    "enabled_services",
+)
+
+
+def convert_json_fields_to_db_fields(db_field_list, json_dict):
+    db_dict = {db_field_name: json_dict[db_field_name]
+              for db_field_name in db_field_list
+                if db_field_name in json_dict and json_dict[db_field_name]}
+    return db_dict
+
 
 def convert_fields_to_canonical_facts(json_dict):
     canonical_fact_list = {}
@@ -120,14 +163,15 @@ class Host(db.Model):
             d.get("system_profile", {}),
         )
 
-    def to_json(self):
+    def to_json(self, output_system_profile=False):
         json_dict = convert_canonical_facts_to_fields(self.canonical_facts)
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
-        json_dict["system_profile"] = self.system_profile_facts
+        if output_system_profile:
+            json_dict["system_profile"] = self.system_profile_facts
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict
