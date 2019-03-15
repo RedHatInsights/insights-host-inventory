@@ -76,6 +76,7 @@ def _add_host(host):
         return create_new_host(input_host)
 
 
+@metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
     insights_id = canonical_facts.get("insights_id", None)
@@ -119,6 +120,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
+@metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host):
     logger.debug("Creating a new host")
     input_host.save()
@@ -128,6 +130,7 @@ def create_new_host(input_host):
     return input_host.to_json(), 201
 
 
+@metrics.update_host_commit_processing_time.time()
 def update_existing_host(existing_host, input_host):
     logger.debug("Updating an existing host")
     existing_host.update(input_host)
@@ -143,27 +146,27 @@ def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
         page=1, per_page=100):
     if fqdn:
-        (total, host_list) = find_hosts_by_canonical_facts(
+        query_results = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}, page, per_page
         )
     elif display_name:
-        (total, host_list) = find_hosts_by_display_name(
+        query_results = find_hosts_by_display_name(
             current_identity.account_number, display_name, page, per_page
         )
     elif hostname_or_id:
-        (total, host_list) = find_hosts_by_hostname_or_id(
+        query_results = find_hosts_by_hostname_or_id(
             current_identity.account_number, hostname_or_id, page, per_page)
     elif insights_id:
-        (total, host_list) = find_hosts_by_canonical_facts(
+        query_results = find_hosts_by_canonical_facts(
             current_identity.account_number, {"insights_id": insights_id}, page, per_page)
     else:
         query_results = Host.query.filter(
             Host.account == current_identity.account_number
         ).paginate(page, per_page, True)
-        total = query_results.total
-        host_list = query_results.items
 
-    return _build_paginated_host_list_response(total, page, per_page, host_list)
+    return _build_paginated_host_list_response(
+        query_results.total, page, per_page, query_results.items
+    )
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
@@ -186,10 +189,8 @@ def find_hosts_by_display_name(account, display_name, page, per_page):
         (Host.account == account)
         & Host.display_name.comparator.contains(display_name)
     ).paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-    logger.debug("found_host_list:%s" % found_host_list)
-    return (total, found_host_list)
+    logger.debug("found_host_list:%s" % query_results.items)
+    return query_results
 
 
 def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_page):
@@ -198,10 +199,8 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts, page, per_pag
     """
     logger.debug("find_hosts_by_canonical_facts(%s)", canonical_facts)
     query_results = _canonical_facts_host_query(account_number, canonical_facts).paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-    logger.debug("found_host_list:%s", found_host_list)
-    return (total, found_host_list)
+    logger.debug("found_host_list:%s", query_results.items)
+    return query_results
 
 
 def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
@@ -223,11 +222,9 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
     query = Host.query.filter(sqlalchemy.or_(*filter_list))
 
     query_results = query.paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-    logger.debug("found_host_list:%s", found_host_list)
+    logger.debug("found_host_list:%s", query_results.items)
 
-    return (total, found_host_list)
+    return query_results
 
 
 @api_operation
