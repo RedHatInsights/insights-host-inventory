@@ -67,6 +67,14 @@ def convert_json_fields_to_db_fields(db_field_list, json_dict):
     return db_dict
 
 
+def convert_db_fields_to_json_fields(db_field_list, db_dict):
+    json_dict = dict.fromkeys(db_field_list, None)
+    for db_field_name in db_field_list:
+        if db_field_name in db_dict:
+            json_dict[db_field_name] = db_dict[db_field_name]
+    return json_dict
+
+
 def convert_fields_to_canonical_facts(json_dict):
     canonical_fact_list = {}
     for cf in CANONICAL_FACTS:
@@ -171,7 +179,8 @@ class Host(db.Model):
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
         if output_system_profile:
-            json_dict["system_profile"] = self.system_profile_facts
+            json_dict["system_profile"] = {"system_profile":
+                                           self.system_profile_facts}
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict
