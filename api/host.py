@@ -230,21 +230,56 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    query_results = Host.query.filter(
+    query_results = _get_host_list_by_id_list(host_id_list,
+                                              page=page,
+                                              per_page=per_page)
+
+    return _build_paginated_host_list_response(query_results.total,
+                                               page,
+                                               per_page,
+                                               query_results.items)
+
+
+def _get_host_list_by_id_list(host_id_list, page=1, per_page=100):
+    return Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
     ).paginate(page, per_page, True)
-    total = query_results.total
-    found_host_list = query_results.items
-
-    return _build_paginated_host_list_response(total, page,
-                                               per_page, found_host_list)
 
 
 @api_operation
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
-    pass
+    query_results = _get_host_list_by_id_list(host_id_list,
+                                              page=page,
+                                              per_page=per_page)
+
+    json_host_list = [h.to_json() for h in query_resuls.items]
+    
+
+    response_list = []
+    for host in query_results.items:
+        response_list.append({"host": host.id,
+                              "system_profile": {}
+                             })
+
+    return (
+        {
+            "total": query_results.total,
+            "count": len(response_list),
+            "page": page,
+            "per_page": per_page,
+            "results": response_list,
+        },
+        200,
+    )
+
+
+    return _build_paginated_host_list_response(query_results.total,
+                                               page,
+                                               per_page,
+                                               response_list)
+
 
 
 @api_operation

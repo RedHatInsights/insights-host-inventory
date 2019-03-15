@@ -647,6 +647,35 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
                 i += 1
 
+class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
+
+    def test_create_and_update_multiple_hosts_with_different_accounts(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = str(uuid.uuid4())
+
+        host["system_profile"] = {"number_of_cpus": 1,
+                                   "number_of_sockets": 2,
+                                   }
+        host["system_profile"] = {}
+
+        # Create the host
+        response = self.post(HOST_URL, [host], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+        print("created_host:", created_host)
+
+        original_id = created_host["id"]
+
+        # verify system_profile is not included
+
+        host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+        print("host_lookup_results:", host_lookup_results)
+
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
