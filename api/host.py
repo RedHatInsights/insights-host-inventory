@@ -220,7 +220,8 @@ def find_hosts_by_hostname_or_id(account_number, hostname, page, per_page):
                      hostname,
                      exc_info=True)
 
-    query = Host.query.filter(sqlalchemy.or_(*filter_list))
+    query = Host.query.filter(sqlalchemy.and_(*[Host.account == account_number,
+                                             sqlalchemy.or_(*filter_list)]))
 
     query_results = query.paginate(page, per_page, True)
     total = query_results.total
