@@ -31,9 +31,6 @@ SYSTEM_PROFILE_FIELDS = (
     "infrastructure_type",
     "infrastructure_vendor",
     "serial_number",
-    "ipv4_addresses",
-    "ipv6_addresses",
-    "mac_addresses",
     "network_interfaces",
     "disk_devices",
     "bios_vendor",
@@ -77,7 +74,7 @@ def convert_json_fields_to_db_fields(db_field_list, json_dict):
 
 
 def convert_db_fields_to_json_fields(db_field_list, db_dict):
-    json_dict = dict.fromkeys(db_field_list, None)
+    json_dict = {} #dict.fromkeys(db_field_list, None)
     for db_field_name in db_field_list:
         if db_field_name in db_dict:
             json_dict[db_field_name] = db_dict[db_field_name]

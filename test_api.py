@@ -659,7 +659,19 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         host["system_profile"] = {}
         host["system_profile"] = {"number_of_cpus": 1,
                                    "number_of_sockets": 2,
+                                   "network_interfaces":[{"ipv4_addresses": ["10.10.10.1"],
+                                                         "state": "UP",
+                                                         "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
+
+                                                         "mtu": 1500,
+                                                         "mac_address": "aa:bb:cc:dd:ee:ff",
+                                                          "name": "eth0",
+                                                         }],
+                                   "installed_packages": ["rpm1", "rpm2"],
+                                   "installed_products": ["eap", "jbws"]
                                    }
+
+        print("*** system_profile:", host["system_profile"])
 
         # Create the host
         response = self.post(HOST_URL, [host], 207)
@@ -677,6 +689,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
         print("host_lookup_results:", host_lookup_results)
 
+        print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
         self.assertEqual(host_lookup_results["results"][0]["system_profile"],
                          host["system_profile"])
 
