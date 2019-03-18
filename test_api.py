@@ -659,7 +659,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         host["system_profile"] = {}
         host["system_profile"] = {"number_of_cpus": 1,
                                    "number_of_sockets": 2,
-                                   "EXTRA_FIELD": 32,
                                    }
 
         # Create the host
@@ -673,11 +672,10 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         original_id = created_host["id"]
 
         # verify system_profile is not included
+        self.assertNotIn("system_profile", created_host)
 
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
         print("host_lookup_results:", host_lookup_results)
-
-        del host["system_profile"]["EXTRA_FIELD"]
 
         self.assertEqual(host_lookup_results["results"][0]["system_profile"],
                          host["system_profile"])
