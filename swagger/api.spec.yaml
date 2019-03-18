@@ -632,7 +632,7 @@ components:
       description: Representation of one mounted device
       properties:
         device:
-          examples:
+          example:
             device:
               summary: device example
               value: "/dev/fdd0"
@@ -642,7 +642,7 @@ components:
           type: string
         options:
           description: mount options
-          examples:
+          example:
             options:
               summary: Options example
               value: {"uid": "0", "ro": true}
@@ -654,14 +654,14 @@ components:
               type: string
         mount_point:
           description: mount point
-          examples:
+          example:
             mountpoint:
               summary: mount point example
               value: "/mnt/remote_nfs_share"
           type: string
         type:
           description: mount type
-          examples:
+          example:
             mounttype:
               summary: mount type example
               value: "ext3"
@@ -686,14 +686,14 @@ components:
           type: string
         id:
           description: the product ID
-          examples:
+          example:
             product_id:
               summary: product ID example
               value: "71"
           type: string
         status:
           description: subscription status for product
-          examples:
+          example:
             status:
               summary: status example
               value: "Subscribed"
@@ -717,7 +717,7 @@ components:
           type: integer
         mac_address:
           description: MAC address
-          examples:
+          example:
             mac_colons:
               summary: mac address with colons
               value: "00:00:00:00:00:00"
@@ -731,7 +731,7 @@ components:
           type: string
           maxLength: 50
           minLength: 1
-          examples:
+          example:
             eth0:
               summary: eth0 example
               value: "eth0"
@@ -739,7 +739,7 @@ components:
           description: interface state
           type: string
           maxLength: 25
-          examples:
+          example:
             up:
               summary: up example
               value: "UP"
@@ -753,7 +753,7 @@ components:
           description: interface type
           type: string
           maxLength: 18
-          examples:
+          example:
             ether:
               summary: ether example
               value: "ether"
@@ -854,7 +854,7 @@ components:
           items:
             description: a NEVRA string for a single installed package
             type: string
-            examples:
+            example:
               package:
                 summary: package example
                 value: "0:krb5-libs-1.16.1-23.fc29.i686"
