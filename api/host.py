@@ -218,7 +218,8 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
                      hostname,
                      exc_info=True)
 
-    return Host.query.filter(sqlalchemy.or_(*filter_list))
+    return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number,
+                                             sqlalchemy.or_(*filter_list)]))
 
 
 @api_operation
