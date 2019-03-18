@@ -225,35 +225,36 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    query_results = _get_host_list_by_id_list(host_id_list,
-                                              page=page,
-                                              per_page=per_page)
+    query = _get_host_list_by_id_list(host_id_list)
 
-    return _build_paginated_host_list_response(query_results.total,
-                                               page,
-                                               per_page,
-                                               query_results.items)
+    query_results = query.paginate(page, per_page, True)
+
+    logger.debug(f"Found hosts: {query_results.items}")
+
+    return _build_paginated_host_list_response(
+        query_results.total, page, per_page, query_results.items
+    )
 
 
-def _get_host_list_by_id_list(host_id_list, page=1, per_page=100):
+def _get_host_list_by_id_list(host_id_list):
     return Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
-    ).paginate(page, per_page, True)
+    )
 
 
 @api_operation
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
-    query_results = _get_host_list_by_id_list(host_id_list,
-                                              page=page,
-                                              per_page=per_page)
+    query = _get_host_list_by_id_list(host_id_list)
+
+    query_results = query.paginate(page, per_page, True)
 
     response_list = []
     for host in query_results.items:
         response_list.append({"id": host.id,
                               "system_profile": host.system_profile_facts
-                             })
+                              })
 
     return (
         {
@@ -266,12 +267,10 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
         200,
     )
 
-
     return _build_paginated_host_list_response(query_results.total,
                                                page,
                                                per_page,
                                                response_list)
-
 
 
 @api_operation

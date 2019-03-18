@@ -179,8 +179,6 @@ class Host(db.Model):
         json_dict["display_name"] = self.display_name
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
-        json_dict["system_profile"] = {"system_profile":
-                                       self.system_profile_facts}
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict
