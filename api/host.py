@@ -254,13 +254,10 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
                                               page=page,
                                               per_page=per_page)
 
-    json_host_list = [h.to_json() for h in query_resuls.items]
-    
-
     response_list = []
     for host in query_results.items:
-        response_list.append({"host": host.id,
-                              "system_profile": {}
+        response_list.append({"id": host.id,
+                              "system_profile": host.system_profile_facts
                              })
 
     return (

@@ -62,8 +62,8 @@ SYSTEM_PROFILE_FIELDS = (
 
 def convert_json_fields_to_db_fields(db_field_list, json_dict):
     db_dict = {db_field_name: json_dict[db_field_name]
-              for db_field_name in db_field_list
-                if db_field_name in json_dict and json_dict[db_field_name]}
+               for db_field_name in db_field_list
+                   if db_field_name in json_dict and json_dict[db_field_name]}
     return db_dict
 
 
@@ -168,19 +168,19 @@ class Host(db.Model):
             d.get("account"),
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
-            d.get("system_profile", {}),
+            convert_json_fields_to_db_fields(SYSTEM_PROFILE_FIELDS,
+                                             d.get("system_profile", {})),
         )
 
-    def to_json(self, output_system_profile=False):
+    def to_json(self):
         json_dict = convert_canonical_facts_to_fields(self.canonical_facts)
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
         # Internally store the facts in a dict
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
-        if output_system_profile:
-            json_dict["system_profile"] = {"system_profile":
-                                           self.system_profile_facts}
+        json_dict["system_profile"] = {"system_profile":
+                                       self.system_profile_facts}
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict

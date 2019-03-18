@@ -656,10 +656,11 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         host["ip_addresses"] = ["10.0.0.1"]
         host["rhel_machine_id"] = str(uuid.uuid4())
 
+        host["system_profile"] = {}
         host["system_profile"] = {"number_of_cpus": 1,
                                    "number_of_sockets": 2,
+                                   "EXTRA_FIELD": 32,
                                    }
-        host["system_profile"] = {}
 
         # Create the host
         response = self.post(HOST_URL, [host], 207)
@@ -675,6 +676,11 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
         print("host_lookup_results:", host_lookup_results)
+
+        del host["system_profile"]["EXTRA_FIELD"]
+
+        self.assertEqual(host_lookup_results["results"][0]["system_profile"],
+                         host["system_profile"])
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
