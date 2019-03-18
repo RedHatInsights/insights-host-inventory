@@ -5,7 +5,7 @@ import uuid
 from enum import Enum
 
 from app import db
-from app.models import Host
+from app.models import Host, output_host_with_system_profile
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
@@ -252,9 +252,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 
     response_list = []
     for host in query_results.items:
-        response_list.append({"id": host.id,
-                              "system_profile": host.system_profile_facts
-                              })
+        print("system_profile", output_host_with_system_profile(host))
+        response_list.append(output_host_with_system_profile(host))
 
     return (
         {
