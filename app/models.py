@@ -26,29 +26,11 @@ CANONICAL_FACTS = (
 
 
 def load_system_profile_data_from_json_dict(json_dict):
-    from marshmallow import pprint, ValidationError
-    schema = SystemProfileSchema()
-    (data, error) = schema.load(json_dict)
-    #pprint(data, indent=2)
+    (data, error) = SystemProfileSchema().load(json_dict)
     if error:
-        print("error:", error)
+        # FIXME:
         raise InputFormatException("Invalid format of ...")
     return data
-
-
-def convert_json_fields_to_db_fields(db_field_list, json_dict):
-    db_dict = {db_field_name: json_dict[db_field_name]
-               for db_field_name in db_field_list
-                   if db_field_name in json_dict and json_dict[db_field_name]}
-    return db_dict
-
-
-def convert_db_fields_to_json_fields(db_field_list, db_dict):
-    json_dict = {} #dict.fromkeys(db_field_list, None)
-    for db_field_name in db_field_list:
-        if db_field_name in db_dict:
-            json_dict[db_field_name] = db_dict[db_field_name]
-    return json_dict
 
 
 def convert_fields_to_canonical_facts(json_dict):
@@ -169,6 +151,8 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
+        self.update_system_profile(input_host.system_profile_facts)
+
     def update_display_name(self, input_host):
         if input_host.display_name:
             self.display_name = input_host.display_name
@@ -207,6 +191,15 @@ class Host(db.Model):
             # The value currently stored in the namespace is None so replace it
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
+
+    def update_system_profile(self, input_system_profile):
+        if not self.system_profile_facts:
+            self.system_profile_facts = input_system_profile
+        else:
+            # Update the fields that were passed in
+            self.system_profile_facts = {**self.system_profile_facts,
+                                         **input_system_profile}
+        orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
         tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s>"

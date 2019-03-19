@@ -647,62 +647,66 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
                 i += 1
 
+
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
-    def test_create_and_update_multiple_hosts_with_different_accounts(self):
+    def _valid_system_profile(self):
+        return {"number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 4,
+                "system_memory_bytes": 1024,
+                "infrastructure_type": "massive cpu",
+                "infrastructure_vendor": "dell",
+                "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"],
+                                        "state": "UP",
+                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
+                                        "mtu": 1500,
+                                        "mac_address": "aa:bb:cc:dd:ee:ff",
+                                        "name": "eth0", }],
+                "disk_devices": [{"device": "/dev/sdb1",
+                                  "label": "home drive",
+                                  "options": {"key1": "value1",
+                                              "key2": "value2"},
+                                  "mount_point": "/home",
+                                  "type": "sata"}],
+                "bios_vendor": "AMI",
+                "bios_version": "1.0.0uhoh",
+                "bios_release_date": "10/31/2013",
+                "cpu_flags": ["flag1", "flag2"],
+                "os_release": "Red Hat EL 7.0.1",
+                "os_kernel_version": "Linux 2.0.1",
+                "arch": "x86-64",
+                "last_boot_time": "12:25 Mar 19, 2019",
+                "kernel_modules": ["i915", "e1000e"],
+                "running_processes": ["vim", "gcc", "python"],
+                "subscription_status": "valid",
+                "subscription_auto_attach": "yes",
+                "katello_agent_running": False,
+                "satellite_managed": False,
+                "yum_repos": [{"name": "repo1", "gpgcheck": True,
+                               "enabled": True,
+                               "base_url": "http://rpms.redhat.com"}],
+                "installed_products": [{"name": "eap",
+                                        "id": "123",
+                                        "status": "UP"},
+                                       {"name": "jbws",
+                                        "id": "321",
+                                        "status": "DOWN"}, ],
+                "insights_client_version": "12.0.12",
+                "insights_egg_version": "120.0.1",
+                "installed_packages": ["rpm1", "rpm2"],
+                "installed_services": ["ndb", "krb5"],
+                "enabled_services": ["ndb", "krb5"],
+                }
+
+    def test_create_host_with_system_profile(self):
         facts = None
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
         host["rhel_machine_id"] = str(uuid.uuid4())
 
-        host["system_profile"] = {}
-        host["system_profile"] = {"number_of_cpus": 1,
-                                  "number_of_sockets": 2,
-                                  "cores_per_socket": 4,
-                                  "system_memory_bytes": 1024,
-                                  "infrastructure_type": "massive cpu",
-                                  "infrastructure_vendor": "dell",
-                                  "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"],
-                                                          "state": "UP",
-                                                          "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
-
-                                                          "mtu": 1500,
-                                                          "mac_address": "aa:bb:cc:dd:ee:ff",
-                                                          "name": "eth0",
-                                                         }],
-                                  "disk_devices": [{"device": "/dev/sdb1",
-                                      "label": "home drive",
-                                      "options": {"key1": "value1", "key2": "value2"},
-                                      "mount_point": "/home",
-                                      "type": "sata"}],
-                                  "bios_vendor": "AMI",
-                                  "bios_version": "1.0.0uhoh",
-                                  "bios_release_date": "10/31/2013",
-                                  "cpu_flags": ["flag1", "flag2"],
-                                  "os_release": "Red Hat EL 7.0.1",
-                                  "os_kernel_version": "Linux 2.0.1",
-                                  "arch": "x86-64",
-                                  "last_boot_time": "12:25 Mar 19, 2019",
-                                  "kernel_modules": ["i915", "e1000e"],
-                                  "running_processes": ["vim", "gcc", "python"],
-                                  "subscription_status": "valid",
-                                  "subscription_auto_attach": "yes",
-                                  "katello_agent_running": False,
-                                  "satellite_managed": False,
-                                  "yum_repos": [{"name": "repo1", "gpgcheck": True,
-                                                 "enabled": True,
-                                                 "base_url": "http://rpms.redhat.com"}],
-                                   "installed_products": [{"name": "eap", "id": "123", "status": "UP"},
-                                                          {"name": "jbws", "id": "321", "status": "DOWN"},],
-                                   "insights_client_version": "12.0.12",
-                                   "insights_egg_version": "120.0.1",
-                                   "installed_packages": ["rpm1", "rpm2"],
-                                   "installed_services": ["ndb", "krb5"],
-                                   "enabled_services": ["ndb", "krb5"],
-                                   }
-
-        print("*** system_profile:", host["system_profile"])
+        host["system_profile"] = self._valid_system_profile()
 
         # Create the host
         response = self.post(HOST_URL, [host], 207)
@@ -710,7 +714,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         self._verify_host_status(response, 0, 201)
 
         created_host = self._pluck_host_from_response(response, 0)
-        print("created_host:", created_host)
 
         original_id = created_host["id"]
 
@@ -720,9 +723,58 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
         print("host_lookup_results:", host_lookup_results)
 
+        self.assertEqual(original_id, host_lookup_results["results"][0]["id"])
+
         print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
         self.assertEqual(host_lookup_results["results"][0]["system_profile"],
                          host["system_profile"])
+
+    def test_create_host_without_system_profile_then_update_with_system_profile(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = str(uuid.uuid4())
+
+        # Create the host without a system profile
+        response = self.post(HOST_URL, [host], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        system_profiles = [{},
+                           {"enabled_services": ["firewalld"]},
+                           self._valid_system_profile()]
+
+        for i, system_profile in enumerate(system_profiles):
+            with self.subTest(system_profile=i):
+
+                host["system_profile"] = system_profile
+
+                # Create the host
+                response = self.post(HOST_URL, [host], 207)
+
+                self._verify_host_status(response, 0, 200)
+
+                created_host = self._pluck_host_from_response(response, 0)
+
+                original_id = created_host["id"]
+
+                # verify system_profile is not included
+                self.assertNotIn("system_profile", created_host)
+
+                host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+                print("host_lookup_results:", host_lookup_results)
+
+                self.assertEqual(original_id, host_lookup_results["results"][0]["id"])
+
+                print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
+                self.assertEqual(host_lookup_results["results"][0]["system_profile"],
+                                 host["system_profile"])
+
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
