@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
 from app.exceptions import InputFormatException
+from app.schemas import SystemProfileSchema
 
 
 db = SQLAlchemy()
@@ -23,38 +24,16 @@ CANONICAL_FACTS = (
     "external_id",
 )
 
-SYSTEM_PROFILE_FIELDS = (
-    "number_of_cpus",
-    "number_of_sockets",
-    "cores_per_socket",
-    "system_memory",
-    "infrastructure_type",
-    "infrastructure_vendor",
-    "serial_number",
-    "network_interfaces",
-    "disk_devices",
-    "bios_vendor",
-    "bios_version",
-    "bios_release_date",
-    "bios_compatible_support_modules",
-    "os_release",
-    "os_kernel_version",
-    "arch",
-    "kernel_modules",
-    "last_boot_time",
-    "running_processes",
-    "subscription_status",
-    "subscription_auto_attach",
-    "katello_agent_running",
-    "satellite_managed",
-    "rpm_repos_enabled",
-    "installed_products",
-    "insights_client_version",
-    "insights_egg_version",
-    "installed_packages",
-    "installed_services",
-    "enabled_services",
-)
+
+def load_system_profile_data_from_json_dict(json_dict):
+    from marshmallow import pprint, ValidationError
+    schema = SystemProfileSchema()
+    (data, error) = schema.load(json_dict)
+    #pprint(data, indent=2)
+    if error:
+        print("error:", error)
+        raise InputFormatException("Invalid format of ...")
+    return data
 
 
 def convert_json_fields_to_db_fields(db_field_list, json_dict):
@@ -165,8 +144,8 @@ class Host(db.Model):
             d.get("account"),
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
-            convert_json_fields_to_db_fields(SYSTEM_PROFILE_FIELDS,
-                                             d.get("system_profile", {})),
+            load_system_profile_data_from_json_dict(d.get("system_profile",
+                                                          {})),
         )
 
     def to_json(self):
