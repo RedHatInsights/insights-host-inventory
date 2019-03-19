@@ -207,8 +207,8 @@ paths:
     get:
       tags:
         - hosts
-      summary: Find hosts by their IDs
-      description: Find one or more hosts by their ID.
+      summary: Return one or more hosts system profile
+      description: Find one or more hosts by their ID and return the id and system profile
       operationId: api.host.get_host_system_profile_by_id
       security:
         - ApiKeyAuth: []
@@ -592,8 +592,8 @@ components:
           items:
             $ref: '#/components/schemas/HostOut'
     SystemProfileByHostOut:
-      title: FIXME
-      description: FIXME
+      title: A host system profile query result
+      description: Structure of the output of the host system profile query
       type: object
       required:
         - count
@@ -620,8 +620,8 @@ components:
           items:
             $ref: '#/components/schemas/HostSystemProfileOut'
     HostSystemProfileOut:
-      title: FIXME
-      description: FIXME
+      title: Structure of an individual host system profile output
+      description: Individual host record that contains only the host id and system profile
       properties:
         id:
           type: string
@@ -762,7 +762,7 @@ components:
               value: "loopback"
     SystemProfileIn:
       title: System profile fields
-      description: FIXME
+      description: Representation of the system profile fields
       type: object
       properties:
         number_of_cpus:
