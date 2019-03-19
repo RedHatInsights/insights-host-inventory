@@ -57,15 +57,6 @@ SYSTEM_PROFILE_FIELDS = (
 )
 
 
-def output_host_with_system_profile(host):
-    return {"id": host.id,
-            "system_profile": convert_db_fields_to_json_fields(
-                SYSTEM_PROFILE_FIELDS,
-                host.system_profile_facts
-                ),
-            }
-
-
 def convert_json_fields_to_db_fields(db_field_list, json_dict):
     db_dict = {db_field_name: json_dict[db_field_name]
                for db_field_name in db_field_list

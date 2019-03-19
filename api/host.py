@@ -5,7 +5,7 @@ import uuid
 from enum import Enum
 
 from app import db
-from app.models import Host, output_host_with_system_profile
+from app.models import Host
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
@@ -250,10 +250,9 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 
     query_results = query.paginate(page, per_page, True)
 
-    response_list = []
-    for host in query_results.items:
-        print("system_profile", output_host_with_system_profile(host))
-        response_list.append(output_host_with_system_profile(host))
+    response_list = [{"id": host.id,
+                      "system_profile": host.system_profile_facts}
+                     for host in query_results.items]
 
     return (
         {
@@ -265,11 +264,6 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
         },
         200,
     )
-
-    return _build_paginated_host_list_response(query_results.total,
-                                               page,
-                                               per_page,
-                                               response_list)
 
 
 @api_operation
