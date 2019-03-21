@@ -31,7 +31,6 @@ def _load_system_profile_data_from_json_dict(json_dict):
     # shove it into system_profile_facts column.
     (data, error) = SystemProfileSchema().load(json_dict)
     if error:
-        # FIXME:
         raise InputFormatException("system_profile parsing error: %s" % error)
     return data
 
