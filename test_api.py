@@ -745,11 +745,31 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        system_profiles = [{},
-                           {"enabled_services": ["firewalld"]},
-                           self._valid_system_profile()]
+        # List of tuples (system profile change, expected system profile)
+        system_profiles = [({}, {})]
 
-        for i, system_profile in enumerate(system_profiles):
+        # Only set the enabled_services to start out with
+        enabled_services_only_system_profile = {"enabled_services":
+                                                ["firewalld"]}
+        system_profiles.append((enabled_services_only_system_profile,
+                                enabled_services_only_system_profile))
+
+        # Set the entire system profile...overwriting the enabled_service
+        # set from before
+        full_system_profile = self._valid_system_profile()
+        system_profiles.append((full_system_profile, full_system_profile))
+
+        # Change the enabled_services
+        full_system_profile = {**full_system_profile,
+                               **enabled_services_only_system_profile}
+        system_profiles.append((enabled_services_only_system_profile,
+                                full_system_profile))
+
+        # Make sure an empty system profile doesn't overwrite the data
+        system_profiles.append(({},
+                                full_system_profile))
+
+        for i, (system_profile, expected_system_profile) in enumerate(system_profiles):
             with self.subTest(system_profile=i):
 
                 host["system_profile"] = system_profile
@@ -773,7 +793,23 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
                 print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
                 self.assertEqual(host_lookup_results["results"][0]["system_profile"],
-                                 host["system_profile"])
+                                 expected_system_profile)
+                                 #host["system_profile"])
+
+    def test_create_host_with_null_system_profile(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["system_profile"] = None
+
+        # Create the host without a system profile
+        response = self.post(HOST_URL, [host], 400)
+
+        #self._verify_host_status(response, 0, 201)
+
+        #created_host = self._pluck_host_from_response(response, 0)
 
 
 
