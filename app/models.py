@@ -25,7 +25,7 @@ CANONICAL_FACTS = (
 )
 
 
-def load_system_profile_data_from_json_dict(json_dict):
+def _load_system_profile_data_from_json_dict(json_dict):
     (data, error) = SystemProfileSchema().load(json_dict)
     if error:
         # FIXME:
@@ -126,8 +126,8 @@ class Host(db.Model):
             d.get("account"),
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
-            load_system_profile_data_from_json_dict(d.get("system_profile",
-                                                          {})),
+            _load_system_profile_data_from_json_dict(d.get("system_profile",
+                                                           {})),
         )
 
     def to_json(self):
@@ -151,7 +151,7 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
-        self.update_system_profile(input_host.system_profile_facts)
+        self._update_system_profile(input_host.system_profile_facts)
 
     def update_display_name(self, input_host):
         if input_host.display_name:
@@ -192,7 +192,7 @@ class Host(db.Model):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def update_system_profile(self, input_system_profile):
+    def _update_system_profile(self, input_system_profile):
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
