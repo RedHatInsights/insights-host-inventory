@@ -864,6 +864,23 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         # Possibly just combine this with the above test
         pass
 
+    def test_get_system_profile_of_host_that_does_not_exist(self):
+        expected_count = 0
+        expected_total = 0
+        host_id = str(uuid.uuid4())
+        results = self.get("%s/%s/system_profile" % (HOST_URL, host_id), 200)
+        self.assertEqual(results["count"], expected_count)
+        self.assertEqual(results["total"], expected_total)
+
+    def test_get_system_profile_with_invalid_host_id(self):
+        invalid_host_ids = ["notauuid", "%s,notuuid" % str(uuid.uuid4())]
+        for host_id in invalid_host_ids:
+            with self.subTest(invalid_host_id=host_id):
+                response = self.get("%s/%s/system_profile" % (HOST_URL, host_id), 400)
+                self.verify_error_response(response,
+                                           expected_title="Bad Request",
+                                           expected_status=400)
+
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):

@@ -221,6 +221,7 @@ paths:
             type: array
             items:
               type: string
+              format: uuid
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
