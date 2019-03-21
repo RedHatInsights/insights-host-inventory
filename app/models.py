@@ -2,11 +2,11 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from marshmallow import Schema, fields
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
 from app.exceptions import InputFormatException
-from app.schemas import SystemProfileSchema
 
 
 db = SQLAlchemy()
@@ -26,6 +26,9 @@ CANONICAL_FACTS = (
 
 
 def _load_system_profile_data_from_json_dict(json_dict):
+    # Marshmallow ignores data that does not match the schema.
+    # This allow us to pick out _only_ the system profile data and
+    # shove it into system_profile_facts column.
     (data, error) = SystemProfileSchema().load(json_dict)
     if error:
         # FIXME:
@@ -209,3 +212,65 @@ class Host(db.Model):
             self.canonical_facts,
             self.facts,
         )
+
+
+class DiskDeviceSchema(Schema):
+    device = fields.Str()
+    label = fields.Str()
+    options = fields.Dict()
+    mount_point = fields.Str()
+    type = fields.Str()
+
+
+class YumRepoSchema(Schema):
+    name = fields.Str()
+    gpgcheck = fields.Bool()
+    enabled = fields.Bool()
+    base_url = fields.Url()
+
+
+class InstalledProductSchema(Schema):
+    name = fields.Str()
+    id = fields.Str()
+    status = fields.Str()
+
+
+class NetworkInterfaceSchema(Schema):
+    ipv4_addresses = fields.List(fields.Str())
+    ipv6_addresses = fields.List(fields.Str())
+    state = fields.Str()
+    mtu = fields.Int()
+    mac_address = fields.Str()
+    name = fields.Str()
+
+
+class SystemProfileSchema(Schema):
+    number_of_cpus = fields.Int()
+    number_of_sockets = fields.Int()
+    cores_per_socket = fields.Int()
+    system_memory_bytes = fields.Int()
+    infrastructure_type = fields.Str()
+    infrastructure_vendor = fields.Str()
+    network_interfaces = fields.List(fields.Nested(NetworkInterfaceSchema()))
+    disk_devices = fields.List(fields.Nested(DiskDeviceSchema()))
+    bios_vendor = fields.Str()
+    bios_version = fields.Str()
+    bios_release_date = fields.Str()
+    cpu_flags = fields.List(fields.Str())
+    os_release = fields.Str()
+    os_kernel_version = fields.Str()
+    arch = fields.Str()
+    kernel_modules = fields.List(fields.Str())
+    last_boot_time = fields.Str()
+    running_processes = fields.List(fields.Str())
+    subscription_status = fields.Str()
+    subscription_auto_attach = fields.Str()
+    katello_agent_running = fields.Bool()
+    satellite_managed = fields.Bool()
+    yum_repos = fields.List(fields.Nested(YumRepoSchema()))
+    installed_products = fields.List(fields.Nested(InstalledProductSchema()))
+    insights_client_version = fields.Str()
+    insights_egg_version = fields.Str()
+    installed_packages = fields.List(fields.Str())
+    installed_services = fields.List(fields.Str())
+    enabled_services = fields.List(fields.Str())
