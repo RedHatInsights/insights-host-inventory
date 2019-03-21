@@ -94,10 +94,15 @@ def find_existing_host(account_number, canonical_facts):
 
 
 def find_host_by_insights_id(account_number, insights_id):
-    return Host.query.filter(
+    existing_host = Host.query.filter(
             (Host.account == account_number)
             & (Host.canonical_facts["insights_id"].astext == insights_id)
         ).first()
+
+    if existing_host:
+        logger.debug("Found existing host using id match: %s", existing_host)
+
+    return existing_host
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
@@ -115,8 +120,12 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     Returns first match for a host containing given canonical facts
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
+
     host = _canonical_facts_host_query(account_number, canonical_facts).first()
-    logger.debug("found_host:%s", host)
+
+    if host:
+        logger.debug("Found existing host using canonical_fact match: %s", host)
+
     return host
 
 
