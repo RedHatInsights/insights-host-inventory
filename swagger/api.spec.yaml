@@ -725,12 +725,9 @@ components:
               summary: mac address
               value: "000000000000"
           type: string
-          maxLength: 18
         name:
           description: name of interface
           type: string
-          maxLength: 50
-          minLength: 1
           example:
             eth0:
               summary: eth0 example
@@ -738,7 +735,6 @@ components:
         state:
           description: interface state
           type: string
-          maxLength: 25
           example:
             up:
               summary: up example
@@ -752,7 +748,6 @@ components:
         type:
           description: interface type
           type: string
-          maxLength: 18
           example:
             ether:
               summary: ether example
@@ -787,48 +782,36 @@ components:
             $ref: '#/components/schemas/DiskDevice'
         bios_vendor:
           type: string
-          maxLength: 100
         bios_version:
           type: string
-          maxLength: 100
         bios_release_date:
           type: string
-          maxLength: 50
         cpu_flags:
           items:
             type: string
-            maxLength: 30
           type: array
         os_release:
           type: string
-          maxLength: 100
         os_kernel_version:
           type: string
-          maxLength: 100
         arch:
           type: string
-          maxLength: 50
         kernel_modules:
           type: array
           items:
             type: string
-            maxLength: 255
         last_boot_time:
           type: string
           format: date-time
-          maxLength: 50
         running_processes:
           type: array  # techincally a set, ordering is not important
           items:
             description: a single running process. This will be truncated to 1000 characters when saved.
             type: string
-            maxLength: 1000
         subscription_status:
           type: string
-          maxLength: 100
         subscription_auto_attach:
           type: string
-          maxLength: 100
         katello_agent_running:
           type: boolean
         satellite_managed:
@@ -843,10 +826,8 @@ components:
             $ref: '#/components/schemas/InstalledProduct'
         insights_client_version:
           type: string
-          maxLength: 50
         insights_egg_version:
           type: string
-          maxLength: 50
         installed_packages:
           type: array  # technically a set, ordering is not important
           items:
