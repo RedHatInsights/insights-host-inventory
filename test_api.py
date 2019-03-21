@@ -833,6 +833,32 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
                 self.assertEqual(response["errors"], 1)
 
+    def test_get_system_profile_of_host_that_does_not_have_system_profile(self):
+        facts = None
+        expected_system_profile = {}
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = str(uuid.uuid4())
+
+        # Create the host without a system profile
+        response = self.post(HOST_URL, [host], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+        actual_host = host_lookup_results["results"][0]
+        print("actual_host:", actual_host)
+
+        self.assertEqual(original_id, actual_host["id"])
+
+        self.assertEqual(actual_host["system_profile"],
+                         expected_system_profile)
+
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
