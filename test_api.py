@@ -826,8 +826,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
                 # Create the host
                 response = self.post(HOST_URL, [host], 207)
-                #print("response:", response)
-                #print("response detail:", response["data"][0]["detail"])
 
                 self._verify_host_status(response, 0, 400)
 
@@ -852,12 +850,19 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
         actual_host = host_lookup_results["results"][0]
-        print("actual_host:", actual_host)
 
         self.assertEqual(original_id, actual_host["id"])
 
         self.assertEqual(actual_host["system_profile"],
                          expected_system_profile)
+
+    @unittest.skip("FIXME")
+    def test_get_system_profile_of_multiple_hosts(self):
+        # FIXME:
+        # Test multiple hosts
+        # Test pagination
+        # Possibly just combine this with the above test
+        pass
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
