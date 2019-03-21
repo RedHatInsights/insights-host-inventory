@@ -721,13 +721,11 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         self.assertNotIn("system_profile", created_host)
 
         host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
-        print("host_lookup_results:", host_lookup_results)
+        actual_host = host_lookup_results["results"][0]
 
-        self.assertEqual(original_id, host_lookup_results["results"][0]["id"])
+        self.assertEqual(original_id, actual_host["id"])
 
-        print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
-        self.assertEqual(host_lookup_results["results"][0]["system_profile"],
-                         host["system_profile"])
+        self.assertEqual(actual_host["system_profile"], host["system_profile"])
 
     def test_create_host_without_system_profile_then_update_with_system_profile(self):
         facts = None
@@ -787,14 +785,12 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
                 self.assertNotIn("system_profile", created_host)
 
                 host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
-                print("host_lookup_results:", host_lookup_results)
+                actual_host = host_lookup_results["results"][0]
 
-                self.assertEqual(original_id, host_lookup_results["results"][0]["id"])
+                self.assertEqual(original_id, actual_host["id"])
 
-                print("*** results system_profile:", host_lookup_results["results"][0]["system_profile"])
-                self.assertEqual(host_lookup_results["results"][0]["system_profile"],
+                self.assertEqual(actual_host["system_profile"],
                                  expected_system_profile)
-                                 #host["system_profile"])
 
     def test_create_host_with_null_system_profile(self):
         facts = None
@@ -807,10 +803,9 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         # Create the host without a system profile
         response = self.post(HOST_URL, [host], 400)
 
-        #self._verify_host_status(response, 0, 201)
-
-        #created_host = self._pluck_host_from_response(response, 0)
-
+        self.verify_error_response(response,
+                                   expected_title="Bad Request",
+                                   expected_status=400)
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
