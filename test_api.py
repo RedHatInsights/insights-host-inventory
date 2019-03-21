@@ -662,6 +662,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
                                         "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
                                         "mtu": 1500,
                                         "mac_address": "aa:bb:cc:dd:ee:ff",
+                                        "type": "loopback",
                                         "name": "eth0", }],
                 "disk_devices": [{"device": "/dev/sdb1",
                                   "label": "home drive",
@@ -806,6 +807,31 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         self.verify_error_response(response,
                                    expected_title="Bad Request",
                                    expected_status=400)
+
+    def test_create_host_with_system_profile_with_invalid_data(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = str(uuid.uuid4())
+
+        # List of tuples (system profile change, expected system profile)
+        system_profiles = [{"infrastructure_type": "i"*101,
+                            "infrastructure_vendor": "i"*101, }]
+
+        for system_profile in system_profiles:
+            with self.subTest(system_profile=system_profile):
+
+                host["system_profile"] = system_profile
+
+                # Create the host
+                response = self.post(HOST_URL, [host], 207)
+                #print("response:", response)
+                #print("response detail:", response["data"][0]["detail"])
+
+                self._verify_host_status(response, 0, 400)
+
+                self.assertEqual(response["errors"], 1)
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase):

@@ -2,7 +2,7 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
@@ -32,7 +32,7 @@ def _load_system_profile_data_from_json_dict(json_dict):
     (data, error) = SystemProfileSchema().load(json_dict)
     if error:
         # FIXME:
-        raise InputFormatException("Invalid format of ...")
+        raise InputFormatException("system_profile parsing error: %s" % error)
     return data
 
 
@@ -238,10 +238,11 @@ class InstalledProductSchema(Schema):
 class NetworkInterfaceSchema(Schema):
     ipv4_addresses = fields.List(fields.Str())
     ipv6_addresses = fields.List(fields.Str())
-    state = fields.Str()
+    state = fields.Str(validate=validate.Length(max=25))
     mtu = fields.Int()
-    mac_address = fields.Str()
-    name = fields.Str()
+    mac_address = fields.Str(validate=validate.Length(max=18))
+    name = fields.Str(validate=validate.Length(min=1, max=50))
+    type = fields.Str(validate=validate.Length(max=18))
 
 
 class SystemProfileSchema(Schema):
@@ -249,28 +250,28 @@ class SystemProfileSchema(Schema):
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
     system_memory_bytes = fields.Int()
-    infrastructure_type = fields.Str()
-    infrastructure_vendor = fields.Str()
+    infrastructure_type = fields.Str(validate=validate.Length(max=100))
+    infrastructure_vendor = fields.Str(validate=validate.Length(max=100))
     network_interfaces = fields.List(fields.Nested(NetworkInterfaceSchema()))
     disk_devices = fields.List(fields.Nested(DiskDeviceSchema()))
-    bios_vendor = fields.Str()
-    bios_version = fields.Str()
-    bios_release_date = fields.Str()
-    cpu_flags = fields.List(fields.Str())
-    os_release = fields.Str()
-    os_kernel_version = fields.Str()
-    arch = fields.Str()
-    kernel_modules = fields.List(fields.Str())
-    last_boot_time = fields.Str()
-    running_processes = fields.List(fields.Str())
-    subscription_status = fields.Str()
-    subscription_auto_attach = fields.Str()
+    bios_vendor = fields.Str(validate=validate.Length(max=100))
+    bios_version = fields.Str(validate=validate.Length(max=100))
+    bios_release_date = fields.Str(validate=validate.Length(max=50))
+    cpu_flags = fields.List(fields.Str(validate=validate.Length(max=30)))
+    os_release = fields.Str(validate=validate.Length(max=100))
+    os_kernel_version = fields.Str(validate=validate.Length(max=100))
+    arch = fields.Str(validate=validate.Length(max=50))
+    kernel_modules = fields.List(fields.Str(validate=validate.Length(max=255)))
+    last_boot_time = fields.Str(validate=validate.Length(max=50))
+    running_processes = fields.List(fields.Str(validate=validate.Length(max=1000)))
+    subscription_status = fields.Str(validate=validate.Length(max=100))
+    subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
     katello_agent_running = fields.Bool()
     satellite_managed = fields.Bool()
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
-    insights_client_version = fields.Str()
-    insights_egg_version = fields.Str()
+    insights_client_version = fields.Str(validate=validate.Length(max=50))
+    insights_egg_version = fields.Str(validate=validate.Length(max=50))
     installed_packages = fields.List(fields.Str())
     installed_services = fields.List(fields.Str())
     enabled_services = fields.List(fields.Str())

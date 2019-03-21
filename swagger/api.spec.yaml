@@ -775,10 +775,8 @@ components:
           type: integer
         infrastructure_type:
           type: string
-          maxLength: 100
         infrastructure_vendor:
           type: string
-          maxLength: 100
         network_interfaces:
           type: array  # techincally a set, ordering is not important
           items:
