@@ -225,7 +225,8 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(current_identity.account_number,
+                                      host_id_list)
 
     query_results = query.paginate(page, per_page, True)
 
@@ -236,9 +237,9 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
     )
 
 
-def _get_host_list_by_id_list(host_id_list):
+def _get_host_list_by_id_list(account_number, host_id_list):
     return Host.query.filter(
-        (Host.account == current_identity.account_number)
+        (Host.account == account_number)
         & Host.id.in_(host_id_list)
     )
 
@@ -246,7 +247,8 @@ def _get_host_list_by_id_list(host_id_list):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(current_identity.account_number,
+                                      host_id_list)
 
     query_results = query.paginate(page, per_page, True)
 
