@@ -3,6 +3,7 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from marshmallow import Schema, fields, validate
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
@@ -24,6 +25,16 @@ CANONICAL_FACTS = (
     "mac_addresses",
     "external_id",
 )
+
+
+def _load_system_profile_data_from_json_dict(json_dict):
+    # Marshmallow ignores data that does not match the schema.
+    # This allow us to pick out _only_ the system profile data and
+    # shove it into system_profile_facts column.
+    (data, error) = SystemProfileSchema().load(json_dict)
+    if error:
+        raise InputFormatException("system_profile parsing error: %s" % error)
+    return data
 
 
 def convert_fields_to_canonical_facts(json_dict):
@@ -90,6 +101,7 @@ class Host(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
+    system_profile_facts = db.Column(JSONB)
 
     def __init__(
         self,
@@ -97,6 +109,7 @@ class Host(db.Model):
         display_name=display_name,
         account=account,
         facts=None,
+        system_profile_facts=None,
     ):
         self.canonical_facts = canonical_facts
         if display_name:
@@ -106,6 +119,7 @@ class Host(db.Model):
             self.display_name = display_name
         self.account = account
         self.facts = facts
+        self.system_profile_facts = system_profile_facts
 
     @classmethod
     def from_json(cls, d):
@@ -116,6 +130,8 @@ class Host(db.Model):
             d.get("account"),
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
+            _load_system_profile_data_from_json_dict(d.get("system_profile",
+                                                           {})),
         )
 
     def to_json(self):
@@ -138,6 +154,8 @@ class Host(db.Model):
         self.update_display_name(input_host)
 
         self.update_facts(input_host.facts)
+
+        self._update_system_profile(input_host.system_profile_facts)
 
     def update_display_name(self, input_host):
         if input_host.display_name:
@@ -183,6 +201,15 @@ class Host(db.Model):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
+    def _update_system_profile(self, input_system_profile):
+        if not self.system_profile_facts:
+            self.system_profile_facts = input_system_profile
+        else:
+            # Update the fields that were passed in
+            self.system_profile_facts = {**self.system_profile_facts,
+                                         **input_system_profile}
+        orm.attributes.flag_modified(self, "system_profile_facts")
+
     def __repr__(self):
         tmpl = "<Host id='%s' account='%s' display_name='%s' canonical_facts=%s>"
         return tmpl % (
@@ -191,3 +218,66 @@ class Host(db.Model):
             self.display_name,
             self.canonical_facts,
         )
+
+
+class DiskDeviceSchema(Schema):
+    device = fields.Str()
+    label = fields.Str()
+    options = fields.Dict()
+    mount_point = fields.Str()
+    type = fields.Str()
+
+
+class YumRepoSchema(Schema):
+    name = fields.Str()
+    gpgcheck = fields.Bool()
+    enabled = fields.Bool()
+    base_url = fields.Url()
+
+
+class InstalledProductSchema(Schema):
+    name = fields.Str()
+    id = fields.Str()
+    status = fields.Str()
+
+
+class NetworkInterfaceSchema(Schema):
+    ipv4_addresses = fields.List(fields.Str())
+    ipv6_addresses = fields.List(fields.Str())
+    state = fields.Str(validate=validate.Length(max=25))
+    mtu = fields.Int()
+    mac_address = fields.Str(validate=validate.Length(max=18))
+    name = fields.Str(validate=validate.Length(min=1, max=50))
+    type = fields.Str(validate=validate.Length(max=18))
+
+
+class SystemProfileSchema(Schema):
+    number_of_cpus = fields.Int()
+    number_of_sockets = fields.Int()
+    cores_per_socket = fields.Int()
+    system_memory_bytes = fields.Int()
+    infrastructure_type = fields.Str(validate=validate.Length(max=100))
+    infrastructure_vendor = fields.Str(validate=validate.Length(max=100))
+    network_interfaces = fields.List(fields.Nested(NetworkInterfaceSchema()))
+    disk_devices = fields.List(fields.Nested(DiskDeviceSchema()))
+    bios_vendor = fields.Str(validate=validate.Length(max=100))
+    bios_version = fields.Str(validate=validate.Length(max=100))
+    bios_release_date = fields.Str(validate=validate.Length(max=50))
+    cpu_flags = fields.List(fields.Str(validate=validate.Length(max=30)))
+    os_release = fields.Str(validate=validate.Length(max=100))
+    os_kernel_version = fields.Str(validate=validate.Length(max=100))
+    arch = fields.Str(validate=validate.Length(max=50))
+    kernel_modules = fields.List(fields.Str(validate=validate.Length(max=255)))
+    last_boot_time = fields.Str(validate=validate.Length(max=50))
+    running_processes = fields.List(fields.Str(validate=validate.Length(max=1000)))
+    subscription_status = fields.Str(validate=validate.Length(max=100))
+    subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
+    katello_agent_running = fields.Bool()
+    satellite_managed = fields.Bool()
+    yum_repos = fields.List(fields.Nested(YumRepoSchema()))
+    installed_products = fields.List(fields.Nested(InstalledProductSchema()))
+    insights_client_version = fields.Str(validate=validate.Length(max=50))
+    insights_egg_version = fields.Str(validate=validate.Length(max=50))
+    installed_packages = fields.List(fields.Str())
+    installed_services = fields.List(fields.Str())
+    enabled_services = fields.List(fields.Str())

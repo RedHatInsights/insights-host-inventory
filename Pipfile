@@ -23,6 +23,7 @@ prometheus-client = "*"
 logstash-formatter = "*"
 pytest = "*"
 validators = "*"
+marshmallow = "*"
 
 [dev-packages]
 pytest = "*"
