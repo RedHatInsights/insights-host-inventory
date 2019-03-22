@@ -261,8 +261,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [{"id": host.id,
-                      "system_profile": host.system_profile_facts}
+    response_list = [host.to_system_profile_json()
                      for host in query_results.items]
 
     return (

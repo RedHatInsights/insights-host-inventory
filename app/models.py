@@ -119,7 +119,7 @@ class Host(db.Model):
             self.display_name = display_name
         self.account = account
         self.facts = facts
-        self.system_profile_facts = system_profile_facts
+        self.system_profile_facts = system_profile_facts or {}
 
     @classmethod
     def from_json(cls, d):
@@ -143,6 +143,12 @@ class Host(db.Model):
         json_dict["facts"] = convert_dict_to_json_facts(self.facts)
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
+        return json_dict
+
+    def to_system_profile_json(self):
+        json_dict = {"id": self.id,
+                     "system_profile": self.system_profile_facts or {}
+                     }
         return json_dict
 
     def save(self):
