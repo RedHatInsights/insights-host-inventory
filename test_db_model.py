@@ -118,3 +118,24 @@ def test_update_existing_host_fix_display_name_using_id(app):
     existing_host.update(input_host)
 
     assert existing_host.display_name == existing_host.id
+
+
+def test_create_host_without_system_profile(app):
+    # Test the situation where the db/sqlalchemy sets the
+    # system_profile_facts to None
+    created_host = _create_host(fqdn="fred.flintstone.com",
+                                display_name="fred")
+    assert created_host.system_profile_facts == {}
+
+
+def test_create_host_with_system_profile(app):
+    system_profile_facts = {"number_of_cpus": 1}
+    host = Host({"fqdn": "fred.flintstone.com"},
+                display_name="display_name",
+                account="00102",
+                system_profile_facts=system_profile_facts,
+                )
+    db.session.add(host)
+    db.session.commit()
+
+    assert host.system_profile_facts == system_profile_facts
