@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from datetime import datetime
@@ -8,6 +9,7 @@ from sqlalchemy import orm
 
 from app.exceptions import InputFormatException
 
+logger = logging.getLogger(__name__)
 
 db = SQLAlchemy()
 
@@ -167,7 +169,12 @@ class Host(db.Model):
                 self.display_name = self.id
 
     def update_canonical_facts(self, canonical_facts):
+        logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
+                      " with input canonical_facts=%s")
+                     % (self.id, self.canonical_facts, canonical_facts))
         self.canonical_facts.update(canonical_facts)
+        logger.debug("Host (id=%s) has updated canonical_facts (%s)"
+                     % (self.id, self.canonical_facts))
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
@@ -204,12 +211,12 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
-        tmpl = "<Host '%s' '%s' canonical_facts=%s facts=%s>"
+        tmpl = "<Host id='%s' account='%s' display_name='%s' canonical_facts=%s>"
         return tmpl % (
-            self.display_name,
             self.id,
+            self.account,
+            self.display_name,
             self.canonical_facts,
-            self.facts,
         )
 
 
