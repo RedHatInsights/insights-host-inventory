@@ -5,7 +5,7 @@ import uuid
 from enum import Enum
 
 from app import db
-from app.models import Host
+from app.models import Host, load_host_from_json_dict
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
@@ -59,7 +59,8 @@ def _add_host(host):
                 detail="The account number associated with the user does not "
                 "match the account number associated with the host")
 
-    input_host = Host.from_json(host)
+    #input_host = Host.from_json(host)
+    input_host = load_host_from_json_dict(host)
 
     canonical_facts = input_host.canonical_facts
 

@@ -3,7 +3,7 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, validates, ValidationError, post_load
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
@@ -25,6 +25,14 @@ CANONICAL_FACTS = (
     "mac_addresses",
     "external_id",
 )
+
+
+def load_host_from_json_dict(host_dict):
+    host, error = HostSchema().load(host_dict)
+    if error:
+        print("error:", error)
+        raise InputFormatException("Host parsing error: %s" % error)
+    return host
 
 
 def _load_system_profile_data_from_json_dict(json_dict):
@@ -287,3 +295,81 @@ class SystemProfileSchema(Schema):
     installed_packages = fields.List(fields.Str())
     installed_services = fields.List(fields.Str())
     enabled_services = fields.List(fields.Str())
+
+
+class CanonicalFactsSchema(Schema):
+    insights_id = fields.UUID()
+    rhel_machine_id = fields.UUID()
+    subscription_manager_id = fields.UUID()
+    satellite_id = fields.UUID()
+    fqdn = fields.Str()
+    bios_uuid = fields.UUID()
+    ip_addresses = fields.List(fields.Str())
+    mac_addresses = fields.List(fields.Str())
+    external_id = fields.Str()
+
+    @validates("ip_addresses")
+    def validate_ip_addresses(self, value):
+        if len(value) < 1:
+            raise ValidationError("Array must contain at least one item")
+
+    @validates("mac_addresses")
+    def validate_mac_addresses(self, value):
+        if len(value) < 1:
+            raise ValidationError("Array must contain at least one item")
+
+
+class FactsSchema(Schema):
+    namespace = fields.Str()
+    facts = fields.Dict()
+
+
+class HostSchema(Schema):
+    display_name = fields.Str()
+    account = fields.Str(required=True,
+                         validate=validate.Length(min=1, max=20))
+    insights_id = fields.Str()#fields.UUID()
+    rhel_machine_id = fields.Str()#fields.UUID()
+    subscription_manager_id = fields.Str() #fields.UUID()
+    satellite_id = fields.Str()#fields.UUID()
+    fqdn = fields.Str()
+    bios_uuid = fields.Str()#fields.UUID()
+    ip_addresses = fields.List(fields.Str())
+    mac_addresses = fields.List(fields.Str())
+    external_id = fields.Str()
+    facts = fields.List(fields.Nested(FactsSchema))
+    #facts = fields.Dict()
+    system_profile = fields.Nested(SystemProfileSchema)
+
+    def process_facts(self, data):
+        print("HERE - pre_load")
+        fact_dict = {}
+        fact_list = data.get("facts", [])
+        for fact in fact_list:
+            print("fact", fact)
+            if "namespace" in fact and "facts" in fact:
+                if fact["namespace"] in fact_dict:
+                    fact_dict[fact["namespace"]].update(fact["facts"])
+                else:
+                    fact_dict[fact["namespace"]] = fact["facts"]
+            else:
+                # The facts from the request are formatted incorrectly
+                raise ValidationError("Invalid format of Fact object.  Fact "
+                                      "must contain 'namespace' and 'facts' keys.")
+        data["facts"] = fact_dict
+        print("fact_dict", fact_dict)
+        return data
+
+    @post_load
+    def make_host(self, data):
+        print("HERE - post_load")
+        print("data:", data)
+        self.process_facts(data)
+
+        cf_fields = convert_fields_to_canonical_facts(data)
+        print("cf_fields:", cf_fields)
+        return Host(cf_fields,
+                    data.get("display_name"),
+                    data.get("account"),
+                    data.get("facts"),
+                    data.get("system_profile"))
