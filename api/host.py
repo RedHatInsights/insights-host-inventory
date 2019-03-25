@@ -255,6 +255,28 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
+def get_hosts_by_id_list(host_query_doc):
+
+    # FIXME: validate doc
+    #        check for max size of input array??
+    print("host_query_doc:", host_query_doc)
+
+    query = _get_host_list_by_id_list(current_identity.account_number,
+                                      host_query_doc["host_id_list"])
+
+    query_results = query.all()
+
+    logger.debug(f"Found hosts: {query_results}")
+
+    json_host_list = [host.to_json() for host in query_results]
+    response_doc = {"data": json_host_list,
+                    "meta": {"count": len(json_host_list)},
+                    }
+    return (response_doc, 200)
+
+
+@api_operation
+@metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)

@@ -14,7 +14,8 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
+BASE_URL = "/r/insights/platform/inventory/api/v1"
+HOST_URL = BASE_URL + "/hosts"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -1134,6 +1135,27 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
+
+
+class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
+
+    def test_query_using_host_id_list(self):
+        host_list = self.added_hosts
+
+        test_url = BASE_URL + "/hosts_by_id_list"
+
+        host_id_list = [host.id for host in host_list]
+
+        query_doc = {"host_id_list": host_id_list}
+
+        response = self.post(test_url, query_doc, 200)
+        print("response:", response)
+
+        # FIXME: check the results
+        self.assertEqual(len(response["data"]), len(host_list))
+
+        #self._base_paging_test(test_url, len(self.added_hosts))
+
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

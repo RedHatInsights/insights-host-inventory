@@ -126,6 +126,41 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
+  /hosts_by_id_list:
+    post:
+      tags:
+        - hosts
+      summary: Find hosts by their IDs
+      description: Find one or more hosts by their ID.
+      operationId: api.host.get_hosts_by_id_list
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        description: A dictionary with the hosts to query for.
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: host_query_doc
+              $ref: '#/components/schemas/HostQueryDoc'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HostOut'
+                  meta:
+                    type: object
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
   '/hosts/{host_id_list}/facts/{namespace}':
     patch:
       tags:
@@ -299,6 +334,14 @@ components:
         detail:
           type: string
           description: Details about why a host failed to be created or updated.
+    HostQueryDoc:
+      type: object
+      properties:
+        host_id_list:
+          type: array
+          items:
+            type: string
+            format: uuid
     Facts:
       title: Host facts
       description: A set of string facts about a host.
