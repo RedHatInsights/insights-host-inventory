@@ -126,7 +126,7 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
-  /hosts_by_id_list:
+  /hosts/search:
     post:
       tags:
         - hosts

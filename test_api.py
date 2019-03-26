@@ -1142,7 +1142,7 @@ class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
 
-        test_url = BASE_URL + "/hosts_by_id_list"
+        test_url = HOST_URL + "/search"
 
         host_id_list = [host.id for host in host_list]
 
@@ -1154,8 +1154,7 @@ class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
         # FIXME: check the results
         self.assertEqual(len(response["data"]), len(host_list))
 
-        #self._base_paging_test(test_url, len(self.added_hosts))
-
+        # self._base_paging_test(test_url, len(self.added_hosts))
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
