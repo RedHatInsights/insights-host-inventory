@@ -299,28 +299,6 @@ class SystemProfileSchema(Schema):
     enabled_services = fields.List(fields.Str())
 
 
-class CanonicalFactsSchema(Schema):
-    insights_id = fields.UUID()
-    rhel_machine_id = fields.UUID()
-    subscription_manager_id = fields.UUID()
-    satellite_id = fields.UUID()
-    fqdn = fields.Str()
-    bios_uuid = fields.UUID()
-    ip_addresses = fields.List(fields.Str())
-    mac_addresses = fields.List(fields.Str())
-    external_id = fields.Str()
-
-    @validates("ip_addresses")
-    def validate_ip_addresses(self, value):
-        if len(value) < 1:
-            raise ValidationError("Array must contain at least one item")
-
-    @validates("mac_addresses")
-    def validate_mac_addresses(self, value):
-        if len(value) < 1:
-            raise ValidationError("Array must contain at least one item")
-
-
 class FactsSchema(Schema):
     namespace = fields.Str()
     facts = fields.Dict()
@@ -374,3 +352,13 @@ class HostSchema(Schema):
                     data.get("account"),
                     data.get("facts"),
                     data.get("system_profile"))
+
+    @validates("ip_addresses")
+    def validate_ip_addresses(self, value):
+        if len(value) < 1:
+            raise ValidationError("Array must contain at least one item")
+
+    @validates("mac_addresses")
+    def validate_mac_addresses(self, value):
+        if len(value) < 1:
+            raise ValidationError("Array must contain at least one item")
