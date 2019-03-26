@@ -462,9 +462,13 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 host_data[field_name] = "notauuid"
 
-                response_data = self.post(HOST_URL, [host_data], 400)
+                response_data = self.post(HOST_URL, [host_data], 207)
+                print("response:", response_data)
 
-                self.verify_error_response(response_data,
+                error_host = response_data["data"][0]
+                print("error_host:", error_host)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
     def test_create_host_with_invalid_ip_address(self):
@@ -510,9 +514,13 @@ class CreateHostsTestCase(DBAPITestCase):
             with self.subTest(display_name=display_name):
                 host_data.display_name = display_name
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                #print("response:", response)
 
-                self.verify_error_response(response_data,
+                error_host = response["data"][0]
+                print("error_host:", error_host)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
     def test_create_host_invalid_fqdn(self):
@@ -524,9 +532,12 @@ class CreateHostsTestCase(DBAPITestCase):
             with self.subTest(fqdn=fqdn):
                 host_data.fqdn = fqdn
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response["data"][0]
+                print("error_host:", error_host)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
 

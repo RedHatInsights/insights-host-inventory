@@ -7,7 +7,9 @@ from marshmallow import Schema, fields, validate, validates, ValidationError, po
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
+from api.json_validators import verify_uuid_format
 from app.exceptions import InputFormatException
+
 
 logger = logging.getLogger(__name__)
 
@@ -325,20 +327,19 @@ class FactsSchema(Schema):
 
 
 class HostSchema(Schema):
-    display_name = fields.Str()
+    display_name = fields.Str(validate=validate.Length(min=1, max=200))
     account = fields.Str(required=True,
-                         validate=validate.Length(min=1, max=20))
-    insights_id = fields.Str()#fields.UUID()
-    rhel_machine_id = fields.Str()#fields.UUID()
-    subscription_manager_id = fields.Str() #fields.UUID()
-    satellite_id = fields.Str()#fields.UUID()
-    fqdn = fields.Str()
-    bios_uuid = fields.Str()#fields.UUID()
+                         validate=validate.Length(min=1, max=10))
+    insights_id = fields.Str(validate=verify_uuid_format)
+    rhel_machine_id = fields.Str(validate=verify_uuid_format)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format)
+    satellite_id = fields.Str(validate=verify_uuid_format)
+    fqdn = fields.Str(validate=validate.Length(min=1, max=255))
+    bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
     external_id = fields.Str()
     facts = fields.List(fields.Nested(FactsSchema))
-    #facts = fields.Dict()
     system_profile = fields.Nested(SystemProfileSchema)
 
     def process_facts(self, data):
