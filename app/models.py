@@ -7,10 +7,10 @@ from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
-from api.json_validators import (verify_uuid_format,
-                                 verify_ip_address_format,
-                                 verify_mac_address_format)
 from app.exceptions import InventoryException, InputFormatException
+from app.validators import (verify_uuid_format,
+                            verify_ip_address_format,
+                            verify_mac_address_format)
 
 
 logger = logging.getLogger(__name__)

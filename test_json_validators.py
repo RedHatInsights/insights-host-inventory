@@ -1,9 +1,8 @@
 import pytest
 
-from api.json_validators import (verify_uuid_format,
-                                 verify_ip_address_format,
-                                 verify_mac_address_format
-                                 )
+from app.validators import (verify_uuid_format,
+                            verify_ip_address_format,
+                            verify_mac_address_format)
 
 
 @pytest.mark.parametrize("uuid", ["4a8fb994-57fe-4dbb-ad2a-9e922560b6c1",
