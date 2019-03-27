@@ -18,19 +18,6 @@ logger = logging.getLogger(__name__)
 db = SQLAlchemy()
 
 
-CANONICAL_FACTS = (
-    "insights_id",
-    "rhel_machine_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "external_id",
-)
-
-
 def _set_display_name_on_save(context):
     """
     This method sets the display_name if it has not been set previously.
@@ -190,10 +177,22 @@ class CanonicalFacts:
     Internally store the canonical facts as a dict
     """
 
+    field_names = (
+        "insights_id",
+        "rhel_machine_id",
+        "subscription_manager_id",
+        "satellite_id",
+        "bios_uuid",
+        "ip_addresses",
+        "fqdn",
+        "mac_addresses",
+        "external_id",
+    )
+
     @staticmethod
     def from_json(json_dict):
         canonical_fact_list = {}
-        for cf in CANONICAL_FACTS:
+        for cf in CanonicalFacts.field_names:
             # Do not allow the incoming canonical facts to be None or ''
             if cf in json_dict and json_dict[cf]:
                 canonical_fact_list[cf] = json_dict[cf]
@@ -201,8 +200,8 @@ class CanonicalFacts:
 
     @staticmethod
     def to_json(internal_dict):
-        canonical_fact_dict = dict.fromkeys(CANONICAL_FACTS, None)
-        for cf in CANONICAL_FACTS:
+        canonical_fact_dict = dict.fromkeys(CanonicalFacts.field_names, None)
+        for cf in CanonicalFacts.field_names:
             if cf in internal_dict:
                 canonical_fact_dict[cf] = internal_dict[cf]
         return canonical_fact_dict
