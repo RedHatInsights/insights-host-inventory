@@ -463,10 +463,8 @@ class CreateHostsTestCase(DBAPITestCase):
                 host_data[field_name] = "notauuid"
 
                 response_data = self.post(HOST_URL, [host_data], 207)
-                print("response:", response_data)
 
                 error_host = response_data["data"][0]
-                print("error_host:", error_host)
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
@@ -508,25 +506,33 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_display_names = ["", None, "a"*201]
+        invalid_display_names = ["", "a"*201]
 
         for display_name in invalid_display_names:
             with self.subTest(display_name=display_name):
                 host_data.display_name = display_name
 
                 response = self.post(HOST_URL, [host_data.data()], 207)
-                #print("response:", response)
 
                 error_host = response["data"][0]
-                print("error_host:", error_host)
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
+    def test_create_host_with_display_name_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.display_name = None
+
+        response = self.post(HOST_URL, [host_data.data()], 400)
+
+        self.verify_error_response(response,
+                                   expected_title="Bad Request")
+
     def test_create_host_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_fqdns = ["", None, "a"*256]
+        invalid_fqdns = ["", "a"*256]
 
         for fqdn in invalid_fqdns:
             with self.subTest(fqdn=fqdn):
@@ -535,10 +541,19 @@ class CreateHostsTestCase(DBAPITestCase):
                 response = self.post(HOST_URL, [host_data.data()], 207)
 
                 error_host = response["data"][0]
-                print("error_host:", error_host)
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
+
+    def test_create_host_with_fqdn_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.fqdn = None
+
+        response = self.post(HOST_URL, [host_data.data()], 400)
+
+        self.verify_error_response(response,
+                                   expected_title="Bad Request")
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
