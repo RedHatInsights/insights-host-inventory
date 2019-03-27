@@ -3,78 +3,19 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
-from app.exceptions import InputFormatException
+from app.exceptions import InventoryException, InputFormatException
+from app.validators import (verify_uuid_format,
+                            verify_ip_address_format,
+                            verify_mac_address_format)
+
 
 logger = logging.getLogger(__name__)
 
 db = SQLAlchemy()
-
-
-CANONICAL_FACTS = (
-    "insights_id",
-    "rhel_machine_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "external_id",
-)
-
-
-def _load_system_profile_data_from_json_dict(json_dict):
-    # Marshmallow ignores data that does not match the schema.
-    # This allow us to pick out _only_ the system profile data and
-    # shove it into system_profile_facts column.
-    (data, error) = SystemProfileSchema().load(json_dict)
-    if error:
-        raise InputFormatException("system_profile parsing error: %s" % error)
-    return data
-
-
-def convert_fields_to_canonical_facts(json_dict):
-    canonical_fact_list = {}
-    for cf in CANONICAL_FACTS:
-        # Do not allow the incoming canonical facts to be None or ''
-        if cf in json_dict and json_dict[cf]:
-            canonical_fact_list[cf] = json_dict[cf]
-    return canonical_fact_list
-
-
-def convert_canonical_facts_to_fields(internal_dict):
-    canonical_fact_dict = dict.fromkeys(CANONICAL_FACTS, None)
-    for cf in CANONICAL_FACTS:
-        if cf in internal_dict:
-            canonical_fact_dict[cf] = internal_dict[cf]
-    return canonical_fact_dict
-
-
-def convert_json_facts_to_dict(fact_list):
-    fact_dict = {}
-    for fact in fact_list:
-        if "namespace" in fact and "facts" in fact:
-            if fact["namespace"] in fact_dict:
-                fact_dict[fact["namespace"]].update(fact["facts"])
-            else:
-                fact_dict[fact["namespace"]] = fact["facts"]
-        else:
-            # The facts from the request are formatted incorrectly
-            raise InputFormatException("Invalid format of Fact object.  Fact "
-                                       "must contain 'namespace' and 'facts' keys.")
-    return fact_dict
-
-
-def convert_dict_to_json_facts(fact_dict):
-    fact_list = [
-        {"namespace": namespace, "facts": facts if facts else {}}
-        for namespace, facts in fact_dict.items()
-    ]
-    return fact_list
 
 
 def _set_display_name_on_save(context):
@@ -111,7 +52,14 @@ class Host(db.Model):
         facts=None,
         system_profile_facts=None,
     ):
+
+        if not canonical_facts:
+            raise InventoryException(title="Invalid request",
+                                     detail="At least one of the canonical "
+                                     "fact fields must be present.")
+
         self.canonical_facts = canonical_facts
+
         if display_name:
             # Only set the display_name field if input the display_name has
             # been set...this will make it so that the "default" logic will
@@ -123,24 +71,22 @@ class Host(db.Model):
 
     @classmethod
     def from_json(cls, d):
+        canonical_facts = CanonicalFacts.from_json(d)
+        facts = Facts.from_json(d.get("facts"))
         return cls(
-            # Internally store the canonical facts as a dict
-            convert_fields_to_canonical_facts(d),
+            canonical_facts,
             d.get("display_name", None),
             d.get("account"),
-            # Internally store the facts in a dict
-            convert_json_facts_to_dict(d.get("facts", [])),
-            _load_system_profile_data_from_json_dict(d.get("system_profile",
-                                                           {})),
+            facts,
+            d.get("system_profile", {}),
         )
 
     def to_json(self):
-        json_dict = convert_canonical_facts_to_fields(self.canonical_facts)
+        json_dict = CanonicalFacts.to_json(self.canonical_facts)
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
-        # Internally store the facts in a dict
-        json_dict["facts"] = convert_dict_to_json_facts(self.facts)
+        json_dict["facts"] = Facts.to_json(self.facts)
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict
@@ -226,6 +172,83 @@ class Host(db.Model):
         )
 
 
+class CanonicalFacts:
+    """
+    There is a mismatch between how the canonical facts are sent as JSON
+    and how the canonical facts are stored in the DB.  This class contains
+    the logic that is responsible for performing the conversion.
+
+    The canonical facts will be stored as a dict in a single json column
+    in the DB.
+    """
+
+    field_names = (
+        "insights_id",
+        "rhel_machine_id",
+        "subscription_manager_id",
+        "satellite_id",
+        "bios_uuid",
+        "ip_addresses",
+        "fqdn",
+        "mac_addresses",
+        "external_id",
+    )
+
+    @staticmethod
+    def from_json(json_dict):
+        canonical_fact_list = {}
+        for cf in CanonicalFacts.field_names:
+            # Do not allow the incoming canonical facts to be None or ''
+            if cf in json_dict and json_dict[cf]:
+                canonical_fact_list[cf] = json_dict[cf]
+        return canonical_fact_list
+
+    @staticmethod
+    def to_json(internal_dict):
+        canonical_fact_dict = dict.fromkeys(CanonicalFacts.field_names, None)
+        for cf in CanonicalFacts.field_names:
+            if cf in internal_dict:
+                canonical_fact_dict[cf] = internal_dict[cf]
+        return canonical_fact_dict
+
+
+class Facts:
+    """
+    There is a mismatch between how the facts are sent as JSON
+    and how the facts are stored in the DB.  This class contains
+    the logic that is responsible for performing the conversion.
+
+    The facts will be stored as a dict in a single json column
+    in the DB.
+    """
+
+    @staticmethod
+    def from_json(fact_list):
+        if fact_list is None:
+            fact_list = []
+
+        fact_dict = {}
+        for fact in fact_list:
+            if "namespace" in fact and "facts" in fact:
+                if fact["namespace"] in fact_dict:
+                    fact_dict[fact["namespace"]].update(fact["facts"])
+                else:
+                    fact_dict[fact["namespace"]] = fact["facts"]
+            else:
+                # The facts from the request are formatted incorrectly
+                raise InputFormatException("Invalid format of Fact object.  Fact "
+                                           "must contain 'namespace' and 'facts' keys.")
+        return fact_dict
+
+    @staticmethod
+    def to_json(fact_dict):
+        fact_list = [
+            {"namespace": namespace, "facts": facts if facts else {}}
+            for namespace, facts in fact_dict.items()
+        ]
+        return fact_list
+
+
 class DiskDeviceSchema(Schema):
     device = fields.Str()
     label = fields.Str()
@@ -287,3 +310,44 @@ class SystemProfileSchema(Schema):
     installed_packages = fields.List(fields.Str())
     installed_services = fields.List(fields.Str())
     enabled_services = fields.List(fields.Str())
+
+
+class FactsSchema(Schema):
+    namespace = fields.Str()
+    facts = fields.Dict()
+
+
+class HostSchema(Schema):
+    display_name = fields.Str(validate=validate.Length(min=1, max=200))
+    account = fields.Str(required=True,
+                         validate=validate.Length(min=1, max=10))
+    insights_id = fields.Str(validate=verify_uuid_format)
+    rhel_machine_id = fields.Str(validate=verify_uuid_format)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format)
+    satellite_id = fields.Str(validate=verify_uuid_format)
+    fqdn = fields.Str(validate=validate.Length(min=1, max=255))
+    bios_uuid = fields.Str(validate=verify_uuid_format)
+    ip_addresses = fields.List(fields.Str())
+    mac_addresses = fields.List(fields.Str())
+    external_id = fields.Str()
+    facts = fields.List(fields.Nested(FactsSchema))
+    system_profile = fields.Nested(SystemProfileSchema)
+
+    @validates("ip_addresses")
+    def validate_ip_addresses(self, ip_address_list):
+        if len(ip_address_list) < 1:
+            raise ValidationError("Array must contain at least one item")
+
+        for ip_address in ip_address_list:
+            if verify_ip_address_format(ip_address) is not True:
+                raise ValidationError("Invalid ip address")
+
+    @validates("mac_addresses")
+    def validate_mac_addresses(self, mac_address_list):
+        if len(mac_address_list) < 1:
+            raise ValidationError("Array must contain at least one item")
+
+        for mac_address in mac_address_list:
+            if verify_mac_address_format(mac_address) is not True:
+                raise ValidationError("Invalid mac address")
+

@@ -7,11 +7,11 @@ import yaml
 from connexion.resolver import RestyResolver
 from flask import jsonify
 
-from api.json_validators import verify_uuid_format
 from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
+from app.validators import verify_uuid_format
 
 
 def render_exception(exception):
