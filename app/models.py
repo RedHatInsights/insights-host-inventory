@@ -174,7 +174,12 @@ class Host(db.Model):
 
 class CanonicalFacts:
     """
-    Internally store the canonical facts as a dict
+    There is a mismatch between how the canonical facts are sent as JSON
+    and how the canonical facts are stored in the DB.  This class contains
+    the logic that is responsible for performing the conversion.
+
+    The canonical facts will be stored as a dict in a single json column
+    in the DB.
     """
 
     field_names = (
@@ -209,7 +214,12 @@ class CanonicalFacts:
 
 class Facts:
     """
-    Internally store the facts in a dict
+    There is a mismatch between how the facts are sent as JSON
+    and how the facts are stored in the DB.  This class contains
+    the logic that is responsible for performing the conversion.
+
+    The facts will be stored as a dict in a single json column
+    in the DB.
     """
 
     @staticmethod
