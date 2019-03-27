@@ -466,6 +466,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 error_host = response_data["data"][0]
 
+                self.assertEqual(error_host["status"], 400)
+
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
@@ -484,6 +486,8 @@ class CreateHostsTestCase(DBAPITestCase):
                 response_data = self.post(HOST_URL, [host_data.data()], 207)
 
                 error_host = response_data["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
@@ -516,6 +520,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 error_host = response_data["data"][0]
 
+                self.assertEqual(error_host["status"], 400)
+
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
@@ -544,6 +550,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 error_host = response["data"][0]
 
+                self.assertEqual(error_host["status"], 400)
+
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
@@ -569,6 +577,8 @@ class CreateHostsTestCase(DBAPITestCase):
                 response = self.post(HOST_URL, [host_data.data()], 207)
 
                 error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
