@@ -3,11 +3,13 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError, post_load
+from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
-from api.json_validators import verify_uuid_format
+from api.json_validators import (verify_uuid_format,
+                                 verify_ip_address_format,
+                                 verify_mac_address_format)
 from app.exceptions import InventoryException, InputFormatException
 
 
@@ -323,11 +325,20 @@ class HostSchema(Schema):
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")
-    def validate_ip_addresses(self, value):
-        if len(value) < 1:
+    def validate_ip_addresses(self, ip_address_list):
+        if len(ip_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
+        for ip_address in ip_address_list:
+            if verify_ip_address_format(ip_address) is not True:
+                raise ValidationError("Invalid ip address")
+
     @validates("mac_addresses")
-    def validate_mac_addresses(self, value):
-        if len(value) < 1:
+    def validate_mac_addresses(self, mac_address_list):
+        if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
+
+        for mac_address in mac_address_list:
+            if verify_mac_address_format(mac_address) is not True:
+                raise ValidationError("Invalid mac address")
+

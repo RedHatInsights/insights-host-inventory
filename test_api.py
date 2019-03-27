@@ -475,16 +475,30 @@ class CreateHostsTestCase(DBAPITestCase):
         invalid_ip_arrays = [["blah"],
                              ["1.1.1.1", "sigh"],
                              [],
-                             None]
+                             ]
 
         for ip_array in invalid_ip_arrays:
             with self.subTest(ip_array=ip_array):
                 host_data.ip_addresses = ip_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response_data["data"][0]
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
+
+    def test_create_host_with_ip_address_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.insights_id = generate_uuid()
+
+        host_data.ip_addresses = None
+
+        response_data = self.post(HOST_URL, [host_data.data()], 400)
+
+        self.verify_error_response(response_data,
+                                   expected_title="Bad Request")
 
     def test_create_host_with_invalid_mac_address(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -492,16 +506,30 @@ class CreateHostsTestCase(DBAPITestCase):
         invalid_mac_arrays = [["blah"],
                               ["11:22:33:44:55:66", "blah"],
                               [],
-                              None]
+                              ]
 
         for mac_array in invalid_mac_arrays:
             with self.subTest(mac_array=mac_array):
                 host_data.mac_addresses = mac_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response_data["data"][0]
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
+
+    def test_create_host_with_mac_address_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.insights_id = generate_uuid()
+
+        host_data.mac_addresses = None
+
+        response_data = self.post(HOST_URL, [host_data.data()], 400)
+
+        self.verify_error_response(response_data,
+                                   expected_title="Bad Request")
 
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))

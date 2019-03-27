@@ -379,10 +379,6 @@ components:
           type: array
           items:
             type: string
-            format: ip_address
-            minLength: 7
-            maxLength: 45
-          minItems: 1
           example:
             - 10.10.0.1
             - 10.0.0.2
@@ -399,10 +395,6 @@ components:
           type: array
           items:
             type: string
-            format: mac_address
-            minLength: 1
-            maxLength: 23
-          minItems: 1
           example:
             - 'c2:00:d0:c8:61:01'
         external_id:
