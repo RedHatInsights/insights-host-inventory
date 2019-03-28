@@ -471,6 +471,38 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
+    def test_create_host_with_non_nullable_fields_as_None(self):
+        non_nullable_field_names = ("display_name",
+                                    "account",
+                                    "insights_id",
+                                    "rhel_machine_id",
+                                    "subscription_manager_id",
+                                    "satellite_id",
+                                    "fqdn",
+                                    "bios_uuid",
+                                    "ip_addresses",
+                                    "mac_addresses",
+                                    "external_id",)
+
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Have at least one good canonical fact set
+        host_data.insights_id = generate_uuid()
+        host_data.rhel_machine_id = generate_uuid()
+
+        host_dict = host_data.data()
+
+        for field_name in non_nullable_field_names:
+            with self.subTest(field_as_None=field_name):
+                invalid_host_dict = copy.deepcopy(host_dict)
+
+                invalid_host_dict[field_name] = None
+
+                response_data = self.post(HOST_URL, [invalid_host_dict], 400)
+
+                self.verify_error_response(response_data,
+                                           expected_title="Bad Request")
+
     def test_create_host_with_invalid_ip_address(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -491,18 +523,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
-
-    def test_create_host_with_ip_address_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        host_data.insights_id = generate_uuid()
-
-        host_data.ip_addresses = None
-
-        response_data = self.post(HOST_URL, [host_data.data()], 400)
-
-        self.verify_error_response(response_data,
-                                   expected_title="Bad Request")
 
     def test_create_host_with_invalid_mac_address(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -525,17 +545,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_mac_address_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        host_data.insights_id = generate_uuid()
-
-        host_data.mac_addresses = None
-
-        response_data = self.post(HOST_URL, [host_data.data()], 400)
-
-        self.verify_error_response(response_data,
-                                   expected_title="Bad Request")
 
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -555,16 +564,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_display_name_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        host_data.display_name = None
-
-        response = self.post(HOST_URL, [host_data.data()], 400)
-
-        self.verify_error_response(response,
-                                   expected_title="Bad Request")
-
     def test_create_host_with_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -583,15 +582,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_fqdn_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        host_data.fqdn = None
-
-        response = self.post(HOST_URL, [host_data.data()], 400)
-
-        self.verify_error_response(response,
-                                   expected_title="Bad Request")
 
     def test_create_host_with_invalid_external_id(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -610,16 +600,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
-
-    def test_create_host_with_external_id_as_None(self):
-        host_data = HostWrapper(test_data(facts=None))
-
-        host_data.external_id = None
-
-        response = self.post(HOST_URL, [host_data.data()], 400)
-
-        self.verify_error_response(response,
-                                   expected_title="Bad Request")
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
