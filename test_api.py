@@ -565,7 +565,7 @@ class CreateHostsTestCase(DBAPITestCase):
         self.verify_error_response(response,
                                    expected_title="Bad Request")
 
-    def test_create_host_invalid_fqdn(self):
+    def test_create_host_with_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
         invalid_fqdns = ["", "a"*256]
