@@ -329,7 +329,7 @@ class HostSchema(Schema):
     bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
-    external_id = fields.Str()
+    external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
 

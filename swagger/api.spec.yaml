@@ -403,8 +403,6 @@ components:
             OpenStack, etc. This field is considered to be a canonical fact.
           type: string
           example: i-05d2313e6b9a42b16
-          minLength: 1
-          maxLength: 255
         facts:
           description: A set of facts belonging to the host.
           type: array
