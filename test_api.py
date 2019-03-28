@@ -593,6 +593,34 @@ class CreateHostsTestCase(DBAPITestCase):
         self.verify_error_response(response,
                                    expected_title="Bad Request")
 
+    def test_create_host_with_invalid_external_id(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_external_ids = ["", "a"*501]
+
+        for external_id in invalid_external_ids:
+            with self.subTest(external_id=external_id):
+                host_data.external_id = external_id
+
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
+                                           expected_title="Bad Request")
+
+    def test_create_host_with_external_id_as_None(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        host_data.external_id = None
+
+        response = self.post(HOST_URL, [host_data.data()], 400)
+
+        self.verify_error_response(response,
+                                   expected_title="Bad Request")
+
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
