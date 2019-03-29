@@ -31,33 +31,12 @@ class ContextualFilter(logging.Filter):
         return True
 
 
-class AppFormatter(logging.Formatter):
-    def format(self, record):
-        print("FORMAT")
-        REQUEST_ID_HEADER = "x-rh-insights-request-id"
-        UNKNOWN_REQUEST_ID_VALUE = "-1"
-        record.request_id = request.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
-        return super().format(record)
-
-
 def create_app(config_name):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
-    configure_logging()
-
-    if config_name != "testing":
-        # FIXME: Not sure of a better approach at the moment
-
-        #default_handler.setFormatter(AppFormatter())
-        root = logging.getLogger()
-        root.addFilter(ContextualFilter())
-
-        # Whatta hack...the filters do not propagate...
-        for logger_name in ("app", "app.models", "api", "api.host"):
-            app_logger = logging.getLogger(logger_name)
-            app_logger.addFilter(ContextualFilter())
+    _configure_logging(config_name)
 
     app_config = Config(config_name)
 
@@ -98,7 +77,7 @@ def create_app(config_name):
     return flask_app
 
 
-def configure_logging():
+def _configure_logging(config_name):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
     log_config_file = os.getenv(env_var_name)
     if log_config_file is not None:
@@ -114,3 +93,13 @@ def configure_logging():
             raise
 
         logging.config.fileConfig(fname=log_config_file)
+
+    if config_name != "testing":
+        # Only enable the contextual filter if not in "testing" mode
+        root = logging.getLogger()
+        root.addFilter(ContextualFilter())
+
+        # FIXME: Figure out a better way to load the list of modules/submodules
+        for logger_name in ("app", "app.models", "api", "api.host"):
+            app_logger = logging.getLogger(logger_name)
+            app_logger.addFilter(ContextualFilter())
