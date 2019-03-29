@@ -5,7 +5,8 @@ import logging.config
 import yaml
 
 from connexion.resolver import RestyResolver
-from flask import jsonify
+from flask import jsonify, request
+from flask.logging import default_handler
 
 from api.mgmt import monitoring_blueprint
 from app.config import Config
@@ -20,12 +21,43 @@ def render_exception(exception):
     return response
 
 
+class ContextualFilter(logging.Filter):
+    def filter(self, log_record):
+        # FIXME:
+        REQUEST_ID_HEADER = "x-rh-insights-request-id"
+        UNKNOWN_REQUEST_ID_VALUE = "-1"
+        log_record.request_id = request.headers.get(REQUEST_ID_HEADER,
+                                                    UNKNOWN_REQUEST_ID_VALUE)
+        return True
+
+
+class AppFormatter(logging.Formatter):
+    def format(self, record):
+        print("FORMAT")
+        REQUEST_ID_HEADER = "x-rh-insights-request-id"
+        UNKNOWN_REQUEST_ID_VALUE = "-1"
+        record.request_id = request.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
+        return super().format(record)
+
+
 def create_app(config_name):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
+
+    if config_name != "testing":
+        # FIXME: Not sure of a better approach at the moment
+
+        #default_handler.setFormatter(AppFormatter())
+        root = logging.getLogger()
+        root.addFilter(ContextualFilter())
+
+        # Whatta hack...the filters do not propagate...
+        for logger_name in ("app", "app.models", "api", "api.host"):
+            app_logger = logging.getLogger(logger_name)
+            app_logger.addFilter(ContextualFilter())
 
     app_config = Config(config_name)
 
