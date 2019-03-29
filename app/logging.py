@@ -1,7 +1,9 @@
 import logging
 import logging.config
+import logstash_formatter
 import os
 
+from gunicorn import glogging
 from flask import request
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
@@ -49,4 +51,19 @@ class ContextualFilter(logging.Filter):
         return True
 
 
+class InventoryGunicornLogger(glogging.Logger):
+    """
+    The logger used by the gunicorn arbiter ignores configuration from
+    the logconfig.ini/--log-config.  This class is required so that the
+    log messages emmitted by the arbiter are routed through the
+    logstash formatter.  If they do not get routed through the logstash
+    formatter, then kibana appears to ignore them.  This could cause
+    us to lose "WORKER TIMEOUT" error messages, etc.
+    """
 
+    def setup(self, cfg):
+        super().setup(cfg)
+
+        self._set_handler(self.error_log,
+                          cfg.errorlog,
+                          logstash_formatter.LogstashFormatterV1())
