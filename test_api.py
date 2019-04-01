@@ -1211,22 +1211,45 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
 
+    TEST_QUERY_URL = HOST_URL + "/search"
+
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
-
-        test_url = HOST_URL + "/search"
 
         host_id_list = [host.id for host in host_list]
 
         query_doc = {"host_id_list": host_id_list}
 
-        response = self.post(test_url, query_doc, 200)
+        response = self.post(self.TEST_QUERY_URL, query_doc, 200)
         print("response:", response)
 
         # FIXME: check the results
-        self.assertEqual(len(response["data"]), len(host_list))
+        self.assertEqual(len(response["results"]), len(host_list))
 
         # self._base_paging_test(test_url, len(self.added_hosts))
+
+    def test_query_using_host_id_list_with_invalid_uuid(self):
+        host_list = self.added_hosts
+
+        host_id_list = [host.id for host in host_list]
+
+        host_id_list.append("notauuid")
+
+        query_doc = {"host_id_list": host_id_list}
+
+        response = self.post(self.TEST_QUERY_URL, query_doc, 400)
+
+    def test_query_with_invalid_host_id_list(self):
+        invalid_query_docs = [None,
+                              {},
+                              {"host_id_list": []},
+                              {"host_id_list": {}}
+                              ]
+
+        for invalid_query_doc in invalid_query_docs:
+            with self.subTest(invalid_query_doc=invalid_query_doc):
+                response = self.post(self.TEST_QUERY_URL, invalid_query_doc, 400)
+                print("** response:", response)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

@@ -260,24 +260,25 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_hosts_by_id_list(host_query_doc):
+def get_hosts_by_id_list(host_query_doc, page=1, per_page=100):
+    host_list_field_name = "host_id_list"
 
     # FIXME: validate doc
     #        check for max size of input array??
     print("host_query_doc:", host_query_doc)
 
+    if (host_list_field_name not in host_query_doc
+            or not host_query_doc[host_list_field_name]):
+        return ("Bad Request", 400)
+
     query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_query_doc["host_id_list"])
+                                      host_query_doc[host_list_field_name])
 
-    query_results = query.all()
+    query_results = query.paginate(page, per_page, True)
 
-    logger.debug(f"Found hosts: {query_results}")
-
-    json_host_list = [host.to_json() for host in query_results]
-    response_doc = {"data": json_host_list,
-                    "meta": {"count": len(json_host_list)},
-                    }
-    return (response_doc, 200)
+    return _build_paginated_host_list_response(
+        query_results.total, page, per_page, query_results.items
+    )
 
 
 @api_operation
