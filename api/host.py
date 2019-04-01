@@ -3,11 +3,12 @@ import sqlalchemy
 import uuid
 
 from enum import Enum
+from marshmallow import ValidationError
 
 from app import db
-from app.models import Host
+from app.models import Host, HostSchema
 from app.auth import current_identity
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, InputFormatException
 from api import api_operation, metrics
 
 
@@ -30,12 +31,22 @@ def add_host_list(host_list):
             number_of_errors += 1
             logger.exception("Error adding host: %s" % host)
             response_host_list.append({**e.to_json(), "host": host})
+        except ValidationError as e:
+            number_of_errors += 1
+            logger.exception("Input validation error while adding host: %s" % host)
+            response_host_list.append({"status": 400,
+                                       "title": "Bad Request",
+                                       "detail": str(e.messages),
+                                       "type": "unknown",
+                                       "host": host})
         except Exception as e:
             number_of_errors += 1
             logger.exception("Error adding host: %s" % host)
-            response_host_list.append({'status': 500,
-                             'detail': "Could not complete operation",
-                             'host': host})
+            response_host_list.append({"status": 500,
+                                       "title": "Error",
+                                       "type": "unknown",
+                                       "detail": "Could not complete operation",
+                                       "host": host})
 
     response = {'total': len(response_host_list),
                 'errors': number_of_errors,
@@ -51,24 +62,18 @@ def _add_host(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    account_number = host.get("account", None)
+    validated_input_host_dict = HostSchema(strict=True).load(host)
+
+    input_host = Host.from_json(validated_input_host_dict.data)
 
     if (not current_identity.is_trusted_system and
-            current_identity.account_number != account_number):
+            current_identity.account_number != input_host.account):
         raise InventoryException(title="Invalid request",
                 detail="The account number associated with the user does not "
                 "match the account number associated with the host")
 
-    input_host = Host.from_json(host)
-
-    canonical_facts = input_host.canonical_facts
-
-    if not canonical_facts:
-        raise InventoryException(title="Invalid request",
-                                 detail="At least one of the canonical fact "
-                                 "fields must be present.")
-
-    existing_host = find_existing_host(account_number, canonical_facts)
+    existing_host = find_existing_host(input_host.account,
+                                       input_host.canonical_facts)
 
     if existing_host:
         return update_existing_host(existing_host, input_host)

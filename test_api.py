@@ -463,7 +463,43 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 host_data[field_name] = "notauuid"
 
-                response_data = self.post(HOST_URL, [host_data], 400)
+                response_data = self.post(HOST_URL, [host_data], 207)
+
+                error_host = response_data["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
+                                           expected_title="Bad Request")
+
+    def test_create_host_with_non_nullable_fields_as_None(self):
+        non_nullable_field_names = ("display_name",
+                                    "account",
+                                    "insights_id",
+                                    "rhel_machine_id",
+                                    "subscription_manager_id",
+                                    "satellite_id",
+                                    "fqdn",
+                                    "bios_uuid",
+                                    "ip_addresses",
+                                    "mac_addresses",
+                                    "external_id",)
+
+        host_data = HostWrapper(test_data(facts=None))
+
+        # Have at least one good canonical fact set
+        host_data.insights_id = generate_uuid()
+        host_data.rhel_machine_id = generate_uuid()
+
+        host_dict = host_data.data()
+
+        for field_name in non_nullable_field_names:
+            with self.subTest(field_as_None=field_name):
+                invalid_host_dict = copy.deepcopy(host_dict)
+
+                invalid_host_dict[field_name] = None
+
+                response_data = self.post(HOST_URL, [invalid_host_dict], 400)
 
                 self.verify_error_response(response_data,
                                            expected_title="Bad Request")
@@ -474,15 +510,19 @@ class CreateHostsTestCase(DBAPITestCase):
         invalid_ip_arrays = [["blah"],
                              ["1.1.1.1", "sigh"],
                              [],
-                             None]
+                             ]
 
         for ip_array in invalid_ip_arrays:
             with self.subTest(ip_array=ip_array):
                 host_data.ip_addresses = ip_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response_data["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
     def test_create_host_with_invalid_mac_address(self):
@@ -491,43 +531,75 @@ class CreateHostsTestCase(DBAPITestCase):
         invalid_mac_arrays = [["blah"],
                               ["11:22:33:44:55:66", "blah"],
                               [],
-                              None]
+                              ]
 
         for mac_array in invalid_mac_arrays:
             with self.subTest(mac_array=mac_array):
                 host_data.mac_addresses = mac_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response_data["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
+
 
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_display_names = ["", None, "a"*201]
+        invalid_display_names = ["", "a"*201]
 
         for display_name in invalid_display_names:
             with self.subTest(display_name=display_name):
                 host_data.display_name = display_name
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-    def test_create_host_invalid_fqdn(self):
+    def test_create_host_with_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_fqdns = ["", None, "a"*256]
+        invalid_fqdns = ["", "a"*256]
 
         for fqdn in invalid_fqdns:
             with self.subTest(fqdn=fqdn):
                 host_data.fqdn = fqdn
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
+                                           expected_title="Bad Request")
+
+
+    def test_create_host_with_invalid_external_id(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_external_ids = ["", "a"*501]
+
+        for external_id in invalid_external_ids:
+            with self.subTest(external_id=external_id):
+                host_data.external_id = external_id
+
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
 
