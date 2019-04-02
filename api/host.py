@@ -3,6 +3,8 @@ import sqlalchemy
 import uuid
 
 from enum import Enum
+from flask import abort
+from flask_api.status import HTTP_404_NOT_FOUND
 from marshmallow import ValidationError
 
 from app import db
@@ -158,7 +160,7 @@ def update_existing_host(existing_host, input_host):
 @metrics.api_request_time.time()
 def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
-        page=1, per_page=100):
+        limit=100, offset=0):
     if fqdn:
         query = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}
@@ -178,22 +180,34 @@ def get_host_list(display_name=None, fqdn=None,
             Host.account == current_identity.account_number
         )
 
-    query_results = query.paginate(page, per_page, True)
-    logger.debug(f"Found hosts: {query_results.items}")
+    try:
+        total, query_results = _paginate_host_list_query(query, limit, offset)
+    except IndexError:
+        abort(HTTP_404_NOT_FOUND)
+    else:
+        return _build_paginated_host_list_response(total, limit, offset, query_results)
 
-    return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
-    )
+
+def _paginate_host_list_query(query, limit, offset):
+    total = query.count()
+    max_offset = max(0, total - 1)  # Zero offset is always allowed
+    if offset > max_offset:
+        raise IndexError
+
+    query = query.order_by(Host.created_on, Host.id).limit(limit).offset(offset)
+    query_results = query.all()
+    logger.debug(f"Found hosts: {query_results}")
+    return total, query_results
 
 
-def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
+def _build_paginated_host_list_response(total, limit, offset, query_results):
+    json_host_list = [host.to_json() for host in query_results]
     return (
         {
             "total": total,
-            "count": len(host_list),
-            "page": page,
-            "per_page": per_page,
+            "count": len(query_results),
+            "limit": limit,
+            "offset": offset,
             "results": json_host_list,
         },
         200,
@@ -238,17 +252,15 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100):
+def get_host_by_id(host_id_list, limit=100, offset=0):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
-
-    query_results = query.paginate(page, per_page, True)
-
-    logger.debug(f"Found hosts: {query_results.items}")
-
-    return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
-    )
+    try:
+        total, query_results = _paginate_host_list_query(query, limit, offset)
+    except IndexError:
+        abort(HTTP_404_NOT_FOUND)
+    else:
+        return _build_paginated_host_list_response(total, limit, offset, query_results)
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
@@ -260,25 +272,26 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
+def get_host_system_profile_by_id(host_id_list, limit=100, offset=0):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
-    query_results = query.paginate(page, per_page, True)
-
-    response_list = [host.to_system_profile_json()
-                     for host in query_results.items]
-
-    return (
-        {
-            "total": query_results.total,
-            "count": len(response_list),
-            "page": page,
-            "per_page": per_page,
-            "results": response_list,
-        },
-        200,
-    )
+    try:
+        total, query_results = _paginate_host_list_query(query, limit, offset)
+    except IndexError:
+        abort(HTTP_404_NOT_FOUND)
+    else:
+        response_list = [host.to_system_profile_json() for host in query_results]
+        return (
+            {
+                "total": total,
+                "count": len(query_results),
+                "limit": limit,
+                "offset": offset,
+                "results": response_list,
+            },
+            200,
+        )
 
 
 @api_operation
