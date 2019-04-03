@@ -1011,14 +1011,14 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), len(self.added_hosts))
+        expected_host_list = [h.data() for h in self.added_hosts]
+        self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
         added_host_list = copy.deepcopy(self.added_hosts)
-        expected_host_list = [h.data() for h in self.added_hosts]
+        expected_host_list = [h.data() for h in added_host_list]
 
         original_id = added_host_list[0].id
 
@@ -1049,8 +1049,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url, 200)
 
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), len(host_list))
+        expected_host_list = [h.data() for h in host_list]
+        self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
 
@@ -1078,8 +1078,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
 
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), len(host_list))
+        expected_host_list = [h.data() for h in host_list]
+        self.assertEqual(response["results"], expected_host_list)
 
     def test_query_using_host_id_list_include_badly_formatted_host_ids(self):
         host_list = self.added_hosts
@@ -1148,8 +1148,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url)
 
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), len(host_list))
+        expected_host_list = [h.data() for h in host_list]
+        self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
 
