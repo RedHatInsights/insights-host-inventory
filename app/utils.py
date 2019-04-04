@@ -2,8 +2,8 @@ import json
 
 
 class HostWrapper:
-    def __init__(self, data={}):
-        self.__data = data
+    def __init__(self, data=None):
+        self.__data = data or {}
 
     def data(self):
         return self.__data

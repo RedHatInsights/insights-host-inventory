@@ -2,7 +2,7 @@
 
 import os
 
-from api import api_operation, REQUEST_ID_HEADER
+from api import api_operation
 from app.config import Config
 from app.auth.identity import (Identity,
                                validate,
@@ -27,19 +27,13 @@ class ApiOperationTestCase(TestCase):
     def test_counter_is_incremented(self, inc):
         @api_operation
         def func():
-            return (None, 200)
+            pass
 
-        header_list = [{REQUEST_ID_HEADER: "123"}, {}, ]
-        for header in header_list:
-            with self.subTest(header=header):
-                with patch("api.request", headers=header):
-                    func()
-                    inc.assert_called_once_with()
-                    inc.reset_mock()
+        func()
+        inc.assert_called_once_with()
 
-    @patch("api.request", headers={REQUEST_ID_HEADER: "1234"})
-    def test_arguments_are_passed(self, r):
-        old_func = Mock(return_value=1234)
+    def test_arguments_are_passed(self):
+        old_func = Mock()
         old_func.__name__ = "old_func"
         new_func = api_operation(old_func)
 
@@ -49,15 +43,11 @@ class ApiOperationTestCase(TestCase):
         new_func(*args, **kwargs)
         old_func.assert_called_once_with(*args, **kwargs)
 
-    @patch("api.request", headers={REQUEST_ID_HEADER: "1234"})
-    def test_return_value_is_passed(self, request):
-        return_values = [1234, (None, 200), ("Value", 404), "<html/>", ]
-        for return_value in return_values:
-            with self.subTest(return_value=return_value):
-                old_func = Mock(name="old_func", return_value=return_value)
-                old_func.__name__ = "old_func"
-                new_func = api_operation(old_func)
-                self.assertEqual(old_func.return_value, new_func())
+    def test_return_value_is_passed(self):
+        old_func = Mock()
+        old_func.__name__ = "old_func"
+        new_func = api_operation(old_func)
+        self.assertEqual(old_func.return_value, new_func())
 
 
 class AuthIdentityConstructorTestCase(TestCase):

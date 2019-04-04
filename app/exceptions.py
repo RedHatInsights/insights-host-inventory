@@ -15,4 +15,4 @@ class InventoryException(Exception):
 class InputFormatException(InventoryException):
 
     def __init__(self, detail):
-        InventoryException.__init__(self, title="Invalid request", detail=detail)
+        InventoryException.__init__(self, title="Bad Request", detail=detail)
