@@ -648,7 +648,6 @@ components:
           type: boolean
         baseurl:
           type: string
-          format: uri
     InstalledProduct:
       title: Installed Product
       description: Representation of one installed product
