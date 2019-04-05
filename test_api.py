@@ -720,7 +720,35 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 i += 1
 
 
-class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
+class PaginationTestCase(BaseAPITestCase):
+    def _base_paging_test(self, url, expected_number_of_hosts):
+        def _test_get_page(page, expected_count=1):
+            test_url = inject_qs(url, page=page, per_page="1")
+            response = self.get(test_url, 200)
+
+            self.assertEqual(len(response["results"]), expected_count)
+            self.assertEqual(response["count"], expected_count)
+            self.assertEqual(response["total"], expected_number_of_hosts)
+
+        if expected_number_of_hosts == 0:
+            _test_get_page(1, expected_count=0)
+            return
+
+        i = 0
+
+        # Iterate through the pages
+        for i in range(1, expected_number_of_hosts + 1):
+            with self.subTest(pagination_test=i):
+                _test_get_page(str(i))
+
+        # Go one page past the last page and look for an error
+        i = i + 1
+        with self.subTest(pagination_test=i):
+            test_url = inject_qs(url, page=str(i), per_page="1")
+            self.get(test_url, 404)
+
+
+class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
     def _valid_system_profile(self):
         return {"number_of_cpus": 1,
@@ -928,13 +956,41 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
         self.assertEqual(actual_host["system_profile"],
                          expected_system_profile)
 
-    @unittest.skip("FIXME")
     def test_get_system_profile_of_multiple_hosts(self):
-        # FIXME:
-        # Test multiple hosts
-        # Test pagination
-        # Possibly just combine this with the above test
-        pass
+        facts = None
+        host_id_list = []
+        expected_system_profiles = []
+
+        for i in range(2):
+            host = test_data(display_name="host1", facts=facts)
+            host["ip_addresses"] = [f"10.0.0.{i}"]
+            host["rhel_machine_id"] = str(uuid.uuid4())
+            host["system_profile"] = self._valid_system_profile()
+            host["system_profile"]["number_of_cpus"] = i
+
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+
+            created_host = self._pluck_host_from_response(response, 0)
+            original_id = created_host["id"]
+
+            host_id_list.append(original_id)
+            expected_system_profiles.append({
+                "id": original_id,
+                "system_profile": host["system_profile"]
+            })
+
+        url_host_id_list = ",".join(host_id_list)
+        test_url = "%s/%s/system_profile" % (HOST_URL, url_host_id_list)
+        host_lookup_results = self.get(test_url, 200)
+
+        self.assertEqual(
+            len(expected_system_profiles), len(host_lookup_results["results"])
+        )
+        for expected_system_profile in expected_system_profiles:
+            self.assertIn(expected_system_profile, host_lookup_results["results"])
+
+        self._base_paging_test(test_url, len(expected_system_profiles))
 
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
@@ -954,7 +1010,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
                                            expected_status=400)
 
 
-class PreCreatedHostsBaseTestCase(DBAPITestCase):
+class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.create_hosts()
@@ -980,32 +1036,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
         return host_list
 
-    def _base_paging_test(self, url, expected_number_of_hosts):
-        def _test_get_page(page, expected_count=1):
-            test_url = inject_qs(url, page=page, per_page="1")
-            response = self.get(test_url, 200)
-
-            self.assertEqual(len(response["results"]), expected_count)
-            self.assertEqual(response["count"], expected_count)
-            self.assertEqual(response["total"], expected_number_of_hosts)
-
-        if expected_number_of_hosts == 0:
-            _test_get_page(1, expected_count=0)
-            return
-
-        i = 0
-
-        # Iterate through the pages
-        for i in range(1, expected_number_of_hosts + 1):
-            with self.subTest(pagination_test=i):
-                _test_get_page(str(i))
-
-        # Go one page past the last page and look for an error
-        i = i + 1
-        with self.subTest(pagination_test=i):
-            test_url = inject_qs(url, page=str(i), per_page="1")
-            self.get(test_url, 404)
-
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all(self):
@@ -1018,7 +1048,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
         added_host_list = copy.deepcopy(self.added_hosts)
-        expected_host_list = [h.data() for h in added_host_list]
+        expected_host_list = [copy.deepcopy(h.data()) for h in added_host_list]
 
         original_id = added_host_list[0].id
 
