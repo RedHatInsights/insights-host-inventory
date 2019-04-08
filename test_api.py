@@ -130,7 +130,6 @@ class BaseAPITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, status)
         if return_response_as_json:
             return json.loads(response.data)
-
         else:
             return response
 
@@ -1005,6 +1004,54 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
         with self.subTest(pagination_test=i):
             test_url = inject_qs(url, page=str(i), per_page="1")
             self.get(test_url, 404)
+
+
+class PatchHostTestCase(PreCreatedHostsBaseTestCase):
+
+    def test_patch_update_display_name_and_remediations_host(self):
+
+        original_id = self.added_hosts[0].id
+
+        patch_doc = {"display_name": "NEW_display_name",
+                     "remediations_host": "NEW_remediations_host"}
+
+        response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
+        print("response_data:", response_data)
+
+        response_data = self.get(f"{HOST_URL}/{original_id}", 200)
+        print("response_data:", response_data)
+
+        host = HostWrapper(response_data["results"][0])
+        print("host:", response_data["results"][0])
+
+        self.assertEqual(host.display_name, patch_doc["display_name"])
+        self.assertEqual(host.remediations_host, patch_doc["remediations_host"])
+
+    def test_patch_on_non_existent_host(self):
+
+        non_existent_id = generate_uuid()
+
+        patch_doc = {"display_name": "NEW_display_name",
+                     "remediations_host": "NEW_remediations_host"}
+
+        response_data = self.patch(f"{HOST_URL}/{non_existent_id}",
+                                   patch_doc,
+                                   status=404,
+                                   return_response_as_json=False)
+
+    def test_invalid_data(self):
+
+        original_id = self.added_hosts[0].id
+
+        invalid_data_list = [{"display_name": "a"*256},
+                             {"remediations_host": "a"*256}, ]
+
+        for patch_doc in invalid_data_list:
+            response_data = self.patch(f"{HOST_URL}/{original_id}",
+                                       patch_doc,
+                                       status=400,
+                                       )#return_response_as_json=False)
+            print("response_data:", response_data)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):

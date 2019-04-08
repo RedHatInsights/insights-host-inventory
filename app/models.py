@@ -35,6 +35,7 @@ class Host(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
+    remediations_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     modified_on = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -48,6 +49,7 @@ class Host(db.Model):
         self,
         canonical_facts,
         display_name=display_name,
+        remediations_host=None,
         account=account,
         facts=None,
         system_profile_facts=None,
@@ -65,6 +67,8 @@ class Host(db.Model):
             # been set...this will make it so that the "default" logic will
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
+        if remediations_host:
+            self.remediations_host = remediations_host
         self.account = account
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
@@ -76,6 +80,7 @@ class Host(db.Model):
         return cls(
             canonical_facts,
             d.get("display_name", None),
+            d.get("remediations_host"),
             d.get("account"),
             facts,
             d.get("system_profile", {}),
@@ -86,6 +91,7 @@ class Host(db.Model):
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
+        json_dict["remediations_host"] = self.remediations_host
         json_dict["facts"] = Facts.to_json(self.facts)
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
@@ -101,17 +107,24 @@ class Host(db.Model):
         db.session.add(self)
 
     def update(self, input_host):
-        self.update_canonical_facts(input_host.canonical_facts)
+        self._update_canonical_facts(input_host.canonical_facts)
 
-        self.update_display_name(input_host)
+        self._update_display_name(input_host.display_name)
 
-        self.update_facts(input_host.facts)
+        self._update_facts(input_host.facts)
 
         self._update_system_profile(input_host.system_profile_facts)
 
-    def update_display_name(self, input_host):
-        if input_host.display_name:
-            self.display_name = input_host.display_name
+    def patch(self, input_host):
+        self._update_display_name(input_host.get("display_name"))
+
+        remediations_host = input_host.get("remediations_host")
+        if remediations_host:
+            self.remediations_host = remediations_host
+
+    def _update_display_name(self, input_display_name):
+        if input_display_name:
+            self.display_name = input_display_name
         elif not self.display_name:
             # This is the case where the display_name is not set on the
             # existing host record and the input host does not have it set
@@ -120,7 +133,7 @@ class Host(db.Model):
             else:
                 self.display_name = self.id
 
-    def update_canonical_facts(self, canonical_facts):
+    def _update_canonical_facts(self, canonical_facts):
         logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
                       " with input canonical_facts=%s")
                      % (self.id, self.canonical_facts, canonical_facts))
@@ -129,7 +142,7 @@ class Host(db.Model):
                      % (self.id, self.canonical_facts))
         orm.attributes.flag_modified(self, "canonical_facts")
 
-    def update_facts(self, facts_dict):
+    def _update_facts(self, facts_dict):
         if facts_dict:
             if not self.facts:
                 self.facts = facts_dict
@@ -319,6 +332,7 @@ class FactsSchema(Schema):
 
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
+    remediations_host = fields.Str(validate=validate.Length(min=1, max=255))
     account = fields.Str(required=True,
                          validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
@@ -351,3 +365,7 @@ class HostSchema(Schema):
             if verify_mac_address_format(mac_address) is not True:
                 raise ValidationError("Invalid mac address")
 
+
+class HostPatchSchema(Schema):
+    display_name = fields.Str(validate=validate.Length(min=1, max=200))
+    remediations_host = fields.Str(validate=validate.Length(min=1, max=255))

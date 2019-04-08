@@ -118,6 +118,14 @@ class HostWrapper:
     def display_name(self, display_name):
         self.__data["display_name"] = display_name
 
+    @property
+    def remediations_host(self):
+        return self.__data.get("remediations_host", None)
+
+    @remediations_host.setter
+    def remediations_host(self, remediations_host):
+        self.__data["remediations_host"] = remediations_host
+
     def to_json(self):
         return json.dumps(self.__data)
 
