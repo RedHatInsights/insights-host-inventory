@@ -1008,7 +1008,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
-    def test_patch_update_display_name_and_remediations_host(self):
+    def test_update_display_name_and_remediations_host(self):
 
         original_id = self.added_hosts[0].id
 
@@ -1016,16 +1016,16 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                      "remediations_host": "NEW_remediations_host"}
 
         response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
-        print("response_data:", response_data)
 
         response_data = self.get(f"{HOST_URL}/{original_id}", 200)
-        print("response_data:", response_data)
 
         host = HostWrapper(response_data["results"][0])
-        print("host:", response_data["results"][0])
 
-        self.assertEqual(host.display_name, patch_doc["display_name"])
-        self.assertEqual(host.remediations_host, patch_doc["remediations_host"])
+        self.assertEqual(host.display_name,
+                         patch_doc["display_name"])
+
+        self.assertEqual(host.remediations_host,
+                         patch_doc["remediations_host"])
 
     def test_patch_on_non_existent_host(self):
 
@@ -1034,10 +1034,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         patch_doc = {"display_name": "NEW_display_name",
                      "remediations_host": "NEW_remediations_host"}
 
-        response_data = self.patch(f"{HOST_URL}/{non_existent_id}",
-                                   patch_doc,
-                                   status=404,
-                                   return_response_as_json=False)
+        self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
     def test_invalid_data(self):
 
@@ -1047,11 +1044,14 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                              {"remediations_host": "a"*256}, ]
 
         for patch_doc in invalid_data_list:
-            response_data = self.patch(f"{HOST_URL}/{original_id}",
-                                       patch_doc,
-                                       status=400,
-                                       )#return_response_as_json=False)
-            print("response_data:", response_data)
+            response = self.patch(f"{HOST_URL}/{original_id}",
+                                  patch_doc,
+                                  status=400)
+
+            self.verify_error_response(response,
+                                       expected_title="Bad Request",
+                                       expected_status=400)
+
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
