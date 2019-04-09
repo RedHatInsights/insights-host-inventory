@@ -296,23 +296,20 @@ def patch_host(host_id, host_data):
                  },
                 400)
 
-    print("validated_patch_host_data:", validated_patch_host_data)
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       [host_id])
 
     host_to_update = query.first()
 
-    print("host_to_update:", host_to_update)
-
     if host_to_update is None:
-        print("returning 404")
+        logger.debug("Failed to find host (id=%s) during patch operation" %
+                     (host_id))
         return ("Host not found", 404)
 
     host_to_update.patch(validated_patch_host_data)
 
     db.session.commit()
 
-    print("returning 200")
     return 200
 
 

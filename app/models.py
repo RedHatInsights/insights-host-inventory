@@ -117,10 +117,13 @@ class Host(db.Model):
 
         self._update_system_profile(input_host.system_profile_facts)
 
-    def patch(self, input_host):
-        self._update_display_name(input_host.get("display_name"))
+    def patch(self, patch_data):
+        logger.debug("patching host (id=%s) with data: %s" %
+                     (self.id, patch_data))
 
-        self._update_remediations_host(input_host.get("remediations_host"))
+        self._update_display_name(patch_data.get("display_name"))
+
+        self._update_remediations_host(patch_data.get("remediations_host"))
 
     def _update_remediations_host(self, remediations_host):
         if remediations_host:
