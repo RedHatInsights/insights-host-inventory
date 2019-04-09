@@ -215,8 +215,7 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
 
     def test_config_default_settings(self):
-        expected_base_url = "/r/insights/platform/inventory"
-        expected_api_path = f"{expected_base_url}/api/v1"
+        expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
         with test.support.EnvironmentVarGuard() as env:
