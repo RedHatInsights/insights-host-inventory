@@ -6,6 +6,7 @@ import dateutil.parser
 import test.support
 import uuid
 import copy
+import tempfile
 from app import create_app, db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
@@ -1550,8 +1551,12 @@ class HealthTestCase(BaseAPITestCase):
         """
         The metrics endpoint simply returns 200 to any GET request.
         """
-        response = self.client().get(METRICS_URL)  # No identity header.
-        self.assertEqual(200, response.status_code)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with test.support.EnvironmentVarGuard() as env:
+                env.set("prometheus_multiproc_dir", temp_dir)
+
+                response = self.client().get(METRICS_URL)  # No identity header.
+                self.assertEqual(200, response.status_code)
 
     def test_version(self):
         response = self.get(VERSION_URL, 200)
