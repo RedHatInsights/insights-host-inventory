@@ -12,7 +12,7 @@ class Config:
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        self._db_name = os.getenv("INVENTORY_DB_NAME", "test_db")
+        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
 
         self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
