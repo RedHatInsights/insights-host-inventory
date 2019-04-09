@@ -118,7 +118,9 @@ class Host(db.Model):
     def patch(self, input_host):
         self._update_display_name(input_host.get("display_name"))
 
-        remediations_host = input_host.get("remediations_host")
+        self._update_remediations_host(input_host.get("remediations_host"))
+
+    def _update_remediations_host(self, remediations_host):
         if remediations_host:
             self.remediations_host = remediations_host
 
