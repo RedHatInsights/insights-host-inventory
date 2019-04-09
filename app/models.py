@@ -111,6 +111,8 @@ class Host(db.Model):
 
         self._update_display_name(input_host.display_name)
 
+        self._update_remediations_host(input_host.remediations_host)
+
         self._update_facts(input_host.facts)
 
         self._update_system_profile(input_host.system_profile_facts)
