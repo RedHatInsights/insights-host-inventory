@@ -14,7 +14,7 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-HOST_URL = "/r/insights/platform/inventory/api/v1/hosts"
+HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
