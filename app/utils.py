@@ -119,12 +119,12 @@ class HostWrapper:
         self.__data["display_name"] = display_name
 
     @property
-    def remediations_host(self):
-        return self.__data.get("remediations_host", None)
+    def ansible_host(self):
+        return self.__data.get("ansible_host", None)
 
-    @remediations_host.setter
-    def remediations_host(self, remediations_host):
-        self.__data["remediations_host"] = remediations_host
+    @ansible_host.setter
+    def ansible_host(self, ansible_host):
+        self.__data["ansible_host"] = ansible_host
 
     def to_json(self):
         return json.dumps(self.__data)

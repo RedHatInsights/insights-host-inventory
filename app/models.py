@@ -35,7 +35,7 @@ class Host(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
-    remediations_host = db.Column(db.String(255))
+    ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     modified_on = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -49,7 +49,7 @@ class Host(db.Model):
         self,
         canonical_facts,
         display_name=display_name,
-        remediations_host=None,
+        ansible_host=None,
         account=account,
         facts=None,
         system_profile_facts=None,
@@ -67,8 +67,8 @@ class Host(db.Model):
             # been set...this will make it so that the "default" logic will
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
-        if remediations_host:
-            self.remediations_host = remediations_host
+        if ansible_host:
+            self.ansible_host = ansible_host
         self.account = account
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
@@ -80,7 +80,7 @@ class Host(db.Model):
         return cls(
             canonical_facts,
             d.get("display_name", None),
-            d.get("remediations_host"),
+            d.get("ansible_host"),
             d.get("account"),
             facts,
             d.get("system_profile", {}),
@@ -91,7 +91,7 @@ class Host(db.Model):
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
-        json_dict["remediations_host"] = self.remediations_host
+        json_dict["ansible_host"] = self.ansible_host
         json_dict["facts"] = Facts.to_json(self.facts)
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
@@ -111,7 +111,7 @@ class Host(db.Model):
 
         self._update_display_name(input_host.display_name)
 
-        self._update_remediations_host(input_host.remediations_host)
+        self._update_ansible_host(input_host.ansible_host)
 
         self._update_facts(input_host.facts)
 
@@ -123,11 +123,11 @@ class Host(db.Model):
 
         self._update_display_name(patch_data.get("display_name"))
 
-        self._update_remediations_host(patch_data.get("remediations_host"))
+        self._update_ansible_host(patch_data.get("ansible_host"))
 
-    def _update_remediations_host(self, remediations_host):
-        if remediations_host:
-            self.remediations_host = remediations_host
+    def _update_ansible_host(self, ansible_host):
+        if ansible_host:
+            self.ansible_host = ansible_host
 
     def _update_display_name(self, input_display_name):
         if input_display_name:
@@ -339,7 +339,7 @@ class FactsSchema(Schema):
 
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
-    remediations_host = fields.Str(validate=validate.Length(min=1, max=255))
+    ansible_host = fields.Str(validate=validate.Length(min=1, max=255))
     account = fields.Str(required=True,
                          validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
@@ -375,4 +375,4 @@ class HostSchema(Schema):
 
 class HostPatchSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
-    remediations_host = fields.Str(validate=validate.Length(min=1, max=255))
+    ansible_host = fields.Str(validate=validate.Length(min=1, max=255))

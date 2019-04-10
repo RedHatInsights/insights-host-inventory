@@ -204,8 +204,8 @@ class DBAPITestCase(BaseAPITestCase):
         self.assertEqual(received_host["display_name"],
                          expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
-        self.assertEqual(received_host["remediations_host"],
-                         expected_host.remediations_host)
+        self.assertEqual(received_host["ansible_host"],
+                         expected_host.ansible_host)
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
@@ -602,10 +602,10 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-    def test_create_host_with_remediations_host(self):
-        # Create a host with remediations_host field
+    def test_create_host_with_ansible_host(self):
+        # Create a host with ansible_host field
         host_data = HostWrapper(test_data(facts=None))
-        host_data.remediations_host = "remediations_host_"+generate_uuid()
+        host_data.ansible_host = "ansible_host_"+generate_uuid()
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -622,11 +622,11 @@ class CreateHostsTestCase(DBAPITestCase):
                             host_data,
                             expected_id=original_id)
 
-    def test_create_host_without_remediations_host_then_update(self):
-        # Create a host without remediations_host field
+    def test_create_host_without_ansible_host_then_update(self):
+        # Create a host without ansible_host field
         # then update those fields
         host_data = HostWrapper(test_data(facts=None))
-        del host_data.remediations_host
+        del host_data.ansible_host
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -637,8 +637,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        # Update the remediations_host
-        host_data.remediations_host = "ima_remediations_host_"+generate_uuid()
+        # Update the ansible_host
+        host_data.ansible_host = "ima_ansible_host_"+generate_uuid()
 
         # Update the hosts
         self.post(HOST_URL, [host_data.data()], 207)
@@ -649,14 +649,14 @@ class CreateHostsTestCase(DBAPITestCase):
                             host_data,
                             expected_id=original_id)
 
-    def test_create_host_with_invalid_remediations_host(self):
+    def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_remediations_host = ["", "a"*256]
+        invalid_ansible_host = ["", "a"*256]
 
-        for remediations_host in invalid_remediations_host:
-            with self.subTest(remediations_host=remediations_host):
-                host_data.remediations_host = remediations_host
+        for ansible_host in invalid_ansible_host:
+            with self.subTest(ansible_host=ansible_host):
+                host_data.ansible_host = ansible_host
 
                 response = self.post(HOST_URL, [host_data.data()], 207)
 
@@ -1104,12 +1104,12 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
-    def test_update_display_name_and_remediations_host(self):
+    def test_update_display_name_and_ansible_host(self):
 
         original_id = self.added_hosts[0].id
 
         patch_doc = {"display_name": "NEW_display_name",
-                     "remediations_host": "NEW_remediations_host"}
+                     "ansible_host": "NEW_ansible_host"}
 
         response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
 
@@ -1120,15 +1120,15 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(host.display_name,
                          patch_doc["display_name"])
 
-        self.assertEqual(host.remediations_host,
-                         patch_doc["remediations_host"])
+        self.assertEqual(host.ansible_host,
+                         patch_doc["ansible_host"])
 
     def test_patch_on_non_existent_host(self):
 
         non_existent_id = generate_uuid()
 
         patch_doc = {"display_name": "NEW_display_name",
-                     "remediations_host": "NEW_remediations_host"}
+                     "ansible_host": "NEW_ansible_host"}
 
         self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
@@ -1137,7 +1137,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         original_id = self.added_hosts[0].id
 
         invalid_data_list = [{"display_name": "a"*256},
-                             {"remediations_host": "a"*256}, ]
+                             {"ansible_host": "a"*256}, ]
 
         for patch_doc in invalid_data_list:
             response = self.patch(f"{HOST_URL}/{original_id}",
