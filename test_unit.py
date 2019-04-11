@@ -215,8 +215,7 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
 
     def test_config_default_settings(self):
-        expected_base_url = "/r/insights/platform/inventory"
-        expected_api_path = f"{expected_base_url}/api/v1"
+        expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
         with test.support.EnvironmentVarGuard() as env:
@@ -230,7 +229,7 @@ class ConfigTestCase(TestCase):
 
             conf = Config("testing")
 
-            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/test_db")
+            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
