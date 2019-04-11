@@ -67,8 +67,7 @@ class Host(db.Model):
             # been set...this will make it so that the "default" logic will
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
-        if ansible_host:
-            self.ansible_host = ansible_host
+        self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
@@ -338,7 +337,7 @@ class FactsSchema(Schema):
 
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
-    ansible_host = fields.Str(validate=validate.Length(min=1, max=255))
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
     account = fields.Str(required=True,
                          validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)

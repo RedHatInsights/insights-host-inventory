@@ -637,22 +637,29 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
+        ansible_hosts = ["ima_ansible_host_"+generate_uuid(),
+                         "",
+                         ]
+
         # Update the ansible_host
-        host_data.ansible_host = "ima_ansible_host_"+generate_uuid()
+        for ansible_host in ansible_hosts:
+            with self.subTest(ansible_host=ansible_host):
 
-        # Update the hosts
-        self.post(HOST_URL, [host_data.data()], 207)
+                host_data.ansible_host = ansible_host
 
-        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+                # Update the hosts
+                self.post(HOST_URL, [host_data.data()], 207)
 
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+                self._validate_host(host_lookup_results["results"][0],
+                                    host_data,
+                                    expected_id=original_id)
 
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_ansible_host = [None, "", "a"*256]
+        invalid_ansible_host = [None, "a"*256]
 
         for ansible_host in invalid_ansible_host:
             with self.subTest(ansible_host=ansible_host):
