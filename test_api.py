@@ -1112,16 +1112,17 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
     def test_update_ansible_host(self):
-
         original_id = self.added_hosts[0].id
 
         patch_docs = [{"ansible_host": "NEW_ansible_host"},
                       {"ansible_host": ""},
-                     ]
+                      ]
 
         for patch_doc in patch_docs:
             with self.subTest(valid_patch_doc=patch_doc):
-                response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
+                response_data = self.patch(f"{HOST_URL}/{original_id}",
+                                           patch_doc,
+                                           200)
 
                 response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
@@ -1131,7 +1132,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                                  patch_doc["ansible_host"])
 
     def test_patch_on_non_existent_host(self):
-
         non_existent_id = generate_uuid()
 
         patch_doc = {"ansible_host": "NEW_ansible_host"}
@@ -1139,12 +1139,11 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
     def test_invalid_data(self):
-
         original_id = self.added_hosts[0].id
 
         invalid_data_list = [{"ansible_host": "a"*256},
                              {"ansible_host": None},
-                            ]
+                             ]
 
         for patch_doc in invalid_data_list:
             with self.subTest(invalid_patch_doc=patch_doc):
