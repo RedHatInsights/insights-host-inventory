@@ -581,10 +581,13 @@ components:
       type: object
       required:
         - meta
+        - links
         - data
       properties:
         meta:
           $ref: '#/components/schemas/QueryMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
         data:
           description: Actual host search query result entries.
           type: array
@@ -596,10 +599,13 @@ components:
       type: object
       required:
         - meta
+        - links
         - data
       properties:
         meta:
           $ref: '#/components/schemas/QueryMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
         data:
           description: Actual host search query result entries.
           type: array
@@ -626,6 +632,33 @@ components:
         total:
           description: A total count of the found entries.
           type: integer
+    PaginationLinks:
+      description: Pagination links
+      type: object
+      required:
+        - first
+        - next
+        - previous
+        - last
+      properties:
+        first:
+          description: Link to the first page
+          type: string
+          format: path
+        next:
+          description: Link to the next page if exists
+          type: string
+          format: path
+          nullable: true
+        previous:
+          description: Link to the previous page if exists
+          type: string
+          format: path
+          nullable: true
+        last:
+          description: Link to the last page
+          type: string
+          format: path
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile

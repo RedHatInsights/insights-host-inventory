@@ -1465,12 +1465,9 @@ class QueryBaseTestCase(DBAPITestCase):
         self.assertEqual(set(response_host_ids), set(expected_host_ids))
 
 
-class QueriesWithPreCreatedHostsBaseTestCase(
-    QueryBaseTestCase, PreCreatedHostsBaseTestCase
-):
+class QueriesBaseTestCase(QueryBaseTestCase):
 
-    def _queries_subtests_with_added_hosts(self):
-        host_id_list = [host.id for host in self.added_hosts]
+    def _queries_subtests(self, host_id_list):
         url_host_id_list = ",".join(host_id_list)
         urls = (
             HOST_URL,
@@ -1480,6 +1477,15 @@ class QueriesWithPreCreatedHostsBaseTestCase(
         for url in urls:
             with self.subTest(url=url):
                 yield url
+
+
+class QueriesWithPreCreatedHostsBaseTestCase(
+    QueriesBaseTestCase, PreCreatedHostsBaseTestCase
+):
+
+    def _queries_subtests_with_added_hosts(self):
+        host_id_list = [host.id for host in self.added_hosts]
+        yield from self._queries_subtests(host_id_list)
 
 
 class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTestCase):
@@ -1711,6 +1717,200 @@ class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase):
 
     def test_not_found_with_negative_offset(self):
         self.get(f"{HOST_URL}?offset=-1", 404)
+
+
+class PaginationLinksWithPreCreatedHostsTestCase(
+    QueriesWithPreCreatedHostsBaseTestCase
+):
+
+    def test_first_page(self):
+        """
+        Records:  ---
+        Get:      *
+        First:    *
+        Next:      *
+        Previous:
+        Last        *
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=1&offset=0")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=1&offset=0")
+            self.assertEqual(response["links"]["next"], f"{url}?limit=1&offset=1")
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=1&offset=2")
+
+    def test_middle_page(self):
+        """
+        Records:  ---
+        Get:       *
+        First:    *
+        Next:       *
+        Previous: *
+        Last        *
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=1&offset=1")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=1&offset=0")
+            self.assertEqual(response["links"]["next"], f"{url}?limit=1&offset=2")
+            self.assertEqual(response["links"]["previous"], f"{url}?limit=1&offset=0")
+            self.assertEqual(response["links"]["last"], f"{url}?limit=1&offset=2")
+
+    def test_last_page(self):
+        """
+        Records:  ---
+        Get:        *
+        First:    *
+        Next:
+        Previous:  *
+        Last        *
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=1&offset=2")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=1&offset=0")
+            self.assertIsNone(response["links"]["next"])
+            self.assertEqual(response["links"]["previous"], f"{url}?limit=1&offset=1")
+            self.assertEqual(response["links"]["last"], f"{url}?limit=1&offset=2")
+
+    def test_only_page(self):
+        """
+        Records:  ---
+        Get:      ***
+        First:    ***
+        Next:
+        Previous:
+        Last      ***
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=3&offset=0")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=3&offset=0")
+            self.assertIsNone(response["links"]["next"])
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=3&offset=0")
+
+    def test_with_overlap_at_begin(self):
+        """
+        Records:   ---
+        Get:        **
+        First:    .*
+        Next:
+        Previous: .*
+        Last        **
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=2&offset=1")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=2&offset=-1")
+            self.assertIsNone(response["links"]["next"])
+            self.assertEqual(response["links"]["previous"], f"{url}?limit=2&offset=-1")
+            self.assertEqual(response["links"]["last"], f"{url}?limit=2&offset=1")
+
+    def test_overlapped_at_begin(self):
+        """
+        Records:   ---
+        Get:      .*
+        First:    .*
+        Next:       **
+        Previous:
+        Last        **
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=2&offset=-1")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=2&offset=-1")
+            self.assertEqual(response["links"]["next"], f"{url}?limit=2&offset=1")
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=2&offset=1")
+
+    def test_with_overlap_at_end(self):
+        """
+        Records:  ---
+        Get:      **
+        First:    **
+        Next:       *.
+        Previous:
+        Last        *.
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=2&offset=0")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=2&offset=0")
+            self.assertEqual(response["links"]["next"], f"{url}?limit=2&offset=2")
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=2&offset=2")
+
+    def test_overlapped_at_end(self):
+        """
+        Records:  ---
+        Get:        *.
+        First:    **
+        Next:
+        Previous: **
+        Last        *.
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(f"{url}?limit=2&offset=2")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=2&offset=0")
+            self.assertIsNone(response["links"]["next"])
+            self.assertEqual(response["links"]["previous"], f"{url}?limit=2&offset=0")
+            self.assertEqual(response["links"]["last"], f"{url}?limit=2&offset=2")
+
+    def test_defaults(self):
+        """
+        Records:   --------------------------------------------------
+        Get:      (**************************************************)
+        First:     **************************************************
+        Next:
+        Previous:
+        Last       **************************************************
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(url)
+            self.assertEqual(response["links"]["first"], f"{url}?limit=50&offset=0")
+            self.assertIsNone(response["links"]["next"])
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=50&offset=0")
+
+    def test_with_parameter(self):
+        """
+        Records:  --
+        Get:      *
+        First:    *
+        Next:      *
+        Previous:
+        Last       *
+        """
+        # @TODO Improve: don’t rely on the query parameter order
+        response = self.get(f"{HOST_URL}?fqdn=host1.domain.test&limit=1&offset=0")
+        self.assertEqual(
+            response["links"]["first"],
+            f"{HOST_URL}?fqdn=host1.domain.test&limit=1&offset=0"
+        )
+        self.assertEqual(
+            response["links"]["next"],
+            f"{HOST_URL}?fqdn=host1.domain.test&limit=1&offset=1"
+        )
+        self.assertIsNone(response["links"]["previous"])
+        self.assertEqual(
+            response["links"]["last"],
+            f"{HOST_URL}?fqdn=host1.domain.test&limit=1&offset=1"
+        )
+
+
+class PaginationLinksWithNoHostsTestCase(QueriesBaseTestCase):
+
+    def test_no_results(self):
+        """
+        Records:
+        Get:      ...
+        First:    ...
+        Next:
+        Previous:
+        Last:     ...
+        """
+        some_id = str(uuid.uuid4())
+        for url in self._queries_subtests([some_id]):
+            response = self.get(f"{url}?limit=3&offset=0")
+            self.assertEqual(response["links"]["first"], f"{url}?limit=3&offset=0")
+            self.assertIsNone(response["links"]["next"])
+            self.assertIsNone(response["links"]["previous"])
+            self.assertEqual(response["links"]["last"], f"{url}?limit=3&offset=0")
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

@@ -2,9 +2,11 @@ import flask
 import sqlalchemy
 import ujson
 import uuid
+from math import ceil, floor
+from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 from enum import Enum
-from flask import abort
+from flask import abort, request
 from flask_api import status
 from marshmallow import ValidationError
 
@@ -191,7 +193,9 @@ def get_host_list(display_name=None, fqdn=None,
     except IndexError:
         _abort_bad_limit_offset()
     else:
-        return _build_paginated_host_list_response(total, limit, offset, query_results)
+        return _build_paginated_host_list_response(
+            total, limit, offset, query_results, request.full_path
+        )
 
 
 def _paginate_host_list_query(query, limit, offset):
@@ -213,7 +217,38 @@ def _paginate_host_list_query(query, limit, offset):
     return total, query_results
 
 
-def _build_paginated_host_list_response(total, limit, offset, host_list):
+def _build_pagination_links(total, limit, offset, full_path):
+    def _url(url_offset):
+        new_query = urlencode({**params, "offset": [url_offset]}, doseq=True)
+        return urlunsplit((scheme, netloc, path, new_query, fragment))
+
+    scheme, netloc, path, query, fragment = urlsplit(full_path)
+    params = {**parse_qs(query), **{"limit": [limit], "offset": [offset]}}
+
+    if total:
+        pages_before = ceil(offset / limit)
+        first_page_offset = offset - limit * pages_before
+
+        max_offset = total - 1
+        reverse_offset = max_offset - offset
+        pages_after = floor(reverse_offset / limit)
+        last_page_offset = offset + limit * pages_after
+    else:
+        first_page_offset = 0
+        last_page_offset = 0
+
+    next_page_offset = min(offset + limit, last_page_offset)
+    previous_page_offset = max(offset - limit, first_page_offset)
+
+    return {
+        "first": _url(first_page_offset),
+        "next": _url(next_page_offset) if offset < last_page_offset else None,
+        "previous": _url(previous_page_offset) if offset > first_page_offset else None,
+        "last": _url(last_page_offset)
+    }
+
+
+def _build_paginated_host_list_response(total, limit, offset, host_list, path):
     json_host_list = [host.to_json() for host in host_list]
     json_output = {
         "meta": {
@@ -222,6 +257,7 @@ def _build_paginated_host_list_response(total, limit, offset, host_list):
             "offset": offset,
             "total": total,
         },
+        "links": _build_pagination_links(total, limit, offset, path),
         "data": json_host_list,
     }
     return _build_json_response(json_output, status=200)
@@ -279,7 +315,9 @@ def get_host_by_id(host_id_list, limit=100, offset=0):
     except IndexError:
         _abort_bad_limit_offset()
     else:
-        return _build_paginated_host_list_response(total, limit, offset, query_results)
+        return _build_paginated_host_list_response(
+            total, limit, offset, query_results, request.full_path
+        )
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
@@ -310,6 +348,7 @@ def get_host_system_profile_by_id(host_id_list, limit=100, offset=0):
                 "offset": offset,
                 "total": total,
             },
+            "links": _build_pagination_links(total, limit, offset, request.full_path),
             "data": response_list
         }
 
