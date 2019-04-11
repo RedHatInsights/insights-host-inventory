@@ -853,15 +853,7 @@ components:
       description: >-
         Data of a single host to be updated.
       type: object
-      #required:
-      #  - account
       properties:
-        display_name:
-          description: >-
-            A host’s human-readable display name, e.g. in a form of a domain
-            name.
-          type: string
-          example: host1.mydomain.com
         remediations_host:
           description: >-
             A host name for remediations
