@@ -1108,16 +1108,20 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         original_id = self.added_hosts[0].id
 
-        patch_doc = {"ansible_host": "NEW_ansible_host"}
+        patch_docs = [{"ansible_host": "NEW_ansible_host"},
+                      {"ansible_host": ""},
+                     ]
 
-        response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
+        for patch_doc in patch_docs:
+            with self.subTest(valid_patch_doc=patch_doc):
+                response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
 
-        response_data = self.get(f"{HOST_URL}/{original_id}", 200)
+                response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
-        host = HostWrapper(response_data["results"][0])
+                host = HostWrapper(response_data["results"][0])
 
-        self.assertEqual(host.ansible_host,
-                         patch_doc["ansible_host"])
+                self.assertEqual(host.ansible_host,
+                                 patch_doc["ansible_host"])
 
     def test_patch_on_non_existent_host(self):
 
@@ -1131,16 +1135,19 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         original_id = self.added_hosts[0].id
 
-        invalid_data_list = [{"ansible_host": "a"*256}, ]
+        invalid_data_list = [{"ansible_host": "a"*256},
+                             {"ansible_host": None},
+                            ]
 
         for patch_doc in invalid_data_list:
-            response = self.patch(f"{HOST_URL}/{original_id}",
-                                  patch_doc,
-                                  status=400)
+            with self.subTest(invalid_patch_doc=patch_doc):
+                response = self.patch(f"{HOST_URL}/{original_id}",
+                                      patch_doc,
+                                      status=400)
 
-            self.verify_error_response(response,
-                                       expected_title="Bad Request",
-                                       expected_status=400)
+                self.verify_error_response(response,
+                                           expected_title="Bad Request",
+                                           expected_status=400)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):

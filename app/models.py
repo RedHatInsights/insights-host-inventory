@@ -372,4 +372,4 @@ class HostSchema(Schema):
 
 
 class HostPatchSchema(Schema):
-    ansible_host = fields.Str(validate=validate.Length(min=1, max=255))
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
