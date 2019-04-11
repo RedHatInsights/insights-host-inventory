@@ -1,5 +1,7 @@
+import flask
 import logging
 import sqlalchemy
+import ujson
 import uuid
 
 from enum import Enum
@@ -178,6 +180,7 @@ def get_host_list(display_name=None, fqdn=None,
             Host.account == current_identity.account_number
         )
 
+    query = query.order_by(Host.created_on, Host.id)
     query_results = query.paginate(page, per_page, True)
     logger.debug(f"Found hosts: {query_results.items}")
 
@@ -188,16 +191,19 @@ def get_host_list(display_name=None, fqdn=None,
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
-    return (
-        {
-            "total": total,
-            "count": len(host_list),
-            "page": page,
-            "per_page": per_page,
-            "results": json_host_list,
-        },
-        200,
-    )
+    json_output = {"total": total,
+                   "count": len(host_list),
+                   "page": page,
+                   "per_page": per_page,
+                   "results": json_host_list,
+                   }
+    return _build_json_response(json_output, status=200)
+
+
+def _build_json_response(json_data, status=200):
+    return flask.Response(ujson.dumps(json_data),
+                          status=status,
+                          mimetype="application/json")
 
 
 def find_hosts_by_display_name(account, display_name):
@@ -255,7 +261,7 @@ def _get_host_list_by_id_list(account_number, host_id_list):
     return Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
-    )
+    ).order_by(Host.created_on, Host.id)
 
 
 @api_operation
@@ -269,16 +275,14 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
     response_list = [host.to_system_profile_json()
                      for host in query_results.items]
 
-    return (
-        {
-            "total": query_results.total,
-            "count": len(response_list),
-            "page": page,
-            "per_page": per_page,
-            "results": response_list,
-        },
-        200,
-    )
+    json_output = {"total": query_results.total,
+                   "count": len(response_list),
+                   "page": page,
+                   "per_page": per_page,
+                   "results": response_list,
+                   }
+
+    return _build_json_response(json_output, status=200)
 
 
 @api_operation

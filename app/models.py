@@ -88,17 +88,17 @@ class Host(db.Model):
 
     def to_json(self):
         json_dict = CanonicalFacts.to_json(self.canonical_facts)
-        json_dict["id"] = self.id
+        json_dict["id"] = str(self.id)
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
         json_dict["ansible_host"] = self.ansible_host
         json_dict["facts"] = Facts.to_json(self.facts)
-        json_dict["created"] = self.created_on
-        json_dict["updated"] = self.modified_on
+        json_dict["created"] = self.created_on.isoformat()+"Z"
+        json_dict["updated"] = self.modified_on.isoformat()+"Z"
         return json_dict
 
     def to_system_profile_json(self):
-        json_dict = {"id": self.id,
+        json_dict = {"id": str(self.id),
                      "system_profile": self.system_profile_facts or {}
                      }
         return json_dict
