@@ -372,5 +372,5 @@ class HostSchema(Schema):
                 raise ValidationError("Invalid mac address")
 
 
-class HostPatchSchema(Schema):
+class PatchHostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))

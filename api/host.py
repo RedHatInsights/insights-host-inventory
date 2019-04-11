@@ -8,7 +8,7 @@ from enum import Enum
 from marshmallow import ValidationError
 
 from app import db
-from app.models import Host, HostSchema, HostPatchSchema
+from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
 from app.exceptions import InventoryException, InputFormatException
 from api import api_operation, metrics
@@ -289,7 +289,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 @metrics.api_request_time.time()
 def patch_host(host_id, host_data):
     try:
-        validated_patch_host_data = HostPatchSchema(strict=True).load(host_data).data
+        validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
     except ValidationError as e:
         logger.exception("Input validation error while patching host: %s - %s"
                          % (host_id, host_data))
