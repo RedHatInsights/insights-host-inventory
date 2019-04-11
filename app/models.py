@@ -107,13 +107,13 @@ class Host(db.Model):
         db.session.add(self)
 
     def update(self, input_host):
-        self._update_canonical_facts(input_host.canonical_facts)
+        self.update_canonical_facts(input_host.canonical_facts)
 
-        self._update_display_name(input_host.display_name)
+        self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)
 
-        self._update_facts(input_host.facts)
+        self.update_facts(input_host.facts)
 
         self._update_system_profile(input_host.system_profile_facts)
 
@@ -121,15 +121,13 @@ class Host(db.Model):
         logger.debug("patching host (id=%s) with data: %s" %
                      (self.id, patch_data))
 
-        self._update_display_name(patch_data.get("display_name"))
-
         self._update_ansible_host(patch_data.get("ansible_host"))
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host:
             self.ansible_host = ansible_host
 
-    def _update_display_name(self, input_display_name):
+    def update_display_name(self, input_display_name):
         if input_display_name:
             self.display_name = input_display_name
         elif not self.display_name:
@@ -140,7 +138,7 @@ class Host(db.Model):
             else:
                 self.display_name = self.id
 
-    def _update_canonical_facts(self, canonical_facts):
+    def update_canonical_facts(self, canonical_facts):
         logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
                       " with input canonical_facts=%s")
                      % (self.id, self.canonical_facts, canonical_facts))
@@ -149,7 +147,7 @@ class Host(db.Model):
                      % (self.id, self.canonical_facts))
         orm.attributes.flag_modified(self, "canonical_facts")
 
-    def _update_facts(self, facts_dict):
+    def update_facts(self, facts_dict):
         if facts_dict:
             if not self.facts:
                 self.facts = facts_dict
@@ -374,5 +372,4 @@ class HostSchema(Schema):
 
 
 class HostPatchSchema(Schema):
-    display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=1, max=255))

@@ -1104,21 +1104,17 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
-    def test_update_display_name_and_ansible_host(self):
+    def test_update_ansible_host(self):
 
         original_id = self.added_hosts[0].id
 
-        patch_doc = {"display_name": "NEW_display_name",
-                     "ansible_host": "NEW_ansible_host"}
+        patch_doc = {"ansible_host": "NEW_ansible_host"}
 
         response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
 
         response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
         host = HostWrapper(response_data["results"][0])
-
-        self.assertEqual(host.display_name,
-                         patch_doc["display_name"])
 
         self.assertEqual(host.ansible_host,
                          patch_doc["ansible_host"])
@@ -1127,8 +1123,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         non_existent_id = generate_uuid()
 
-        patch_doc = {"display_name": "NEW_display_name",
-                     "ansible_host": "NEW_ansible_host"}
+        patch_doc = {"ansible_host": "NEW_ansible_host"}
 
         self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
@@ -1136,8 +1131,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         original_id = self.added_hosts[0].id
 
-        invalid_data_list = [{"display_name": "a"*256},
-                             {"ansible_host": "a"*256}, ]
+        invalid_data_list = [{"ansible_host": "a"*256}, ]
 
         for patch_doc in invalid_data_list:
             response = self.patch(f"{HOST_URL}/{original_id}",
@@ -1147,7 +1141,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             self.verify_error_response(response,
                                        expected_title="Bad Request",
                                        expected_status=400)
-
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
