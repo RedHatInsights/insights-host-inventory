@@ -24,6 +24,7 @@ logstash-formatter = "*"
 pytest = "*"
 validators = "*"
 marshmallow = "*"
+ujson = "*"
 
 [dev-packages]
 pytest = "*"
