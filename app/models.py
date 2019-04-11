@@ -124,7 +124,8 @@ class Host(db.Model):
         self._update_ansible_host(patch_data.get("ansible_host"))
 
     def _update_ansible_host(self, ansible_host):
-        if ansible_host:
+        if ansible_host is not None:
+            # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
 
     def update_display_name(self, input_display_name):
