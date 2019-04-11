@@ -652,7 +652,7 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_ansible_host = ["", "a"*256]
+        invalid_ansible_host = [None, "", "a"*256]
 
         for ansible_host in invalid_ansible_host:
             with self.subTest(ansible_host=ansible_host):
