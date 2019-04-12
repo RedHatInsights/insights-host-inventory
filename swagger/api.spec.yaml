@@ -370,6 +370,11 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
+          type: string
+          example: host1.mydomain.com
         account:
           description: A Red Hat Account number that owns the host.
           type: string
@@ -455,6 +460,12 @@ components:
           description: >-
             A host’s human-readable display name, e.g. in a form of a domain
             name.
+          type: string
+          example: host1.mydomain.com
+          nullable: true
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
           type: string
           example: host1.mydomain.com
           nullable: true
@@ -854,8 +865,8 @@ components:
         Data of a single host to be updated.
       type: object
       properties:
-        remediations_host:
+        ansible_host:
           description: >-
-            A host name for remediations
+            The ansible host name for remediations
           type: string
           example: host1.mydomain.com
