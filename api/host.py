@@ -53,7 +53,7 @@ def add_host_list(host_list):
     response = {'total': len(response_host_list),
                 'errors': number_of_errors,
                 'data': response_host_list}
-    return response, 207
+    return _build_json_response(response, status=207)
 
 
 def _add_host(host):
