@@ -1,17 +1,14 @@
 import logging
 import uuid
-
 from datetime import datetime
+
+from app.exceptions import InputFormatException, InventoryException
+from app.validators import (verify_ip_address_format,
+                            verify_mac_address_format, verify_uuid_format)
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from marshmallow import Schema, ValidationError, fields, validate, validates
 from sqlalchemy import orm
-
-from app.exceptions import InventoryException, InputFormatException
-from app.validators import (verify_uuid_format,
-                            verify_ip_address_format,
-                            verify_mac_address_format)
-
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +295,8 @@ class SystemProfileSchema(Schema):
     arch = fields.Str(validate=validate.Length(max=50))
     kernel_modules = fields.List(fields.Str(validate=validate.Length(max=255)))
     last_boot_time = fields.Str(validate=validate.Length(max=50))
-    running_processes = fields.List(fields.Str(validate=validate.Length(max=1000)))
+    running_processes = fields.List(
+        fields.Str(validate=validate.Length(max=1000)))
     subscription_status = fields.Str(validate=validate.Length(max=100))
     subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
     katello_agent_running = fields.Bool()
@@ -351,3 +349,8 @@ class HostSchema(Schema):
             if verify_mac_address_format(mac_address) is not True:
                 raise ValidationError("Invalid mac address")
 
+
+class SearchSchema(Schema):
+    host_id_list = fields.List(fields.Str(validate=verify_uuid_format),
+                               validate=validate.Length(min=1, max=5000),
+                               required=True)

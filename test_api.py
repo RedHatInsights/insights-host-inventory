@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 
-import unittest
-import json
-import dateutil.parser
-import test.support
-import uuid
 import copy
+import json
 import tempfile
+import test.support
+import unittest
+import uuid
+from base64 import b64encode
+from datetime import datetime, timezone
+from json import dumps
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+
+import dateutil.parser
+
 from app import create_app, db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
-from base64 import b64encode
-from json import dumps
-from datetime import datetime, timezone
-from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
 BASE_URL = "/api/inventory/v1"
+SEARCH_URL = BASE_URL + "/search"
 HOST_URL = BASE_URL + "/hosts"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
@@ -236,11 +239,13 @@ class CreateHostsTestCase(DBAPITestCase):
         host_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
 
         # Add a new set of facts under a new namespace
-        host_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
+        host_data.facts.append(
+            {"namespace": "ns2", "facts": {"key2": "value2"}})
 
         # Add a new canonical fact
         host_data.rhel_machine_id = generate_uuid()
-        host_data.ip_addresses = ["10.10.0.1", "10.0.0.2", "fe80::d46b:2807:f258:c319"]
+        host_data.ip_addresses = ["10.10.0.1",
+                                  "10.0.0.2", "fe80::d46b:2807:f258:c319"]
         host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
         host_data.external_id = "i-05d2313e6b9a42b16"
         host_data.insights_id = generate_uuid()
@@ -451,12 +456,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
     def test_create_host_with_invalid_uuid_field_values(self):
         uuid_field_names = (
-                "insights_id",
-                "rhel_machine_id",
-                "subscription_manager_id",
-                "satellite_id",
-                "bios_uuid",
-                )
+            "insights_id",
+            "rhel_machine_id",
+            "subscription_manager_id",
+            "satellite_id",
+            "bios_uuid",
+        )
 
         for field_name in uuid_field_names:
             with self.subTest(uuid_field=field_name):
@@ -547,7 +552,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -583,7 +587,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
-
 
     def test_create_host_with_invalid_external_id(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -662,6 +665,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
                             host_data,
                             expected_id=original_id)
 
+
 class BulkCreateHostsTestCase(DBAPITestCase):
 
     def _get_valid_auth_header(self):
@@ -723,17 +727,16 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
 
 class PaginationTestCase(BaseAPITestCase):
-    def _base_paging_test(self, url, expected_number_of_hosts):
-        def _test_get_page(page, expected_count=1):
+    def _base_paging_test(self, url, expected_number_of_hosts, make_request):
+        def _test_request_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
-            response = self.get(test_url, 200)
-
+            response = make_request(test_url, 200)
             self.assertEqual(len(response["results"]), expected_count)
             self.assertEqual(response["count"], expected_count)
             self.assertEqual(response["total"], expected_number_of_hosts)
 
         if expected_number_of_hosts == 0:
-            _test_get_page(1, expected_count=0)
+            _test_request_page(1, expected_count=0)
             return
 
         i = 0
@@ -741,13 +744,25 @@ class PaginationTestCase(BaseAPITestCase):
         # Iterate through the pages
         for i in range(1, expected_number_of_hosts + 1):
             with self.subTest(pagination_test=i):
-                _test_get_page(str(i))
+                _test_request_page(str(i))
 
         # Go one page past the last page and look for an error
         i = i + 1
         with self.subTest(pagination_test=i):
             test_url = inject_qs(url, page=str(i), per_page="1")
-            self.get(test_url, 404)
+            make_request(test_url, 404)
+
+    def _get_paging_test(self, url, expected_number_of_hosts):
+        def _make_request(test_url, status):
+            return self.get(test_url, status)
+
+        self._base_paging_test(url, expected_number_of_hosts, _make_request)
+
+    def _post_paging_test(self, url, body, expected_number_of_hosts):
+        def _make_request(test_url, status):
+            return self.post(test_url, body, status)
+
+        self._base_paging_test(url, expected_number_of_hosts, _make_request)
 
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
@@ -761,7 +776,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 "infrastructure_vendor": "dell",
                 "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"],
                                         "state": "UP",
-                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
+                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334", ],
                                         "mtu": 1500,
                                         "mac_address": "aa:bb:cc:dd:ee:ff",
                                         "type": "loopback",
@@ -823,7 +838,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         # verify system_profile is not included
         self.assertNotIn("system_profile", created_host)
 
-        host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+        host_lookup_results = self.get(
+            "%s/%s/system_profile" % (HOST_URL, original_id), 200)
         actual_host = host_lookup_results["results"][0]
 
         self.assertEqual(original_id, actual_host["id"])
@@ -887,7 +903,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 # verify system_profile is not included
                 self.assertNotIn("system_profile", created_host)
 
-                host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+                host_lookup_results = self.get(
+                    "%s/%s/system_profile" % (HOST_URL, original_id), 200)
                 actual_host = host_lookup_results["results"][0]
 
                 self.assertEqual(original_id, actual_host["id"])
@@ -950,7 +967,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         original_id = created_host["id"]
 
-        host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+        host_lookup_results = self.get(
+            "%s/%s/system_profile" % (HOST_URL, original_id), 200)
         actual_host = host_lookup_results["results"][0]
 
         self.assertEqual(original_id, actual_host["id"])
@@ -990,9 +1008,10 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
             len(expected_system_profiles), len(host_lookup_results["results"])
         )
         for expected_system_profile in expected_system_profiles:
-            self.assertIn(expected_system_profile, host_lookup_results["results"])
+            self.assertIn(expected_system_profile,
+                          host_lookup_results["results"])
 
-        self._base_paging_test(test_url, len(expected_system_profiles))
+        self._get_paging_test(test_url, len(expected_system_profiles))
 
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
@@ -1006,7 +1025,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         invalid_host_ids = ["notauuid", "%s,notuuid" % str(uuid.uuid4())]
         for host_id in invalid_host_ids:
             with self.subTest(invalid_host_id=host_id):
-                response = self.get("%s/%s/system_profile" % (HOST_URL, host_id), 400)
+                response = self.get("%s/%s/system_profile" %
+                                    (HOST_URL, host_id), 400)
                 self.verify_error_response(response,
                                            expected_title="Bad Request",
                                            expected_status=400)
@@ -1020,7 +1040,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
     def create_hosts(self):
         hosts_to_create = [
             ("host1", generate_uuid(), "host1.domain.test"),
-            ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
+            # the same fqdn is intentional
+            ("host2", generate_uuid(), "host1.domain.test"),
             ("host3", generate_uuid(), "host2.domain.test"),
         ]
         host_list = []
@@ -1031,7 +1052,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
             host_wrapper.fqdn = host[2]
-            host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+            host_wrapper.facts = [
+                {"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
@@ -1046,7 +1068,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in self.added_hosts]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(HOST_URL, len(self.added_hosts))
+        self._get_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
         added_host_list = copy.deepcopy(self.added_hosts)
@@ -1084,7 +1106,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
+        self._get_paging_test(test_url, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -1105,7 +1127,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         # Add some host ids to the list that do not exist
         url_host_id_list = (
-            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+            url_host_id_list + "," +
+            str(uuid.uuid4()) + "," + str(uuid.uuid4())
         )
 
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
@@ -1135,12 +1158,15 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_using_display_name(self):
         host_list = self.added_hosts
 
-        response = self.get(HOST_URL + "?display_name=" + host_list[0].display_name)
+        response = self.get(HOST_URL + "?display_name=" +
+                            host_list[0].display_name)
 
         self.assertEqual(len(response["results"]), 1)
         self.assertEqual(response["results"][0]["fqdn"], host_list[0].fqdn)
-        self.assertEqual(response["results"][0]["insights_id"], host_list[0].insights_id)
-        self.assertEqual(response["results"][0]["display_name"], host_list[0].display_name)
+        self.assertEqual(response["results"][0]
+                         ["insights_id"], host_list[0].insights_id)
+        self.assertEqual(response["results"][0]
+                         ["display_name"], host_list[0].display_name)
 
     def test_query_using_fqdn_two_results(self):
         expected_host_list = [self.added_hosts[0], self.added_hosts[1]]
@@ -1150,8 +1176,10 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), 2)
         for result in response["results"]:
             self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
-            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
-            assert any(result["display_name"] == host.display_name for host in expected_host_list)
+            assert any(result["insights_id"] ==
+                       host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] ==
+                       host.display_name for host in expected_host_list)
 
     def test_query_using_fqdn_one_result(self):
         expected_host_list = [self.added_hosts[2]]
@@ -1161,11 +1189,13 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), 1)
         for result in response["results"]:
             self.assertEqual(result["fqdn"], expected_host_list[0].fqdn)
-            assert any(result["insights_id"] == host.insights_id for host in expected_host_list)
-            assert any(result["display_name"] == host.display_name for host in expected_host_list)
+            assert any(result["insights_id"] ==
+                       host.insights_id for host in expected_host_list)
+            assert any(result["display_name"] ==
+                       host.display_name for host in expected_host_list)
 
     def test_query_using_non_existant_fqdn(self):
-        host_list = self.added_hosts
+        self.added_hosts
 
         response = self.get(HOST_URL + "?fqdn=ROFLSAUCE.com")
 
@@ -1183,7 +1213,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
+        self._get_paging_test(test_url, len(self.added_hosts))
 
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
@@ -1195,7 +1225,7 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
-        self._base_paging_test(test_url, expected_number_of_hosts)
+        self._get_paging_test(test_url, expected_number_of_hosts)
 
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
@@ -1228,7 +1258,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
-        self._base_paging_test(test_url, expected_number_of_hosts)
+        self._get_paging_test(test_url, expected_number_of_hosts)
 
     def test_query_with_matching_insights_id(self):
         host_list = self.added_hosts
@@ -1241,34 +1271,24 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
-
-    TEST_QUERY_URL = HOST_URL + "/search"
-
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
-
         host_id_list = [host.id for host in host_list]
-
         query_doc = {"host_id_list": host_id_list}
-
-        response = self.post(self.TEST_QUERY_URL, query_doc, 200)
+        response = self.post(SEARCH_URL, query_doc, 200)
         print("response:", response)
 
-        # FIXME: check the results
-        self.assertEqual(len(response["results"]), len(host_list))
+        for host in response["results"]:
+            assert host["id"] in host_id_list
 
-        # self._base_paging_test(test_url, len(self.added_hosts))
+        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_uuid(self):
         host_list = self.added_hosts
-
         host_id_list = [host.id for host in host_list]
-
         host_id_list.append("notauuid")
-
         query_doc = {"host_id_list": host_id_list}
-
-        response = self.post(self.TEST_QUERY_URL, query_doc, 400)
+        self.post(SEARCH_URL, query_doc, 400)
 
     def test_query_with_invalid_host_id_list(self):
         invalid_query_docs = [None,
@@ -1279,8 +1299,8 @@ class QueryByHostIdListTestCase(PreCreatedHostsBaseTestCase):
 
         for invalid_query_doc in invalid_query_docs:
             with self.subTest(invalid_query_doc=invalid_query_doc):
-                response = self.post(self.TEST_QUERY_URL, invalid_query_doc, 400)
-                print("** response:", response)
+                self.post(SEARCH_URL,
+                          invalid_query_doc, 400)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
@@ -1321,7 +1341,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
             self.assertEqual(host_to_verify.facts[0]["facts"], expected_facts)
 
-            self.assertEqual(host_to_verify.facts[0]["namespace"], target_namespace)
+            self.assertEqual(
+                host_to_verify.facts[0]["namespace"], target_namespace)
 
     def test_add_facts_without_fact_dict(self):
         patch_url = self._build_facts_url(1, "ns1")
@@ -1351,7 +1372,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
         # Add a couple of host ids that should not exist in the database
         url_host_id_list = (
-            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+            url_host_id_list + "," +
+            str(uuid.uuid4()) + "," + str(uuid.uuid4())
         )
 
         patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
@@ -1388,7 +1410,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
     def test_replace_and_add_facts_to_namespace_that_does_not_exist(self):
         valid_host_id = self.added_hosts[0].id
         facts_to_add = self._valid_fact_doc()
-        test_url = self._build_facts_url(valid_host_id, "imanonexistentnamespace")
+        test_url = self._build_facts_url(
+            valid_host_id, "imanonexistentnamespace")
 
         # Test replace
         self.put(test_url, facts_to_add, 400)
@@ -1517,12 +1540,14 @@ class HealthTestCase(BaseAPITestCase):
             with test.support.EnvironmentVarGuard() as env:
                 env.set("prometheus_multiproc_dir", temp_dir)
 
-                response = self.client().get(METRICS_URL)  # No identity header.
+                # No identity header.
+                response = self.client().get(METRICS_URL)
                 self.assertEqual(200, response.status_code)
 
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response['version'] is not None
+
 
 if __name__ == "__main__":
     unittest.main()

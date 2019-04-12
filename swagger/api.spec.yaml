@@ -4,6 +4,37 @@ info:
   version: 1.0.0
   title: Insights Host Inventory REST Interface
 paths:
+  /search:
+    post:
+      tags:
+        - hosts
+      summary: Find hosts by their IDs
+      description: Find one or more hosts by their ID.
+      operationId: api.search.post
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      requestBody:
+        description: A dictionary with the hosts to query for.
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: post_body
+              $ref: '#/components/schemas/SearchByHostIdListQueryDoc'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
   /hosts:
     get:
       operationId: api.host.get_host_list
@@ -115,37 +146,6 @@ paths:
               format: uuid
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-      responses:
-        '200':
-          description: Successfully searched for hosts.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostQueryOutput'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host not found.
-  /hosts/search:
-    post:
-      tags:
-        - hosts
-      summary: Find hosts by their IDs
-      description: Find one or more hosts by their ID.
-      operationId: api.host.get_hosts_by_id_list
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-      requestBody:
-        description: A dictionary with the hosts to query for.
-        required: true
-        content:
-          application/json:
-            schema:
-              x-body-name: host_query_doc
-              $ref: '#/components/schemas/SearchByHostIdListQueryDoc'
       responses:
         '200':
           description: Successfully searched for hosts.

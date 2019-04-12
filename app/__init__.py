@@ -1,21 +1,15 @@
-import connexion
 import yaml
 
-from connexion.resolver import RestyResolver
-from flask import jsonify
-
+import connexion
 from api.mgmt import monitoring_blueprint
 from app.config import Config
-from app.models import db
 from app.exceptions import InventoryException
 from app.logging import configure_logging
-from app.validators import verify_uuid_format
+from app.models import db
+from connexion.resolver import RestyResolver
+from marshmallow import ValidationError
 
-
-def render_exception(exception):
-    response = jsonify(exception.to_json())
-    response.status_code = exception.status
-    return response
+from .error_handlers import render_exception, validation_error_handler
 
 
 def create_app(config_name):
@@ -28,7 +22,9 @@ def create_app(config_name):
     app_config = Config(config_name)
 
     connexion_app = connexion.App(
-        "inventory", specification_dir="./swagger/", options=connexion_options
+        "inventory",
+        specification_dir="./swagger/",
+        options=connexion_options
     )
 
     # Read the swagger.yml file to configure the endpoints
@@ -41,12 +37,13 @@ def create_app(config_name):
         resolver=RestyResolver("api"),
         validate_responses=True,
         strict_validation=True,
-        base_path=app_config.api_url_path_prefix,
+        base_path=app_config.api_url_path_prefix
     )
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
     connexion_app.add_error_handler(InventoryException, render_exception)
+    connexion_app.add_error_handler(ValidationError, validation_error_handler)
 
     flask_app = connexion_app.app
 

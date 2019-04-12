@@ -1,16 +1,14 @@
 import logging
-import sqlalchemy
 import uuid
-
 from enum import Enum
-from marshmallow import ValidationError
 
-from app import db
-from app.models import Host, HostSchema
-from app.auth import current_identity
-from app.exceptions import InventoryException, InputFormatException
+import sqlalchemy
 from api import api_operation, metrics
-
+from app import db
+from app.auth import current_identity
+from app.exceptions import InventoryException
+from app.models import Host, HostSchema
+from marshmallow import ValidationError
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
@@ -33,7 +31,8 @@ def add_host_list(host_list):
             response_host_list.append({**e.to_json(), "host": host})
         except ValidationError as e:
             number_of_errors += 1
-            logger.exception("Input validation error while adding host: %s" % host)
+            logger.exception(
+                "Input validation error while adding host: %s" % host)
             response_host_list.append({"status": 400,
                                        "title": "Bad Request",
                                        "detail": str(e.messages),
@@ -69,8 +68,8 @@ def _add_host(host):
     if (not current_identity.is_trusted_system and
             current_identity.account_number != input_host.account):
         raise InventoryException(title="Invalid request",
-                detail="The account number associated with the user does not "
-                "match the account number associated with the host")
+                                 detail="The account number associated with the user does not "
+                                 "match the account number associated with the host")
 
     existing_host = find_existing_host(input_host.account,
                                        input_host.canonical_facts)
@@ -100,9 +99,9 @@ def find_existing_host(account_number, canonical_facts):
 
 def find_host_by_insights_id(account_number, insights_id):
     existing_host = Host.query.filter(
-            (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)
-        ).first()
+        (Host.account == account_number)
+        & (Host.canonical_facts["insights_id"].astext == insights_id)
+    ).first()
 
     if existing_host:
         logger.debug("Found existing host using id match: %s", existing_host)
@@ -129,7 +128,8 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     host = _canonical_facts_host_query(account_number, canonical_facts).first()
 
     if host:
-        logger.debug("Found existing host using canonical_fact match: %s", host)
+        logger.debug(
+            "Found existing host using canonical_fact match: %s", host)
 
     return host
 
@@ -157,8 +157,8 @@ def update_existing_host(existing_host, input_host):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_list(display_name=None, fqdn=None,
-        hostname_or_id=None, insights_id=None,
-        page=1, per_page=100):
+                  hostname_or_id=None, insights_id=None,
+                  page=1, per_page=100):
     if fqdn:
         query = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}
@@ -181,12 +181,12 @@ def get_host_list(display_name=None, fqdn=None,
     query_results = query.paginate(page, per_page, True)
     logger.debug(f"Found hosts: {query_results.items}")
 
-    return _build_paginated_host_list_response(
+    return build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
     )
 
 
-def _build_paginated_host_list_response(total, page, per_page, host_list):
+def build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
     return (
         {
@@ -233,25 +233,25 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
                      exc_info=True)
 
     return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number,
-                                             sqlalchemy.or_(*filter_list)]))
+                                               sqlalchemy.or_(*filter_list)]))
 
 
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_id_list)
+    query = get_host_list_by_id_list(current_identity.account_number,
+                                     host_id_list)
 
     query_results = query.paginate(page, per_page, True)
 
     logger.debug(f"Found hosts: {query_results.items}")
 
-    return _build_paginated_host_list_response(
+    return build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
     )
 
 
-def _get_host_list_by_id_list(account_number, host_id_list):
+def get_host_list_by_id_list(account_number, host_id_list):
     return Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
@@ -260,32 +260,9 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_hosts_by_id_list(host_query_doc, page=1, per_page=100):
-    host_list_field_name = "host_id_list"
-
-    # FIXME: validate doc
-    #        check for max size of input array??
-    print("host_query_doc:", host_query_doc)
-
-    if (host_list_field_name not in host_query_doc
-            or not host_query_doc[host_list_field_name]):
-        return ("Bad Request", 400)
-
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_query_doc[host_list_field_name])
-
-    query_results = query.paginate(page, per_page, True)
-
-    return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
-    )
-
-
-@api_operation
-@metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_id_list)
+    query = get_host_list_by_id_list(current_identity.account_number,
+                                     host_id_list)
 
     query_results = query.paginate(page, per_page, True)
 
