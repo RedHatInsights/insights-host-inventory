@@ -957,7 +957,17 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
                 self._verify_host_status(response, 0, 201)
 
-                self.assertEqual(response["errors"], 0)
+                created_host = self._pluck_host_from_response(response, 0)
+                original_id = created_host["id"]
+
+                # Verify that the system profile data is saved
+                host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+                actual_host = host_lookup_results["results"][0]
+
+                self.assertEqual(original_id, actual_host["id"])
+
+                self.assertEqual(actual_host["system_profile"],
+                                 host["system_profile"])
 
     def test_get_system_profile_of_host_that_does_not_have_system_profile(self):
         facts = None
