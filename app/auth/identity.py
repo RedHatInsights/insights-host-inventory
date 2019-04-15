@@ -37,6 +37,7 @@ class Identity:
         if token:
             self.token = token
             self.is_trusted_system = True
+            self.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
         return {"account_number": self.account_number}

@@ -6,6 +6,8 @@ import os
 from gunicorn import glogging
 from flask import request
 
+from app.auth import current_identity
+
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
@@ -48,6 +50,8 @@ class ContextualFilter(logging.Filter):
     def filter(self, log_record):
         log_record.request_id = request.headers.get(REQUEST_ID_HEADER,
                                                     UNKNOWN_REQUEST_ID_VALUE)
+
+        log_record.account_number = current_identity.account_number
         return True
 
 
