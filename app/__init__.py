@@ -44,6 +44,16 @@ def create_app(config_name):
         base_path=app_config.api_url_path_prefix,
     )
 
+    if app_config.legacy_api_url_path_prefix:
+        connexion_app.add_api(
+            spec,
+            arguments={"title": "Legacy Path"},
+            resolver=RestyResolver("api"),
+            validate_responses=True,
+            strict_validation=True,
+            base_path=app_config.legacy_api_url_path_prefix,
+        )
+
     # Add an error handler that will convert our top level exceptions
     # into error responses
     connexion_app.add_error_handler(InventoryException, render_exception)
