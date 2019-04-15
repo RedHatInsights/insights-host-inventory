@@ -261,7 +261,7 @@ class YumRepoSchema(Schema):
     name = fields.Str()
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Url()
+    base_url = fields.Str()
 
 
 class InstalledProductSchema(Schema):
