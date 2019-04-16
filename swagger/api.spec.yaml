@@ -830,6 +830,8 @@ components:
           type: boolean
         satellite_managed:
           type: boolean
+        cloud_provider:
+          type: string
         yum_repos:
           type: array  # technically a set, ordering is not important
           items:
