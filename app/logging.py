@@ -10,6 +10,8 @@ from flask import request
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
+OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 
 
 def configure_logging(config_name):
@@ -39,11 +41,12 @@ def _configure_watchtower_logging_handler():
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = "inventory"
-    stream_name = os.getenv("INVENTORY_AWS_LOGGING_STREAM_NAME", None)
+    stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
 
     if all([aws_access_key_id, aws_secret_access_key,
             aws_region_name, stream_name]):
-        print("Configuring watchtower logging")
+        print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
         boto3_session = Session(aws_access_key_id=aws_access_key_id,
                                 aws_secret_access_key=aws_secret_access_key,
                                 region_name=aws_region_name)
@@ -52,15 +55,27 @@ def _configure_watchtower_logging_handler():
         handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
                                                   log_group=log_group,
                                                   stream_name=stream_name)
+        handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
 
         for logger_name in ("app", "app.models", "api", "api.host"):
             app_logger = logging.getLogger(logger_name)
-            app_logger.setLevel(logging.DEBUG)
+            app_logger.setLevel(log_level)
 
     else:
         print("Unable to configure watchtower logging.  Please "
               "verify watchtower logging configuration!")
+
+
+def _get_aws_logging_stream_name(namespace_filename):
+    try:
+        with open(namespace_filename) as namespace_fh:
+            return namespace_fh.read()
+    except FileNotFoundError:
+        namespace = DEFAULT_AWS_LOGGING_NAMESPACE
+        print(f"Error reading the OpenShift namepsace file.  "
+              f"Using {namespace} as aws logging stream name")
+        return namespace
 
 
 def _configure_contextual_logging_filter():
