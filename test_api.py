@@ -829,8 +829,8 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
 class PaginationTestCase(BaseAPITestCase):
     def _base_paging_test(self, url, expected_number_of_hosts):
-        def _test_get_page(page, expected_count=1):
-            test_url = inject_qs(url, page=page, per_page="1")
+        def _test_get_page(offset, expected_count=1):
+            test_url = inject_qs(url, offset=offset, limit="1")
             response = self.get(test_url, 200)
 
             self.assertEqual(len(response["results"]), expected_count)
@@ -838,20 +838,20 @@ class PaginationTestCase(BaseAPITestCase):
             self.assertEqual(response["total"], expected_number_of_hosts)
 
         if expected_number_of_hosts == 0:
-            _test_get_page(1, expected_count=0)
+            _test_get_page(0, expected_count=0)
             return
 
         i = 0
 
         # Iterate through the pages
-        for i in range(1, expected_number_of_hosts + 1):
+        for i in range( expected_number_of_hosts):
             with self.subTest(pagination_test=i):
                 _test_get_page(str(i))
 
         # Go one page past the last page and look for an error
         i = i + 1
         with self.subTest(pagination_test=i):
-            test_url = inject_qs(url, page=str(i), per_page="1")
+            test_url = inject_qs(url, offset=str(i), limit="1")
             self.get(test_url, 404)
 
 
