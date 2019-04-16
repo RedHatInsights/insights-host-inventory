@@ -39,8 +39,8 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -113,8 +113,8 @@ paths:
             items:
               type: string
               format: uuid
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -222,8 +222,8 @@ paths:
             items:
               type: string
               format: uuid
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -251,17 +251,8 @@ components:
         {"identity": {"account_number": "12345678"}}
       x-apikeyInfoFunc: app.auth.authentication_header_handler
   parameters:
-    pageParam:
-      name: page
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-      description: A page number of the items to return.
-    perPageParam:
-      name: per_page
+    limitParam:
+      name: limit
       in: query
       required: false
       schema:
@@ -270,6 +261,14 @@ components:
         maximum: 100
         default: 50
       description: A number of items to return per page.
+    offsetParam:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
   schemas:
     BulkHostOut:
       type: object
@@ -539,19 +538,19 @@ components:
       type: object
       required:
         - count
-        - page
-        - per_page
+        - limit
+        - offset
         - total
         - results
       properties:
         count:
           description: A number of entries on the current page.
           type: integer
-        page:
-          description: A current page number.
+        limit:
+          description: A page size – a number of retrieved entries.
           type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
+        offset:
+          description: A dataset offset – a number of skipped records.
           type: integer
         total:
           description: A total count of the found entries.
@@ -567,19 +566,19 @@ components:
       type: object
       required:
         - count
-        - page
-        - per_page
+        - limit
+        - offset
         - total
         - results
       properties:
         count:
           description: A number of entries on the current page.
           type: integer
-        page:
-          description: A current page number.
+        limit:
+          description: A page size – a number of retrieved entries.
           type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
+        offset:
+          description: A dataset offset – a number of skipped records.
           type: integer
         total:
           description: A total count of the found entries.
