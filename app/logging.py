@@ -40,7 +40,7 @@ def _configure_watchtower_logging_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
-    log_group = "inventory"
+    log_group = "platform"
     stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
 
