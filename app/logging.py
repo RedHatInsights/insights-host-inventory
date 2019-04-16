@@ -30,8 +30,8 @@ def configure_logging(config_name):
         logging.config.fileConfig(fname=log_config_file)
 
     if config_name != "testing":
-        _configure_contextual_logging_filter()
         _configure_watchtower_logging_handler()
+        _configure_contextual_logging_filter()
 
 
 def _configure_watchtower_logging_handler():
@@ -53,6 +53,10 @@ def _configure_watchtower_logging_handler():
                                                   log_group=log_group,
                                                   stream_name=stream_name)
         root.addHandler(handler)
+
+        for logger_name in ("app", "app.models", "api", "api.host"):
+            app_logger = logging.getLogger(logger_name)
+            app_logger.setLevel(logging.DEBUG)
 
     else:
         print("Unable to configure watchtower logging.  Please "
