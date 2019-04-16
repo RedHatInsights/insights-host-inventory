@@ -2,7 +2,9 @@ import logging
 import logging.config
 import logstash_formatter
 import os
+import watchtower
 
+from boto3.session import Session
 from gunicorn import glogging
 from flask import request
 
@@ -28,14 +30,44 @@ def configure_logging(config_name):
         logging.config.fileConfig(fname=log_config_file)
 
     if config_name != "testing":
-        # Only enable the contextual filter if not in "testing" mode
-        root = logging.getLogger()
-        root.addFilter(ContextualFilter())
+        _configure_contextual_logging_filter()
+        _configure_watchtower_logging_handler()
 
-        # FIXME: Figure out a better way to load the list of modules/submodules
-        for logger_name in ("app", "app.models", "api", "api.host"):
-            app_logger = logging.getLogger(logger_name)
-            app_logger.addFilter(ContextualFilter())
+
+def _configure_watchtower_logging_handler():
+    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
+    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
+    aws_region_name = os.getenv("AWS_REGION_NAME", None)
+    log_group = "inventory"
+    stream_name = os.getenv("INVENTORY_AWS_LOGGING_STREAM_NAME", None)
+
+    if all([aws_access_key_id, aws_secret_access_key,
+            aws_region_name, stream_name]):
+        print("Configuring watchtower logging")
+        boto3_session = Session(aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key,
+                                region_name=aws_region_name)
+
+        root = logging.getLogger()
+        handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
+                                                  log_group=log_group,
+                                                  stream_name=stream_name)
+        root.addHandler(handler)
+
+    else:
+        print("Unable to configure watchtower logging.  Please "
+              "verify watchtower logging configuration!")
+
+
+def _configure_contextual_logging_filter():
+    # Only enable the contextual filter if not in "testing" mode
+    root = logging.getLogger()
+    root.addFilter(ContextualFilter())
+
+    # FIXME: Figure out a better way to load the list of modules/submodules
+    for logger_name in ("app", "app.models", "api", "api.host"):
+        app_logger = logging.getLogger(logger_name)
+        app_logger.addFilter(ContextualFilter())
 
 
 class ContextualFilter(logging.Filter):
