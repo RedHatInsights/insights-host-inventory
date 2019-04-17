@@ -25,6 +25,8 @@ pytest = "*"
 validators = "*"
 marshmallow = "*"
 ujson = "*"
+watchtower = "*"
+"boto3" = "*"
 
 [dev-packages]
 pytest = "*"

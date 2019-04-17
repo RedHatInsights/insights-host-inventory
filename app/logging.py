@@ -2,12 +2,16 @@ import logging
 import logging.config
 import logstash_formatter
 import os
+import watchtower
 
+from boto3.session import Session
 from gunicorn import glogging
 from flask import request
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
+OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 
 
 def configure_logging(config_name):
@@ -28,14 +32,61 @@ def configure_logging(config_name):
         logging.config.fileConfig(fname=log_config_file)
 
     if config_name != "testing":
-        # Only enable the contextual filter if not in "testing" mode
-        root = logging.getLogger()
-        root.addFilter(ContextualFilter())
+        _configure_watchtower_logging_handler()
+        _configure_contextual_logging_filter()
 
-        # FIXME: Figure out a better way to load the list of modules/submodules
+
+def _configure_watchtower_logging_handler():
+    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
+    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
+    aws_region_name = os.getenv("AWS_REGION_NAME", None)
+    log_group = "platform"
+    stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
+
+    if all([aws_access_key_id, aws_secret_access_key,
+            aws_region_name, stream_name]):
+        print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
+        boto3_session = Session(aws_access_key_id=aws_access_key_id,
+                                aws_secret_access_key=aws_secret_access_key,
+                                region_name=aws_region_name)
+
+        root = logging.getLogger()
+        handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
+                                                  log_group=log_group,
+                                                  stream_name=stream_name)
+        handler.setFormatter(logstash_formatter.LogstashFormatterV1())
+        root.addHandler(handler)
+
         for logger_name in ("app", "app.models", "api", "api.host"):
             app_logger = logging.getLogger(logger_name)
-            app_logger.addFilter(ContextualFilter())
+            app_logger.setLevel(log_level)
+
+    else:
+        print("Unable to configure watchtower logging.  Please "
+              "verify watchtower logging configuration!")
+
+
+def _get_aws_logging_stream_name(namespace_filename):
+    try:
+        with open(namespace_filename) as namespace_fh:
+            return namespace_fh.read()
+    except FileNotFoundError:
+        namespace = DEFAULT_AWS_LOGGING_NAMESPACE
+        print(f"Error reading the OpenShift namepsace file.  "
+              f"Using {namespace} as aws logging stream name")
+        return namespace
+
+
+def _configure_contextual_logging_filter():
+    # Only enable the contextual filter if not in "testing" mode
+    root = logging.getLogger()
+    root.addFilter(ContextualFilter())
+
+    # FIXME: Figure out a better way to load the list of modules/submodules
+    for logger_name in ("app", "app.models", "api", "api.host"):
+        app_logger = logging.getLogger(logger_name)
+        app_logger.addFilter(ContextualFilter())
 
 
 class ContextualFilter(logging.Filter):
