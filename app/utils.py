@@ -118,6 +118,14 @@ class HostWrapper:
     def display_name(self, display_name):
         self.__data["display_name"] = display_name
 
+    @property
+    def ansible_host(self):
+        return self.__data.get("ansible_host", None)
+
+    @ansible_host.setter
+    def ansible_host(self, ansible_host):
+        self.__data["ansible_host"] = ansible_host
+
     def to_json(self):
         return json.dumps(self.__data)
 

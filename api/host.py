@@ -5,10 +5,11 @@ import ujson
 import uuid
 
 from enum import Enum
+from flask_api import status
 from marshmallow import ValidationError
 
 from app import db
-from app.models import Host, HostSchema
+from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
 from app.exceptions import InventoryException, InputFormatException
 from api import api_operation, metrics
@@ -284,6 +285,38 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
                    }
 
     return _build_json_response(json_output, status=200)
+
+
+@api_operation
+@metrics.api_request_time.time()
+def patch_host(host_id, host_data):
+    try:
+        validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
+    except ValidationError as e:
+        logger.exception("Input validation error while patching host: %s - %s"
+                         % (host_id, host_data))
+        return ({"status": 400,
+                 "title": "Bad Request",
+                 "detail": str(e.messages),
+                 "type": "unknown",
+                 },
+                400)
+
+    query = _get_host_list_by_id_list(current_identity.account_number,
+                                      [host_id])
+
+    host_to_update = query.first()
+
+    if host_to_update is None:
+        logger.debug("Failed to find host (id=%s) during patch operation" %
+                     (host_id))
+        return flask.abort(status.HTTP_404_NOT_FOUND)
+
+    host_to_update.patch(validated_patch_host_data)
+
+    db.session.commit()
+
+    return 200
 
 
 @api_operation

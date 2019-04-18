@@ -131,7 +131,6 @@ class BaseAPITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, status)
         if return_response_as_json:
             return json.loads(response.data)
-
         else:
             return response
 
@@ -205,6 +204,8 @@ class DBAPITestCase(BaseAPITestCase):
         self.assertEqual(received_host["display_name"],
                          expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
+        self.assertEqual(received_host["ansible_host"],
+                         expected_host.ansible_host)
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
@@ -483,7 +484,8 @@ class CreateHostsTestCase(DBAPITestCase):
                                     "bios_uuid",
                                     "ip_addresses",
                                     "mac_addresses",
-                                    "external_id",)
+                                    "external_id",
+                                    "ansible_host",)
 
         host_data = HostWrapper(test_data(facts=None))
 
@@ -617,7 +619,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-
     def test_create_host_with_invalid_external_id(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -636,6 +637,77 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
+    def test_create_host_with_ansible_host(self):
+        # Create a host with ansible_host field
+        host_data = HostWrapper(test_data(facts=None))
+        host_data.ansible_host = "ansible_host_"+generate_uuid()
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id)
+
+    def test_create_host_without_ansible_host_then_update(self):
+        # Create a host without ansible_host field
+        # then update those fields
+        host_data = HostWrapper(test_data(facts=None))
+        del host_data.ansible_host
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        ansible_hosts = ["ima_ansible_host_"+generate_uuid(),
+                         "",
+                         ]
+
+        # Update the ansible_host
+        for ansible_host in ansible_hosts:
+            with self.subTest(ansible_host=ansible_host):
+
+                host_data.ansible_host = ansible_host
+
+                # Update the hosts
+                self.post(HOST_URL, [host_data.data()], 207)
+
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+                self._validate_host(host_lookup_results["results"][0],
+                                    host_data,
+                                    expected_id=original_id)
+
+    def test_create_host_with_invalid_ansible_host(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_ansible_host = ["a"*256]
+
+        for ansible_host in invalid_ansible_host:
+            with self.subTest(ansible_host=ansible_host):
+                host_data.ansible_host = ansible_host
+
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
+                                           expected_title="Bad Request")
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
@@ -1107,6 +1179,54 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
+
+
+class PatchHostTestCase(PreCreatedHostsBaseTestCase):
+
+    def test_update_ansible_host(self):
+        original_id = self.added_hosts[0].id
+
+        patch_docs = [{"ansible_host": "NEW_ansible_host"},
+                      {"ansible_host": ""},
+                      ]
+
+        for patch_doc in patch_docs:
+            with self.subTest(valid_patch_doc=patch_doc):
+                response_data = self.patch(f"{HOST_URL}/{original_id}",
+                                           patch_doc,
+                                           200)
+
+                response_data = self.get(f"{HOST_URL}/{original_id}", 200)
+
+                host = HostWrapper(response_data["results"][0])
+
+                self.assertEqual(host.ansible_host,
+                                 patch_doc["ansible_host"])
+
+    def test_patch_on_non_existent_host(self):
+        non_existent_id = generate_uuid()
+
+        patch_doc = {"ansible_host": "NEW_ansible_host"}
+
+        self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
+
+    def test_invalid_data(self):
+        original_id = self.added_hosts[0].id
+
+        invalid_data_list = [{"ansible_host": "a"*256},
+                             {"ansible_host": None},
+                             {},
+                             ]
+
+        for patch_doc in invalid_data_list:
+            with self.subTest(invalid_patch_doc=patch_doc):
+                response = self.patch(f"{HOST_URL}/{original_id}",
+                                      patch_doc,
+                                      status=400)
+
+                self.verify_error_response(response,
+                                           expected_title="Bad Request",
+                                           expected_status=400)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
