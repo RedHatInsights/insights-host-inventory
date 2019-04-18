@@ -35,24 +35,17 @@ def create_app(config_name):
     with open("swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
 
-    connexion_app.add_api(
-        spec,
-        arguments={"title": "RestyResolver Example"},
-        resolver=RestyResolver("api"),
-        validate_responses=True,
-        strict_validation=True,
-        base_path=app_config.api_url_path_prefix,
-    )
-
-    if app_config.legacy_api_url_path_prefix:
-        connexion_app.add_api(
-            spec,
-            arguments={"title": "Legacy Path"},
-            resolver=RestyResolver("api"),
-            validate_responses=True,
-            strict_validation=True,
-            base_path=app_config.legacy_api_url_path_prefix,
-        )
+    for api_url in app_config.api_urls:
+        if api_url:
+            connexion_app.add_api(
+                spec,
+                arguments={"title": "RestyResolver Example"},
+                resolver=RestyResolver("api"),
+                validate_responses=True,
+                strict_validation=True,
+                base_path=api_url,
+            )
+            app_config.logger.info("Listening on API: %s" % api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
