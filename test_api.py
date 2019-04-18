@@ -1215,6 +1215,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         invalid_data_list = [{"ansible_host": "a"*256},
                              {"ansible_host": None},
+                             {},
                              ]
 
         for patch_doc in invalid_data_list:

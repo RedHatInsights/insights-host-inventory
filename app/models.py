@@ -118,6 +118,10 @@ class Host(db.Model):
         logger.debug("patching host (id=%s) with data: %s" %
                      (self.id, patch_data))
 
+        if not patch_data:
+            raise InventoryException(title="Bad Request",
+                                     detail="Patch json document cannot be empty.")
+
         self._update_ansible_host(patch_data.get("ansible_host"))
 
     def _update_ansible_host(self, ansible_host):
