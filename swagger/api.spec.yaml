@@ -581,25 +581,12 @@ components:
         Inventory metadata.
       type: object
       required:
-        - count
-        - limit
-        - offset
-        - total
-        - results
+        - meta
+        - data
       properties:
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        limit:
-          description: A page size – a number of retrieved entries.
-          type: integer
-        offset:
-          description: A dataset offset – a number of skipped records.
-          type: integer
-        total:
-          description: A total count of the found entries.
-          type: integer
-        results:
+        meta:
+          $ref: '#/components/schemas/QueryMeta'
+        data:
           description: Actual host search query result entries.
           type: array
           items:
@@ -609,11 +596,24 @@ components:
       description: Structure of the output of the host system profile query
       type: object
       required:
+        - meta
+        - data
+      properties:
+        meta:
+          $ref: '#/components/schemas/QueryMeta'
+        data:
+          description: Actual host search query result entries.
+          type: array
+          items:
+            $ref: '#/components/schemas/HostSystemProfileOut'
+    QueryMeta:
+      description: Result count and paging metadata
+      type: object
+      required:
         - count
         - limit
         - offset
         - total
-        - results
       properties:
         count:
           description: A number of entries on the current page.
@@ -627,11 +627,6 @@ components:
         total:
           description: A total count of the found entries.
           type: integer
-        results:
-          description: Actual host search query result entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/HostSystemProfileOut'
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
