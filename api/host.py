@@ -203,12 +203,15 @@ def _paginate_host_list_query(query, limit, offset):
 
 def _build_paginated_host_list_response(total, limit, offset, host_list):
     json_host_list = [host.to_json() for host in host_list]
-    json_output = {"total": total,
-                   "count": len(host_list),
-                   "limit": limit,
-                   "offset": offset,
-                   "results": json_host_list,
-                   }
+    json_output = {
+        "meta": {
+            "count": len(host_list),
+            "limit": limit,
+            "offset": offset,
+            "total": total,
+        },
+        "data": json_host_list,
+    }
     return _build_json_response(json_output, status=200)
 
 
@@ -288,12 +291,15 @@ def get_host_system_profile_by_id(host_id_list, limit=100, offset=0):
         response_list = [host.to_system_profile_json()
                          for host in query_results]
 
-        json_output = {"total": total,
-                       "count": len(response_list),
-                       "limit": limit,
-                       "offset": offset,
-                       "results": response_list,
-                       }
+        json_output = {
+            "meta": {
+                "count": len(response_list),
+                "limit": limit,
+                "offset": offset,
+                "total": total,
+            },
+            "data": response_list
+        }
 
         return _build_json_response(json_output, status=200)
 
