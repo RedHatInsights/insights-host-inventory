@@ -5,6 +5,7 @@ import ujson
 import uuid
 
 from enum import Enum
+from flask_api import status
 from marshmallow import ValidationError
 
 from app import db
@@ -309,7 +310,7 @@ def patch_host(host_id, host_data):
     if host_to_update is None:
         logger.debug("Failed to find host (id=%s) during patch operation" %
                      (host_id))
-        return ("Host not found", 404)
+        return flask.abort(status.HTTP_404_NOT_FOUND)
 
     host_to_update.patch(validated_patch_host_data)
 
