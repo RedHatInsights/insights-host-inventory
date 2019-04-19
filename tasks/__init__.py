@@ -3,21 +3,18 @@ import json
 from kafka import KafkaConsumer
 from threading import Thread
 
-from app.models import Host
+from app.models import Host, SystemProfileSchema
 
 TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 
 
-def msg_handler(msg):
-    parsed = json.loads(msg.value)
-    # validate here?
+def msg_handler(parsed):
     id_ = parsed["id"]
+    profile = SystemProfileSchema(strict=True).load(parsed["system_profile"])
     host = Host.query.get(id_)
-    host._update_system_profile(
-        parsed["system_profile"]
-    )
+    host._update_system_profile(profile)
     host.save()
 
 
@@ -34,7 +31,7 @@ def start_consumer(handler, consumer=None):
         #       and consumer failure/reconnect
         while True:
             for msg in consumer:
-                handler(msg)
+                handler(json.loads(msg.value))
 
     t = Thread(
         target=_f,
