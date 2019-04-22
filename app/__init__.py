@@ -9,14 +9,12 @@ from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
-from app.logging import configure_logging
+from app.logging import configure_logging, threadctx
 from app.validators import verify_uuid_format  # noqa: 401
 from tasks import start_consumer
-from threading import local
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
-threadctx = local()
 
 
 def render_exception(exception):
