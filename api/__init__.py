@@ -1,7 +1,5 @@
-from threading import local
 import logging
 import time
-from flask import request
 
 from functools import wraps
 
@@ -11,11 +9,7 @@ __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
-REQUEST_ID_HEADER = "x-rh-insights-request-id"
-UNKNOWN_REQUEST_ID_VALUE = "-1"
-
 logger = logging.getLogger(__name__)
-threadctx = local()
 
 
 def api_operation(old_func):
@@ -32,9 +26,6 @@ def api_operation(old_func):
         logger.debug("Entering %s", old_func.__name__)
 
         api_request_count.inc()
-        threadctx.request_id = request.headers.get(
-            REQUEST_ID_HEADER,
-            UNKNOWN_REQUEST_ID_VALUE)
 
         start_time = time.perf_counter()
         results = old_func(*args, **kwargs)
