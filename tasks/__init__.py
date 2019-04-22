@@ -1,17 +1,19 @@
 import os
 import json
 from kafka import KafkaConsumer
-from threading import Thread
+from threading import Thread, Local
 
 from app.models import Host, SystemProfileSchema
 
 TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+threadctx = Local()
 
 
 def msg_handler(parsed):
     id_ = parsed["id"]
+    threadctx.request_id = parsed["request_id"]
     profile = SystemProfileSchema(strict=True).load(parsed["system_profile"])
     host = Host.query.get(id_)
     host._update_system_profile(profile)
