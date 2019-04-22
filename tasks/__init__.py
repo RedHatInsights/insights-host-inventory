@@ -25,7 +25,7 @@ def msg_handler(parsed):
     host.save()
 
 
-def start_consumer(handler=msg_handler, consumer=None):
+def start_consumer(flask_app, handler=msg_handler, consumer=None):
 
     logger.info("Starting system profile queue consumer.")
 
@@ -36,9 +36,10 @@ def start_consumer(handler=msg_handler, consumer=None):
             bootstrap_servers=BOOTSTRAP_SERVERS)
 
     def _f():
-        while True:
-            for msg in consumer:
-                handler(json.loads(msg.value))
+        with flask_app.app_context():
+            while True:
+                for msg in consumer:
+                    handler(json.loads(msg.value))
 
     t = Thread(
         target=_f,
