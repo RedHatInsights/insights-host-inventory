@@ -152,6 +152,7 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_system_profile(self, input_system_profile):
+        logger.debug("Updating host's (id=%s) system profile" % (self.id))
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
