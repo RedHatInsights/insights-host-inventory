@@ -1,3 +1,4 @@
+from threading import Local
 import logging
 import logging.config
 import logstash_formatter
@@ -8,10 +9,9 @@ from boto3.session import Session
 from gunicorn import glogging
 from flask import request
 
-REQUEST_ID_HEADER = "x-rh-insights-request-id"
-UNKNOWN_REQUEST_ID_VALUE = "-1"
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
+threadctx = Local()
 
 
 def configure_logging(config_name):
@@ -97,8 +97,7 @@ class ContextualFilter(logging.Filter):
     log message.
     """
     def filter(self, log_record):
-        log_record.request_id = request.headers.get(REQUEST_ID_HEADER,
-                                                    UNKNOWN_REQUEST_ID_VALUE)
+        log_record.request_id = threadctx.request_id
         return True
 
 
