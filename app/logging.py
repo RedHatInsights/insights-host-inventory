@@ -12,6 +12,8 @@ OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 threadctx = local()
 
+modules = ("app", "app.models", "api", "api.host", "tasks")
+
 
 def configure_logging(config_name):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
@@ -57,7 +59,7 @@ def _configure_watchtower_logging_handler():
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
 
-        for logger_name in ("app", "app.models", "api", "api.host"):
+        for logger_name in modules:
             app_logger = logging.getLogger(logger_name)
             app_logger.setLevel(log_level)
 
@@ -83,7 +85,7 @@ def _configure_contextual_logging_filter():
     root.addFilter(ContextualFilter())
 
     # FIXME: Figure out a better way to load the list of modules/submodules
-    for logger_name in ("app", "app.models", "api", "api.host"):
+    for logger_name in modules:
         app_logger = logging.getLogger(logger_name)
         app_logger.addFilter(ContextualFilter())
 

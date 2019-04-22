@@ -8,6 +8,7 @@ from app import db
 from app.models import Host, SystemProfileSchema
 
 logger = logging.getLogger(__name__)
+
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
@@ -44,7 +45,10 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
         with flask_app.app_context():
             while True:
                 for msg in consumer:
-                    handler(json.loads(msg.value))
+                    try:
+                        handler(json.loads(msg.value))
+                    except Exception:
+                        logger.exception("uncaught exception in handler, moving on.")
 
     t = Thread(
         target=_f,
