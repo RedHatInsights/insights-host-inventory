@@ -1,4 +1,4 @@
-from threading import Local
+from threading import local
 import logging
 import time
 from flask import request
@@ -15,7 +15,7 @@ REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 logger = logging.getLogger(__name__)
-threadctx = Local()
+threadctx = local()
 
 
 def api_operation(old_func):
