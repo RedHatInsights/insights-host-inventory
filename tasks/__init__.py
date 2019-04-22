@@ -1,7 +1,7 @@
 import os
 import json
 from kafka import KafkaConsumer
-from threading import Thread, Local
+from threading import Thread, local
 import logging
 
 from app.models import Host, SystemProfileSchema
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-threadctx = Local()
+threadctx = local()
 
 
 def msg_handler(parsed):
@@ -25,7 +25,9 @@ def msg_handler(parsed):
     host.save()
 
 
-def start_consumer(handler, consumer=None):
+def start_consumer(handler=msg_handler, consumer=None):
+
+    logger.info("Starting system profile queue consumer.")
 
     if consumer is None:
         consumer = KafkaConsumer(
