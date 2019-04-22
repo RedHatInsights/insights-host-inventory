@@ -9,7 +9,8 @@ from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
 from app.logging import configure_logging
-from app.validators import verify_uuid_format
+from app.validators import verify_uuid_format  # noqa: 401
+from tasks import start_consumer
 
 
 def render_exception(exception):
@@ -60,5 +61,7 @@ def create_app(config_name):
 
     flask_app.register_blueprint(monitoring_blueprint,
                                  url_prefix=app_config.mgmt_url_path_prefix)
+
+    start_consumer()
 
     return flask_app
