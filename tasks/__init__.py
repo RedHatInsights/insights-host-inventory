@@ -5,6 +5,7 @@ from threading import Thread, local
 import logging
 
 from app import db
+from app.logging import threadctx
 from app.models import Host, SystemProfileSchema
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,6 @@ logger = logging.getLogger(__name__)
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-threadctx = local()
 
 
 def msg_handler(parsed):
