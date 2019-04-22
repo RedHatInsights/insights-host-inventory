@@ -13,8 +13,13 @@ class Config:
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
+        self._db_sslmode = os.getenv("INVENTORY_SSL_MODE", "")
+        self._db_cert = os.getenv("INVENTORY_CERT", "")
 
-        self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
+        if self._db_sslmode:
+            self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}?sslmode={self._db_sslmode}&sslrootcert={self._db_cert}"
+        else:
+            self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
         self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
 
@@ -44,3 +49,8 @@ class Config:
             self.logger.info("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
             self.logger.info("DB Host: %s" % self._db_host)
             self.logger.info("DB Name: %s" % self._db_name)
+            self.logger.info("DB Connection URI: %s" % self.db_uri)
+        if self._db_sslmode:
+            self.logger.info("Using SSL for DB connection:")
+            self.logger.info("Postgresql SSL verification type: %s" % self._db_sslmode)
+            self.logger.info("Path to certificate: %s" % self._db_cert)
