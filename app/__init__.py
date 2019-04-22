@@ -75,6 +75,6 @@ def create_app(config_name):
             UNKNOWN_REQUEST_ID_VALUE)
 
     if all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"])):
-        start_consumer()
+        start_consumer(flask_app)
 
     return flask_app
