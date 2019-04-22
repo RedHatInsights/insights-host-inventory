@@ -16,6 +16,7 @@ threadctx = local()
 def msg_handler(parsed):
     id_ = parsed["id"]
     threadctx.request_id = parsed["request_id"]
+    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
     host = Host.query.get(id_)
     if host is None:
         logger.error("Host with id [%s] not found!", id_)
