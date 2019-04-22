@@ -16,11 +16,14 @@ threadctx = local()
 def msg_handler(parsed):
     id_ = parsed["id"]
     threadctx.request_id = parsed["request_id"]
-    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
+    if not id_:
+        logger.error("ID is null, something went wrong.")
+        return
     host = Host.query.get(id_)
     if host is None:
         logger.error("Host with id [%s] not found!", id_)
         return
+    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
     profile = SystemProfileSchema(strict=True).load(parsed["system_profile"])
     host._update_system_profile(profile)
     host.save()
