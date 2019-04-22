@@ -24,7 +24,7 @@ def msg_handler(parsed):
         logger.error("Host with id [%s] not found!", id_)
         return
     logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
-    profile = SystemProfileSchema(strict=True).load(parsed["system_profile"])
+    profile = SystemProfileSchema(strict=True).load(parsed["system_profile"]).data
     host._update_system_profile(profile)
     host.save()
 
