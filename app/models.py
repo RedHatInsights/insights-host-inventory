@@ -324,6 +324,7 @@ class SystemProfileSchema(Schema):
     subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
     katello_agent_running = fields.Bool()
     satellite_managed = fields.Bool()
+    cloud_provider = fields.Str(validate=validate.Length(max=100))
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))

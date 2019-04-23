@@ -891,6 +891,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 "subscription_auto_attach": "yes",
                 "katello_agent_running": False,
                 "satellite_managed": False,
+                "cloud_provider": "Maclean's Music",
                 "yum_repos": [{"name": "repo1", "gpgcheck": True,
                                "enabled": True,
                                "base_url": "http://rpms.redhat.com"}],
@@ -1024,7 +1025,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         # List of tuples (system profile change, expected system profile)
         system_profiles = [{"infrastructure_type": "i"*101,
-                            "infrastructure_vendor": "i"*101, }]
+                            "infrastructure_vendor": "i"*101,
+                            "cloud_provider": "i"*101, }]
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
@@ -1057,6 +1059,35 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                                                          "enabled": True,
                                                          "base_url": yum_url}],
                                           }
+
+                # Create the host
+                response = self.post(HOST_URL, [host], 207)
+
+                self._verify_host_status(response, 0, 201)
+
+                created_host = self._pluck_host_from_response(response, 0)
+                original_id = created_host["id"]
+
+                # Verify that the system profile data is saved
+                host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+                actual_host = host_lookup_results["results"][0]
+
+                self.assertEqual(original_id, actual_host["id"])
+
+                self.assertEqual(actual_host["system_profile"],
+                                 host["system_profile"])
+
+    def test_create_host_with_system_profile_with_different_cloud_providers(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+
+        cloud_providers = ["cumulonimbus", "cumulus", "c"*100]
+
+        for cloud_provider in cloud_providers:
+            with self.subTest(cloud_provider=cloud_provider):
+                host["rhel_machine_id"] = str(uuid.uuid4())
+                host["system_profile"] = {"cloud_provider": cloud_provider}
 
                 # Create the host
                 response = self.post(HOST_URL, [host], 207)
