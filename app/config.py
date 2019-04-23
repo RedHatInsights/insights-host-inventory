@@ -16,7 +16,7 @@ class Config:
         self._db_sslmode = os.getenv("INVENTORY_SSL_MODE", "")
         self._db_cert = os.getenv("INVENTORY_CERT", "")
 
-        if self._db_sslmode:
+        if self._db_sslmode == "verify-full":
             self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}?sslmode={self._db_sslmode}&sslrootcert={self._db_cert}"
         else:
             self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
@@ -50,7 +50,7 @@ class Config:
             self.logger.info("DB Host: %s" % self._db_host)
             self.logger.info("DB Name: %s" % self._db_name)
             self.logger.info("DB Connection URI: %s" % self.db_uri)
-        if self._db_sslmode:
+        if self._db_sslmode == "verify-full":
             self.logger.info("Using SSL for DB connection:")
             self.logger.info("Postgresql SSL verification type: %s" % self._db_sslmode)
             self.logger.info("Path to certificate: %s" % self._db_cert)
