@@ -1,15 +1,20 @@
+import os
 import connexion
 import yaml
 
 from connexion.resolver import RestyResolver
-from flask import jsonify
+from flask import jsonify, request
 
 from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
-from app.logging import configure_logging
-from app.validators import verify_uuid_format
+from app.logging import configure_logging, threadctx
+from app.validators import verify_uuid_format  # noqa: 401
+from tasks import start_consumer
+
+REQUEST_ID_HEADER = "x-rh-insights-request-id"
+UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 
 def render_exception(exception):
@@ -35,14 +40,17 @@ def create_app(config_name):
     with open("swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
 
-    connexion_app.add_api(
-        spec,
-        arguments={"title": "RestyResolver Example"},
-        resolver=RestyResolver("api"),
-        validate_responses=True,
-        strict_validation=True,
-        base_path=app_config.api_url_path_prefix,
-    )
+    for api_url in app_config.api_urls:
+        if api_url:
+            connexion_app.add_api(
+                spec,
+                arguments={"title": "RestyResolver Example"},
+                resolver=RestyResolver("api"),
+                validate_responses=True,
+                strict_validation=True,
+                base_path=api_url,
+            )
+            app_config.logger.info("Listening on API: %s" % api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
@@ -60,5 +68,14 @@ def create_app(config_name):
 
     flask_app.register_blueprint(monitoring_blueprint,
                                  url_prefix=app_config.mgmt_url_path_prefix)
+
+    @flask_app.before_request
+    def set_request_id():
+        threadctx.request_id = request.headers.get(
+            REQUEST_ID_HEADER,
+            UNKNOWN_REQUEST_ID_VALUE)
+
+    if all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"])):
+        start_consumer(flask_app)
 
     return flask_app

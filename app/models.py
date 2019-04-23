@@ -8,9 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
 from app.exceptions import InventoryException, InputFormatException
-from app.validators import (verify_uuid_format,
-                            verify_ip_address_format,
-                            verify_mac_address_format)
+from app.validators import verify_uuid_format
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +33,7 @@ class Host(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
+    ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     modified_on = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -48,6 +47,7 @@ class Host(db.Model):
         self,
         canonical_facts,
         display_name=display_name,
+        ansible_host=None,
         account=account,
         facts=None,
         system_profile_facts=None,
@@ -65,6 +65,7 @@ class Host(db.Model):
             # been set...this will make it so that the "default" logic will
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
+        self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
@@ -76,6 +77,7 @@ class Host(db.Model):
         return cls(
             canonical_facts,
             d.get("display_name", None),
+            d.get("ansible_host"),
             d.get("account"),
             facts,
             d.get("system_profile", {}),
@@ -86,6 +88,7 @@ class Host(db.Model):
         json_dict["id"] = str(self.id)
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
+        json_dict["ansible_host"] = self.ansible_host
         json_dict["facts"] = Facts.to_json(self.facts)
         json_dict["created"] = self.created_on.isoformat()+"Z"
         json_dict["updated"] = self.modified_on.isoformat()+"Z"
@@ -103,15 +106,32 @@ class Host(db.Model):
     def update(self, input_host):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        self.update_display_name(input_host)
+        self.update_display_name(input_host.display_name)
+
+        self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
 
         self._update_system_profile(input_host.system_profile_facts)
 
-    def update_display_name(self, input_host):
-        if input_host.display_name:
-            self.display_name = input_host.display_name
+    def patch(self, patch_data):
+        logger.debug("patching host (id=%s) with data: %s" %
+                     (self.id, patch_data))
+
+        if not patch_data:
+            raise InventoryException(title="Bad Request",
+                                     detail="Patch json document cannot be empty.")
+
+        self._update_ansible_host(patch_data.get("ansible_host"))
+
+    def _update_ansible_host(self, ansible_host):
+        if ansible_host is not None:
+            # Allow a user to clear out the ansible host with an empty string
+            self.ansible_host = ansible_host
+
+    def update_display_name(self, input_display_name):
+        if input_display_name:
+            self.display_name = input_display_name
         elif not self.display_name:
             # This is the case where the display_name is not set on the
             # existing host record and the input host does not have it set
@@ -154,6 +174,7 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_system_profile(self, input_system_profile):
+        logger.debug("Updating host's (id=%s) system profile" % (self.id))
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
@@ -319,6 +340,7 @@ class FactsSchema(Schema):
 
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
     account = fields.Str(required=True,
                          validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
@@ -327,8 +349,10 @@ class HostSchema(Schema):
     satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(fields.Str())
-    mac_addresses = fields.List(fields.Str())
+    ip_addresses = fields.List(
+            fields.Str(validate=validate.Length(min=1, max=255)))
+    mac_addresses = fields.List(
+            fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
@@ -338,16 +362,11 @@ class HostSchema(Schema):
         if len(ip_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
-        for ip_address in ip_address_list:
-            if verify_ip_address_format(ip_address) is not True:
-                raise ValidationError("Invalid ip address")
-
     @validates("mac_addresses")
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
-        for mac_address in mac_address_list:
-            if verify_mac_address_format(mac_address) is not True:
-                raise ValidationError("Invalid mac address")
 
+class PatchHostSchema(Schema):
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))

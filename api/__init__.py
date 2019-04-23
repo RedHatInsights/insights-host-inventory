@@ -9,7 +9,6 @@ __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
-
 logger = logging.getLogger(__name__)
 
 
