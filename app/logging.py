@@ -8,6 +8,8 @@ import watchtower
 from boto3.session import Session
 from gunicorn import glogging
 
+from app.auth import current_identity
+
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 threadctx = local()
@@ -104,6 +106,14 @@ class ContextualFilter(logging.Filter):
             # TODO: need to decide what to do when you log outside the context
             # of a request
             log_record.request_id = None
+
+        try:
+            log_record.account_number = current_identity.account_number
+        except Exception:
+            # TODO: need to decide what to do when you log outside the context
+            # of a request
+            log_record.account_number = None
+
         return True
 
 
