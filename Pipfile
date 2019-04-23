@@ -27,6 +27,7 @@ marshmallow = "*"
 ujson = "*"
 watchtower = "*"
 "boto3" = "*"
+kafka = "*"
 
 [dev-packages]
 pytest = "*"
