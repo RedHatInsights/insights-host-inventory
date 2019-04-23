@@ -53,7 +53,7 @@ def validate(identity):
         # a warning should go into the Config class
         shared_secret = os.getenv(SHARED_SECRET_ENV_VAR)
         if not shared_secret:
-            logging.warn(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
+            logger.warning(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
         if identity.token != shared_secret:
             raise ValueError("Invalid credentials")
     else:
