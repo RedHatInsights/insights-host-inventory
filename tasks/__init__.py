@@ -1,9 +1,11 @@
 import os
 import json
 from kafka import KafkaConsumer
-from threading import Thread, local
+from threading import Thread
 import logging
 
+
+from api import metrics
 from app import db
 from app.logging import threadctx
 from app.models import Host, SystemProfileSchema
@@ -15,6 +17,7 @@ KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 
 
+@metrics.system_profile_commit_processing_time.time()
 def msg_handler(parsed):
     id_ = parsed["id"]
     threadctx.request_id = parsed["request_id"]
@@ -46,9 +49,13 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
             while True:
                 for msg in consumer:
                     try:
-                        handler(json.loads(msg.value))
+                        with metrics.system_profile_deserialization_time.time():
+                            data = json.loads(msg.value)
+                        handler(data)
+                        metrics.system_profile_commit_count.inc()
                     except Exception:
                         logger.exception("uncaught exception in handler, moving on.")
+                        metrics.system_profile_failure_count.inc()
 
     t = Thread(
         target=_f,
