@@ -124,6 +124,8 @@ class Host(db.Model):
 
         self._update_ansible_host(patch_data.get("ansible_host"))
 
+        self.update_display_name(patch_data.get("display_name"))
+
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
@@ -371,3 +373,4 @@ class HostSchema(Schema):
 
 class PatchHostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
+    display_name = fields.Str(validate=validate.Length(min=1, max=200))

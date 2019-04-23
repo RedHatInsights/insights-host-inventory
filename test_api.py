@@ -1214,11 +1214,14 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
-    def test_update_ansible_host(self):
+    def test_update_fields(self):
         original_id = self.added_hosts[0].id
 
         patch_docs = [{"ansible_host": "NEW_ansible_host"},
                       {"ansible_host": ""},
+                      {"display_name": "fred_flintstone"},
+                      {"display_name": "fred_flintstone",
+                       "ansible_host": "barney_rubble"},
                       ]
 
         for patch_doc in patch_docs:
@@ -1229,10 +1232,10 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
                 response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
-                host = HostWrapper(response_data["results"][0])
+                host = response_data["results"][0]
 
-                self.assertEqual(host.ansible_host,
-                                 patch_doc["ansible_host"])
+                for key in patch_doc:
+                    self.assertEqual(host[key], patch_doc[key])
 
     def test_patch_on_non_existent_host(self):
         non_existent_id = generate_uuid()
@@ -1247,6 +1250,8 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         invalid_data_list = [{"ansible_host": "a"*256},
                              {"ansible_host": None},
                              {},
+                             {"display_name": None},
+                             {"display_name": ""},
                              ]
 
         for patch_doc in invalid_data_list:

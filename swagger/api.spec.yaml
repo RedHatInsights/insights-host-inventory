@@ -872,3 +872,9 @@ components:
             The ansible host name for remediations
           type: string
           example: host1.mydomain.com
+        display_name:
+          description: >-
+            A host’s human-readable display name, e.g. in a form of a domain
+            name.
+          type: string
+          example: host1.mydomain.com
