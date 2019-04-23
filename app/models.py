@@ -112,8 +112,6 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
-        self._update_system_profile(input_host.system_profile_facts)
-
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s" %
                      (self.id, patch_data))
