@@ -183,7 +183,7 @@ class TrustedIdentityTestCase(TestCase):
         identity = self._build_id()
 
         self.assertEqual(identity.is_trusted_system, True)
-    
+
     def test_is_account_number_valid_on_trusted_system(self):
         identity = self._build_id()
 
