@@ -105,8 +105,6 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
-        self._update_system_profile(input_host.system_profile_facts)
-
     def update_display_name(self, input_host):
         if input_host.display_name:
             self.display_name = input_host.display_name
