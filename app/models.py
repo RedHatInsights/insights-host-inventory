@@ -1,4 +1,3 @@
-import logging
 import uuid
 
 from datetime import datetime
@@ -8,10 +7,11 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm
 
 from app.exceptions import InventoryException, InputFormatException
+from app.logging import get_logger
 from app.validators import verify_uuid_format
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 db = SQLAlchemy()
 

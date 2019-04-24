@@ -2,15 +2,13 @@ import os
 import json
 from kafka import KafkaConsumer
 from threading import Thread
-import logging
-
 
 from api import metrics
 from app import db
-from app.logging import threadctx
+from app.logging import threadctx, get_logger
 from app.models import Host, SystemProfileSchema
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")

@@ -8,13 +8,11 @@ import watchtower
 from boto3.session import Session
 from gunicorn import glogging
 
-from app.auth import current_identity
-
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
-threadctx = local()
+LOGGER_PREFIX = "inventory."
 
-modules = ("app", "app.models", "api", "api.host", "tasks")
+threadctx = local()
 
 
 def configure_logging(config_name):
@@ -45,7 +43,6 @@ def _configure_watchtower_logging_handler():
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = "platform"
     stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
-    log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
 
     if all([aws_access_key_id, aws_secret_access_key,
             aws_region_name, stream_name]):
@@ -60,11 +57,6 @@ def _configure_watchtower_logging_handler():
                                                   stream_name=stream_name)
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
-
-        for logger_name in modules:
-            app_logger = logging.getLogger(logger_name)
-            app_logger.setLevel(log_level)
-
     else:
         print("Unable to configure watchtower logging.  Please "
               "verify watchtower logging configuration!")
@@ -86,11 +78,6 @@ def _configure_contextual_logging_filter():
     root = logging.getLogger()
     root.addFilter(ContextualFilter())
 
-    # FIXME: Figure out a better way to load the list of modules/submodules
-    for logger_name in modules:
-        app_logger = logging.getLogger(logger_name)
-        app_logger.addFilter(ContextualFilter())
-
 
 class ContextualFilter(logging.Filter):
     """
@@ -108,7 +95,7 @@ class ContextualFilter(logging.Filter):
             log_record.request_id = None
 
         try:
-            log_record.account_number = current_identity.account_number
+            log_record.account_number = threadctx.account_number
         except Exception:
             # TODO: need to decide what to do when you log outside the context
             # of a request
@@ -133,3 +120,11 @@ class InventoryGunicornLogger(glogging.Logger):
         self._set_handler(self.error_log,
                           cfg.errorlog,
                           logstash_formatter.LogstashFormatterV1())
+
+
+def get_logger(name):
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
+    logger = logging.getLogger(LOGGER_PREFIX+name)
+    logger.addFilter(ContextualFilter())
+    logger.setLevel(log_level)
+    return logger
