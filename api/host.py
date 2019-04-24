@@ -1,5 +1,4 @@
 import flask
-import logging
 import sqlalchemy
 import ujson
 import uuid
@@ -11,14 +10,15 @@ from marshmallow import ValidationError
 from app import db
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
-from app.exceptions import InventoryException, InputFormatException
+from app.exceptions import InventoryException
+from app.logging import get_logger
 from api import api_operation, metrics
 
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @api_operation

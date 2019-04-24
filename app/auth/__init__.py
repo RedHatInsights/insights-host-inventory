@@ -1,15 +1,15 @@
 import connexion
-import logging
 
 from api.metrics import login_failure_count
 from app.auth.identity import from_bearer_token, from_auth_header, validate
+from app.logging import get_logger
 from werkzeug.local import LocalProxy
 
 __all__ = ["current_identity",
            "bearer_token_handler",
            "authentication_header_handler"]
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def authentication_header_handler(apikey, required_scopes=None):
