@@ -83,15 +83,18 @@ class Host(db.Model):
             d.get("system_profile", {}),
         )
 
-    def to_json(self):
+    def to_json(self, exclude=[]):
         json_dict = CanonicalFacts.to_json(self.canonical_facts)
         json_dict["id"] = str(self.id)
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
         json_dict["ansible_host"] = self.ansible_host
-        json_dict["facts"] = Facts.to_json(self.facts)
-        json_dict["created"] = self.created_on.isoformat()+"Z"
-        json_dict["updated"] = self.modified_on.isoformat()+"Z"
+        json_dict["created"] = self.created_on.isoformat() + "Z"
+        json_dict["updated"] = self.modified_on.isoformat() + "Z"
+
+        if "facts" not in exclude:
+            json_dict["facts"] = Facts.to_json(self.facts)
+
         return json_dict
 
     def to_system_profile_json(self):
@@ -372,3 +375,18 @@ class HostSchema(Schema):
 class PatchHostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
+
+
+class SearchSchema(Schema):
+    host_id_list = fields.List(fields.Str(validate=verify_uuid_format),
+                               validate=validate.Length(min=1, max=5000),
+                               required=True)
+    exclude_fields = fields.List(fields.Str(validate=validate.Length(min=1, max=255)),
+                                 required=False,
+                                 missing=[])
+
+    @validates("exclude_fields")
+    def validate_exclude_fields(self, fields):
+        valid_fields = ["facts", "system_profile_facts"]
+        if not set(fields).issubset(valid_fields):
+            raise ValidationError("Invalid exclude_fields. Valid values are: %s" % valid_fields)

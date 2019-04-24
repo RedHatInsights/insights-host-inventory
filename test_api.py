@@ -15,7 +15,9 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-HOST_URL = "/api/inventory/v1/hosts"
+BASE_URL = "/api/inventory/v1"
+HOST_URL = BASE_URL + "/hosts"
+SEARCH_URL = BASE_URL + "/search"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -828,17 +830,16 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
 
 class PaginationTestCase(BaseAPITestCase):
-    def _base_paging_test(self, url, expected_number_of_hosts):
-        def _test_get_page(page, expected_count=1):
+    def _base_paging_test(self, url, expected_number_of_hosts, make_request):
+        def _test_request_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
-            response = self.get(test_url, 200)
-
+            response = make_request(test_url, 200)
             self.assertEqual(len(response["results"]), expected_count)
             self.assertEqual(response["count"], expected_count)
             self.assertEqual(response["total"], expected_number_of_hosts)
 
         if expected_number_of_hosts == 0:
-            _test_get_page(1, expected_count=0)
+            _test_request_page(1, expected_count=0)
             return
 
         i = 0
@@ -846,13 +847,25 @@ class PaginationTestCase(BaseAPITestCase):
         # Iterate through the pages
         for i in range(1, expected_number_of_hosts + 1):
             with self.subTest(pagination_test=i):
-                _test_get_page(str(i))
+                _test_request_page(str(i))
 
         # Go one page past the last page and look for an error
         i = i + 1
         with self.subTest(pagination_test=i):
             test_url = inject_qs(url, page=str(i), per_page="1")
-            self.get(test_url, 404)
+            make_request(test_url, 404)
+
+    def _get_paging_test(self, url, expected_number_of_hosts):
+        def _make_request(test_url, status):
+            return self.get(test_url, status)
+
+        self._base_paging_test(url, expected_number_of_hosts, _make_request)
+
+    def _post_paging_test(self, url, body, expected_number_of_hosts):
+        def _make_request(test_url, status):
+            return self.post(test_url, body, status)
+
+        self._base_paging_test(url, expected_number_of_hosts, _make_request)
 
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
@@ -1166,7 +1179,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         for expected_system_profile in expected_system_profiles:
             self.assertIn(expected_system_profile, host_lookup_results["results"])
 
-        self._base_paging_test(test_url, len(expected_system_profiles))
+        self._get_paging_test(test_url, len(expected_system_profiles))
 
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
@@ -1294,7 +1307,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in self.added_hosts]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(HOST_URL, len(self.added_hosts))
+        self._get_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
         added_host_list = copy.deepcopy(self.added_hosts)
@@ -1332,7 +1345,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
+        self._get_paging_test(test_url, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -1431,7 +1444,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["results"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
+        self._get_paging_test(test_url, len(self.added_hosts))
 
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
@@ -1443,7 +1456,7 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
-        self._base_paging_test(test_url, expected_number_of_hosts)
+        self._get_paging_test(test_url, expected_number_of_hosts)
 
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
@@ -1476,7 +1489,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
-        self._base_paging_test(test_url, expected_number_of_hosts)
+        self._get_paging_test(test_url, expected_number_of_hosts)
 
     def test_query_with_matching_insights_id(self):
         host_list = self.added_hosts
@@ -1486,6 +1499,83 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
+
+
+class SearchTests(PreCreatedHostsBaseTestCase):
+    def test_query_using_host_id_list(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        query_doc = {"host_id_list": host_id_list}
+        response = self.post(SEARCH_URL, query_doc, 200)
+
+        for host in response["results"]:
+            assert host["id"] in host_id_list
+
+        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
+
+    def test_query_using_host_id_list_with_invalid_uuid(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        host_id_list.append("notauuid")
+        query_doc = {"host_id_list": host_id_list}
+        self.post(SEARCH_URL, query_doc, 400)
+
+    def test_query_with_invalid_host_id_list(self):
+        invalid_query_docs = [None,
+                              {},
+                              {"host_id_list": []},
+                              {"host_id_list": {}}
+                              ]
+
+        for invalid_query_doc in invalid_query_docs:
+            with self.subTest(invalid_query_doc=invalid_query_doc):
+                self.post(SEARCH_URL,
+                          invalid_query_doc, 400)
+
+    def test_query_with_exclude_facts(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["facts"]}
+        response = self.post(SEARCH_URL, query_doc, 200)
+
+        for host in response["results"]:
+            assert host["id"] in host_id_list
+            assert "facts" not in host
+
+        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
+
+    def test_query_with_exclude_system_profile(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["system_profile_facts"]}
+        response = self.post(SEARCH_URL, query_doc, 200)
+
+        for host in response["results"]:
+            assert host["id"] in host_id_list
+            assert "facts" in host
+            assert "system_profile_facts" not in host
+
+        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
+
+    def test_query_with_exclude_facts_and_system_profile(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["facts", "system_profile_facts"]}
+        response = self.post(SEARCH_URL, query_doc, 200)
+
+        for host in response["results"]:
+            assert host["id"] in host_id_list
+            assert "facts" not in host
+            assert "system_profile_facts" not in host
+
+        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
+
+    def test_query_with_invalid_exclude(self):
+        host_list = self.added_hosts
+        host_id_list = [host.id for host in host_list]
+        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["invalid"]}
+        response = self.post(SEARCH_URL, query_doc, 400)
+        assert "Invalid exclude_fields. Valid values are: ['facts', 'system_profile_facts']" in response["detail"]["exclude_fields"][0]
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

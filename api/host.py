@@ -186,13 +186,13 @@ def get_host_list(display_name=None, fqdn=None,
     query_results = query.paginate(page, per_page, True)
     logger.debug(f"Found hosts: {query_results.items}")
 
-    return _build_paginated_host_list_response(
+    return build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
     )
 
 
-def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
+def build_paginated_host_list_response(total, page, per_page, host_list, exclude=[]):
+    json_host_list = [host.to_json(exclude) for host in host_list]
     json_output = {"total": total,
                    "count": len(host_list),
                    "page": page,
@@ -247,29 +247,31 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(current_identity.account_number,
+    query = get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
     query_results = query.paginate(page, per_page, True)
 
     logger.debug(f"Found hosts: {query_results.items}")
 
-    return _build_paginated_host_list_response(
+    return build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
     )
 
 
-def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & Host.id.in_(host_id_list)
+def get_host_list_by_id_list(account_number, host_id_list, exclude=[]):
+    columns = [m.key for m in Host.__table__.columns if m.key not in exclude]
+
+    return Host.query.options(db.load_only(*columns)).filter(
+        (Host.account == account_number) &
+        Host.id.in_(host_id_list)
     ).order_by(Host.created_on, Host.id)
 
 
 @api_operation
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
-    query = _get_host_list_by_id_list(current_identity.account_number,
+    query = get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
     query_results = query.paginate(page, per_page, True)
@@ -302,7 +304,7 @@ def patch_by_id(host_id_list, host_data):
                  },
                 400)
 
-    query = _get_host_list_by_id_list(current_identity.account_number,
+    query = get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
     hosts_to_update = query.all()

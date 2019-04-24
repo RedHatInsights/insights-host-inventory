@@ -4,6 +4,37 @@ info:
   version: 1.0.0
   title: Insights Host Inventory REST Interface
 paths:
+  /search:
+    post:
+      tags:
+        - hosts
+      summary: Find hosts by their IDs
+      description: Find one or more hosts by their ID.
+      operationId: api.search.post
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      requestBody:
+        description: A dictionary with the hosts to query for.
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: post_body
+              $ref: '#/components/schemas/SearchByHostIdListQueryDoc'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
   /hosts:
     get:
       operationId: api.host.get_host_list
@@ -332,6 +363,20 @@ components:
         detail:
           type: string
           description: Details about why a host failed to be created or updated.
+    SearchByHostIdListQueryDoc:
+      type: object
+      properties:
+        host_id_list:
+          type: array
+          description: List of host ids to search for.
+          items:
+            type: string
+            format: uuid
+        exclude_fields:
+          description: List of fields to exclude from each host in the search results. Can be used to improve query performance.
+          type: array
+          items:
+            type: string
     Facts:
       title: Host facts
       description: A set of string facts about a host.
