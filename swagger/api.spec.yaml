@@ -126,6 +126,31 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
+    delete:
+      tags:
+        - hosts
+      summary: Delete hosts by IDs
+      description: Delete hosts by IDs
+      operationId: api.host.delete_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: host_id_list
+          description: A comma separated list of host IDs.
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+      responses:
+        '200':
+          description: Successfully deleted hosts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
   '/hosts/{host_id}':
     patch:
       tags:

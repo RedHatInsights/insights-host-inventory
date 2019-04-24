@@ -101,6 +101,13 @@ class BaseAPITestCase(unittest.TestCase):
             self.client().put, path, data, status, return_response_as_json
         )
 
+    def delete(self, path, status=200, return_response_as_json=True):
+        return self._response_check(
+            self.client().delete(path, headers=self._get_valid_auth_header()),
+            status,
+            return_response_as_json,
+        )
+
     def verify_error_response(self, response, expected_title=None,
                               expected_status=None, expected_detail=None,
                               expected_type=None):
@@ -209,6 +216,31 @@ class DBAPITestCase(BaseAPITestCase):
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
+
+
+class DeleteHostsTestCase(DBAPITestCase):
+    def test_create_then_delete(self):
+        facts = None
+
+        host_data = HostWrapper(test_data(facts=facts))
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        # Get the host
+        response = self.get(HOST_URL + "/" + original_id, 200)
+
+        # Delete the host
+        response = self.delete(HOST_URL + "/" + original_id, 200, return_response_as_json=False)
+
+        # Try to get the host again
+        response = self.get(HOST_URL + "/" + original_id, 200)
 
 
 class CreateHostsTestCase(DBAPITestCase):
