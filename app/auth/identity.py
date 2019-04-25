@@ -1,13 +1,14 @@
-import logging
 import os
 
 from base64 import b64decode
 from json import loads
 
+from app.logging import get_logger, threadctx
+
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token", "validate"]
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 
@@ -33,10 +34,12 @@ class Identity:
 
         self.is_trusted_system = False
         self.account_number = account_number
+        threadctx.account_number = account_number
 
         if token:
             self.token = token
             self.is_trusted_system = True
+            threadctx.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
         return {"account_number": self.account_number}
@@ -52,7 +55,7 @@ def validate(identity):
         # a warning should go into the Config class
         shared_secret = os.getenv(SHARED_SECRET_ENV_VAR)
         if not shared_secret:
-            logging.warn(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
+            logger.warning(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
         if identity.token != shared_secret:
             raise ValueError("Invalid credentials")
     else:

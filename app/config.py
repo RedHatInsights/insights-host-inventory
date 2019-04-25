@@ -1,12 +1,12 @@
-import logging
 import os
 
 from app.common import get_build_version
+from app.logging import get_logger
 
 
 class Config:
     def __init__(self, config_name):
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self._config_name = config_name
 
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
