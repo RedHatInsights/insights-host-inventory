@@ -746,7 +746,11 @@ class PaginationTestCase(BaseAPITestCase):
         i = i + 1
         with self.subTest(pagination_test=i):
             test_url = inject_qs(url, offset=str(i), limit="1")
-            self.get(test_url, 404)
+            response = self.get(test_url, 404)
+            self.assertEqual(
+                response["detail"],
+                "No resources found with provided limit and offset"
+            )
 
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
