@@ -22,7 +22,7 @@ producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
 
 
 def emit_event(e):
-    producer.send(EVENT_TOPIC, value=e)
+    producer.send(EVENT_TOPIC, value=e.encode("utf-8"))
 
 
 @metrics.system_profile_commit_processing_time.time()

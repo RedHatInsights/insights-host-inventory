@@ -8,14 +8,12 @@ from enum import Enum
 from flask_api import status
 from marshmallow import ValidationError
 
-from app import db
+from app import db, events
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from api import api_operation, metrics
-
 from tasks import emit_event
-import events
 
 
 TAG_OPERATIONS = ("apply", "remove")
