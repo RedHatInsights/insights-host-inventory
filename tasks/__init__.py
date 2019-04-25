@@ -1,6 +1,7 @@
 import os
 import json
 from kafka import KafkaConsumer
+from kafka import KafkaProducer
 from threading import Thread
 
 from api import metrics
@@ -13,6 +14,13 @@ logger = get_logger(__name__)
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+EVENT_TOPIC = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+
+producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
+
+
+def emit_event(e):
+    producer.send(EVENT_TOPIC, value=e)
 
 
 @metrics.system_profile_commit_processing_time.time()
@@ -26,7 +34,9 @@ def msg_handler(parsed):
     if host is None:
         logger.error("Host with id [%s] not found!", id_)
         return
-    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
+    logger.info(
+        "Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"]
+    )
     profile = SystemProfileSchema(strict=True).load(parsed["system_profile"]).data
     host._update_system_profile(profile)
     db.session.commit()
@@ -38,9 +48,8 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
 
     if consumer is None:
         consumer = KafkaConsumer(
-            TOPIC,
-            group_id=KAFKA_GROUP,
-            bootstrap_servers=BOOTSTRAP_SERVERS)
+            TOPIC, group_id=KAFKA_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS
+        )
 
     def _f():
         with flask_app.app_context():
@@ -55,7 +64,5 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
                         logger.exception("uncaught exception in handler, moving on.")
                         metrics.system_profile_failure_count.inc()
 
-    t = Thread(
-        target=_f,
-        daemon=True)
+    t = Thread(target=_f, daemon=True)
     t.start()
