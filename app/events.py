@@ -7,11 +7,11 @@ logger = logging.getLogger(__name__)
 
 class HostEvent(Schema):
     id = fields.UUID()
-    timestamp = fields.DateTime()
+    timestamp = fields.DateTime(format="iso8601")
     type = fields.Str()
 
 
 def delete(id):
-    return HostEvent(strict=True).load(
-        {"id": id, "timestamp": datetime.now(), "type": "delete"}
-    )
+    return HostEvent(strict=True).dumps(
+        {"id": id, "timestamp": datetime.utcnow(), "type": "delete"}
+    ).data
