@@ -11,8 +11,11 @@ from marshmallow import ValidationError
 from app import db
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
-from app.exceptions import InventoryException, InputFormatException
+from app.exceptions import InventoryException
 from api import api_operation, metrics
+
+from tasks import emit_event
+import events
 
 
 TAG_OPERATIONS = ("apply", "remove")
@@ -270,8 +273,12 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    hosts = _get_host_list_by_id_list(current_identity.account_number, host_id_list, order=False)
-    hosts.delete(synchronize_session='fetch')
+    hosts = _get_host_list_by_id_list(
+        current_identity.account_number, host_id_list, order=False
+    )
+    hosts.delete(synchronize_session="fetch")
+    for id_ in host_id_list:
+        emit_event(events.delete(id_))
 
 
 @api_operation
