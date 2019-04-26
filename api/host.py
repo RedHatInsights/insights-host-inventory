@@ -192,11 +192,18 @@ def get_host_list(display_name=None, fqdn=None,
 
 def _paginate_host_list_query(query, limit, offset):
     total = query.count()
+
     max_offset = max(0, total - 1)  # Zero offset is always allowed
-    if offset > max_offset:
+    min_offset = -max_offset
+    if offset > max_offset or offset < min_offset:
         raise IndexError
 
-    query = query.order_by(Host.created_on, Host.id).limit(limit).offset(offset)
+    db_offset = max(offset, 0)
+    db_limit = limit if offset >= 0 else limit + offset
+    if not db_limit:
+        raise IndexError
+
+    query = query.order_by(Host.created_on, Host.id).limit(db_limit).offset(db_offset)
     query_results = query.all()
     logger.debug(f"Found hosts: {query_results}")
     return total, query_results
