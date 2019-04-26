@@ -1555,6 +1555,14 @@ class QueryBaseTestCase(DBAPITestCase):
         self.assertEqual(set(response_host_ids), set(expected_host_ids))
 
 
+class LimitOffsetBaseTestCase(unittest.TestCase):
+    def _assert_limit_offset_error_detail(self, response):
+        self.assertEqual(
+            response["detail"],
+            "No resources found with provided limit and offset"
+        )
+
+
 class QueriesBaseTestCase(QueryBaseTestCase):
 
     def _queries_subtests(self, host_id_list):
@@ -1591,7 +1599,9 @@ class QueryOrderTestCase(QueriesWithPreCreatedHostsBaseTestCase):
                 self.assertEqual(response_ids, expected_ids)
 
 
-class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTestCase):
+class PaginatedQueryWithPreCreatedHostsTestCase(
+    QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
+):
 
     def test_all_records_with_defaults(self):
         """
@@ -1676,7 +1686,8 @@ class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTe
         Get         ...
         """
         for url in self._queries_subtests_with_added_hosts():
-            self.get(f"{url}?limit=3&offset=3", 404)
+            response = self.get(f"{url}?limit=3&offset=3", 404)
+            self._assert_limit_offset_error_detail(response)
 
     def test_not_found_beyond_begin(self):
         """
@@ -1684,11 +1695,12 @@ class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTe
         Get      ...
         """
         for url in self._queries_subtests_with_added_hosts():
-            self.get(f"{url}?limit=3&offset=-3", 404)
+            response = self.get(f"{url}?limit=3&offset=-3", 404)
+            self._assert_limit_offset_error_detail(response)
 
 
 class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
-    QueryBaseTestCase, PreCreatedHostsBaseTestCase
+    QueryBaseTestCase, PreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
 ):
 
     def test_one_result(self):
@@ -1705,7 +1717,8 @@ class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
                 response = self.get(f"{base_url}&offset=0")
                 self._assert_hosts_in_response(response, self.added_hosts[0:1], 1)
 
-                self.get(f"{base_url}&offset=1", 404)
+                response = self.get(f"{base_url}&offset=1", 404)
+                self._assert_limit_offset_error_detail(response)
 
     def test_more_results(self):
         base_url = f"{HOST_URL}?fqdn={self.added_hosts[2].fqdn}"
@@ -1718,11 +1731,12 @@ class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
                 expected_hosts = matched_hosts[offset:]
                 self._assert_hosts_in_response(response, expected_hosts, 2)
 
-        self.get(f"{base_url}&offset=2", 404)
+        response = self.get(f"{base_url}&offset=2", 404)
+        self._assert_limit_offset_error_detail(response)
 
 
 class PaginatedQueryWithMorePreCreatedHostsTestCase(
-    QueriesWithPreCreatedHostsBaseTestCase
+    QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
 ):
 
     def create_hosts(self):
@@ -1800,10 +1814,11 @@ class PaginatedQueryWithMorePreCreatedHostsTestCase(
                 for page in range(total_pages):
                     _test_get_page(page_size, page_size * page)
 
-                self.get(_url(page_size, page_size * total_pages), 404)
+                response = self.get(_url(page_size, page_size * total_pages), 404)
+                self._assert_limit_offset_error_detail(response)
 
 
-class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase):
+class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase, LimitOffsetBaseTestCase):
 
     def test_no_records_with_default(self):
         response = self.get(HOST_URL, 200)
@@ -1817,10 +1832,12 @@ class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase):
                 self._assert_hosts_in_response(response, [], 0)
 
     def test_not_found_with_positive_offset(self):
-        self.get(f"{HOST_URL}?offset=1", 404)
+        response = self.get(f"{HOST_URL}?offset=1", 404)
+        self._assert_limit_offset_error_detail(response)
 
     def test_not_found_with_negative_offset(self):
-        self.get(f"{HOST_URL}?offset=-1", 404)
+        response = self.get(f"{HOST_URL}?offset=-1", 404)
+        self._assert_limit_offset_error_detail(response)
 
 
 class PaginationLinksWithPreCreatedHostsTestCase(
