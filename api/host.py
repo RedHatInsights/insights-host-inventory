@@ -22,6 +22,10 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 logger = get_logger(__name__)
 
 
+def _abort_bad_limit_offset():
+    abort(status.HTTP_404_NOT_FOUND, "No resources found with provided limit and offset")
+
+
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
@@ -185,7 +189,7 @@ def get_host_list(display_name=None, fqdn=None,
     try:
         total, query_results = _paginate_host_list_query(query, limit, offset)
     except IndexError:
-        abort(status.HTTP_404_NOT_FOUND)
+        _abort_bad_limit_offset()
     else:
         return _build_paginated_host_list_response(total, limit, offset, query_results)
 
@@ -273,7 +277,7 @@ def get_host_by_id(host_id_list, limit=100, offset=0):
     try:
         total, query_results = _paginate_host_list_query(query, limit, offset)
     except IndexError:
-        abort(status.HTTP_404_NOT_FOUND)
+        _abort_bad_limit_offset()
     else:
         return _build_paginated_host_list_response(total, limit, offset, query_results)
 
@@ -294,7 +298,7 @@ def get_host_system_profile_by_id(host_id_list, limit=100, offset=0):
     try:
         total, query_results = _paginate_host_list_query(query, limit, offset)
     except IndexError:
-        abort(status.HTTP_404_NOT_FOUND)
+        _abort_bad_limit_offset()
     else:
         response_list = [host.to_system_profile_json()
                          for host in query_results]
