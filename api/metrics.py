@@ -14,6 +14,10 @@ create_host_count = Counter("inventory_create_host_count",
                             "The total amount of hosts created")
 update_host_count = Counter("inventory_update_host_count",
                             "The total amount of hosts updated")
+delete_host_count = Counter("inventory_delete_host_count",
+                            "The total amount of hosts deleted")
+delete_host_processing_time = Summary("inventory_delete_host_commit_seconds",
+                                      "Time spent deleting hosts from the database")
 login_failure_count = Counter("inventory_login_failure_count",
                               "The total amount of failed login attempts")
 system_profile_deserialization_time = Summary("system_profile_deserialization_time",

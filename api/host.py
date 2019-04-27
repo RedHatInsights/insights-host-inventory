@@ -274,7 +274,9 @@ def delete_by_id(host_id_list):
     hosts = _get_host_list_by_id_list(
         current_identity.account_number, host_id_list, order=False
     )
-    hosts.delete(synchronize_session="fetch")
+    with metrics.delete_host_processing_time.time():
+        hosts.delete(synchronize_session="fetch")
+    metrics.delete_host_count.inc(hosts.count())
     for id_ in host_id_list:
         emit_event(events.delete(id_))
 
