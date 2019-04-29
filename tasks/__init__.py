@@ -34,9 +34,7 @@ def msg_handler(parsed):
     if host is None:
         logger.error("Host with id [%s] not found!", id_)
         return
-    logger.info(
-        "Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"]
-    )
+    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
     profile = SystemProfileSchema(strict=True).load(parsed["system_profile"]).data
     host._update_system_profile(profile)
     db.session.commit()
@@ -48,8 +46,9 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
 
     if consumer is None:
         consumer = KafkaConsumer(
-            TOPIC, group_id=KAFKA_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS
-        )
+            TOPIC,
+            group_id=KAFKA_GROUP,
+            bootstrap_servers=BOOTSTRAP_SERVERS)
 
     def _f():
         with flask_app.app_context():
@@ -64,5 +63,7 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
                         logger.exception("uncaught exception in handler, moving on.")
                         metrics.system_profile_failure_count.inc()
 
-    t = Thread(target=_f, daemon=True)
+    t = Thread(
+        target=_f,
+        daemon=True)
     t.start()
