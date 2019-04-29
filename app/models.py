@@ -83,7 +83,10 @@ class Host(db.Model):
             d.get("system_profile", {}),
         )
 
-    def to_json(self, exclude=[]):
+    def to_json(self, exclude=None):
+        if not exclude:
+            exclude = []
+
         json_dict = CanonicalFacts.to_json(self.canonical_facts)
         json_dict["id"] = str(self.id)
         json_dict["account"] = self.account

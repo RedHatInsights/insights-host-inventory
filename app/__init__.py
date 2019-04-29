@@ -14,7 +14,7 @@ from app.validators import verify_uuid_format  # noqa: 401
 from tasks import start_consumer
 from marshmallow import ValidationError
 
-from .error_handlers import render_exception, validation_error_handler
+from .error_handlers import render_exception, marshmallow_validation_error_handler
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -52,7 +52,7 @@ def create_app(config_name):
     # Add an error handler that will convert our top level exceptions
     # into error responses
     connexion_app.add_error_handler(InventoryException, render_exception)
-    connexion_app.add_error_handler(ValidationError, validation_error_handler)
+    connexion_app.add_error_handler(ValidationError, marshmallow_validation_error_handler)
 
     flask_app = connexion_app.app
 

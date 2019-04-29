@@ -191,7 +191,7 @@ def get_host_list(display_name=None, fqdn=None,
     )
 
 
-def build_paginated_host_list_response(total, page, per_page, host_list, exclude=[]):
+def build_paginated_host_list_response(total, page, per_page, host_list, exclude=None):
     json_host_list = [host.to_json(exclude) for host in host_list]
     json_output = {"total": total,
                    "count": len(host_list),
@@ -259,7 +259,10 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
     )
 
 
-def get_host_list_by_id_list(account_number, host_id_list, exclude=[]):
+def get_host_list_by_id_list(account_number, host_id_list, exclude=None):
+    if not exclude:
+        exclude = []
+
     columns = [m.key for m in Host.__table__.columns if m.key not in exclude]
 
     return Host.query.options(db.load_only(*columns)).filter(

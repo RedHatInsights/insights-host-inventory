@@ -1547,7 +1547,8 @@ class SearchTests(PreCreatedHostsBaseTestCase):
     def test_query_with_exclude_system_profile(self):
         host_list = self.added_hosts
         host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["system_profile_facts"]}
+        query_doc = {"host_id_list": host_id_list,
+                "exclude_fields": ["system_profile_facts"]}
         response = self.post(SEARCH_URL, query_doc, 200)
 
         for host in response["results"]:
@@ -1560,7 +1561,8 @@ class SearchTests(PreCreatedHostsBaseTestCase):
     def test_query_with_exclude_facts_and_system_profile(self):
         host_list = self.added_hosts
         host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["facts", "system_profile_facts"]}
+        query_doc = {"host_id_list": host_id_list,
+                "exclude_fields": ["facts", "system_profile_facts"]}
         response = self.post(SEARCH_URL, query_doc, 200)
 
         for host in response["results"]:

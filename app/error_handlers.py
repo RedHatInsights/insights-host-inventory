@@ -3,12 +3,10 @@ import logging
 from flask import jsonify
 
 from flask_api import status
-
 logger = logging.getLogger(__name__)
 
 
-# Handles marshmallow schema validation errors
-def validation_error_handler(error):
+def marshmallow_validation_error_handler(error):
     logger.exception(error)
     response = jsonify(
         detail=error.messages,
