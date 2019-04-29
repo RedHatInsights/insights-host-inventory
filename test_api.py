@@ -1238,6 +1238,27 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 for key in patch_doc:
                     self.assertEqual(host[key], patch_doc[key])
 
+    def test_update_fields_on_multiple_hosts(self):
+        original_id = self.added_hosts[0].id
+
+        patch_doc = {"display_name": "fred_flintstone",
+                     "ansible_host": "barney_rubble"}
+
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}"
+
+        response_data = self.patch(test_url,
+                                   patch_doc,
+                                   200)
+
+        response_data = self.get(test_url, 200)
+
+        for host in response_data["results"]:
+            for key in patch_doc:
+                self.assertEqual(host[key], patch_doc[key])
+
+
     def test_patch_on_non_existent_host(self):
         non_existent_id = generate_uuid()
 

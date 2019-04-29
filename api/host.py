@@ -289,12 +289,12 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
-def patch_host(host_id, host_data):
+def patch_by_id(host_id_list, host_data):
     try:
         validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
     except ValidationError as e:
         logger.exception("Input validation error while patching host: %s - %s"
-                         % (host_id, host_data))
+                         % (host_id_list, host_data))
         return ({"status": 400,
                  "title": "Bad Request",
                  "detail": str(e.messages),
@@ -303,16 +303,16 @@ def patch_host(host_id, host_data):
                 400)
 
     query = _get_host_list_by_id_list(current_identity.account_number,
-                                      [host_id])
+                                      host_id_list)
 
-    host_to_update = query.first()
+    hosts_to_update = query.all()
 
-    if host_to_update is None:
-        logger.debug("Failed to find host (id=%s) during patch operation" %
-                     (host_id))
+    if not hosts_to_update:
+        logger.debug("Failed to find hosts during patch operation - hosts: %s" % host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
-    host_to_update.patch(validated_patch_host_data)
+    for host in hosts_to_update:
+        host.patch(validated_patch_host_data)
 
     db.session.commit()
 
