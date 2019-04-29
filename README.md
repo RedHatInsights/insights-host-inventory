@@ -178,7 +178,7 @@ a new host entry is created.
 
 #### Host deletion
 
-Hosts can be deleted by using the DELETE HTTP Method on the _/hosts/<id>_ endpoint.
+Hosts can be deleted by using the DELETE HTTP Method on the _/hosts/id_ endpoint.
 When a host is deleted, the inventory service will send an event message
 to the _platform.inventory.events_ message queue.  The delete event message
 will look like the following:
