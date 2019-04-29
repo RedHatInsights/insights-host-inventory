@@ -242,6 +242,9 @@ class DeleteHostsTestCase(DBAPITestCase):
         # Try to get the host again
         response = self.get(HOST_URL + "/" + original_id, 200)
 
+        self.assertEqual(response["count"], 0)
+        self.assertEqual(response["total"], 0)
+        self.assertEqual(response["results"], [])
 
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
