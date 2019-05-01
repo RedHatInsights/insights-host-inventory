@@ -131,7 +131,6 @@ class BaseAPITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, status)
         if return_response_as_json:
             return json.loads(response.data)
-
         else:
             return response
 
@@ -205,6 +204,8 @@ class DBAPITestCase(BaseAPITestCase):
         self.assertEqual(received_host["display_name"],
                          expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
+        self.assertEqual(received_host["ansible_host"],
+                         expected_host.ansible_host)
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
@@ -483,7 +484,8 @@ class CreateHostsTestCase(DBAPITestCase):
                                     "bios_uuid",
                                     "ip_addresses",
                                     "mac_addresses",
-                                    "external_id",)
+                                    "external_id",
+                                    "ansible_host",)
 
         host_data = HostWrapper(test_data(facts=None))
 
@@ -559,7 +561,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 201)
 
-
     def test_create_host_with_invalid_mac_address(self):
         invalid_mac_arrays = [[],
                               [""],
@@ -617,7 +618,6 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
-
     def test_create_host_with_invalid_external_id(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -636,6 +636,77 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
+    def test_create_host_with_ansible_host(self):
+        # Create a host with ansible_host field
+        host_data = HostWrapper(test_data(facts=None))
+        host_data.ansible_host = "ansible_host_"+generate_uuid()
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        self._validate_host(host_lookup_results["results"][0],
+                            host_data,
+                            expected_id=original_id)
+
+    def test_create_host_without_ansible_host_then_update(self):
+        # Create a host without ansible_host field
+        # then update those fields
+        host_data = HostWrapper(test_data(facts=None))
+        del host_data.ansible_host
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        ansible_hosts = ["ima_ansible_host_"+generate_uuid(),
+                         "",
+                         ]
+
+        # Update the ansible_host
+        for ansible_host in ansible_hosts:
+            with self.subTest(ansible_host=ansible_host):
+
+                host_data.ansible_host = ansible_host
+
+                # Update the hosts
+                self.post(HOST_URL, [host_data.data()], 207)
+
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+                self._validate_host(host_lookup_results["results"][0],
+                                    host_data,
+                                    expected_id=original_id)
+
+    def test_create_host_with_invalid_ansible_host(self):
+        host_data = HostWrapper(test_data(facts=None))
+
+        invalid_ansible_host = ["a"*256]
+
+        for ansible_host in invalid_ansible_host:
+            with self.subTest(ansible_host=ansible_host):
+                host_data.ansible_host = ansible_host
+
+                response = self.post(HOST_URL, [host_data.data()], 207)
+
+                error_host = response["data"][0]
+
+                self.assertEqual(error_host["status"], 400)
+
+                self.verify_error_response(error_host,
+                                           expected_title="Bad Request")
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
@@ -819,6 +890,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 "subscription_auto_attach": "yes",
                 "katello_agent_running": False,
                 "satellite_managed": False,
+                "cloud_provider": "Maclean's Music",
                 "yum_repos": [{"name": "repo1", "gpgcheck": True,
                                "enabled": True,
                                "base_url": "http://rpms.redhat.com"}],
@@ -953,7 +1025,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         # List of tuples (system profile change, expected system profile)
         system_profiles = [{"infrastructure_type": "i"*101,
-                            "infrastructure_vendor": "i"*101, }]
+                            "infrastructure_vendor": "i"*101,
+                            "cloud_provider": "i"*101, }]
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
@@ -986,6 +1059,35 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                                                          "enabled": True,
                                                          "base_url": yum_url}],
                                           }
+
+                # Create the host
+                response = self.post(HOST_URL, [host], 207)
+
+                self._verify_host_status(response, 0, 201)
+
+                created_host = self._pluck_host_from_response(response, 0)
+                original_id = created_host["id"]
+
+                # Verify that the system profile data is saved
+                host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
+                actual_host = host_lookup_results["results"][0]
+
+                self.assertEqual(original_id, actual_host["id"])
+
+                self.assertEqual(actual_host["system_profile"],
+                                 host["system_profile"])
+
+    def test_create_host_with_system_profile_with_different_cloud_providers(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+
+        cloud_providers = ["cumulonimbus", "cumulus", "c"*100]
+
+        for cloud_provider in cloud_providers:
+            with self.subTest(cloud_provider=cloud_provider):
+                host["rhel_machine_id"] = str(uuid.uuid4())
+                host["system_profile"] = {"cloud_provider": cloud_provider}
 
                 # Create the host
                 response = self.post(HOST_URL, [host], 207)
@@ -1108,6 +1210,80 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
+
+
+class PatchHostTestCase(PreCreatedHostsBaseTestCase):
+
+    def test_update_fields(self):
+        original_id = self.added_hosts[0].id
+
+        patch_docs = [{"ansible_host": "NEW_ansible_host"},
+                      {"ansible_host": ""},
+                      {"display_name": "fred_flintstone"},
+                      {"display_name": "fred_flintstone",
+                       "ansible_host": "barney_rubble"},
+                      ]
+
+        for patch_doc in patch_docs:
+            with self.subTest(valid_patch_doc=patch_doc):
+                response_data = self.patch(f"{HOST_URL}/{original_id}",
+                                           patch_doc,
+                                           200)
+
+                response_data = self.get(f"{HOST_URL}/{original_id}", 200)
+
+                host = response_data["results"][0]
+
+                for key in patch_doc:
+                    self.assertEqual(host[key], patch_doc[key])
+
+    def test_update_fields_on_multiple_hosts(self):
+        original_id = self.added_hosts[0].id
+
+        patch_doc = {"display_name": "fred_flintstone",
+                     "ansible_host": "barney_rubble"}
+
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}"
+
+        response_data = self.patch(test_url,
+                                   patch_doc,
+                                   200)
+
+        response_data = self.get(test_url, 200)
+
+        for host in response_data["results"]:
+            for key in patch_doc:
+                self.assertEqual(host[key], patch_doc[key])
+
+
+    def test_patch_on_non_existent_host(self):
+        non_existent_id = generate_uuid()
+
+        patch_doc = {"ansible_host": "NEW_ansible_host"}
+
+        self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
+
+    def test_invalid_data(self):
+        original_id = self.added_hosts[0].id
+
+        invalid_data_list = [{"ansible_host": "a"*256},
+                             {"ansible_host": None},
+                             {},
+                             {"display_name": None},
+                             {"display_name": ""},
+                             ]
+
+        for patch_doc in invalid_data_list:
+            with self.subTest(invalid_patch_doc=patch_doc):
+                response = self.patch(f"{HOST_URL}/{original_id}",
+                                      patch_doc,
+                                      status=400)
+
+                self.verify_error_response(response,
+                                           expected_title="Bad Request",
+                                           expected_status=400)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):

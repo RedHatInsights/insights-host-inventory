@@ -10,7 +10,7 @@ if (env.CHANGE_ID) {
         ocDeployerBuilderPath: "platform/insights-inventory",
         ocDeployerComponentPath: "platform/insights-inventory",
         ocDeployerServiceSets: "advisor,platform,platform-mq",
-        iqePlugins: ["iqe-advisor-plugin"],
-        pytestMarker: "advisor_smoke",
+        iqePlugins: ["iqe-advisor-plugin", "iqe-upload-plugin", "iqe-host-inventory-plugin"],
+        pytestMarker: "smoke",
     )
 }

@@ -110,6 +110,14 @@ python run_gunicorn.py
  INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
 ```
 
+
+## Using the legacy api
+
+```
+ export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
+```
+
+
 ## Deployment
 
 The application provides some management information about itself. These
