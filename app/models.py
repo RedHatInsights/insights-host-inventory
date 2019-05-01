@@ -384,12 +384,12 @@ class SearchSchema(Schema):
     host_id_list = fields.List(fields.Str(validate=verify_uuid_format),
                                validate=validate.Length(min=1, max=5000),
                                required=True)
-    exclude_fields = fields.List(fields.Str(validate=validate.Length(min=1, max=255)),
+    include_fields = fields.List(fields.Str(validate=validate.Length(min=1, max=255)),
                                  required=False,
                                  missing=[])
 
-    @validates("exclude_fields")
-    def validate_exclude_fields(self, fields):
+    @validates("include_fields")
+    def validate_include_fields(self, fields):
         valid_fields = ["facts", "system_profile_facts"]
         if not set(fields).issubset(valid_fields):
-            raise ValidationError("Invalid exclude_fields. Valid values are: %s" % valid_fields)
+            raise ValidationError("Invalid include_fields. Valid values are: %s" % valid_fields)

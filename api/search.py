@@ -13,7 +13,14 @@ logger = logging.getLogger(__name__)
 @metrics.api_request_time.time()
 def post(post_body, page=1, per_page=100):
     validated_input = SearchSchema(strict=True).load(post_body)
-    exclude = validated_input.data["exclude_fields"]
+    include = validated_input.data["include_fields"]
+    exclude = []
+
+    if "facts" not in include:
+        exclude.append("facts")
+    if "system_profile_facts" not in include:
+        exclude.append("system_profile_facts")
+
     query = get_host_list_by_id_list(current_identity.account_number,
                                      validated_input.data["host_id_list"],
                                      exclude)

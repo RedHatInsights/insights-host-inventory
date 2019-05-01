@@ -372,8 +372,8 @@ components:
           items:
             type: string
             format: uuid
-        exclude_fields:
-          description: List of fields to exclude from each host in the search results. Can be used to improve query performance.
+        include_fields:
+          description: Optionally include facts or system_profile with results
           type: array
           items:
             type: string

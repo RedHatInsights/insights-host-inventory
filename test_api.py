@@ -1532,23 +1532,10 @@ class SearchTests(PreCreatedHostsBaseTestCase):
                 self.post(SEARCH_URL,
                           invalid_query_doc, 400)
 
-    def test_query_with_exclude_facts(self):
+    def test_query_with_include_facts(self):
         host_list = self.added_hosts
         host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["facts"]}
-        response = self.post(SEARCH_URL, query_doc, 200)
-
-        for host in response["results"]:
-            assert host["id"] in host_id_list
-            assert "facts" not in host
-
-        self._post_paging_test(SEARCH_URL, query_doc, len(self.added_hosts))
-
-    def test_query_with_exclude_system_profile(self):
-        host_list = self.added_hosts
-        host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list,
-                "exclude_fields": ["system_profile_facts"]}
+        query_doc = {"host_id_list": host_id_list, "include_fields": ["facts"]}
         response = self.post(SEARCH_URL, query_doc, 200)
 
         for host in response["results"]:
@@ -1561,8 +1548,7 @@ class SearchTests(PreCreatedHostsBaseTestCase):
     def test_query_with_exclude_facts_and_system_profile(self):
         host_list = self.added_hosts
         host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list,
-                "exclude_fields": ["facts", "system_profile_facts"]}
+        query_doc = {"host_id_list": host_id_list}
         response = self.post(SEARCH_URL, query_doc, 200)
 
         for host in response["results"]:
@@ -1575,9 +1561,9 @@ class SearchTests(PreCreatedHostsBaseTestCase):
     def test_query_with_invalid_exclude(self):
         host_list = self.added_hosts
         host_id_list = [host.id for host in host_list]
-        query_doc = {"host_id_list": host_id_list, "exclude_fields": ["invalid"]}
+        query_doc = {"host_id_list": host_id_list, "include_fields": ["invalid"]}
         response = self.post(SEARCH_URL, query_doc, 400)
-        assert "Invalid exclude_fields. Valid values are: ['facts', 'system_profile_facts']" in response["detail"]["exclude_fields"][0]
+        assert "Invalid include_fields. Valid values are: ['facts', 'system_profile_facts']" in response["detail"]["include_fields"][0]
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
