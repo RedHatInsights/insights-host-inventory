@@ -4,17 +4,19 @@ This project is the home of the host-based inventory for the Insights Platform.
 
 ## Getting Started
 
-This project uses pipenv to manage the development and deployment environments.
+This project uses pip to manage the development and deployment environments.
 To set the project up for development do the following:
 
 ```
-pipenv install --dev
+python -m venv $dir
+source $dir/bin/activate
+pip install -e .[tests]
 ```
 
-Afterwards you can activate the virtual environment by running:
+You can activate the virtual environment by running:
 
 ```
-pipenv shell
+source $dir/bin/activate
 ```
 
 Included is a docker-compose file `dev.yml` that will start a postgres database that is
