@@ -43,7 +43,6 @@ paths:
           name: branch_id
           schema:
             type: string
-            format: uuid
           description: Filter by branch_id
           required: false
         - $ref: '#/components/parameters/perPageParam'
