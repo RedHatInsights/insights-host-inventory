@@ -561,7 +561,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 201)
 
-
     def test_create_host_with_invalid_mac_address(self):
         invalid_mac_arrays = [[],
                               [""],
