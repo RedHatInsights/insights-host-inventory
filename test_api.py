@@ -12,8 +12,9 @@ from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
 from json import dumps
+from math import ceil
 from datetime import datetime, timezone
-from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
+
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
@@ -27,6 +28,8 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+
+DEFAULT_LIMIT = 50
 
 
 def generate_uuid():
@@ -54,14 +57,6 @@ def build_auth_header(token):
 
 def build_valid_auth_header():
     return build_auth_header(SHARED_SECRET)
-
-
-def inject_qs(url, **kwargs):
-    scheme, netloc, path, query, fragment = urlsplit(url)
-    params = parse_qs(query)
-    params.update(kwargs)
-    new_query = urlencode(params, doseq=True)
-    return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
 class BaseAPITestCase(unittest.TestCase):
@@ -827,39 +822,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 i += 1
 
 
-class PaginationTestCase(BaseAPITestCase):
-    def _base_paging_test(self, url, expected_number_of_hosts):
-        def _test_get_page(offset, expected_count=1):
-            test_url = inject_qs(url, offset=offset, limit="1")
-            response = self.get(test_url, 200)
-
-            self.assertEqual(len(response["data"]), expected_count)
-            self.assertEqual(response["meta"]["count"], expected_count)
-            self.assertEqual(response["meta"]["total"], expected_number_of_hosts)
-
-        if expected_number_of_hosts == 0:
-            _test_get_page(0, expected_count=0)
-            return
-
-        i = 0
-
-        # Iterate through the pages
-        for i in range( expected_number_of_hosts):
-            with self.subTest(pagination_test=i):
-                _test_get_page(str(i))
-
-        # Go one page past the last page and look for an error
-        i = i + 1
-        with self.subTest(pagination_test=i):
-            test_url = inject_qs(url, offset=str(i), limit="1")
-            response = self.get(test_url, 404)
-            self.assertEqual(
-                response["detail"],
-                "No resources found with provided limit and offset"
-            )
-
-
-class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
+class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 
     def _valid_system_profile(self):
         return {"number_of_cpus": 1,
@@ -1170,8 +1133,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         for expected_system_profile in expected_system_profiles:
             self.assertIn(expected_system_profile, host_lookup_results["data"])
 
-        self._base_paging_test(test_url, len(expected_system_profiles))
-
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
         expected_total = 0
@@ -1190,21 +1151,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                                            expected_status=400)
 
 
-class QueriesTestCase(unittest.TestCase):
-
-    def _queries_subtests(self, host_id_list):
-        url_host_id_list = ",".join(host_id_list)
-        urls = (
-            HOST_URL,
-            f"{HOST_URL}/{url_host_id_list}",
-            f"{HOST_URL}/{url_host_id_list}/system_profile"
-        )
-        for url in urls:
-            with self.subTest(url=url):
-                yield url
-
-
-class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
+class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.create_hosts()
@@ -1312,8 +1259,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in self.added_hosts]
         self.assertEqual(response["data"], expected_host_list)
 
-        self._base_paging_test(HOST_URL, len(self.added_hosts))
-
     def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
         added_host_list = copy.deepcopy(self.added_hosts)
         expected_host_list = [copy.deepcopy(h.data()) for h in added_host_list]
@@ -1349,8 +1294,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["data"], expected_host_list)
-
-        self._base_paging_test(test_url, len(self.added_hosts))
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -1449,8 +1392,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["data"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
-
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
@@ -1460,8 +1401,6 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url)
 
         self.assertEqual(len(response["data"]), expected_number_of_hosts)
-
-        self._base_paging_test(test_url, expected_number_of_hosts)
 
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
@@ -1494,8 +1433,6 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(len(response["data"]), expected_number_of_hosts)
 
-        self._base_paging_test(test_url, expected_number_of_hosts)
-
     def test_query_with_matching_insights_id(self):
         host_list = self.added_hosts
 
@@ -1506,9 +1443,23 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
 
 
-class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
+class QueryBaseTestCase(DBAPITestCase):
+    def _assert_hosts_in_response(self, response, expected_hosts, expected_total):
+        expected_host_ids = [host.id for host in expected_hosts]
+        self.assertEqual(response["meta"]["count"], len(expected_hosts))
+        self.assertEqual(response["meta"]["total"], expected_total)
 
-    def _queries_subtests(self, host_id_list):
+        response_host_ids = [host["id"] for host in response["data"]]
+        self.assertEqual(len(response_host_ids), len(expected_host_ids))
+        self.assertEqual(set(response_host_ids), set(expected_host_ids))
+
+
+class QueriesWithPreCreatedHostsBaseTestCase(
+    QueryBaseTestCase, PreCreatedHostsBaseTestCase
+):
+
+    def _queries_subtests_with_added_hosts(self):
+        host_id_list = [host.id for host in self.added_hosts]
         url_host_id_list = ",".join(host_id_list)
         urls = (
             HOST_URL,
@@ -1519,15 +1470,8 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
             with self.subTest(url=url):
                 yield url
 
-    def _queries_subtests_with_added_hosts(self):
-        host_id_list = [host.id for host in self.added_hosts]
-        yield from self._queries_subtests(host_id_list)
 
-    def _assert_hosts_in_response(self, response, expected_hosts):
-        expected_host_ids = [host.id for host in expected_hosts]
-        response_host_ids = [host["id"] for host in response["data"]]
-        self.assertEqual(len(response_host_ids), len(expected_host_ids))
-        self.assertEqual(set(response_host_ids), set(expected_host_ids))
+class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTestCase):
 
     def test_all_records_with_defaults(self):
         """
@@ -1536,7 +1480,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(url, 200)
-            self._assert_hosts_in_response(response, self.added_hosts)
+            self._assert_hosts_in_response(
+                response, self.added_hosts, len(self.added_hosts)
+            )
 
     def test_all_records_with_limit(self):
         """
@@ -1545,7 +1491,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=3&offset=0", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[0:3])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[0:3], len(self.added_hosts)
+            )
 
     def test_first_records(self):
         """
@@ -1554,7 +1502,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=2&offset=0", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[0:2])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[0:2], len(self.added_hosts)
+            )
 
     def test_middle_record(self):
         """
@@ -1563,7 +1513,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=1&offset=1", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[1:2])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[1:2], len(self.added_hosts)
+            )
 
     def test_last_records(self):
         """
@@ -1572,7 +1524,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=2&offset=1", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[1:3])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[1:3], len(self.added_hosts)
+            )
 
     def test_overlap_at_begin(self):
         """
@@ -1581,7 +1535,9 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=3&offset=-1", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[0:2])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[0:2], len(self.added_hosts)
+            )
 
     def test_overlap_at_end(self):
         """
@@ -1590,26 +1546,154 @@ class PaginatedQueryWithPreCreatedHostsTestCase(PreCreatedHostsBaseTestCase):
         """
         for url in self._queries_subtests_with_added_hosts():
             response = self.get(f"{url}?limit=3&offset=1", 200)
-            self._assert_hosts_in_response(response, self.added_hosts[1:3])
+            self._assert_hosts_in_response(
+                response, self.added_hosts[1:3], len(self.added_hosts)
+            )
 
     def test_not_found_beyond_end(self):
+        """
+        Records: ---
+        Get         ...
+        """
         for url in self._queries_subtests_with_added_hosts():
             self.get(f"{url}?limit=3&offset=3", 404)
 
     def test_not_found_beyond_begin(self):
+        """
+        Records:    ---
+        Get      ...
+        """
         for url in self._queries_subtests_with_added_hosts():
             self.get(f"{url}?limit=3&offset=-3", 404)
 
 
-class PaginatedQueryWithNoHostsTestCase(DBAPITestCase):
+class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
+    QueryBaseTestCase, PreCreatedHostsBaseTestCase
+):
+
+    def test_one_result(self):
+        queries = [
+            f"display_name={self.added_hosts[2].display_name}",
+            f"fqdn={self.added_hosts[2].fqdn}",
+            f"hostname_or_id={self.added_hosts[2].id}",
+            f"insights_id={self.added_hosts[2].insights_id}"
+        ]
+
+        for query in queries:
+            with self.subTest(query=query):
+                base_url = f"{HOST_URL}?{query}"
+                response = self.get(f"{base_url}&offset=0")
+                self._assert_hosts_in_response(response, self.added_hosts[2:3], 1)
+
+                self.get(f"{base_url}&offset=1", 404)
+
+    def test_more_results(self):
+        base_url = f"{HOST_URL}?fqdn={self.added_hosts[0].fqdn}"
+        offsets = [0, 1]
+        for offset in offsets:
+            with self.subTest(offset=offset):
+                response = self.get(f"{base_url}&offset={offset}")
+
+                expected_hosts = self.added_hosts[offset:2]
+                self._assert_hosts_in_response(response, expected_hosts, 2)
+
+        self.get(f"{base_url}&offset=2", 404)
+
+
+class PaginatedQueryWithMorePreCreatedHostsTestCase(
+    QueriesWithPreCreatedHostsBaseTestCase
+):
+
+    def create_hosts(self):
+        hosts_to_create = []
+        for i in range(DEFAULT_LIMIT + 1):
+            hosts_to_create.append(
+                (f"host{i}", generate_uuid(), f"host{i}.domain.test")
+            )
+
+        host_list = []
+        for host in hosts_to_create:
+            host_wrapper = HostWrapper()
+            host_wrapper.account = ACCOUNT
+            host_wrapper.display_name = host[0]
+            host_wrapper.insights_id = host[1]
+            host_wrapper.fqdn = host[2]
+            host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+
+            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+            host_list.append(HostWrapper(response_data["data"][0]["host"]))
+
+        return host_list
+
+    def test_defaults(self):
+        """
+        Records: ---------------------------------------------------
+        Get:     **************************************************  ?limit=50&offset=0
+        """
+        for url in self._queries_subtests_with_added_hosts():
+            response = self.get(url)
+            self._assert_hosts_in_response(
+                response, self.added_hosts[0:DEFAULT_LIMIT], len(self.added_hosts)
+            )
+
+    def test_traversing(self):
+        """
+        Records: ---------------------------------------------------
+        Get:     **********
+                           **********
+                                     **********
+                                               **********
+                                                         **********
+                                                                   *.........
+                                                                             ..........
+                                                                             Not Found
+        """
+        total = len(self.added_hosts)
+
+        def _url(limit, offset):
+            return f"{HOST_URL}?limit={limit}&offset={offset}"
+
+        def _test_get_page(limit, offset):
+            response = self.get(_url(limit, offset))
+
+            self._assert_hosts_in_response(
+                response, self.added_hosts[offset:offset+limit], len(self.added_hosts)
+            )
+
+            expected_count = min(limit, total - offset)
+
+            from logging import DEBUG, getLogger
+
+            logger = getLogger(__name__)
+            logger.setLevel(DEBUG)
+            logger.debug(f"{HOST_URL}?limit={limit}&offset={offset}")
+            logger.debug(f"{response}, {expected_count}")
+            self.assertEqual(len(response["data"]), expected_count)
+            self.assertEqual(response["meta"]["count"], expected_count)
+            self.assertEqual(response["meta"]["total"], total)
+
+        page_sizes = [1, 10, DEFAULT_LIMIT, total]
+        for page_size in page_sizes:
+            with self.subTest(page_size=page_size):
+                total_pages = ceil(len(self.added_hosts) / page_size)
+                for page in range(total_pages):
+                    _test_get_page(page_size, page_size * page)
+
+                self.get(_url(page_size, page_size * total_pages), 404)
+
+
+class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase):
 
     def test_no_records_with_default(self):
         response = self.get(HOST_URL, 200)
-        self.assertEqual(response["data"], [])
+        self._assert_hosts_in_response(response, [], 0)
 
     def test_no_records_with_limit(self):
-        response = self.get(f"{HOST_URL}?limit=30", 200)
-        self.assertEqual(response["data"], [])
+        limits = ["1", "30", DEFAULT_LIMIT, "100"]
+        for limit in limits:
+            with self.subTest(limit=limit):
+                response = self.get(f"{HOST_URL}?limit={limit}&offset=0")
+                self._assert_hosts_in_response(response, [], 0)
 
     def test_not_found_with_positive_offset(self):
         self.get(f"{HOST_URL}?offset=1", 404)
