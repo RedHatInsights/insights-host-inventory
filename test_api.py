@@ -1237,6 +1237,19 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 for key in patch_doc:
                     self.assertEqual(host[key], patch_doc[key])
 
+    def test_patch_with_branch_id_parameter(self):
+        original_id = self.added_hosts[0].id
+
+        patch_doc = {"display_name": "branch_id_test"}
+
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}?branch_id=123"
+
+        response_data = self.patch(test_url,
+                                   patch_doc,
+                                   200)
+
     def test_update_fields_on_multiple_hosts(self):
         original_id = self.added_hosts[0].id
 
@@ -1256,7 +1269,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         for host in response_data["results"]:
             for key in patch_doc:
                 self.assertEqual(host[key], patch_doc[key])
-
 
     def test_patch_on_non_existent_host(self):
         non_existent_id = generate_uuid()
@@ -1332,6 +1344,15 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
+
+    def test_query_using_host_id_list_include_branch_id_parameter(self):
+        host_list = self.added_hosts
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        test_url = HOST_URL + "/" + url_host_id_list + "?branch_id=123"
+
+        response = self.get(test_url, 200)
 
     def test_query_using_host_id_list_with_invalid_paging_parameters(self):
         host_list = self.added_hosts
@@ -1485,6 +1506,13 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
+
+    def test_query_with_maching_insights_id_and_branch_id(self):
+        valid_insights_id = self.added_hosts[0].insights_id
+
+        test_url = HOST_URL + "?insights_id=" + valid_insights_id + "&branch_id=123"
+
+        response = self.get(test_url, 200)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
