@@ -119,6 +119,12 @@ paths:
             items:
               type: string
               format: uuid
+        - in: query
+          name: branch_id
+          schema:
+            type: string
+          description: Filter by branch_id
+          required: false
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -150,6 +156,12 @@ paths:
             items:
               type: string
               format: uuid
+        - in: query
+          name: branch_id
+          schema:
+            type: string
+          description: Filter by branch_id
+          required: false
       requestBody:
         description: A group of fields to be updated on the host
         required: true
