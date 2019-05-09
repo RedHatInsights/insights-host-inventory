@@ -1277,6 +1277,14 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
+    def test_patch_on_multiple_hosts_with_some_non_existent(self):
+        non_existent_id = generate_uuid()
+        original_id = self.added_hosts[0].id
+
+        patch_doc = {"ansible_host": "NEW_ansible_host"}
+
+        self.patch(f"{HOST_URL}/{non_existent_id},{original_id}", patch_doc)
+
     def test_invalid_data(self):
         original_id = self.added_hosts[0].id
 
@@ -1296,6 +1304,13 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.verify_error_response(response,
                                            expected_title="Bad Request",
                                            expected_status=400)
+
+    def test_invalid_host_id(self):
+        patch_doc = {"display_name": "branch_id_test"}
+        host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
+        for host_id_list in host_id_lists:
+            with self.subTest(host_id_list=host_id_list):
+                self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
