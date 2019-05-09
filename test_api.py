@@ -10,6 +10,7 @@ import tempfile
 from app import create_app, db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
+from tasks import msg_handler
 from base64 import b64encode
 from json import dumps
 from datetime import datetime, timezone
@@ -935,7 +936,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         self.assertEqual(actual_host["system_profile"], host["system_profile"])
 
-    @unittest.skip("This test needs to be updated to use the queue-based path")
     def test_create_host_without_system_profile_then_update_with_system_profile(self):
         facts = None
 
@@ -978,20 +978,13 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         for i, (system_profile, expected_system_profile) in enumerate(system_profiles):
             with self.subTest(system_profile=i):
-
-                host["system_profile"] = system_profile
-
-                # Create the host
-                response = self.post(HOST_URL, [host], 207)
-
-                self._verify_host_status(response, 0, 200)
-
-                created_host = self._pluck_host_from_response(response, 0)
-
-                original_id = created_host["id"]
-
-                # verify system_profile is not included
-                self.assertNotIn("system_profile", created_host)
+                mq_message = {
+                    "id": original_id,
+                    "request_id": None,
+                    "system_profile": system_profile
+                }
+                with self.app.app_context():
+                    msg_handler(mq_message)
 
                 host_lookup_results = self.get("%s/%s/system_profile" % (HOST_URL, original_id), 200)
                 actual_host = host_lookup_results["results"][0]
