@@ -1510,6 +1510,51 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url, len(self.added_hosts))
 
 
+class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
+
+    def _base_query_test(self, host_id_list, expected_host_list):
+        url = f"{HOST_URL}/{host_id_list}"
+        response = self.get(url)
+
+        self.assertEqual(response["count"], len(expected_host_list))
+        self.assertEqual(len(response["results"]), len(expected_host_list))
+
+        host_data = [host.data() for host in expected_host_list]
+        for host in host_data:
+            self.assertIn(host, response["results"])
+        for host in response["results"]:
+            self.assertIn(host, host_data)
+
+        self._base_paging_test(url, len(expected_host_list))
+
+    def test_query_existent_hosts(self):
+        host_lists = [
+            self.added_hosts[0:1],
+            self.added_hosts[1:3],
+            self.added_hosts,
+        ]
+        for host_list in host_lists:
+            with self.subTest(host_list=host_list):
+                host_id_list = self._build_host_id_list_for_url(host_list)
+                self._base_query_test(host_id_list, host_list)
+
+    def test_query_single_non_existent_host(self):
+        self._base_query_test(generate_uuid(), [])
+
+    def test_query_multiple_hosts_with_some_non_existent(self):
+        host_list = self.added_hosts[0:1]
+        existent_host_id_list = self._build_host_id_list_for_url(host_list)
+        non_existent_host_id = generate_uuid()
+        host_id_list = f"{non_existent_host_id},{existent_host_id_list}"
+        self._base_query_test(host_id_list, host_list)
+
+    def test_query_invalid_host_id(self):
+        host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
+        for host_id_list in host_id_lists:
+            with self.subTest(host_id_list=host_id_list):
+                self.get(f"{HOST_URL}/{host_id_list}", 400)
+
+
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
     def _base_query_test(self, query_value, expected_number_of_hosts):
