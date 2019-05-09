@@ -780,12 +780,12 @@ class BulkCreateHostsTestCase(DBAPITestCase):
             host1 = HostWrapper(test_data(display_name="host1", facts=facts))
             host1.account = "111111"
             host1.ip_addresses = ["10.0.0.1"]
-            host1.rhel_machine_id = str(uuid.uuid4())
+            host1.rhel_machine_id = generate_uuid()
 
             host2 = HostWrapper(test_data(display_name="host2", facts=facts))
             host2.account = "222222"
             host2.ip_addresses = ["10.0.0.2"]
-            host2.rhel_machine_id = str(uuid.uuid4())
+            host2.rhel_machine_id = generate_uuid()
 
             host_list = [host1.data(), host2.data()]
 
@@ -801,11 +801,11 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(host["status"], 201)
 
             host_list[0]["id"] = response["data"][0]["host"]["id"]
-            host_list[0]["bios_uuid"] = str(uuid.uuid4())
+            host_list[0]["bios_uuid"] = generate_uuid()
             host_list[0]["display_name"] = "fred"
 
             host_list[1]["id"] = response["data"][1]["host"]["id"]
-            host_list[1]["bios_uuid"] = str(uuid.uuid4())
+            host_list[1]["bios_uuid"] = generate_uuid()
             host_list[1]["display_name"] = "barney"
 
             # Update the host
@@ -912,7 +912,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["rhel_machine_id"] = generate_uuid()
 
         host["system_profile"] = self._valid_system_profile()
 
@@ -941,7 +941,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["rhel_machine_id"] = generate_uuid()
 
         # Create the host without a system profile
         response = self.post(HOST_URL, [host], 207)
@@ -1006,7 +1006,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["rhel_machine_id"] = generate_uuid()
         host["system_profile"] = None
 
         # Create the host without a system profile
@@ -1021,7 +1021,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["rhel_machine_id"] = generate_uuid()
 
         # List of tuples (system profile change, expected system profile)
         system_profiles = [{"infrastructure_type": "i"*101,
@@ -1053,7 +1053,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         for yum_url in yum_urls:
             with self.subTest(yum_url=yum_url):
-                host["rhel_machine_id"] = str(uuid.uuid4())
+                host["rhel_machine_id"] = generate_uuid()
                 host["system_profile"] = {"yum_repos": [{"name": "repo1",
                                                          "gpgcheck": True,
                                                          "enabled": True,
@@ -1086,7 +1086,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         for cloud_provider in cloud_providers:
             with self.subTest(cloud_provider=cloud_provider):
-                host["rhel_machine_id"] = str(uuid.uuid4())
+                host["rhel_machine_id"] = generate_uuid()
                 host["system_profile"] = {"cloud_provider": cloud_provider}
 
                 # Create the host
@@ -1112,7 +1112,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         host = test_data(display_name="host1", facts=facts)
         host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = str(uuid.uuid4())
+        host["rhel_machine_id"] = generate_uuid()
 
         # Create the host without a system profile
         response = self.post(HOST_URL, [host], 207)
@@ -1139,7 +1139,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         for i in range(2):
             host = test_data(display_name="host1", facts=facts)
             host["ip_addresses"] = [f"10.0.0.{i}"]
-            host["rhel_machine_id"] = str(uuid.uuid4())
+            host["rhel_machine_id"] = generate_uuid()
             host["system_profile"] = self._valid_system_profile()
             host["system_profile"]["number_of_cpus"] = i
 
@@ -1170,13 +1170,13 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
         expected_total = 0
-        host_id = str(uuid.uuid4())
+        host_id = generate_uuid()
         results = self.get("%s/%s/system_profile" % (HOST_URL, host_id), 200)
         self.assertEqual(results["count"], expected_count)
         self.assertEqual(results["total"], expected_total)
 
     def test_get_system_profile_with_invalid_host_id(self):
-        invalid_host_ids = ["notauuid", "%s,notuuid" % str(uuid.uuid4())]
+        invalid_host_ids = ["notauuid", "%s,notuuid" % generate_uuid()]
         for host_id in invalid_host_ids:
             with self.subTest(invalid_host_id=host_id):
                 response = self.get("%s/%s/system_profile" % (HOST_URL, host_id), 400)
@@ -1373,7 +1373,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         # Add some host ids to the list that do not exist
         url_host_id_list = (
-            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+            url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
         )
 
         response = self.get(HOST_URL + "/" + url_host_id_list, 200)
@@ -1484,7 +1484,7 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
         self._base_query_test("NotGonnaFindMe", 0)
 
     def test_query_using_non_existent_id(self):
-        self._base_query_test(str(uuid.uuid4()), 0)
+        self._base_query_test(generate_uuid(), 0)
 
 
 class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
@@ -1583,7 +1583,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
         # Add a couple of host ids that should not exist in the database
         url_host_id_list = (
-            url_host_id_list + "," + str(uuid.uuid4()) + "," + str(uuid.uuid4())
+            url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
         )
 
         patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
