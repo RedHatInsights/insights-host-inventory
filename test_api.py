@@ -1489,8 +1489,11 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
 class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
+    def _test_url(self, query_value):
+        return HOST_URL + "?insights_id=" + query_value
+
     def _base_query_test(self, query_value, expected_number_of_hosts):
-        test_url = HOST_URL + "?insights_id=" + query_value
+        test_url = self._test_url(query_value)
 
         response = self.get(test_url)
 
@@ -1506,6 +1509,10 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
+
+    def test_query_with_invalid_insights_id(self):
+        test_url = self._test_url("notauuid")
+        self.get(test_url, 400)
 
     def test_query_with_maching_insights_id_and_branch_id(self):
         valid_insights_id = self.added_hosts[0].insights_id
