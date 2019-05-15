@@ -163,7 +163,6 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
-  '/hosts/{host_id}':
     patch:
       tags:
         - hosts
