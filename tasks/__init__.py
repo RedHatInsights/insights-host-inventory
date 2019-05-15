@@ -1,4 +1,3 @@
-import os
 import json
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
@@ -7,20 +6,28 @@ from threading import Thread
 from api import metrics
 from app import db
 from app.logging import threadctx, get_logger
+from app.config import Config
 from app.models import Host, SystemProfileSchema
 
 logger = get_logger(__name__)
 
-TOPIC = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
-KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
-BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-EVENT_TOPIC = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+cfg = Config()
 
-producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
+
+class NullProducer:
+
+    def send(self, topic, value=None):
+        pass
+
+
+if cfg.kafka_enabled:
+    producer = KafkaProducer(bootstrap_servers=cfg.bootstrap_servers)
+else:
+    producer = NullProducer()
 
 
 def emit_event(e):
-    producer.send(EVENT_TOPIC, value=e.encode("utf-8"))
+    producer.send(cfg.event_topic, value=e.encode("utf-8"))
 
 
 @metrics.system_profile_commit_processing_time.time()
@@ -46,9 +53,9 @@ def start_consumer(flask_app, handler=msg_handler, consumer=None):
 
     if consumer is None:
         consumer = KafkaConsumer(
-            TOPIC,
-            group_id=KAFKA_GROUP,
-            bootstrap_servers=BOOTSTRAP_SERVERS)
+            cfg.system_profile_topic,
+            group_id=cfg.consumer_group,
+            bootstrap_servers=cfg.bootstrap_servers)
 
     def _f():
         with flask_app.app_context():

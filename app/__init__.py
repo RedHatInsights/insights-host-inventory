@@ -1,4 +1,3 @@
-import os
 import connexion
 import yaml
 
@@ -30,7 +29,8 @@ def create_app(config_name):
     # needs to be setup before the flask app is initialized.
     configure_logging(config_name)
 
-    app_config = Config(config_name)
+    app_config = Config()
+    app_config.log_configuration(config_name)
 
     connexion_app = connexion.App(
         "inventory", specification_dir="./swagger/", options=connexion_options
@@ -75,7 +75,7 @@ def create_app(config_name):
             REQUEST_ID_HEADER,
             UNKNOWN_REQUEST_ID_VALUE)
 
-    if all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"])):
+    if app_config.kafka_enabled:
         start_consumer(flask_app)
 
     return flask_app

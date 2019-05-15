@@ -233,18 +233,21 @@ class DeleteHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
+        url = HOST_URL + "/" + original_id
+
         # Get the host
-        response = self.get(HOST_URL + "/" + original_id, 200)
+        self.get(url, 200)
 
         # Delete the host
-        response = self.delete(HOST_URL + "/" + original_id, 200, return_response_as_json=False)
+        self.delete(url, 200, return_response_as_json=False)
 
         # Try to get the host again
-        response = self.get(HOST_URL + "/" + original_id, 200)
+        response = self.get(url, 200)
 
         self.assertEqual(response["count"], 0)
         self.assertEqual(response["total"], 0)
         self.assertEqual(response["results"], [])
+
 
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
@@ -1790,6 +1793,7 @@ class HealthTestCase(BaseAPITestCase):
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response['version'] is not None
+
 
 if __name__ == "__main__":
     unittest.main()
