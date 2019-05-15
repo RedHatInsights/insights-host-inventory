@@ -183,7 +183,7 @@ When a host is deleted, the inventory service will send an event message
 to the _platform.inventory.events_ message queue.  The delete event message
 will look like the following:
 
-```
+```json
   {"id": <host id>, "timestamp": <delete timestamp>, "type": "delete"}
 ```
 
