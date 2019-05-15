@@ -7,7 +7,7 @@ import test.support
 import uuid
 import copy
 import tempfile
-from app import create_app, db
+from app import create_app, db, events
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from base64 import b64encode
@@ -238,8 +238,18 @@ class DeleteHostsTestCase(DBAPITestCase):
         # Get the host
         self.get(url, 200)
 
+        class MockEmitEvent:
+
+            def __init__(self):
+                self.events = []
+
+            def __call__(self, e):
+                self.events.append(e)
+
         # Delete the host
-        self.delete(url, 200, return_response_as_json=False)
+        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+            self.delete(url, 200, return_response_as_json=False)
+            assert original_id in m.events[0]
 
         # Try to get the host again
         response = self.get(url, 200)

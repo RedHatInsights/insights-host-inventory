@@ -248,13 +248,14 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    hosts = _get_host_list_by_id_list(
+    query = _get_host_list_by_id_list(
         current_identity.account_number, host_id_list, order=False
     )
+    hosts = query.all()
     with metrics.delete_host_processing_time.time():
-        hosts.delete(synchronize_session="fetch")
+        query.delete(synchronize_session="fetch")
     db.session.commit()
-    metrics.delete_host_count.inc(hosts.count())
+    metrics.delete_host_count.inc(len(hosts))
     for deleted_host in hosts:
         emit_event(events.delete(deleted_host.id))
 
