@@ -258,6 +258,11 @@ class DeleteHostsTestCase(DBAPITestCase):
         self.assertEqual(response["total"], 0)
         self.assertEqual(response["results"], [])
 
+    def test_delete_non_existent_host(self):
+        url = HOST_URL + "/" + generate_uuid()
+
+        self.delete(url, 404)
+
 
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):

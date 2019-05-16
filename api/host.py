@@ -251,7 +251,12 @@ def delete_by_id(host_id_list):
     query = _get_host_list_by_id_list(
         current_identity.account_number, host_id_list, order=False
     )
+
     hosts = query.all()
+
+    if not hosts:
+        return flask.abort(status.HTTP_404_NOT_FOUND)
+
     with metrics.delete_host_processing_time.time():
         query.delete(synchronize_session="fetch")
     db.session.commit()
