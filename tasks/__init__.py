@@ -17,12 +17,15 @@ cfg = Config()
 class NullProducer:
 
     def send(self, topic, value=None):
-        pass
+        logger.debug("NullProducer - logging message:  topic (%s) - message: %s " %
+                     (topic, value))
 
 
 if cfg.kafka_enabled:
+    logger.info("Starting KafkaProducer()")
     producer = KafkaProducer(bootstrap_servers=cfg.bootstrap_servers)
 else:
+    logger.info("Starting NullProducer()")
     producer = NullProducer()
 
 
