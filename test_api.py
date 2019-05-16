@@ -218,52 +218,6 @@ class DBAPITestCase(BaseAPITestCase):
         self.assertIsNotNone(received_host["updated"])
 
 
-class DeleteHostsTestCase(DBAPITestCase):
-    def test_create_then_delete(self):
-        facts = None
-
-        host_data = HostWrapper(test_data(facts=facts))
-
-        # Create the host
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        url = HOST_URL + "/" + original_id
-
-        # Get the host
-        self.get(url, 200)
-
-        class MockEmitEvent:
-
-            def __init__(self):
-                self.events = []
-
-            def __call__(self, e):
-                self.events.append(e)
-
-        # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
-            self.delete(url, 200, return_response_as_json=False)
-            assert original_id in m.events[0]
-
-        # Try to get the host again
-        response = self.get(url, 200)
-
-        self.assertEqual(response["count"], 0)
-        self.assertEqual(response["total"], 0)
-        self.assertEqual(response["results"], [])
-
-    def test_delete_non_existent_host(self):
-        url = HOST_URL + "/" + generate_uuid()
-
-        self.delete(url, 404)
-
-
 class CreateHostsTestCase(DBAPITestCase):
     def test_create_and_update(self):
         facts = None
@@ -1349,6 +1303,42 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.verify_error_response(response,
                                            expected_title="Bad Request",
                                            expected_status=400)
+
+
+class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+ 
+    def test_create_then_delete(self):
+        original_id = self.added_hosts[0].id
+
+        url = HOST_URL + "/" + original_id
+
+        # Get the host
+        self.get(url, 200)
+
+        class MockEmitEvent:
+
+            def __init__(self):
+                self.events = []
+
+            def __call__(self, e):
+                self.events.append(e)
+
+        # Delete the host
+        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+            self.delete(url, 200, return_response_as_json=False)
+            assert original_id in m.events[0]
+
+        # Try to get the host again
+        response = self.get(url, 200)
+
+        self.assertEqual(response["count"], 0)
+        self.assertEqual(response["total"], 0)
+        self.assertEqual(response["results"], [])
+
+    def test_delete_non_existent_host(self):
+        url = HOST_URL + "/" + generate_uuid()
+
+        self.delete(url, 404)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
