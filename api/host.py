@@ -182,7 +182,7 @@ def get_host_list(display_name=None, fqdn=None,
             Host.account == current_identity.account_number
         )
 
-    query = query.order_by(Host.created_on, Host.id)
+    query = query.order_by(Host.modified_on.desc(), Host.id.desc())
     query_results = query.paginate(page, per_page, True)
     logger.debug(f"Found hosts: {query_results.items}")
 
@@ -263,7 +263,7 @@ def _get_host_list_by_id_list(account_number, host_id_list):
     return Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
-    ).order_by(Host.created_on, Host.id)
+    ).order_by(Host.modified_on.desc(), Host.id.desc())
 
 
 @api_operation

@@ -1515,6 +1515,32 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url, 200)
 
 
+class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
+
+    def _queries_subtests_with_added_hosts(self):
+        host_id_list = [host.id for host in self.added_hosts]
+        url_host_id_list = ",".join(host_id_list)
+        urls = (
+            HOST_URL,
+            f"{HOST_URL}/{url_host_id_list}",
+            f"{HOST_URL}/{url_host_id_list}/system_profile"
+        )
+        for url in urls:
+            with self.subTest(url=url):
+                yield url
+
+    def tests_hosts_are_ordered_by_updated_desc(self):
+        expected_hosts = self.added_hosts.copy()
+        expected_hosts.reverse()
+        expected_ids = [host.id for host in expected_hosts]
+
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self.get(url)
+                response_ids = [host["id"] for host in response["results"]]
+                self.assertEqual(response_ids, expected_ids)
+
+
 class FactsTestCase(PreCreatedHostsBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
