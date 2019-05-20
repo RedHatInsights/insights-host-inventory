@@ -24,20 +24,21 @@ cfg = None
 
 def init_tasks(config, flask_app):
     global cfg
+    global producer
+
     cfg = config
 
-    _init_event_producer(config)
+    producer = _init_event_producer(config)
     _init_system_profile_consumer(config, flask_app)
 
 
 def _init_event_producer(config):
-    global producer
     if config.kafka_enabled:
         logger.info("Starting KafkaProducer()")
-        producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
+        return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
     else:
         logger.info("Starting NullProducer()")
-        producer = NullProducer()
+        return NullProducer()
 
 
 def emit_event(e):
