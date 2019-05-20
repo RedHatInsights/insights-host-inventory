@@ -1331,12 +1331,15 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(response["data"], expected_host_list)
 
-    def test_query_all_with_invalid_paging_parameters(self):
+    def test_query_all_with_invalid_limit_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
         for invalid_parameter in invalid_limit_parameters:
-            self.get(HOST_URL + "?per_page=" + invalid_parameter, 400)
+            self.get(HOST_URL + "?limit=" + invalid_parameter, 400)
 
-            self.get(HOST_URL + "?page=" + invalid_parameter, 400)
+    def test_query_all_with_invalid_offset_parameters(self):
+        invalid_offset_parameters = ["notanumber"]
+        for invalid_parameter in invalid_offset_parameters:
+            self.get(HOST_URL + "?offset=" + invalid_parameter, 400)
 
     def test_query_using_host_id_list(self):
         host_list = self.added_hosts
@@ -1352,7 +1355,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         self._base_paging_test(test_url, len(self.added_hosts))
 
-    def test_query_using_host_id_list_with_invalid_paging_parameters(self):
+    def test_query_using_host_id_list_with_invalid_limit_parameters(self):
         host_list = self.added_hosts
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
@@ -1360,9 +1363,17 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         invalid_limit_parameters = ["-1", "0", "notanumber"]
         for invalid_parameter in invalid_limit_parameters:
-            self.get(base_url + "?per_page=" + invalid_parameter, 400)
+            self.get(base_url + "?limit=" + invalid_parameter, 400)
 
-            self.get(base_url + "?page=" + invalid_parameter, 400)
+    def test_query_using_host_id_list_with_invalid_offset_parameters(self):
+        host_list = self.added_hosts
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+        base_url = HOST_URL + "/" + url_host_id_list
+
+        invalid_offset_parameters = ["notanumber"]
+        for invalid_parameter in invalid_offset_parameters:
+            self.get(base_url + "?offset=" + invalid_parameter, 400)
 
     def test_query_using_host_id_list_include_nonexistent_host_ids(self):
         host_list = self.added_hosts
