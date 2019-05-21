@@ -1298,8 +1298,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["data"], expected_host_list)
 
-        self._base_paging_test(test_url, len(self.added_hosts))
-
     def test_query_using_host_id_list_with_invalid_limit_parameters(self):
         host_list = self.added_hosts
 
