@@ -1340,6 +1340,11 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
         self.delete(url, 404)
 
+    def test_delete_with_invalid_host_id(self):
+        url = HOST_URL + "/" + "notauuid"
+
+        self.delete(url, 400)
+
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all(self):
