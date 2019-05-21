@@ -7,7 +7,7 @@ import test.support
 import uuid
 import copy
 import tempfile
-from app import create_app, db
+from app import create_app, db, events
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from tasks import msg_handler
@@ -100,6 +100,13 @@ class BaseAPITestCase(unittest.TestCase):
     def put(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(
             self.client().put, path, data, status, return_response_as_json
+        )
+
+    def delete(self, path, status=200, return_response_as_json=True):
+        return self._response_check(
+            self.client().delete(path, headers=self._get_valid_auth_header()),
+            status,
+            return_response_as_json,
         )
 
     def verify_error_response(self, response, expected_title=None,
@@ -1306,6 +1313,47 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
 
+class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+ 
+    def test_create_then_delete(self):
+        original_id = self.added_hosts[0].id
+
+        url = HOST_URL + "/" + original_id
+
+        # Get the host
+        self.get(url, 200)
+
+        class MockEmitEvent:
+
+            def __init__(self):
+                self.events = []
+
+            def __call__(self, e):
+                self.events.append(e)
+
+        # Delete the host
+        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+            self.delete(url, 200, return_response_as_json=False)
+            assert original_id in m.events[0]
+
+        # Try to get the host again
+        response = self.get(url, 200)
+
+        self.assertEqual(response["count"], 0)
+        self.assertEqual(response["total"], 0)
+        self.assertEqual(response["results"], [])
+
+    def test_delete_non_existent_host(self):
+        url = HOST_URL + "/" + generate_uuid()
+
+        self.delete(url, 404)
+
+    def test_delete_with_invalid_host_id(self):
+        url = HOST_URL + "/" + "notauuid"
+
+        self.delete(url, 400)
+
+
 class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
@@ -1770,6 +1818,7 @@ class HealthTestCase(BaseAPITestCase):
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response['version'] is not None
+
 
 if __name__ == "__main__":
     unittest.main()
