@@ -182,8 +182,12 @@ It is necessary to pass an authentication header along on each call to the
 service.  For testing purposes, it is possible to set the required identity
 header to the following:
 
-  x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+```
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+```
 
-This is the base64 encoding of the following json doc:
+This is the Base64 encoding of the following JSON document:
 
-  '{"identity":{"account_number":"0000001"}}'
+```json
+{"identity": {"account_number": "0000001"}}
+```
