@@ -10,7 +10,7 @@ from app.models import db
 from app.exceptions import InventoryException
 from app.logging import configure_logging, threadctx
 from app.validators import verify_uuid_format  # noqa: 401
-from tasks import start_consumer
+from tasks import init_tasks
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -75,7 +75,6 @@ def create_app(config_name):
             REQUEST_ID_HEADER,
             UNKNOWN_REQUEST_ID_VALUE)
 
-    if app_config.kafka_enabled:
-        start_consumer(flask_app)
+    init_tasks(app_config, flask_app)
 
     return flask_app

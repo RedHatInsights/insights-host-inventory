@@ -6,27 +6,39 @@ from threading import Thread
 from api import metrics
 from app import db
 from app.logging import threadctx, get_logger
-from app.config import Config
 from app.models import Host, SystemProfileSchema
 
 logger = get_logger(__name__)
-
-cfg = Config()
 
 
 class NullProducer:
 
     def send(self, topic, value=None):
-        logger.debug("NullProducer - logging message:  topic (%s) - message: %s " %
+        logger.debug("NullProducer - logging message:  topic (%s) - message: %s" %
                      (topic, value))
 
 
-if cfg.kafka_enabled:
-    logger.info("Starting KafkaProducer()")
-    producer = KafkaProducer(bootstrap_servers=cfg.bootstrap_servers)
-else:
-    logger.info("Starting NullProducer()")
-    producer = NullProducer()
+producer = None
+cfg = None
+
+
+def init_tasks(config, flask_app):
+    global cfg
+    global producer
+
+    cfg = config
+
+    producer = _init_event_producer(config)
+    _init_system_profile_consumer(config, flask_app)
+
+
+def _init_event_producer(config):
+    if config.kafka_enabled:
+        logger.info("Starting KafkaProducer()")
+        return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
+    else:
+        logger.info("Starting NullProducer()")
+        return NullProducer()
 
 
 def emit_event(e):
@@ -50,15 +62,19 @@ def msg_handler(parsed):
     db.session.commit()
 
 
-def start_consumer(flask_app, handler=msg_handler, consumer=None):
+def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consumer=None):
+
+    if not config.kafka_enabled:
+        logger.info("System profile consumer has been disabled")
+        return
 
     logger.info("Starting system profile queue consumer.")
 
     if consumer is None:
         consumer = KafkaConsumer(
-            cfg.system_profile_topic,
-            group_id=cfg.consumer_group,
-            bootstrap_servers=cfg.bootstrap_servers)
+            config.system_profile_topic,
+            group_id=config.consumer_group,
+            bootstrap_servers=config.bootstrap_servers)
 
     def _f():
         with flask_app.app_context():
