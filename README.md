@@ -198,11 +198,11 @@ service.  For testing purposes, it is possible to set the required identity
 header to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0=
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity": {"account_number": "0000001"}}
+{"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
 ```
