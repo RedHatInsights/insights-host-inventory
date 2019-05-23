@@ -1563,7 +1563,7 @@ class LimitOffsetBaseTestCase(unittest.TestCase):
         )
 
 
-class QueriesBaseTestCase(QueryBaseTestCase):
+class QueriesBaseTestCase(DBAPITestCase):
 
     def _queries_subtests(self, host_id_list):
         url_host_id_list = ",".join(host_id_list)
@@ -1577,9 +1577,7 @@ class QueriesBaseTestCase(QueryBaseTestCase):
                 yield url
 
 
-class QueriesWithPreCreatedHostsBaseTestCase(
-    QueriesBaseTestCase, PreCreatedHostsBaseTestCase
-):
+class QueriesWithPreCreatedHostsBaseTestCase(QueriesBaseTestCase, PreCreatedHostsBaseTestCase):
 
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
@@ -1600,7 +1598,7 @@ class QueryOrderTestCase(QueriesWithPreCreatedHostsBaseTestCase):
 
 
 class PaginatedQueryWithPreCreatedHostsTestCase(
-    QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
+    QueryBaseTestCase, QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
 ):
 
     def test_all_records_with_defaults(self):
@@ -1736,7 +1734,7 @@ class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
 
 
 class PaginatedQueryWithMorePreCreatedHostsTestCase(
-    QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
+    QueryBaseTestCase, QueriesWithPreCreatedHostsBaseTestCase, LimitOffsetBaseTestCase
 ):
 
     def create_hosts(self):
@@ -1834,9 +1832,7 @@ class PaginatedQueryWithNoHostsTestCase(QueryBaseTestCase, LimitOffsetBaseTestCa
         self._assert_limit_offset_error_detail(response)
 
 
-class PaginationLinksWithPreCreatedHostsTestCase(
-    QueriesWithPreCreatedHostsBaseTestCase
-):
+class PaginationLinksWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTestCase):
 
     def test_first_page(self):
         """
