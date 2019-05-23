@@ -4,12 +4,14 @@ import time
 from functools import wraps
 
 from api.metrics import api_request_count
+from app.logging import get_logger
 
 __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 def api_operation(old_func):
