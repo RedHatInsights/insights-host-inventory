@@ -5,6 +5,8 @@ from app.common import get_build_version
 
 
 class Config:
+    SSL_VERIFY_FULL = "verify-full"
+    
     def __init__(self, config_name):
         self.logger = logging.getLogger(__name__)
         self._config_name = config_name
@@ -13,15 +15,13 @@ class Config:
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
-        self._db_sslmode = os.getenv("INVENTORY_SSL_MODE", "")
-        self._db_cert = os.getenv("INVENTORY_CERT", "")
+        self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
+        self._db_cert = os.getenv("INVENTORY_DB_CERT", "")
 
-        if self._db_sslmode == "verify-full":
-            self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}?sslmode={self._db_sslmode}&sslrootcert={self._db_cert}"
-        else:
-            self.db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
         self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
+
+        self.db_uri = self._build_db_uri(self._db_ssl_mode)
 
         self.base_url_path = self._build_base_url_path()
         self.api_url_path_prefix = self._build_api_path()
@@ -41,6 +41,12 @@ class Config:
         api_path = f"{base_url_path}/{version}"
         return api_path
 
+    def _build_db_uri(self, ssl_mode):
+        db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
+        if ssl_mode == self.SSL_VERIFY_FULL:
+            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_cert}"
+        return db_uri
+
     def _log_configuration(self):
         if self._config_name != "testing":
             self.logger.info("Insights Host Inventory Configuration:")
@@ -50,7 +56,7 @@ class Config:
             self.logger.info("DB Host: %s" % self._db_host)
             self.logger.info("DB Name: %s" % self._db_name)
             self.logger.info("DB Connection URI: %s" % self.db_uri)
-        if self._db_sslmode == "verify-full":
-            self.logger.info("Using SSL for DB connection:")
-            self.logger.info("Postgresql SSL verification type: %s" % self._db_sslmode)
-            self.logger.info("Path to certificate: %s" % self._db_cert)
+            if self._db_ssl_mode == self.SSL_VERIFY_FULL:
+                self.logger.info("Using SSL for DB connection:")
+                self.logger.info("Postgresql SSL verification type: %s" % self._db_ssl_mode)
+                self.logger.info("Path to certificate: %s" % self._db_cert)
