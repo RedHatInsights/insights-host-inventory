@@ -115,6 +115,13 @@ python run_gunicorn.py
 To force an ssl connection to the db set INVENTORY_SSL_MODE to "verify-full"
 and provide the path to the certificate you'd like to use.
 
+## Using the legacy api
+
+```
+ export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
+```
+
+
 ## Deployment
 
 The application provides some management information about itself. These

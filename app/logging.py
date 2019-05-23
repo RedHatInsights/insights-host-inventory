@@ -1,3 +1,4 @@
+from threading import local
 import logging
 import logging.config
 import logstash_formatter
@@ -6,12 +7,14 @@ import watchtower
 
 from boto3.session import Session
 from gunicorn import glogging
-from flask import request
 
-REQUEST_ID_HEADER = "x-rh-insights-request-id"
-UNKNOWN_REQUEST_ID_VALUE = "-1"
+from app.auth import current_identity
+
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
+threadctx = local()
+
+modules = ("app", "app.models", "api", "api.host", "tasks")
 
 
 def configure_logging(config_name):
@@ -58,7 +61,7 @@ def _configure_watchtower_logging_handler():
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
 
-        for logger_name in ("app", "app.models", "api", "api.host"):
+        for logger_name in modules:
             app_logger = logging.getLogger(logger_name)
             app_logger.setLevel(log_level)
 
@@ -84,7 +87,7 @@ def _configure_contextual_logging_filter():
     root.addFilter(ContextualFilter())
 
     # FIXME: Figure out a better way to load the list of modules/submodules
-    for logger_name in ("app", "app.models", "api", "api.host"):
+    for logger_name in modules:
         app_logger = logging.getLogger(logger_name)
         app_logger.addFilter(ContextualFilter())
 
@@ -97,8 +100,20 @@ class ContextualFilter(logging.Filter):
     log message.
     """
     def filter(self, log_record):
-        log_record.request_id = request.headers.get(REQUEST_ID_HEADER,
-                                                    UNKNOWN_REQUEST_ID_VALUE)
+        try:
+            log_record.request_id = threadctx.request_id
+        except Exception:
+            # TODO: need to decide what to do when you log outside the context
+            # of a request
+            log_record.request_id = None
+
+        try:
+            log_record.account_number = current_identity.account_number
+        except Exception:
+            # TODO: need to decide what to do when you log outside the context
+            # of a request
+            log_record.account_number = None
+
         return True
 
 
