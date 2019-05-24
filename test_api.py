@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
+import unittest.mock
 import json
 import dateutil.parser
 import test.support
