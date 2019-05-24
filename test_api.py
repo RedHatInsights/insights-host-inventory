@@ -788,6 +788,15 @@ class PaginationBaseTestCase(APIBaseTestCase):
             test_url = inject_qs(url, page=str(i), per_page="1")
             self.get(test_url, 404)
 
+    def _invalid_paging_parameters_test(self, base_url):
+        paging_parameters = ["per_page", "page"]
+        invalid_values = ["-1", "0", "notanumber"]
+        for paging_parameter in paging_parameters:
+            for invalid_value in invalid_values:
+                with self.subTest(paging_parameter=paging_parameter, invalid_value=invalid_value):
+                    test_url = inject_qs(base_url, **{paging_parameter: invalid_value})
+                    self.get(test_url, 400)
+
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase):
     def _valid_system_profile(self):
@@ -1075,6 +1084,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
             self.assertIn(expected_system_profile, host_lookup_results["results"])
 
         self._base_paging_test(test_url, len(expected_system_profiles))
+        self._invalid_paging_parameters_test(test_url)
 
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
@@ -1257,13 +1267,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
-
-    def test_query_all_with_invalid_paging_parameters(self):
-        invalid_limit_parameters = ["-1", "0", "notanumber"]
-        for invalid_parameter in invalid_limit_parameters:
-            self.get(HOST_URL + "?per_page=" + invalid_parameter, 400)
-
-            self.get(HOST_URL + "?page=" + invalid_parameter, 400)
+        self._invalid_paging_parameters_test(HOST_URL)
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
@@ -1316,6 +1320,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
+        self._invalid_paging_parameters_test(test_url)
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
@@ -1333,6 +1338,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
             self.assertIn(host, host_data)
 
         self._base_paging_test(url, len(expected_host_list))
+        self._invalid_paging_parameters_test(url)
 
     def test_query_existent_hosts(self):
         host_lists = [self.added_hosts[0:1], self.added_hosts[1:3], self.added_hosts]
@@ -1405,6 +1411,7 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
         self._base_paging_test(test_url, expected_number_of_hosts)
+        self._invalid_paging_parameters_test(test_url)
 
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
@@ -1440,6 +1447,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
         self._base_paging_test(test_url, expected_number_of_hosts)
+        self._invalid_paging_parameters_test(test_url)
 
     def test_query_with_matching_insights_id(self):
         host_list = self.added_hosts
