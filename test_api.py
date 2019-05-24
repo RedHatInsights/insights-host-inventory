@@ -12,6 +12,7 @@ from app.auth.identity import Identity
 from app.utils import HostWrapper
 from tasks import msg_handler
 from base64 import b64encode
+from itertools import chain
 from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
@@ -1314,7 +1315,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
- 
+
     def test_create_then_delete(self):
         original_id = self.added_hosts[0].id
 
@@ -1363,98 +1364,12 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
 
-    def test_query_using_host_id_list_one_host_id_does_not_include_hyphens(self):
-        added_host_list = copy.deepcopy(self.added_hosts)
-        expected_host_list = [copy.deepcopy(h.data()) for h in added_host_list]
-
-        original_id = added_host_list[0].id
-
-        # Remove the hyphens from one of the valid hosts
-        added_host_list[0].id = uuid.UUID(original_id, version=4).hex
-
-        url_host_id_list = self._build_host_id_list_for_url(added_host_list)
-
-        test_url = HOST_URL + "/" + url_host_id_list
-
-        response = self.get(test_url, 200)
-
-        self.assertEqual(response["results"], expected_host_list)
-
     def test_query_all_with_invalid_paging_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
         for invalid_parameter in invalid_limit_parameters:
             self.get(HOST_URL + "?per_page=" + invalid_parameter, 400)
 
             self.get(HOST_URL + "?page=" + invalid_parameter, 400)
-
-    def test_query_using_host_id_list(self):
-        host_list = self.added_hosts
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        test_url = HOST_URL + "/" + url_host_id_list
-
-        response = self.get(test_url, 200)
-
-        expected_host_list = [h.data() for h in host_list]
-        self.assertEqual(response["results"], expected_host_list)
-
-        self._base_paging_test(test_url, len(self.added_hosts))
-
-    def test_query_using_host_id_list_include_branch_id_parameter(self):
-        host_list = self.added_hosts
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        test_url = HOST_URL + "/" + url_host_id_list + "?branch_id=123"
-
-        response = self.get(test_url, 200)
-
-    def test_query_using_host_id_list_with_invalid_paging_parameters(self):
-        host_list = self.added_hosts
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-        base_url = HOST_URL + "/" + url_host_id_list
-
-        invalid_limit_parameters = ["-1", "0", "notanumber"]
-        for invalid_parameter in invalid_limit_parameters:
-            self.get(base_url + "?per_page=" + invalid_parameter, 400)
-
-            self.get(base_url + "?page=" + invalid_parameter, 400)
-
-    def test_query_using_host_id_list_include_nonexistent_host_ids(self):
-        host_list = self.added_hosts
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        # Add some host ids to the list that do not exist
-        url_host_id_list = (
-            url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
-        )
-
-        response = self.get(HOST_URL + "/" + url_host_id_list, 200)
-
-        expected_host_list = [h.data() for h in host_list]
-        self.assertEqual(response["results"], expected_host_list)
-
-    def test_query_using_host_id_list_include_badly_formatted_host_ids(self):
-        host_list = self.added_hosts
-
-        bad_id_list = ["1234blahblahinvalid", "", ]
-
-        valid_url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        for bad_id in bad_id_list:
-            with self.subTest(bad_id=bad_id):
-                # Construct the host id list for the url...
-                # add in the "bad" id
-                url_host_id_list = valid_url_host_id_list + "," + bad_id
-
-                response = self.get(HOST_URL + "/" + url_host_id_list, 400)
-
-                self.verify_error_response(response,
-                                           expected_title="Bad Request",
-                                           expected_status=400)
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
@@ -1549,10 +1464,50 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
         self._base_query_test(host_id_list, host_list)
 
     def test_query_invalid_host_id(self):
-        host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
-        for host_id_list in host_id_lists:
+        bad_id_list = ["notauuid", "1234blahblahinvalid"]
+        only_bad_id = bad_id_list.copy()
+
+        # Can’t have empty string as an only ID, that results in 404 Not Found.
+        more_bad_id_list = bad_id_list + [""]
+        valid_id = self.added_hosts[0].id
+        with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
+
+        for host_id_list in chain(only_bad_id, with_bad_id):
             with self.subTest(host_id_list=host_id_list):
                 self.get(f"{HOST_URL}/{host_id_list}", 400)
+
+    def test_query_host_id_without_hyphens(self):
+        host_lists = [self.added_hosts[0:1], self.added_hosts]
+        for original_host_list in host_lists:
+            with self.subTest(host_list=original_host_list):
+                # deepcopy host.__data to insulate original_host_list from changes.
+                host_data = (host.data() for host in original_host_list)
+                host_data = (copy.deepcopy(host) for host in host_data)
+                query_host_list = [HostWrapper(host) for host in host_data]
+
+                # Remove the hyphens from one of the valid hosts.
+                query_host_list[0].id = uuid.UUID(query_host_list[0].id, version=4).hex
+
+                host_id_list = self._build_host_id_list_for_url(query_host_list)
+                self._base_query_test(host_id_list, original_host_list)
+
+    def test_query_with_branch_id_parameter(self):
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+        # branch_id parameter is accepted, but doesn’t affect results.
+        self._base_query_test(f"{url_host_id_list}?branch_id=123", self.added_hosts)
+
+    def test_query_invalid_paging_parameters(self):
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+        base_url = f"{HOST_URL}/{url_host_id_list}"
+
+        paging_parameters = ["per_page", "page"]
+        invalid_values = ["-1", "0", "notanumber"]
+        for paging_parameter in paging_parameters:
+            for invalid_value in invalid_values:
+                with self.subTest(
+                    paging_parameter=paging_parameter, invalid_value=invalid_value
+                ):
+                    self.get(f"{base_url}?{paging_parameter}={invalid_value}", 400)
 
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
