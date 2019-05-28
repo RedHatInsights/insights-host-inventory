@@ -252,17 +252,24 @@ def delete_by_id(host_id_list):
         current_identity.account_number, host_id_list, order=False
     )
 
-    hosts = query.all()
+    host_ids_to_delete = []
+    for host in query.all():
+        try:
+            host_ids_to_delete.append(host.id)
+        except sqlalchemy.orm.exc.ObjectDeletedError:
+            logger.exception("Encountered sqlalchemy.orm.exc.ObjectDeletedError"
+                             " exception during delete_by_id operation.  Host was"
+                             " already deleted.")
 
-    if not hosts:
+    if not host_ids_to_delete:
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     with metrics.delete_host_processing_time.time():
         query.delete(synchronize_session="fetch")
     db.session.commit()
-    metrics.delete_host_count.inc(len(hosts))
-    for deleted_host in hosts:
-        emit_event(events.delete(deleted_host.id))
+    metrics.delete_host_count.inc(len(host_ids_to_delete))
+    for deleted_host_id in host_ids_to_delete:
+        emit_event(events.delete(deleted_host_id))
 
 
 @api_operation
