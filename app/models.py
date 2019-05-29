@@ -4,7 +4,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import orm
+from sqlalchemy import orm, Index, text
 
 from app.exceptions import InventoryException, InputFormatException
 from app.logging import get_logger
@@ -29,6 +29,11 @@ def _set_display_name_on_save(context):
 
 class Host(db.Model):
     __tablename__ = "hosts"
+    # These Index entries are essentially place holders so that the
+    # alembic autogenerate functionality does not try to remove the indexes
+    __table_args__ = (Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+                      Index("idxgincanonicalfacts", "canonical_facts"),
+                      Index("idxaccount", "account"),)
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
