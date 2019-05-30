@@ -160,6 +160,11 @@ class DBAPITestCase(BaseAPITestCase):
         if temp_table_name_suffix not in Host.__table__.fullname:
             Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
 
+        # Adjust the names of the indices
+        for index in Host.__table_args__:
+            if temp_table_name_suffix not in index.name:
+                index.name = index.name + temp_table_name_suffix
+
     def setUp(self):
         """
         Initializes the database by creating all tables.
