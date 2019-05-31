@@ -1365,7 +1365,10 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
-        expected_host_list = [h.data() for h in self.added_hosts]
+        host_list = self.added_hosts.copy()
+        host_list.reverse()
+
+        expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
@@ -1417,7 +1420,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), 0)
 
     def test_query_using_display_name_substring(self):
-        host_list = self.added_hosts
+        host_list = self.added_hosts.copy()
+        host_list.reverse()
 
         host_name_substr = host_list[0].display_name[:-2]
 
