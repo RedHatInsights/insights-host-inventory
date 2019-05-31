@@ -21,6 +21,11 @@ def app():
     if temp_table_name_suffix not in Host.__table__.fullname:
         Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
 
+    # Adjust the names of the indices
+    for index in Host.__table_args__:
+        if temp_table_name_suffix not in index.name:
+            index.name = index.name + temp_table_name_suffix
+
     app = create_app(config_name="testing")
 
     # binds the app to the current context
