@@ -3,8 +3,8 @@ import time
 
 from functools import wraps
 
-from api.metrics import api_request_count
-from app.logging import get_logger
+from inventory.api.metrics import api_request_count
+from inventory.app.logging import get_logger
 
 __all__ = ["api_operation"]
 

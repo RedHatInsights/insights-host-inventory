@@ -4,13 +4,13 @@ import yaml
 from connexion.resolver import RestyResolver
 from flask import jsonify, request
 
-from api.mgmt import monitoring_blueprint
-from app.config import Config
-from app.models import db
-from app.exceptions import InventoryException
-from app.logging import configure_logging, threadctx
-from app.validators import verify_uuid_format  # noqa: 401
-from tasks import init_tasks
+from inventory.api.mgmt import monitoring_blueprint
+from inventory.app.config import Config
+from inventory.app.models import db
+from inventory.app.exceptions import InventoryException
+from inventory.app.logging import configure_logging, threadctx
+from inventory.app.validators import verify_uuid_format  # noqa: 401
+from inventory.tasks import init_tasks
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -33,11 +33,11 @@ def create_app(config_name):
     app_config.log_configuration(config_name)
 
     connexion_app = connexion.App(
-        "inventory", specification_dir="./swagger/", options=connexion_options
+        "inventory", specification_dir="./inventory/swagger/", options=connexion_options
     )
 
     # Read the swagger.yml file to configure the endpoints
-    with open("swagger/api.spec.yaml", "rb") as fp:
+    with open("inventory/swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
 
     for api_url in app_config.api_urls:

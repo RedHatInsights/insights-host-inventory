@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from api import api_operation
-from app.config import Config
-from app.auth.identity import (Identity,
+from inventory.api import api_operation
+from inventory.app.config import Config
+from inventory.app.auth.identity import (Identity,
                                validate,
                                from_auth_header,
                                from_bearer_token,
@@ -19,7 +19,7 @@ class ApiOperationTestCase(TestCase):
     Test the API operation decorator that increments the request counter with every
     call.
     """
-    @patch("api.api_request_count.inc")
+    @patch("inventory.api.api_request_count.inc")
     def test_counter_is_incremented(self, inc):
         @api_operation
         def func():

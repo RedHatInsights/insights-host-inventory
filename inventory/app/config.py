@@ -1,7 +1,7 @@
 import os
 
-from app.common import get_build_version
-from app.logging import get_logger
+from inventory.app.common import get_build_version
+from inventory.app.logging import get_logger
 
 
 class Config:

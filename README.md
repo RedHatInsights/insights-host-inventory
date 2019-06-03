@@ -55,10 +55,10 @@ pytest --cov=.
 Or you can run the tests individually:
 
 ```
-./test_api.py
-pytest test_db_model.py
-./test_unit.py
-pytest test_json_validators.py
+pytest tests/test_api.py
+pytest tests/test_unit.py
+pytest tests/test_db_model.py
+pytest tests/test_validators.py
 ```
 
 Depending on the environment, it might be necessary to set the DB related environment

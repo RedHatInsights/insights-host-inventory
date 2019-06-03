@@ -1,8 +1,8 @@
 import connexion
 
-from api.metrics import login_failure_count
-from app.auth.identity import from_bearer_token, from_auth_header, validate
-from app.logging import get_logger
+from inventory.api.metrics import login_failure_count
+from inventory.app.auth.identity import from_bearer_token, from_auth_header, validate
+from inventory.app.logging import get_logger
 from werkzeug.local import LocalProxy
 
 __all__ = ["current_identity",

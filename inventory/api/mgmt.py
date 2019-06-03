@@ -4,7 +4,7 @@ from prometheus_client import (CollectorRegistry,
                                generate_latest,
                                CONTENT_TYPE_LATEST,)
 
-from app.common import get_build_version
+from inventory.app.common import get_build_version
 
 monitoring_blueprint = Blueprint("monitoring", __name__)
 

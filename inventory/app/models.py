@@ -6,9 +6,9 @@ from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm, Index, text
 
-from app.exceptions import InventoryException, InputFormatException
-from app.logging import get_logger
-from app.validators import verify_uuid_format
+from inventory.app.exceptions import InventoryException, InputFormatException
+from inventory.app.logging import get_logger
+from inventory.app.validators import verify_uuid_format
 
 
 logger = get_logger(__name__)

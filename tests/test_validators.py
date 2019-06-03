@@ -1,6 +1,6 @@
 import pytest
 
-from app.validators import (verify_uuid_format,
+from inventory.app.validators import (verify_uuid_format,
                             verify_ip_address_format,
                             verify_mac_address_format)
 

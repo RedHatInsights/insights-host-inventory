@@ -6,7 +6,7 @@ info:
 paths:
   /hosts:
     get:
-      operationId: api.host.get_host_list
+      operationId: inventory.api.host.get_host_list
       tags:
         - hosts
       summary: Read the entire list of hosts
@@ -55,7 +55,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     post:
-      operationId: api.host.add_host_list
+      operationId: inventory.api.host.add_host_list
       tags:
         - hosts
       summary: Create/update multiple host and add them to the host list
@@ -106,7 +106,7 @@ paths:
         - hosts
       summary: Find hosts by their IDs
       description: Find one or more hosts by their ID.
-      operationId: api.host.get_host_by_id
+      operationId: inventory.api.host.get_host_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -143,7 +143,7 @@ paths:
         - hosts
       summary: Delete hosts by IDs
       description: Delete hosts by IDs
-      operationId: api.host.delete_by_id
+      operationId: inventory.api.host.delete_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -168,7 +168,7 @@ paths:
         - hosts
       summary: Update a host
       description: Update a host
-      operationId: api.host.patch_by_id
+      operationId: inventory.api.host.patch_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -208,7 +208,7 @@ paths:
         - hosts
       summary: Merge facts under a namespace
       description: Merge one or multiple hosts facts under a namespace.
-      operationId: api.host.merge_facts
+      operationId: inventory.api.host.merge_facts
       security:
         - ApiKeyAuth: []
       parameters:
@@ -249,7 +249,7 @@ paths:
       description: Replace facts under a namespace
       security:
         - ApiKeyAuth: []
-      operationId: api.host.replace_facts
+      operationId: inventory.api.host.replace_facts
       parameters:
         - in: path
           name: host_id_list
@@ -287,7 +287,7 @@ paths:
         - hosts
       summary: Return one or more hosts system profile
       description: Find one or more hosts by their ID and return the id and system profile
-      operationId: api.host.get_host_system_profile_by_id
+      operationId: inventory.api.host.get_host_system_profile_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -318,7 +318,7 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      x-bearerInfoFunc: app.auth.bearer_token_handler
+      x-bearerInfoFunc: inventory.app.auth.bearer_token_handler
     ApiKeyAuth:
       type: apiKey
       in: header
@@ -327,7 +327,7 @@ components:
         Base64-encoded JSON identity header provided by 3Scale. Contains an
         account number of the user issuing the request. Format of the JSON:
         {"identity": {"account_number": "12345678"}}
-      x-apikeyInfoFunc: app.auth.authentication_header_handler
+      x-apikeyInfoFunc: inventory.app.auth.authentication_header_handler
   parameters:
     pageParam:
       name: page

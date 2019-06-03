@@ -3,7 +3,7 @@ import os
 from base64 import b64decode
 from json import loads
 
-from app.logging import get_logger, threadctx
+from inventory.app.logging import get_logger, threadctx
 
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token", "validate"]

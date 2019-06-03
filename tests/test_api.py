@@ -8,10 +8,11 @@ import uuid
 import copy
 import tempfile
 
-from app import create_app, db, events
-from app.auth.identity import Identity
-from app.utils import HostWrapper
-from tasks import msg_handler
+from inventory.app import create_app, db, events
+from inventory.app.auth.identity import Identity
+from inventory.app.utils import HostWrapper
+from inventory.tasks import msg_handler
+
 from base64 import b64encode
 from itertools import chain
 from json import dumps
@@ -155,7 +156,7 @@ class DBAPITestCase(BaseAPITestCase):
         Temporarily rename the host table while the tests run.  This is done
         to make dropping the table at the end of the tests a bit safer.
         """
-        from app.models import Host
+        from inventory.app.models import Host
         temp_table_name_suffix = "__unit_tests__"
         if temp_table_name_suffix not in Host.__table__.name:
             Host.__table__.name = Host.__table__.name + temp_table_name_suffix
@@ -1339,7 +1340,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
                 self.events.append(e)
 
         # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+        with unittest.mock.patch("inventory.api.host.emit_event", new=MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             assert original_id in m.events[0]
 

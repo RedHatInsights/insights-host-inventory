@@ -10,7 +10,6 @@ from gunicorn import glogging
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
-LOGGER_PREFIX = "inventory."
 
 threadctx = local()
 
@@ -124,7 +123,7 @@ class InventoryGunicornLogger(glogging.Logger):
 
 def get_logger(name):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
-    logger = logging.getLogger(LOGGER_PREFIX+name)
+    logger = logging.getLogger(name)
     logger.addFilter(ContextualFilter())
     logger.setLevel(log_level)
     return logger

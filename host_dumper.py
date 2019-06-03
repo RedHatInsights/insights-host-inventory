@@ -4,8 +4,8 @@ import argparse
 import pprint
 import os
 
-from app import create_app
-from app.models import Host
+from inventory.app import create_app
+from inventory.app.models import Host
 
 application = create_app("cli")
 

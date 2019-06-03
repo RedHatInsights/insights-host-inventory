@@ -7,13 +7,13 @@ from enum import Enum
 from flask_api import status
 from marshmallow import ValidationError
 
-from app import db, events
-from app.models import Host, HostSchema, PatchHostSchema
-from app.auth import current_identity
-from app.exceptions import InventoryException
-from app.logging import get_logger
-from api import api_operation, metrics
-from tasks import emit_event
+from inventory.app import db, events
+from inventory.app.models import Host, HostSchema, PatchHostSchema
+from inventory.app.auth import current_identity
+from inventory.app.exceptions import InventoryException
+from inventory.app.logging import get_logger
+from inventory.api import api_operation, metrics
+from inventory.tasks import emit_event
 
 
 TAG_OPERATIONS = ("apply", "remove")

@@ -3,10 +3,10 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from threading import Thread
 
-from api import metrics
-from app import db
-from app.logging import threadctx, get_logger
-from app.models import Host, SystemProfileSchema
+from inventory.api import metrics
+from inventory.app import db
+from inventory.app.logging import threadctx, get_logger
+from inventory.app.models import Host, SystemProfileSchema
 
 logger = get_logger(__name__)
 

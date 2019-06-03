@@ -3,7 +3,7 @@
 import os
 import logging
 
-from app import create_app
+from inventory.app import create_app
 
 config_name = os.getenv('APP_SETTINGS', "development")
 application = create_app(config_name)

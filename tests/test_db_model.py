@@ -1,8 +1,8 @@
 import pytest
 import uuid
 
-from app import create_app, db
-from app.models import Host
+from inventory.app import create_app, db
+from inventory.app.models import Host
 
 """
 These tests are for testing the db model classes outside of the api.
