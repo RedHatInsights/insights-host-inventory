@@ -37,9 +37,21 @@ TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
 
+INVALID_UUIDS = ("notauuid", "1234blahblahinvalid")
+
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+
+def host_id_lists_with_invalid_uuid():
+    valid_uuid = generate_uuid()
+    for invalid_uuid in INVALID_UUIDS:
+        yield invalid_uuid  # Only one invalid
+        yield f"{invalid_uuid},{valid_uuid}"  # More than one, one invalid
+        yield f"{valid_uuid},{invalid_uuid}"  # More than one, one invalid
+        yield f"{valid_uuid},"  # More than one, one empty
+    yield ",".join(INVALID_UUIDS)  # More than one, all invalid
 
 
 def test_data(display_name="hi", facts=None):
@@ -424,18 +436,19 @@ class CreateHostsTestCase(DBAPITestCase):
         uuid_field_names = ("insights_id", "rhel_machine_id", "subscription_manager_id", "satellite_id", "bios_uuid")
 
         for field_name in uuid_field_names:
-            with self.subTest(uuid_field=field_name):
-                host_data = copy.deepcopy(test_data(facts=None))
+            for invalid_uuid in INVALID_UUIDS:
+                with self.subTest(uuid_field=field_name, invalid_uuid=invalid_uuid):
+                    host_data = copy.deepcopy(test_data(facts=None))
 
-                host_data[field_name] = "notauuid"
+                    host_data[field_name] = invalid_uuid
 
-                response_data = self.post(HOST_URL, [host_data], 207)
+                    response_data = self.post(HOST_URL, [host_data], 207)
 
-                error_host = response_data["data"][0]
+                    error_host = response_data["data"][0]
 
-                self.assertEqual(error_host["status"], 400)
+                    self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host, expected_title="Bad Request")
+                    self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_non_nullable_fields_as_None(self):
         non_nullable_field_names = (
@@ -1085,10 +1098,9 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
         self.assertEqual(results["total"], expected_total)
 
     def test_get_system_profile_with_invalid_host_id(self):
-        invalid_host_ids = ["notauuid", f"{generate_uuid()},notuuid"]
-        for host_id in invalid_host_ids:
-            with self.subTest(invalid_host_id=host_id):
-                response = self.get(f"{HOST_URL}/{host_id}/system_profile", 400)
+        for host_id_list in host_id_lists_with_invalid_uuid():
+            with self.subTest(invalid_host_id=host_id_list):
+                response = self.get(f"{HOST_URL}/{host_id_list}/system_profile", 400)
                 self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
 
@@ -1201,8 +1213,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
     def test_invalid_host_id(self):
         patch_doc = {"display_name": "branch_id_test"}
-        host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
-        for host_id_list in host_id_lists:
+        for host_id_list in host_id_lists_with_invalid_uuid():
             with self.subTest(host_id_list=host_id_list):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
@@ -1241,9 +1252,9 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         self.delete(url, 404)
 
     def test_delete_with_invalid_host_id(self):
-        url = HOST_URL + "/" + "notauuid"
-
-        self.delete(url, 400)
+        for host_id_list in host_id_lists_with_invalid_uuid():
+            url = HOST_URL + "/" + host_id_list
+            self.delete(url, 400)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
@@ -1352,15 +1363,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self._base_query_test(host_id_list, host_list)
 
     def test_query_invalid_host_id(self):
-        bad_id_list = ["notauuid", "1234blahblahinvalid"]
-        only_bad_id = bad_id_list.copy()
-
-        # Can’t have empty string as an only ID, that results in 404 Not Found.
-        more_bad_id_list = bad_id_list + [""]
-        valid_id = self.added_hosts[0].id
-        with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
-
-        for host_id_list in chain(only_bad_id, with_bad_id):
+        for host_id_list in host_id_lists_with_invalid_uuid():
             with self.subTest(host_id_list=host_id_list):
                 self.get(f"{HOST_URL}/{host_id_list}", 400)
 
@@ -1451,8 +1454,10 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self._base_query_test(uuid_that_does_not_exist_in_db, 0)
 
     def test_query_with_invalid_insights_id(self):
-        test_url = self._test_url("notauuid")
-        self.get(test_url, 400)
+        for invalid_uuid in INVALID_UUIDS:
+            with self.subTest(invalid_uuid=invalid_uuid):
+                test_url = self._test_url(invalid_uuid)
+                self.get(test_url, 400)
 
     def test_query_with_maching_insights_id_and_branch_id(self):
         valid_insights_id = self.added_hosts[0].insights_id
