@@ -1755,6 +1755,23 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 
         self._basic_fact_test(new_facts, expected_facts, True)
 
+    def test_invalid_host_id(self):
+        bad_id_list = ["notauuid", "1234blahblahinvalid"]
+        only_bad_id = bad_id_list.copy()
+
+        # Can’t have empty string as an only ID, that results in 404 Not Found.
+        more_bad_id_list = bad_id_list + [""]
+        valid_id = self.added_hosts[0].id
+        with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
+
+        operations = (self.patch, self.put)
+        fact_doc = self._valid_fact_doc()
+        for operation in operations:
+            for host_id_list in chain(only_bad_id, with_bad_id):
+                url = self._build_facts_url(host_id_list, "ns1")
+                with self.subTest(operation=operation, host_id_list=host_id_list):
+                    operation(url, fact_doc, 400)
+
 
 class HeaderAuthTestCase(DBAPITestCase):
     @staticmethod
