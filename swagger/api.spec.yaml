@@ -220,6 +220,7 @@ paths:
             type: array
             items:
               type: string
+              format: uuid
         - in: path
           name: namespace
           description: A namespace of the merged facts.
@@ -258,6 +259,7 @@ paths:
             type: array
             items:
               type: string
+              format: uuid
         - in: path
           name: namespace
           description: A namespace of the merged facts.
