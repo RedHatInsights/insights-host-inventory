@@ -33,7 +33,6 @@ The database migration scripts determine the DB location, username,
 password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 ```
-python manage.py db migrate
 python manage.py db upgrade
 ```
 
@@ -50,21 +49,20 @@ docker-compose down
 It is possible to run the tests using pytest:
 
 ```
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest --cov=.
+pytest --cov=.
 ```
 
 Or you can run the tests individually:
 
 ```
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ ./test_api.py
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest test_db_model.py
+./test_api.py
+pytest test_db_model.py
 ./test_unit.py
 pytest test_json_validators.py
 ```
 
 Depending on the environment, it might be necessary to set the DB related environment
-variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).  See information on
-_prometheus_multiproc_dir_ environment variable below.
+variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
 ## Running the server
 
