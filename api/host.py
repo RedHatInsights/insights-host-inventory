@@ -267,7 +267,11 @@ def delete_by_id(host_id_list):
     with metrics.delete_host_processing_time.time():
         query.delete(synchronize_session="fetch")
     db.session.commit()
+
     metrics.delete_host_count.inc(len(host_ids_to_delete))
+
+    logger.debug(f"Deleted hosts: %s", host_ids_to_delete)
+
     for deleted_host_id in host_ids_to_delete:
         emit_event(events.delete(deleted_host_id))
 
