@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from api import api_operation
+from api.host import _params_to_order_by, _order_how
 from app.config import Config
 from app.auth.identity import (Identity,
                                validate,
@@ -231,6 +232,87 @@ class ConfigTestCase(TestCase):
             conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
+
+
+class HostOrderHowTestCase(TestCase):
+
+    def test_asc(self):
+        column = Mock()
+        result = _order_how(column, "ASC")
+        self.assertEqual(result, column.asc())
+
+    def test_desc(self):
+        column = Mock()
+        result = _order_how(column, "DESC")
+        self.assertEqual(result, column.desc())
+
+    def test_error(self):
+        invalid_values = (None, "asc", "desc", "BBQ")
+        for invalid_value in invalid_values:
+            with self.subTest(order_how=invalid_value):
+                with self.assertRaises(ValueError):
+                    _order_how(Mock(), invalid_value)
+
+
+@patch("api.host._order_how")
+@patch("api.host.Host.modified_on")
+class HostParamsToOrderByTestCase(TestCase):
+
+    def test_default_is_updated_desc(self, modified_on, order_how):
+        actual = _params_to_order_by(None, None)
+        expected = (modified_on.desc.return_value,)
+        self.assertEquals(actual, expected)
+        order_how.assert_not_called()
+
+    def test_default_for_updated_is_desc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", None)
+        expected = (modified_on.desc.return_value,)
+        self.assertEquals(actual, expected)
+        order_how.assert_not_called()
+
+    def test_order_by_updated_asc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", "ASC")
+        expected = (order_how.return_value,)
+        self.assertEquals(actual, expected)
+        order_how.assert_called_once_with(modified_on, "ASC")
+
+    def test_order_by_updated_desc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", "DESC")
+        expected = (order_how.return_value,)
+        self.assertEquals(actual, expected)
+        order_how.assert_called_once_with(modified_on, "DESC")
+
+    @patch("api.host.Host.display_name")
+    def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name",)
+        expected = (display_name.asc.return_value, modified_on.desc.return_value)
+        self.assertEquals(actual, expected)
+        order_how.assert_not_called()
+
+    @patch("api.host.Host.display_name")
+    def test_order_by_display_name_asc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name", "ASC")
+        expected = (order_how.return_value, modified_on.desc.return_value)
+        self.assertEquals(actual, expected)
+        order_how.assert_called_once_with(display_name, "ASC")
+
+    @patch("api.host.Host.display_name")
+    def test_order_by_display_name_desc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name", "DESC")
+        expected = (order_how.return_value, modified_on.desc.return_value)
+        self.assertEquals(actual, expected)
+        order_how.assert_called_once_with(display_name, "DESC")
+
+
+class HostParamsToOrderByErrorsTestCase(TestCase):
+
+    def test_order_by_bad_field_raises_error(self):
+        with self.assertRaises(ValueError):
+            _params_to_order_by(Mock(), "fqdn")
+
+    def test_order_by_only_how_raises_error(self):
+        with self.assertRaises(ValueError):
+            _params_to_order_by(Mock(), order_how="ASC")
 
 
 if __name__ == "__main__":
