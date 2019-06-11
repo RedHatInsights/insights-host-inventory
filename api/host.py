@@ -163,7 +163,7 @@ def update_existing_host(existing_host, input_host):
 @metrics.api_request_time.time()
 def get_host_list(display_name=None, fqdn=None,
         hostname_or_id=None, insights_id=None,
-        page=1, per_page=100):
+        page=1, per_page=100, order_by=None, order_how=None):
     if fqdn:
         query = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}
@@ -183,13 +183,53 @@ def get_host_list(display_name=None, fqdn=None,
             Host.account == current_identity.account_number
         )
 
-    query = query.order_by(Host.modified_on.desc(), Host.id.desc())
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+
     query_results = query.paginate(page, per_page, True)
     logger.debug(f"Found hosts: {query_results.items}")
 
     return _build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
     )
+
+
+def _order_how(column, order_how):
+    if order_how == "ASC":
+        return column.asc()
+    elif order_how == "DESC":
+        return column.desc()
+    else:
+        raise ValueError("Unsupported ordering direction, use \"ASC\" or \"DESC\".")
+
+
+def _params_to_order_by(order_by=None, order_how=None):
+    modified_on_ordering = (Host.modified_on.desc(),)
+    ordering = ()
+
+    if order_by == "updated":
+        if order_how:
+            modified_on_ordering = (_order_how(Host.modified_on, order_how),)
+    elif order_by == "display_name":
+        if order_how:
+            ordering = (_order_how(Host.display_name, order_how),)
+        else:
+            ordering = (Host.display_name.asc(),)
+    elif order_by:
+        raise ValueError(
+            "Unsupported ordering column, use \"updated\" or \"display_name\"."
+        )
+    elif order_how:
+        raise ValueError(
+            "Providing ordering direction without a column is not supported. "
+            "Provide order_by={updated,display_name}."
+        )
+
+    return ordering + modified_on_ordering
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
@@ -248,9 +288,7 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    query = _get_host_list_by_id_list(
-        current_identity.account_number, host_id_list, order=False
-    )
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     host_ids_to_delete = []
     for host in query.all():
@@ -278,10 +316,16 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
     logger.debug(f"Found hosts: {query_results.items}")
@@ -291,24 +335,27 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
     )
 
 
-def _get_host_list_by_id_list(account_number, host_id_list, order=True):
-    q = Host.query.filter(
+def _get_host_list_by_id_list(account_number, host_id_list):
+    return Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
     )
 
-    if order:
-        return q.order_by(Host.modified_on.desc(), Host.id.desc())
-    else:
-        return q
-
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
+def get_host_system_profile_by_id(
+    host_id_list, page=1, per_page=100, order_by=None, order_how=None
+):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
 
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
     response_list = [host.to_system_profile_json()
