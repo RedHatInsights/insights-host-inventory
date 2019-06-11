@@ -1201,7 +1201,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
         hosts_to_create = [
             ("host1", generate_uuid(), "host1.domain.test"),
             ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test"),
+            ("host3", generate_uuid(), "host2.domain.test"),  # the same display_name is intentional
         ]
         host_list = []
 
@@ -1596,22 +1596,134 @@ class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
         urls = (
             HOST_URL,
             f"{HOST_URL}/{url_host_id_list}",
-            f"{HOST_URL}/{url_host_id_list}/system_profile"
+            f"{HOST_URL}/{url_host_id_list}/system_profile",
         )
         for url in urls:
             with self.subTest(url=url):
                 yield url
 
-    def tests_hosts_are_ordered_by_updated_desc(self):
+    def _get(self, base_url, order_by=None, order_how=None, status=200):
+        kwargs = {}
+        if order_by:
+            kwargs["order_by"] = order_by
+        if order_how:
+            kwargs["order_how"] = order_how
+
+        full_url = inject_qs(base_url, **kwargs)
+        return self.get(full_url, status)
+
+
+class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
+
+    def setUp(self):
+        super().setUp()
+        host_wrapper = HostWrapper()
+        host_wrapper.account = ACCOUNT
+        host_wrapper.display_name = "host1"  # Same as self.added_hosts[0]
+        host_wrapper.insights_id = generate_uuid()
+        response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+        self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
+
+    def _added_hosts_by_updated_desc(self):
         expected_hosts = self.added_hosts.copy()
         expected_hosts.reverse()
-        expected_ids = [host.id for host in expected_hosts]
+        return expected_hosts
 
+    def _added_hosts_by_updated_asc(self):
+        return self.added_hosts
+
+    def _added_hosts_by_display_name_asc(self):
+        return (
+            # Hosts with same display_name are ordered by updated descending
+            self.added_hosts[3],
+            self.added_hosts[0],
+
+            self.added_hosts[1],
+            self.added_hosts[2]
+        )
+
+    def _added_hosts_by_display_name_desc(self):
+        return (
+            self.added_hosts[2],
+            self.added_hosts[1],
+
+            # Hosts with same display_name are ordered by updated descending
+            self.added_hosts[3],
+            self.added_hosts[0]
+        )
+
+    def _assert_host_ids_in_response(self, response, expected_hosts):
+        response_ids = [host["id"] for host in response["results"]]
+        expected_ids = [host.id for host in expected_hosts]
+        self.assertEqual(response_ids, expected_ids)
+
+    def tests_hosts_are_ordered_by_updated_desc_by_default(self):
         for url in self._queries_subtests_with_added_hosts():
             with self.subTest(url=url):
-                response = self.get(url)
-                response_ids = [host["id"] for host in response["results"]]
-                self.assertEqual(response_ids, expected_ids)
+                response = self._get(url)
+                expected_hosts = self._added_hosts_by_updated_desc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_ordered_by_updated_are_descending_by_default(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="updated")
+                expected_hosts = self._added_hosts_by_updated_desc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_are_ordered_by_updated_descending(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="updated", order_how="DESC")
+                expected_hosts = self._added_hosts_by_updated_desc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_are_ordered_by_updated_ascending(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="updated", order_how="ASC")
+                expected_hosts = self._added_hosts_by_updated_asc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_ordered_by_display_name_are_ascending_by_default(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="display_name")
+                expected_hosts = self._added_hosts_by_display_name_asc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_are_ordered_by_display_name_ascending(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="display_name", order_how="ASC")
+                expected_hosts = self._added_hosts_by_display_name_asc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+    def tests_hosts_are_ordered_by_display_name_descending(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, order_by="display_name", order_how="DESC")
+                expected_hosts = self._added_hosts_by_display_name_desc()
+                self._assert_host_ids_in_response(response, expected_hosts)
+
+
+class QueryOrderBadRequestsTestCase(QueryOrderTestCase):
+
+    def test_invalid_order_by(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                self._get(url, "fqdn", "ASC", 400)
+
+    def test_invalid_order_how(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                self._get(url, "display_name", "asc", 400)
+
+    def test_only_order_how(self):
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self._get(url, None, "ASC", 400)
+
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
