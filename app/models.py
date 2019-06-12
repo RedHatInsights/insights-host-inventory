@@ -276,24 +276,24 @@ class Facts:
 
 
 class DiskDeviceSchema(Schema):
-    device = fields.Str()
-    label = fields.Str()
+    device = fields.Str(validate=validate.Length(max=2048))
+    label = fields.Str(validate=validate.Length(max=1024))
     options = fields.Dict()
-    mount_point = fields.Str()
-    type = fields.Str()
+    mount_point = fields.Str(validate=validate.Length(max=2048))
+    type = fields.Str(validate=validate.Length(max=256))
 
 
 class YumRepoSchema(Schema):
-    name = fields.Str()
+    name = fields.Str(validate=validate.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Str()
+    base_url = fields.Str(validate=validate.Length(max=2048))
 
 
 class InstalledProductSchema(Schema):
-    name = fields.Str()
-    id = fields.Str()
-    status = fields.Str()
+    name = fields.Str(validate=validate.Length(max=512))
+    id = fields.Str(validate=validate.Length(max=64))
+    status = fields.Str(validate=validate.Length(max=256))
 
 
 class NetworkInterfaceSchema(Schema):
@@ -334,9 +334,9 @@ class SystemProfileSchema(Schema):
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))
     insights_egg_version = fields.Str(validate=validate.Length(max=50))
-    installed_packages = fields.List(fields.Str())
-    installed_services = fields.List(fields.Str())
-    enabled_services = fields.List(fields.Str())
+    installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
+    installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
 
 
 class FactsSchema(Schema):
