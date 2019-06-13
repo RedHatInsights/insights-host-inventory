@@ -4,10 +4,10 @@ import unittest
 import unittest.mock
 import json
 import dateutil.parser
-import test.support
 import uuid
 import copy
 import tempfile
+
 from app import create_app, db, events
 from app.auth.identity import Identity
 from app.utils import HostWrapper
@@ -17,6 +17,8 @@ from itertools import chain
 from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
+
+from test_utils import set_environment
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
@@ -787,9 +789,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
         return build_valid_auth_header()
 
     def test_create_and_update_multiple_hosts_with_different_accounts(self):
-        with test.support.EnvironmentVarGuard() as env:
-            env.set("INVENTORY_SHARED_SECRET", SHARED_SECRET)
-
+        with set_environment({"INVENTORY_SHARED_SECRET": SHARED_SECRET}):
             facts = None
 
             host1 = HostWrapper(test_data(display_name="host1", facts=facts))
@@ -1836,9 +1836,7 @@ class TokenAuthTestCase(DBAPITestCase):
         self.assertEqual(401, response.status_code)
 
     def test_validate_token_on_POST_shared_secret_not_set(self):
-        with test.support.EnvironmentVarGuard() as env:
-            env.unset("INVENTORY_SHARED_SECRET")
-
+        with set_environment({}):
             auth_header = build_valid_auth_header()
             response = self.client().post(HOST_URL, headers=auth_header)
             self.assertEqual(401, response.status_code)
@@ -1862,9 +1860,7 @@ class HealthTestCase(BaseAPITestCase):
         The metrics endpoint simply returns 200 to any GET request.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            with test.support.EnvironmentVarGuard() as env:
-                env.set("prometheus_multiproc_dir", temp_dir)
-
+            with set_environment({"prometheus_multiproc_dir": temp_dir}):
                 response = self.client().get(METRICS_URL)  # No identity header.
                 self.assertEqual(200, response.status_code)
 
