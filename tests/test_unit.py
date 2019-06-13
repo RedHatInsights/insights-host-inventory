@@ -11,7 +11,7 @@ from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
-from test_utils import set_environment
+from tests.utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):

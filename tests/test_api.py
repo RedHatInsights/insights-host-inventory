@@ -19,7 +19,7 @@ from json import dumps
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlencode, parse_qs, urlunsplit
 
-from test_utils import set_environment
+from tests.utils import set_environment
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
