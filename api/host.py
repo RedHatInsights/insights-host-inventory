@@ -89,18 +89,40 @@ def _add_host(host):
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
-    insights_id = canonical_facts.get("insights_id", None)
 
-    if insights_id:
-        # The insights_id is the most important canonical fact.  If there
-        # is a matching insights_id, then update that host.
-        existing_host = find_host_by_insights_id(account_number, insights_id)
+    elevated_canonical_fact_fields = ("insights_id",
+                                      "subscription_manager_id",
+                                      "external_id",
+                                      )
+
+    id_dict = {}
+    for cf in elevated_canonical_fact_fields:
+        cf_value = canonical_facts.get(cf)
+        if cf_value:
+            id_dict[cf] = cf_value
+
+    print("id_dict:", id_dict)
+
+    if id_dict:
+        # There is at least one "elevated" cf passed in
+        existing_host = _find_host_by_elevated_ids(account_number, **id_dict)
 
     if not existing_host:
         existing_host = find_host_by_canonical_facts(account_number,
                                                      canonical_facts)
 
     return existing_host
+
+
+@metrics.find_host_using_elevated_ids.time()
+def _find_host_by_elevated_ids(account_number, **kwargs):
+    filter_list = [Host.canonical_facts[k].astext == v
+                   for k, v in kwargs.items()]
+
+    return Host.query.filter(sqlalchemy.and_(
+        *[Host.account == account_number,
+          sqlalchemy.or_(*filter_list)]
+        )).order_by(Host.created_on).first()
 
 
 def find_host_by_insights_id(account_number, insights_id):
