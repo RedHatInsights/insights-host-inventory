@@ -2,7 +2,7 @@ import uuid
 
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError, post_load
+from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy import orm, Index, text
 
@@ -220,33 +220,14 @@ class CanonicalFacts:
         "external_id",
     )
 
-    uuid_field_names = (
-        "insights_id",
-        "rhel_machine_id",
-        "subscription_manager_id",
-        "satellite_id",
-        "bios_uuid",
-    )
-
     @staticmethod
     def from_json(json_dict):
         canonical_fact_list = {}
         for cf in CanonicalFacts.field_names:
             # Do not allow the incoming canonical facts to be None or ''
             if cf in json_dict and json_dict[cf]:
-                if CanonicalFacts.is_uuid_field(cf):
-                    canonical_fact_list[cf] = CanonicalFacts.convert_uuid_obj_to_string(json_dict[cf])
-                else:
-                    canonical_fact_list[cf] = json_dict[cf]
+                canonical_fact_list[cf] = json_dict[cf]
         return canonical_fact_list
-
-    @staticmethod
-    def is_uuid_field(field_name):
-        return field_name in CanonicalFacts.uuid_field_names
-
-    @staticmethod
-    def convert_uuid_obj_to_string(uuid_obj):
-        return str(uuid_obj)
 
     @staticmethod
     def to_json(internal_dict):
@@ -368,12 +349,12 @@ class HostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
     account = fields.Str(required=True,
                          validate=validate.Length(min=1, max=10))
-    insights_id = fields.UUID()
-    rhel_machine_id = fields.UUID()
-    subscription_manager_id = fields.UUID()
-    satellite_id = fields.UUID()
+    insights_id = fields.Str(validate=verify_uuid_format)
+    rhel_machine_id = fields.Str(validate=verify_uuid_format)
+    subscription_manager_id = fields.Str(validate=verify_uuid_format)
+    satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
-    bios_uuid = fields.UUID()
+    bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(
             fields.Str(validate=validate.Length(min=1, max=255)))
     mac_addresses = fields.List(
