@@ -4,6 +4,8 @@ api_request_time = Summary("inventory_request_processing_seconds",
                            "Time spent processing request")
 host_dedup_processing_time = Summary("inventory_dedup_processing_seconds",
                                      "Time spent looking for existing host (dedup logic)")
+find_host_using_elevated_ids = Summary("inventory_find_host_using_elevated_ids_processing_seconds",
+                                     "Time spent looking for existing host using the elevated ids")
 new_host_commit_processing_time = Summary("inventory_new_host_commit_seconds",
                                           "Time spent committing a new host to the database")
 update_host_commit_processing_time = Summary("inventory_update_host_commit_seconds",
