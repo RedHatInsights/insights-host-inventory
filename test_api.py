@@ -10,7 +10,6 @@ import tempfile
 
 from app import create_app, db, events
 from app.auth.identity import Identity
-from app.models import CanonicalFacts
 from app.utils import HostWrapper
 from tasks import msg_handler
 from base64 import b64encode
@@ -783,40 +782,6 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         self._validate_host(host_lookup_results["results"][0],
                             host_data,
                             expected_id=original_id)
-
-
-class NormalizeCanonicalFactsUUIDsTestCase(DBAPITestCase):
-
-    def test_normalize_cf_uuids_on_create(self):
-        host_data = test_data(facts=None)
-
-        host_data_no_hyphens = copy.deepcopy(host_data)
-
-        for field in CanonicalFacts.uuid_field_names:
-            # Intialize the uuid fields
-            host_data[field] = generate_uuid()
-
-            # Remove the hyphens from the uuid fields
-            host_data_no_hyphens[field] = uuid.UUID(host_data[field]).hex
-
-        # The expected_host_data has hyphens
-        expected_host_data = HostWrapper(host_data)
-
-        # Create the host
-        response = self.post(HOST_URL, [host_data_no_hyphens], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        host_lookup_results = self.get("%s/%s" % (HOST_URL, original_id), 200)
-
-        self._validate_host(host_lookup_results["results"][0],
-                expected_host_data,
-                expected_id=original_id)
-
 
 class BulkCreateHostsTestCase(DBAPITestCase):
 
