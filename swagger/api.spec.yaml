@@ -39,6 +39,12 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - in: query
+          name: branch_id
+          schema:
+            type: string
+          description: Filter by branch_id
+          required: false
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -113,6 +119,12 @@ paths:
             items:
               type: string
               format: uuid
+        - in: query
+          name: branch_id
+          schema:
+            type: string
+          description: Filter by branch_id
+          required: false
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
       responses:
@@ -126,23 +138,55 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
-  '/hosts/{host_id}':
+    delete:
+      tags:
+        - hosts
+      summary: Delete hosts by IDs
+      description: Delete hosts by IDs
+      operationId: api.host.delete_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: host_id_list
+          description: A comma separated list of host IDs.
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+      responses:
+        '200':
+          description: Successfully deleted hosts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
     patch:
       tags:
         - hosts
       summary: Update a host
       description: Update a host
-      operationId: api.host.patch_host
+      operationId: api.host.patch_by_id
       security:
         - ApiKeyAuth: []
       parameters:
         - in: path
-          name: host_id
+          name: host_id_list
           description: A host ID
           required: true
           schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - in: query
+          name: branch_id
+          schema:
             type: string
-            format: uuid
+          description: Filter by branch_id
+          required: false
       requestBody:
         description: A group of fields to be updated on the host
         required: true

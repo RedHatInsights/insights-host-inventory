@@ -1,5 +1,4 @@
 import flask
-import logging
 import sqlalchemy
 import ujson
 import uuid
@@ -8,17 +7,19 @@ from enum import Enum
 from flask_api import status
 from marshmallow import ValidationError
 
-from app import db
+from app import db, events
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
-from app.exceptions import InventoryException, InputFormatException
+from app.exceptions import InventoryException
+from app.logging import get_logger
 from api import api_operation, metrics
+from tasks import emit_event
 
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @api_operation
@@ -246,6 +247,26 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 
 @api_operation
 @metrics.api_request_time.time()
+def delete_by_id(host_id_list):
+    query = _get_host_list_by_id_list(
+        current_identity.account_number, host_id_list, order=False
+    )
+
+    hosts = query.all()
+
+    if not hosts:
+        return flask.abort(status.HTTP_404_NOT_FOUND)
+
+    with metrics.delete_host_processing_time.time():
+        query.delete(synchronize_session="fetch")
+    db.session.commit()
+    metrics.delete_host_count.inc(len(hosts))
+    for deleted_host in hosts:
+        emit_event(events.delete(deleted_host.id))
+
+
+@api_operation
+@metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
@@ -259,11 +280,16 @@ def get_host_by_id(host_id_list, page=1, per_page=100):
     )
 
 
-def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter(
+def _get_host_list_by_id_list(account_number, host_id_list, order=True):
+    q = Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
-    ).order_by(Host.created_on, Host.id)
+    )
+
+    if order:
+        return q.order_by(Host.created_on, Host.id)
+    else:
+        return q
 
 
 @api_operation
@@ -289,12 +315,12 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100):
 
 @api_operation
 @metrics.api_request_time.time()
-def patch_host(host_id, host_data):
+def patch_by_id(host_id_list, host_data):
     try:
         validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
     except ValidationError as e:
         logger.exception("Input validation error while patching host: %s - %s"
-                         % (host_id, host_data))
+                         % (host_id_list, host_data))
         return ({"status": 400,
                  "title": "Bad Request",
                  "detail": str(e.messages),
@@ -303,16 +329,16 @@ def patch_host(host_id, host_data):
                 400)
 
     query = _get_host_list_by_id_list(current_identity.account_number,
-                                      [host_id])
+                                      host_id_list)
 
-    host_to_update = query.first()
+    hosts_to_update = query.all()
 
-    if host_to_update is None:
-        logger.debug("Failed to find host (id=%s) during patch operation" %
-                     (host_id))
+    if not hosts_to_update:
+        logger.debug("Failed to find hosts during patch operation - hosts: %s" % host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
-    host_to_update.patch(validated_patch_host_data)
+    for host in hosts_to_update:
+        host.patch(validated_patch_host_data)
 
     db.session.commit()
 

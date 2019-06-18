@@ -9,3 +9,19 @@ services:
             POSTGRES_DB: insights
         ports: 
             - "5432:5432"
+    zookeeper:
+      image: confluentinc/cp-zookeeper
+      environment:
+        - ZOOKEEPER_CLIENT_PORT=32181
+        - ZOOKEEPER_SERVER_ID=1
+    kafka:
+      image: confluentinc/cp-kafka
+      ports:
+        - 29092:29092
+      depends_on:
+        - zookeeper
+      environment:
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092
+        - KAFKA_BROKER_ID=1
+        - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181

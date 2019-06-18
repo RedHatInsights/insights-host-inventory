@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import os
-
 from api import api_operation
 from app.config import Config
 from app.auth.identity import (Identity,
@@ -15,7 +13,6 @@ from unittest import main, TestCase
 from unittest.mock import Mock, patch
 import test.support
 from test.support import EnvironmentVarGuard
-from werkzeug.exceptions import Forbidden
 
 
 class ApiOperationTestCase(TestCase):
@@ -184,10 +181,10 @@ class TrustedIdentityTestCase(TestCase):
 
         self.assertEqual(identity.is_trusted_system, True)
 
-    def test_is_account_number_valid_on_trusted_system(self):
+    def test_account_number_is_not_set_for_trusted_system(self):
         identity = self._build_id()
 
-        self.assertEqual(identity.account_number, "<<TRUSTED IDENTITY>>")
+        self.assertEqual(identity.account_number, None)
 
 
 class ConfigTestCase(TestCase):
@@ -211,7 +208,7 @@ class ConfigTestCase(TestCase):
             env.set("PATH_PREFIX", path_prefix)
             env.set("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", expected_mgmt_url_path_prefix)
 
-            conf = Config("testing")
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -232,7 +229,7 @@ class ConfigTestCase(TestCase):
                             "INVENTORY_MANAGEMENT_URL_PATH_PREFIX",):
                 env.unset(env_var)
 
-            conf = Config("testing")
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -244,8 +241,7 @@ class ConfigTestCase(TestCase):
         with test.support.EnvironmentVarGuard() as env:
             env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
 
-            # Test a different "type" (development) of config settings
-            conf = Config("development")
+            conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
 

@@ -180,14 +180,33 @@ will be added to the existing host entry.
 If the canonical facts based lookup does not locate an existing host, then
 a new host entry is created.
 
+#### Host deletion
+
+Hosts can be deleted by using the DELETE HTTP Method on the _/hosts/id_ endpoint.
+When a host is deleted, the inventory service will send an event message
+to the _platform.inventory.events_ message queue.  The delete event message
+will look like the following:
+
+```json
+  {"id": <host id>, "timestamp": <delete timestamp>, "type": "delete"}
+```
+
+  - type: type of host change (delete in this case)
+  - id: Inventory host id of the host that was deleted
+  - timestamp: the time at which the host was deleted
+
 #### Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
 service.  For testing purposes, it is possible to set the required identity
 header to the following:
 
-  x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+```
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+```
 
-This is the base64 encoding of the following json doc:
+This is the Base64 encoding of the following JSON document:
 
-  '{"identity":{"account_number":"0000001"}}'
+```json
+{"identity": {"account_number": "0000001"}}
+```
