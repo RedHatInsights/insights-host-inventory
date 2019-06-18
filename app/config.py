@@ -6,7 +6,7 @@ from app.common import get_build_version
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"
-    
+
     def __init__(self, config_name):
         self.logger = logging.getLogger(__name__)
         self._config_name = config_name
@@ -16,7 +16,7 @@ class Config:
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
-        self._db_cert = os.getenv("INVENTORY_DB_CERT", "")
+        self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
 
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
         self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
@@ -44,10 +44,12 @@ class Config:
         api_path = f"{base_url_path}/{version}"
         return api_path
 
-    def _build_db_uri(self, ssl_mode):
+    def _build_db_uri(self, ssl_mode, hide_password=False):
         db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
         if ssl_mode == self.SSL_VERIFY_FULL:
-            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_cert}"
+            db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
+        if hide_password:
+            return db_uri.replace(self._db_password, "XXXX")
         return db_uri
 
     def _log_configuration(self):
@@ -58,8 +60,8 @@ class Config:
             self.logger.info("Management URL Path Prefix: %s" % self.mgmt_url_path_prefix)
             self.logger.info("DB Host: %s" % self._db_host)
             self.logger.info("DB Name: %s" % self._db_name)
-            self.logger.info("DB Connection URI: %s" % self.db_uri)
+            self.logger.info("DB Connection URI: %s" % self._build_db_uri(self._db_ssl_mode, hide_password=True))
             if self._db_ssl_mode == self.SSL_VERIFY_FULL:
                 self.logger.info("Using SSL for DB connection:")
                 self.logger.info("Postgresql SSL verification type: %s" % self._db_ssl_mode)
-                self.logger.info("Path to certificate: %s" % self._db_cert)
+                self.logger.info("Path to certificate: %s" % self._db_ssl_cert)
