@@ -1783,12 +1783,6 @@ class PaginatedQueryWithMorePreCreatedHostsTestCase(
 
             expected_count = min(limit, total - offset)
 
-            from logging import DEBUG, getLogger
-
-            logger = getLogger(__name__)
-            logger.setLevel(DEBUG)
-            logger.debug(f"{HOST_URL}?limit={limit}&offset={offset}")
-            logger.debug(f"{response}, {expected_count}")
             self.assertEqual(len(response["data"]), expected_count)
             self.assertEqual(response["meta"]["count"], expected_count)
             self.assertEqual(response["meta"]["total"], total)
