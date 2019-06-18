@@ -5,9 +5,8 @@ from app.logging import get_logger
 
 
 class Config:
-    def __init__(self, config_name):
+    def __init__(self):
         self.logger = get_logger(__name__)
-        self._config_name = config_name
 
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
@@ -25,7 +24,11 @@ class Config:
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
-        self._log_configuration()
+        self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
+        self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
+        self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+        self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+        self.kafka_enabled = all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -39,8 +42,8 @@ class Config:
         api_path = f"{base_url_path}/{version}"
         return api_path
 
-    def _log_configuration(self):
-        if self._config_name != "testing":
+    def log_configuration(self, config_name):
+        if config_name != "testing":
             self.logger.info("Insights Host Inventory Configuration:")
             self.logger.info("Build Version: %s" % get_build_version())
             self.logger.info("API URL Path: %s" % self.api_url_path_prefix)

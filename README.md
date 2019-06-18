@@ -33,7 +33,6 @@ The database migration scripts determine the DB location, username,
 password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 ```
-python manage.py db migrate
 python manage.py db upgrade
 ```
 
@@ -50,21 +49,20 @@ docker-compose down
 It is possible to run the tests using pytest:
 
 ```
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest --cov=.
+pytest --cov=.
 ```
 
 Or you can run the tests individually:
 
 ```
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ ./test_api.py
-prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest test_db_model.py
+./test_api.py
+pytest test_db_model.py
 ./test_unit.py
 pytest test_json_validators.py
 ```
 
 Depending on the environment, it might be necessary to set the DB related environment
-variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).  See information on
-_prometheus_multiproc_dir_ environment variable below.
+variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
 ## Running the server
 
@@ -176,14 +174,33 @@ will be added to the existing host entry.
 If the canonical facts based lookup does not locate an existing host, then
 a new host entry is created.
 
+#### Host deletion
+
+Hosts can be deleted by using the DELETE HTTP Method on the _/hosts/id_ endpoint.
+When a host is deleted, the inventory service will send an event message
+to the _platform.inventory.events_ message queue.  The delete event message
+will look like the following:
+
+```json
+  {"id": <host id>, "timestamp": <delete timestamp>, "type": "delete"}
+```
+
+  - type: type of host change (delete in this case)
+  - id: Inventory host id of the host that was deleted
+  - timestamp: the time at which the host was deleted
+
 #### Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
 service.  For testing purposes, it is possible to set the required identity
 header to the following:
 
-  x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+```
+x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0=
+```
 
-This is the base64 encoding of the following json doc:
+This is the Base64 encoding of the following JSON document:
 
-  '{"identity":{"account_number":"0000001"}}'
+```json
+{"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
+```

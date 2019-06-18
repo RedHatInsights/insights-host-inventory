@@ -4,7 +4,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import Schema, fields, validate, validates, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import orm
+from sqlalchemy import orm, Index, text
 
 from app.exceptions import InventoryException, InputFormatException
 from app.logging import get_logger
@@ -29,6 +29,11 @@ def _set_display_name_on_save(context):
 
 class Host(db.Model):
     __tablename__ = "hosts"
+    # These Index entries are essentially place holders so that the
+    # alembic autogenerate functionality does not try to remove the indexes
+    __table_args__ = (Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+                      Index("idxgincanonicalfacts", "canonical_facts"),
+                      Index("idxaccount", "account"),)
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -271,24 +276,24 @@ class Facts:
 
 
 class DiskDeviceSchema(Schema):
-    device = fields.Str()
-    label = fields.Str()
+    device = fields.Str(validate=validate.Length(max=2048))
+    label = fields.Str(validate=validate.Length(max=1024))
     options = fields.Dict()
-    mount_point = fields.Str()
-    type = fields.Str()
+    mount_point = fields.Str(validate=validate.Length(max=2048))
+    type = fields.Str(validate=validate.Length(max=256))
 
 
 class YumRepoSchema(Schema):
-    name = fields.Str()
+    name = fields.Str(validate=validate.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Str()
+    base_url = fields.Str(validate=validate.Length(max=2048))
 
 
 class InstalledProductSchema(Schema):
-    name = fields.Str()
-    id = fields.Str()
-    status = fields.Str()
+    name = fields.Str(validate=validate.Length(max=512))
+    id = fields.Str(validate=validate.Length(max=64))
+    status = fields.Str(validate=validate.Length(max=256))
 
 
 class NetworkInterfaceSchema(Schema):
@@ -329,9 +334,9 @@ class SystemProfileSchema(Schema):
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))
     insights_egg_version = fields.Str(validate=validate.Length(max=50))
-    installed_packages = fields.List(fields.Str())
-    installed_services = fields.List(fields.Str())
-    enabled_services = fields.List(fields.Str())
+    installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
+    installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
 
 
 class FactsSchema(Schema):

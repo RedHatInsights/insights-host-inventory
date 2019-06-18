@@ -10,12 +10,13 @@ from flask import abort, request
 from flask_api import status
 from marshmallow import ValidationError
 
-from app import db
+from app import db, events
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from api import api_operation, metrics
+from tasks import emit_event
 
 
 TAG_OPERATIONS = ("apply", "remove")
@@ -211,7 +212,8 @@ def _paginate_host_list_query(query, limit, offset):
     if not db_limit:
         raise IndexError
 
-    query = query.order_by(Host.created_on, Host.id).limit(db_limit).offset(db_offset)
+    query = query.order_by(Host.modified_on.desc(), Host.id.desc())
+    query = query.limit(db_limit).offset(db_offset)
     query_results = query.all()
     logger.debug(f"Found hosts: {query_results}")
     return total, query_results
@@ -307,6 +309,37 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 
 @api_operation
 @metrics.api_request_time.time()
+def delete_by_id(host_id_list):
+    query = _get_host_list_by_id_list(
+        current_identity.account_number, host_id_list, order=False
+    )
+
+    host_ids_to_delete = []
+    for host in query.all():
+        try:
+            host_ids_to_delete.append(host.id)
+        except sqlalchemy.orm.exc.ObjectDeletedError:
+            logger.exception("Encountered sqlalchemy.orm.exc.ObjectDeletedError"
+                             " exception during delete_by_id operation.  Host was"
+                             " already deleted.")
+
+    if not host_ids_to_delete:
+        return flask.abort(status.HTTP_404_NOT_FOUND)
+
+    with metrics.delete_host_processing_time.time():
+        query.delete(synchronize_session="fetch")
+    db.session.commit()
+
+    metrics.delete_host_count.inc(len(host_ids_to_delete))
+
+    logger.debug(f"Deleted hosts: %s", host_ids_to_delete)
+
+    for deleted_host_id in host_ids_to_delete:
+        emit_event(events.delete(deleted_host_id))
+
+
+@api_operation
+@metrics.api_request_time.time()
 def get_host_by_id(host_id_list, limit=100, offset=0):
     query = _get_host_list_by_id_list(current_identity.account_number,
                                       host_id_list)
@@ -320,11 +353,16 @@ def get_host_by_id(host_id_list, limit=100, offset=0):
         )
 
 
-def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter(
+def _get_host_list_by_id_list(account_number, host_id_list, order=True):
+    q = Host.query.filter(
         (Host.account == account_number)
         & Host.id.in_(host_id_list)
     )
+
+    if order:
+        return q.order_by(Host.modified_on.desc(), Host.id.desc())
+    else:
+        return q
 
 
 @api_operation

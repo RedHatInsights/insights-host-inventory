@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import os
-
 from api import api_operation
 from app.config import Config
 from app.auth.identity import (Identity,
@@ -13,9 +11,7 @@ from base64 import b64encode
 from json import dumps
 from unittest import main, TestCase
 from unittest.mock import Mock, patch
-import test.support
-from test.support import EnvironmentVarGuard
-from werkzeug.exceptions import Forbidden
+from test_utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):
@@ -144,10 +140,6 @@ class AuthIdentityValidateTestCase(TestCase):
 class TrustedIdentityTestCase(TestCase):
     shared_secret = "ImaSecret"
 
-    def setUp(self):
-        self.env = EnvironmentVarGuard()
-        self.env.set(SHARED_SECRET_ENV_VAR, self.shared_secret)
-
     def _build_id(self):
         identity = from_bearer_token(self.shared_secret)
         return identity
@@ -155,7 +147,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_validation(self):
         identity = self._build_id()
 
-        with self.env:
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
             validate(identity)
 
     def test_validation_with_invalid_identity(self):
@@ -167,8 +159,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_validation_env_var_not_set(self):
         identity = self._build_id()
 
-        self.env.unset(SHARED_SECRET_ENV_VAR)
-        with self.env:
+        with set_environment({}):
             with self.assertRaises(ValueError):
                 validate(identity)
 
@@ -199,19 +190,19 @@ class ConfigTestCase(TestCase):
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
-        with test.support.EnvironmentVarGuard() as env:
-            env.unset(SHARED_SECRET_ENV_VAR)
-            env.set("INVENTORY_DB_USER", "fredflintstone")
-            env.set("INVENTORY_DB_PASS", "bedrock1234")
-            env.set("INVENTORY_DB_HOST", "localhost")
-            env.set("INVENTORY_DB_NAME", "SlateRockAndGravel")
-            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
-            env.set("INVENTORY_DB_POOL_SIZE", "8")
-            env.set("APP_NAME", app_name)
-            env.set("PATH_PREFIX", path_prefix)
-            env.set("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", expected_mgmt_url_path_prefix)
+        new_env = {"INVENTORY_DB_USER": "fredflintstone",
+                "INVENTORY_DB_PASS": "bedrock1234",
+                "INVENTORY_DB_HOST": "localhost",
+                "INVENTORY_DB_NAME": "SlateRockAndGravel",
+                "INVENTORY_DB_POOL_TIMEOUT": "3",
+                "INVENTORY_DB_POOL_SIZE": "8",
+                "APP_NAME": app_name,
+                "PATH_PREFIX": path_prefix,
+                "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix, }
 
-            conf = Config("testing")
+        with set_environment(new_env):
+
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -223,16 +214,10 @@ class ConfigTestCase(TestCase):
         expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
-        with test.support.EnvironmentVarGuard() as env:
-            # Make sure the environment variables are not set
-            for env_var in ("INVENTORY_DB_USER", "INVENTORY_DB_PASS",
-                            "INVENTORY_DB_HOST", "INVENTORY_DB_NAME",
-                            "INVENTORY_DB_POOL_TIMEOUT", "INVENTORY_DB_POOL_SIZE",
-                            "APP_NAME", "PATH_PREFIX"
-                            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX",):
-                env.unset(env_var)
+        # Make sure the environment variables are not set
+        with set_environment(None):
 
-            conf = Config("testing")
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -241,11 +226,9 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_size, 5)
 
     def test_config_development_settings(self):
-        with test.support.EnvironmentVarGuard() as env:
-            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
+        with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
 
-            # Test a different "type" (development) of config settings
-            conf = Config("development")
+            conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
 

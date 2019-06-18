@@ -39,6 +39,7 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/limitParam'
         - $ref: '#/components/parameters/offsetParam'
       responses:
@@ -104,15 +105,8 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/limitParam'
         - $ref: '#/components/parameters/offsetParam'
       responses:
@@ -126,6 +120,23 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
+    delete:
+      tags:
+        - hosts
+      summary: Delete hosts by IDs
+      description: Delete hosts by IDs
+      operationId: api.host.delete_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '200':
+          description: Successfully deleted hosts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
     patch:
       tags:
         - hosts
@@ -135,15 +146,8 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A host ID
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A group of fields to be updated on the host
         required: true
@@ -169,20 +173,8 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be merged.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -207,20 +199,8 @@ paths:
         - ApiKeyAuth: []
       operationId: api.host.replace_facts
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be replaced.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -246,15 +226,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/limitParam'
         - $ref: '#/components/parameters/offsetParam'
       responses:
@@ -301,6 +273,30 @@ components:
       schema:
         type: integer
         default: 0
+    hostIdList:
+      in: path
+      name: host_id_list
+      description: A comma separated list of host IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+    branchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Filter by branch_id
+      required: false
+    factsNamespace:
+      in: path
+      name: namespace
+      description: A namespace of the merged facts.
+      required: true
+      schema:
+        type: string
   schemas:
     BulkHostOut:
       type: object
