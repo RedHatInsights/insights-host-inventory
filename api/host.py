@@ -241,7 +241,7 @@ def _params_to_order_by(order_by=None, order_how=None):
             "Provide order_by={updated,display_name}."
         )
 
-    return ordering + modified_on_ordering
+    return ordering + modified_on_ordering + (Host.id.desc(),)
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
