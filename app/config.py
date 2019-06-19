@@ -48,11 +48,16 @@ class Config:
         return api_path
 
     def _build_db_uri(self, ssl_mode, hide_password=False):
-        db_uri = f"postgresql://{self._db_user}:{self._db_password}@{self._db_host}/{self._db_name}"
+        db_user = self._db_user
+        db_password = self._db_password
+
+        if hide_password:
+            db_user = "xxxx"
+            db_password = "XXXX"
+
+        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}/{self._db_name}"
         if ssl_mode == self.SSL_VERIFY_FULL:
             db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
-        if hide_password:
-            return db_uri.replace(self._db_password, "XXXX")
         return db_uri
 
     def log_configuration(self, config_name):
