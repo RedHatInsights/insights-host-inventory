@@ -110,7 +110,7 @@ python run_gunicorn.py
  INVENTORY_DB_SSL_CERT=""
 ```
 
-To force an ssl connection to the db set INVENTORY_SSL_MODE to "verify-full"
+To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
 and provide the path to the certificate you'd like to use.
 
 ## Using the legacy api
