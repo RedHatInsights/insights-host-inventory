@@ -1160,7 +1160,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase):
 class PreCreatedHostsBaseTestCase(DBAPITestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
-        self.added_hosts = self.create_hosts()
+        self.added_hosts = list(reversed(self.create_hosts()))
 
     def create_hosts(self):
         hosts_to_create = [
@@ -1331,12 +1331,9 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(HOST_URL, 200)
 
         host_list = self.added_hosts.copy()
-        host_list.reverse()
 
         expected_host_list = [h.data() for h in host_list]
         self.assertEqual(response["data"], expected_host_list)
-
-        self._base_paging_test(HOST_URL, len(self.added_hosts))
 
     def test_query_all_with_invalid_paging_parameters(self):
         invalid_limit_parameters = ["-1", "0", "notanumber"]
@@ -1359,7 +1356,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["data"][0]["display_name"], host_list[0].display_name)
 
     def test_query_using_fqdn_two_results(self):
-        expected_host_list = [self.added_hosts[0], self.added_hosts[1]]
+        expected_host_list = self.added_hosts[1:3]
 
         response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
 
@@ -1370,7 +1367,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
             assert any(result["display_name"] == host.display_name for host in expected_host_list)
 
     def test_query_using_fqdn_one_result(self):
-        expected_host_list = [self.added_hosts[2]]
+        expected_host_list = [self.added_hosts[0]]
 
         response = self.get(HOST_URL + "?fqdn=" + expected_host_list[0].fqdn)
 
@@ -1389,9 +1386,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
     def test_query_using_display_name_substring(self):
         host_list = self.added_hosts.copy()
-        host_list.reverse()
 
-        host_name_substr = host_list[0].display_name[:-2]
+        host_name_substr = self.added_hosts[0].display_name[:-2]
 
         test_url = HOST_URL + "?display_name=" + host_name_substr
 
@@ -1401,7 +1397,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["data"], expected_host_list)
 
 
-class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
+class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase):
 
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
@@ -1415,8 +1411,6 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
             self.assertIn(host, response["data"])
         for host in response["data"]:
             self.assertIn(host, host_data)
-
-        self._base_paging_test(url, len(expected_host_list))
 
     def test_query_existent_hosts(self):
         host_lists = [
@@ -1498,12 +1492,12 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
 
-        self._base_query_test(host_list[0].display_name, 2)
+        self._base_query_test(host_list[2].display_name, 2)
 
     def test_query_using_fqdn_as_hostname(self):
         host_list = self.added_hosts
 
-        self._base_query_test(host_list[2].fqdn, 1)
+        self._base_query_test(host_list[0].fqdn, 1)
 
     def test_query_using_id(self):
         host_list = self.added_hosts
@@ -1550,32 +1544,6 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url, 200)
 
 
-class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
-
-    def _queries_subtests_with_added_hosts(self):
-        host_id_list = [host.id for host in self.added_hosts]
-        url_host_id_list = ",".join(host_id_list)
-        urls = (
-            HOST_URL,
-            f"{HOST_URL}/{url_host_id_list}",
-            f"{HOST_URL}/{url_host_id_list}/system_profile"
-        )
-        for url in urls:
-            with self.subTest(url=url):
-                yield url
-
-    def tests_hosts_are_ordered_by_updated_desc(self):
-        expected_hosts = self.added_hosts.copy()
-        expected_hosts.reverse()
-        expected_ids = [host.id for host in expected_hosts]
-
-        for url in self._queries_subtests_with_added_hosts():
-            with self.subTest(url=url):
-                response = self.get(url)
-                response_ids = [host["id"] for host in response["data"]]
-                self.assertEqual(response_ids, expected_ids)
-
-
 class QueryBaseTestCase(DBAPITestCase):
     def _assert_hosts_in_response(self, response, expected_hosts, expected_total):
         expected_host_ids = [host.id for host in expected_hosts]
@@ -1608,6 +1576,19 @@ class QueriesWithPreCreatedHostsBaseTestCase(
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
         yield from self._queries_subtests(host_id_list)
+
+
+class QueryOrderTestCase(QueriesWithPreCreatedHostsBaseTestCase):
+
+    def tests_hosts_are_ordered_by_updated_desc(self):
+        expected_hosts = self.added_hosts.copy()
+        expected_ids = [host.id for host in expected_hosts]
+
+        for url in self._queries_subtests_with_added_hosts():
+            with self.subTest(url=url):
+                response = self.get(url)
+                response_ids = [host["id"] for host in response["data"]]
+                self.assertEqual(response_ids, expected_ids)
 
 
 class PaginatedQueryWithPreCreatedHostsTestCase(QueriesWithPreCreatedHostsBaseTestCase):
@@ -1712,28 +1693,29 @@ class PaginatedParametrizedQueryWithPreCreatedHostTestCase(
 
     def test_one_result(self):
         queries = [
-            f"display_name={self.added_hosts[2].display_name}",
-            f"fqdn={self.added_hosts[2].fqdn}",
-            f"hostname_or_id={self.added_hosts[2].id}",
-            f"insights_id={self.added_hosts[2].insights_id}"
+            f"display_name={self.added_hosts[0].display_name}",
+            f"fqdn={self.added_hosts[0].fqdn}",
+            f"hostname_or_id={self.added_hosts[0].id}",
+            f"insights_id={self.added_hosts[0].insights_id}"
         ]
 
         for query in queries:
             with self.subTest(query=query):
                 base_url = f"{HOST_URL}?{query}"
                 response = self.get(f"{base_url}&offset=0")
-                self._assert_hosts_in_response(response, self.added_hosts[2:3], 1)
+                self._assert_hosts_in_response(response, self.added_hosts[0:1], 1)
 
                 self.get(f"{base_url}&offset=1", 404)
 
     def test_more_results(self):
-        base_url = f"{HOST_URL}?fqdn={self.added_hosts[0].fqdn}"
+        base_url = f"{HOST_URL}?fqdn={self.added_hosts[2].fqdn}"
+        matched_hosts = self.added_hosts[1:3]
         offsets = [0, 1]
         for offset in offsets:
             with self.subTest(offset=offset):
                 response = self.get(f"{base_url}&offset={offset}")
 
-                expected_hosts = self.added_hosts[offset:2]
+                expected_hosts = matched_hosts[offset:]
                 self._assert_hosts_in_response(response, expected_hosts, 2)
 
         self.get(f"{base_url}&offset=2", 404)
