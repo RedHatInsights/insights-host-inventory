@@ -90,9 +90,26 @@ def _add_host(host):
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
 
+    input_elevated_canonical_facts = _pluck_elevated_canonical_facts(
+            canonical_facts
+            )
+
+    if input_elevated_canonical_facts:
+        # There is at least one "elevated" canonical fact passed in
+        # Search for an existing host using the "elevated" canonical facts
+        existing_host = _find_host_by_elevated_ids(account_number,
+                **input_elevated_canonical_facts)
+
+    if not existing_host:
+        existing_host = find_host_by_canonical_facts(account_number,
+                                                     canonical_facts)
+
+    return existing_host
+
+
+def _pluck_elevated_canonical_facts(canonical_facts):
     elevated_canonical_fact_fields = ("insights_id",
                                       "subscription_manager_id",
-                                      "external_id",
                                       )
 
     id_dict = {}
@@ -100,18 +117,7 @@ def find_existing_host(account_number, canonical_facts):
         cf_value = canonical_facts.get(cf)
         if cf_value:
             id_dict[cf] = cf_value
-
-    print("id_dict:", id_dict)
-
-    if id_dict:
-        # There is at least one "elevated" cf passed in
-        existing_host = _find_host_by_elevated_ids(account_number, **id_dict)
-
-    if not existing_host:
-        existing_host = find_host_by_canonical_facts(account_number,
-                                                     canonical_facts)
-
-    return existing_host
+    return id_dict
 
 
 @metrics.find_host_using_elevated_ids.time()
