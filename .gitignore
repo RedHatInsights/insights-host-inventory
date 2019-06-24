@@ -7,3 +7,4 @@ pyvenv.cfg
 .python-version
 tags
 .idea
+.coverage

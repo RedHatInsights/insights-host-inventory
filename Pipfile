@@ -33,6 +33,8 @@ kafka = "*"
 pytest = "*"
 pytest-cov = "*"
 coverage = "*"
+flake8 = "*"
+flake8-junit-report = "*"
 
 [requires]
 python_version = "3.6"

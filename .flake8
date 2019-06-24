@@ -1,0 +1,3 @@
+[flake8]
+exclude = migrations,swagger,*.md,*.lock,*.ini,*.yml
+max-line-length = 100
