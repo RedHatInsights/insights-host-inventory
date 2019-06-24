@@ -39,14 +39,11 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
-        - in: query
-          name: branch_id
-          schema:
-            type: string
-          description: Filter by branch_id
-          required: false
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -110,23 +107,12 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
-        - in: query
-          name: branch_id
-          schema:
-            type: string
-          description: Filter by branch_id
-          required: false
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -147,15 +133,7 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
       responses:
         '200':
           description: Successfully deleted hosts.
@@ -172,21 +150,8 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A host ID
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
-        - in: query
-          name: branch_id
-          schema:
-            type: string
-          description: Filter by branch_id
-          required: false
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A group of fields to be updated on the host
         required: true
@@ -212,21 +177,8 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be merged.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -251,21 +203,8 @@ paths:
         - ApiKeyAuth: []
       operationId: api.host.replace_facts
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be replaced.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -291,17 +230,11 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -348,6 +281,52 @@ components:
         maximum: 100
         default: 50
       description: A number of items to return per page.
+    hostIdList:
+      in: path
+      name: host_id_list
+      description: A comma separated list of host IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+    branchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Filter by branch_id
+      required: false
+    factsNamespace:
+      in: path
+      name: namespace
+      description: A namespace of the merged facts.
+      required: true
+      schema:
+        type: string
+    orderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - display_name
+          - updated
+      description: Ordering field name
+    orderHowParam:
+      name: order_how
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - ASC
+          - DESC
+      description: >-
+        Direction of the ordering, defaults to ASC for display_name and to DESC for
+        updated
   schemas:
     BulkHostOut:
       type: object

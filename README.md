@@ -106,8 +106,12 @@ python run_gunicorn.py
  INVENTORY_DB_POOL_TIMEOUT="5"
  INVENTORY_DB_POOL_SIZE="5"
  INVENTORY_LOGGING_CONFIG_FILE=logconf.ini
+ INVENTORY_DB_SSL_MODE=""
+ INVENTORY_DB_SSL_CERT=""
 ```
 
+To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
+and provide the path to the certificate you'd like to use.
 
 ## Using the legacy api
 
