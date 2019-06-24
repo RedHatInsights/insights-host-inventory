@@ -5,6 +5,7 @@ from unittest import main
 from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import uuid4
 
 from api import api_operation
 from api.host import _order_how
@@ -15,6 +16,8 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
+from app.utils import uuid_with_hyphens
+from app.utils import uuid_without_hyphens
 from test_utils import set_environment
 
 
@@ -317,6 +320,22 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
     def test_order_by_only_how_raises_error(self):
         with self.assertRaises(ValueError):
             _params_to_order_by(Mock(), order_how="ASC")
+
+
+class UtilsUuidTestCase(TestCase):
+    def _some_uuids(self):
+        for _ in range(5):
+            yield uuid4()
+
+    def test_uuid_with_hyphens(self):
+        for uuid in self._some_uuids():
+            result = uuid_with_hyphens(uuid)
+            self.assertEqual(result, str(uuid))
+
+    def test_without_hyphens(self):
+        for uuid in self._some_uuids():
+            result = uuid_without_hyphens(uuid)
+            self.assertEqual(result, uuid.hex)
 
 
 if __name__ == "__main__":

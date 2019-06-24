@@ -6,6 +6,7 @@ import sqlalchemy
 import ujson
 from flask_api import status
 from marshmallow import ValidationError
+from sqlalchemy import or_
 
 from api import api_operation
 from api import metrics
@@ -17,6 +18,8 @@ from app.logging import get_logger
 from app.models import Host
 from app.models import HostSchema
 from app.models import PatchHostSchema
+from app.utils import uuid_with_hyphens
+from app.utils import uuid_without_hyphens
 from tasks import emit_event
 
 
@@ -119,13 +122,25 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
-    )
+    def _canonical_facts_query(replacement=None):
+        replacement = replacement or {}
+        replaced = {**canonical_facts, **replacement}
+
+        contains = Host.canonical_facts.comparator.contains(replaced)
+        contained_by = Host.canonical_facts.comparator.contained_by(replaced)
+        return contains | contained_by
+
+    try:
+        insights_id = uuid.UUID(canonical_facts["insights_id"])
+    except KeyError:
+        canonical_facts_queries = [_canonical_facts_query()]
+    else:
+        format_funcs = (uuid_with_hyphens, uuid_without_hyphens)
+        canonical_facts_queries = [
+            _canonical_facts_query({"insights_id": format_func(insights_id)}) for format_func in format_funcs
+        ]
+
+    return Host.query.filter((Host.account == account_number) & or_(*canonical_facts_queries))
 
 
 def find_host_by_canonical_facts(account_number, canonical_facts):

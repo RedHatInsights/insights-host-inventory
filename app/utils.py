@@ -1,6 +1,14 @@
 import json
 
 
+def uuid_with_hyphens(uuid):
+    return str(uuid)
+
+
+def uuid_without_hyphens(uuid):
+    return uuid.hex
+
+
 class HostWrapper:
     def __init__(self, data=None):
         self.__data = data or {}
