@@ -83,6 +83,8 @@ def runStages() {
 
             archiveArtifacts "app.log"
             archiveArtifacts "README.md"
+            archiveArtifacts "junit.xml"
+            archiveArtifacts "lint-results.txt"
             archiveArtifacts "htmlcov/*"
         }
     }
