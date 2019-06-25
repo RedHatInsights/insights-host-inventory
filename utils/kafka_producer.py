@@ -119,7 +119,7 @@ BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 payload = build_chunk()
 payload = build_host_chunk()
 print("type(payload)):", payload)
-producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
+producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
 print("TOPIC:", TOPIC)
 
 # for _ in range(1):
