@@ -18,13 +18,10 @@ logger = get_logger("mq_service")
 
 def handle_message(host):
     try:
-        threadctx.account_number = host["account"]
-        if "request_id" in host:
-            threadctx.request_id = host["request_id"]
-        else:
-            threadctx.request_id = "-1"
-        logger.info("Attempting to add host...") # Need to add log message once complete
+        initialize_thread_local_storage(host)
+        logger.info("Attempting to add host...")
         add_host(host)
+        logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
     except InventoryException as e:
         logger.exception("Error adding host", extra={"host": host})
     # FIXME:  remove this
@@ -38,9 +35,9 @@ def handle_message(host):
 def event_loop(consumer, flask_app, handler=handle_message):
     with flask_app.app_context():
         while True:
-            logger.info("Waiting for message")
+            logger.debug("Waiting for message")
             for msg in consumer:
-                logger.info("Message received")
+                logger.debug("Message received")
                 try:
                     data = json.loads(msg.value)
                 except Exception:
@@ -49,15 +46,16 @@ def event_loop(consumer, flask_app, handler=handle_message):
                 handler(data)
 
 
+def initialize_thread_local_storage(host):
+    threadctx.account_number = host["account"]
+    threadctx.request_id = host.get("request_id", "-1")
+
+
 def main():
     config_name = os.getenv('APP_SETTINGS', "development")
     application = create_app(config_name)
 
     config = Config()
-
-    logger.info("Host Ingress Topic: %s" % config.host_ingress_topic)
-    logger.info("Consumer Group: %s" % config.consumer_group)
-    logger.info("Bootstrap Servers: %s" % config.bootstrap_servers)
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,
