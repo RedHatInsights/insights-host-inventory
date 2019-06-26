@@ -33,6 +33,15 @@ ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 logger = get_logger(__name__)
 
 
+def _host_query(account_number, custom_filter=None):
+    account_filter = Host.account == account_number
+    if custom_filter is None:
+        full_filter = account_filter
+    else:
+        full_filter = account_filter & custom_filter
+    return Host.query.filter(full_filter)
+
+
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
@@ -119,12 +128,10 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
+    return _host_query(
+        account_number,
+        Host.canonical_facts.comparator.contains(canonical_facts)
+        | Host.canonical_facts.comparator.contained_by(canonical_facts),
     )
 
 
@@ -183,7 +190,7 @@ def get_host_list(
     elif insights_id:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
     else:
-        query = Host.query.filter(Host.account == current_identity.account_number)
+        query = _host_query(current_identity.account_number)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -248,7 +255,7 @@ def _build_json_response(json_data, status=200):
 
 def find_hosts_by_display_name(account, display_name):
     logger.debug("find_hosts_by_display_name(%s)", display_name)
-    return Host.query.filter((Host.account == account) & Host.display_name.comparator.contains(display_name))
+    return _host_query(account, Host.display_name.comparator.contains(display_name))
 
 
 def find_hosts_by_canonical_facts(account_number, canonical_facts):
@@ -275,7 +282,7 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
         # Do not filter using the id
         logger.debug("The hostname (%s) could not be converted into a UUID", hostname, exc_info=True)
 
-    return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number, sqlalchemy.or_(*filter_list)]))
+    return _host_query(account_number, sqlalchemy.or_(*filter_list))
 
 
 @api_operation
@@ -327,7 +334,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
+    return _host_query(account_number, Host.id.in_(host_id_list))
 
 
 @api_operation
@@ -399,10 +406,9 @@ def merge_facts(host_id_list, namespace, fact_dict):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-    hosts_to_update = Host.query.filter(
-        (Host.account == current_identity.account_number)
-        & Host.id.in_(host_id_list)
-        & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
+    hosts_to_update = _host_query(
+        current_identity.account_number,
+        Host.id.in_(host_id_list) & Host.facts.has_key(namespace),  # noqa: W601 JSONB query filter, not a dict
     ).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
