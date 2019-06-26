@@ -22,7 +22,7 @@ def render_exception(exception):
     return response
 
 
-def create_app(config_name):
+def create_app(config_name, start_tasks=True):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
@@ -75,6 +75,7 @@ def create_app(config_name):
             REQUEST_ID_HEADER,
             UNKNOWN_REQUEST_ID_VALUE)
 
-    init_tasks(app_config, flask_app)
+    if start_tasks:
+        init_tasks(app_config, flask_app)
 
     return flask_app

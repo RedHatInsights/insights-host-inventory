@@ -53,7 +53,7 @@ def initialize_thread_local_storage(host):
 
 def main():
     config_name = os.getenv('APP_SETTINGS', "development")
-    application = create_app(config_name)
+    application = create_app(config_name, start_tasks=False)
 
     config = Config()
 
