@@ -59,7 +59,7 @@ def main():
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,
-        group_id=config.consumer_group,
+        group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0,10))
 
