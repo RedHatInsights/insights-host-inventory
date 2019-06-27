@@ -183,9 +183,9 @@ a new host entry is created.
 The REST api should _not_ be used for bulk insertion.  Instead, a batch of
 hosts should be added to the inventory system by writing the individual
 hosts to the kafka message queue.
-A single host object (see HostSchema defined here
+A single host object (see HostSchema defined in 
 [_app/models.py_](app/models.py)) should be wrapped in an _operation_
-json document (see OperationSchema defined here [_inv_mq_service.py_](inv_mq_service.py)
+json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_service.py)
  and sent to the kafka message queue.
 
 ```json
@@ -194,9 +194,9 @@ json document (see OperationSchema defined here [_inv_mq_service.py_](inv_mq_ser
    "data": host_json_doc}
 ```
 
-  - operation:
-  - request_id
-  - data
+  - operation: name of the operation to perform ("add_host" is only supported currently)
+  - request_id: an optional id that can be used to track a request through the system
+  - data: a host json doc as defined by the HostSchema in [_app/models.py](app/models.py)
 
 The kafka topic for adding hosts is _platform.host-ingress_.
 
