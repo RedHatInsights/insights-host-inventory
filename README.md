@@ -184,7 +184,7 @@ The REST api should _not_ be used for bulk insertion.  Instead, a batch of
 hosts should be added to the inventory system by writing the individual
 hosts to the kafka message queue.
 A single host object (see HostSchema defined here
-[_app/model.py_](app/model.py)) should be wrapped in an _operation_
+[_app/models.py_](app/models.py)) should be wrapped in an _operation_
 json document (see OperationSchema defined here [_inv_mq_service.py_](inv_mq_service.py)
  and sent to the kafka message queue.
 
