@@ -29,7 +29,7 @@ class Config:
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
-        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.host-ingress")
+        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
