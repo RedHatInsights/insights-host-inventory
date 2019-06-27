@@ -29,7 +29,8 @@ class Config:
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
-        self.host_ingress_topic = os.environ.get("HOST_INGRESS_KAFKA_TOPIC", "platform.inventory.host-ingress")
+        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+        self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
@@ -70,10 +71,11 @@ class Config:
             self.logger.info("DB Host: %s" % self._db_host)
             self.logger.info("DB Name: %s" % self._db_name)
             self.logger.info("DB Connection URI: %s" % self._build_db_uri(self._db_ssl_mode, hide_password=True))
-            self.logger.info("Host Ingress Topic: %s" % self.host_ingress_topic)
-            self.logger.info("Consumer Group: %s" % self.consumer_group)
-            self.logger.info("Bootstrap Servers: %s" % self.bootstrap_servers)
             if self._db_ssl_mode == self.SSL_VERIFY_FULL:
                 self.logger.info("Using SSL for DB connection:")
                 self.logger.info("Postgresql SSL verification type: %s" % self._db_ssl_mode)
                 self.logger.info("Path to certificate: %s" % self._db_ssl_cert)
+            self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
+            self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
+            self.logger.info("Kafka Consumer Group: %s" % self.consumer_group)
+            self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
