@@ -96,7 +96,7 @@ def build_host_chunk():
               #"ip_addresses": ["1",],
               #"mac_addresses": None,
               "subscription_manager_id": str(uuid.uuid4()),
-              #"system_profile": create_system_profile(),
+              "system_profile": create_system_profile(),
               }
     return payload
 
@@ -117,7 +117,11 @@ KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 
 payload = build_chunk()
-payload = build_host_chunk()
+payload = {"operation": "add_host",
+           "request_id": str(uuid.uuid4()),
+           "data": build_host_chunk(),
+           }
+
 print("type(payload)):", payload)
 producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
 print("TOPIC:", TOPIC)
