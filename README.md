@@ -198,7 +198,7 @@ json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_servi
   - request_id: an optional id that can be used to track a request through the system
   - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
 
-The kafka topic for adding hosts is _platform.host-ingress_.
+The kafka topic for adding hosts is _platform.inventory.host-ingress_.
 
 #### Host deletion
 
