@@ -16,4 +16,4 @@ run_inv_mq_service:
 	INVENTORY_LOGGING_CONFIG_FILE=logconfig.ini INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
 
 run_inv_mq_service_test:
-	KAFKA_TOPIC="platform.host-ingress" python utils/kafka_producer.py
+	KAFKA_TOPIC="platform.inventory.host-ingress" python utils/kafka_producer.py
