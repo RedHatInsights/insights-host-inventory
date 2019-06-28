@@ -27,8 +27,10 @@ def parse_operation_message(message):
     except ValidationError as e:
         logger.exception("Input validation error while parsing operation message",
                          extra={"operation": message})
+        raise
     except Exception as e:
         logger.exception("Error parsing operation message", extra={"operation": message})
+        raise
 
 
 def add_host(host_data):
@@ -71,7 +73,10 @@ def event_loop(consumer, flask_app, handler=handle_message):
                                  extra={"incoming_message": msg.value})
                 continue
 
-            handler(data)
+            try:
+                handler(data)
+            except Exception:
+                logger.exception("Unable to process message")
 
 
 def initialize_thread_local_storage(operation_message):
