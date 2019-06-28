@@ -5,6 +5,7 @@ from enum import Enum
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import db, Host, HostSchema
+from lib import metrics
 
 # FIXME:  rename this
 AddHostResults = Enum("AddHostResults", ["created", "updated"])
@@ -34,7 +35,7 @@ def add_host(host):
         return create_new_host(input_host)
 
 
-#@metrics.host_dedup_processing_time.time()
+@metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
     insights_id = canonical_facts.get("insights_id", None)
@@ -87,22 +88,22 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
-#@metrics.new_host_commit_processing_time.time()
+@metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host):
     logger.debug("Creating a new host")
     input_host.save()
     db.session.commit()
-    #metrics.create_host_count.inc()
+    metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)
     return input_host.to_json(), AddHostResults.created
 
 
-#@metrics.update_host_commit_processing_time.time()
+@metrics.update_host_commit_processing_time.time()
 def update_existing_host(existing_host, input_host):
     logger.debug("Updating an existing host")
     existing_host.update(input_host)
     db.session.commit()
-    #metrics.update_host_count.inc()
+    metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)
     return existing_host.to_json(), AddHostResults.updated
 
