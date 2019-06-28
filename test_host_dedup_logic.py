@@ -1,8 +1,8 @@
 import uuid
 
-from api.host import find_existing_host
 from app import db
 from app.models import Host
+from lib.host import find_existing_host
 from test_utils import flask_app_fixture
 
 ACCOUNT_NUMBER = "000102"
