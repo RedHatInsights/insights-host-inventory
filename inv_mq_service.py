@@ -66,6 +66,7 @@ def event_loop(consumer, flask_app, handler=handle_message):
                 data = json.loads(msg.value)
             except Exception:
                 logger.exception("Unable to parse incoming host json data")
+                continue
 
             handler(data)
 
