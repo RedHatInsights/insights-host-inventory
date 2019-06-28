@@ -65,7 +65,10 @@ def event_loop(consumer, flask_app, handler=handle_message):
             try:
                 data = json.loads(msg.value)
             except Exception:
-                logger.exception("Unable to parse incoming host json data")
+                # The "extra" dict cannot have a key named "msg" or "message"
+                # otherwise an exception in thrown in the logging code
+                logger.exception("Unable to parse json message from message queue",
+                                 extra={"incoming_message": msg.value})
                 continue
 
             handler(data)
