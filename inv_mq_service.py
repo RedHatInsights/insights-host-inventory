@@ -59,16 +59,15 @@ def handle_message(message):
 
 def event_loop(consumer, flask_app, handler=handle_message):
     with flask_app.app_context():
-        while True:
-            logger.debug("Waiting for message")
-            for msg in consumer:
-                logger.debug("Message received")
-                try:
-                    data = json.loads(msg.value)
-                except Exception:
-                    logger.exception("Unable to parse incoming host json data")
+        logger.debug("Waiting for message")
+        for msg in consumer:
+            logger.debug("Message received")
+            try:
+                data = json.loads(msg.value)
+            except Exception:
+                logger.exception("Unable to parse incoming host json data")
 
-                handler(data)
+            handler(data)
 
 
 def initialize_thread_local_storage(operation_message):
