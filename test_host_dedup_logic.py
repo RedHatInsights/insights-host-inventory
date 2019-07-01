@@ -68,15 +68,14 @@ def test_find_host_using_insights_id_match(flask_app_fixture):
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
 def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
-    sub_mgr_id_key = "subscription_manager_id"
     canonical_facts = {"fqdn": "fred",
                        "bios_uuid": generate_uuid(),
-                       sub_mgr_id_key: generate_uuid(),
+                       "subscription_manager_id": generate_uuid(),
                        }
 
     # Change the bios_uuid so that falling back to subset match will fail
     search_canonical_facts = {"bios_uuid": generate_uuid(), }
-    search_canonical_facts[sub_mgr_id_key] = canonical_facts[sub_mgr_id_key]
+    search_canonical_facts["subscription_manager_id"] = canonical_facts["subscription_manager_id"]
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
