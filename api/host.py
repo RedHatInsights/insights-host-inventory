@@ -19,6 +19,15 @@ from tasks import emit_event
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
+# These are the "elevated" canonical facts that are
+# given priority in the host deduplication process.
+# NOTE: The order of this tuple is important.  The order defines
+# the priority.
+ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id",
+                                  "subscription_manager_id",
+                                  )
+
+
 logger = get_logger(__name__)
 
 
@@ -88,17 +97,7 @@ def _add_host(host):
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
-    existing_host = None
-
-    input_elevated_canonical_facts = _pluck_elevated_canonical_facts(
-            canonical_facts
-            )
-
-    if input_elevated_canonical_facts:
-        # There is at least one "elevated" canonical fact passed in
-        # Search for an existing host using the "elevated" canonical facts
-        existing_host = _find_host_by_elevated_ids(account_number,
-                **input_elevated_canonical_facts)
+    existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
 
     if not existing_host:
         existing_host = find_host_by_canonical_facts(account_number,
@@ -107,40 +106,17 @@ def find_existing_host(account_number, canonical_facts):
     return existing_host
 
 
-def _pluck_elevated_canonical_facts(canonical_facts):
-    elevated_canonical_fact_fields = ("insights_id",
-                                      "subscription_manager_id",
-                                      )
-
-    id_dict = {}
-    for cf in elevated_canonical_fact_fields:
-        cf_value = canonical_facts.get(cf)
-        if cf_value:
-            id_dict[cf] = cf_value
-    return id_dict
-
-
 @metrics.find_host_using_elevated_ids.time()
-def _find_host_by_elevated_ids(account_number, **kwargs):
-    filter_list = [Host.canonical_facts[k].astext == v
-                   for k, v in kwargs.items()]
+def _find_host_by_elevated_ids(account_number, canonical_facts):
+    for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
+        cf_value = canonical_facts.get(elevated_cf_name)
+        if cf_value:
+            existing_host = find_host_by_canonical_facts(account_number,
+                                                         {elevated_cf_name: cf_value})
+            if existing_host:
+                return existing_host
 
-    return Host.query.filter(sqlalchemy.and_(
-        *[Host.account == account_number,
-          sqlalchemy.or_(*filter_list)]
-        )).order_by(Host.created_on).first()
-
-
-def find_host_by_insights_id(account_number, insights_id):
-    existing_host = Host.query.filter(
-            (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)
-        ).first()
-
-    if existing_host:
-        logger.debug("Found existing host using id match: %s", existing_host)
-
-    return existing_host
+    return None
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
