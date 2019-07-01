@@ -4,7 +4,8 @@ from enum import Enum
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
-from app.models import db, Host, HostSchema
+from app.models import db, Host as ModelsHost, HostSchema
+from app.serialization import Host as SerializationHost
 from lib import metrics
 
 # FIXME:  rename this
@@ -24,7 +25,7 @@ def add_host(host):
     """
     validated_input_host_dict = HostSchema(strict=True).load(host)
 
-    input_host = Host.from_json(validated_input_host_dict.data)
+    input_host = SerializationHost.from_json(validated_input_host_dict.data)
 
     existing_host = find_existing_host(input_host.account,
                                        input_host.canonical_facts)
@@ -53,9 +54,9 @@ def find_existing_host(account_number, canonical_facts):
 
 
 def find_host_by_insights_id(account_number, insights_id):
-    existing_host = Host.query.filter(
-            (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)
+    existing_host = ModelsHost.query.filter(
+            (ModelsHost.account == account_number)
+            & (ModelsHost.canonical_facts["insights_id"].astext == insights_id)
         ).first()
 
     if existing_host:
@@ -65,11 +66,11 @@ def find_host_by_insights_id(account_number, insights_id):
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
-        (Host.account == account_number)
+    return ModelsHost.query.filter(
+        (ModelsHost.account == account_number)
         & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
+            ModelsHost.canonical_facts.comparator.contains(canonical_facts)
+            | ModelsHost.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
 
@@ -95,7 +96,7 @@ def create_new_host(input_host):
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)
-    return input_host.to_json(), AddHostResults.created
+    return SerializationHost.to_json(input_host), AddHostResults.created
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -105,5 +106,5 @@ def update_existing_host(existing_host, input_host):
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)
-    return existing_host.to_json(), AddHostResults.updated
+    return SerializationHost.to_json(existing_host), AddHostResults.updated
 

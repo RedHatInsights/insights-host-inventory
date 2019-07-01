@@ -12,6 +12,7 @@ from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.serialization import Host as SerializationHost
 from api import api_operation, metrics
 from lib.host import add_host, AddHostResults, _canonical_facts_host_query
 from tasks import emit_event
@@ -153,7 +154,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
+    json_host_list = [SerializationHost.to_json(host) for host in host_list]
     json_output = {"total": total,
                    "count": len(host_list),
                    "page": page,
@@ -278,7 +279,7 @@ def get_host_system_profile_by_id(
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [host.to_system_profile_json()
+    response_list = [SerializationHost.to_system_profile_json(host)
                      for host in query_results.items]
 
     json_output = {"total": query_results.total,
