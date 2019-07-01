@@ -79,3 +79,16 @@ def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
     search_canonical_facts[sub_mgr_id_key] = canonical_facts[sub_mgr_id_key]
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
+
+
+def test_find_host_using_elevated_ids_match(flask_app_fixture):
+    first_canonical_facts = {"subscription_manager_id": generate_uuid()}
+    create_host(first_canonical_facts)
+
+    second_canonical_facts = {"insights_id": generate_uuid()}
+    expected_host = create_host(second_canonical_facts)
+
+    search_canonical_facts = {**first_canonical_facts, **second_canonical_facts}
+    found_host = find_existing_host(ACCOUNT_NUMBER, search_canonical_facts)
+
+    assert expected_host.id == found_host.id
