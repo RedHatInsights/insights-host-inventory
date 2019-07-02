@@ -3,34 +3,15 @@ import os
 
 from kafka import KafkaConsumer
 
-from marshmallow import Schema, fields, ValidationError
-
 from app import create_app
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger, threadctx
 from lib import host
+from message_queue import parse_operation_message
 
 
 logger = get_logger("mq_service")
-
-
-class OperationSchema(Schema):
-    operation = fields.Str()
-    request_id = fields.Str()
-    data = fields.Dict()
-
-
-def parse_operation_message(message):
-    try:
-        return OperationSchema(strict=True).load(message).data
-    except ValidationError as e:
-        logger.exception("Input validation error while parsing operation message",
-                         extra={"operation": message})
-        raise
-    except Exception as e:
-        logger.exception("Error parsing operation message", extra={"operation": message})
-        raise
 
 
 def add_host(host_data):
