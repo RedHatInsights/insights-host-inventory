@@ -17,7 +17,8 @@ from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Host
 from app.models import PatchHostSchema
-from app.serialization import Host as SerializationHost
+from app.serialization import serialize_host
+from app.serialization import serialize_host_system_profile
 from lib.host_repository import _canonical_facts_host_query
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
@@ -152,7 +153,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [SerializationHost.to_json(host) for host in host_list]
+    json_host_list = [serialize_host(host) for host in host_list]
     json_output = {
         "total": total,
         "count": len(host_list),
@@ -264,7 +265,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [SerializationHost.to_system_profile_json(host) for host in query_results.items]
+    response_list = [serialize_host_system_profile(host) for host in query_results.items]
 
     json_output = {
         "total": query_results.total,

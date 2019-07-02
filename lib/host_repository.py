@@ -7,7 +7,8 @@ from app.logging import get_logger
 from app.models import db
 from app.models import Host
 from app.models import HostSchema
-from app.serialization import Host as SerializationHost
+from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from lib import metrics
 
 # FIXME:  rename this
@@ -36,7 +37,7 @@ def add_host(host, update_system_profile=True):
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
 
-    input_host = SerializationHost.from_json(validated_input_host_dict.data)
+    input_host = deserialize_host(validated_input_host_dict.data)
 
     existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
 
@@ -99,7 +100,7 @@ def create_new_host(input_host):
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
-    return SerializationHost.to_json(input_host), AddHostResults.created
+    return serialize_host(input_host), AddHostResults.created
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -109,4 +110,4 @@ def update_existing_host(existing_host, input_host, update_system_profile):
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    return SerializationHost.to_json(existing_host), AddHostResults.updated
+    return serialize_host(existing_host), AddHostResults.updated

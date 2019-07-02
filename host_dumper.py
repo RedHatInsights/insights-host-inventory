@@ -3,8 +3,8 @@ import argparse
 import pprint
 
 from app import create_app
-from app.models import Host as ModelsHost
-from app.serialization import Host as SerializationHost
+from app.models import Host
+from app.serialization import serialize_host
 
 application = create_app("cli")
 
@@ -26,22 +26,22 @@ with application.app_context():
     if args.id:
         host_id_list = [args.id]
         print("looking up host using id")
-        query_results = ModelsHost.query.filter(ModelsHost.id.in_(host_id_list)).all()
+        query_results = Host.query.filter(Host.id.in_(host_id_list)).all()
     elif args.hostname:
         print("looking up host using display_name, fqdn")
-        query_results = ModelsHost.query.filter(
-            ModelsHost.display_name.comparator.contains(args.hostname)
-            | ModelsHost.canonical_facts["fqdn"].astext.contains(args.hostname)
+        query_results = Host.query.filter(
+            Host.display_name.comparator.contains(args.hostname)
+            | Host.canonical_facts["fqdn"].astext.contains(args.hostname)
         ).all()
     elif args.insights_id:
         print("looking up host using insights_id")
-        query_results = ModelsHost.query.filter(
-            ModelsHost.canonical_facts.comparator.contains({"insights_id": args.insights_id})
+        query_results = Host.query.filter(
+            Host.canonical_facts.comparator.contains({"insights_id": args.insights_id})
         ).all()
     elif args.account_number:
-        query_results = ModelsHost.query.filter(ModelsHost.account == args.account_number).all()
+        query_results = Host.query.filter(Host.account == args.account_number).all()
 
-    json_host_list = [SerializationHost.to_json(host) for host in query_results]
+    json_host_list = [serialize_host(host) for host in query_results]
 
     if args.no_pp:
         print(json_host_list)
