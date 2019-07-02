@@ -1,8 +1,9 @@
 import logging
 
 from enum import Enum
+from marshmallow import ValidationError
 
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger
 from app.models import db, Host as ModelsHost, HostSchema
 from app.serialization import Host as SerializationHost
@@ -23,7 +24,10 @@ def add_host(host):
      - at least one of the canonical facts fields is required
      - account number
     """
-    validated_input_host_dict = HostSchema(strict=True).load(host)
+    try:
+        validated_input_host_dict = HostSchema(strict=True).load(host)
+    except ValidationError as e:
+        raise ValidationException(e) from None
 
     input_host = SerializationHost.from_json(validated_input_host_dict.data)
 

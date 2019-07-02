@@ -1,8 +1,9 @@
 from marshmallow import Schema, fields, ValidationError
 from app.logging import get_logger
+from app.exceptions import ValidationException
 
 
-logger = get_logger("mq_service")
+logger = get_logger("mq_parser")
 
 
 class OperationSchema(Schema):
@@ -13,11 +14,12 @@ class OperationSchema(Schema):
 
 def parse_operation_message(message):
     try:
-        return OperationSchema(strict=True).load(message).data
+        parsed_operation = OperationSchema(strict=True).load(message).data
     except ValidationError as e:
-        logger.exception("Input validation error while parsing operation message",
-                         extra={"operation": message})
-        raise
+        # logger.error("Input validation error while parsing operation message")  # logger.error is used to avoid printing out ValidationError traceback
+        raise ValidationException(e) from None
     except Exception as e:
         logger.exception("Error parsing operation message", extra={"operation": message})
         raise
+    
+    return parsed_operation

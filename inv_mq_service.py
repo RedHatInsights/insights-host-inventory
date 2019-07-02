@@ -5,10 +5,10 @@ from kafka import KafkaConsumer
 
 from app import create_app
 from app.config import Config
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger, threadctx
 from lib import host
-from message_queue import parse_operation_message
+from inv_mq_parser import parse_operation_message
 
 
 logger = get_logger("mq_service")
@@ -21,23 +21,22 @@ def add_host(host_data):
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
     except InventoryException as e:
         logger.exception("Error adding host ", extra={"host": host_data})
-    # FIXME:  remove this.  the "library" should not expose implementation details like ValidationError
-    except ValidationError as e:
-        logger.exception("Input validation error while adding host",
-                         extra={"host": host_data})
     except Exception as e:
         logger.exception("Error while adding host", extra={"host": host_data})
 
 
 def handle_message(message):
-
-    validated_operation_msg = parse_operation_message(message)
-
-    initialize_thread_local_storage(validated_operation_msg)
-
-    # FIXME: verify operation type
-
-    add_host(validated_operation_msg["data"])
+    try:
+        valid_operation = True
+        validated_operation_msg = parse_operation_message(message)
+    except ValidationException as e:
+        logger.exception("Input validation error while parsing operation message", extra={"operation": message})
+        valid_operation = False
+    
+    if valid_operation:
+        initialize_thread_local_storage(validated_operation_msg)
+        # FIXME: verify operation type
+        add_host(validated_operation_msg["data"])
 
 
 def event_loop(consumer, flask_app, handler=handle_message):
