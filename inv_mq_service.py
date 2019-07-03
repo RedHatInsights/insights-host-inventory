@@ -27,13 +27,10 @@ def add_host(host_data):
 
 def handle_message(message):
     try:
-        valid_operation = True
         validated_operation_msg = parse_operation_message(message)
     except ValidationException as e:
         logger.exception("Input validation error while parsing operation message", extra={"operation": message})
-        valid_operation = False
-    
-    if valid_operation:
+    else:
         initialize_thread_local_storage(validated_operation_msg)
         # FIXME: verify operation type
         add_host(validated_operation_msg["data"])
