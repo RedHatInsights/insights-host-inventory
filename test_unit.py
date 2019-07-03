@@ -404,6 +404,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         host = deserialize_host(canonical_facts)
 
         self.assertIs(Host, type(host))
+
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
@@ -535,7 +536,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
-            {},
+            None,
         )
 
 
@@ -592,7 +593,22 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
     def test_with_only_required_fields(self):
         unchanged_data = {"display_name": None, "account": None}
-        host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
+        host_init_data = {
+            "canonical_facts": {
+                "insights_id": None,
+                "rhel_machine_id": None,
+                "subscription_manager_id": None,
+                "satellite_id": None,
+                "bios_uuid": None,
+                "ip_addresses": None,
+                "fqdn": "some fqdn",
+                "mac_addresses": None,
+                "external_id": None,
+                "ansible_host": None,
+            },
+            **unchanged_data,
+            "facts": {},
+        }
         host = Host(**host_init_data)
 
         host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
@@ -602,15 +618,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         actual = serialize_host(host)
         expected = {
             **host_init_data["canonical_facts"],
-            "insights_id": None,
-            "rhel_machine_id": None,
-            "subscription_manager_id": None,
-            "satellite_id": None,
-            "bios_uuid": None,
-            "ip_addresses": None,
-            "mac_addresses": None,
-            "external_id": None,
-            "ansible_host": None,
             **unchanged_data,
             "facts": [],
             "id": str(host_attr_data["id"]),
@@ -681,7 +688,6 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
     def test_empty_profile_is_empty_dict(self):
         host = Host(canonical_facts={"fqdn": "some fqdn"}, display_name="some display name")
         host.id = uuid4()
-        host.system_profile_facts = None
 
         actual = serialize_host_system_profile(host)
         expected = {"id": str(host.id), "system_profile": {}}
@@ -734,19 +740,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
 
-    def test_empty_fields_are_rejected(self):
-        canonical_facts = {"fqdn": "some fqdn"}
-        input = {
-            **canonical_facts,
-            "insights_id": "",
-            "rhel_machine_id": None,
-            "ip_addresses": [],
-            "mac_addresses": tuple(),
-        }
-        result = _deserialize_canonical_facts(input)
-        self.assertEqual(result, canonical_facts)
-
-
 class SerializationSerializeCanonicalFactsTestCase(TestCase):
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
@@ -762,20 +755,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
         }
         self.assertEqual(canonical_facts, _serialize_canonical_facts(canonical_facts))
 
-    def test_missing_fields_are_filled_with_none(self):
-        canonical_fact_fields = (
-            "insights_id",
-            "rhel_machine_id",
-            "subscription_manager_id",
-            "satellite_id",
-            "bios_uuid",
-            "ip_addresses",
-            "fqdn",
-            "mac_addresses",
-            "external_id",
-        )
-        self.assertEqual({field: None for field in canonical_fact_fields}, _serialize_canonical_facts({}))
-
 
 class SerializationDeserializeFactsTestCase(TestCase):
     def test_non_empty_namespaces_become_dict_items(self):
@@ -785,14 +764,14 @@ class SerializationDeserializeFactsTestCase(TestCase):
         ]
         self.assertEqual({item["namespace"]: item["facts"] for item in input}, _deserialize_facts(input))
 
-    def test_empty_namespaces_remain_unchanged(self):
+    def test_empty_namespaces_become_empty_dict(self):
         for empty_facts in ({}, None):
             with self.subTest(empty_facts=empty_facts):
                 input = [
                     {"namespace": "first namespace", "facts": {"first key": "first value"}},
                     {"namespace": "second namespace", "facts": empty_facts},
                 ]
-                self.assertEqual({item["namespace"]: item["facts"] for item in input}, _deserialize_facts(input))
+                self.assertEqual({item["namespace"]: item["facts"] or {} for item in input}, _deserialize_facts(input))
 
     def test_duplicate_namespaces_are_merged(self):
         input = [
@@ -838,13 +817,10 @@ class SerializationSerializeFactsTestCase(TestCase):
         )
 
     def test_empty_namespaces_have_facts_as_empty_dicts(self):
-        for empty_value in {}, None:
-            with self.subTest(empty_value=empty_value):
-                facts = {"first namespace": empty_value, "second namespace": {"first key": "first value"}}
-                self.assertEqual(
-                    [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()],
-                    _serialize_facts(facts),
-                )
+        facts = {"first namespace": {}, "second namespace": {"first key": "first value"}}
+        self.assertEqual(
+            [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()], _serialize_facts(facts)
+        )
 
 
 if __name__ == "__main__":

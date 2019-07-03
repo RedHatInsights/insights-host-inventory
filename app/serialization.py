@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from app.exceptions import InputFormatException
 from app.models import Host as Host
 
@@ -33,7 +35,7 @@ def deserialize_host(data):
         data.get("ansible_host"),
         data.get("account"),
         _deserialize_facts(data.get("facts")),
-        data.get("system_profile", {}),
+        data.get("system_profile"),
     )
 
 
@@ -51,7 +53,7 @@ def serialize_host(host):
 
 
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts}
 
 
 def _deserialize_canonical_facts(data):
@@ -63,13 +65,12 @@ def _serialize_canonical_facts(canonical_facts):
 
 
 def _deserialize_facts(data):
-    facts = {}
+    facts = defaultdict(lambda: {})
     for item in data or []:
         try:
-            if item["namespace"] in facts:
-                facts[item["namespace"]].update(item["facts"])
-            else:
-                facts[item["namespace"]] = item["facts"]
+            old_facts = facts[item["namespace"]]
+            new_facts = item["facts"] or {}
+            facts[item["namespace"]] = {**old_facts, **new_facts}
         except KeyError:
             # The facts from the request are formatted incorrectly
             raise InputFormatException(
@@ -79,4 +80,4 @@ def _deserialize_facts(data):
 
 
 def _serialize_facts(facts):
-    return [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()]
+    return [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()]
