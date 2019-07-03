@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import timezone
 
 from marshmallow import ValidationError
@@ -41,7 +42,7 @@ def deserialize_host(raw_data):
         validated_data.get("account"),
         facts,
         tags,
-        validated_data.get("system_profile", {}),
+        validated_data.get("system_profile"),
         validated_data.get("stale_timestamp"),
         validated_data.get("reporter"),
     )
@@ -76,7 +77,7 @@ def serialize_host(host, staleness_offset):
 
 
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts}
 
 
 def _deserialize_canonical_facts(data):
@@ -88,13 +89,12 @@ def serialize_canonical_facts(canonical_facts):
 
 
 def _deserialize_facts(data):
-    facts = {}
+    facts = defaultdict(lambda: {})
     for fact in [] if data is None else data:
         try:
-            if fact["namespace"] in facts:
-                facts[fact["namespace"]].update(fact["facts"])
-            else:
-                facts[fact["namespace"]] = fact["facts"]
+            old_facts = facts[fact["namespace"]]
+            new_facts = fact["facts"] or {}
+            facts[fact["namespace"]] = {**old_facts, **new_facts}
         except KeyError:
             # The facts from the request are formatted incorrectly
             raise InputFormatException(
@@ -104,7 +104,12 @@ def _deserialize_facts(data):
 
 
 def _serialize_facts(facts):
-    return [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()]
+    return [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()]
+
+
+def _deserialize_tags(tags):
+    # TODO: Move the deserialization logic to this method.
+    return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))
 
 
 def _serialize_datetime(dt):
@@ -113,8 +118,3 @@ def _serialize_datetime(dt):
 
 def _serialize_uuid(u):
     return str(u)
-
-
-def _deserialize_tags(tags):
-    # TODO: Move the deserialization logic to this method.
-    return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))

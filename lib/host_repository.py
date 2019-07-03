@@ -60,11 +60,12 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
+    cf_values = dict(filter(lambda item: item[1] is not None, canonical_facts.items()))
     return Host.query.filter(
         (Host.account == account_number)
         & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
+            Host.canonical_facts.comparator.contains(cf_values)
+            | Host.canonical_facts.comparator.contained_by(cf_values)
         )
     )
 
