@@ -7,6 +7,7 @@ from unittest import main
 from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import UUID
 from uuid import uuid4
 
 from api import api_operation
@@ -23,7 +24,9 @@ from app.models import Host
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _serialize_canonical_facts
+from app.serialization import _serialize_datetime
 from app.serialization import _serialize_facts
+from app.serialization import _serialize_uuid
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
@@ -251,6 +254,26 @@ class ConfigTestCase(TestCase):
             conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
+
+
+class HostSerializeDatetime(TestCase):
+    def test_short_utc_timezone_is_included(self):
+        now = datetime.utcnow()
+        self.assertEqual(f"{now.isoformat()}Z", _serialize_datetime(now))
+
+    def test_iso_format_is_used(self):
+        dt = datetime(2019, 7, 3, 1, 1, 4, 20647)
+        self.assertEqual("2019-07-03T01:01:04.020647Z", _serialize_datetime(dt))
+
+
+class HostSerializeUuid(TestCase):
+    def test_uuid_has_hyphens_computed(self):
+        u = uuid4()
+        self.assertEqual(str(u), _serialize_uuid(u))
+
+    def test_uuid_has_hyphens_literal(self):
+        u = "4950e534-bbef-4432-bde2-aa3dd2bd0a52"
+        self.assertEqual(u, _serialize_uuid(UUID(u)))
 
 
 class HostOrderHowTestCase(TestCase):
