@@ -510,14 +510,22 @@ class TagUtilsTestCase(TestCase):
         self._base_string_to_structured_test(string_tag, expected_structured_tag)
 
 
+class SerializationBaseTestCase(TestCase):
+    def _format_uuid_without_hyphens(self, uuid_):
+        return uuid_.hex
+
+    def _format_uuid_with_hyphens(self, uuid_):
+        return str(uuid_)
+
+
 class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -526,7 +534,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
+            "account": "someacct",
         }
         input = {
             **canonical_facts,
@@ -592,7 +600,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
 @patch("app.serialization.HostSchema")
-class SerializationDeserializeHostMockedTestCase(TestCase):
+class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
     class ValidationError(Exception):
         """
         Marshmallow ValidationError mock.
@@ -614,12 +622,12 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "account": "someacct",
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -661,7 +669,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "someacct",
             "tags": [
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
@@ -696,7 +704,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
     ):
         input = {
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "someacct",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -736,7 +744,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "someacct",
             "tags": [
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
@@ -802,14 +810,14 @@ class SerializationSerializeHostBaseTestCase(TestCase):
         return timestamp.astimezone(timezone.utc).isoformat()
 
 
-class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
+class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase, SerializationBaseTestCase):
     def test_with_all_fields(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -818,7 +826,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
+            "account": "someacct",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -841,7 +849,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -870,7 +878,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "ansible_host": None,
             **unchanged_data,
             "facts": [],
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -879,9 +887,9 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
 @patch("app.serialization._serialize_facts")
 @patch("app.serialization.serialize_canonical_facts")
-class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
+class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase, SerializationBaseTestCase):
     def test_with_all_fields(self, serialize_canonical_facts, serialize_facts):
-        canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
+        canonical_facts = {"insights_id": self._format_uuid_with_hyphens(uuid4()), "fqdn": "some fqdn"}
         serialize_canonical_facts.return_value = canonical_facts
         facts = [
             {"namespace": "some namespace", "facts": {"some key": "some value"}},
@@ -906,7 +914,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             **canonical_facts,
             **unchanged_data,
             "facts": serialize_facts.return_value,
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -916,7 +924,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         serialize_facts.assert_called_once_with(host_init_data["facts"])
 
 
-class SerializationSerializeHostSystemProfileTestCase(TestCase):
+class SerializationSerializeHostSystemProfileTestCase(SerializationBaseTestCase):
     def test_non_empty_profile_is_not_changed(self):
         system_profile_facts = {
             "number_of_cpus": 1,
@@ -932,7 +940,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
         host.id = uuid4()
 
         actual = serialize_host_system_profile(host)
-        expected = {"id": str(host.id), "system_profile": system_profile_facts}
+        expected = {"id": self._format_uuid_with_hyphens(host.id), "system_profile": system_profile_facts}
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
@@ -941,17 +949,11 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
         host.system_profile_facts = None
 
         actual = serialize_host_system_profile(host)
-        expected = {"id": str(host.id), "system_profile": {}}
+        expected = {"id": self._format_uuid_with_hyphens(host.id), "system_profile": {}}
         self.assertEqual(expected, actual)
 
 
-class SerializationDeserializeCanonicalFactsTestCase(TestCase):
-    def _format_uuid_without_hyphens(self, uuid_):
-        return uuid_.hex
-
-    def _format_uuid_with_hyphens(self, uuid_):
-        return str(uuid_)
-
+class SerializationDeserializeCanonicalFactsTestCase(SerializationBaseTestCase):
     def _randomly_formatted_uuid(self, uuid_):
         transformation = choice((self._format_uuid_without_hyphens, self._format_uuid_with_hyphens))
         return transformation(uuid_)
@@ -977,11 +979,11 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
 
     def test_unknown_fields_are_rejected(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -1004,14 +1006,14 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
         self.assertEqual(result, canonical_facts)
 
 
-class SerializationSerializeCanonicalFactsTestCase(TestCase):
+class SerializationSerializeCanonicalFactsTestCase(SerializationBaseTestCase):
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
