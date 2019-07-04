@@ -327,14 +327,22 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
             _params_to_order_by(Mock(), order_how="ASC")
 
 
-class SerializationHostFromJsonCompoundTestCase(TestCase):
+class SerializationBaseTestCase(TestCase):
+    def _format_uuid_without_hyphens(self, uuid_):
+        return uuid_.hex
+
+    def _format_uuid_with_hyphens(self, uuid_):
+        return str(uuid_)
+
+
+class SerializationHostFromJsonCompoundTestCase(SerializationBaseTestCase):
     def test_with_all_fields(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -388,17 +396,17 @@ class SerializationHostFromJsonCompoundTestCase(TestCase):
 @patch("app.serialization.ModelsHost")
 @patch("app.serialization.Facts.from_json")
 @patch("app.serialization.CanonicalFacts.from_json")
-class SerializationHostFromJsonMockedTestCase(TestCase):
+class SerializationHostFromJsonMockedTestCase(SerializationBaseTestCase):
     def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -518,14 +526,14 @@ class SerializationHostToJsonBaseTestCase(TestCase):
         return f"{formatted}Z"
 
 
-class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
+class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase, SerializationBaseTestCase):
     def test_with_all_fields(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -557,7 +565,7 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -586,7 +594,7 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "ansible_host": None,
             **unchanged_data,
             "facts": [],
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -595,9 +603,9 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
 
 @patch("app.serialization.Facts.to_json")
 @patch("app.serialization.CanonicalFacts.to_json")
-class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase):
+class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase, SerializationBaseTestCase):
     def test_with_all_fields(self, canonical_facts_to_json, facts_to_json):
-        canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
+        canonical_facts = {"insights_id": self._format_uuid_with_hyphens(uuid4()), "fqdn": "some fqdn"}
         canonical_facts_to_json.return_value = canonical_facts
         facts = [
             {"namespace": "some namespace", "facts": {"some key": "some value"}},
@@ -622,7 +630,7 @@ class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase)
             **canonical_facts,
             **unchanged_data,
             "facts": facts_to_json.return_value,
-            "id": str(host_attr_data["id"]),
+            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
@@ -632,7 +640,7 @@ class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase)
         facts_to_json.assert_called_once_with(host_init_data["facts"])
 
 
-class SerializationHostToSystemProfileJsonTestCase(TestCase):
+class SerializationHostToSystemProfileJsonTestCase(SerializationBaseTestCase):
     def test_non_empty_profile_is_not_changed(self):
         system_profile_facts = {
             "number_of_cpus": 1,
@@ -648,7 +656,7 @@ class SerializationHostToSystemProfileJsonTestCase(TestCase):
         host.id = uuid4()
 
         actual = SerializationHost.to_system_profile_json(host)
-        expected = {"id": str(host.id), "system_profile": system_profile_facts}
+        expected = {"id": self._format_uuid_with_hyphens(host.id), "system_profile": system_profile_facts}
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
@@ -657,17 +665,11 @@ class SerializationHostToSystemProfileJsonTestCase(TestCase):
         host.system_profile_facts = None
 
         actual = SerializationHost.to_system_profile_json(host)
-        expected = {"id": str(host.id), "system_profile": {}}
+        expected = {"id": self._format_uuid_with_hyphens(host.id), "system_profile": {}}
         self.assertEqual(expected, actual)
 
 
-class SerializationCanonicalFactsFromJson(TestCase):
-    def _format_uuid_without_hyphens(self, uuid_):
-        return uuid_.hex
-
-    def _format_uuid_with_hyphens(self, uuid_):
-        return str(uuid_)
-
+class SerializationCanonicalFactsFromJson(SerializationBaseTestCase):
     def _randomly_formatted_uuid(self, uuid_):
         transformation = choice((self._format_uuid_without_hyphens, self._format_uuid_with_hyphens))
         return transformation(uuid_)
@@ -693,11 +695,11 @@ class SerializationCanonicalFactsFromJson(TestCase):
 
     def test_unknown_fields_are_rejected(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -720,14 +722,14 @@ class SerializationCanonicalFactsFromJson(TestCase):
         self.assertEqual(result, canonical_facts)
 
 
-class SerializationCanonicalFactsToJsonTestCase(TestCase):
+class SerializationCanonicalFactsToJsonTestCase(SerializationBaseTestCase):
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
