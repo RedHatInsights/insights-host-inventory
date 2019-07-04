@@ -3,6 +3,7 @@ import uuid
 from api.host import find_existing_host
 from app import db
 from app.models import Host
+from pytest import mark
 from test_utils import flask_app_fixture
 
 ACCOUNT_NUMBER = "000102"
@@ -80,14 +81,25 @@ def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
 
-def test_find_host_using_elevated_ids_match(flask_app_fixture):
-    first_canonical_facts = {"subscription_manager_id": generate_uuid()}
-    create_host(first_canonical_facts)
+@mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
+def test_find_host_using_elevated_ids_match(
+    flask_app_fixture, host_create_order, expected_host
+):
+    hosts_canonical_facts = (
+        {"subscription_manager_id": generate_uuid()},
+        {"insights_id": generate_uuid()},
+    )
 
-    second_canonical_facts = {"insights_id": generate_uuid()}
-    expected_host = create_host(second_canonical_facts)
+    created_hosts = []
+    for host_canonical_facts in host_create_order:
+        created_host = create_host(hosts_canonical_facts[host_canonical_facts])
+        created_hosts.append(created_host)
 
-    search_canonical_facts = {**first_canonical_facts, **second_canonical_facts}
+    search_canonical_facts = {
+        key: value
+        for host_canonical_facts in hosts_canonical_facts
+        for key, value in host_canonical_facts.items()
+    }
     found_host = find_existing_host(ACCOUNT_NUMBER, search_canonical_facts)
 
-    assert expected_host.id == found_host.id
+    assert created_hosts[expected_host].id == found_host.id
