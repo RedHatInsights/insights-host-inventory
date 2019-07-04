@@ -520,13 +520,39 @@ class SerializationHostFromJsonMockedTestCase(SerializationBaseTestCase):
         )
 
 
-class SerializationHostToJsonBaseTestCase(TestCase):
+class SerializationHostToJsonBaseTestCase(SerializationBaseTestCase):
     def _timestamp_to_str(self, timestamp):
         formatted = timestamp.isoformat()
         return f"{formatted}Z"
 
+    def _add_saved_fields_to_host(self, host):
+        host.id = uuid4()
+        host.created_on = datetime.now()
+        host.modified_on = datetime.now()
 
-class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase, SerializationBaseTestCase):
+    def _serialize_host_saved_fields(self, host):
+        return {
+            "id": self._format_uuid_with_hyphens(host.id),
+            "created": self._timestamp_to_str(host.created_on),
+            "updated": self._timestamp_to_str(host.modified_on),
+        }
+
+    def _all_canonical_facts(self, canonical_facts):
+        fields = (
+            "insights_id",
+            "rhel_machine_id",
+            "subscription_manager_id",
+            "satellite_id",
+            "bios_uuid",
+            "ip_addresses",
+            "fqdn",
+            "mac_addresses",
+            "external_id",
+        )
+        return {field: canonical_facts.get(field) for field in fields}
+
+
+class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": self._format_uuid_with_hyphens(uuid4()),
@@ -553,11 +579,7 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             },
         }
         host = ModelsHost(**host_init_data)
-
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
-
+        self._add_saved_fields_to_host(host)
         actual = SerializationHost.to_json(host)
         expected = {
             **canonical_facts,
@@ -565,9 +587,7 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
-            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            **self._serialize_host_saved_fields(host),
         }
         self.assertEqual(expected, actual)
 
@@ -575,28 +595,15 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
         unchanged_data = {"display_name": None, "account": None}
         host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
         host = ModelsHost(**host_init_data)
-
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
+        self._add_saved_fields_to_host(host)
 
         actual = SerializationHost.to_json(host)
         expected = {
-            **host_init_data["canonical_facts"],
-            "insights_id": None,
-            "rhel_machine_id": None,
-            "subscription_manager_id": None,
-            "satellite_id": None,
-            "bios_uuid": None,
-            "ip_addresses": None,
-            "mac_addresses": None,
-            "external_id": None,
+            **self._all_canonical_facts(host_init_data["canonical_facts"]),
             "ansible_host": None,
             **unchanged_data,
             "facts": [],
-            "id": self._format_uuid_with_hyphens(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            **self._serialize_host_saved_fields(host),
         }
         self.assertEqual(expected, actual)
 
@@ -638,6 +645,60 @@ class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase,
 
         canonical_facts_to_json.assert_called_once_with(host_init_data["canonical_facts"])
         facts_to_json.assert_called_once_with(host_init_data["facts"])
+
+
+class SerializationHostFromToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
+    def test_with_all_fields(self):
+        system_profile = {
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            }
+        }
+        unchanged_data = {
+            "insights_id": self._format_uuid_with_hyphens(uuid4()),
+            "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
+            "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
+            "satellite_id": self._format_uuid_with_hyphens(uuid4()),
+            "bios_uuid": self._format_uuid_with_hyphens(uuid4()),
+            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+            "fqdn": "some fqdn",
+            "mac_addresses": ["c2:00:d0:c8:61:01"],
+            "external_id": "i-05d2313e6b9a42b16",
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some account",
+            "facts": [
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            ],
+        }
+
+        input = {**unchanged_data, **system_profile}
+        host = SerializationHost.from_json(input)
+        self._add_saved_fields_to_host(host)
+
+        actual = SerializationHost.to_json(host)
+        expected = {**unchanged_data, **self._serialize_host_saved_fields(host)}
+        self.assertEqual(expected, actual)
+
+    def test_with_only_required_fields(self):
+        canonical_facts = {"fqdn": "some fqdn"}
+        host = SerializationHost.from_json(canonical_facts)
+        self._add_saved_fields_to_host(host)
+
+        actual = SerializationHost.to_json(host)
+        expected = {
+            **self._all_canonical_facts(canonical_facts),
+            "ansible_host": None,
+            "display_name": None,
+            "account": None,
+            "facts": [],
+            **self._serialize_host_saved_fields(host),
+        }
+        self.assertEqual(expected, actual)
 
 
 class SerializationHostToSystemProfileJsonTestCase(SerializationBaseTestCase):
