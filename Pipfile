@@ -28,6 +28,7 @@ ujson = "*"
 watchtower = "*"
 "boto3" = "*"
 kafka = "*"
+pre-commit = "*"
 
 [dev-packages]
 pytest = "*"

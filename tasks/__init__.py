@@ -1,21 +1,24 @@
 import json
+from threading import Thread
+
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
-from threading import Thread
 
 from api import metrics
 from app import db
-from app.logging import threadctx, get_logger
-from app.models import Host, SystemProfileSchema
+from app.logging import get_logger
+from app.logging import threadctx
+from app.models import Host
+from app.models import SystemProfileSchema
 
 logger = get_logger(__name__)
 
 
 class NullProducer:
-
     def send(self, topic, value=None):
-        logger.debug("NullProducer - logging message:  topic (%s) - message: %s" %
-                     (topic, value))
+        logger.debug(
+            "NullProducer - logging message:  topic ({}) - message: {}".format(topic, value)
+        )
 
 
 producer = None
@@ -74,7 +77,8 @@ def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consum
         consumer = KafkaConsumer(
             config.system_profile_topic,
             group_id=config.consumer_group,
-            bootstrap_servers=config.bootstrap_servers)
+            bootstrap_servers=config.bootstrap_servers,
+        )
 
     def _f():
         with flask_app.app_context():
@@ -89,7 +93,5 @@ def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consum
                         logger.exception("uncaught exception in handler, moving on.")
                         metrics.system_profile_failure_count.inc()
 
-    t = Thread(
-        target=_f,
-        daemon=True)
+    t = Thread(target=_f, daemon=True)
     t.start()

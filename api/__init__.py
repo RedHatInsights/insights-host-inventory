@@ -1,6 +1,4 @@
-import logging
 import time
-
 from functools import wraps
 
 from api.metrics import api_request_count

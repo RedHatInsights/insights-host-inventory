@@ -1,10 +1,9 @@
-from threading import local
-import logging
 import logging.config
-import logstash_formatter
 import os
-import watchtower
+from threading import local
 
+import logstash_formatter
+import watchtower
 from boto3.session import Session
 from gunicorn import glogging
 
@@ -25,9 +24,11 @@ def configure_logging(config_name):
             fh = open(log_config_file)
             fh.close()
         except FileNotFoundError:
-            print("Error reading the logging configuration file.  "
-                  "Verify the %s environment variable is set "
-                  "correctly. Aborting..." % env_var_name)
+            print(
+                "Error reading the logging configuration file.  "
+                "Verify the %s environment variable is set "
+                "correctly. Aborting..." % env_var_name
+            )
             raise
 
         logging.config.fileConfig(fname=log_config_file)
@@ -44,22 +45,25 @@ def _configure_watchtower_logging_handler():
     log_group = os.getenv("AWS_LOG_GROUP", "platform")
     stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
 
-    if all([aws_access_key_id, aws_secret_access_key,
-            aws_region_name, stream_name]):
+    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
-        boto3_session = Session(aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key,
-                                region_name=aws_region_name)
+        boto3_session = Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region_name,
+        )
 
         root = logging.getLogger()
-        handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
-                                                  log_group=log_group,
-                                                  stream_name=stream_name)
+        handler = watchtower.CloudWatchLogHandler(
+            boto3_session=boto3_session, log_group=log_group, stream_name=stream_name
+        )
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
     else:
-        print("Unable to configure watchtower logging.  Please "
-              "verify watchtower logging configuration!")
+        print(
+            "Unable to configure watchtower logging.  Please "
+            "verify watchtower logging configuration!"
+        )
 
 
 def _get_aws_logging_stream_name(namespace_filename):
@@ -68,8 +72,10 @@ def _get_aws_logging_stream_name(namespace_filename):
             return namespace_fh.read()
     except FileNotFoundError:
         namespace = DEFAULT_AWS_LOGGING_NAMESPACE
-        print(f"Error reading the OpenShift namepsace file.  "
-              f"Using {namespace} as aws logging stream name")
+        print(
+            f"Error reading the OpenShift namepsace file.  "
+            f"Using {namespace} as aws logging stream name"
+        )
         return namespace
 
 
@@ -86,6 +92,7 @@ class ContextualFilter(logging.Filter):
     to explicitly retrieve/pass around the request id for each
     log message.
     """
+
     def filter(self, log_record):
         try:
             log_record.request_id = threadctx.request_id
@@ -117,14 +124,12 @@ class InventoryGunicornLogger(glogging.Logger):
     def setup(self, cfg):
         super().setup(cfg)
 
-        self._set_handler(self.error_log,
-                          cfg.errorlog,
-                          logstash_formatter.LogstashFormatterV1())
+        self._set_handler(self.error_log, cfg.errorlog, logstash_formatter.LogstashFormatterV1())
 
 
 def get_logger(name):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
-    logger = logging.getLogger(LOGGER_PREFIX+name)
+    logger = logging.getLogger(LOGGER_PREFIX + name)
     logger.addFilter(ContextualFilter())
     logger.setLevel(log_level)
     return logger

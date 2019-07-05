@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
-from marshmallow import Schema, fields
+
+from marshmallow import fields
+from marshmallow import Schema
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,8 @@ class HostEvent(Schema):
 
 
 def delete(id):
-    return HostEvent(strict=True).dumps(
-        {"id": id, "timestamp": datetime.utcnow(), "type": "delete"}
-    ).data
+    return (
+        HostEvent(strict=True)
+        .dumps({"id": id, "timestamp": datetime.utcnow(), "type": "delete"})
+        .data
+    )
