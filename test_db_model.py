@@ -8,6 +8,7 @@ from test_utils import flask_app_fixture  # noqa
 These tests are for testing the db model classes outside of the api.
 """
 
+
 def _create_host(insights_id=None, fqdn=None, display_name=None):
     if not insights_id:
         insights_id = str(uuid.uuid4())
@@ -20,7 +21,7 @@ def _create_host(insights_id=None, fqdn=None, display_name=None):
     return host
 
 
-def test_create_host_with_canonical_facts_as_None(flask_app_fixture):
+def test_create_host_with_canonical_facts_as_None(flask_app_fixture):  # noqa
     # Test to make sure canonical facts that are None or '' do
     # not get inserted into the db
     invalid_canonical_facts = {"fqdn": None, "insights_id": ""}
@@ -33,21 +34,21 @@ def test_create_host_with_canonical_facts_as_None(flask_app_fixture):
     assert valid_canonical_facts == host.canonical_facts
 
 
-def test_create_host_with_fqdn_and_display_name_as_empty_str(flask_app_fixture):
+def test_create_host_with_fqdn_and_display_name_as_empty_str(flask_app_fixture):  # noqa
     # Verify that the display_name is populated from the fqdn
     fqdn = "spacely_space_sprockets.orbitcity.com"
     created_host = _create_host(fqdn=fqdn, display_name="")
     assert created_host.display_name == fqdn
 
 
-def test_create_host_with_display_name_and_fqdn_as_empty_str(flask_app_fixture):
+def test_create_host_with_display_name_and_fqdn_as_empty_str(flask_app_fixture):  # noqa
     # Verify that the display_name is populated from the id
     created_host = _create_host(fqdn="", display_name="")
     assert created_host.display_name == str(created_host.id)
 
 
-def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fixture):
-    expected_fqdn = 'host1.domain1.com'
+def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fixture):  # noqa
+    expected_fqdn = "host1.domain1.com"
     insights_id = str(uuid.uuid4())
     existing_host = _create_host(insights_id=insights_id, fqdn=expected_fqdn, display_name=None)
 
@@ -63,7 +64,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fix
     assert existing_host.display_name == expected_fqdn
 
 
-def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixture):
+def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixture):  # noqa
     # Create an "existing" host
     fqdn = "host1.domain1.com"
     existing_host = _create_host(fqdn=fqdn, display_name=None)
@@ -81,7 +82,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixtur
     assert existing_host.display_name == expected_fqdn
 
 
-def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
+def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):  # noqa
     # Create an "existing" host
     existing_host = _create_host(fqdn=None, display_name=None)
 
@@ -99,14 +100,14 @@ def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
     assert existing_host.display_name == existing_host.id
 
 
-def test_create_host_without_system_profile(flask_app_fixture):
+def test_create_host_without_system_profile(flask_app_fixture):  # noqa
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
     created_host = _create_host(fqdn="fred.flintstone.com", display_name="fred")
     assert created_host.system_profile_facts == {}
 
 
-def test_create_host_with_system_profile(flask_app_fixture):
+def test_create_host_with_system_profile(flask_app_fixture):  # noqa
     system_profile_facts = {"number_of_cpus": 1}
     host = Host(
         {"fqdn": "fred.flintstone.com"},

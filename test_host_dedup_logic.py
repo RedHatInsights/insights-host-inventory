@@ -3,7 +3,7 @@ import uuid
 from api.host import find_existing_host
 from app import db
 from app.models import Host
-from test_utils import flask_app_fixture
+from test_utils import flask_app_fixture  # noqa
 
 ACCOUNT_NUMBER = "000102"
 
@@ -28,12 +28,13 @@ def basic_host_dedup_test(initial_canonical_facts, search_canonical_facts):
     assert original_host.id == found_host.id
 
 
-def test_find_host_using_subset_canonical_fact_match(flask_app_fixture):
+def test_find_host_using_subset_canonical_fact_match(flask_app_fixture):  # noqa
     fqdn = "fred.flintstone.com"
-    canonical_facts = {"fqdn": fqdn,
-                       "bios_uuid": generate_uuid(),
-                       "rhel_machine_id": generate_uuid(),
-                       }
+    canonical_facts = {
+        "fqdn": fqdn,
+        "bios_uuid": generate_uuid(),
+        "rhel_machine_id": generate_uuid(),
+    }
 
     # Create the subset of canonical facts to search by
     subset_canonical_facts = {"fqdn": fqdn}
@@ -41,9 +42,8 @@ def test_find_host_using_subset_canonical_fact_match(flask_app_fixture):
     basic_host_dedup_test(canonical_facts, subset_canonical_facts)
 
 
-def test_find_host_using_superset_canonical_fact_match(flask_app_fixture):
-    canonical_facts = {"fqdn": "fred",
-                       "bios_uuid": generate_uuid()}
+def test_find_host_using_superset_canonical_fact_match(flask_app_fixture):  # noqa
+    canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
 
     # Create the superset of canonical facts to search by
     superset_canonical_facts = canonical_facts.copy()
@@ -53,16 +53,14 @@ def test_find_host_using_superset_canonical_fact_match(flask_app_fixture):
     basic_host_dedup_test(canonical_facts, superset_canonical_facts)
 
 
-def test_find_host_using_insights_id_match(flask_app_fixture):
-    canonical_facts = {"fqdn": "fred",
-                       "bios_uuid": generate_uuid(),
-                       "insights_id": generate_uuid(),
-                       }
+def test_find_host_using_insights_id_match(flask_app_fixture):  # noqa
+    canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
 
     # Change the canonical facts except the insights_id...match on insights_id
-    search_canonical_facts = {"fqdn": "barney",
-                              "bios_uuid": generate_uuid(),
-                              "insights_id": canonical_facts["insights_id"],
-                              }
+    search_canonical_facts = {
+        "fqdn": "barney",
+        "bios_uuid": generate_uuid(),
+        "insights_id": canonical_facts["insights_id"],
+    }
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)

@@ -1,9 +1,11 @@
 import contextlib
 import os
-import pytest
 import unittest.mock
 
-from app import create_app, db
+import pytest
+
+from app import create_app
+from app import db
 from app.models import Host
 
 

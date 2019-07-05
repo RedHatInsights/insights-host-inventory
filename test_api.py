@@ -21,7 +21,8 @@ from app import db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from tasks import msg_handler
-from test_utils import set_environment, rename_host_table_and_indexes
+from test_utils import rename_host_table_and_indexes
+from test_utils import set_environment
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
