@@ -19,6 +19,15 @@ from tasks import emit_event
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
 
+# These are the "elevated" canonical facts that are
+# given priority in the host deduplication process.
+# NOTE: The order of this tuple is important.  The order defines
+# the priority.
+ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id",
+                                  "subscription_manager_id",
+                                  )
+
+
 logger = get_logger(__name__)
 
 
@@ -88,13 +97,7 @@ def _add_host(host):
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
-    existing_host = None
-    insights_id = canonical_facts.get("insights_id", None)
-
-    if insights_id:
-        # The insights_id is the most important canonical fact.  If there
-        # is a matching insights_id, then update that host.
-        existing_host = find_host_by_insights_id(account_number, insights_id)
+    existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
 
     if not existing_host:
         existing_host = find_host_by_canonical_facts(account_number,
@@ -103,16 +106,17 @@ def find_existing_host(account_number, canonical_facts):
     return existing_host
 
 
-def find_host_by_insights_id(account_number, insights_id):
-    existing_host = Host.query.filter(
-            (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)
-        ).first()
+@metrics.find_host_using_elevated_ids.time()
+def _find_host_by_elevated_ids(account_number, canonical_facts):
+    for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
+        cf_value = canonical_facts.get(elevated_cf_name)
+        if cf_value:
+            existing_host = find_host_by_canonical_facts(account_number,
+                                                         {elevated_cf_name: cf_value})
+            if existing_host:
+                return existing_host
 
-    if existing_host:
-        logger.debug("Found existing host using id match: %s", existing_host)
-
-    return existing_host
+    return None
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):

@@ -33,7 +33,10 @@ class Host(db.Model):
     # alembic autogenerate functionality does not try to remove the indexes
     __table_args__ = (Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
                       Index("idxgincanonicalfacts", "canonical_facts"),
-                      Index("idxaccount", "account"),)
+                      Index("idxaccount", "account"),
+                      Index("hosts_subscription_manager_id_index",
+                          text("(canonical_facts ->> 'subscription_manager_id')")),
+                      )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
