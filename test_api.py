@@ -21,7 +21,7 @@ from app import db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from tasks import msg_handler
-from test_utils import set_environment
+from test_utils import set_environment, rename_host_table_and_indexes
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
@@ -153,18 +153,7 @@ class DBAPITestCase(BaseAPITestCase):
         Temporarily rename the host table while the tests run.  This is done
         to make dropping the table at the end of the tests a bit safer.
         """
-        from app.models import Host
-
-        temp_table_name_suffix = "__unit_tests__"
-        if temp_table_name_suffix not in Host.__table__.name:
-            Host.__table__.name = Host.__table__.name + temp_table_name_suffix
-        if temp_table_name_suffix not in Host.__table__.fullname:
-            Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
-
-        # Adjust the names of the indices
-        for index in Host.__table_args__:
-            if temp_table_name_suffix not in index.name:
-                index.name = index.name + temp_table_name_suffix
+        rename_host_table_and_indexes()
 
     def setUp(self):
         """
