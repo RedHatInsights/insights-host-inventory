@@ -7,8 +7,8 @@ from app import create_app
 from app.config import Config
 from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger, threadctx
+from app.queue.ingress import parse_operation_message
 from lib import host
-from inv_mq_parser import parse_operation_message
 
 
 logger = get_logger("mq_service")
@@ -26,14 +26,10 @@ def add_host(host_data):
 
 
 def handle_message(message):
-    try:
-        validated_operation_msg = parse_operation_message(message)
-    except ValidationException as e:
-        logger.exception("Input validation error while parsing operation message", extra={"operation": message})
-    else:
-        initialize_thread_local_storage(validated_operation_msg)
-        # FIXME: verify operation type
-        add_host(validated_operation_msg["data"])
+    validated_operation_msg = parse_operation_message(message)
+    initialize_thread_local_storage(validated_operation_msg)
+    # FIXME: verify operation type
+    add_host(validated_operation_msg["data"])
 
 
 def event_loop(consumer, flask_app, handler=handle_message):
