@@ -9,9 +9,11 @@ from app.models import Host
 
 application = create_app("cli")
 
-parser = argparse.ArgumentParser(description="Util that dumps a host from the hosts table."
-        "  The db configuration is read from the environment.  This util is expected to be"
-        " used within the image/pod")
+parser = argparse.ArgumentParser(
+    description="Util that dumps a host from the hosts table."
+                "  The db configuration is read from the environment."
+                "  This util is expected to be used within the image/pod."
+)
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--id",
                    help="search for a host using id")

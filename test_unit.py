@@ -191,15 +191,17 @@ class ConfigTestCase(TestCase):
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
-        new_env = {"INVENTORY_DB_USER": "fredflintstone",
-                "INVENTORY_DB_PASS": "bedrock1234",
-                "INVENTORY_DB_HOST": "localhost",
-                "INVENTORY_DB_NAME": "SlateRockAndGravel",
-                "INVENTORY_DB_POOL_TIMEOUT": "3",
-                "INVENTORY_DB_POOL_SIZE": "8",
-                "APP_NAME": app_name,
-                "PATH_PREFIX": path_prefix,
-                "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix, }
+        new_env = {
+            "INVENTORY_DB_USER": "fredflintstone",
+            "INVENTORY_DB_PASS": "bedrock1234",
+            "INVENTORY_DB_HOST": "localhost",
+            "INVENTORY_DB_NAME": "SlateRockAndGravel",
+            "INVENTORY_DB_POOL_TIMEOUT": "3",
+            "INVENTORY_DB_POOL_SIZE": "8",
+            "APP_NAME": app_name,
+            "PATH_PREFIX": path_prefix,
+            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix,
+        }
 
         with set_environment(new_env):
 
