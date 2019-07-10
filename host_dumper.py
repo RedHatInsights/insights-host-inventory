@@ -2,7 +2,6 @@
 
 import argparse
 import pprint
-import os
 
 from app import create_app
 from app.models import Host

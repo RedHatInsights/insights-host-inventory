@@ -308,7 +308,6 @@ class NetworkInterfaceSchema(Schema):
     name = fields.Str(validate=validate.Length(min=1, max=50))
     type = fields.Str(validate=validate.Length(max=18))
 
-
 class SystemProfileSchema(Schema):
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
