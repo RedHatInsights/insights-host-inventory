@@ -715,6 +715,7 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host,
                                            expected_title="Bad Request")
 
+
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
     def test_create_host_without_display_name_and_without_fqdn(self):
@@ -772,6 +773,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         self._validate_host(host_lookup_results["results"][0],
                             host_data,
                             expected_id=original_id)
+
 
 class BulkCreateHostsTestCase(DBAPITestCase):
 
