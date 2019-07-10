@@ -8,7 +8,7 @@ import uuid
 import copy
 import tempfile
 
-from app import create_app, db, events
+from app import create_app, db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
 from tasks import msg_handler

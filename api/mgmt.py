@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, jsonify
 from prometheus_client import (CollectorRegistry,
                                multiprocess,
                                generate_latest,
