@@ -1717,7 +1717,6 @@ class QueryOrderBadRequestsTestCase(QueryOrderTestCase):
                 response = self._get(url, None, "ASC", 400)
 
 
-
 class FactsTestCase(PreCreatedHostsBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
