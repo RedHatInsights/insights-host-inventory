@@ -44,7 +44,7 @@ with application.app_context():
     elif args.insights_id:
         print("looking up host using insights_id")
         query_results = Host.query.filter(
-                Host.canonical_facts.comparator.contains({'insights_id':args.insights_id})
+                Host.canonical_facts.comparator.contains({'insights_id': args.insights_id})
                     ).all()
     elif args.account_number:
         query_results = Host.query.filter(
