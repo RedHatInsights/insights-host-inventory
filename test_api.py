@@ -870,7 +870,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 "infrastructure_vendor": "dell",
                 "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"],
                                         "state": "UP",
-                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334",],
+                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
                                         "mtu": 1500,
                                         "mac_address": "aa:bb:cc:dd:ee:ff",
                                         "type": "loopback",
