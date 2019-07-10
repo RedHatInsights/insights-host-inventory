@@ -8,6 +8,7 @@ from test_utils import flask_app_fixture
 These tests are for testing the db model classes outside of the api.
 """
 
+
 def _create_host(insights_id=None, fqdn=None, display_name=None):
     if not insights_id:
         insights_id = str(uuid.uuid4())
