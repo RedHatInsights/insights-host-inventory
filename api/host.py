@@ -80,11 +80,15 @@ def _add_host(host):
 
     input_host = Host.from_json(validated_input_host_dict.data)
 
-    if (not current_identity.is_trusted_system and
-            current_identity.account_number != input_host.account):
-        raise InventoryException(title="Invalid request",
-                detail="The account number associated with the user does not "
-                "match the account number associated with the host")
+    if (
+        not current_identity.is_trusted_system and
+        current_identity.account_number != input_host.account
+    ):
+        raise InventoryException(
+            title="Invalid request",
+            detail="The account number associated with the user does not "
+                   "match the account number associated with the host"
+        )
 
     existing_host = find_existing_host(input_host.account,
                                        input_host.canonical_facts)
@@ -165,9 +169,16 @@ def update_existing_host(existing_host, input_host):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_list(display_name=None, fqdn=None,
-        hostname_or_id=None, insights_id=None,
-        page=1, per_page=100, order_by=None, order_how=None):
+def get_host_list(
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None
+):
     if fqdn:
         query = find_hosts_by_canonical_facts(
             current_identity.account_number, {"fqdn": fqdn}
