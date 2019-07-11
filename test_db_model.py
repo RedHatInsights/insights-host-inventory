@@ -2,7 +2,6 @@ import uuid
 
 from app import db
 from app.models import Host
-from test_utils import flask_app_fixture
 
 """
 These tests are for testing the db model classes outside of the api.
