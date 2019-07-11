@@ -16,7 +16,7 @@ def authentication_header_handler(apikey, required_scopes=None):
     try:
         identity = from_auth_header(apikey)
         validate(identity)
-    except Exception as e:
+    except Exception:
         login_failure_count.inc()
         logger.debug("Failed to validate identity header value",
                      exc_info=True)
@@ -29,7 +29,7 @@ def bearer_token_handler(token):
     try:
         identity = from_bearer_token(token)
         validate(identity)
-    except Exception as e:
+    except Exception:
         login_failure_count.inc()
         logger.debug("Failed to validate bearer token value",
                      exc_info=True)

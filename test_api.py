@@ -1237,7 +1237,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                     self.assertEqual(host[key], patch_doc[key])
 
     def test_patch_with_branch_id_parameter(self):
-        original_id = self.added_hosts[0].id
+        self.added_hosts[0].id
 
         patch_doc = {"display_name": "branch_id_test"}
 
@@ -1245,13 +1245,9 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         test_url = f"{HOST_URL}/{url_host_id_list}?branch_id=123"
 
-        response_data = self.patch(test_url,
-                                   patch_doc,
-                                   200)
+        self.patch(test_url, patch_doc, 200)
 
     def test_update_fields_on_multiple_hosts(self):
-        original_id = self.added_hosts[0].id
-
         patch_doc = {"display_name": "fred_flintstone",
                      "ansible_host": "barney_rubble"}
 
@@ -1259,9 +1255,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         test_url = f"{HOST_URL}/{url_host_id_list}"
 
-        response_data = self.patch(test_url,
-                                   patch_doc,
-                                   200)
+        self.patch(test_url, patch_doc, 200)
 
         response_data = self.get(test_url, 200)
 
@@ -1405,8 +1399,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
             assert any(result["display_name"] == host.display_name for host in expected_host_list)
 
     def test_query_using_non_existant_fqdn(self):
-        host_list = self.added_hosts
-
         response = self.get(HOST_URL + "?fqdn=ROFLSAUCE.com")
 
         self.assertEqual(len(response["results"]), 0)
@@ -1577,7 +1569,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
         test_url = HOST_URL + "?insights_id=" + valid_insights_id + "&branch_id=123"
 
-        response = self.get(test_url, 200)
+        self.get(test_url, 200)
 
 
 class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
@@ -1714,7 +1706,7 @@ class QueryOrderBadRequestsTestCase(QueryOrderTestCase):
     def test_only_order_how(self):
         for url in self._queries_subtests_with_added_hosts():
             with self.subTest(url=url):
-                response = self._get(url, None, "ASC", 400)
+                self._get(url, None, "ASC", 400)
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

@@ -53,7 +53,7 @@ def add_host_list(host_list):
                                        "detail": str(e.messages),
                                        "type": "unknown",
                                        "host": host})
-        except Exception as e:
+        except Exception:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
             response_host_list.append({"status": 500,
@@ -290,7 +290,7 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
         host_id = hostname
         filter_list.append(Host.id == host_id)
         logger.debug("Adding id (uuid) to the filter list")
-    except Exception as e:
+    except Exception:
         # Do not filter using the id
         logger.debug("The hostname (%s) could not be converted into a UUID",
                      hostname,
