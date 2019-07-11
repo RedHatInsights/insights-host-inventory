@@ -430,7 +430,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     hosts_to_update = Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
-        & Host.facts.has_key(namespace)
+        & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
     ).all()
 
     logger.debug("hosts_to_update:%s" % hosts_to_update)
