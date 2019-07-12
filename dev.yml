@@ -7,7 +7,7 @@ services:
             POSTGRES_PASSWORD: insights
             POSTGRES_USER: insights
             POSTGRES_DB: insights
-        ports: 
+        ports:
             - "5432:5432"
     zookeeper:
       image: confluentinc/cp-zookeeper
