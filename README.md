@@ -89,7 +89,7 @@ care about the Prometheus temp directory or to set the
 _prometheus_multiproc_dir_ environment variable. This is done automatically.
 
 ```
-python run_gunicorn.py 
+python run_gunicorn.py
 ```
 
 
@@ -129,7 +129,7 @@ from inside of the deployment cluster.
 * _/health_ responds with _200_ to any GET requests, point your liveness
   or readiness probe here.
 * _/metrics_ offers metrics and monitoring intended to be pulled by
-  [Prometheus](https://prometheus.io). 
+  [Prometheus](https://prometheus.io).
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
