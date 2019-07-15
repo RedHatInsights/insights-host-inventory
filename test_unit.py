@@ -9,7 +9,8 @@ from app.auth.identity import (Identity,
                                from_bearer_token,
                                SHARED_SECRET_ENV_VAR)
 from app.exceptions import InputFormatException
-from app.models import CanonicalFacts, Facts, Host
+from app.models import Host as ModelsHost
+from app.serialization import CanonicalFacts, Facts, Host as SerializationHost
 from base64 import b64encode
 from datetime import datetime
 from json import dumps
@@ -360,7 +361,7 @@ class ModelsHostFromJsonCompoundTestCase(TestCase):
             }
         }
 
-        actual = Host.from_json(input)
+        actual = SerializationHost.from_json(input)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
@@ -368,15 +369,15 @@ class ModelsHostFromJsonCompoundTestCase(TestCase):
             "system_profile_facts": input["system_profile"]
         }
 
-        self.assertIs(Host, type(actual))
+        self.assertIs(ModelsHost, type(actual))
         for key, value in expected.items():
             self.assertEqual(value, getattr(actual, key))
 
     def test_with_only_required_fields(self):
         canonical_facts = {"fqdn": "some fqdn"}
-        host = Host.from_json(canonical_facts)
+        host = SerializationHost.from_json(canonical_facts)
 
-        self.assertIs(Host, type(host))
+        self.assertIs(ModelsHost, type(host))
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
@@ -385,13 +386,13 @@ class ModelsHostFromJsonCompoundTestCase(TestCase):
         self.assertEqual({}, host.system_profile_facts)
 
 
-@patch("app.models.Facts.from_json")
-@patch("app.models.CanonicalFacts.from_json")
+@patch("app.serialization.Facts.from_json")
+@patch("app.serialization.CanonicalFacts.from_json")
 class ModelsHostFromJsonMockedTestCase(TestCase):
 
     def _host_from_json(self, *args, **kwargs):
         cls = Mock()
-        result = Host.from_json.__func__(cls, *args, **kwargs)
+        result = SerializationHost.from_json.__func__(cls, *args, **kwargs)
         self.assertEqual(cls.return_value, result)
         return cls
 
@@ -547,7 +548,7 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
                 "another namespace": {"another key": "another value"}
             }
         }
-        host = Host(**host_init_data)
+        host = ModelsHost(**host_init_data)
 
         host_attr_data = {
             "id": uuid4(),
@@ -557,7 +558,7 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = host.to_json()
+        actual = SerializationHost.to_json(host)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -581,7 +582,7 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
             **unchanged_data,
             "facts": {}
         }
-        host = Host(**host_init_data)
+        host = ModelsHost(**host_init_data)
 
         host_attr_data = {
             "id": uuid4(),
@@ -591,7 +592,7 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = host.to_json()
+        actual = SerializationHost.to_json(host)
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -612,8 +613,8 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
         self.assertEqual(expected, actual)
 
 
-@patch("app.models.Facts.to_json")
-@patch("app.models.CanonicalFacts.to_json")
+@patch("app.serialization.Facts.to_json")
+@patch("app.serialization.CanonicalFacts.to_json")
 class ModelsHostToJsonMockedTestCase(ModelsHostToJsonBaseTestCase):
 
     def test_with_all_fields(self, canonical_facts_to_json, facts_to_json):
@@ -644,7 +645,7 @@ class ModelsHostToJsonMockedTestCase(ModelsHostToJsonBaseTestCase):
             **unchanged_data,
             "facts": facts
         }
-        host = Host(**host_init_data)
+        host = ModelsHost(**host_init_data)
 
         host_attr_data = {
             "id": uuid4(),
@@ -654,7 +655,7 @@ class ModelsHostToJsonMockedTestCase(ModelsHostToJsonBaseTestCase):
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = host.to_json()
+        actual = SerializationHost.to_json(host)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -680,26 +681,26 @@ class ModelsHostToSystemProfileJsonTestCase(TestCase):
             "cores_per_socket": 3,
             "system_memory_bytes": 4
         }
-        host = Host(
+        host = ModelsHost(
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
             system_profile_facts=system_profile_facts
         )
         host.id = uuid4()
 
-        actual = host.to_system_profile_json()
+        actual = SerializationHost.to_system_profile_json(host)
         expected = {"id": str(host.id), "system_profile": system_profile_facts}
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
-        host = Host(
+        host = ModelsHost(
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name"
         )
         host.id = uuid4()
         host.system_profile_facts = None
 
-        actual = host.to_system_profile_json()
+        actual = SerializationHost.to_system_profile_json(host)
         expected = {"id": str(host.id), "system_profile": {}}
         self.assertEqual(expected, actual)
 
