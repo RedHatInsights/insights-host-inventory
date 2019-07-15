@@ -27,7 +27,7 @@ def add_host(host):
     try:
         validated_input_host_dict = HostSchema(strict=True).load(host)
     except ValidationError as e:
-        raise ValidationException(e) from None
+        raise ValidationException(str(e.messages)) from None
 
     input_host = SerializationHost.from_json(validated_input_host_dict.data)
 

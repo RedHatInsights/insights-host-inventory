@@ -10,7 +10,7 @@ from marshmallow import ValidationError
 from app import db, events
 from app.models import Host, HostSchema, PatchHostSchema
 from app.auth import current_identity
-from app.exceptions import InventoryException
+from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger
 from app.serialization import Host as SerializationHost
 from api import api_operation, metrics
@@ -34,19 +34,17 @@ def add_host_list(host_list):
             (host, add_result) = _add_host(host)
             status_code = _convert_host_results_to_http_status(add_result)
             response_host_list.append({'status': status_code, 'host': host})
+        except ValidationException as e:
+            number_of_errors += 1
+            logger.exception("Input validation error while adding host",
+                             extra={"host": host})
+            response_host_list.append({**e.to_json(),
+                                       "title": "Bad Request",
+                                       "host": host})
         except InventoryException as e:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
             response_host_list.append({**e.to_json(), "host": host})
-        except ValidationError as e:
-            number_of_errors += 1
-            logger.exception("Input validation error while adding host",
-                             extra={"host": host})
-            response_host_list.append({"status": 400,
-                                       "title": "Bad Request",
-                                       "detail": str(e.messages),
-                                       "type": "unknown",
-                                       "host": host})
         except Exception as e:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
