@@ -27,3 +27,4 @@ extend-ignore =
     F841,
     W291,
     W601
+max-line-length = 100
