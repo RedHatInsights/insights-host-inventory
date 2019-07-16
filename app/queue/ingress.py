@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, ValidationError
 from app.logging import get_logger
+from lib import metrics
 
 
 logger = get_logger(__name__)
@@ -10,7 +11,7 @@ class OperationSchema(Schema):
     request_id = fields.Str()
     data = fields.Dict()
 
-
+@metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
         parsed_operation = OperationSchema(strict=True).load(message).data
