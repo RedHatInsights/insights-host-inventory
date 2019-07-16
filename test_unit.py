@@ -389,7 +389,7 @@ class ModelsHostFromJsonCompoundTestCase(TestCase):
 @patch("app.serialization.ModelsHost")
 @patch("app.serialization.Facts.from_json")
 @patch("app.serialization.CanonicalFacts.from_json")
-class ModelsHostFromJsonMockedTestCase(TestCase):
+class SerializationHostFromJsonMockedTestCase(TestCase):
 
     def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
@@ -514,13 +514,13 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
         )
 
 
-class ModelsHostToJsonBaseTestCase(TestCase):
+class SerializationHostToJsonBaseTestCase(TestCase):
     def _timestamp_to_str(self, timestamp):
         formatted = timestamp.isoformat()
         return f"{formatted}Z"
 
 
-class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
+class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
 
     def test_with_all_fields(self):
         canonical_facts = {
@@ -614,7 +614,7 @@ class ModelsHostToJsonCompoundTestCase(ModelsHostToJsonBaseTestCase):
 
 @patch("app.serialization.Facts.to_json")
 @patch("app.serialization.CanonicalFacts.to_json")
-class ModelsHostToJsonMockedTestCase(ModelsHostToJsonBaseTestCase):
+class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase):
 
     def test_with_all_fields(self, canonical_facts_to_json, facts_to_json):
         canonical_facts = {
@@ -704,7 +704,7 @@ class ModelsHostToSystemProfileJsonTestCase(TestCase):
         self.assertEqual(expected, actual)
 
 
-class ModelsCanonicalFactsFromJson(TestCase):
+class SerializationCanonicalFactsFromJson(TestCase):
 
     def _format_uuid_without_hyphens(self, uuid_):
         return uuid_.hex
@@ -767,7 +767,7 @@ class ModelsCanonicalFactsFromJson(TestCase):
         self.assertEqual(result, canonical_facts)
 
 
-class ModelsCanonicalFactsToJsonTestCase(TestCase):
+class SerializationCanonicalFactsToJsonTestCase(TestCase):
 
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
@@ -800,7 +800,7 @@ class ModelsCanonicalFactsToJsonTestCase(TestCase):
         )
 
 
-class ModelsFactsFromJsonTestCase(TestCase):
+class SerializationFactsFromJsonTestCase(TestCase):
 
     def test_non_empty_namespaces_become_dict_items(self):
         input = [
@@ -884,7 +884,7 @@ class ModelsFactsFromJsonTestCase(TestCase):
                     Facts.from_json(input)
 
 
-class ModelsFactsToJsonTestCase(TestCase):
+class SerializationFactsToJsonTestCase(TestCase):
 
     def test_empty_dict_becomes_empty_list(self):
         self.assertEqual([], Facts.to_json({}))
