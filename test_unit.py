@@ -386,17 +386,12 @@ class ModelsHostFromJsonCompoundTestCase(TestCase):
         self.assertEqual({}, host.system_profile_facts)
 
 
+@patch("app.serialization.ModelsHost")
 @patch("app.serialization.Facts.from_json")
 @patch("app.serialization.CanonicalFacts.from_json")
 class ModelsHostFromJsonMockedTestCase(TestCase):
 
-    def _host_from_json(self, *args, **kwargs):
-        cls = Mock()
-        result = SerializationHost.from_json.__func__(cls, *args, **kwargs)
-        self.assertEqual(cls.return_value, result)
-        return cls
-
-    def test_with_all_fields(self, canonical_facts_from_json, facts_from_json):
+    def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -422,11 +417,12 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             }
         }
 
-        constructor_mock = self._host_from_json(input)
+        result = SerializationHost.from_json(input)
+        self.assertEqual(models_host.return_value, result)
 
         canonical_facts_from_json.assert_called_once_with(input)
         facts_from_json.assert_called_once_with(input["facts"])
-        constructor_mock.assert_called_once_with(
+        models_host.assert_called_once_with(
             canonical_facts_from_json.return_value,
             input["display_name"],
             input["ansible_host"],
@@ -435,7 +431,7 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             input["system_profile"]
         )
 
-    def test_without_facts(self, canonical_facts_from_json, facts_from_json):
+    def test_without_facts(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -448,11 +444,12 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             }
         }
 
-        constructor_mock = self._host_from_json(input)
+        result = SerializationHost.from_json(input)
+        self.assertEqual(models_host.return_value, result)
 
         canonical_facts_from_json.assert_called_once_with(input)
         facts_from_json.assert_called_once_with(None)
-        constructor_mock.assert_called_once_with(
+        models_host.assert_called_once_with(
             canonical_facts_from_json.return_value,
             input["display_name"],
             input["ansible_host"],
@@ -461,7 +458,7 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             input["system_profile"]
         )
 
-    def test_without_display_name(self, canonical_facts_from_json, facts_from_json):
+    def test_without_display_name(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -477,11 +474,12 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             }
         }
 
-        constructor_mock = self._host_from_json(input)
+        result = SerializationHost.from_json(input)
+        self.assertEqual(models_host.return_value, result)
 
         canonical_facts_from_json.assert_called_once_with(input)
         facts_from_json.assert_called_once_with(input["facts"])
-        constructor_mock.assert_called_once_with(
+        models_host.assert_called_once_with(
             canonical_facts_from_json.return_value,
             None,
             input["ansible_host"],
@@ -490,7 +488,7 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             input["system_profile"]
         )
 
-    def test_without_system_profile(self, canonical_facts_from_json, facts_from_json):
+    def test_without_system_profile(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -501,11 +499,12 @@ class ModelsHostFromJsonMockedTestCase(TestCase):
             }
         }
 
-        constructor_mock = self._host_from_json(input)
+        result = SerializationHost.from_json(input)
+        self.assertEqual(models_host.return_value, result)
 
         canonical_facts_from_json.assert_called_once_with(input)
         facts_from_json.assert_called_once_with(input["facts"])
-        constructor_mock.assert_called_once_with(
+        models_host.assert_called_once_with(
             canonical_facts_from_json.return_value,
             input["display_name"],
             input["ansible_host"],
