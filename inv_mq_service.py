@@ -8,7 +8,7 @@ from app.config import Config
 from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger, threadctx
 from app.queue.ingress import parse_operation_message
-from lib import host
+from lib import host, metrics
 
 
 logger = get_logger("mq_service")
@@ -59,6 +59,7 @@ def initialize_thread_local_storage(operation_message):
 def main():
     config_name = os.getenv('APP_SETTINGS', "development")
     application = create_app(config_name, start_tasks=False)
+    metrics.start_http_server(9126)
 
     config = Config()
 
