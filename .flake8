@@ -21,10 +21,9 @@ extend-ignore =
     E303,
     E305,
     E402,
-    E501,
     F401,
     F811,
     F841,
     W291,
     W601
-max-line-length = 100
+max-line-length = 119
