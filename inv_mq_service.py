@@ -8,7 +8,9 @@ from app.config import Config
 from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger, threadctx
 from app.queue.ingress import parse_operation_message
-from lib import host, metrics
+from app.queue import metrics
+from lib import host
+from prometheus_client import start_http_server
 
 
 logger = get_logger("mq_service")
@@ -21,8 +23,10 @@ def add_host(host_data):
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
     except InventoryException as e:
         logger.exception("Error adding host ", extra={"host": host_data})
+        metrics.add_host_failure.inc()
     except Exception as e:
         logger.exception("Error while adding host", extra={"host": host_data})
+        metrics.add_host_failure.inc()
 
 
 def handle_message(message):
@@ -38,16 +42,8 @@ def event_loop(consumer, flask_app, handler=handle_message):
         for msg in consumer:
             logger.debug("Message received")
             try:
-                data = json.loads(msg.value)
-            except Exception:
-                # The "extra" dict cannot have a key named "msg" or "message"
-                # otherwise an exception in thrown in the logging code
-                logger.exception("Unable to parse json message from message queue",
-                                 extra={"incoming_message": msg.value})
-                continue
-
-            try:
-                handler(data)
+                handler(msg)
+                metrics.ingress_message_handler_success.inc()
             except Exception:
                 logger.exception("Unable to process message")
 
@@ -59,7 +55,7 @@ def initialize_thread_local_storage(operation_message):
 def main():
     config_name = os.getenv('APP_SETTINGS', "development")
     application = create_app(config_name, start_tasks=False)
-    metrics.start_http_server(9126)
+    start_http_server(9126)
 
     config = Config()
 
