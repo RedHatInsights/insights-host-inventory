@@ -20,8 +20,8 @@ from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
-from app.utils import uuid_with_hyphens
-from app.utils import uuid_without_hyphens
+from app.utils import uuid_with_hyphens as with_hyphens
+from app.utils import uuid_without_hyphens as without_hyphens
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
@@ -40,12 +40,8 @@ ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
 
 
-def generate_uuid(with_hyphens=True):
-    generated_uuid = uuid.uuid4()
-    if with_hyphens:
-        return uuid_with_hyphens(generated_uuid)
-    else:
-        return uuid_without_hyphens(generated_uuid)
+def generate_uuid(format_func=with_hyphens):
+    return format_func(uuid.uuid4())
 
 
 def test_data(display_name="hi", facts=None):
@@ -1105,9 +1101,9 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", generate_uuid(True), "host1.domain.test"),
-            ("host2", generate_uuid(True), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(False), "host2.domain.test"),  # the same display_name is intentional
+            ("host1", generate_uuid(with_hyphens), "host1.domain.test"),
+            ("host2", generate_uuid(with_hyphens), "host1.domain.test"),  # the same fqdn is intentional
+            ("host3", generate_uuid(without_hyphens), "host2.domain.test"),  # the same display_name is intentional
         ]
         host_list = []
 
@@ -1455,7 +1451,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_normalized_matching_insights_id_with_hyphens(self):
         host_list = self.added_hosts
         insights_id = uuid.UUID(host_list[0].insights_id)
-        self._base_query_test(uuid_without_hyphens(insights_id), 1)
+        self._base_query_test(without_hyphens(insights_id), 1)
 
     def test_query_with_exact_matching_insights_id_without_hyphens(self):
         host_list = self.added_hosts
@@ -1465,7 +1461,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
     def test_query_with_normalized_matching_insights_id_without_hyphens(self):
         host_list = self.added_hosts
         insights_id = uuid.UUID(host_list[2].insights_id)
-        self._base_query_test(uuid_with_hyphens(insights_id), 1)
+        self._base_query_test(with_hyphens(insights_id), 1)
 
     def test_query_with_no_matching_insights_id(self):
         uuid_that_does_not_exist_in_db = generate_uuid()
