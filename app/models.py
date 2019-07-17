@@ -1,12 +1,20 @@
 import uuid
-
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import orm, Index, text
 
-from app.exceptions import InventoryException, InputFormatException
+from flask_sqlalchemy import SQLAlchemy
+from marshmallow import fields
+from marshmallow import Schema
+from marshmallow import validate
+from marshmallow import validates
+from marshmallow import ValidationError
+from sqlalchemy import Index
+from sqlalchemy import orm
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import verify_uuid_format
 

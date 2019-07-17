@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 from contextlib import contextmanager
+from os import getenv
+from os import putenv
 from subprocess import run
-from os import getenv, putenv
 from tempfile import TemporaryDirectory
 
 

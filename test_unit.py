@@ -1,17 +1,20 @@
 #!/usr/bin/env python
-
-from api import api_operation
-from api.host import _params_to_order_by, _order_how
-from app.config import Config
-from app.auth.identity import (Identity,
-                               validate,
-                               from_auth_header,
-                               from_bearer_token,
-                               SHARED_SECRET_ENV_VAR)
 from base64 import b64encode
 from json import dumps
-from unittest import main, TestCase
-from unittest.mock import Mock, patch
+from unittest import main
+from unittest import TestCase
+from unittest.mock import Mock
+from unittest.mock import patch
+
+from api import api_operation
+from api.host import _order_how
+from api.host import _params_to_order_by
+from app.auth.identity import from_auth_header
+from app.auth.identity import from_bearer_token
+from app.auth.identity import Identity
+from app.auth.identity import SHARED_SECRET_ENV_VAR
+from app.auth.identity import validate
+from app.config import Config
 from test_utils import set_environment
 
 

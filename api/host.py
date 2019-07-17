@@ -1,18 +1,22 @@
+import uuid
+from enum import Enum
+
 import flask
 import sqlalchemy
 import ujson
-import uuid
-
-from enum import Enum
 from flask_api import status
 from marshmallow import ValidationError
 
-from app import db, events
-from app.models import Host, HostSchema, PatchHostSchema
+from api import api_operation
+from api import metrics
+from app import db
+from app import events
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.logging import get_logger
-from api import api_operation, metrics
+from app.models import Host
+from app.models import HostSchema
+from app.models import PatchHostSchema
 from tasks import emit_event
 
 
