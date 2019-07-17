@@ -2,6 +2,8 @@ import contextlib
 import os
 import unittest.mock
 
+import pytest
+
 from app.models import Host
 
 

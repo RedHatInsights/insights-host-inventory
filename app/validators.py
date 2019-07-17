@@ -1,6 +1,6 @@
 import uuid
-import validators
 
+import validators
 from jsonschema import draft4_format_checker
 
 
