@@ -1,10 +1,9 @@
-from threading import local
-import logging
 import logging.config
-import logstash_formatter
 import os
-import watchtower
+from threading import local
 
+import logstash_formatter
+import watchtower
 from boto3.session import Session
 from gunicorn import glogging
 

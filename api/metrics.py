@@ -1,4 +1,5 @@
-from prometheus_client import Counter, Summary
+from prometheus_client import Counter
+from prometheus_client import Summary
 
 api_request_time = Summary("inventory_request_processing_seconds",
                            "Time spent processing request")

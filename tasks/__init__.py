@@ -1,12 +1,15 @@
 import json
+from threading import Thread
+
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
-from threading import Thread
 
 from api import metrics
 from app import db
-from app.logging import threadctx, get_logger
-from app.models import Host, SystemProfileSchema
+from app.logging import get_logger
+from app.logging import threadctx
+from app.models import Host
+from app.models import SystemProfileSchema
 
 logger = get_logger(__name__)
 

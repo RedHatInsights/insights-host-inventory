@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
-from marshmallow import Schema, fields
+
+from marshmallow import fields
+from marshmallow import Schema
 
 logger = logging.getLogger(__name__)
 
