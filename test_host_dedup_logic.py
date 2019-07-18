@@ -68,6 +68,7 @@ def test_find_host_using_insights_id_match(flask_app_fixture):
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
+
 def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
     canonical_facts = {"fqdn": "fred",
                        "bios_uuid": generate_uuid(),
