@@ -35,7 +35,7 @@ class Host(db.Model):
                       Index("idxgincanonicalfacts", "canonical_facts"),
                       Index("idxaccount", "account"),
                       Index("hosts_subscription_manager_id_index",
-                          text("(canonical_facts ->> 'subscription_manager_id')")),
+                            text("(canonical_facts ->> 'subscription_manager_id')")),
                       )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -307,6 +307,7 @@ class NetworkInterfaceSchema(Schema):
     mac_address = fields.Str(validate=validate.Length(max=18))
     name = fields.Str(validate=validate.Length(min=1, max=50))
     type = fields.Str(validate=validate.Length(max=18))
+
 
 class SystemProfileSchema(Schema):
     number_of_cpus = fields.Int()
