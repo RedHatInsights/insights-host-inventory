@@ -28,7 +28,6 @@ ujson = "*"
 watchtower = "*"
 "boto3" = "*"
 kafka = "*"
-pre-commit-hooks = "*"
 
 [dev-packages]
 pytest = "*"
@@ -37,6 +36,7 @@ coverage = "*"
 flake8 = "*"
 pyupgrade = "*"
 reorder-python-imports = "*"
+pre-commit-hooks = "*"
 
 [requires]
 python_version = "3.6"
