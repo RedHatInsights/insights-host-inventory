@@ -35,6 +35,7 @@ pytest = "*"
 pytest-cov = "*"
 coverage = "*"
 flake8 = "*"
+pyupgrade = "*"
 
 [requires]
 python_version = "3.6"
