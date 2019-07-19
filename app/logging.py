@@ -43,8 +43,7 @@ def _configure_watchtower_logging_handler():
     log_group = os.getenv("AWS_LOG_GROUP", "platform")
     stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
 
-    if all([aws_access_key_id, aws_secret_access_key,
-            aws_region_name, stream_name]):
+    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
         boto3_session = Session(aws_access_key_id=aws_access_key_id,
                                 aws_secret_access_key=aws_secret_access_key,
@@ -57,8 +56,7 @@ def _configure_watchtower_logging_handler():
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
     else:
-        print("Unable to configure watchtower logging.  Please "
-              "verify watchtower logging configuration!")
+        print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
 
 
 def _get_aws_logging_stream_name(namespace_filename):
@@ -67,8 +65,7 @@ def _get_aws_logging_stream_name(namespace_filename):
             return namespace_fh.read()
     except FileNotFoundError:
         namespace = DEFAULT_AWS_LOGGING_NAMESPACE
-        print(f"Error reading the OpenShift namepsace file.  "
-              f"Using {namespace} as aws logging stream name")
+        print(f"Error reading the OpenShift namepsace file.  Using {namespace} as aws logging stream name")
         return namespace
 
 
@@ -117,9 +114,7 @@ class InventoryGunicornLogger(glogging.Logger):
     def setup(self, cfg):
         super().setup(cfg)
 
-        self._set_handler(self.error_log,
-                          cfg.errorlog,
-                          logstash_formatter.LogstashFormatterV1())
+        self._set_handler(self.error_log, cfg.errorlog, logstash_formatter.LogstashFormatterV1())
 
 
 def get_logger(name):

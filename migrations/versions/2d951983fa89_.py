@@ -27,18 +27,13 @@ def upgrade():
         sa.Column("modified_on", sa.DateTime(), nullable=True),
         sa.Column("facts", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("tags", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column(
-            "canonical_facts", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("canonical_facts", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
 
     op.create_index("idxaccount", "hosts", ["account"], unique=False)
 
-    op.create_index("idxinsightsid",
-                    "hosts",
-                    [sa.text("(canonical_facts ->> 'insights_id')")]
-                    )
+    op.create_index("idxinsightsid", "hosts", [sa.text("(canonical_facts ->> 'insights_id')")])
 
     op.create_index("idxgincanonicalfacts",
                     "hosts",

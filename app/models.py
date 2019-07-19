@@ -51,9 +51,7 @@ class Host(db.Model):
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    modified_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -70,9 +68,9 @@ class Host(db.Model):
     ):
 
         if not canonical_facts:
-            raise InventoryException(title="Invalid request",
-                                     detail="At least one of the canonical "
-                                     "fact fields must be present.")
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical " "fact fields must be present."
+            )
 
         self.canonical_facts = canonical_facts
 
@@ -111,9 +109,7 @@ class Host(db.Model):
         return json_dict
 
     def to_system_profile_json(self):
-        json_dict = {"id": str(self.id),
-                     "system_profile": self.system_profile_facts or {}
-                     }
+        json_dict = {"id": str(self.id), "system_profile": self.system_profile_facts or {}}
         return json_dict
 
     def save(self):
@@ -132,8 +128,7 @@ class Host(db.Model):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
         if not patch_data:
-            raise InventoryException(title="Bad Request",
-                                     detail="Patch json document cannot be empty.")
+            raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
         self._update_ansible_host(patch_data.get("ansible_host"))
 
@@ -163,7 +158,7 @@ class Host(db.Model):
             canonical_facts
         )
         self.canonical_facts.update(canonical_facts)
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
+        logger.debug("Host (id=%s) has updated canonical_facts (%s)" , self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
@@ -196,8 +191,7 @@ class Host(db.Model):
             self.system_profile_facts = input_system_profile
         else:
             # Update the fields that were passed in
-            self.system_profile_facts = {**self.system_profile_facts,
-                                         **input_system_profile}
+            self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
@@ -278,8 +272,7 @@ class Facts:
     @staticmethod
     def to_json(fact_dict):
         fact_list = [
-            {"namespace": namespace, "facts": facts if facts else {}}
-            for namespace, facts in fact_dict.items()
+            {"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in fact_dict.items()
         ]
         return fact_list
 
@@ -356,18 +349,15 @@ class FactsSchema(Schema):
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
-    account = fields.Str(required=True,
-                         validate=validate.Length(min=1, max=10))
+    account = fields.Str(required=True, validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
-    mac_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
+    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
+    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
