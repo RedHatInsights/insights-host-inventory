@@ -20,6 +20,7 @@ def add_host(host_data):
     try:
         logger.info("Attempting to add host...")
         host.add_host(host_data)
+        metrics.add_host_success.inc()
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
     except InventoryException as e:
         logger.exception("Error adding host ", extra={"host": host_data})
@@ -45,6 +46,7 @@ def event_loop(consumer, flask_app, handler=handle_message):
                 handler(msg)
                 metrics.ingress_message_handler_success.inc()
             except Exception:
+                metrics.ingress_message_handler_failure.inc()
                 logger.exception("Unable to process message")
 
 
