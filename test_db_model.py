@@ -106,11 +106,12 @@ def test_create_host_without_system_profile(flask_app_fixture):
 
 def test_create_host_with_system_profile(flask_app_fixture):
     system_profile_facts = {"number_of_cpus": 1}
-    host = Host({"fqdn": "fred.flintstone.com"},
-                display_name="display_name",
-                account="00102",
-                system_profile_facts=system_profile_facts,
-                )
+    host = Host(
+        {"fqdn": "fred.flintstone.com"},
+        display_name="display_name",
+        account="00102",
+        system_profile_facts=system_profile_facts,
+    )
     db.session.add(host)
     db.session.commit()
 

@@ -35,12 +35,13 @@ def upgrade():
 
     op.create_index("idxinsightsid", "hosts", [sa.text("(canonical_facts ->> 'insights_id')")])
 
-    op.create_index("idxgincanonicalfacts",
-                    "hosts",
-                    ["canonical_facts"],
-                    postgresql_ops={"canonical_facts": "jsonb_path_ops"},
-                    postgresql_using="gin"
-                    )
+    op.create_index(
+        "idxgincanonicalfacts",
+        "hosts",
+        ["canonical_facts"],
+        postgresql_ops={"canonical_facts": "jsonb_path_ops"},
+        postgresql_using="gin"
+    )
 
 # ### end Alembic commands ###
 

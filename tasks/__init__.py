@@ -73,7 +73,8 @@ def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consum
 
     if consumer is None:
         consumer = KafkaConsumer(
-            config.system_profile_topic, group_id=config.consumer_group, bootstrap_servers=config.bootstrap_servers)
+            config.system_profile_topic, group_id=config.consumer_group, bootstrap_servers=config.bootstrap_servers
+        )
 
     def _f():
         with flask_app.app_context():

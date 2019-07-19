@@ -107,10 +107,9 @@ class APIBaseTestCase(unittest.TestCase):
             self.client().delete(path, headers=self._get_valid_auth_header()), status, return_response_as_json
         )
 
-    def verify_error_response(self, response, expected_title=None,
-                              expected_status=None, expected_detail=None,
-                              expected_type=None):
-
+    def verify_error_response(
+        self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
+    ):
         def _verify_value(field_name, expected_value):
             assert field_name in response
             if expected_value is not None:
@@ -439,18 +438,20 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_non_nullable_fields_as_None(self):
-        non_nullable_field_names = ("display_name",
-                                    "account",
-                                    "insights_id",
-                                    "rhel_machine_id",
-                                    "subscription_manager_id",
-                                    "satellite_id",
-                                    "fqdn",
-                                    "bios_uuid",
-                                    "ip_addresses",
-                                    "mac_addresses",
-                                    "external_id",
-                                    "ansible_host",)
+        non_nullable_field_names = (
+            "display_name",
+            "account",
+            "insights_id",
+            "rhel_machine_id",
+            "subscription_manager_id",
+            "satellite_id",
+            "fqdn",
+            "bios_uuid",
+            "ip_addresses",
+            "mac_addresses",
+            "external_id",
+            "ansible_host",
+        )
 
         host_data = HostWrapper(test_data(facts=None))
 
@@ -790,55 +791,59 @@ class PaginationBaseTestCase(APIBaseTestCase):
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase):
     def _valid_system_profile(self):
-        return {"number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 4,
-                "system_memory_bytes": 1024,
-                "infrastructure_type": "massive cpu",
-                "infrastructure_vendor": "dell",
-                "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"],
-                                        "state": "UP",
-                                        "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
-                                        "mtu": 1500,
-                                        "mac_address": "aa:bb:cc:dd:ee:ff",
-                                        "type": "loopback",
-                                        "name": "eth0" }],
-                "disk_devices": [{"device": "/dev/sdb1",
-                                  "label": "home drive",
-                                  "options": {"uid": "0",
-                                              "ro": True},
-                                  "mount_point": "/home",
-                                  "type": "ext3"}],
-                "bios_vendor": "AMI",
-                "bios_version": "1.0.0uhoh",
-                "bios_release_date": "10/31/2013",
-                "cpu_flags": ["flag1", "flag2"],
-                "os_release": "Red Hat EL 7.0.1",
-                "os_kernel_version": "Linux 2.0.1",
-                "arch": "x86-64",
-                "last_boot_time": "12:25 Mar 19, 2019",
-                "kernel_modules": ["i915", "e1000e"],
-                "running_processes": ["vim", "gcc", "python"],
-                "subscription_status": "valid",
-                "subscription_auto_attach": "yes",
-                "katello_agent_running": False,
-                "satellite_managed": False,
-                "cloud_provider": "Maclean's Music",
-                "yum_repos": [{"name": "repo1", "gpgcheck": True,
-                               "enabled": True,
-                               "base_url": "http://rpms.redhat.com"}],
-                "installed_products": [{"name": "eap",
-                                        "id": "123",
-                                        "status": "UP"},
-                                       {"name": "jbws",
-                                        "id": "321",
-                                        "status": "DOWN"} ],
-                "insights_client_version": "12.0.12",
-                "insights_egg_version": "120.0.1",
-                "installed_packages": ["rpm1", "rpm2"],
-                "installed_services": ["ndb", "krb5"],
-                "enabled_services": ["ndb", "krb5"],
+        return {
+            "number_of_cpus": 1,
+            "number_of_sockets": 2,
+            "cores_per_socket": 4,
+            "system_memory_bytes": 1024,
+            "infrastructure_type": "massive cpu",
+            "infrastructure_vendor": "dell",
+            "network_interfaces": [
+                {
+                    "ipv4_addresses": ["10.10.10.1"],
+                    "state": "UP",
+                    "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
+                    "mtu": 1500,
+                    "mac_address": "aa:bb:cc:dd:ee:ff",
+                    "type": "loopback",
+                    "name": "eth0",
                 }
+            ],
+            "disk_devices": [
+                {
+                    "device": "/dev/sdb1",
+                    "label": "home drive",
+                    "options": {"uid": "0", "ro": True},
+                    "mount_point": "/home",
+                    "type": "ext3",
+                }
+            ],
+            "bios_vendor": "AMI",
+            "bios_version": "1.0.0uhoh",
+            "bios_release_date": "10/31/2013",
+            "cpu_flags": ["flag1", "flag2"],
+            "os_release": "Red Hat EL 7.0.1",
+            "os_kernel_version": "Linux 2.0.1",
+            "arch": "x86-64",
+            "last_boot_time": "12:25 Mar 19, 2019",
+            "kernel_modules": ["i915", "e1000e"],
+            "running_processes": ["vim", "gcc", "python"],
+            "subscription_status": "valid",
+            "subscription_auto_attach": "yes",
+            "katello_agent_running": False,
+            "satellite_managed": False,
+            "cloud_provider": "Maclean's Music",
+            "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
+            "installed_products": [
+                {"name": "eap", "id": "123", "status": "UP"},
+                {"name": "jbws", "id": "321", "status": "DOWN"},
+            ],
+            "insights_client_version": "12.0.12",
+            "insights_egg_version": "120.0.1",
+            "installed_packages": ["rpm1", "rpm2"],
+            "installed_services": ["ndb", "krb5"],
+            "enabled_services": ["ndb", "krb5"],
+        }
 
     def test_create_host_with_system_profile(self):
         facts = None
@@ -937,9 +942,9 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
         host["rhel_machine_id"] = generate_uuid()
 
         # List of tuples (system profile change, expected system profile)
-        system_profiles = [{"infrastructure_type": "i"*101,
-                            "infrastructure_vendor": "i"*101,
-                            "cloud_provider": "i"*101 }]
+        system_profiles = [
+            {"infrastructure_type": "i"*101, "infrastructure_vendor": "i"*101, "cloud_provider": "i"*101}
+        ]
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
@@ -958,20 +963,19 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         host = test_data(display_name="host1", facts=facts)
 
-        yum_urls = ["file:///cdrom/",
-                    "http://foo.com http://foo.com",
-                    "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch",
-                    "https://codecs.fedoraproject.org/openh264/$releasever/$basearch/debug/",
-                    ]
+        yum_urls = [
+            "file:///cdrom/",
+            "http://foo.com http://foo.com",
+            "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch",
+            "https://codecs.fedoraproject.org/openh264/$releasever/$basearch/debug/",
+        ]
 
         for yum_url in yum_urls:
             with self.subTest(yum_url=yum_url):
                 host["rhel_machine_id"] = generate_uuid()
-                host["system_profile"] = {"yum_repos": [{"name": "repo1",
-                                                         "gpgcheck": True,
-                                                         "enabled": True,
-                                                         "base_url": yum_url}],
-                                          }
+                host["system_profile"] = {
+                    "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": yum_url}]
+                }
 
                 # Create the host
                 response = self.post(HOST_URL, [host], 207)
@@ -1119,12 +1123,12 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_update_fields(self):
         original_id = self.added_hosts[0].id
 
-        patch_docs = [{"ansible_host": "NEW_ansible_host"},
-                      {"ansible_host": ""},
-                      {"display_name": "fred_flintstone"},
-                      {"display_name": "fred_flintstone",
-                       "ansible_host": "barney_rubble"},
-                      ]
+        patch_docs = [
+            {"ansible_host": "NEW_ansible_host"},
+            {"ansible_host": ""},
+            {"display_name": "fred_flintstone"},
+            {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"},
+        ]
 
         for patch_doc in patch_docs:
             with self.subTest(valid_patch_doc=patch_doc):
@@ -1181,12 +1185,13 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_invalid_data(self):
         original_id = self.added_hosts[0].id
 
-        invalid_data_list = [{"ansible_host": "a"*256},
-                             {"ansible_host": None},
-                             {},
-                             {"display_name": None},
-                             {"display_name": ""},
-                             ]
+        invalid_data_list = [
+            {"ansible_host": "a"*256},
+            {"ansible_host": None},
+            {},
+            {"display_name": None},
+            {"display_name": ""},
+        ]
 
         for patch_doc in invalid_data_list:
             with self.subTest(invalid_patch_doc=patch_doc):

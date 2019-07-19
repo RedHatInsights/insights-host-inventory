@@ -49,19 +49,21 @@ def add_host_list(host_list):
         except ValidationError as e:
             number_of_errors += 1
             logger.exception("Input validation error while adding host", extra={"host": host})
-            response_host_list.append({"status": 400,
-                                       "title": "Bad Request",
-                                       "detail": str(e.messages),
-                                       "type": "unknown",
-                                       "host": host})
+            response_host_list.append(
+                {"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown", "host": host}
+            )
         except Exception:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
-            response_host_list.append({"status": 500,
-                                       "title": "Error",
-                                       "type": "unknown",
-                                       "detail": "Could not complete operation",
-                                       "host": host})
+            response_host_list.append(
+                {
+                    "status": 500,
+                    "title": "Error",
+                    "type": "unknown",
+                    "detail": "Could not complete operation",
+                    "host": host,
+                }
+            )
 
     response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
     return _build_json_response(response, status=207)
@@ -82,8 +84,8 @@ def _add_host(host):
     if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
         raise InventoryException(
             title="Invalid request",
-            detail="The account number associated with the user does not "
-            "match the account number associated with the host",
+            detail="The account number associated with the user does not match the account number associated with the "
+            "host",
         )
 
     existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
@@ -230,12 +232,13 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [host.to_json() for host in host_list]
-    json_output = {"total": total,
-                   "count": len(host_list),
-                   "page": page,
-                   "per_page": per_page,
-                   "results": json_host_list,
-                   }
+    json_output = {
+        "total": total,
+        "count": len(host_list),
+        "page": page,
+        "per_page": per_page,
+        "results": json_host_list,
+    }
     return _build_json_response(json_output, status=200)
 
 
@@ -258,8 +261,10 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts):
 
 def find_hosts_by_hostname_or_id(account_number, hostname):
     logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
-    filter_list = [Host.display_name.comparator.contains(hostname),
-                   Host.canonical_facts["fqdn"].astext.contains(hostname) ]
+    filter_list = [
+        Host.display_name.comparator.contains(hostname),
+        Host.canonical_facts["fqdn"].astext.contains(hostname),
+    ]
 
     try:
         uuid.UUID(hostname)
@@ -283,9 +288,10 @@ def delete_by_id(host_id_list):
         try:
             host_ids_to_delete.append(host.id)
         except sqlalchemy.orm.exc.ObjectDeletedError:
-            logger.exception("Encountered sqlalchemy.orm.exc.ObjectDeletedError"
-                             " exception during delete_by_id operation.  Host was"
-                             " already deleted.")
+            logger.exception(
+                "Encountered sqlalchemy.orm.exc.ObjectDeletedError exception during delete_by_id operation.  Host was "
+                "already deleted."
+            )
 
     if not host_ids_to_delete:
         return flask.abort(status.HTTP_404_NOT_FOUND)
@@ -339,12 +345,13 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
     response_list = [host.to_system_profile_json() for host in query_results.items]
 
-    json_output = {"total": query_results.total,
-                   "count": len(response_list),
-                   "page": page,
-                   "per_page": per_page,
-                   "results": response_list,
-                   }
+    json_output = {
+        "total": query_results.total,
+        "count": len(response_list),
+        "page": page,
+        "per_page": per_page,
+        "results": response_list,
+    }
 
     return _build_json_response(json_output, status=200)
 
