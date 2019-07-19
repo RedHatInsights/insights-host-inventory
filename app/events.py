@@ -14,6 +14,4 @@ class HostEvent(Schema):
 
 
 def delete(id):
-    return HostEvent(strict=True).dumps(
-        {"id": id, "timestamp": datetime.utcnow(), "type": "delete"}
-    ).data
+    return HostEvent(strict=True).dumps({"id": id, "timestamp": datetime.utcnow(), "type": "delete"}).data

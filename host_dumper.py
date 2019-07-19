@@ -13,17 +13,11 @@ parser = argparse.ArgumentParser(
                 "  This util is expected to be used within the image/pod."
 )
 group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("--id",
-                   help="search for a host using id")
-group.add_argument("--hostname",
-                   help="search for a host using display_name, fqdn")
-group.add_argument("--insights_id",
-                   help="search for a host using insights_id")
-group.add_argument("--account_number",
-                   help="dump all hosts associated with account")
-parser.add_argument("--no-pp",
-                    help="enable pretty printing",
-                    action="store_true")
+group.add_argument("--id", help="search for a host using id")
+group.add_argument("--hostname", help="search for a host using display_name, fqdn")
+group.add_argument("--insights_id", help="search for a host using insights_id")
+group.add_argument("--account_number", help="dump all hosts associated with account")
+parser.add_argument("--no-pp", help="enable pretty printing", action="store_true")
 args = parser.parse_args()
 
 with application.app_context():
@@ -32,9 +26,7 @@ with application.app_context():
     if args.id:
         host_id_list = [args.id]
         print("looking up host using id")
-        query_results = Host.query.filter(
-                Host.id.in_(host_id_list)
-                    ).all()
+        query_results = Host.query.filter(Host.id.in_(host_id_list)).all()
     elif args.hostname:
         print("looking up host using display_name, fqdn")
         query_results = Host.query.filter(
@@ -47,9 +39,7 @@ with application.app_context():
                 Host.canonical_facts.comparator.contains({'insights_id': args.insights_id})
                     ).all()
     elif args.account_number:
-        query_results = Host.query.filter(
-                Host.account == args.account_number
-                ).all()
+        query_results = Host.query.filter(Host.account == args.account_number).all()
 
     json_host_list = [host.to_json() for host in query_results]
 
