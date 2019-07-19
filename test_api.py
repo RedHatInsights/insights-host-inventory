@@ -1961,7 +1961,7 @@ class HealthTestCase(BaseAPITestCase):
 
     def test_version(self):
         response = self.get(VERSION_URL, 200)
-        assert response['version'] is not None
+        assert response["version"] is not None
 
 
 if __name__ == "__main__":

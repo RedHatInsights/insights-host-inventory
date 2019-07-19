@@ -4,7 +4,7 @@ import validators
 from jsonschema import draft4_format_checker
 
 
-@draft4_format_checker.checks('uuid')
+@draft4_format_checker.checks("uuid")
 def verify_uuid_format(uuid_str):
     if not uuid_str:
         return False
@@ -16,7 +16,7 @@ def verify_uuid_format(uuid_str):
     return False
 
 
-@draft4_format_checker.checks('ip_address')
+@draft4_format_checker.checks("ip_address")
 def verify_ip_address_format(ip_address):
     if not ip_address:
         return False
@@ -24,7 +24,7 @@ def verify_ip_address_format(ip_address):
     return validators.ipv4(ip_address) or validators.ipv6(ip_address)
 
 
-@draft4_format_checker.checks('mac_address')
+@draft4_format_checker.checks("mac_address")
 def verify_mac_address_format(mac_address):
     if not mac_address:
         return False

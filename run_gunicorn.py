@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 
 PROMETHEUS_ENV_VAR = "prometheus_multiproc_dir"
-LISTEN_PORT = getenv('LISTEN_PORT', 8080)
+LISTEN_PORT = getenv("LISTEN_PORT", 8080)
 
 
 @contextmanager

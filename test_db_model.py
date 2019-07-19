@@ -48,7 +48,7 @@ def test_create_host_with_display_name_and_fqdn_as_empty_str(flask_app_fixture):
 
 
 def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fixture):
-    expected_fqdn = 'host1.domain1.com'
+    expected_fqdn = "host1.domain1.com"
     insights_id = str(uuid.uuid4())
     existing_host = _create_host(insights_id=insights_id,
                                  fqdn=expected_fqdn,
@@ -68,7 +68,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fix
 
 def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixture):
     # Create an "existing" host
-    fqdn = 'host1.domain1.com'
+    fqdn = "host1.domain1.com"
     existing_host = _create_host(fqdn=fqdn, display_name=None)
 
     # Clear the display_name
@@ -78,7 +78,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixtur
 
     # Update the host
     expected_fqdn = "different.domain1.com"
-    input_host = Host({"fqdn": expected_fqdn}, display_name='')
+    input_host = Host({"fqdn": expected_fqdn}, display_name="")
     existing_host.update(input_host)
 
     assert existing_host.display_name == expected_fqdn
@@ -95,7 +95,7 @@ def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
 
     # Update the host
     input_host = Host(
-        {"insights_id": existing_host.canonical_facts["insights_id"]}, display_name=''
+        {"insights_id": existing_host.canonical_facts["insights_id"]}, display_name=""
     )
     existing_host.update(input_host)
 

@@ -124,7 +124,7 @@ class InventoryGunicornLogger(glogging.Logger):
 
 def get_logger(name):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
-    logger = logging.getLogger(LOGGER_PREFIX+name)
+    logger = logging.getLogger(LOGGER_PREFIX + name)
     logger.addFilter(ContextualFilter())
     logger.setLevel(log_level)
     return logger
