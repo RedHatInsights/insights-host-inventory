@@ -78,7 +78,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 
         identity_data_dicts = [identity_data,
                                # Test with extra data in the identity dict
-                               {**identity_data, **{"extra_data": "value"}}, ]
+                               {**identity_data, **{"extra_data": "value"}} ]
 
         for identity_data in identity_data_dicts:
             with self.subTest(identity_data=identity_data):
@@ -287,7 +287,7 @@ class HostParamsToOrderByTestCase(TestCase):
 
     @patch("api.host.Host.display_name")
     def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
-        actual = _params_to_order_by("display_name",)
+        actual = _params_to_order_by("display_name")
         expected = (display_name.asc.return_value, modified_on.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
