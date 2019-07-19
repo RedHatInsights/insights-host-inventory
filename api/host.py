@@ -259,7 +259,7 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts):
 def find_hosts_by_hostname_or_id(account_number, hostname):
     logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
     filter_list = [Host.display_name.comparator.contains(hostname),
-                   Host.canonical_facts["fqdn"].astext.contains(hostname) ]
+                   Host.canonical_facts["fqdn"].astext.contains(hostname)]
 
     try:
         uuid.UUID(hostname)
