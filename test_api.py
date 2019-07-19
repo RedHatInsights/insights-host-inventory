@@ -588,7 +588,7 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_with_ansible_host(self):
         # Create a host with ansible_host field
         host_data = HostWrapper(test_data(facts=None))
-        host_data.ansible_host = "ansible_host_"+generate_uuid()
+        host_data.ansible_host = "ansible_host_" + generate_uuid()
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -802,7 +802,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
                                         "mtu": 1500,
                                         "mac_address": "aa:bb:cc:dd:ee:ff",
                                         "type": "loopback",
-                                        "name": "eth0" }],
+                                        "name": "eth0"}],
                 "disk_devices": [{"device": "/dev/sdb1",
                                   "label": "home drive",
                                   "options": {"uid": "0",
@@ -832,7 +832,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
                                         "status": "UP"},
                                        {"name": "jbws",
                                         "id": "321",
-                                        "status": "DOWN"} ],
+                                        "status": "DOWN"}],
                 "insights_client_version": "12.0.12",
                 "insights_egg_version": "120.0.1",
                 "installed_packages": ["rpm1", "rpm2"],
@@ -937,9 +937,9 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
         host["rhel_machine_id"] = generate_uuid()
 
         # List of tuples (system profile change, expected system profile)
-        system_profiles = [{"infrastructure_type": "i"*101,
-                            "infrastructure_vendor": "i"*101,
-                            "cloud_provider": "i"*101 }]
+        system_profiles = [{"infrastructure_type": "i" * 101,
+                            "infrastructure_vendor": "i" * 101,
+                            "cloud_provider": "i" * 101}]
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
@@ -994,7 +994,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         host = test_data(display_name="host1", facts=facts)
 
-        cloud_providers = ["cumulonimbus", "cumulus", "c"*100]
+        cloud_providers = ["cumulonimbus", "cumulus", "c" * 100]
 
         for cloud_provider in cloud_providers:
             with self.subTest(cloud_provider=cloud_provider):
