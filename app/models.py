@@ -31,8 +31,8 @@ def _set_display_name_on_save(context):
     the id exists and can be used as the display_name if necessary.
     """
     params = context.get_current_parameters()
-    if not params['display_name']:
-        return params["canonical_facts"].get("fqdn") or params['id']
+    if not params["display_name"]:
+        return params["canonical_facts"].get("fqdn") or params["id"]
 
 
 class Host(db.Model):

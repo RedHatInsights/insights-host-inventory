@@ -43,7 +43,7 @@ def add_host_list(host_list):
     for host in host_list:
         try:
             (host, status_code) = _add_host(host)
-            response_host_list.append({'status': status_code, 'host': host})
+            response_host_list.append({"status": status_code, "host": host})
         except InventoryException as e:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
@@ -66,9 +66,9 @@ def add_host_list(host_list):
                                        "detail": "Could not complete operation",
                                        "host": host})
 
-    response = {'total': len(response_host_list),
-                'errors': number_of_errors,
-                'data': response_host_list}
+    response = {"total": len(response_host_list),
+                "errors": number_of_errors,
+                "data": response_host_list}
     return _build_json_response(response, status=207)
 
 
@@ -91,7 +91,7 @@ def _add_host(host):
         raise InventoryException(
             title="Invalid request",
             detail="The account number associated with the user does not "
-                   "match the account number associated with the host"
+            "match the account number associated with the host",
         )
 
     existing_host = find_existing_host(input_host.account,
@@ -223,7 +223,7 @@ def _order_how(column, order_how):
     elif order_how == "DESC":
         return column.desc()
     else:
-        raise ValueError("Unsupported ordering direction, use \"ASC\" or \"DESC\".")
+        raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
 def _params_to_order_by(order_by=None, order_how=None):
@@ -240,7 +240,7 @@ def _params_to_order_by(order_by=None, order_how=None):
             ordering = (Host.display_name.asc(),)
     elif order_by:
         raise ValueError(
-            "Unsupported ordering column, use \"updated\" or \"display_name\"."
+            'Unsupported ordering column, use "updated" or "display_name".'
         )
     elif order_how:
         raise ValueError(
@@ -287,7 +287,7 @@ def find_hosts_by_canonical_facts(account_number, canonical_facts):
 def find_hosts_by_hostname_or_id(account_number, hostname):
     logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
     filter_list = [Host.display_name.comparator.contains(hostname),
-                   Host.canonical_facts['fqdn'].astext.contains(hostname), ]
+                   Host.canonical_facts["fqdn"].astext.contains(hostname), ]
 
     try:
         uuid.UUID(hostname)
