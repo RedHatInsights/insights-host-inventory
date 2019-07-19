@@ -802,7 +802,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
                                         "mtu": 1500,
                                         "mac_address": "aa:bb:cc:dd:ee:ff",
                                         "type": "loopback",
-                                        "name": "eth0", }],
+                                        "name": "eth0" }],
                 "disk_devices": [{"device": "/dev/sdb1",
                                   "label": "home drive",
                                   "options": {"uid": "0",
@@ -832,7 +832,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
                                         "status": "UP"},
                                        {"name": "jbws",
                                         "id": "321",
-                                        "status": "DOWN"}, ],
+                                        "status": "DOWN"} ],
                 "insights_client_version": "12.0.12",
                 "insights_egg_version": "120.0.1",
                 "installed_packages": ["rpm1", "rpm2"],
@@ -939,7 +939,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
         # List of tuples (system profile change, expected system profile)
         system_profiles = [{"infrastructure_type": "i"*101,
                             "infrastructure_vendor": "i"*101,
-                            "cloud_provider": "i"*101, }]
+                            "cloud_provider": "i"*101 }]
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
@@ -1501,7 +1501,7 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
             self.added_hosts[3],
             self.added_hosts[0],
             self.added_hosts[1],
-            self.added_hosts[2]
+            self.added_hosts[2],
         )
 
     def _added_hosts_by_display_name_desc(self):
@@ -1510,7 +1510,7 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
             self.added_hosts[1],
             # Hosts with same display_name are ordered by updated descending
             self.added_hosts[3],
-            self.added_hosts[0]
+            self.added_hosts[0],
         )
 
     def _assert_host_ids_in_response(self, response, expected_hosts):
