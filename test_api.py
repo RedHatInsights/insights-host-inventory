@@ -90,31 +90,21 @@ class BaseAPITestCase(unittest.TestCase):
 
     def get(self, path, status=200, return_response_as_json=True):
         return self._response_check(
-            self.client().get(path, headers=self._get_valid_auth_header()),
-            status,
-            return_response_as_json,
+            self.client().get(path, headers=self._get_valid_auth_header()), status, return_response_as_json
         )
 
     def post(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(
-            self.client().post, path, data, status, return_response_as_json
-        )
+        return self._make_http_call(self.client().post, path, data, status, return_response_as_json)
 
     def patch(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(
-            self.client().patch, path, data, status, return_response_as_json
-        )
+        return self._make_http_call(self.client().patch, path, data, status, return_response_as_json)
 
     def put(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(
-            self.client().put, path, data, status, return_response_as_json
-        )
+        return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
 
     def delete(self, path, status=200, return_response_as_json=True):
         return self._response_check(
-            self.client().delete(path, headers=self._get_valid_auth_header()),
-            status,
-            return_response_as_json,
+            self.client().delete(path, headers=self._get_valid_auth_header()), status, return_response_as_json
         )
 
     def verify_error_response(self, response, expected_title=None,
@@ -131,16 +121,12 @@ class BaseAPITestCase(unittest.TestCase):
         _verify_value("detail", expected_detail)
         _verify_value("type", expected_type)
 
-    def _make_http_call(
-        self, http_method, path, data, status, return_response_as_json=True
-    ):
+    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True):
         json_data = json.dumps(data)
         headers = self._get_valid_auth_header()
         headers["content-type"] = "application/json"
         return self._response_check(
-            http_method(path, data=json_data, headers=headers),
-            status,
-            return_response_as_json,
+            http_method(path, data=json_data, headers=headers), status, return_response_as_json
         )
 
     def _response_check(self, response, status, return_response_as_json):
@@ -186,36 +172,26 @@ class DBAPITestCase(BaseAPITestCase):
         return ",".join(host_id_list)
 
     def _verify_host_status(self, response, host_index, expected_status):
-        self.assertEqual(response["data"][host_index]["status"],
-                         expected_status)
+        self.assertEqual(response["data"][host_index]["status"], expected_status)
 
     def _pluck_host_from_response(self, response, host_index):
         return response["data"][host_index]["host"]
 
-    def _validate_host(self, received_host, expected_host,
-                       expected_id=id):
+    def _validate_host(self, received_host, expected_host, expected_id=id):
         self.assertIsNotNone(received_host["id"])
         self.assertEqual(received_host["id"], expected_id)
         self.assertEqual(received_host["account"], expected_host.account)
-        self.assertEqual(received_host["insights_id"],
-                         expected_host.insights_id)
-        self.assertEqual(received_host["rhel_machine_id"],
-                         expected_host.rhel_machine_id)
-        self.assertEqual(received_host["subscription_manager_id"],
-                         expected_host.subscription_manager_id)
-        self.assertEqual(received_host["satellite_id"],
-                         expected_host.satellite_id)
+        self.assertEqual(received_host["insights_id"], expected_host.insights_id)
+        self.assertEqual(received_host["rhel_machine_id"], expected_host.rhel_machine_id)
+        self.assertEqual(received_host["subscription_manager_id"], expected_host.subscription_manager_id)
+        self.assertEqual(received_host["satellite_id"], expected_host.satellite_id)
         self.assertEqual(received_host["bios_uuid"], expected_host.bios_uuid)
         self.assertEqual(received_host["fqdn"], expected_host.fqdn)
-        self.assertEqual(received_host["mac_addresses"],
-                         expected_host.mac_addresses)
-        self.assertEqual(received_host["ip_addresses"],
-                         expected_host.ip_addresses)
-        self.assertEqual(received_host["display_name"],
-                         expected_host.display_name)
+        self.assertEqual(received_host["mac_addresses"], expected_host.mac_addresses)
+        self.assertEqual(received_host["ip_addresses"], expected_host.ip_addresses)
+        self.assertEqual(received_host["display_name"], expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
-        self.assertEqual(received_host["ansible_host"],
-                         expected_host.ansible_host)
+        self.assertEqual(received_host["ansible_host"], expected_host.ansible_host)
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
@@ -275,9 +251,7 @@ class CreateHostsTestCase(DBAPITestCase):
         # sanity check
         # host_lookup_results["results"][0]["facts"][0]["facts"]["key2"] = "blah"
         # host_lookup_results["results"][0]["insights_id"] = "1.2.3.4"
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
     def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
         original_insights_id = generate_uuid()
@@ -305,15 +279,14 @@ class CreateHostsTestCase(DBAPITestCase):
 
         # Change the canonical facts except for the insights_id
         host_data.rhel_machine_id = generate_uuid()
-        host_data.ip_addresses = ["192.168.1.44", "10.0.0.2", ]
+        host_data.ip_addresses = ["192.168.1.44", "10.0.0.2"]
         host_data.subscription_manager_id = generate_uuid()
         host_data.satellite_id = generate_uuid()
         host_data.bios_uuid = generate_uuid()
         host_data.fqdn = "expected_fqdn"
         host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
         host_data.external_id = "fedcba"
-        host_data.facts = [{"namespace": "ns1",
-                            "facts": {"newkey": "newvalue"}}]
+        host_data.facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
 
         # Update the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -328,9 +301,7 @@ class CreateHostsTestCase(DBAPITestCase):
         # Retrieve the host using the id that we first received
         data = self.get(f"{HOST_URL}/{original_id}", 200)
 
-        self._validate_host(data["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(data["results"][0], host_data, expected_id=original_id)
 
     def test_create_host_with_empty_facts_display_name_then_update(self):
         # Create a host with empty facts, and display_name
@@ -359,9 +330,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
     def test_create_and_update_multiple_hosts_with_account_mismatch(self):
         """
@@ -410,9 +379,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = response_data["data"][0]
 
-        self.verify_error_response(response_data,
-                                   expected_title="Invalid request",
-                                   expected_status=400)
+        self.verify_error_response(response_data, expected_title="Invalid request", expected_status=400)
 
     def test_create_host_without_account(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -432,8 +399,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = response_data["data"][0]
 
-        self.verify_error_response(response_data,
-                                   expected_title="Invalid request")
+        self.verify_error_response(response_data, expected_title="Invalid request")
 
     def test_create_host_with_invalid_facts(self):
         facts_with_no_namespace = copy.deepcopy(FACTS)
@@ -445,10 +411,7 @@ class CreateHostsTestCase(DBAPITestCase):
         facts_with_empty_str_namespace = copy.deepcopy(FACTS)
         facts_with_empty_str_namespace[0]["namespace"] = ""
 
-        invalid_facts = [facts_with_no_namespace,
-                         facts_with_no_facts,
-                         facts_with_empty_str_namespace,
-                         ]
+        invalid_facts = [facts_with_no_namespace, facts_with_no_facts, facts_with_empty_str_namespace]
 
         for invalid_fact in invalid_facts:
             with self.subTest(invalid_fact=invalid_fact):
@@ -456,17 +419,10 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 response_data = self.post(HOST_URL, [host_data.data()], 400)
 
-                self.verify_error_response(response_data,
-                                           expected_title="Bad Request")
+                self.verify_error_response(response_data, expected_title="Bad Request")
 
     def test_create_host_with_invalid_uuid_field_values(self):
-        uuid_field_names = (
-                "insights_id",
-                "rhel_machine_id",
-                "subscription_manager_id",
-                "satellite_id",
-                "bios_uuid",
-                )
+        uuid_field_names = ("insights_id", "rhel_machine_id", "subscription_manager_id", "satellite_id", "bios_uuid")
 
         for field_name in uuid_field_names:
             with self.subTest(uuid_field=field_name):
@@ -480,8 +436,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_non_nullable_fields_as_None(self):
         non_nullable_field_names = ("display_name",
@@ -513,13 +468,10 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 response_data = self.post(HOST_URL, [invalid_host_dict], 400)
 
-                self.verify_error_response(response_data,
-                                           expected_title="Bad Request")
+                self.verify_error_response(response_data, expected_title="Bad Request")
 
     def test_create_host_with_valid_ip_address(self):
-        valid_ip_arrays = [["blah"],
-                           ["1.1.1.1", "sigh"],
-                           ]
+        valid_ip_arrays = [["blah"], ["1.1.1.1", "sigh"]]
 
         for ip_array in valid_ip_arrays:
             with self.subTest(ip_array=ip_array):
@@ -534,10 +486,7 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(error_host["status"], 201)
 
     def test_create_host_with_invalid_ip_address(self):
-        invalid_ip_arrays = [[],
-                             [""],
-                             ["a"*256, ],
-                             ]
+        invalid_ip_arrays = [[], [""], ["a" * 256]]
 
         for ip_array in invalid_ip_arrays:
             with self.subTest(ip_array=ip_array):
@@ -551,13 +500,10 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_valid_mac_address(self):
-        valid_mac_arrays = [["blah"],
-                            ["11:22:33:44:55:66", "blah"],
-                            ]
+        valid_mac_arrays = [["blah"], ["11:22:33:44:55:66", "blah"]]
 
         for mac_array in valid_mac_arrays:
             with self.subTest(mac_array=mac_array):
@@ -572,10 +518,7 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(error_host["status"], 201)
 
     def test_create_host_with_invalid_mac_address(self):
-        invalid_mac_arrays = [[],
-                              [""],
-                              ["11:22:33:44:55:66", "a"*256],
-                              ]
+        invalid_mac_arrays = [[], [""], ["11:22:33:44:55:66", "a" * 256]]
 
         for mac_array in invalid_mac_arrays:
             with self.subTest(mac_array=mac_array):
@@ -589,13 +532,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_invalid_display_name(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_display_names = ["", "a"*201]
+        invalid_display_names = ["", "a" * 201]
 
         for display_name in invalid_display_names:
             with self.subTest(display_name=display_name):
@@ -607,13 +549,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_fqdns = ["", "a"*256]
+        invalid_fqdns = ["", "a" * 256]
 
         for fqdn in invalid_fqdns:
             with self.subTest(fqdn=fqdn):
@@ -625,13 +566,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_invalid_external_id(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_external_ids = ["", "a"*501]
+        invalid_external_ids = ["", "a" * 501]
 
         for external_id in invalid_external_ids:
             with self.subTest(external_id=external_id):
@@ -643,8 +583,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_ansible_host(self):
         # Create a host with ansible_host field
@@ -662,9 +601,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
     def test_create_host_without_ansible_host_then_update(self):
         # Create a host without ansible_host field
@@ -681,9 +618,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        ansible_hosts = ["ima_ansible_host_"+generate_uuid(),
-                         "",
-                         ]
+        ansible_hosts = ["ima_ansible_host_" + generate_uuid(), ""]
 
         # Update the ansible_host
         for ansible_host in ansible_hosts:
@@ -696,14 +631,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
-                self._validate_host(host_lookup_results["results"][0],
-                                    host_data,
-                                    expected_id=original_id)
+                self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_ansible_host = ["a"*256]
+        invalid_ansible_host = ["a" * 256]
 
         for ansible_host in invalid_ansible_host:
             with self.subTest(ansible_host=ansible_host):
@@ -715,8 +648,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.assertEqual(error_host["status"], 400)
 
-                self.verify_error_response(error_host,
-                                           expected_title="Bad Request")
+                self.verify_error_response(error_host, expected_title="Bad Request")
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
@@ -743,9 +675,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         # Explicitly set the display_name to the be id...this is expected here
         host_data.display_name = created_host["id"]
 
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
     def test_create_host_without_display_name_and_with_fqdn(self):
         """
@@ -772,9 +702,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         # Explicitly set the display_name ...this is expected here
         host_data.display_name = expected_display_name
 
-        self._validate_host(host_lookup_results["results"][0],
-                            host_data,
-                            expected_id=original_id)
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
 
 class BulkCreateHostsTestCase(DBAPITestCase):
@@ -827,9 +755,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
                 expected_host = HostWrapper(host_list[i])
 
-                self._validate_host(host["host"],
-                                    expected_host,
-                                    expected_id=expected_host.id)
+                self._validate_host(host["host"], expected_host, expected_id=expected_host.id)
 
                 i += 1
 
@@ -962,10 +888,8 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         system_profiles = [({}, {})]
 
         # Only set the enabled_services to start out with
-        enabled_services_only_system_profile = {"enabled_services":
-                                                ["firewalld"]}
-        system_profiles.append((enabled_services_only_system_profile,
-                                enabled_services_only_system_profile))
+        enabled_services_only_system_profile = {"enabled_services": ["firewalld"]}
+        system_profiles.append((enabled_services_only_system_profile, enabled_services_only_system_profile))
 
         # Set the entire system profile...overwriting the enabled_service
         # set from before
@@ -973,22 +897,15 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         system_profiles.append((full_system_profile, full_system_profile))
 
         # Change the enabled_services
-        full_system_profile = {**full_system_profile,
-                               **enabled_services_only_system_profile}
-        system_profiles.append((enabled_services_only_system_profile,
-                                full_system_profile))
+        full_system_profile = {**full_system_profile, **enabled_services_only_system_profile}
+        system_profiles.append((enabled_services_only_system_profile, full_system_profile))
 
         # Make sure an empty system profile doesn't overwrite the data
-        system_profiles.append(({},
-                                full_system_profile))
+        system_profiles.append(({}, full_system_profile))
 
         for i, (system_profile, expected_system_profile) in enumerate(system_profiles):
             with self.subTest(system_profile=i):
-                mq_message = {
-                    "id": original_id,
-                    "request_id": None,
-                    "system_profile": system_profile
-                }
+                mq_message = {"id": original_id, "request_id": None, "system_profile": system_profile}
                 with self.app.app_context():
                     msg_handler(mq_message)
 
@@ -997,8 +914,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
                 self.assertEqual(original_id, actual_host["id"])
 
-                self.assertEqual(actual_host["system_profile"],
-                                 expected_system_profile)
+                self.assertEqual(actual_host["system_profile"], expected_system_profile)
 
     def test_create_host_with_null_system_profile(self):
         facts = None
@@ -1011,9 +927,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         # Create the host without a system profile
         response = self.post(HOST_URL, [host], 400)
 
-        self.verify_error_response(response,
-                                   expected_title="Bad Request",
-                                   expected_status=400)
+        self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
     def test_create_host_with_system_profile_with_invalid_data(self):
         facts = None
@@ -1073,8 +987,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
                 self.assertEqual(original_id, actual_host["id"])
 
-                self.assertEqual(actual_host["system_profile"],
-                                 host["system_profile"])
+                self.assertEqual(actual_host["system_profile"], host["system_profile"])
 
     def test_create_host_with_system_profile_with_different_cloud_providers(self):
         facts = None
@@ -1102,8 +1015,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
                 self.assertEqual(original_id, actual_host["id"])
 
-                self.assertEqual(actual_host["system_profile"],
-                                 host["system_profile"])
+                self.assertEqual(actual_host["system_profile"], host["system_profile"])
 
     def test_get_system_profile_of_host_that_does_not_have_system_profile(self):
         facts = None
@@ -1127,8 +1039,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         self.assertEqual(original_id, actual_host["id"])
 
-        self.assertEqual(actual_host["system_profile"],
-                         expected_system_profile)
+        self.assertEqual(actual_host["system_profile"], expected_system_profile)
 
     def test_get_system_profile_of_multiple_hosts(self):
         facts = None
@@ -1149,18 +1060,13 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
             original_id = created_host["id"]
 
             host_id_list.append(original_id)
-            expected_system_profiles.append({
-                "id": original_id,
-                "system_profile": host["system_profile"]
-            })
+            expected_system_profiles.append({"id": original_id, "system_profile": host["system_profile"]})
 
         url_host_id_list = ",".join(host_id_list)
         test_url = f"{HOST_URL}/{url_host_id_list}/system_profile"
         host_lookup_results = self.get(test_url, 200)
 
-        self.assertEqual(
-            len(expected_system_profiles), len(host_lookup_results["results"])
-        )
+        self.assertEqual(len(expected_system_profiles), len(host_lookup_results["results"]))
         for expected_system_profile in expected_system_profiles:
             self.assertIn(expected_system_profile, host_lookup_results["results"])
 
@@ -1179,9 +1085,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         for host_id in invalid_host_ids:
             with self.subTest(invalid_host_id=host_id):
                 response = self.get(f"{HOST_URL}/{host_id}/system_profile", 400)
-                self.verify_error_response(response,
-                                           expected_title="Bad Request",
-                                           expected_status=400)
+                self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
@@ -1224,9 +1128,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         for patch_doc in patch_docs:
             with self.subTest(valid_patch_doc=patch_doc):
-                response_data = self.patch(f"{HOST_URL}/{original_id}",
-                                           patch_doc,
-                                           200)
+                response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
 
                 response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
@@ -1247,8 +1149,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         self.patch(test_url, patch_doc, 200)
 
     def test_update_fields_on_multiple_hosts(self):
-        patch_doc = {"display_name": "fred_flintstone",
-                     "ansible_host": "barney_rubble"}
+        patch_doc = {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"}
 
         url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
 
@@ -1289,13 +1190,9 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         for patch_doc in invalid_data_list:
             with self.subTest(invalid_patch_doc=patch_doc):
-                response = self.patch(f"{HOST_URL}/{original_id}",
-                                      patch_doc,
-                                      status=400)
+                response = self.patch(f"{HOST_URL}/{original_id}", patch_doc, status=400)
 
-                self.verify_error_response(response,
-                                           expected_title="Bad Request",
-                                           expected_status=400)
+                self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
     def test_invalid_host_id(self):
         patch_doc = {"display_name": "branch_id_test"}
@@ -1433,11 +1330,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
         self._base_paging_test(url, len(expected_host_list))
 
     def test_query_existent_hosts(self):
-        host_lists = [
-            self.added_hosts[0:1],
-            self.added_hosts[1:3],
-            self.added_hosts,
-        ]
+        host_lists = [self.added_hosts[0:1], self.added_hosts[1:3], self.added_hosts]
         for host_list in host_lists:
             with self.subTest(host_list=host_list):
                 host_id_list = self._build_host_id_list_for_url(host_list)
@@ -1494,9 +1387,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
         invalid_values = ["-1", "0", "notanumber"]
         for paging_parameter in paging_parameters:
             for invalid_value in invalid_values:
-                with self.subTest(
-                    paging_parameter=paging_parameter, invalid_value=invalid_value
-                ):
+                with self.subTest(paging_parameter=paging_parameter, invalid_value=invalid_value):
                     self.get(f"{base_url}?{paging_parameter}={invalid_value}", 400)
 
 
@@ -1570,11 +1461,7 @@ class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
         url_host_id_list = ",".join(host_id_list)
-        urls = (
-            HOST_URL,
-            f"{HOST_URL}/{url_host_id_list}",
-            f"{HOST_URL}/{url_host_id_list}/system_profile",
-        )
+        urls = (HOST_URL, f"{HOST_URL}/{url_host_id_list}", f"{HOST_URL}/{url_host_id_list}/system_profile")
         for url in urls:
             with self.subTest(url=url):
                 yield url
@@ -1765,9 +1652,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
         # Add a couple of host ids that should not exist in the database
-        url_host_id_list = (
-            url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
-        )
+        url_host_id_list = url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
 
         patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
 

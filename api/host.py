@@ -27,9 +27,7 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 # given priority in the host deduplication process.
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
-ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id",
-                                  "subscription_manager_id",
-                                  )
+ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 
 
 logger = get_logger(__name__)
@@ -50,8 +48,7 @@ def add_host_list(host_list):
             response_host_list.append({**e.to_json(), "host": host})
         except ValidationError as e:
             number_of_errors += 1
-            logger.exception("Input validation error while adding host",
-                             extra={"host": host})
+            logger.exception("Input validation error while adding host", extra={"host": host})
             response_host_list.append({"status": 400,
                                        "title": "Bad Request",
                                        "detail": str(e.messages),
@@ -66,9 +63,7 @@ def add_host_list(host_list):
                                        "detail": "Could not complete operation",
                                        "host": host})
 
-    response = {"total": len(response_host_list),
-                "errors": number_of_errors,
-                "data": response_host_list}
+    response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
     return _build_json_response(response, status=207)
 
 
@@ -84,18 +79,14 @@ def _add_host(host):
 
     input_host = Host.from_json(validated_input_host_dict.data)
 
-    if (
-        not current_identity.is_trusted_system and
-        current_identity.account_number != input_host.account
-    ):
+    if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
         raise InventoryException(
             title="Invalid request",
             detail="The account number associated with the user does not "
             "match the account number associated with the host",
         )
 
-    existing_host = find_existing_host(input_host.account,
-                                       input_host.canonical_facts)
+    existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
 
     if existing_host:
         return update_existing_host(existing_host, input_host)
@@ -108,8 +99,7 @@ def find_existing_host(account_number, canonical_facts):
     existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
 
     if not existing_host:
-        existing_host = find_host_by_canonical_facts(account_number,
-                                                     canonical_facts)
+        existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
 
     return existing_host
 
@@ -119,8 +109,7 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
-            existing_host = find_host_by_canonical_facts(account_number,
-                                                         {elevated_cf_name: cf_value})
+            existing_host = find_host_by_canonical_facts(account_number, {elevated_cf_name: cf_value})
             if existing_host:
                 return existing_host
 
@@ -184,23 +173,15 @@ def get_host_list(
     order_how=None
 ):
     if fqdn:
-        query = find_hosts_by_canonical_facts(
-            current_identity.account_number, {"fqdn": fqdn}
-        )
+        query = find_hosts_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
     elif display_name:
-        query = find_hosts_by_display_name(
-            current_identity.account_number, display_name
-        )
+        query = find_hosts_by_display_name(current_identity.account_number, display_name)
     elif hostname_or_id:
-        query = find_hosts_by_hostname_or_id(
-            current_identity.account_number, hostname_or_id)
+        query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
     elif insights_id:
-        query = find_hosts_by_canonical_facts(
-            current_identity.account_number, {"insights_id": insights_id})
+        query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
     else:
-        query = Host.query.filter(
-            Host.account == current_identity.account_number
-        )
+        query = Host.query.filter(Host.account == current_identity.account_number)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -212,9 +193,7 @@ def get_host_list(
     query_results = query.paginate(page, per_page, True)
     logger.debug("Found hosts: %s", query_results.items)
 
-    return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
-    )
+    return _build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
 
 
 def _order_how(column, order_how):
@@ -239,9 +218,7 @@ def _params_to_order_by(order_by=None, order_how=None):
         else:
             ordering = (Host.display_name.asc(),)
     elif order_by:
-        raise ValueError(
-            'Unsupported ordering column, use "updated" or "display_name".'
-        )
+        raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
     elif order_how:
         raise ValueError(
             "Providing ordering direction without a column is not supported. "
@@ -263,17 +240,12 @@ def _build_paginated_host_list_response(total, page, per_page, host_list):
 
 
 def _build_json_response(json_data, status=200):
-    return flask.Response(ujson.dumps(json_data),
-                          status=status,
-                          mimetype="application/json")
+    return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
 
 
 def find_hosts_by_display_name(account, display_name):
     logger.debug("find_hosts_by_display_name(%s)", display_name)
-    return Host.query.filter(
-        (Host.account == account)
-        & Host.display_name.comparator.contains(display_name)
-    )
+    return Host.query.filter((Host.account == account) & Host.display_name.comparator.contains(display_name))
 
 
 def find_hosts_by_canonical_facts(account_number, canonical_facts):
@@ -296,12 +268,9 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
         logger.debug("Adding id (uuid) to the filter list")
     except Exception:
         # Do not filter using the id
-        logger.debug("The hostname (%s) could not be converted into a UUID",
-                     hostname,
-                     exc_info=True)
+        logger.debug("The hostname (%s) could not be converted into a UUID", hostname, exc_info=True)
 
-    return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number,
-                                             sqlalchemy.or_(*filter_list)]))
+    return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number, sqlalchemy.or_(*filter_list)]))
 
 
 @api_operation
@@ -336,8 +305,7 @@ def delete_by_id(host_id_list):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_id_list)
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -349,25 +317,17 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
     logger.debug("Found hosts: %s", query_results.items)
 
-    return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
-    )
+    return _build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & Host.id.in_(host_id_list)
-    )
+    return Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
 
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_system_profile_by_id(
-    host_id_list, page=1, per_page=100, order_by=None, order_how=None
-):
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_id_list)
+def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -377,8 +337,7 @@ def get_host_system_profile_by_id(
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [host.to_system_profile_json()
-                     for host in query_results.items]
+    response_list = [host.to_system_profile_json() for host in query_results.items]
 
     json_output = {"total": query_results.total,
                    "count": len(response_list),
@@ -397,15 +356,9 @@ def patch_by_id(host_id_list, host_data):
         validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
     except ValidationError as e:
         logger.exception(f"Input validation error while patching host: {host_id_list} - {host_data}")
-        return ({"status": 400,
-                 "title": "Bad Request",
-                 "detail": str(e.messages),
-                 "type": "unknown",
-                 },
-                400)
+        return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = _get_host_list_by_id_list(current_identity.account_number,
-                                      host_id_list)
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     hosts_to_update = query.all()
 
@@ -424,8 +377,7 @@ def patch_by_id(host_id_list, host_data):
 @api_operation
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, fact_dict):
-    return update_facts_by_namespace(FactOperations.replace, host_id_list,
-                                     namespace, fact_dict)
+    return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, fact_dict)
 
 
 @api_operation
@@ -436,8 +388,7 @@ def merge_facts(host_id_list, namespace, fact_dict):
         logger.debug(error_msg)
         return error_msg, 400
 
-    return update_facts_by_namespace(FactOperations.merge, host_id_list,
-                                     namespace, fact_dict)
+    return update_facts_by_namespace(FactOperations.merge, host_id_list, namespace, fact_dict)
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
@@ -451,10 +402,9 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = (
-            "ERROR: The number of hosts requested does not match the number of hosts found in the "
-            "host database.  This could happen if the namespace does not exist or the account "
-            "number associated with the call does not match the account number associated with one "
-            "or more the hosts.  Rejecting the fact change request."
+            "ERROR: The number of hosts requested does not match the number of hosts found in the host database.  "
+            "This could happen if the namespace does not exist or the account number associated with the call does "
+            "not match the account number associated with one or more the hosts.  Rejecting the fact change request."
         )
         logger.debug(error_msg)
         return error_msg, 400

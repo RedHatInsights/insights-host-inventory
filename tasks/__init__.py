@@ -73,9 +73,7 @@ def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consum
 
     if consumer is None:
         consumer = KafkaConsumer(
-            config.system_profile_topic,
-            group_id=config.consumer_group,
-            bootstrap_servers=config.bootstrap_servers)
+            config.system_profile_topic, group_id=config.consumer_group, bootstrap_servers=config.bootstrap_servers)
 
     def _f():
         with flask_app.app_context():
@@ -90,7 +88,5 @@ def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consum
                         logger.exception("uncaught exception in handler, moving on.")
                         metrics.system_profile_failure_count.inc()
 
-    t = Thread(
-        target=_f,
-        daemon=True)
+    t = Thread(target=_f, daemon=True)
     t.start()
