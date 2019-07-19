@@ -1,5 +1,3 @@
-
-
 class InventoryException(Exception):
     def __init__(self, status=400, title=None, detail=None, type="about:blank"):
         self.status = status
@@ -13,6 +11,5 @@ class InventoryException(Exception):
 
 
 class InputFormatException(InventoryException):
-
     def __init__(self, detail):
         InventoryException.__init__(self, title="Bad Request", detail=detail)

@@ -20,6 +20,7 @@ class ApiOperationTestCase(TestCase):
     Test the API operation decorator that increments the request counter with every
     call.
     """
+
     @patch("api.api_request_count.inc")
     def test_counter_is_incremented(self, inc):
         @api_operation
@@ -183,7 +184,6 @@ class TrustedIdentityTestCase(TestCase):
 
 
 class ConfigTestCase(TestCase):
-
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
         path_prefix = "r/slaterock/platform"
@@ -237,7 +237,6 @@ class ConfigTestCase(TestCase):
 
 
 class HostOrderHowTestCase(TestCase):
-
     def test_asc(self):
         column = Mock()
         result = _order_how(column, "ASC")
@@ -259,7 +258,6 @@ class HostOrderHowTestCase(TestCase):
 @patch("api.host._order_how")
 @patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
-
     def test_default_is_updated_desc(self, modified_on, order_how):
         actual = _params_to_order_by(None, None)
         expected = (modified_on.desc.return_value,)
@@ -307,7 +305,6 @@ class HostParamsToOrderByTestCase(TestCase):
 
 
 class HostParamsToOrderByErrorsTestCase(TestCase):
-
     def test_order_by_bad_field_raises_error(self):
         with self.assertRaises(ValueError):
             _params_to_order_by(Mock(), "fqdn")

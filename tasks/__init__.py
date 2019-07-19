@@ -12,7 +12,6 @@ logger = get_logger(__name__)
 
 
 class NullProducer:
-
     def send(self, topic, value=None):
         logger.debug("NullProducer - logging message:  topic (%s) - message: %s" %
                      (topic, value))

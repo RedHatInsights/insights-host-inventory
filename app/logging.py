@@ -86,6 +86,7 @@ class ContextualFilter(logging.Filter):
     to explicitly retrieve/pass around the request id for each
     log message.
     """
+
     def filter(self, log_record):
         try:
             log_record.request_id = threadctx.request_id
