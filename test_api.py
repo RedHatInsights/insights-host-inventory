@@ -152,7 +152,6 @@ class BaseAPITestCase(unittest.TestCase):
 
 
 class DBAPITestCase(BaseAPITestCase):
-
     @classmethod
     def setUpClass(cls):
         """
@@ -721,7 +720,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
-
     def test_create_host_without_display_name_and_without_fqdn(self):
         """
         This test should verify that the display_name is set to the id
@@ -780,7 +778,6 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
 
 class BulkCreateHostsTestCase(DBAPITestCase):
-
     def _get_valid_auth_header(self):
         return build_valid_auth_header()
 
@@ -866,7 +863,6 @@ class PaginationTestCase(BaseAPITestCase):
 
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
-
     def _valid_system_profile(self):
         return {"number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -1216,7 +1212,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
 
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
-
     def test_update_fields(self):
         original_id = self.added_hosts[0].id
 
@@ -1311,7 +1306,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
-
     def test_create_then_delete(self):
         original_id = self.added_hosts[0].id
 
@@ -1321,7 +1315,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         self.get(url, 200)
 
         class MockEmitEvent:
-
             def __init__(self):
                 self.events = []
 
@@ -1424,7 +1417,6 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
-
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -1509,7 +1501,6 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
 
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
-
     def _base_query_test(self, query_value, expected_number_of_hosts):
         test_url = HOST_URL + "?hostname_or_id=" + query_value
 
@@ -1542,7 +1533,6 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
-
     def _test_url(self, query_value):
         return HOST_URL + "?insights_id=" + query_value
 
@@ -1577,7 +1567,6 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
-
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
         url_host_id_list = ",".join(host_id_list)
@@ -1602,7 +1591,6 @@ class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
-
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
@@ -1625,7 +1613,6 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
             # Hosts with same display_name are ordered by updated descending
             self.added_hosts[3],
             self.added_hosts[0],
-
             self.added_hosts[1],
             self.added_hosts[2]
         )
@@ -1634,7 +1621,6 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
         return (
             self.added_hosts[2],
             self.added_hosts[1],
-
             # Hosts with same display_name are ordered by updated descending
             self.added_hosts[3],
             self.added_hosts[0]
@@ -1696,7 +1682,6 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
 
 
 class QueryOrderBadRequestsTestCase(QueryOrderTestCase):
-
     def test_invalid_order_by(self):
         for url in self._queries_subtests_with_added_hosts():
             with self.subTest(url=url):
