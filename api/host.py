@@ -157,7 +157,7 @@ def create_new_host(input_host):
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
-    logger.debug(f"Created host:{input_host}")
+    logger.debug("Created host:%s", input_host)
     return input_host.to_json(), 201
 
 
@@ -167,7 +167,7 @@ def update_existing_host(existing_host, input_host):
     existing_host.update(input_host)
     db.session.commit()
     metrics.update_host_count.inc()
-    logger.debug(f"Updated host:{existing_host}")
+    logger.debug("Updated host:%s", existing_host)
     return existing_host.to_json(), 200
 
 
@@ -210,7 +210,7 @@ def get_host_list(
         query = query.order_by(*order_by)
 
     query_results = query.paginate(page, per_page, True)
-    logger.debug(f"Found hosts: {query_results.items}")
+    logger.debug("Found hosts: %s", query_results.items)
 
     return _build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
@@ -269,7 +269,7 @@ def _build_json_response(json_data, status=200):
 
 
 def find_hosts_by_display_name(account, display_name):
-    logger.debug(f"find_hosts_by_display_name({display_name})")
+    logger.debug("find_hosts_by_display_name(%s)", display_name)
     return Host.query.filter(
         (Host.account == account)
         & Host.display_name.comparator.contains(display_name)
@@ -347,7 +347,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    logger.debug(f"Found hosts: {query_results.items}")
+    logger.debug("Found hosts: %s", query_results.items)
 
     return _build_paginated_host_list_response(
         query_results.total, page, per_page, query_results.items
@@ -410,7 +410,7 @@ def patch_by_id(host_id_list, host_data):
     hosts_to_update = query.all()
 
     if not hosts_to_update:
-        logger.debug(f"Failed to find hosts during patch operation - hosts: {host_id_list}")
+        logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     for host in hosts_to_update:
@@ -447,7 +447,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
     ).all()
 
-    logger.debug(f"hosts_to_update:{hosts_to_update}")
+    logger.debug("hosts_to_update:%s", hosts_to_update)
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = (
@@ -467,6 +467,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     db.session.commit()
 
-    logger.debug(f"hosts_to_update:{hosts_to_update}")
+    logger.debug("hosts_to_update:%s", hosts_to_update)
 
     return 200
