@@ -270,7 +270,7 @@ class CreateHostsTestCase(DBAPITestCase):
         modified_time = dateutil.parser.parse(updated_host["updated"])
         self.assertGreater(modified_time, created_time)
 
-        host_lookup_results = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         # sanity check
         # host_lookup_results["results"][0]["facts"][0]["facts"]["key2"] = "blah"
@@ -326,7 +326,7 @@ class CreateHostsTestCase(DBAPITestCase):
         self.assertEqual(updated_host["id"], original_id)
 
         # Retrieve the host using the id that we first received
-        data = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        data = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(data["results"][0],
                             host_data,
@@ -357,7 +357,7 @@ class CreateHostsTestCase(DBAPITestCase):
         # Update the hosts
         self.post(HOST_URL, [host_data.data()], 207)
 
-        host_lookup_results = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(host_lookup_results["results"][0],
                             host_data,
@@ -660,7 +660,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        host_lookup_results = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(host_lookup_results["results"][0],
                             host_data,
@@ -738,7 +738,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        host_lookup_results = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         # Explicitly set the display_name to the be id...this is expected here
         host_data.display_name = created_host["id"]
@@ -767,7 +767,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        host_lookup_results = self.get("{}/{}".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         # Explicitly set the display_name ...this is expected here
         host_data.display_name = expected_display_name
@@ -935,7 +935,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         # verify system_profile is not included
         self.assertNotIn("system_profile", created_host)
 
-        host_lookup_results = self.get("{}/{}/system_profile".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
         actual_host = host_lookup_results["results"][0]
 
         self.assertEqual(original_id, actual_host["id"])
@@ -992,7 +992,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 with self.app.app_context():
                     msg_handler(mq_message)
 
-                host_lookup_results = self.get("{}/{}/system_profile".format(HOST_URL, original_id), 200)
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
                 actual_host = host_lookup_results["results"][0]
 
                 self.assertEqual(original_id, actual_host["id"])
@@ -1068,7 +1068,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 original_id = created_host["id"]
 
                 # Verify that the system profile data is saved
-                host_lookup_results = self.get("{}/{}/system_profile".format(HOST_URL, original_id), 200)
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
                 actual_host = host_lookup_results["results"][0]
 
                 self.assertEqual(original_id, actual_host["id"])
@@ -1097,7 +1097,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                 original_id = created_host["id"]
 
                 # Verify that the system profile data is saved
-                host_lookup_results = self.get("{}/{}/system_profile".format(HOST_URL, original_id), 200)
+                host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
                 actual_host = host_lookup_results["results"][0]
 
                 self.assertEqual(original_id, actual_host["id"])
@@ -1122,7 +1122,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
 
         original_id = created_host["id"]
 
-        host_lookup_results = self.get("{}/{}/system_profile".format(HOST_URL, original_id), 200)
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
         actual_host = host_lookup_results["results"][0]
 
         self.assertEqual(original_id, actual_host["id"])
@@ -1155,7 +1155,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
             })
 
         url_host_id_list = ",".join(host_id_list)
-        test_url = "{}/{}/system_profile".format(HOST_URL, url_host_id_list)
+        test_url = f"{HOST_URL}/{url_host_id_list}/system_profile"
         host_lookup_results = self.get(test_url, 200)
 
         self.assertEqual(
@@ -1170,7 +1170,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         expected_count = 0
         expected_total = 0
         host_id = generate_uuid()
-        results = self.get("{}/{}/system_profile".format(HOST_URL, host_id), 200)
+        results = self.get(f"{HOST_URL}/{host_id}/system_profile", 200)
         self.assertEqual(results["count"], expected_count)
         self.assertEqual(results["total"], expected_total)
 
@@ -1178,7 +1178,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         invalid_host_ids = ["notauuid", f"{generate_uuid()},notuuid"]
         for host_id in invalid_host_ids:
             with self.subTest(invalid_host_id=host_id):
-                response = self.get("{}/{}/system_profile".format(HOST_URL, host_id), 400)
+                response = self.get(f"{HOST_URL}/{host_id}/system_profile", 400)
                 self.verify_error_response(response,
                                            expected_title="Bad Request",
                                            expected_status=400)
