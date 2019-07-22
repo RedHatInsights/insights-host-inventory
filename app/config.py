@@ -63,13 +63,13 @@ class Config:
     def log_configuration(self, config_name):
         if config_name != "testing":
             self.logger.info("Insights Host Inventory Configuration:")
-            self.logger.info(f"Build Version: {get_build_version()}")
-            self.logger.info(f"API URL Path: {self.api_url_path_prefix}")
-            self.logger.info(f"Management URL Path Prefix: {self.mgmt_url_path_prefix}")
-            self.logger.info(f"DB Host: {self._db_host}")
-            self.logger.info(f"DB Name: {self._db_name}")
-            self.logger.info(f"DB Connection URI: {self._build_db_uri(self._db_ssl_mode, hide_password=True)}")
+            self.logger.info("Build Version: %s", get_build_version())
+            self.logger.info("API URL Path: %s", self.api_url_path_prefix)
+            self.logger.info("Management URL Path Prefix: %s", self.mgmt_url_path_prefix)
+            self.logger.info("DB Host: %s", self._db_host)
+            self.logger.info("DB Name: %s", self._db_name)
+            self.logger.info("DB Connection URI: %s", self._build_db_uri(self._db_ssl_mode, hide_password=True))
             if self._db_ssl_mode == self.SSL_VERIFY_FULL:
                 self.logger.info("Using SSL for DB connection:")
-                self.logger.info(f"Postgresql SSL verification type: {self._db_ssl_mode}")
-                self.logger.info(f"Path to certificate: {self._db_ssl_cert}")
+                self.logger.info("Postgresql SSL verification type: %s", self._db_ssl_mode)
+                self.logger.info("Path to certificate: %s", self._db_ssl_cert)
