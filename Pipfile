@@ -37,6 +37,7 @@ flake8 = "*"
 pyupgrade = "*"
 reorder-python-imports = "*"
 pre-commit-hooks = "*"
+black = "==19.3b0"
 
 [requires]
 python_version = "3.6"
