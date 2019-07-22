@@ -153,7 +153,7 @@ def create_new_host(input_host):
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
-    logger.debug("Created host:%s" % input_host)
+    logger.debug(f"Created host:{input_host}")
     return input_host.to_json(), 201
 
 
@@ -163,7 +163,7 @@ def update_existing_host(existing_host, input_host):
     existing_host.update(input_host)
     db.session.commit()
     metrics.update_host_count.inc()
-    logger.debug("Updated host:%s" % existing_host)
+    logger.debug(f"Updated host:{existing_host}")
     return existing_host.to_json(), 200
 
 
@@ -265,7 +265,7 @@ def _build_json_response(json_data, status=200):
 
 
 def find_hosts_by_display_name(account, display_name):
-    logger.debug("find_hosts_by_display_name(%s)" % display_name)
+    logger.debug(f"find_hosts_by_display_name({display_name})")
     return Host.query.filter(
         (Host.account == account)
         & Host.display_name.comparator.contains(display_name)
@@ -323,7 +323,7 @@ def delete_by_id(host_id_list):
 
     metrics.delete_host_count.inc(len(host_ids_to_delete))
 
-    logger.debug(f"Deleted hosts: %s", host_ids_to_delete)
+    logger.debug("Deleted hosts: %s", host_ids_to_delete)
 
     for deleted_host_id in host_ids_to_delete:
         emit_event(events.delete(deleted_host_id))
@@ -392,8 +392,7 @@ def patch_by_id(host_id_list, host_data):
     try:
         validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
     except ValidationError as e:
-        logger.exception("Input validation error while patching host: %s - %s"
-                         % (host_id_list, host_data))
+        logger.exception(f"Input validation error while patching host: {host_id_list} - {host_data}")
         return ({"status": 400,
                  "title": "Bad Request",
                  "detail": str(e.messages),
@@ -407,7 +406,7 @@ def patch_by_id(host_id_list, host_data):
     hosts_to_update = query.all()
 
     if not hosts_to_update:
-        logger.debug("Failed to find hosts during patch operation - hosts: %s" % host_id_list)
+        logger.debug(f"Failed to find hosts during patch operation - hosts: {host_id_list}")
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     for host in hosts_to_update:
@@ -444,7 +443,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
     ).all()
 
-    logger.debug("hosts_to_update:%s" % hosts_to_update)
+    logger.debug(f"hosts_to_update:{hosts_to_update}")
 
     if len(hosts_to_update) != len(host_id_list):
         error_msg = (
@@ -464,6 +463,6 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     db.session.commit()
 
-    logger.debug("hosts_to_update:%s" % hosts_to_update)
+    logger.debug(f"hosts_to_update:{hosts_to_update}")
 
     return 200

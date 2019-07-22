@@ -1175,7 +1175,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
         self.assertEqual(results["total"], expected_total)
 
     def test_get_system_profile_with_invalid_host_id(self):
-        invalid_host_ids = ["notauuid", "%s,notuuid" % generate_uuid()]
+        invalid_host_ids = ["notauuid", f"{generate_uuid()},notuuid"]
         for host_id in invalid_host_ids:
             with self.subTest(invalid_host_id=host_id):
                 response = self.get("{}/{}/system_profile".format(HOST_URL, host_id), 400)

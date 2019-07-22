@@ -26,8 +26,8 @@ def configure_logging(config_name):
             fh.close()
         except FileNotFoundError:
             print("Error reading the logging configuration file.  "
-                  "Verify the %s environment variable is set "
-                  "correctly. Aborting..." % env_var_name)
+                  f"Verify the {env_var_name} environment variable is set "
+                  "correctly. Aborting...")
             raise
 
         logging.config.fileConfig(fname=log_config_file)
