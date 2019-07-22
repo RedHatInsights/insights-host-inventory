@@ -51,7 +51,7 @@ def create_app(config_name):
                 strict_validation=True,
                 base_path=api_url,
             )
-            app_config.logger.info("Listening on API: %s" % api_url)
+            app_config.logger.info(f"Listening on API: {api_url}")
 
     # Add an error handler that will convert our top level exceptions
     # into error responses

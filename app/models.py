@@ -129,8 +129,7 @@ class Host(db.Model):
         self.update_facts(input_host.facts)
 
     def patch(self, patch_data):
-        logger.debug("patching host (id=%s) with data: %s" %
-                     (self.id, patch_data))
+        logger.debug(f"patching host (id={self.id}) with data: {patch_data}")
 
         if not patch_data:
             raise InventoryException(title="Bad Request",
@@ -157,12 +156,12 @@ class Host(db.Model):
                 self.display_name = self.id
 
     def update_canonical_facts(self, canonical_facts):
-        logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
-                      " with input canonical_facts=%s")
-                     % (self.id, self.canonical_facts, canonical_facts))
+        logger.debug(
+            f"Updating host's (id={self.id}) canonical_facts ({self.canonical_facts}) with input "
+            f"canonical_facts={canonical_facts}"
+        )
         self.canonical_facts.update(canonical_facts)
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)"
-                     % (self.id, self.canonical_facts))
+        logger.debug(f"Host (id={self.id}) has updated canonical_facts ({self.canonical_facts})")
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
@@ -190,7 +189,7 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_system_profile(self, input_system_profile):
-        logger.debug("Updating host's (id=%s) system profile" % (self.id))
+        logger.debug(f"Updating host's (id={self.id}) system profile")
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
@@ -200,12 +199,9 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
-        tmpl = "<Host id='%s' account='%s' display_name='%s' canonical_facts=%s>"
-        return tmpl % (
-            self.id,
-            self.account,
-            self.display_name,
-            self.canonical_facts,
+        return (
+            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
+            f"canonical_facts={self.canonical_facts}>"
         )
 
 
