@@ -1,5 +1,6 @@
 import json
 
+from datetime import datetime
 from kafka import KafkaProducer
 from marshmallow import Schema, fields
 
@@ -21,32 +22,35 @@ class EventProducer:
 
     def write_event(self, event):
         logger.debug("Topic: %s => %s" % (self._topic, event))
-        self._kafka_producer.send(self._topic, value=event.encode("utf-8"))
+        json_event = json.dumps(event)
+        self._kafka_producer.send(self._topic, value=json_event.encode("utf-8"))
 
 
 def build_event(event_type, host, metadata):
-    if event_type == "created":
-        return build_host_created_event(host, metadata)
-    elif event_type == "updated":
-        return build_host_updated_event(host, metadata)
+    if event_type in ("created", "updated"):
+        return build_host_event(event_type, host, metadata)
+    else:
+        raise ValueError(f"Invalid event type ({event_type})")
 
 
-def build_host_created_event(host, metadata):
-    return json.dumps({"type": "created",
-            "host": host,
-            "metadata": metadata,
-            })
+def build_host_event(event_type, host, metadata):
+    # FIXME:
+    if "system_profile" in host:
+        del host["system_profile"]
+    if "facts" in host:
+        del host["facts"]
 
-
-def build_host_updated_event(host, metadata):
-    return json.dumps({"type": "updated",
-            "host": host,
-            "metadata": metadata,
-            })
+    return HostEvent(strict=True).dumps(
+        {"type": event_type,
+         "host": host,
+         "metadata": metadata,
+         "timestamp": datetime.utcnow()
+        }
+        ).data
 
 
 class HostSchema(Schema):
-    metadata = fields.Dict()
+    id = fields.UUID()
     display_name = fields.Str()
     ansible_host = fields.Str()
     account = fields.Str(required=True)
@@ -59,5 +63,18 @@ class HostSchema(Schema):
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
     external_id = fields.Str()
-    facts = fields.Boolean
-    system_profile = fields.Boolean
+    facts = fields.Boolean()
+    system_profile = fields.Boolean()
+    # FIXME:
+    #created = fields.DateTime(format="iso8601")
+    #updated = fields.DateTime(format="iso8601")
+    # FIXME:
+    created = fields.Str()
+    updated = fields.Str()
+
+
+class HostEvent(Schema):
+    type = fields.Str()
+    host = fields.Nested(HostSchema())
+    timestamp = fields.DateTime(format="iso8601")
+    metadata = fields.Dict()
