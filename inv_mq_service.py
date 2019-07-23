@@ -6,9 +6,11 @@ from app import create_app
 from app.config import Config
 from app.logging import get_logger
 from app.queue.ingress import event_loop
+from app.queue.egress import create_event_producer
 from prometheus_client import start_http_server
 
 logger = get_logger("mq_service")
+
 
 def main():
     config_name = os.getenv('APP_SETTINGS', "development")
@@ -23,7 +25,9 @@ def main():
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0,10))
 
-    event_loop(consumer, application)
+    event_producer = create_event_producer(config, "live_ammo")
+
+    event_loop(consumer, application, event_producer)
 
 if __name__ == "__main__":
     main()
