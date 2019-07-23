@@ -1,3 +1,4 @@
+import flask
 import time
 
 from functools import wraps
@@ -50,3 +51,7 @@ def _get_status_code(results):
         return results
     elif isinstance(results, tuple):
         return results[1]
+    elif isinstance(results, flask.Response):
+        return results.status_code
+    else:
+        return -1
