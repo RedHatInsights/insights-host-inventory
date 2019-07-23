@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Summary
+from prometheus_client import Counter, Summary, Info
 
 ingress_message_parsing_time = Summary("inventory_ingress_message_parsing_seconds",
                                                 "Time spent parsing a message from the ingress queue")
@@ -10,3 +10,4 @@ ingress_message_handler_success = Counter("inventory_ingress_message_handler_suc
                                                 "Total amount of successfully handled messages from the ingress queue")
 ingress_message_handler_failure = Counter("inventory_ingress_message_handler_failures",
                                                 "Total amount of failures handling messages from the ingress queue")
+version = Info("inventory_mq_service_version", "Build version for the inventory message queue service")
