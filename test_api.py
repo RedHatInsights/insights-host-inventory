@@ -73,7 +73,7 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-class BaseAPITestCase(unittest.TestCase):
+class APIBaseTestCase(unittest.TestCase):
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT)
         dict_ = {"identity": identity._asdict()}
@@ -151,7 +151,7 @@ class BaseAPITestCase(unittest.TestCase):
             return response
 
 
-class DBAPITestCase(BaseAPITestCase):
+class DBAPITestCase(APIBaseTestCase):
     @classmethod
     def setUpClass(cls):
         """
@@ -834,7 +834,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 i += 1
 
 
-class PaginationTestCase(BaseAPITestCase):
+class PaginationBaseTestCase(APIBaseTestCase):
     def _base_paging_test(self, url, expected_number_of_hosts):
         def _test_get_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
@@ -862,7 +862,7 @@ class PaginationTestCase(BaseAPITestCase):
             self.get(test_url, 404)
 
 
-class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
+class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase):
     def _valid_system_profile(self):
         return {"number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -1184,7 +1184,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationTestCase):
                                            expected_status=400)
 
 
-class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationTestCase):
+class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
     def setUp(self):
         super(PreCreatedHostsBaseTestCase, self).setUp()
         self.added_hosts = self.create_hosts()
@@ -1416,7 +1416,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url, len(self.added_hosts))
 
 
-class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationTestCase):
+class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -1566,7 +1566,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.get(test_url, 200)
 
 
-class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
+class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
         url_host_id_list = ",".join(host_id_list)
@@ -1590,7 +1590,7 @@ class QueryOrderTestCase(PreCreatedHostsBaseTestCase):
         return self.get(full_url, status)
 
 
-class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
+class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
@@ -1681,7 +1681,7 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderTestCase):
                 self._assert_host_ids_in_response(response, expected_hosts)
 
 
-class QueryOrderBadRequestsTestCase(QueryOrderTestCase):
+class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
     def test_invalid_order_by(self):
         for url in self._queries_subtests_with_added_hosts():
             with self.subTest(url=url):
@@ -1926,7 +1926,7 @@ class TokenAuthTestCase(DBAPITestCase):
             self.assertEqual(401, response.status_code)
 
 
-class HealthTestCase(BaseAPITestCase):
+class HealthTestCase(APIBaseTestCase):
     """
     Tests the health check endpoint.
     """

@@ -61,7 +61,7 @@ class AuthIdentityConstructorTestCase(TestCase):
         return Identity(account_number="some number")
 
 
-class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
