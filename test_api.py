@@ -150,7 +150,7 @@ class DBAPITestCase(APIBaseTestCase):
         """
         Initializes the database by creating all tables.
         """
-        super(DBAPITestCase, self).setUp()
+        super().setUp()
 
         # binds the app to the current context
         with self.app.app_context():
@@ -1090,7 +1090,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
 class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
     def setUp(self):
-        super(PreCreatedHostsBaseTestCase, self).setUp()
+        super().setUp()
         self.added_hosts = self.create_hosts()
 
     def create_hosts(self):
