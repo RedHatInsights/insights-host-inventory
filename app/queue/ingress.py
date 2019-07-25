@@ -66,10 +66,6 @@ def handle_message(message, event_producer):
     # FIXME: verify operation type
     (output_host, add_results) = add_host(validated_operation_msg["data"])
 
-    # FIXME: metadata comes from the incoming message
-    metadata = {"request_id": "1234567890",
-                "url": "http://s3.aws.com/redhat/insights/bucket/blah"}
-
     if add_results == host_repository.AddHostResults.created:
         event_type = "created"
     else:
