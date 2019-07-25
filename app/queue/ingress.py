@@ -11,6 +11,8 @@ logger = get_logger(__name__)
 
 class OperationSchema(Schema):
     operation = fields.Str()
+    metadata = fields.Dict()
+    # FIXME:  Remove this field
     request_id = fields.Str()
     data = fields.Dict()
 
@@ -57,7 +59,8 @@ def add_host(host_data):
 
 def handle_message(message):
     validated_operation_msg = parse_operation_message(message)
-    initialize_thread_local_storage(validated_operation_msg)
+    metadata = validated_operation_msg.get("metadata") or {}
+    initialize_thread_local_storage(metadata)
     # FIXME: verify operation type
     add_host(validated_operation_msg["data"])
 
@@ -75,5 +78,5 @@ def event_loop(consumer, flask_app, handler=handle_message):
                 logger.exception("Unable to process message")
 
 
-def initialize_thread_local_storage(operation_message):
-    threadctx.request_id = operation_message.get("request_id", "-1")
+def initialize_thread_local_storage(metadata):
+    threadctx.request_id = metadata.get("request_id", "-1")

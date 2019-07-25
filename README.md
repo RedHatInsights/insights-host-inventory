@@ -190,12 +190,13 @@ json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_servi
 
 ```json
   {"operation": "add_host",
-   "request_id": <request_id>,
+   "metadata": json_doc,
    "data": host_json_doc}
 ```
 
   - operation: name of the operation to perform ("add_host" is only supported currently)
-  - request_id: an optional id that can be used to track a request through the system
+  - metadata: an optional json doc that can be used to pass data associated with the host
+   from the ingress service to the backend applications (request_id, s3 bucket url, etc)
   - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
 
 The kafka topic for adding hosts is _platform.inventory.host-ingress_.
