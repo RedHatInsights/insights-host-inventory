@@ -60,9 +60,9 @@ class Host(db.Model):
     def __init__(
         self,
         canonical_facts,
-        display_name=display_name,
+        display_name=None,
         ansible_host=None,
-        account=account,
+        account=None,
         facts=None,
         system_profile_facts=None,
     ):
@@ -73,7 +73,7 @@ class Host(db.Model):
             )
 
         self.canonical_facts = canonical_facts
-
+        
         if display_name:
             # Only set the display_name field if input the display_name has
             # been set...this will make it so that the "default" logic will
