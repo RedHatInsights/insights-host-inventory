@@ -74,8 +74,7 @@ def _add_host(input_host):
                 detail="The account number associated with the user does not "
                 "match the account number associated with the host")
 
-
-    return add_host(input_host)
+    return add_host(input_host, update_system_profile=False)
 
 
 @api_operation

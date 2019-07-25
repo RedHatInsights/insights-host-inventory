@@ -78,7 +78,7 @@ class Host(db.Model):
     def save(self):
         db.session.add(self)
 
-    def update(self, input_host):
+    def update(self, input_host, update_system_profile=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
         self.update_display_name(input_host.display_name)
@@ -86,6 +86,9 @@ class Host(db.Model):
         self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
+
+        if update_system_profile:
+            self._update_system_profile(input_host.system_profile)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s" %
