@@ -59,7 +59,7 @@ def add_host(host_data):
         metrics.add_host_failure.inc()
 
 
-def handle_message(message):
+def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     metadata = validated_operation_msg.get("metadata") or {}
     initialize_thread_local_storage(metadata)
@@ -70,7 +70,7 @@ def handle_message(message):
     metadata = {"request_id": "1234567890",
                 "url": "http://s3.aws.com/redhat/insights/bucket/blah"}
 
-    if add_results == host.AddHostResults.created:
+    if add_results == host_repository.AddHostResults.created:
         event_type = "created"
     else:
         event_type = "updated"
