@@ -1329,7 +1329,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
                 self.events.append(e)
 
         # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+        with unittest.mock.patch("api.host_repository.emit_event", new=MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             assert original_id in m.events[0]
 
