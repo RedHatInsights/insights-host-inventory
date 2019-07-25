@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from api import api_operation
-from api.host_repository import _params_to_order_by, _order_how
+from api import _params_to_order_by, _order_how
 from app.config import Config
 from app.auth.identity import (Identity,
                                validate,
@@ -260,8 +260,8 @@ class HostOrderHowTestCase(TestCase):
                     _order_how(Mock(), invalid_value)
 
 
-@patch("api.host_repository._order_how")
-@patch("api.host_repository.Host.modified_on")
+@patch("api.host._order_how")
+@patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
 
     def test_default_is_updated_desc(self, modified_on, order_how):
@@ -288,21 +288,21 @@ class HostParamsToOrderByTestCase(TestCase):
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "DESC")
 
-    @patch("api.host_repository.Host.display_name")
+    @patch("api.host.Host.display_name")
     def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
         actual = _params_to_order_by("display_name",)
         expected = (display_name.asc.return_value, modified_on.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
-    @patch("api.host_repository.Host.display_name")
+    @patch("api.host.Host.display_name")
     def test_order_by_display_name_asc(self, display_name, modified_on, order_how):
         actual = _params_to_order_by("display_name", "ASC")
         expected = (order_how.return_value, modified_on.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "ASC")
 
-    @patch("api.host_repository.Host.display_name")
+    @patch("api.host.Host.display_name")
     def test_order_by_display_name_desc(self, display_name, modified_on, order_how):
         actual = _params_to_order_by("display_name", "DESC")
         expected = (order_how.return_value, modified_on.desc.return_value)
