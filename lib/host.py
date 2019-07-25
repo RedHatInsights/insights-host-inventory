@@ -16,7 +16,7 @@ AddHostResults = Enum("AddHostResults", ["created", "updated"])
 logger = get_logger(__name__)
 
 
-def add_host(host):
+def add_host(host, update_system_profile=True):
     """
     Add or update a host
 
@@ -35,7 +35,7 @@ def add_host(host):
                                        input_host.canonical_facts)
 
     if existing_host:
-        return update_existing_host(existing_host, input_host)
+        return update_existing_host(existing_host, input_host, update_system_profile)
     else:
         return create_new_host(input_host)
 
@@ -104,9 +104,9 @@ def create_new_host(input_host):
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host):
+def update_existing_host(existing_host, input_host, update_system_profile):
     logger.debug("Updating an existing host")
-    existing_host.update(input_host)
+    existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)

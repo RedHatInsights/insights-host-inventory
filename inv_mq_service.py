@@ -19,7 +19,7 @@ logger = get_logger("mq_service")
 def add_host(host_data):
     try:
         logger.info("Attempting to add host...")
-        host.add_host(host_data)
+        host.add_host(host_data, update_system_profile=True)
         metrics.add_host_success.inc()
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
     except InventoryException as e:
