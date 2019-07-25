@@ -6,7 +6,7 @@ info:
 paths:
   /hosts:
     get:
-      operationId: api.host_repository.get_host_list
+      operationId: api.host.get_host_list
       tags:
         - hosts
       summary: Read the entire list of hosts
@@ -52,7 +52,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     post:
-      operationId: api.host_repository.add_host_list
+      operationId: api.host.add_host_list
       tags:
         - hosts
       summary: Create/update multiple host and add them to the host list
@@ -103,7 +103,7 @@ paths:
         - hosts
       summary: Find hosts by their IDs
       description: Find one or more hosts by their ID.
-      operationId: api.host_repository.get_host_by_id
+      operationId: api.host.get_host_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -129,7 +129,7 @@ paths:
         - hosts
       summary: Delete hosts by IDs
       description: Delete hosts by IDs
-      operationId: api.host_repository.delete_by_id
+      operationId: api.host.delete_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -146,7 +146,7 @@ paths:
         - hosts
       summary: Update a host
       description: Update a host
-      operationId: api.host_repository.patch_by_id
+      operationId: api.host.patch_by_id
       security:
         - ApiKeyAuth: []
       parameters:
@@ -173,7 +173,7 @@ paths:
         - hosts
       summary: Merge facts under a namespace
       description: Merge one or multiple hosts facts under a namespace.
-      operationId: api.host_repository.merge_facts
+      operationId: api.host.merge_facts
       security:
         - ApiKeyAuth: []
       parameters:
@@ -201,7 +201,7 @@ paths:
       description: Replace facts under a namespace
       security:
         - ApiKeyAuth: []
-      operationId: api.host_repository.replace_facts
+      operationId: api.host.replace_facts
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
@@ -226,7 +226,7 @@ paths:
         - hosts
       summary: Return one or more hosts system profile
       description: Find one or more hosts by their ID and return the id and system profile
-      operationId: api.host_repository.get_host_system_profile_by_id
+      operationId: api.host.get_host_system_profile_by_id
       security:
         - ApiKeyAuth: []
       parameters:
