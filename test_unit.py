@@ -321,7 +321,7 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
             _params_to_order_by(Mock(), order_how="ASC")
 
 
-class ModelsHostFromJsonCompoundTestCase(TestCase):
+class SerializationHostFromJsonCompoundTestCase(TestCase):
 
     def test_with_all_fields(self):
         canonical_facts = {
@@ -671,7 +671,7 @@ class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase)
         facts_to_json.assert_called_once_with(host_init_data["facts"])
 
 
-class ModelsHostToSystemProfileJsonTestCase(TestCase):
+class SerializationHostToSystemProfileJsonTestCase(TestCase):
 
     def test_non_empty_profile_is_not_changed(self):
         system_profile_facts = {
