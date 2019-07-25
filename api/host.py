@@ -14,7 +14,7 @@ from app.exceptions import InventoryException, ValidationException
 from app.logging import get_logger
 from app.serialization import Host as SerializationHost
 from api import api_operation, metrics
-from lib.host import add_host, AddHostResults, _canonical_facts_host_query
+from lib.host_repository import add_host, AddHostResults, _canonical_facts_host_query
 from tasks import emit_event
 
 
