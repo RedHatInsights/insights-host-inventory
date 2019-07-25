@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from api import api_operation
-from api import _params_to_order_by, _order_how
+from api.host import _params_to_order_by, _order_how
 from app.config import Config
 from app.auth.identity import (Identity,
                                validate,
