@@ -116,9 +116,12 @@ TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 
+metadata_dict = {"request_id": str(uuid.uuid4()),
+                 "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
+
 payload = build_chunk()
 payload = {"operation": "add_host",
-           "request_id": str(uuid.uuid4()),
+           "metadata": metadata_dict,
            "data": build_host_chunk(),
            }
 

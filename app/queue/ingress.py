@@ -3,6 +3,7 @@ from marshmallow import Schema, fields, ValidationError
 from app.logging import get_logger, threadctx
 from app.exceptions import InventoryException, ValidationException
 from app.queue import metrics
+from app.queue.egress import build_event
 from lib import host_repository
 
 
@@ -46,9 +47,10 @@ def parse_operation_message(message):
 def add_host(host_data):
     try:
         logger.info("Attempting to add host...")
-        host_repository.add_host(host_data)
+        (output_host, add_results) = host_repository.add_host(host_data)
         metrics.add_host_success.inc()
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
+        return (output_host, add_results)
     except InventoryException as e:
         logger.exception("Error adding host ", extra={"host": host_data})
         metrics.add_host_failure.inc()
@@ -57,21 +59,30 @@ def add_host(host_data):
         metrics.add_host_failure.inc()
 
 
-def handle_message(message):
+def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     metadata = validated_operation_msg.get("metadata") or {}
     initialize_thread_local_storage(metadata)
     # FIXME: verify operation type
-    add_host(validated_operation_msg["data"])
+    (output_host, add_results) = add_host(validated_operation_msg["data"])
+
+    if add_results == host_repository.AddHostResults.created:
+        event_type = "created"
+    else:
+        event_type = "updated"
+
+    event = build_event(event_type, output_host, metadata)
+
+    event_producer.write_event(event)
 
 
-def event_loop(consumer, flask_app, handler=handle_message):
+def event_loop(consumer, flask_app, event_producer, handler=handle_message):
     with flask_app.app_context():
         logger.debug("Waiting for message")
         for msg in consumer:
             logger.debug("Message received")
             try:
-                handler(msg)
+                handler(msg, event_producer)
                 metrics.ingress_message_handler_success.inc()
             except Exception:
                 metrics.ingress_message_handler_failure.inc()

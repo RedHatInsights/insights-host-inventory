@@ -183,6 +183,9 @@ a new host entry is created.
 The REST api should _not_ be used for bulk insertion.  Instead, a batch of
 hosts should be added to the inventory system by sequentially writing the individual
 hosts to the kafka message queue.
+
+#### Message Queue Based Host Insertion
+
 A single host object (see HostSchema defined in 
 [_app/models.py_](app/models.py)) should be wrapped in an _operation_
 json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_service.py))
@@ -193,13 +196,24 @@ json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_servi
    "metadata": json_doc,
    "data": host_json_doc}
 ```
-
   - operation: name of the operation to perform ("add_host" is only supported currently)
   - metadata: an optional json doc that can be used to pass data associated with the host
    from the ingress service to the backend applications (request_id, s3 bucket url, etc)
   - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
 
 The kafka topic for adding hosts is _platform.inventory.host-ingress_.
+
+The Inventory service will write an event to the _platform.inventory.host-egress_ 
+kafka topic as a result of adding a host over the message queue.
+
+```json
+  {"type": "created",
+   "metadata": metadata_json_doc,
+   "data": host_json_doc}
+```
+  - type: result of the add host operation ("created" and "updated" are only supported currently)
+  - metadata: a json doc that contains the metadata associated with the host (s3 url, request_id, etc)
+  - data: a host json doc as defined by the HostSchema in [_app/queue/egress.py_](app/queue/egress.py)
 
 #### Host deletion
 
