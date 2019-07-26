@@ -1,4 +1,5 @@
 from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.models import Host as ModelsHost
 
 
@@ -9,14 +10,18 @@ class Host:
     @classmethod
     def from_json(cls, d):
         canonical_facts = CanonicalFacts.from_json(d)
-        facts = Facts.from_json(d.get("facts"))
+        if not canonical_facts:
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
+
         return ModelsHost(
-            canonical_facts,
-            d.get("display_name", None),
-            d.get("ansible_host"),
-            d.get("account"),
-            facts,
-            d.get("system_profile", {}),
+            canonical_facts=canonical_facts,
+            display_name=d.get("display_name") or None,
+            ansible_host=d.get("ansible_host"),  # Empty string allows a user to clear out
+            account=d.get("account"),
+            facts=Facts.from_json(d.get("facts")),
+            system_profile_facts=d.get("system_profile") or {},
         )
 
     @classmethod

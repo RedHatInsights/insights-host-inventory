@@ -19,6 +19,7 @@ from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
 from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.models import Host as ModelsHost
 from app.serialization import CanonicalFacts
 from app.serialization import Facts
@@ -372,150 +373,210 @@ class SerializationHostFromJsonCompoundTestCase(TestCase):
         for key, value in expected.items():
             self.assertEqual(value, getattr(actual, key))
 
-    def test_with_only_required_fields(self):
-        canonical_facts = {"fqdn": "some fqdn"}
-        host = SerializationHost.from_json(canonical_facts)
+    def test_with_only_one_canonical_fact(self):
+        canonical_fact_fields = (
+            "insights_id",
+            "rhel_machine_id",
+            "subscription_manager_id",
+            "satellite_id",
+            "bios_uuid",
+            "ip_addresses",
+            "fqdn",
+            "mac_addresses",
+            "external_id",
+        )
+        for field in canonical_fact_fields:
+            with self.subTest(canonical_fact=field):
+                canonical_facts = {field: "some value"}
+                host = SerializationHost.from_json(canonical_facts)
+
+                self.assertIs(ModelsHost, type(host))
+                self.assertEqual(canonical_facts, host.canonical_facts)
+                self.assertIsNone(host.display_name)
+                self.assertIsNone(host.ansible_host)
+                self.assertIsNone(host.account)
+                self.assertEqual({}, host.facts)
+                self.assertEqual({}, host.system_profile_facts)
+
+    def test_without_canonical_facts(self):
+        inputs = (
+            {},
+            {"display_name": "some display name"},
+            {"account": "some account"},
+            {"ansible_host": "some ansible_host"},
+            {"facts": {"some namespace": {"some key": "some value"}}},
+            {"system_profile": {"number_of_cpus": 1}},
+        )
+        for input_ in inputs:
+            with self.subTest(input=input_):
+                with self.assertRaises(InventoryException):
+                    SerializationHost.from_json(input_)
+
+    def test_with_ansible_host_empty_string(self):
+        input_ = {"fqdn": "some fqdn", "ansible_host": ""}
+        host = SerializationHost.from_json(input_)
 
         self.assertIs(ModelsHost, type(host))
-        self.assertEqual(canonical_facts, host.canonical_facts)
-        self.assertIsNone(host.display_name)
-        self.assertIsNone(host.ansible_host)
-        self.assertIsNone(host.account)
-        self.assertEqual({}, host.facts)
-        self.assertEqual({}, host.system_profile_facts)
+        self.assertIsNotNone(host.ansible_host)
+        self.assertEqual("", host.ansible_host)
 
 
 @patch("app.serialization.ModelsHost")
 @patch("app.serialization.Facts.from_json")
 @patch("app.serialization.CanonicalFacts.from_json")
 class SerializationHostFromJsonMockedTestCase(TestCase):
-    def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
-        input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
-            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
-            "fqdn": "some fqdn",
-            "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
+    COMMON_INPUT = {
+        "display_name": "some display name",
+        "ansible_host": "some ansible host",
+        "account": "some account",
+        "insights_id": str(uuid4()),
+        "rhel_machine_id": str(uuid4()),
+        "subscription_manager_id": str(uuid4()),
+        "satellite_id": str(uuid4()),
+        "bios_uuid": str(uuid4()),
+        "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+        "fqdn": "some fqdn",
+        "mac_addresses": ["c2:00:d0:c8:61:01"],
+        "external_id": "i-05d2313e6b9a42b16",
+        "facts": {"some namespace": {"some key": "some value"}, "another namespace": {"another key": "another value"}},
+        "system_profile": {
+            "number_of_cpus": 1,
+            "number_of_sockets": 2,
+            "cores_per_socket": 3,
+            "system_memory_bytes": 4,
+        },
+    }
+    DEFAULT_VALUES = (
+        ("display_name", (None, ""), None),
+        ("ansible_host", (None,), None),
+        ("system_profile", (None, {}), {}),
+    )
 
-        result = SerializationHost.from_json(input)
+    def _reset_mocks(self, mocks):
+        for mock in mocks:
+            mock.reset_mock()
+
+    def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
+        full_input = self.COMMON_INPUT
+
+        result = SerializationHost.from_json(full_input)
         self.assertEqual(models_host.return_value, result)
 
-        canonical_facts_from_json.assert_called_once_with(input)
-        facts_from_json.assert_called_once_with(input["facts"])
+        canonical_facts_from_json.assert_called_once_with(full_input)
+        facts_from_json.assert_called_once_with(full_input["facts"])
         models_host.assert_called_once_with(
-            canonical_facts_from_json.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
-            facts_from_json.return_value,
-            input["system_profile"],
+            canonical_facts=canonical_facts_from_json.return_value,
+            facts=facts_from_json.return_value,
+            display_name=full_input["display_name"],
+            ansible_host=full_input["ansible_host"],
+            account=full_input["account"],
+            system_profile_facts=full_input["system_profile"],
         )
 
     def test_without_facts(self, canonical_facts_from_json, facts_from_json, models_host):
-        input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
+        full_input = {key: value for key, value in self.COMMON_INPUT.items() if key != "facts"}
 
-        result = SerializationHost.from_json(input)
+        result = SerializationHost.from_json(full_input)
         self.assertEqual(models_host.return_value, result)
 
-        canonical_facts_from_json.assert_called_once_with(input)
+        canonical_facts_from_json.assert_called_once_with(full_input)
         facts_from_json.assert_called_once_with(None)
         models_host.assert_called_once_with(
-            canonical_facts_from_json.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
-            facts_from_json.return_value,
-            input["system_profile"],
+            canonical_facts=canonical_facts_from_json.return_value,
+            facts=facts_from_json.return_value,
+            display_name=full_input["display_name"],
+            ansible_host=full_input["ansible_host"],
+            account=full_input["account"],
+            system_profile_facts=full_input["system_profile"],
         )
 
-    def test_without_display_name(self, canonical_facts_from_json, facts_from_json, models_host):
-        input = {
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-            "system_profile": {
-                "number_of_cpus": 1,
-                "number_of_sockets": 2,
-                "cores_per_socket": 3,
-                "system_memory_bytes": 4,
-            },
-        }
+    def test_default_values_when_missing(self, canonical_facts_from_json, facts_from_json, models_host):
+        for input_field, _, default_value in self.DEFAULT_VALUES:
+            with self.subTest(input_field=input_field):
+                self._reset_mocks((canonical_facts_from_json, facts_from_json, models_host))
 
-        result = SerializationHost.from_json(input)
+                full_input = {key: value for key, value in self.COMMON_INPUT.items() if key != input_field}
+
+                result = SerializationHost.from_json(full_input)
+                self.assertEqual(models_host.return_value, result)
+
+                canonical_facts_from_json.assert_called_once_with(full_input)
+                facts_from_json.assert_called_once_with(full_input["facts"])
+
+                models_host.assert_called_once_with(
+                    canonical_facts=canonical_facts_from_json.return_value,
+                    facts=facts_from_json.return_value,
+                    account=full_input["account"],
+                    display_name=default_value if input_field == "display_name" else full_input["display_name"],
+                    ansible_host=default_value if input_field == "ansible_host" else full_input["ansible_host"],
+                    system_profile_facts=default_value
+                    if input_field == "system_profile"
+                    else full_input["system_profile"],
+                )
+
+    def test_default_values_when_empty(self, canonical_facts_from_json, facts_from_json, models_host):
+        for input_field, empty_input_values, default_value in self.DEFAULT_VALUES:
+            for input_value in empty_input_values:
+                with self.subTest(field=input_field, input_value=input_value):
+                    self._reset_mocks((canonical_facts_from_json, facts_from_json, models_host))
+
+                    full_input = {**{key: value for key, value in self.COMMON_INPUT.items()}, input_field: input_value}
+
+                    result = SerializationHost.from_json(full_input)
+                    self.assertEqual(models_host.return_value, result)
+
+                    canonical_facts_from_json.assert_called_once_with(full_input)
+                    facts_from_json.assert_called_once_with(full_input["facts"])
+                    models_host.assert_called_once_with(
+                        canonical_facts=canonical_facts_from_json.return_value,
+                        facts=facts_from_json.return_value,
+                        account=full_input["account"],
+                        display_name=default_value if input_field == "display_name" else full_input["display_name"],
+                        ansible_host=default_value if input_field == "ansible_host" else full_input["ansible_host"],
+                        system_profile_facts=default_value
+                        if input_field == "system_profile"
+                        else full_input["system_profile"],
+                    )
+
+    def test_ansible_host_can_be_empty_string(self, canonical_facts_from_json, facts_from_json, models_host):
+        full_input = {**self.COMMON_INPUT, "ansible_host": ""}
+
+        result = SerializationHost.from_json(full_input)
         self.assertEqual(models_host.return_value, result)
 
-        canonical_facts_from_json.assert_called_once_with(input)
-        facts_from_json.assert_called_once_with(input["facts"])
+        canonical_facts_from_json.assert_called_once_with(full_input)
+        facts_from_json.assert_called_once_with(full_input["facts"])
         models_host.assert_called_once_with(
-            canonical_facts_from_json.return_value,
-            None,
-            input["ansible_host"],
-            input["account"],
-            facts_from_json.return_value,
-            input["system_profile"],
-        )
-
-    def test_without_system_profile(self, canonical_facts_from_json, facts_from_json, models_host):
-        input = {
-            "display_name": "some display name",
-            "ansible_host": "some ansible host",
-            "account": "some account",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
-        }
-
-        result = SerializationHost.from_json(input)
-        self.assertEqual(models_host.return_value, result)
-
-        canonical_facts_from_json.assert_called_once_with(input)
-        facts_from_json.assert_called_once_with(input["facts"])
-        models_host.assert_called_once_with(
-            canonical_facts_from_json.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
-            facts_from_json.return_value,
-            {},
+            canonical_facts=canonical_facts_from_json.return_value,
+            facts=facts_from_json.return_value,
+            display_name=full_input["display_name"],
+            ansible_host=full_input["ansible_host"],
+            account=full_input["account"],
+            system_profile_facts=full_input["system_profile"],
         )
 
 
 class SerializationHostToJsonBaseTestCase(TestCase):
-    def _timestamp_to_str(self, timestamp):
+    @staticmethod
+    def _timestamp_to_str(timestamp):
         formatted = timestamp.isoformat()
         return f"{formatted}Z"
+
+    @staticmethod
+    def _generate_host_saved_values():
+        return {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+
+    @classmethod
+    def _convert_host_saved_values(cls, attrs):
+        return {
+            "id": str(attrs["id"]),
+            "created": cls._timestamp_to_str(attrs["created_on"]),
+            "updated": cls._timestamp_to_str(attrs["modified_on"]),
+        }
+
+    @staticmethod
+    def _convert_facts(facts):
+        return [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()]
 
 
 class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
@@ -531,105 +592,126 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
         }
-        unchanged_data = {
+        raw_values = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
         }
-        host_init_data = {
-            "canonical_facts": canonical_facts,
-            **unchanged_data,
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
+        facts = {"some namespace": {"some key": "some value"}, "another namespace": {"another key": "another value"}}
+        saved_values = self._generate_host_saved_values()
+
+        host = ModelsHost(canonical_facts=canonical_facts, **raw_values, facts=facts, **saved_values)
+
+        self.assertEqual(
+            {
+                **canonical_facts,
+                **raw_values,
+                "facts": self._convert_facts(facts),
+                **self._convert_host_saved_values(saved_values),
             },
-        }
-        host = ModelsHost(**host_init_data)
-
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
-
-        actual = SerializationHost.to_json(host)
-        expected = {
-            **canonical_facts,
-            **unchanged_data,
-            "facts": [
-                {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
-            ],
-            "id": str(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-        }
-        self.assertEqual(expected, actual)
+            SerializationHost.to_json(host),
+        )
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "account": None}
-        host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
-        host = ModelsHost(**host_init_data)
+        canonical_facts = {"fqdn": "some fqdn"}
+        raw_values = {"display_name": None, "account": None}  # Required only because of a bug
+        saved_values = self._generate_host_saved_values()
+        host = ModelsHost(canonical_facts=canonical_facts, **raw_values, facts={}, **saved_values)
+        self.assertEqual(
+            {
+                **canonical_facts,
+                "insights_id": None,
+                "rhel_machine_id": None,
+                "subscription_manager_id": None,
+                "satellite_id": None,
+                "bios_uuid": None,
+                "ip_addresses": None,
+                "mac_addresses": None,
+                "external_id": None,
+                **raw_values,
+                "ansible_host": None,
+                "facts": [],
+                **self._convert_host_saved_values(saved_values),
+            },
+            SerializationHost.to_json(host),
+        )
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
+    def test_with_ansible_host_empty_string(self):
+        canonical_facts = {"fqdn": "some fqdn"}
+        raw_values = {"display_name": None, "account": None, "ansible_host": ""}
+        saved_values = self._generate_host_saved_values()
+        host = ModelsHost(canonical_facts=canonical_facts, **raw_values, facts={}, **saved_values)
 
-        actual = SerializationHost.to_json(host)
-        expected = {
-            **host_init_data["canonical_facts"],
-            "insights_id": None,
-            "rhel_machine_id": None,
-            "subscription_manager_id": None,
-            "satellite_id": None,
-            "bios_uuid": None,
-            "ip_addresses": None,
-            "mac_addresses": None,
-            "external_id": None,
-            "ansible_host": None,
-            **unchanged_data,
-            "facts": [],
-            "id": str(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-        }
-        self.assertEqual(expected, actual)
+        serialized = SerializationHost.to_json(host)
+        self.assertIn("ansible_host", serialized)
+        self.assertIsNotNone(serialized["ansible_host"])
+        self.assertEquals("", serialized["ansible_host"])
 
 
 @patch("app.serialization.Facts.to_json")
 @patch("app.serialization.CanonicalFacts.to_json")
 class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase):
     def test_with_all_fields(self, canonical_facts_to_json, facts_to_json):
-        canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
+        canonical_facts = {
+            "insights_id": str(uuid4()),
+            "rhel_machine_id": str(uuid4()),
+            "subscription_manager_id": str(uuid4()),
+            "satellite_id": str(uuid4()),
+            "bios_uuid": str(uuid4()),
+            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+            "fqdn": "some fqdn",
+            "mac_addresses": ["c2:00:d0:c8:61:01"],
+            "external_id": "i-05d2313e6b9a42b16",
+        }
         canonical_facts_to_json.return_value = canonical_facts
-        facts = [
-            {"namespace": "some namespace", "facts": {"some key": "some value"}},
-            {"namespace": "another namespace", "facts": {"another key": "another value"}},
-        ]
-        facts_to_json.return_value = facts
 
-        unchanged_data = {
+        facts = {"some namespace": {"some key": "some value"}, "another namespace": {"another key": "another value"}}
+        facts_to_json.return_value = self._convert_facts(facts)
+
+        raw_values = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
         }
-        host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
-        host = ModelsHost(**host_init_data)
+        saved_values = self._generate_host_saved_values()
+        host = ModelsHost(canonical_facts=canonical_facts, **raw_values, facts=facts, **saved_values)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
-        for k, v in host_attr_data.items():
-            setattr(host, k, v)
+        self.assertEqual(
+            {
+                **canonical_facts,
+                **raw_values,
+                "facts": facts_to_json.return_value,
+                **self._convert_host_saved_values(saved_values),
+            },
+            SerializationHost.to_json(host),
+        )
 
-        actual = SerializationHost.to_json(host)
-        expected = {
-            **canonical_facts,
-            **unchanged_data,
-            "facts": facts_to_json.return_value,
-            "id": str(host_attr_data["id"]),
-            "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+        canonical_facts_to_json.assert_called_once_with(canonical_facts)
+        facts_to_json.assert_called_once_with(facts)
+
+    def test_with_ansible_host_empty_string(self, canonical_facts_to_json, facts_to_json):
+        canonical_facts = {
+            "insights_id": str(uuid4()),
+            "rhel_machine_id": str(uuid4()),
+            "subscription_manager_id": str(uuid4()),
+            "satellite_id": str(uuid4()),
+            "bios_uuid": str(uuid4()),
+            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+            "fqdn": "some fqdn",
+            "mac_addresses": ["c2:00:d0:c8:61:01"],
+            "external_id": "i-05d2313e6b9a42b16",
         }
-        self.assertEqual(expected, actual)
+        canonical_facts_to_json.return_value = canonical_facts
+        facts_to_json.return_value = []
 
-        canonical_facts_to_json.assert_called_once_with(host_init_data["canonical_facts"])
-        facts_to_json.assert_called_once_with(host_init_data["facts"])
+        raw_values = {"display_name": "some display name", "ansible_host": "", "account": "some account"}
+        saved_values = self._generate_host_saved_values()
+        host = ModelsHost(canonical_facts=canonical_facts, **raw_values, facts={}, **saved_values)
+
+        serialized = SerializationHost.to_json(host)
+        self.assertIn("ansible_host", serialized)
+        self.assertIsNotNone(serialized["ansible_host"])
+        self.assertEqual("", serialized["ansible_host"])
 
 
 class SerializationHostToSystemProfileJsonTestCase(TestCase):
