@@ -12,12 +12,15 @@ logger = get_logger(__name__)
 
 
 def create_event_producer(config, producer_type):
-    logger.info("Creating event producer type:%s" % producer_type)
-    return EventProducer(config)
+    if producer_type == "kafka":
+        return KafkaEventProducer(config)
+    else:
+        return NullEventProducer()
 
 
-class EventProducer:
+class KafkaEventProducer:
     def __init__(self, config):
+        logger.info("Starting KafkaEventProducer()")
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
         self._topic = config.host_egress_topic
 
@@ -35,6 +38,15 @@ class EventProducer:
         except Exception:
             logger.exception("Failed to send event")
             metrics.egress_message_handler_failure.inc()
+
+
+class NullEventProducer:
+    def __init__(self):
+        logger.info("Starting NullEventProducer()")
+
+    def write_event(self, event):
+        logger.debug("NullEventProducer - logging event: %s" % event)
+
 
 def build_event(event_type, host, metadata):
     if event_type in ("created", "updated"):

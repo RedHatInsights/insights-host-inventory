@@ -25,7 +25,7 @@ def main():
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0,10))
 
-    event_producer = create_event_producer(config, "live_ammo")
+    event_producer = create_event_producer(config, "kafka")
 
     event_loop(consumer, application, event_producer)
 
