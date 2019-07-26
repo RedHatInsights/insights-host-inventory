@@ -5,6 +5,7 @@ from kafka import KafkaProducer
 from marshmallow import Schema, fields
 
 from app.logging import get_logger
+from app.queue import metrics
 
 
 logger = get_logger(__name__)
@@ -22,9 +23,18 @@ class EventProducer:
 
     def write_event(self, event):
         logger.debug("Topic: %s => %s" % (self._topic, event))
-        json_event = json.dumps(event)
-        self._kafka_producer.send(self._topic, value=json_event.encode("utf-8"))
 
+        event_json = None
+
+        with metrics.egress_event_serialization_time.time():
+            event_json = json.dumps(event)
+
+        try:
+            self._kafka_producer.send(self._topic, value=event_json.encode("utf-8"))
+            metrics.egress_message_handler_success.inc()
+        except Exception:
+            logger.exception("Failed to send event")
+            metrics.egress_message_handler_failure.inc()
 
 def build_event(event_type, host, metadata):
     if event_type in ("created", "updated"):
