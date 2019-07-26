@@ -3,6 +3,7 @@ from datetime import timezone
 from marshmallow import ValidationError
 
 from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host as Host
 from app.models import HostSchema
@@ -32,16 +33,21 @@ def deserialize_host(raw_data):
         raise ValidationException(str(e.messages)) from None
 
     canonical_facts = _deserialize_canonical_facts(validated_data)
+    if not canonical_facts:
+        raise InventoryException(
+            title="Invalid request", detail="At least one of the canonical fact fields must be present."
+        )
+
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
     return Host(
-        canonical_facts,
-        validated_data.get("display_name"),
-        validated_data.get("ansible_host"),
-        validated_data.get("account"),
-        facts,
-        tags,
-        validated_data.get("system_profile", {}),
+        canonical_facts=canonical_facts,
+        display_name=validated_data.get("display_name") or None,
+        ansible_host=validated_data.get("ansible_host"),  # Empty string allows a user to clear out
+        account=validated_data.get("account"),
+        facts=facts,
+        tags=tags,
+        system_profile_facts=validated_data.get("system_profile") or {},
     )
 
 

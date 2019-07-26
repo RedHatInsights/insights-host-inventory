@@ -77,35 +77,6 @@ class Host(db.Model):
     stale_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
 
-    def __init__(
-        self,
-        canonical_facts,
-        display_name=None,
-        ansible_host=None,
-        account=None,
-        facts=None,
-        tags=None,
-        system_profile_facts=None,
-    ):
-
-        if not canonical_facts:
-            raise InventoryException(
-                title="Invalid request", detail="At least one of the canonical fact fields must be present."
-            )
-
-        self.canonical_facts = canonical_facts
-
-        if display_name:
-            # Only set the display_name field if input the display_name has
-            # been set...this will make it so that the "default" logic will
-            # get called during the save to fill in an empty display_name
-            self.display_name = display_name
-        self._update_ansible_host(ansible_host)
-        self.account = account
-        self.facts = facts
-        self.tags = tags
-        self.system_profile_facts = system_profile_facts or {}
-
     def save(self):
         db.session.add(self)
 

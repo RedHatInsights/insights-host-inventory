@@ -11,7 +11,7 @@ ACCOUNT_NUMBER = "000102"
 
 
 def create_host(canonical_facts):
-    host = Host(canonical_facts, display_name=None, account=ACCOUNT_NUMBER)
+    host = Host(canonical_facts=canonical_facts, display_name=None, account=ACCOUNT_NUMBER)
     db.session.add(host)
     db.session.commit()
     return host
