@@ -78,5 +78,6 @@ class Config:
                 self.logger.info("Path to certificate: %s", self._db_ssl_cert)
             self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
             self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
+            self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
             self.logger.info("Kafka Consumer Group: %s" % self.consumer_group)
             self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
