@@ -54,9 +54,11 @@ def add_host(host_data):
     except InventoryException as e:
         logger.exception("Error adding host ", extra={"host": host_data})
         metrics.add_host_failure.inc()
+        raise
     except Exception as e:
         logger.exception("Error while adding host", extra={"host": host_data})
         metrics.add_host_failure.inc()
+        raise
 
 
 def handle_message(message, event_producer):
