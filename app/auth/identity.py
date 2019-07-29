@@ -1,9 +1,9 @@
 import os
-
 from base64 import b64decode
 from json import loads
 
-from app.logging import get_logger, threadctx
+from app.logging import get_logger
+from app.logging import threadctx
 
 
 __all__ = ["Identity", "from_auth_header", "from_bearer_token", "validate"]
@@ -55,7 +55,7 @@ def validate(identity):
         # a warning should go into the Config class
         shared_secret = os.getenv(SHARED_SECRET_ENV_VAR)
         if not shared_secret:
-            logger.warning(f"{SHARED_SECRET_ENV_VAR} environment variable is not set")
+            logger.warning(f"%s environment variable is not set", SHARED_SECRET_ENV_VAR)
         if identity.token != shared_secret:
             raise ValueError("Invalid credentials")
     else:

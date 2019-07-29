@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-
 import argparse
 import pprint
-import os
 
 from app import create_app
 from app.models import Host as ModelsHost
@@ -10,21 +8,16 @@ from app.serialization import Host as SerializationHost
 
 application = create_app("cli")
 
-parser = argparse.ArgumentParser(description="Util that dumps a host from the hosts table."
-        "  The db configuration is read from the environment.  This util is expected to be"
-        " used within the image/pod")
+parser = argparse.ArgumentParser(
+    description="Util that dumps a host from the hosts table.  The db configuration is read from the environment.  "
+    "This util is expected to be used within the image/pod."
+)
 group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument("--id",
-                   help="search for a host using id")
-group.add_argument("--hostname",
-                   help="search for a host using display_name, fqdn")
-group.add_argument("--insights_id",
-                   help="search for a host using insights_id")
-group.add_argument("--account_number",
-                   help="dump all hosts associated with account")
-parser.add_argument("--no-pp",
-                    help="enable pretty printing",
-                    action="store_true")
+group.add_argument("--id", help="search for a host using id")
+group.add_argument("--hostname", help="search for a host using display_name, fqdn")
+group.add_argument("--insights_id", help="search for a host using insights_id")
+group.add_argument("--account_number", help="dump all hosts associated with account")
+parser.add_argument("--no-pp", help="enable pretty printing", action="store_true")
 args = parser.parse_args()
 
 with application.app_context():
@@ -33,24 +26,20 @@ with application.app_context():
     if args.id:
         host_id_list = [args.id]
         print("looking up host using id")
-        query_results = ModelsHost.query.filter(
-                ModelsHost.id.in_(host_id_list)
-                    ).all()
+        query_results = ModelsHost.query.filter(ModelsHost.id.in_(host_id_list)).all()
     elif args.hostname:
         print("looking up host using display_name, fqdn")
         query_results = ModelsHost.query.filter(
             ModelsHost.display_name.comparator.contains(args.hostname)
             | ModelsHost.canonical_facts['fqdn'].astext.contains(args.hostname)
-                    ).all()
+        ).all()
     elif args.insights_id:
         print("looking up host using insights_id")
         query_results = ModelsHost.query.filter(
-                ModelsHost.canonical_facts.comparator.contains({'insights_id':args.insights_id})
-                    ).all()
+            ModelsHost.canonical_facts.comparator.contains({'insights_id': args.insights_id})
+        ).all()
     elif args.account_number:
-        query_results = ModelsHost.query.filter(
-            ModelsHost.account == args.account_number
-                ).all()
+        query_results = ModelsHost.query.filter(ModelsHost.account == args.account_number).all()
 
     json_host_list = [SerializationHost.to_json(host) for host in query_results]
 

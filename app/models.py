@@ -1,12 +1,20 @@
 import uuid
-
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import orm, Index, text
 
-from app.exceptions import InventoryException, InputFormatException
+from flask_sqlalchemy import SQLAlchemy
+from marshmallow import fields
+from marshmallow import Schema
+from marshmallow import validate
+from marshmallow import validates
+from marshmallow import ValidationError
+from sqlalchemy import Index
+from sqlalchemy import orm
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import verify_uuid_format
 
@@ -23,26 +31,27 @@ def _set_display_name_on_save(context):
     the id exists and can be used as the display_name if necessary.
     """
     params = context.get_current_parameters()
-    if not params['display_name']:
-        return params["canonical_facts"].get("fqdn") or params['id']
+    if not params["display_name"]:
+        return params["canonical_facts"].get("fqdn") or params["id"]
 
 
 class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
     # alembic autogenerate functionality does not try to remove the indexes
-    __table_args__ = (Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-                      Index("idxgincanonicalfacts", "canonical_facts"),
-                      Index("idxaccount", "account"),)
+    __table_args__ = (
+        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+        Index("idxgincanonicalfacts", "canonical_facts"),
+        Index("idxaccount", "account"),
+        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+    )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    modified_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -59,9 +68,9 @@ class Host(db.Model):
     ):
 
         if not canonical_facts:
-            raise InventoryException(title="Invalid request",
-                                     detail="At least one of the canonical "
-                                     "fact fields must be present.")
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
 
         self.canonical_facts = canonical_facts
 
@@ -91,12 +100,10 @@ class Host(db.Model):
             self._update_system_profile(input_host.system_profile)
 
     def patch(self, patch_data):
-        logger.debug("patching host (id=%s) with data: %s" %
-                     (self.id, patch_data))
+        logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
         if not patch_data:
-            raise InventoryException(title="Bad Request",
-                                     detail="Patch json document cannot be empty.")
+            raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
         self._update_ansible_host(patch_data.get("ansible_host"))
 
@@ -119,12 +126,14 @@ class Host(db.Model):
                 self.display_name = self.id
 
     def update_canonical_facts(self, canonical_facts):
-        logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
-                      " with input canonical_facts=%s")
-                     % (self.id, self.canonical_facts, canonical_facts))
+        logger.debug(
+            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
+            self.id,
+            self.canonical_facts,
+            canonical_facts
+        )
         self.canonical_facts.update(canonical_facts)
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)"
-                     % (self.id, self.canonical_facts))
+        logger.debug("Host (id=%s) has updated canonical_facts (%s)" , self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
@@ -152,22 +161,18 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_system_profile(self, input_system_profile):
-        logger.debug("Updating host's (id=%s) system profile" % (self.id))
+        logger.debug("Updating host's (id=%s) system profile", self.id)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
             # Update the fields that were passed in
-            self.system_profile_facts = {**self.system_profile_facts,
-                                         **input_system_profile}
+            self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
-        tmpl = "<Host id='%s' account='%s' display_name='%s' canonical_facts=%s>"
-        return tmpl % (
-            self.id,
-            self.account,
-            self.display_name,
-            self.canonical_facts,
+        return (
+            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
+            f"canonical_facts={self.canonical_facts}>"
         )
 
 
@@ -243,18 +248,15 @@ class FactsSchema(Schema):
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
-    account = fields.Str(required=True,
-                         validate=validate.Length(min=1, max=10))
+    account = fields.Str(required=True, validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
-    mac_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
+    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
+    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Nested(SystemProfileSchema)

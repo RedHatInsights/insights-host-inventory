@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-
 from contextlib import contextmanager
+from os import getenv
+from os import putenv
 from subprocess import run
-from os import getenv, putenv
 from tempfile import TemporaryDirectory
 
 
 PROMETHEUS_ENV_VAR = "prometheus_multiproc_dir"
-LISTEN_PORT = getenv('LISTEN_PORT', 8080)
+LISTEN_PORT = getenv("LISTEN_PORT", 8080)
 
 
 @contextmanager
