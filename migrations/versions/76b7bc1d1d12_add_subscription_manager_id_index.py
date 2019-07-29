@@ -17,10 +17,9 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index("hosts_subscription_manager_id_index",
-                    "hosts",
-                    [sa.text("(canonical_facts ->> 'subscription_manager_id')")]
-                    )
+    op.create_index(
+        "hosts_subscription_manager_id_index", "hosts", [sa.text("(canonical_facts ->> 'subscription_manager_id')")]
+    )
 
 
 def downgrade():

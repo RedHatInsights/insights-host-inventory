@@ -24,9 +24,10 @@ def configure_logging(config_name):
             fh = open(log_config_file)
             fh.close()
         except FileNotFoundError:
-            print("Error reading the logging configuration file.  "
-                  f"Verify the {env_var_name} environment variable is set "
-                  "correctly. Aborting...")
+            print(
+                f"Error reading the logging configuration file.  Verify the {env_var_name} environment variable is "
+                "set correctly. Aborting..."
+            )
             raise
 
         logging.config.fileConfig(fname=log_config_file)
@@ -45,14 +46,16 @@ def _configure_watchtower_logging_handler():
 
     if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
-        boto3_session = Session(aws_access_key_id=aws_access_key_id,
-                                aws_secret_access_key=aws_secret_access_key,
-                                region_name=aws_region_name)
+        boto3_session = Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region_name,
+        )
 
         root = logging.getLogger()
-        handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
-                                                  log_group=log_group,
-                                                  stream_name=stream_name)
+        handler = watchtower.CloudWatchLogHandler(
+            boto3_session=boto3_session, log_group=log_group, stream_name=stream_name
+        )
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
     else:

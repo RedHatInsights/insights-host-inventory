@@ -55,10 +55,11 @@ def test_find_host_using_insights_id_match(flask_app_fixture):
     canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
 
     # Change the canonical facts except the insights_id...match on insights_id
-    search_canonical_facts = {"fqdn": "barney",
-                              "bios_uuid": generate_uuid(),
-                              "insights_id": canonical_facts["insights_id"],
-                              }
+    search_canonical_facts = {
+        "fqdn": "barney",
+        "bios_uuid": generate_uuid(),
+        "insights_id": canonical_facts["insights_id"],
+    }
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
