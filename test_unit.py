@@ -1,23 +1,26 @@
 #!/usr/bin/env python
-
-from api import api_operation
-from api.host import _params_to_order_by, _order_how
-from app.config import Config
-from app.auth.identity import (Identity,
-                               validate,
-                               from_auth_header,
-                               from_bearer_token,
-                               SHARED_SECRET_ENV_VAR)
-from app.exceptions import InputFormatException
-from app.models import Host as ModelsHost
-from app.serialization import CanonicalFacts, Facts, Host as SerializationHost
 from base64 import b64encode
 from datetime import datetime
 from json import dumps
 from random import choice
-from unittest import main, TestCase
-from unittest.mock import Mock, patch
+from unittest import main
+from unittest import TestCase
+from unittest.mock import Mock
+from unittest.mock import patch
 from uuid import uuid4
+
+from api import api_operation
+from api.host import _order_how
+from api.host import _params_to_order_by
+from app.auth.identity import from_auth_header
+from app.auth.identity import from_bearer_token
+from app.auth.identity import Identity
+from app.auth.identity import SHARED_SECRET_ENV_VAR
+from app.auth.identity import validate
+from app.config import Config
+from app.exceptions import InputFormatException
+from app.models import Host as ModelsHost
+from app.serialization import CanonicalFacts, Facts, Host as SerializationHost
 from test_utils import set_environment
 
 
@@ -26,6 +29,7 @@ class ApiOperationTestCase(TestCase):
     Test the API operation decorator that increments the request counter with every
     call.
     """
+
     @patch("api.api_request_count.inc")
     def test_counter_is_incremented(self, inc):
         @api_operation
@@ -63,7 +67,7 @@ class AuthIdentityConstructorTestCase(TestCase):
         return Identity(account_number="some number")
 
 
-class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
@@ -78,9 +82,11 @@ class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
 
         identity_data = expected_identity._asdict()
 
-        identity_data_dicts = [identity_data,
-                               # Test with extra data in the identity dict
-                               {**identity_data, **{"extra_data": "value"}}, ]
+        identity_data_dicts = [
+            identity_data,
+            # Test with extra data in the identity dict
+            {**identity_data, **{"extra_data": "value"}},
+        ]
 
         for identity_data in identity_data_dicts:
             with self.subTest(identity_data=identity_data):
@@ -189,7 +195,6 @@ class TrustedIdentityTestCase(TestCase):
 
 
 class ConfigTestCase(TestCase):
-
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
         path_prefix = "r/slaterock/platform"
@@ -197,15 +202,17 @@ class ConfigTestCase(TestCase):
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
-        new_env = {"INVENTORY_DB_USER": "fredflintstone",
-                "INVENTORY_DB_PASS": "bedrock1234",
-                "INVENTORY_DB_HOST": "localhost",
-                "INVENTORY_DB_NAME": "SlateRockAndGravel",
-                "INVENTORY_DB_POOL_TIMEOUT": "3",
-                "INVENTORY_DB_POOL_SIZE": "8",
-                "APP_NAME": app_name,
-                "PATH_PREFIX": path_prefix,
-                "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix, }
+        new_env = {
+            "INVENTORY_DB_USER": "fredflintstone",
+            "INVENTORY_DB_PASS": "bedrock1234",
+            "INVENTORY_DB_HOST": "localhost",
+            "INVENTORY_DB_NAME": "SlateRockAndGravel",
+            "INVENTORY_DB_POOL_TIMEOUT": "3",
+            "INVENTORY_DB_POOL_SIZE": "8",
+            "APP_NAME": app_name,
+            "PATH_PREFIX": path_prefix,
+            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix,
+        }
 
         with set_environment(new_env):
 
@@ -241,7 +248,6 @@ class ConfigTestCase(TestCase):
 
 
 class HostOrderHowTestCase(TestCase):
-
     def test_asc(self):
         column = Mock()
         result = _order_how(column, "ASC")
@@ -263,7 +269,6 @@ class HostOrderHowTestCase(TestCase):
 @patch("api.host._order_how")
 @patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
-
     def test_default_is_updated_desc(self, modified_on, order_how):
         actual = _params_to_order_by(None, None)
         expected = (modified_on.desc.return_value,)
@@ -290,7 +295,7 @@ class HostParamsToOrderByTestCase(TestCase):
 
     @patch("api.host.Host.display_name")
     def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
-        actual = _params_to_order_by("display_name",)
+        actual = _params_to_order_by("display_name")
         expected = (display_name.asc.return_value, modified_on.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
@@ -311,7 +316,6 @@ class HostParamsToOrderByTestCase(TestCase):
 
 
 class HostParamsToOrderByErrorsTestCase(TestCase):
-
     def test_order_by_bad_field_raises_error(self):
         with self.assertRaises(ValueError):
             _params_to_order_by(Mock(), "fqdn")

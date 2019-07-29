@@ -34,9 +34,7 @@ class Host:
 
     @classmethod
     def to_system_profile_json(cls, host):
-        json_dict = {"id": str(host.id),
-            "system_profile": host.system_profile_facts or {}
-        }
+        json_dict = {"id": str(host.id), "system_profile": host.system_profile_facts or {}}
         return json_dict
 
 
@@ -104,14 +102,14 @@ class Facts:
                     fact_dict[fact["namespace"]] = fact["facts"]
             else:
                 # The facts from the request are formatted incorrectly
-                raise InputFormatException("Invalid format of Fact object.  Fact "
-                                           "must contain 'namespace' and 'facts' keys.")
+                raise InputFormatException(
+                    "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
+                )
         return fact_dict
 
     @staticmethod
     def to_json(fact_dict):
         fact_list = [
-            {"namespace": namespace, "facts": facts if facts else {}}
-            for namespace, facts in fact_dict.items()
+            {"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in fact_dict.items()
         ]
         return fact_list

@@ -89,7 +89,7 @@ care about the Prometheus temp directory or to set the
 _prometheus_multiproc_dir_ environment variable. This is done automatically.
 
 ```
-python run_gunicorn.py 
+python run_gunicorn.py
 ```
 
 
@@ -129,7 +129,7 @@ from inside of the deployment cluster.
 * _/health_ responds with _200_ to any GET requests, point your liveness
   or readiness probe here.
 * _/metrics_ offers metrics and monitoring intended to be pulled by
-  [Prometheus](https://prometheus.io). 
+  [Prometheus](https://prometheus.io).
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
@@ -245,3 +245,18 @@ This is the Base64 encoding of the following JSON document:
 ```json
 {"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
 ```
+
+## Contributing
+
+This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
+[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+afterwards. Other formats and text files are linted as well.
+
+Install pre-commit hooks to your local repository by running:
+
+```bash
+$ pre-commit install
+```
+
+After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
+make sure all checks pass before submitting a pull request. Thanks!

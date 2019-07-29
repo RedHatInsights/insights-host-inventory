@@ -1,16 +1,22 @@
-import logging
-
 from enum import Enum
 from marshmallow import ValidationError
 
-from app.exceptions import InventoryException, ValidationException
+from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models import db, Host as ModelsHost, HostSchema
+from app.models import db
+from app.models import Host
+from app.models import HostSchema
 from app.serialization import Host as SerializationHost
 from lib import metrics
 
 # FIXME:  rename this
 AddHostResults = Enum("AddHostResults", ["created", "updated"])
+
+# These are the "elevated" canonical facts that are
+# given priority in the host deduplication process.
+# NOTE: The order of this tuple is important.  The order defines
+# the priority.
+ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 
 
 logger = get_logger(__name__)
@@ -42,42 +48,34 @@ def add_host(host, update_system_profile=True):
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(account_number, canonical_facts):
-    existing_host = None
-    insights_id = canonical_facts.get("insights_id", None)
-
-    if insights_id:
-        # The insights_id is the most important canonical fact.  If there
-        # is a matching insights_id, then update that host.
-        existing_host = find_host_by_insights_id(account_number, insights_id)
+    existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
 
     if not existing_host:
-        existing_host = find_host_by_canonical_facts(account_number,
-                                                     canonical_facts)
+        existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
 
     return existing_host
 
 
-def find_host_by_insights_id(account_number, insights_id):
-    existing_host = ModelsHost.query.filter(
-            (ModelsHost.account == account_number)
-            & (ModelsHost.canonical_facts["insights_id"].astext == insights_id)
-        ).first()
+@metrics.find_host_using_elevated_ids.time()
+def _find_host_by_elevated_ids(account_number, canonical_facts):
+    for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
+        cf_value = canonical_facts.get(elevated_cf_name)
+        if cf_value:
+            existing_host = find_host_by_canonical_facts(account_number, {elevated_cf_name: cf_value})
+            if existing_host:
+                return existing_host
 
-    if existing_host:
-        logger.debug("Found existing host using id match: %s", existing_host)
-
-    return existing_host
+    return None
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
-    return ModelsHost.query.filter(
-        (ModelsHost.account == account_number)
+    return Host.query.filter(
+        (Host.account == account_number)
         & (
-            ModelsHost.canonical_facts.comparator.contains(canonical_facts)
-            | ModelsHost.canonical_facts.comparator.contained_by(canonical_facts)
+            Host.canonical_facts.comparator.contains(canonical_facts)
+            | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
-
 
 def find_host_by_canonical_facts(account_number, canonical_facts):
     """
@@ -99,7 +97,7 @@ def create_new_host(input_host):
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
-    logger.debug("Created host:%s" % input_host)
+    logger.debug("Created host:%s", input_host)
     return SerializationHost.to_json(input_host), AddHostResults.created
 
 
@@ -109,6 +107,5 @@ def update_existing_host(existing_host, input_host, update_system_profile):
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
-    logger.debug("Updated host:%s" % existing_host)
+    logger.debug("Updated host:%s", existing_host)
     return SerializationHost.to_json(existing_host), AddHostResults.updated
-
