@@ -104,8 +104,8 @@ class Host(db.Model):
         json_dict["display_name"] = self.display_name
         json_dict["ansible_host"] = self.ansible_host
         json_dict["facts"] = Facts.to_json(self.facts)
-        json_dict["created"] = self.created_on.isoformat()+"Z"
-        json_dict["updated"] = self.modified_on.isoformat()+"Z"
+        json_dict["created"] = self.created_on.isoformat() + "Z"
+        json_dict["updated"] = self.modified_on.isoformat() + "Z"
         return json_dict
 
     def to_system_profile_json(self):

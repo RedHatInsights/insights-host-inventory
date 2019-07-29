@@ -589,7 +589,7 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_with_ansible_host(self):
         # Create a host with ansible_host field
         host_data = HostWrapper(test_data(facts=None))
-        host_data.ansible_host = "ansible_host_"+generate_uuid()
+        host_data.ansible_host = "ansible_host_" + generate_uuid()
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -998,7 +998,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         host = test_data(display_name="host1", facts=facts)
 
-        cloud_providers = ["cumulonimbus", "cumulus", "c"*100]
+        cloud_providers = ["cumulonimbus", "cumulus", "c" * 100]
 
         for cloud_provider in cloud_providers:
             with self.subTest(cloud_provider=cloud_provider):
