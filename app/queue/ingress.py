@@ -22,7 +22,7 @@ class OperationSchema(Schema):
 def parse_operation_message(message):
     try:
         parsed_message = json.loads(message.value)
-    except Exception as e:
+    except Exception:
         # The "extra" dict cannot have a key named "msg" or "message"
         # otherwise an exception in thrown in the logging code
         logger.exception("Unable to parse json message from message queue",
@@ -32,11 +32,11 @@ def parse_operation_message(message):
 
     try:
         parsed_operation = OperationSchema(strict=True).load(parsed_message).data
-    except ValidationError as e:
+    except ValidationError:
         logger.error("Input validation error while parsing operation message", extra={"operation": parsed_message})  # logger.error is used to avoid printing out the same traceback twice
         metrics.ingress_message_parsing_failure.inc()
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Error parsing operation message", extra={"operation": parsed_message})
         metrics.ingress_message_parsing_failure.inc()
         raise
@@ -51,11 +51,11 @@ def add_host(host_data):
         metrics.add_host_success.inc()
         logger.info("Host added") # This definitely needs to be more specific (added vs updated?)
         return (output_host, add_results)
-    except InventoryException as e:
+    except InventoryException:
         logger.exception("Error adding host ", extra={"host": host_data})
         metrics.add_host_failure.inc()
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Error while adding host", extra={"host": host_data})
         metrics.add_host_failure.inc()
         raise
