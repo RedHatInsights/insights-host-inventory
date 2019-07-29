@@ -10,12 +10,10 @@ def test_valid_uuid(uuid):
     assert verify_uuid_format(uuid) is True
 
 
-@pytest.mark.parametrize("uuid", ["123456",
-                                  "",
-                                  "4a8fb994-57fe-4dbb-ad2a-9e922560b6c1DEADBEEF",
-                                  "4a8fb99457fe4dbbad2a9e922560b6c1DEADBEEF",
-                                  None,
-                                  ])
+@pytest.mark.parametrize(
+    "uuid",
+    ["123456", "", "4a8fb994-57fe-4dbb-ad2a-9e922560b6c1DEADBEEF", "4a8fb99457fe4dbbad2a9e922560b6c1DEADBEEF", None],
+)
 def test_invalid_uuid(uuid):
     assert not verify_uuid_format(uuid)
 

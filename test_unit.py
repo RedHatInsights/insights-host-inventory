@@ -76,9 +76,11 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 
         identity_data = expected_identity._asdict()
 
-        identity_data_dicts = [identity_data,
-                               # Test with extra data in the identity dict
-                               {**identity_data, **{"extra_data": "value"}}]
+        identity_data_dicts = [
+            identity_data,
+            # Test with extra data in the identity dict
+            {**identity_data, **{"extra_data": "value"}},
+        ]
 
         for identity_data in identity_data_dicts:
             with self.subTest(identity_data=identity_data):

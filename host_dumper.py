@@ -8,9 +8,8 @@ from app.models import Host
 application = create_app("cli")
 
 parser = argparse.ArgumentParser(
-    description="Util that dumps a host from the hosts table."
-                "  The db configuration is read from the environment."
-                "  This util is expected to be used within the image/pod."
+    description="Util that dumps a host from the hosts table.  The db configuration is read from the environment.  "
+    "This util is expected to be used within the image/pod."
 )
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--id", help="search for a host using id")
@@ -30,14 +29,14 @@ with application.app_context():
     elif args.hostname:
         print("looking up host using display_name, fqdn")
         query_results = Host.query.filter(
-                Host.display_name.comparator.contains(args.hostname)
-                | Host.canonical_facts['fqdn'].astext.contains(args.hostname)
-                    ).all()
+            Host.display_name.comparator.contains(args.hostname)
+            | Host.canonical_facts['fqdn'].astext.contains(args.hostname)
+        ).all()
     elif args.insights_id:
         print("looking up host using insights_id")
         query_results = Host.query.filter(
-                Host.canonical_facts.comparator.contains({'insights_id': args.insights_id})
-                    ).all()
+            Host.canonical_facts.comparator.contains({'insights_id': args.insights_id})
+        ).all()
     elif args.account_number:
         query_results = Host.query.filter(Host.account == args.account_number).all()
 

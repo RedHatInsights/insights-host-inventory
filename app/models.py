@@ -39,12 +39,12 @@ class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
     # alembic autogenerate functionality does not try to remove the indexes
-    __table_args__ = (Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-                      Index("idxgincanonicalfacts", "canonical_facts"),
-                      Index("idxaccount", "account"),
-                      Index("hosts_subscription_manager_id_index",
-                            text("(canonical_facts ->> 'subscription_manager_id')")),
-                      )
+    __table_args__ = (
+        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+        Index("idxgincanonicalfacts", "canonical_facts"),
+        Index("idxaccount", "account"),
+        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+    )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -69,7 +69,7 @@ class Host(db.Model):
 
         if not canonical_facts:
             raise InventoryException(
-                title="Invalid request", detail="At least one of the canonical " "fact fields must be present."
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
 
         self.canonical_facts = canonical_facts
@@ -265,8 +265,9 @@ class Facts:
                     fact_dict[fact["namespace"]] = fact["facts"]
             else:
                 # The facts from the request are formatted incorrectly
-                raise InputFormatException("Invalid format of Fact object.  Fact "
-                                           "must contain 'namespace' and 'facts' keys.")
+                raise InputFormatException(
+                    "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
+                )
         return fact_dict
 
     @staticmethod
