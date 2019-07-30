@@ -1,5 +1,3 @@
-from __future__ import with_statement
-
 import logging
 from logging.config import fileConfig
 
@@ -78,7 +76,7 @@ def run_migrations_online():
         connection=connection,
         target_metadata=target_metadata,
         process_revision_directives=process_revision_directives,
-        **current_app.extensions["migrate"].configure_args
+        **current_app.extensions["migrate"].configure_args,
     )
 
     try:

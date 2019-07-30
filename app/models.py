@@ -130,10 +130,10 @@ class Host(db.Model):
             "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
             self.id,
             self.canonical_facts,
-            canonical_facts
+            canonical_facts,
         )
         self.canonical_facts.update(canonical_facts)
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)" , self.id, self.canonical_facts)
+        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):

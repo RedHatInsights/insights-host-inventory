@@ -1,6 +1,7 @@
-import flask
 import time
 from functools import wraps
+
+import flask
 
 from api.metrics import api_request_count
 from app.logging import get_logger
