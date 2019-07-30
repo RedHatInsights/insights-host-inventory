@@ -22,8 +22,7 @@ delete_host_count = Counter("inventory_delete_host_count", "The total amount of 
 delete_host_processing_time = Summary(
     "inventory_delete_host_commit_seconds", "Time spent deleting hosts from the database"
 )
-login_failure_count = Counter("inventory_login_failure_count",
-                              "The total amount of failed login attempts")
+login_failure_count = Counter("inventory_login_failure_count", "The total amount of failed login attempts")
 system_profile_deserialization_time = Summary(
     "inventory_system_profile_deserialization_time", "Time spent deserializing system profile documents"
 )

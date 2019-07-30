@@ -70,7 +70,7 @@ def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
     # Change the bios_uuid so that falling back to subset match will fail
     search_canonical_facts = {
         "bios_uuid": generate_uuid(),
-        "subscription_manager_id": canonical_facts["subscription_manager_id"]
+        "subscription_manager_id": canonical_facts["subscription_manager_id"],
     }
 
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
