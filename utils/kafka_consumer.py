@@ -23,9 +23,7 @@ def msg_handler(parsed):
     # host.save()
 
 
-consumer = KafkaConsumer(
-    TOPIC, group_id=KAFKA_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS
-)
+consumer = KafkaConsumer(TOPIC, group_id=KAFKA_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
 
 logging.basicConfig(level=logging.INFO)
 

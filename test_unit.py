@@ -326,7 +326,6 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
 
 
 class SerializationHostFromJsonCompoundTestCase(TestCase):
-
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
@@ -348,21 +347,15 @@ class SerializationHostFromJsonCompoundTestCase(TestCase):
             **canonical_facts,
             **unchanged_input,
             "facts": [
-                {
-                    "namespace": "some namespace",
-                    "facts": {"some key": "some value"}
-                },
-                {
-                    "namespace": "another namespace",
-                    "facts": {"another key": "another value"}
-                }
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
             ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
                 "cores_per_socket": 3,
-                "system_memory_bytes": 4
-            }
+                "system_memory_bytes": 4,
+            },
         }
 
         actual = SerializationHost.from_json(input)
@@ -370,7 +363,7 @@ class SerializationHostFromJsonCompoundTestCase(TestCase):
             "canonical_facts": canonical_facts,
             **unchanged_input,
             "facts": {item["namespace"]: item["facts"] for item in input["facts"]},
-            "system_profile_facts": input["system_profile"]
+            "system_profile_facts": input["system_profile"],
         }
 
         self.assertIs(ModelsHost, type(actual))
@@ -394,7 +387,6 @@ class SerializationHostFromJsonCompoundTestCase(TestCase):
 @patch("app.serialization.Facts.from_json")
 @patch("app.serialization.CanonicalFacts.from_json")
 class SerializationHostFromJsonMockedTestCase(TestCase):
-
     def test_with_all_fields(self, canonical_facts_from_json, facts_from_json, models_host):
         input = {
             "display_name": "some display name",
@@ -411,14 +403,14 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             "external_id": "i-05d2313e6b9a42b16",
             "facts": {
                 "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"}
+                "another namespace": {"another key": "another value"},
             },
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
                 "cores_per_socket": 3,
-                "system_memory_bytes": 4
-            }
+                "system_memory_bytes": 4,
+            },
         }
 
         result = SerializationHost.from_json(input)
@@ -432,7 +424,7 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             input["ansible_host"],
             input["account"],
             facts_from_json.return_value,
-            input["system_profile"]
+            input["system_profile"],
         )
 
     def test_without_facts(self, canonical_facts_from_json, facts_from_json, models_host):
@@ -444,8 +436,8 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
                 "cores_per_socket": 3,
-                "system_memory_bytes": 4
-            }
+                "system_memory_bytes": 4,
+            },
         }
 
         result = SerializationHost.from_json(input)
@@ -459,7 +451,7 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             input["ansible_host"],
             input["account"],
             facts_from_json.return_value,
-            input["system_profile"]
+            input["system_profile"],
         )
 
     def test_without_display_name(self, canonical_facts_from_json, facts_from_json, models_host):
@@ -468,14 +460,14 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             "account": "some account",
             "facts": {
                 "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"}
+                "another namespace": {"another key": "another value"},
             },
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
                 "cores_per_socket": 3,
-                "system_memory_bytes": 4
-            }
+                "system_memory_bytes": 4,
+            },
         }
 
         result = SerializationHost.from_json(input)
@@ -489,7 +481,7 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             input["ansible_host"],
             input["account"],
             facts_from_json.return_value,
-            input["system_profile"]
+            input["system_profile"],
         )
 
     def test_without_system_profile(self, canonical_facts_from_json, facts_from_json, models_host):
@@ -499,8 +491,8 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             "account": "some account",
             "facts": {
                 "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"}
-            }
+                "another namespace": {"another key": "another value"},
+            },
         }
 
         result = SerializationHost.from_json(input)
@@ -514,7 +506,7 @@ class SerializationHostFromJsonMockedTestCase(TestCase):
             input["ansible_host"],
             input["account"],
             facts_from_json.return_value,
-            {}
+            {},
         )
 
 
@@ -525,7 +517,6 @@ class SerializationHostToJsonBaseTestCase(TestCase):
 
 
 class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
-
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
@@ -536,28 +527,24 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16"
+            "external_id": "i-05d2313e6b9a42b16",
         }
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account"
+            "account": "some account",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
             **unchanged_data,
             "facts": {
                 "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"}
-            }
+                "another namespace": {"another key": "another value"},
+            },
         }
         host = ModelsHost(**host_init_data)
 
-        host_attr_data = {
-            "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow()
-        }
+        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -566,32 +553,20 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             **canonical_facts,
             **unchanged_data,
             "facts": [
-                {"namespace": namespace, "facts": facts}
-                for namespace, facts in host_init_data["facts"].items()
+                {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"])
+            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {
-            "display_name": None,
-            "account": None
-        }
-        host_init_data = {
-            "canonical_facts": {"fqdn": "some fqdn"},
-            **unchanged_data,
-            "facts": {}
-        }
+        unchanged_data = {"display_name": None, "account": None}
+        host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
         host = ModelsHost(**host_init_data)
 
-        host_attr_data = {
-            "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow()
-        }
+        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -611,7 +586,7 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
             "facts": [],
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"])
+            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
         self.assertEqual(expected, actual)
 
@@ -619,42 +594,24 @@ class SerializationHostToJsonCompoundTestCase(SerializationHostToJsonBaseTestCas
 @patch("app.serialization.Facts.to_json")
 @patch("app.serialization.CanonicalFacts.to_json")
 class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase):
-
     def test_with_all_fields(self, canonical_facts_to_json, facts_to_json):
-        canonical_facts = {
-            "insights_id": str(uuid4()),
-            "fqdn": "some fqdn"
-        }
+        canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
         canonical_facts_to_json.return_value = canonical_facts
         facts = [
-            {
-                "namespace": "some namespace",
-                "facts": {"some key": "some value"}
-            },
-            {
-                "namespace": "another namespace",
-                "facts": {"another key": "another value"}
-            }
+            {"namespace": "some namespace", "facts": {"some key": "some value"}},
+            {"namespace": "another namespace", "facts": {"another key": "another value"}},
         ]
         facts_to_json.return_value = facts
 
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account"
+            "account": "some account",
         }
-        host_init_data = {
-            "canonical_facts": canonical_facts,
-            **unchanged_data,
-            "facts": facts
-        }
+        host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
         host = ModelsHost(**host_init_data)
 
-        host_attr_data = {
-            "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow()
-        }
+        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -665,29 +622,26 @@ class SerializationHostToJsonMockedTestCase(SerializationHostToJsonBaseTestCase)
             "facts": facts_to_json.return_value,
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
-            "updated": self._timestamp_to_str(host_attr_data["modified_on"])
+            "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
         }
         self.assertEqual(expected, actual)
 
-        canonical_facts_to_json.assert_called_once_with(
-            host_init_data["canonical_facts"]
-        )
+        canonical_facts_to_json.assert_called_once_with(host_init_data["canonical_facts"])
         facts_to_json.assert_called_once_with(host_init_data["facts"])
 
 
 class SerializationHostToSystemProfileJsonTestCase(TestCase):
-
     def test_non_empty_profile_is_not_changed(self):
         system_profile_facts = {
             "number_of_cpus": 1,
             "number_of_sockets": 2,
             "cores_per_socket": 3,
-            "system_memory_bytes": 4
+            "system_memory_bytes": 4,
         }
         host = ModelsHost(
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
-            system_profile_facts=system_profile_facts
+            system_profile_facts=system_profile_facts,
         )
         host.id = uuid4()
 
@@ -696,10 +650,7 @@ class SerializationHostToSystemProfileJsonTestCase(TestCase):
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
-        host = ModelsHost(
-            canonical_facts={"fqdn": "some fqdn"},
-            display_name="some display name"
-        )
+        host = ModelsHost(canonical_facts={"fqdn": "some fqdn"}, display_name="some display name")
         host.id = uuid4()
         host.system_profile_facts = None
 
@@ -709,7 +660,6 @@ class SerializationHostToSystemProfileJsonTestCase(TestCase):
 
 
 class SerializationCanonicalFactsFromJson(TestCase):
-
     def _format_uuid_without_hyphens(self, uuid_):
         return uuid_.hex
 
@@ -717,9 +667,7 @@ class SerializationCanonicalFactsFromJson(TestCase):
         return str(uuid_)
 
     def _randomly_formatted_uuid(self, uuid_):
-        transformation = choice((
-            self._format_uuid_without_hyphens, self._format_uuid_with_hyphens
-        ))
+        transformation = choice((self._format_uuid_without_hyphens, self._format_uuid_with_hyphens))
         return transformation(uuid_)
 
     def _randomly_formatted_sequence(self, seq):
@@ -733,11 +681,10 @@ class SerializationCanonicalFactsFromJson(TestCase):
             "subscription_manager_id": self._randomly_formatted_uuid(uuid4()),
             "satellite_id": self._randomly_formatted_uuid(uuid4()),
             "bios_uuid": self._randomly_formatted_uuid(uuid4()),
-            "ip_addresses":
-                self._randomly_formatted_sequence(("10.10.0.1", "10.10.0.2")),
+            "ip_addresses": self._randomly_formatted_sequence(("10.10.0.1", "10.10.0.2")),
             "fqdn": "some fqdn",
             "mac_addresses": self._randomly_formatted_sequence(("c2:00:d0:c8:61:01",)),
-            "external_id": "i-05d2313e6b9a42b16"
+            "external_id": "i-05d2313e6b9a42b16",
         }
         result = CanonicalFacts.from_json(input)
         self.assertEqual(result, input)
@@ -752,7 +699,7 @@ class SerializationCanonicalFactsFromJson(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16"
+            "external_id": "i-05d2313e6b9a42b16",
         }
         input = {**canonical_facts, "unknown": "something"}
         result = CanonicalFacts.from_json(input)
@@ -765,14 +712,13 @@ class SerializationCanonicalFactsFromJson(TestCase):
             "insights_id": "",
             "rhel_machine_id": None,
             "ip_addresses": [],
-            "mac_addresses": tuple()
+            "mac_addresses": tuple(),
         }
         result = CanonicalFacts.from_json(input)
         self.assertEqual(result, canonical_facts)
 
 
 class SerializationCanonicalFactsToJsonTestCase(TestCase):
-
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
@@ -783,7 +729,7 @@ class SerializationCanonicalFactsToJsonTestCase(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
-            "external_id": "i-05d2313e6b9a42b16"
+            "external_id": "i-05d2313e6b9a42b16",
         }
         self.assertEqual(canonical_facts, CanonicalFacts.to_json(canonical_facts))
 
@@ -797,71 +743,38 @@ class SerializationCanonicalFactsToJsonTestCase(TestCase):
             "ip_addresses",
             "fqdn",
             "mac_addresses",
-            "external_id"
+            "external_id",
         )
-        self.assertEqual(
-            {field: None for field in canonical_fact_fields}, CanonicalFacts.to_json({})
-        )
+        self.assertEqual({field: None for field in canonical_fact_fields}, CanonicalFacts.to_json({}))
 
 
 class SerializationFactsFromJsonTestCase(TestCase):
-
     def test_non_empty_namespaces_become_dict_items(self):
         input = [
-            {
-                "namespace": "first namespace",
-                "facts": {"first key": "first value", "second key": "second value"}
-            },
-            {
-                "namespace": "second namespace",
-                "facts": {"third key": "third value"}
-            }
+            {"namespace": "first namespace", "facts": {"first key": "first value", "second key": "second value"}},
+            {"namespace": "second namespace", "facts": {"third key": "third value"}},
         ]
-        self.assertEqual(
-            {item["namespace"]: item["facts"] for item in input}, Facts.from_json(input)
-        )
+        self.assertEqual({item["namespace"]: item["facts"] for item in input}, Facts.from_json(input))
 
     def test_empty_namespaces_remain_unchanged(self):
         for empty_facts in ({}, None):
             with self.subTest(empty_facts=empty_facts):
                 input = [
-                    {
-                        "namespace": "first namespace",
-                        "facts": {"first key": "first value"}
-                    },
-                    {
-                        "namespace": "second namespace",
-                        "facts": empty_facts
-                    }
+                    {"namespace": "first namespace", "facts": {"first key": "first value"}},
+                    {"namespace": "second namespace", "facts": empty_facts},
                 ]
-                self.assertEqual(
-                    {item["namespace"]: item["facts"] for item in input},
-                    Facts.from_json(input)
-                )
+                self.assertEqual({item["namespace"]: item["facts"] for item in input}, Facts.from_json(input))
 
     def test_duplicate_namespaces_are_merged(self):
         input = [
-            {
-                "namespace": "first namespace",
-                "facts": {"first key": "first value", "second key": "second value"}
-            },
-            {
-                "namespace": "second namespace",
-                "facts": {"third key": "third value"}
-            },
-            {
-                "namespace": "first namespace",
-                "facts": {"first key": "fourth value"}
-            }
+            {"namespace": "first namespace", "facts": {"first key": "first value", "second key": "second value"}},
+            {"namespace": "second namespace", "facts": {"third key": "third value"}},
+            {"namespace": "first namespace", "facts": {"first key": "fourth value"}},
         ]
         actual = Facts.from_json(input)
         expected = {
-            "first namespace": {
-                "first key": "fourth value", "second key": "second value"
-            },
-            "second namespace": {
-                "third key": "third value"
-            },
+            "first namespace": {"first key": "fourth value", "second key": "second value"},
+            "second namespace": {"third key": "third value"},
         }
         self.assertEqual(expected, actual)
 
@@ -873,57 +786,35 @@ class SerializationFactsFromJsonTestCase(TestCase):
             {"spacename": "second namespace", "facts": {"second key": "second value"}},
             {"namespace": "second namespace", "fact": {"second key": "second value"}},
             {"namespace": "second namespace"},
-            {}
+            {},
         )
         for invalid_item in invalid_items:
             with self.subTest(invalid_item=invalid_item):
-                input = [
-                    {
-                        "namespace": "first namespace",
-                        "facts": {"first key": "first value"}
-                    },
-                    invalid_item
-                ]
+                input = [{"namespace": "first namespace", "facts": {"first key": "first value"}}, invalid_item]
                 with self.assertRaises(InputFormatException):
                     Facts.from_json(input)
 
 
 class SerializationFactsToJsonTestCase(TestCase):
-
     def test_empty_dict_becomes_empty_list(self):
         self.assertEqual([], Facts.to_json({}))
 
     def test_non_empty_namespaces_become_list_of_dicts(self):
         facts = {
-            "first namespace": {
-                "first key": "first value",
-                "second key": "second value"
-            },
-            "second namespace": {
-                "third key": "third value"
-            }
+            "first namespace": {"first key": "first value", "second key": "second value"},
+            "second namespace": {"third key": "third value"},
         }
         self.assertEqual(
-            [
-                {"namespace": namespace, "facts": facts}
-                for namespace, facts in facts.items()
-            ],
-            Facts.to_json(facts)
+            [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()], Facts.to_json(facts)
         )
 
     def test_empty_namespaces_have_facts_as_empty_dicts(self):
         for empty_value in {}, None:
             with self.subTest(empty_value=empty_value):
-                facts = {
-                    "first namespace": empty_value,
-                    "second namespace": {"first key": "first value"}
-                }
+                facts = {"first namespace": empty_value, "second namespace": {"first key": "first value"}}
                 self.assertEqual(
-                    [
-                        {"namespace": namespace, "facts": facts or {}}
-                        for namespace, facts in facts.items()
-                    ],
-                    Facts.to_json(facts)
+                    [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()],
+                    Facts.to_json(facts),
                 )
 
 

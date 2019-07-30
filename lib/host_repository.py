@@ -37,8 +37,7 @@ def add_host(host, update_system_profile=True):
 
     input_host = SerializationHost.from_json(validated_input_host_dict.data)
 
-    existing_host = find_existing_host(input_host.account,
-                                       input_host.canonical_facts)
+    existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
 
     if existing_host:
         return update_existing_host(existing_host, input_host, update_system_profile)
@@ -76,6 +75,7 @@ def _canonical_facts_host_query(account_number, canonical_facts):
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
+
 
 def find_host_by_canonical_facts(account_number, canonical_facts):
     """

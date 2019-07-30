@@ -13,7 +13,7 @@ logger = get_logger("mq_service")
 
 
 def main():
-    config_name = os.getenv('APP_SETTINGS', "development")
+    config_name = os.getenv("APP_SETTINGS", "development")
     application = create_app(config_name, start_tasks=False)
     start_http_server(9126)
 
@@ -23,11 +23,13 @@ def main():
         config.host_ingress_topic,
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
-        api_version=(0,10))
+        api_version=(0, 10),
+    )
 
     event_producer = create_event_producer(config, "kafka")
 
     event_loop(consumer, application, event_producer)
+
 
 if __name__ == "__main__":
     main()

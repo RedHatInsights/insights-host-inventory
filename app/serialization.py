@@ -6,7 +6,6 @@ __all__ = ("Host", "CanonicalFacts", "Facts")
 
 
 class Host:
-
     @classmethod
     def from_json(cls, d):
         canonical_facts = CanonicalFacts.from_json(d)

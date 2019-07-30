@@ -41,11 +41,8 @@ def add_host_list(host_list):
             response_host_list.append({"status": status_code, "host": host})
         except ValidationException as e:
             number_of_errors += 1
-            logger.exception("Input validation error while adding host",
-                             extra={"host": host})
-            response_host_list.append({**e.to_json(),
-                                       "title": "Bad Request",
-                                       "host": host})
+            logger.exception("Input validation error while adding host", extra={"host": host})
+            response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
         except InventoryException as e:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})

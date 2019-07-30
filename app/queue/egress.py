@@ -62,13 +62,11 @@ def build_host_event(event_type, host, metadata):
     if "facts" in host:
         del host["facts"]
 
-    return HostEvent(strict=True).dumps(
-        {"type": event_type,
-         "host": host,
-         "metadata": metadata,
-         "timestamp": datetime.utcnow()
-        }
-        ).data
+    return (
+        HostEvent(strict=True)
+        .dumps({"type": event_type, "host": host, "metadata": metadata, "timestamp": datetime.utcnow()})
+        .data
+    )
 
 
 class HostSchema(Schema):
@@ -88,8 +86,8 @@ class HostSchema(Schema):
     facts = fields.Boolean()
     system_profile = fields.Boolean()
     # FIXME:
-    #created = fields.DateTime(format="iso8601")
-    #updated = fields.DateTime(format="iso8601")
+    # created = fields.DateTime(format="iso8601")
+    # updated = fields.DateTime(format="iso8601")
     # FIXME:
     created = fields.Str()
     updated = fields.Str()

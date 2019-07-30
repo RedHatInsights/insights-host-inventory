@@ -77,8 +77,10 @@ def create_app(config_name, start_tasks=False):
     if start_tasks:
         init_tasks(app_config, flask_app)
     else:
-        logger.warn("WARNING: The \"tasks\" subsystem has been disabled.  "
-                    "The message queue based system_profile consumer "
-                    "and message queue based event notifications have been disabled.")
+        logger.warn(
+            'WARNING: The "tasks" subsystem has been disabled.  '
+            "The message queue based system_profile consumer "
+            "and message queue based event notifications have been disabled."
+        )
 
     return flask_app

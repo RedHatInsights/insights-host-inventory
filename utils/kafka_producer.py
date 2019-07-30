@@ -54,14 +54,7 @@ def create_system_profile():
         "subscription_auto_attach": "yes",
         "katello_agent_running": False,
         "satellite_managed": False,
-        "yum_repos": [
-            {
-                "name": "repo1",
-                "gpgcheck": True,
-                "enabled": True,
-                "base_url": "http://rpms.redhat.com",
-            }
-        ],
+        "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
             {"name": "jbws", "id": "321", "status": "DOWN"},
@@ -85,19 +78,20 @@ host_id = "1d518fdd-341d-4286-803b-2507ca046a94"
 account_number = "0000001"
 fqdn = "fred.flintstone.com"
 
+
 def build_host_chunk():
     payload = {
-              "account": account_number,
-              "insights_id": str(uuid.uuid4()),
-              "bios_uuid": str(uuid.uuid4()),
-              "fqdn": fqdn,
-              "display_name": fqdn,
-              #"ip_addresses": None,
-              #"ip_addresses": ["1",],
-              #"mac_addresses": None,
-              "subscription_manager_id": str(uuid.uuid4()),
-              "system_profile": create_system_profile(),
-              }
+        "account": account_number,
+        "insights_id": str(uuid.uuid4()),
+        "bios_uuid": str(uuid.uuid4()),
+        "fqdn": fqdn,
+        "display_name": fqdn,
+        # "ip_addresses": None,
+        # "ip_addresses": ["1",],
+        # "mac_addresses": None,
+        "subscription_manager_id": str(uuid.uuid4()),
+        "system_profile": create_system_profile(),
+    }
     return payload
 
 
@@ -116,14 +110,10 @@ TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 
-metadata_dict = {"request_id": str(uuid.uuid4()),
-                 "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
+metadata_dict = {"request_id": str(uuid.uuid4()), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
 
 payload = build_chunk()
-payload = {"operation": "add_host",
-           "metadata": metadata_dict,
-           "data": build_host_chunk(),
-           }
+payload = {"operation": "add_host", "metadata": metadata_dict, "data": build_host_chunk()}
 
 print("type(payload)):", payload)
 producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
