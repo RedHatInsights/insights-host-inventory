@@ -40,8 +40,9 @@ def upgrade():
         "hosts",
         ["canonical_facts"],
         postgresql_ops={"canonical_facts": "jsonb_path_ops"},
-        postgresql_using="gin"
+        postgresql_using="gin",
     )
+
 
 # ### end Alembic commands ###
 

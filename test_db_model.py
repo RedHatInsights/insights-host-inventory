@@ -57,7 +57,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fix
     assert existing_host.display_name is None
 
     # Update the host
-    input_host = Host({"insights_id": insights_id}, display_name='')
+    input_host = Host({"insights_id": insights_id}, display_name="")
     existing_host.update(input_host)
 
     assert existing_host.display_name == expected_fqdn

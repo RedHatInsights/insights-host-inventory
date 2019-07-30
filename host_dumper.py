@@ -30,12 +30,12 @@ with application.app_context():
         print("looking up host using display_name, fqdn")
         query_results = Host.query.filter(
             Host.display_name.comparator.contains(args.hostname)
-            | Host.canonical_facts['fqdn'].astext.contains(args.hostname)
+            | Host.canonical_facts["fqdn"].astext.contains(args.hostname)
         ).all()
     elif args.insights_id:
         print("looking up host using insights_id")
         query_results = Host.query.filter(
-            Host.canonical_facts.comparator.contains({'insights_id': args.insights_id})
+            Host.canonical_facts.comparator.contains({"insights_id": args.insights_id})
         ).all()
     elif args.account_number:
         query_results = Host.query.filter(Host.account == args.account_number).all()
