@@ -943,7 +943,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         # List of tuples (system profile change, expected system profile)
         system_profiles = [
-            {"infrastructure_type": "i"*101, "infrastructure_vendor": "i"*101, "cloud_provider": "i"*101}
+            {"infrastructure_type": "i" * 101, "infrastructure_vendor": "i" * 101, "cloud_provider": "i" * 101}
         ]
 
         for system_profile in system_profiles:
@@ -1186,7 +1186,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         original_id = self.added_hosts[0].id
 
         invalid_data_list = [
-            {"ansible_host": "a"*256},
+            {"ansible_host": "a" * 256},
             {"ansible_host": None},
             {},
             {"display_name": None},
