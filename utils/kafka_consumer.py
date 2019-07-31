@@ -1,10 +1,10 @@
 import json
+import logging
 import os
+
 from kafka import KafkaConsumer
 
 # from app.models import Host, SystemProfileSchema
-
-import logging
 
 
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.inventory.host-egress")

@@ -20,7 +20,9 @@ from app.auth.identity import validate
 from app.config import Config
 from app.exceptions import InputFormatException
 from app.models import Host as ModelsHost
-from app.serialization import CanonicalFacts, Facts, Host as SerializationHost
+from app.serialization import CanonicalFacts
+from app.serialization import Facts
+from app.serialization import Host as SerializationHost
 from test_utils import set_environment
 
 

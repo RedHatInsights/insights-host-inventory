@@ -12,14 +12,15 @@ from api import metrics
 from app import db
 from app import events
 from app.auth import current_identity
-from app.exceptions import InventoryException, ValidationException
+from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import Host
 from app.models import PatchHostSchema
 from app.serialization import Host as SerializationHost
+from lib.host_repository import _canonical_facts_host_query
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
-from lib.host_repository import _canonical_facts_host_query
 from tasks import emit_event
 
 
@@ -47,7 +48,7 @@ def add_host_list(host_list):
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
             response_host_list.append({**e.to_json(), "host": host})
-        except Exception as e:
+        except Exception:
             number_of_errors += 1
             logger.exception("Error adding host", extra={"host": host})
             response_host_list.append(

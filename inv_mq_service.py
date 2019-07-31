@@ -1,13 +1,13 @@
 import os
 
 from kafka import KafkaConsumer
+from prometheus_client import start_http_server
 
 from app import create_app
 from app.config import Config
 from app.logging import get_logger
-from app.queue.ingress import event_loop
 from app.queue.egress import create_event_producer
-from prometheus_client import start_http_server
+from app.queue.ingress import event_loop
 
 logger = get_logger("mq_service")
 

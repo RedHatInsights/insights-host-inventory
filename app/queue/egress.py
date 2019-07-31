@@ -1,8 +1,9 @@
 import json
-
 from datetime import datetime
+
 from kafka import KafkaProducer
-from marshmallow import Schema, fields
+from marshmallow import fields
+from marshmallow import Schema
 
 from app.logging import get_logger
 from app.queue import metrics
@@ -25,7 +26,7 @@ class KafkaEventProducer:
         self._topic = config.host_egress_topic
 
     def write_event(self, event):
-        logger.debug("Topic: %s => %s" % (self._topic, event))
+        logger.debug(f"Topic: {self._topic} => {event}")
 
         event_json = None
 
