@@ -186,7 +186,7 @@ hosts to the kafka message queue.
 
 #### Message Queue Based Host Insertion
 
-A single host object (see HostSchema defined in 
+A single host object (see HostSchema defined in
 [_app/models.py_](app/models.py)) should be wrapped in an _operation_
 json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_service.py))
  and sent to the kafka message queue.
@@ -203,7 +203,7 @@ json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_servi
 
 The kafka topic for adding hosts is _platform.inventory.host-ingress_.
 
-The Inventory service will write an event to the _platform.inventory.host-egress_ 
+The Inventory service will write an event to the _platform.inventory.host-egress_
 kafka topic as a result of adding a host over the message queue.
 
 ```json

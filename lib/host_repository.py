@@ -1,4 +1,5 @@
 from enum import Enum
+
 from marshmallow import ValidationError
 
 from app.exceptions import ValidationException

@@ -1,4 +1,7 @@
-from prometheus_client import Counter, Summary, Info
+from prometheus_client import Counter
+from prometheus_client import Info
+from prometheus_client import Summary
+
 from app.common import get_build_version
 
 ingress_message_parsing_time = Summary(

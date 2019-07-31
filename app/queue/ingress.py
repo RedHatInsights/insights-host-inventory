@@ -1,7 +1,12 @@
 import json
-from marshmallow import Schema, fields, ValidationError
-from app.logging import get_logger, threadctx
-from app.exceptions import InventoryException, ValidationException
+
+from marshmallow import fields
+from marshmallow import Schema
+from marshmallow import ValidationError
+
+from app.exceptions import InventoryException
+from app.logging import get_logger
+from app.logging import threadctx
 from app.queue import metrics
 from app.queue.egress import build_event
 from lib import host_repository

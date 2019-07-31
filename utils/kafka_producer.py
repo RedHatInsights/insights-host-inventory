@@ -2,8 +2,8 @@ import json
 import logging
 import os
 import subprocess
-import uuid
 import time
+import uuid
 
 from kafka import KafkaProducer
 

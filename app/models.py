@@ -13,7 +13,6 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.exceptions import InputFormatException
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import verify_uuid_format

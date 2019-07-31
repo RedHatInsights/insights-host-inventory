@@ -1,5 +1,5 @@
-from app.models import Host as ModelsHost
 from app.exceptions import InputFormatException
+from app.models import Host as ModelsHost
 
 
 __all__ = ("Host", "CanonicalFacts", "Facts")
