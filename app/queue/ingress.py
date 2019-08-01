@@ -26,11 +26,11 @@ class OperationSchema(Schema):
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
-        parsed_message = json.loads(message.value)
+        parsed_message = json.loads(message)
     except Exception:
         # The "extra" dict cannot have a key named "msg" or "message"
         # otherwise an exception in thrown in the logging code
-        logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message.value})
+        logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
         metrics.ingress_message_parsing_failure.inc()
         raise
 
@@ -90,7 +90,7 @@ def event_loop(consumer, flask_app, event_producer, handler=handle_message):
         for msg in consumer:
             logger.debug("Message received")
             try:
-                handler(msg, event_producer)
+                handler(msg.value, event_producer)
                 metrics.ingress_message_handler_success.inc()
             except Exception:
                 metrics.ingress_message_handler_failure.inc()
