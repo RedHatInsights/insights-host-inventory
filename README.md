@@ -92,7 +92,6 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
-
 ## Configuration environment variables
 
 ```
