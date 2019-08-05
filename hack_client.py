@@ -14,7 +14,7 @@ domainnames = ["domain1", "domain2", "domain3", "domain4", "domain5"]
 hostnames1 = ["apple", "pear", "orange", "banana", "apricot", "grape"]
 hostnames2 = ["coke", "pepsi", "drpepper", "mrpib", "sprite", "7up", "unsweettea", "sweettea"]
 
-chunk_size = 3
+chunk_size = 1
 bulk = False
 #bulk = True
 
@@ -27,11 +27,12 @@ def build_chunk():
     for i in range(chunk_size):
         fqdn = random.choice(hostnames1) + "_" + random.choice(hostnames2) + "." + random.choice(domainnames) + ".com"
         #fqdn = "fred.flintstone.com"
-
+        '''
         if len(list_of_hosts) == 0:
-            account_number = "00001"
+            account_number = "000001"
         else:
-            account_number = "00002"
+            account_number = "000002"
+        '''
 
         payload = {
                   "account": account_number,
