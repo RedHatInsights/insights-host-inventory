@@ -113,7 +113,7 @@ BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 metadata_dict = {"request_id": str(uuid.uuid4()), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
 
 payload = build_chunk()
-payload = {"operation": "add_host", "metadata": metadata_dict, "data": build_host_chunk()}
+payload = {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_host_chunk()}
 
 print("type(payload)):", payload)
 producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))

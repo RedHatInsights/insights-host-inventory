@@ -65,7 +65,7 @@ def build_host_event(event_type, host, metadata):
 
     return (
         HostEvent(strict=True)
-        .dumps({"type": event_type, "host": host, "metadata": metadata, "timestamp": datetime.utcnow()})
+        .dumps({"type": event_type, "host": host, "platform_metadata": metadata, "timestamp": datetime.utcnow()})
         .data
     )
 
@@ -98,4 +98,4 @@ class HostEvent(Schema):
     type = fields.Str()
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
-    metadata = fields.Dict()
+    platform_metadata = fields.Dict()
