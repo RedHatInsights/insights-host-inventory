@@ -21,7 +21,6 @@ connexion = {version = "~=2.3.0", extras = ["swagger-ui"]}
 pyyaml = "~=5.1.2"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
-pytest = "~=5.0.1"
 validators = "~=0.13.0"
 marshmallow = "~=2.19.5"
 ujson = "==1.35"  # Not semver
