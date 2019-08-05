@@ -12,7 +12,7 @@ flask-limiter = "~=1.0.1"
 flask-script = "~=2.0.6"
 flask-api = "==1.1"  # Not semver
 flask-sqlalchemy = "~=2.4.0"
-"psycopg2-binary" = "~=2.8.3"
+psycopg2-binary = "~=2.8.3"
 flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 request = "==2019.4.13"  # Not semver
@@ -26,7 +26,7 @@ validators = "~=0.13.0"
 marshmallow = "~=2.19.5"
 ujson = "==1.35"  # Not semver
 watchtower = "~=0.6.0"
-"boto3" = "~=1.9.183"
+boto3 = "~=1.9.183"
 kafka = "~=1.3.5"
 
 [dev-packages]
