@@ -16,9 +16,9 @@ logger = get_logger(__name__)
 
 
 class OperationSchema(Schema):
-    operation = fields.Str()
+    operation = fields.Str(required=True)
     platform_metadata = fields.Dict()
-    data = fields.Dict()
+    data = fields.Dict(required=True)
 
 
 @metrics.ingress_message_parsing_time.time()
