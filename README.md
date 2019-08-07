@@ -188,7 +188,7 @@ hosts to the kafka message queue.
 
 A single host object (see HostSchema defined in
 [_app/models.py_](app/models.py)) should be wrapped in an _operation_
-json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_service.py))
+json document (see OperationSchema defined in [_app/queue/ingress.py_](app/queue/ingress.py))
  and sent to the kafka message queue.
 
 ```json
@@ -202,6 +202,11 @@ json document (see OperationSchema defined in [_inv_mq_service.py_](inv_mq_servi
   - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
 
 The kafka topic for adding hosts is _platform.inventory.host-ingress_.
+
+The _platform_metadata_ field will be passed from the incoming message to the outgoing
+event message.  The data within the _platform_metadata_ will not be persisted to the database.
+If the _platform_metadata_ contains a request_id field, the value of the request_id will be
+associated with all of the log messages produced by the service.
 
 The Inventory service will write an event to the _platform.inventory.host-egress_
 kafka topic as a result of adding a host over the message queue.
