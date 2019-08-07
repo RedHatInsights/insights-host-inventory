@@ -34,9 +34,9 @@ def parse_operation_message(message):
 
     try:
         parsed_operation = OperationSchema(strict=True).load(parsed_message).data
-    except ValidationError:
+    except ValidationError as e:
         logger.error(
-            "Input validation error while parsing operation message", extra={"operation": parsed_message}
+            "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
         )  # logger.error is used to avoid printing out the same traceback twice
         metrics.ingress_message_parsing_failure.inc()
         raise
