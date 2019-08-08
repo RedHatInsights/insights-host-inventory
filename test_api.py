@@ -1110,7 +1110,14 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.account = ACCOUNT
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = host[1]
+            host_wrapper.rhel_machine_id = host[1]
+            host_wrapper.subscription_manager_id = host[1]
+            host_wrapper.satellite_id = host[1]
+            host_wrapper.bios_uuid = host[1]
+            host_wrapper.ip_addresses = ["10.0.0.2"]
             host_wrapper.fqdn = host[2]
+            host_wrapper.mac_addresses = ["c2:00:d0:c8:61:01"]
+            host_wrapper.external_id = host[1]
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
@@ -1210,6 +1217,15 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
     def test_create_then_delete(self):
         original_id = self.added_hosts[0].id
+        insights_id = self.added_hosts[0].insights_id
+        rhel_machine_id = self.added_hosts[0].rhel_machine_id
+        subscription_manager_id = self.added_hosts[0].subscription_manager_id
+        satellite_id = self.added_hosts[0].satellite_id
+        bios_uuid = self.added_hosts[0].bios_uuid
+        ip_addresses = self.added_hosts[0].ip_addresses
+        fqdn = self.added_hosts[0].fqdn
+        mac_addresses = self.added_hosts[0].mac_addresses
+        external_id = self.added_hosts[0].external_id
 
         url = HOST_URL + "/" + original_id
 
@@ -1227,6 +1243,15 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             assert original_id in m.events[0]
+            assert insights_id in m.events[0]
+            assert rhel_machine_id in m.events[0]
+            assert subscription_manager_id in m.events[0]
+            assert satellite_id in m.events[0]
+            assert bios_uuid in m.events[0]
+            assert ip_addresses in m.events[0]
+            assert fqdn in m.events[0]
+            assert mac_addresses in m.events[0]
+            assert external_id in m.events[0]
 
         # Try to get the host again
         response = self.get(url, 200)
