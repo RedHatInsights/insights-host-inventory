@@ -1116,7 +1116,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.bios_uuid = host[1]
             host_wrapper.ip_addresses = ["10.0.0.2"]
             host_wrapper.fqdn = host[2]
-            host_wrapper.mac_addresses = ["c2:00:d0:c8:61:01"]
+            host_wrapper.mac_addresses = ["c2:00:d0:c8:61:01", "Bananna"]
             host_wrapper.external_id = host[1]
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
@@ -1222,9 +1222,9 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         subscription_manager_id = self.added_hosts[0].subscription_manager_id
         satellite_id = self.added_hosts[0].satellite_id
         bios_uuid = self.added_hosts[0].bios_uuid
-        ip_addresses = self.added_hosts[0].ip_addresses
+        ip_addresses = self.added_hosts[0].ip_addresses[0]
+        mac_addresses = self.added_hosts[0].mac_addresses[0]
         fqdn = self.added_hosts[0].fqdn
-        mac_addresses = self.added_hosts[0].mac_addresses
         external_id = self.added_hosts[0].external_id
 
         url = HOST_URL + "/" + original_id
