@@ -12,6 +12,7 @@ class HostEvent(Schema):
     id = fields.UUID()
     timestamp = fields.DateTime(format="iso8601")
     type = fields.Str()
+    account = fields.Str(validate=validate.Length(min=1, max=255))
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
@@ -28,4 +29,4 @@ def delete(host):
                                         "subscription_manager_id": host['subscription_manager_id'], "satellite_id": host['satellite_id'],
                                         "fqdn": host['fqdn'], "bios_uuid": host['bios_uuid'], "ip_addresses": host['ip_addresses'],
                                         "mac_addresses:": host['mac_addresses'], "external_id": host['external_id'],
-                                        "timestamp": datetime.utcnow(), "type": "delete"}).data
+                                        "account": host['account'], "timestamp": datetime.utcnow(), "type": "delete"}).data
