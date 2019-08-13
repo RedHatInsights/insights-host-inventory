@@ -25,8 +25,4 @@ class HostEvent(Schema):
 
 
 def delete(host):
-    return HostEvent(strict=True).dumps({"id": host['id'], "insights_id": host['insights_id'], "rhel_machine_id": host['rhel_machine_id'],
-                                        "subscription_manager_id": host['subscription_manager_id'], "satellite_id": host['satellite_id'],
-                                        "fqdn": host['fqdn'], "bios_uuid": host['bios_uuid'], "ip_addresses": host['ip_addresses'],
-                                        "mac_addresses:": host['mac_addresses'], "external_id": host['external_id'],
-                                        "account": host['account'], "timestamp": datetime.utcnow(), "type": "delete"}).data
+    return HostEvent().dumps({"timestamp": datetime.utcnow(), **host, "type": "delete"}).data

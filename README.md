@@ -92,15 +92,6 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
-Should issues occur with the server's connection to the docker service, it might
-be necessary to add the following to your hosts file:
-
-```
-kafka 127.0.0.1
-```
-
-
-
 ## Configuration environment variables
 
 ```
