@@ -1,8 +1,11 @@
 import logging
 from datetime import datetime
+
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import validate
+
+from app.models import CanonicalFacts
 from app.validators import verify_uuid_format
 
 logger = logging.getLogger(__name__)
@@ -25,4 +28,15 @@ class HostEvent(Schema):
 
 
 def delete(host):
-    return HostEvent().dumps({"timestamp": datetime.utcnow(), **host, "type": "delete"}).data
+    return (
+        HostEvent()
+        .dumps(
+            {
+                "timestamp": datetime.utcnow(),
+                **CanonicalFacts.to_json(host.canonical_facts),
+                "account": host.account,
+                "type": "delete",
+            }
+        )
+        .data
+    )

@@ -286,7 +286,7 @@ def delete_by_id(host_id_list):
     hosts_to_delete = []
     for host in query.all():
         try:
-            hosts_to_delete.append(host.to_json())
+            hosts_to_delete.append(host)
         except sqlalchemy.orm.exc.ObjectDeletedError:
             logger.exception(
                 "Encountered sqlalchemy.orm.exc.ObjectDeletedError exception during delete_by_id operation.  Host was "
