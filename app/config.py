@@ -34,7 +34,7 @@ class Config:
         self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
-        self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+        self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.kafka_enabled = all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
