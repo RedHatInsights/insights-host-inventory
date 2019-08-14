@@ -108,7 +108,7 @@ logging.basicConfig(level=logging.INFO)
 
 TOPIC = os.environ.get("KAFKA_TOPIC")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
-BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
 metadata_dict = {"request_id": str(uuid.uuid4()), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
 
