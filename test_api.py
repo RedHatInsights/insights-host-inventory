@@ -1216,7 +1216,8 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
-    def test_create_then_delete(self):
+    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_create_then_delete(self, datetime_mock):
 
         url = HOST_URL + "/" + self.added_hosts[0].id
 
@@ -1234,6 +1235,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             event = json.loads(m.events[0])
+            timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
             self.assertIsInstance(event, dict)
             expected_keys = {
@@ -1253,8 +1255,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             }
             self.assertEqual(set(event.keys()), expected_keys)
 
-            self.assertEqual(self.added_hosts[0].timestamp, event["timestamp"])
-            self.assertEqual(self.added_hosts[0].type, event["type"])
+            self.assertEqual(f"{timestamp_iso}+00:00", event["timestamp"])
+            self.assertEqual("delete", event["type"])
             self.assertEqual(self.added_hosts[0].id, event["id"])
             self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
             self.assertEqual(self.added_hosts[0].rhel_machine_id, event["rhel_machine_id"])
