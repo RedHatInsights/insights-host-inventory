@@ -16,11 +16,9 @@ logger = get_logger(__name__)
 
 
 class OperationSchema(Schema):
-    operation = fields.Str()
-    metadata = fields.Dict()
-    # FIXME:  Remove this field
-    request_id = fields.Str()
-    data = fields.Dict()
+    operation = fields.Str(required=True)
+    platform_metadata = fields.Dict()
+    data = fields.Dict(required=True)
 
 
 @metrics.ingress_message_parsing_time.time()
@@ -36,9 +34,9 @@ def parse_operation_message(message):
 
     try:
         parsed_operation = OperationSchema(strict=True).load(parsed_message).data
-    except ValidationError:
+    except ValidationError as e:
         logger.error(
-            "Input validation error while parsing operation message", extra={"operation": parsed_message}
+            "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
         )  # logger.error is used to avoid printing out the same traceback twice
         metrics.ingress_message_parsing_failure.inc()
         raise
@@ -69,7 +67,7 @@ def add_host(host_data):
 
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
-    metadata = validated_operation_msg.get("metadata") or {}
+    metadata = validated_operation_msg.get("platform_metadata") or {}
     initialize_thread_local_storage(metadata)
     # FIXME: verify operation type
     (output_host, add_results) = add_host(validated_operation_msg["data"])

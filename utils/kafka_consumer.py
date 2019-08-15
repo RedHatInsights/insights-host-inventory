@@ -9,7 +9,7 @@ from kafka import KafkaConsumer
 
 TOPIC = os.environ.get("KAFKA_TOPIC", "platform.inventory.host-egress")
 KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory-mq")
-BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
 
 def msg_handler(parsed):
