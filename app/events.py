@@ -33,6 +33,7 @@ def delete(host):
         .dumps(
             {
                 "timestamp": datetime.utcnow(),
+                "id": host.id,
                 **CanonicalFacts.to_json(host.canonical_facts),
                 "account": host.account,
                 "type": "delete",

@@ -304,8 +304,8 @@ def delete_by_id(host_id_list):
 
     logger.debug("Deleted hosts: %s", hosts_to_delete)
 
-    for deleted_host_id in hosts_to_delete:
-        emit_event(events.delete(deleted_host_id))
+    for deleted_host in hosts_to_delete:
+        emit_event(events.delete(deleted_host))
 
 
 @api_operation
