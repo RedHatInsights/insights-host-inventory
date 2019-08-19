@@ -27,7 +27,6 @@ print("TOPIC:", TOPIC)
 start = time.time()
 for payload in all_payloads:
     producer.send(TOPIC, value=payload)
+producer.flush()
 end = time.time()
 print("Time to send all hosts to queue: ", end - start)
-
-time.sleep(2)
