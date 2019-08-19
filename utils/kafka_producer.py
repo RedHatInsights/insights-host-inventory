@@ -7,8 +7,7 @@ from kafka import KafkaProducer
 
 logging.basicConfig(level=logging.INFO)
 
-TOPIC = os.environ.get("KAFKA_TOPIC")
-KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory")
+HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
 # payload = payloads.build_chunk()
@@ -22,11 +21,11 @@ print("time elapsed to build payloads: ", end - start)
 print("Number of hosts (payloads): ", len(all_payloads))
 
 producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
-print("TOPIC:", TOPIC)
+print("HOST_INGRESS_TOPIC:", HOST_INGRESS_TOPIC)
 
 start = time.time()
 for payload in all_payloads:
-    producer.send(TOPIC, value=payload)
+    producer.send(HOST_INGRESS_TOPIC, value=payload)
 producer.flush()
 end = time.time()
 print("Time to send all hosts to queue: ", end - start)
