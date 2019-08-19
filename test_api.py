@@ -9,6 +9,7 @@ from datetime import datetime
 from datetime import timezone
 from itertools import chain
 from json import dumps
+from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
@@ -16,9 +17,11 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
+from api.host import _get_host_list_by_id_list
 from app import create_app
 from app import db
 from app.auth.identity import Identity
+from app.models import Host
 from app.utils import HostWrapper
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
@@ -1216,6 +1219,43 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+    class RaceCondition:
+        @classmethod
+        def mock(cls, host_ids_to_delete):
+            def _get_host_list_by_id_list(*args, **kwargs):
+                """
+                Creates a _get_host_list_by_id_list mock, remembering the list of Host IDs to delete.
+                """
+                return cls(host_ids_to_delete, *args, **kwargs)
+
+            return _get_host_list_by_id_list
+
+        def __init__(self, host_ids_to_delete, *args, **kwargs):
+            """
+            Gets a query from the original _get_host_list_by_id_list and remembers it.
+            """
+            self.host_ids_to_delete = host_ids_to_delete
+            self.original_query = _get_host_list_by_id_list(*args, **kwargs)
+
+        def __getattr__(self, item):
+            """
+            Forwards all calls to the original query, only intercepting the actual SELECT.
+            """
+            return self.all if item == "all" else getattr(self.original_query, item)
+
+        def _delete_hosts(self):
+            delete_query = Host.query.filter(Host.id.in_(self.host_ids_to_delete))
+            delete_query.delete(synchronize_session=False)
+
+        def all(self, *args, **kwargs):
+            """
+            Intercepts the actual SELECT by first grabbing the result and then deleting the
+            retrieved hosts, causing the race condition.
+            """
+            result = self.original_query.all(*args, **kwargs)
+            self._delete_hosts()
+            return result
+
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
 
@@ -1263,6 +1303,33 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         url = HOST_URL + "/" + "notauuid"
 
         self.delete(url, 400)
+
+    @patch("api.host.emit_event")
+    def test_delete_when_one_host_is_deleted(self, emit_event):
+        host_id = self.added_hosts[0].id
+        url = HOST_URL + "/" + host_id
+        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock([host_id])):
+            # One host queried, but deleted by a different process. No event emitted yet returning
+            # 200 OK.
+            self.delete(url, 200, return_response_as_json=False)
+
+    @patch("api.host.emit_event")
+    def test_delete_when_all_hosts_are_deleted(self, emit_event):
+        host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
+        url = HOST_URL + "/" + ",".join(host_id_list)
+        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock(host_id_list)):
+            # Two hosts queried, but both deleted by a different process. No event emitted yet
+            # returning 200 OK.
+            self.delete(url, 200, return_response_as_json=False)
+
+    @patch("api.host.emit_event")
+    def test_delete_when_some_hosts_is_deleted(self, emit_event):
+        host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
+        url = HOST_URL + "/" + ",".join(host_id_list)
+        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock(host_id_list[0:1])):
+            # Two hosts queried, one of them deleted by a different process. Only one event emitted,
+            # returning 200 OK.
+            self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
