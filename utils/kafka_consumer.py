@@ -7,8 +7,8 @@ from kafka import KafkaConsumer
 # from app.models import Host, SystemProfileSchema
 
 
-TOPIC = os.environ.get("KAFKA_TOPIC", "platform.inventory.host-egress")
-KAFKA_GROUP = os.environ.get("KAFKA_GROUP", "inventory-mq")
+HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
+HOST_INGRESS_GROUP = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
 
@@ -23,12 +23,12 @@ def msg_handler(parsed):
     # host.save()
 
 
-consumer = KafkaConsumer(TOPIC, group_id=KAFKA_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
+consumer = KafkaConsumer(HOST_EGRESS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
 
 logging.basicConfig(level=logging.INFO)
 
-print("TOPIC:", TOPIC)
-print("KAFKA_GROUP:", KAFKA_GROUP)
+print("HOST_EGRESS_TOPIC:", HOST_EGRESS_TOPIC)
+print("KAFKA_HOST_INGRESS_GROUP:", HOST_INGRESS_GROUP)
 print("BOOTSTRAP_SERVERS:", BOOTSTRAP_SERVERS)
 
 for msg in consumer:
