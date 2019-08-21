@@ -8,12 +8,14 @@ from ttictoc import TicToc
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
+NUM_HOSTS = 1
+
 
 def main():
     # Create list of host payloads to add to the message queue
     # payloads.build_payloads takes two optional args: number of hosts, and payload type ("default", "rhsm", "qpc")
     with TicToc("Build payloads"):
-        all_payloads = payloads.build_payloads()  # pass in the number of hosts you'd like to send (defaults to 1)
+        all_payloads = [payloads.build_payload() for _ in range(NUM_HOSTS)]
     print("Number of hosts (payloads): ", len(all_payloads))
 
     producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
