@@ -424,75 +424,77 @@ def create_system_profile():
     }
 
 
-rhsm_payload = {
-    "account": "939054",
-    "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
-    "facts": [
-        {
-            "facts": {
-                "ARCHITECTURE": "x86_64",
-                "CPU_CORES": 4,
-                "CPU_SOCKETS": 4,
-                "IS_VIRTUAL": True,
-                "MEMORY": 8,
-                "RH_PROD": ["69", "408", "290"],
-                "SYNC_TIMESTAMP": "2019-08-08T16:32:40.355-04:00",
-                "orgId": "5389686",
-            },
-            "namespace": "rhsm",
-        }
-    ],
-    "fqdn": "node01.ose.skunkfu.org",
-    "ip_addresses": [
-        "fe80::46:6bff:fe06:c0f0",
-        "10.129.0.1",
-        "172.16.10.118",
-        "172.17.0.1",
-        "fe80::a443:aa45:96ff:2f00",
-        "127.0.0.1",
-    ],
-    "mac_addresses": [
-        "5A:3D:18:47:EB:44",
-        "02:42:B0:F1:FD:01",
-        "52:54:00:CD:65:84",
-        "BE:FE:93:D1:A8:20",
-        "02:46:6B:06:C0:F0",
-        "D6:58:86:AA:AA:40",
-    ],
-    "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
-}
+def build_rhsm_payload():
+    return {
+        "account": "939054",
+        "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
+        "facts": [
+            {
+                "facts": {
+                    "ARCHITECTURE": "x86_64",
+                    "CPU_CORES": 4,
+                    "CPU_SOCKETS": 4,
+                    "IS_VIRTUAL": True,
+                    "MEMORY": 8,
+                    "RH_PROD": ["69", "408", "290"],
+                    "SYNC_TIMESTAMP": "2019-08-08T16:32:40.355-04:00",
+                    "orgId": "5389686",
+                },
+                "namespace": "rhsm",
+            }
+        ],
+        "fqdn": "node01.ose.skunkfu.org",
+        "ip_addresses": [
+            "fe80::46:6bff:fe06:c0f0",
+            "10.129.0.1",
+            "172.16.10.118",
+            "172.17.0.1",
+            "fe80::a443:aa45:96ff:2f00",
+            "127.0.0.1",
+        ],
+        "mac_addresses": [
+            "5A:3D:18:47:EB:44",
+            "02:42:B0:F1:FD:01",
+            "52:54:00:CD:65:84",
+            "BE:FE:93:D1:A8:20",
+            "02:46:6B:06:C0:F0",
+            "D6:58:86:AA:AA:40",
+        ],
+        "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
+    }
 
 
-qpc_payload = {
-    "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
-    "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
-    "ip_addresses": ["10.8.29.119"],
-    "mac_addresses": ["00:50:56:9e:bb:eb"],
-    "insights_id": "137c9d58-941c-4bb9-9426-7879a367c23b",
-    "subscription_manager_id": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
-    "rhel_machine_id": "e2c9d65ad21c4c7092ffb97a2ca744f3",
-    "fqdn": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
-    "facts": [
-        {
-            "namespace": "qpc",
-            "facts": {
-                "rh_product_certs": [],
-                "rh_products_installed": ["RHEL", "EAP", "DCSM", "JWS", "FUSE"],
-                "last_reported": "2019-08-08T15:22:38.345587",
-                "source_types": ["network"],
-            },
-        }
-    ],
-    "system_profile": {
-        "infrastructure_type": "virtualized",
-        "arch": "x86_64",
-        "os_release": "Red Hat Enterprise Linux Server release 7.5 (Maipo)",
-        "os_kernel_version": "7.5 (Maipo)",
-        "number_of_cpus": 2,
-        "number_of_sockets": 2,
-        "cores_per_socket": 1,
-    },
-}
+def build_qpc_payload():
+    return {
+        "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
+        "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
+        "ip_addresses": ["10.8.29.119"],
+        "mac_addresses": ["00:50:56:9e:bb:eb"],
+        "insights_id": "137c9d58-941c-4bb9-9426-7879a367c23b",
+        "subscription_manager_id": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
+        "rhel_machine_id": "e2c9d65ad21c4c7092ffb97a2ca744f3",
+        "fqdn": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
+        "facts": [
+            {
+                "namespace": "qpc",
+                "facts": {
+                    "rh_product_certs": [],
+                    "rh_products_installed": ["RHEL", "EAP", "DCSM", "JWS", "FUSE"],
+                    "last_reported": "2019-08-08T15:22:38.345587",
+                    "source_types": ["network"],
+                },
+            }
+        ],
+        "system_profile": {
+            "infrastructure_type": "virtualized",
+            "arch": "x86_64",
+            "os_release": "Red Hat Enterprise Linux Server release 7.5 (Maipo)",
+            "os_kernel_version": "7.5 (Maipo)",
+            "number_of_cpus": 2,
+            "number_of_sockets": 2,
+            "cores_per_socket": 1,
+        },
+    }
 
 
 system_profile = create_system_profile()
@@ -541,10 +543,10 @@ def build_data(payload_type):
         return qpc_payload
 
 
-def build_mq_payload(payload_type="default"):
+def build_mq_payload(payload_builder=build_host_chunk):
     return str.encode(
         json.dumps(
-            {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_data(payload_type)}
+            {"operation": "add_host", "platform_metadata": metadata_dict, "data": payload_builder()}
         )
     )
 
