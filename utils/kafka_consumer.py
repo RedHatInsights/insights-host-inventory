@@ -4,7 +4,8 @@ import os
 
 from kafka import KafkaConsumer
 
-# from app.models import Host, SystemProfileSchema
+# from app.models import Host
+# from app.models import SystemProfileSchema
 
 
 HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
