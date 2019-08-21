@@ -10,8 +10,6 @@ logging.basicConfig(level=logging.INFO)
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
-# payload = payloads.build_chunk()
-
 # Create list of host payloads to add to the message queue
 # payloads.build_payloads takes two optional args: number of hosts, and payload type ("default", "rhsm", "qpc")
 start = time.time()
