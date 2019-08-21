@@ -184,21 +184,13 @@ def build_data(payload_type):
         return qpc_payload
 
 
-def build_mq_payloads(num_hosts=1, payload_type="default"):
-    all_payloads = []
-    for _ in range(num_hosts):
-        all_payloads.append(
-            str.encode(
-                json.dumps(
-                    {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_data(payload_type)}
-                )
-            )
+def build_mq_payload(payload_type="default"):
+    return str.encode(
+        json.dumps(
+            {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_data(payload_type)}
         )
-    return all_payloads
+    )
 
 
-def build_http_payloads(num_hosts=1, payload_type="default"):  # FIXME: Could combine with the above method?
-    all_payloads = []
-    for _ in range(num_hosts):
-        all_payloads.append(build_data(payload_type))
-    return all_payloads
+def build_http_payload(payload_type="default"):  # FIXME: Could combine with the above method?
+    return build_data(payload_type)
