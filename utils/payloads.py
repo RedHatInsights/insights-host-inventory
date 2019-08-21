@@ -497,27 +497,14 @@ def build_qpc_payload():
     }
 
 
-system_profile = create_system_profile()
-
-
-# host_id = random_uuid()
-host_id = "1d518fdd-341d-4286-803b-2507ca046a94"
-
-
-account_number = "0000001"
-fqdn = "fred.flintstone.com"
-
-
 def random_uuid():
     return str(uuid.uuid4())
 
 
-metadata_dict = {"request_id": random_uuid(), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
-
-
 def build_host_chunk():
+    fqdn = "fred.flintstone.com"
     payload = {
-        "account": account_number,
+        "account": "0000001",
         "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
@@ -544,7 +531,14 @@ def build_payload(payload_builder=build_host_chunk):
     return (
         str.encode(
             json.dumps(
-                {"operation": "add_host", "platform_metadata": metadata_dict, "data": payload_builder()}
+                {
+                    "operation": "add_host",
+                    "platform_metadata": {
+                        "request_id": random_uuid(),
+                        "archive_url": "http://s3.aws.com/redhat/insights/1234567"
+                    },
+                    "data": payload_builder()
+                }
             )
         )
     )
