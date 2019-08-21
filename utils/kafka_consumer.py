@@ -23,14 +23,19 @@ def msg_handler(parsed):
     # host.save()
 
 
-consumer = KafkaConsumer(HOST_EGRESS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
+def main():
+    consumer = KafkaConsumer(HOST_EGRESS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
 
-logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
-print("HOST_EGRESS_TOPIC:", HOST_EGRESS_TOPIC)
-print("KAFKA_HOST_INGRESS_GROUP:", HOST_INGRESS_GROUP)
-print("BOOTSTRAP_SERVERS:", BOOTSTRAP_SERVERS)
+    print("HOST_EGRESS_TOPIC:", HOST_EGRESS_TOPIC)
+    print("KAFKA_HOST_INGRESS_GROUP:", HOST_INGRESS_GROUP)
+    print("BOOTSTRAP_SERVERS:", BOOTSTRAP_SERVERS)
 
-for msg in consumer:
-    print("calling msg_handler()")
-    msg_handler(json.loads(msg.value))
+    for msg in consumer:
+        print("calling msg_handler()")
+        msg_handler(json.loads(msg.value))
+
+
+if __name__ == "__main__":
+    main()
