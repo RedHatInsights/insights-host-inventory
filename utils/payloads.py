@@ -3,9 +3,11 @@ import subprocess
 import uuid
 
 
-rpm_list = subprocess.getoutput("rpm -qa").split("\n")
-print("len(rpm_list):", len(rpm_list))
-# print("rpm_list:", rpm_list)
+def rpm_list():
+    rpm_list = subprocess.getoutput("rpm -qa").split("\n")
+    print("len(rpm_list):", len(rpm_list))
+    # print("rpm_list:", rpm_list)
+    return rpm_list
 
 
 def create_system_profile():
@@ -59,7 +61,7 @@ def create_system_profile():
         "insights_egg_version": "120.0.1",
         # "installed_packages": ["rpm1", "rpm2"],
         # "installed_packages": subprocess.getoutput("rpm -qa").split("\n"),
-        # "installed_packages": rpm_list,
+        # "installed_packages": rpm_list(),
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
