@@ -166,15 +166,6 @@ def build_host_chunk():
     return payload
 
 
-def build_chunk():
-    payload = {
-        "id": host_id,
-        # "system_profile": create_system_profile(),
-        "system_profile": {},
-    }
-    return payload
-
-
 def build_data(payload_type):
     if payload_type == "default":
         return build_host_chunk()
