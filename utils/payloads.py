@@ -528,17 +528,12 @@ def build_data(payload_type):
 
 
 def build_payload(payload_builder=build_host_chunk):
-    return (
-        str.encode(
-            json.dumps(
-                {
-                    "operation": "add_host",
-                    "platform_metadata": {
-                        "request_id": random_uuid(),
-                        "archive_url": "http://s3.aws.com/redhat/insights/1234567"
-                    },
-                    "data": payload_builder()
-                }
-            )
-        )
-    )
+    message = {
+        "operation": "add_host",
+        "platform_metadata": {
+            "request_id": random_uuid(),
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567"
+        },
+        "data": payload_builder()
+    }
+    return json.dumps(message).encode("utf-8")
