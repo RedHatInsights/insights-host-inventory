@@ -141,7 +141,7 @@ qpc_payload = {
 system_profile = create_system_profile()
 
 
-# host_id = str(uuid.uuid4())
+# host_id = random_uuid()
 host_id = "1d518fdd-341d-4286-803b-2507ca046a94"
 
 
@@ -152,20 +152,24 @@ hostnames1 = ["apple", "pear", "orange", "banana", "apricot", "grape"]
 hostnames2 = ["coke", "pepsi", "drpepper", "mrpib", "sprite", "7up", "unsweettea", "sweettea"]
 
 
-metadata_dict = {"request_id": str(uuid.uuid4()), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
+def random_uuid():
+    return str(uuid.uuid4())
+
+
+metadata_dict = {"request_id": random_uuid(), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
 
 
 def build_host_chunk():
     payload = {
         "account": account_number,
-        "insights_id": str(uuid.uuid4()),
-        "bios_uuid": str(uuid.uuid4()),
+        "insights_id": random_uuid(),
+        "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         "display_name": fqdn,
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
-        "subscription_manager_id": str(uuid.uuid4()),
+        "subscription_manager_id": random_uuid(),
         "system_profile": create_system_profile(),
     }
     return payload
