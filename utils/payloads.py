@@ -177,14 +177,11 @@ def build_data(payload_type):
         return qpc_payload
 
 
-def build_payloads(num_hosts=1, payload_type="default"):
-    all_payloads = []
-    for _ in range(num_hosts):
-        all_payloads.append(
-            str.encode(
-                json.dumps(
-                    {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_data(payload_type)}
-                )
+def build_payload(payload_type="default"):
+    return (
+        str.encode(
+            json.dumps(
+                {"operation": "add_host", "platform_metadata": metadata_dict, "data": build_data(payload_type)}
             )
         )
-    return all_payloads
+    )
