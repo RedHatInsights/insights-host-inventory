@@ -73,7 +73,7 @@ class Host(db.Model):
             )
 
         self.canonical_facts = canonical_facts
-        
+
         if display_name:
             # Only set the display_name field if input the display_name has
             # been set...this will make it so that the "default" logic will
