@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from kafka import KafkaProducer
@@ -28,13 +27,8 @@ class KafkaEventProducer:
     def write_event(self, event):
         logger.debug(f"Topic: {self._topic} => {event}")
 
-        event_json = None
-
-        with metrics.egress_event_serialization_time.time():
-            event_json = json.dumps(event)
-
         try:
-            self._kafka_producer.send(self._topic, value=event_json.encode("utf-8"))
+            self._kafka_producer.send(self._topic, value=event.encode("utf-8"))
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")
@@ -56,6 +50,7 @@ def build_event(event_type, host, metadata):
         raise ValueError(f"Invalid event type ({event_type})")
 
 
+@metrics.egress_event_serialization_time.time()
 def build_host_event(event_type, host, metadata):
     # FIXME:
     if "system_profile" in host:
