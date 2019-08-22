@@ -43,26 +43,16 @@ class NullEventProducer:
         logger.debug("NullEventProducer - logging event: %s" % event)
 
 
+@metrics.egress_event_serialization_time.time()
 def build_event(event_type, host, metadata):
     if event_type in ("created", "updated"):
-        return build_host_event(event_type, host, metadata)
+        return (
+            HostEvent(strict=True)
+            .dumps({"type": event_type, "host": host, "platform_metadata": metadata, "timestamp": datetime.utcnow()})
+            .data
+        )
     else:
         raise ValueError(f"Invalid event type ({event_type})")
-
-
-@metrics.egress_event_serialization_time.time()
-def build_host_event(event_type, host, metadata):
-    # FIXME:
-    if "system_profile" in host:
-        del host["system_profile"]
-    if "facts" in host:
-        del host["facts"]
-
-    return (
-        HostEvent(strict=True)
-        .dumps({"type": event_type, "host": host, "platform_metadata": metadata, "timestamp": datetime.utcnow()})
-        .data
-    )
 
 
 class HostSchema(Schema):
@@ -79,8 +69,6 @@ class HostSchema(Schema):
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
     external_id = fields.Str()
-    facts = fields.Boolean()
-    system_profile = fields.Boolean()
     # FIXME:
     # created = fields.DateTime(format="iso8601")
     # updated = fields.DateTime(format="iso8601")
