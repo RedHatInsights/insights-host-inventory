@@ -13,18 +13,4 @@ exclude =
     *.mako,
     *.md,
     *.yml
-extend-ignore =
-    E127,
-    E128,
-    E231,
-    E302,
-    E303,
-    E305,
-    E402,
-    E501,
-    F401,
-    F811,
-    F841,
-    W291,
-    W601
-max-line-length = 100
+max-line-length = 119

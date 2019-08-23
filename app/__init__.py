@@ -1,14 +1,15 @@
 import connexion
 import yaml
-
 from connexion.resolver import RestyResolver
-from flask import jsonify, request
+from flask import jsonify
+from flask import request
 
 from api.mgmt import monitoring_blueprint
 from app.config import Config
-from app.models import db
 from app.exceptions import InventoryException
-from app.logging import configure_logging, threadctx
+from app.logging import configure_logging
+from app.logging import threadctx
+from app.models import db
 from app.validators import verify_uuid_format  # noqa: 401
 from tasks import init_tasks
 
@@ -32,9 +33,7 @@ def create_app(config_name):
     app_config = Config()
     app_config.log_configuration(config_name)
 
-    connexion_app = connexion.App(
-        "inventory", specification_dir="./swagger/", options=connexion_options
-    )
+    connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
     with open("swagger/api.spec.yaml", "rb") as fp:
@@ -50,7 +49,7 @@ def create_app(config_name):
                 strict_validation=True,
                 base_path=api_url,
             )
-            app_config.logger.info("Listening on API: %s" % api_url)
+            app_config.logger.info("Listening on API: %s", api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
@@ -66,14 +65,11 @@ def create_app(config_name):
 
     db.init_app(flask_app)
 
-    flask_app.register_blueprint(monitoring_blueprint,
-                                 url_prefix=app_config.mgmt_url_path_prefix)
+    flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
     @flask_app.before_request
     def set_request_id():
-        threadctx.request_id = request.headers.get(
-            REQUEST_ID_HEADER,
-            UNKNOWN_REQUEST_ID_VALUE)
+        threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     init_tasks(app_config, flask_app)
 
