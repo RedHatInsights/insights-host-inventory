@@ -5,6 +5,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import validate
 
+from app.logging import threadctx
 from app.models import CanonicalFacts
 from app.validators import verify_uuid_format
 
@@ -25,6 +26,7 @@ class HostEvent(Schema):
     ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
+    request_id = fields.Str(validate=validate.Length(min=1, max=500))
 
 
 def delete(host):
@@ -36,6 +38,7 @@ def delete(host):
                 "id": host.id,
                 **CanonicalFacts.to_json(host.canonical_facts),
                 "account": host.account,
+                "request_id": threadctx.request_id,
                 "type": "delete",
             }
         )
