@@ -1238,36 +1238,14 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
             self.assertIsInstance(event, dict)
-            expected_keys = {
-                "timestamp",
-                "type",
-                "id",
-                "account",
-                "insights_id",
-                "rhel_machine_id",
-                "subscription_manager_id",
-                "satellite_id",
-                "bios_uuid",
-                "ip_addresses",
-                "fqdn",
-                "mac_addresses",
-                "external_id",
-            }
+            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
             self.assertEqual(set(event.keys()), expected_keys)
 
             self.assertEqual(f"{timestamp_iso}+00:00", event["timestamp"])
             self.assertEqual("delete", event["type"])
             self.assertEqual(self.added_hosts[0].id, event["id"])
             self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
-            self.assertEqual(self.added_hosts[0].rhel_machine_id, event["rhel_machine_id"])
-            self.assertEqual(self.added_hosts[0].subscription_manager_id, event["subscription_manager_id"])
-            self.assertEqual(self.added_hosts[0].satellite_id, event["satellite_id"])
-            self.assertEqual(self.added_hosts[0].bios_uuid, event["bios_uuid"])
-            self.assertEqual(self.added_hosts[0].fqdn, event["fqdn"])
-            self.assertEqual(self.added_hosts[0].external_id, event["external_id"])
-            self.assertEqual(self.added_hosts[0].account, event["account"])
-            self.assertEqual(self.added_hosts[0].ip_addresses, event["ip_addresses"])
-            self.assertEqual(self.added_hosts[0].mac_addresses, event["mac_addresses"])
+            self.assertEqual("-1", event["request_id"])
 
         # Try to get the host again
         response = self.get(url, 200)
