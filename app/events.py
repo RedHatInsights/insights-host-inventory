@@ -6,6 +6,7 @@ from marshmallow import Schema
 
 from app.logging import threadctx
 from app.models import CanonicalFacts
+from app.validators import verify_uuid_format
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +15,8 @@ class HostEvent(Schema):
     id = fields.UUID()
     timestamp = fields.DateTime(format="iso8601")
     type = fields.Str()
-    account = fields.Str()
-    insights_id = fields.Str()
-    rhel_machine_id = fields.Str()
-    subscription_manager_id = fields.Str()
-    satellite_id = fields.Str()
-    fqdn = fields.Str()
-    bios_uuid = fields.Str()
-    ip_addresses = fields.List(fields.Str())
-    mac_addresses = fields.List(fields.Str())
-    external_id = fields.Str()
+    account = fields.Str(required=True)
+    insights_id = fields.Str(validate=verify_uuid_format)
     request_id = fields.Str()
 
 
