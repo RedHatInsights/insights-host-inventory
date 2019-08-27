@@ -185,12 +185,21 @@ to the _platform.inventory.events_ message queue.  The delete event message
 will look like the following:
 
 ```json
-  {"id": <host id>, "timestamp": <delete timestamp>, "type": "delete"}
+  {"id": <host id>,
+   "timestamp": <delete timestamp>,
+   "type": "delete",
+   "account": <account number>,
+   "insights_id": <insights id>,
+   "request_id": <request id>
+}
 ```
 
   - type: type of host change (delete in this case)
   - id: Inventory host id of the host that was deleted
   - timestamp: the time at which the host was deleted
+  - account: the account number associated with the host that was deleted
+  - insights_id: the insights_id of the host that was deleted
+  - request_id: the request_id from the DELETE REST invocation that triggered the delete message
 
 #### Testing API Calls
 
