@@ -5,6 +5,7 @@ from flask import jsonify
 from flask import request
 
 from api.mgmt import monitoring_blueprint
+from app import payload_tracker
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import configure_logging
@@ -72,5 +73,11 @@ def create_app(config_name):
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     init_tasks(app_config, flask_app)
+
+    payload_tracker_producer = None
+    if config_name == "testing":
+        # If we are running in "testing" mode, then inject the NullProducer.
+        payload_tracker_producer = payload_tracker.NullProducer()
+    payload_tracker.init_payload_tracker(app_config, producer=payload_tracker_producer)
 
     return flask_app
