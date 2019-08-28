@@ -36,6 +36,7 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+REQUEST_ID = "BestRequestIdEver"
 
 
 def generate_uuid():
@@ -74,6 +75,14 @@ def inject_qs(url, **kwargs):
 
 
 class APIBaseTestCase(unittest.TestCase):
+    def _create_header(self, auth_header, request_id):
+        header = auth_header.copy()
+        if request_id is not None:
+            header.update(request_id)
+            return header
+        else:
+            return header
+
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT)
         dict_ = {"identity": identity._asdict()}
@@ -102,9 +111,11 @@ class APIBaseTestCase(unittest.TestCase):
     def put(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
 
-    def delete(self, path, status=200, return_response_as_json=True):
+    def delete(self, path, status=200, header=None, return_response_as_json=True):
         return self._response_check(
-            self.client().delete(path, headers=self._get_valid_auth_header()), status, return_response_as_json
+            self.client().delete(path, headers=(self._create_header(self._get_valid_auth_header(), header))),
+            status,
+            return_response_as_json,
         )
 
     def verify_error_response(
@@ -1216,11 +1227,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete(self, datetime_mock):
-
-        url = HOST_URL + "/" + self.added_hosts[0].id
-
+    def _mock_create_then_delete(self, url, request_id_header, timestamp_iso):
         # Get the host
         self.get(url, 200)
 
@@ -1233,9 +1240,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
         # Delete the host
         with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
-            self.delete(url, 200, return_response_as_json=False)
+            self.delete(url, 200, request_id_header, return_response_as_json=False)
             event = json.loads(m.events[0])
-            timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
             self.assertIsInstance(event, dict)
             expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
@@ -1245,7 +1251,10 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self.assertEqual("delete", event["type"])
             self.assertEqual(self.added_hosts[0].id, event["id"])
             self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
-            self.assertEqual("-1", event["request_id"])
+            if request_id_header is not None:
+                self.assertEqual(REQUEST_ID, event["request_id"])
+            else:
+                self.assertEqual("-1", event["request_id"])
 
         # Try to get the host again
         response = self.get(url, 200)
@@ -1254,15 +1263,23 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["total"], 0)
         self.assertEqual(response["results"], [])
 
-    def test_delete_non_existent_host(self):
-        url = HOST_URL + "/" + generate_uuid()
+    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_create_then_delete(self, datetime_mock):
+        url = HOST_URL + "/" + self.added_hosts[0].id
+        request_id_header = {"x-rh-insights-request-id": REQUEST_ID}
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
-        self.delete(url, 404)
+        # test with request_id_header
+        self._mock_create_then_delete(url, request_id_header, timestamp_iso)
 
-    def test_delete_with_invalid_host_id(self):
-        url = HOST_URL + "/" + "notauuid"
+    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_create_then_delete_without_request_id(self, datetime_mock):
+        url = HOST_URL + "/" + self.added_hosts[0].id
+        request_id_header = None
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
-        self.delete(url, 400)
+        # test without request_id_header
+        self._mock_create_then_delete(url, request_id_header, timestamp_iso)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
