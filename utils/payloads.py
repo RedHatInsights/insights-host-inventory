@@ -145,6 +145,9 @@ host_id = "1d518fdd-341d-4286-803b-2507ca046a94"
 
 account_number = "0000001"
 fqdn = "fred.flintstone.com"
+domainnames = ["domain1", "domain2", "domain3", "domain4", "domain5"]
+hostnames1 = ["apple", "pear", "orange", "banana", "apricot", "grape"]
+hostnames2 = ["coke", "pepsi", "drpepper", "mrpib", "sprite", "7up", "unsweettea", "sweettea"]
 
 
 metadata_dict = {"request_id": str(uuid.uuid4()), "archive_url": "http://s3.aws.com/redhat/insights/1234567"}
@@ -184,7 +187,7 @@ def build_data(payload_type):
         return qpc_payload
 
 
-def build_payloads(num_hosts=1, payload_type="default"):
+def build_mq_payloads(num_hosts=1, payload_type="default"):
     all_payloads = []
     for _ in range(num_hosts):
         all_payloads.append(
@@ -194,4 +197,11 @@ def build_payloads(num_hosts=1, payload_type="default"):
                 )
             )
         )
+    return all_payloads
+
+
+def build_http_payloads(num_hosts=1, payload_type="default"):  # FIXME: Could combine with the above method?
+    all_payloads = []
+    for _ in range(num_hosts):
+        all_payloads.append(build_data(payload_type))
     return all_payloads

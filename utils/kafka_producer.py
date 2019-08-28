@@ -16,7 +16,7 @@ BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 # Create list of host payloads to add to the message queue
 # payloads.build_payloads takes two optional args: number of hosts, and payload type ("default", "rhsm", "qpc")
 start = time.time()
-all_payloads = payloads.build_payloads()  # pass in the number of hosts you'd like to send (defaults to 1)
+all_payloads = payloads.build_mq_payloads(180000)  # pass in the number of hosts you'd like to send (defaults to 1)
 end = time.time()
 print("time elapsed to build payloads: ", end - start)
 print("Number of hosts (payloads): ", len(all_payloads))
