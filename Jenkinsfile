@@ -95,19 +95,19 @@ def runStages() {
             scmVars = checkout scm
 
             container(pyContainer) {
-                stage('Pip install') {
+                stage('Setting up environment') {
                     runPipenvInstall(scmVars: scmVars)
                 }
 
-                stage('Lint') {
-                    sh "${pipelineVars.userPath}/pipenv run pre-commit run --all"
-                }
-
-                stage('Start database') {
+                stage('Setting up database') {
                     sh "${pipelineVars.userPath}/pipenv run python manage.py db upgrade"
                 }
 
-                stage('UnitTest') {
+                stage('Pre-commit checks') {
+                    sh "${pipelineVars.userPath}/pipenv run pre-commit run --all"
+                }
+
+                stage('Unit Test') {
                     withStatusContext.unitTest {
                         sh "${pipelineVars.userPath}/pipenv run python -m pytest --cov=. --junitxml=junit.xml --cov-report html -s -v"
                     }
@@ -119,12 +119,10 @@ def runStages() {
                     checkCoverage(threshold: codecovThreshold)
                 }
 
-                stage('Collecting Artifacts') {
-                    archiveArtifacts 'htmlcov/*'
-                    archiveArtifacts '*.xml'
-                }
-
             }
+
+            archiveArtifacts 'htmlcov/*'
+            archiveArtifacts '*.xml'
 
             if (currentBuild.currentResult == 'SUCCESS') {
                 if (env.BRANCH_NAME == 'master') {
