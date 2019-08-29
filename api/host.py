@@ -296,10 +296,9 @@ def delete_by_id(host_id_list):
 
     metrics.delete_host_count.inc(len(hosts_to_delete))
 
-    logger.debug("Deleted hosts: %s", hosts_to_delete)
-
     for deleted_host in hosts_to_delete:
         try:
+            logger.debug("Deleted host: %s", deleted_host)
             emit_event(events.delete(deleted_host))
         except sqlalchemy.orm.exc.ObjectDeletedError:
             logger.exception(
