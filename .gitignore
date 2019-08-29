@@ -8,3 +8,6 @@ pyvenv.cfg
 tags
 .coverage
 .pytest_cache/
+htmlcov/
+junit.xml
+.idea
