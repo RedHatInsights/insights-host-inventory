@@ -283,9 +283,7 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 def delete_by_id(host_id_list):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    hosts_to_delete = []
-    for host in query.all():
-        hosts_to_delete.append(host)
+    hosts_to_delete = query.all()
 
     if not hosts_to_delete:
         return flask.abort(status.HTTP_404_NOT_FOUND)
