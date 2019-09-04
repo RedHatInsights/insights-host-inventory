@@ -185,12 +185,13 @@ to the _platform.inventory.events_ message queue.  The delete event message
 will look like the following:
 
 ```json
-  {"id": <host id>,
-   "timestamp": <delete timestamp>,
-   "type": "delete",
-   "account": <account number>,
-   "insights_id": <insights id>,
-   "request_id": <request id>
+{
+  "id": "<host id>",
+  "timestamp": "<delete timestamp>",
+  "type": "delete",
+  "account": "<account number>",
+  "insights_id": "<insights id>",
+  "request_id": "<request id>"
 }
 ```
 
