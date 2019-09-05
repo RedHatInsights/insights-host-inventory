@@ -19,6 +19,9 @@ ingress_message_handler_success = Counter(
 ingress_message_handler_failure = Counter(
     "inventory_ingress_message_handler_failures", "Total amount of failures handling messages from the ingress queue"
 )
+ingress_message_handler_time = Summary(
+    "inventory_ingress_message_handler_seconds", "Total time spent handling messages from the ingress queue"
+)
 version = Info("inventory_mq_service_version", "Build version for the inventory message queue service")
 version.info({"version": get_build_version()})
 egress_message_handler_success = Counter(
