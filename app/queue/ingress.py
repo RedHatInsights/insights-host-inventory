@@ -65,6 +65,7 @@ def add_host(host_data):
         raise
 
 
+@metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     metadata = validated_operation_msg.get("platform_metadata") or {}
