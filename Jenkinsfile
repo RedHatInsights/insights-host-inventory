@@ -104,7 +104,9 @@ def runStages() {
                 }
 
                 stage('Pre-commit checks') {
-                    sh "${pipelineVars.userPath}/pipenv run pre-commit run --all"
+                    withStatusContext.custom('pre-commit') {
+                        sh "${pipelineVars.userPath}/pipenv run pre-commit run --all"
+                    }
                 }
 
                 stage('Unit Test') {
