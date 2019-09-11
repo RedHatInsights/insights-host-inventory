@@ -4,42 +4,12 @@
 
 @Library("github.com/RedHatInsights/insights-pipeline-lib") _
 
-podLabel = "${UUID.randomUUID().toString()}"
-
-// Container names
-pyContainer = "python3"
-dbContainer = "postgres"
-kafkaContainer = "kafka-1"
-zookeeperContainer = "zookeeper-1"
-
-// Directory where insights-host-inventory is checked out to
-clientTargetDir = 'insights-host-inventory'
-clientRepo = 'https://github.com/RedHatInsights/insights-host-inventory.git'
-
-// Contact info for git commits
-gitEmail = "rhinsightsbot@gmail.com"
-gitName = "InsightsDroid"
-
-// Code coverage failure threshold
-codecovThreshold = 80
-
+podLabel = UUID.randomUUID().toString()
 
 node {
     cancelPriorBuilds()
     runIfMasterOrPullReq {
         runStages()
-    }
-}
-
-
-def updateClientRepo() {
-    dir(clientTargetDir) {
-        sh "git add --all ."
-        def changes = sh(returnStdout: true, script: "git diff --cached --stat | wc -l").trim().toInteger()
-        if (changes > 0) {
-            sh "git commit -m \"Update client (Jenkins auto-update)\""
-            sh "git push origin HEAD:master"
-        }
     }
 }
 
@@ -57,7 +27,7 @@ def runStages() {
             resourceLimitMemory: '650Mi'
         ),
         containerTemplate(
-            name: pyContainer,
+            name: 'python3',
             image: 'python:3.6.5',
             ttyEnabled: true,
             command: 'cat',
@@ -67,7 +37,7 @@ def runStages() {
             resourceLimitMemory: '1Gi'
         ),
         containerTemplate(
-            name: dbContainer,
+            name: 'posgtres',
             image: 'postgres:9.6',
             ttyEnabled: true,
             envVars: [
@@ -84,8 +54,8 @@ def runStages() {
         )
     ]) {
         node(podLabel) {
-            sh "git config --global user.email \"${gitEmail}\""
-            sh "git config --global user.name \"${gitName}\""
+            sh "git config --global user.email \"rhinsightsbot@gmail.com\""
+            sh "git config --global user.name \"InsightsDroid\""
 
             // cache creds from the checkout so we can git push later...
             sh "git config --global credential.helper cache"
@@ -94,7 +64,7 @@ def runStages() {
             // check out source again to get it in this node's workspace
             scmVars = checkout scm
 
-            container(pyContainer) {
+            container('python3') {
                 stage('Setting up environment') {
                     runPipenvInstall(scmVars: scmVars)
                 }
@@ -110,27 +80,19 @@ def runStages() {
                 }
 
                 stage('Unit Test') {
+                    junitXml = 'junit.xml'
                     withStatusContext.unitTest {
-                        sh "${pipelineVars.userPath}/pipenv run python -m pytest --cov=. --junitxml=junit.xml --cov-report html -s -v"
+                        sh "${pipelineVars.userPath}/pipenv run python -m pytest --cov=. --junitxml=${junitXml} --cov-report html -s -v"
                     }
 
-                    junit 'junit.xml'
-                    archiveArtifacts 'junit.xml'
+                    junit junitXml
+                    archiveArtifacts junitXml
                 }
 
                 stage('Code coverage') {
-                    checkCoverage(threshold: codecovThreshold)
+                    checkCoverage(threshold: 80)
                 }
 
-            }
-
-            if (currentBuild.currentResult == 'SUCCESS') {
-                if (env.BRANCH_NAME == 'master') {
-                    // Stages to run specifically if master branch was updated
-                    stage('Update insights-host-inventory') {
-                        updateClientRepo()
-                    }
-                }
             }
         }
     }
