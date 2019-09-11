@@ -114,7 +114,8 @@ def runStages() {
                         sh "${pipelineVars.userPath}/pipenv run python -m pytest --cov=. --junitxml=junit.xml --cov-report html -s -v"
                     }
 
-                    junit '*.xml'
+                    junit 'junit.xml'
+                    archiveArtifacts 'junit.xml'
                 }
 
                 stage('Code coverage') {
@@ -122,9 +123,6 @@ def runStages() {
                 }
 
             }
-
-            archiveArtifacts 'htmlcov/*'
-            archiveArtifacts '*.xml'
 
             if (currentBuild.currentResult == 'SUCCESS') {
                 if (env.BRANCH_NAME == 'master') {
