@@ -70,7 +70,9 @@ def runStages() {
                 }
 
                 stage('Setting up database') {
-                    sh "${pipelineVars.userPath}/pipenv run python manage.py db upgrade"
+                    withStatusContext.custom('database') {
+                        sh "${pipelineVars.userPath}/pipenv run python manage.py db upgrade"
+                    }
                 }
 
                 stage('Pre-commit checks') {
