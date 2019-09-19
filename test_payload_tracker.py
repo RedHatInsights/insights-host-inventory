@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 from unittest import main
 from unittest import TestCase
@@ -242,7 +243,7 @@ class PayloadTrackerTestCase(TestCase):
         expected_payload_id = "REQUEST_ID"
         expected_processing_status = "processing"
         expected_processing_status_msg = "ima processing msg"
-        expected_inventory_id = "000-111-222"
+        expected_inventory_id = uuid.uuid4()
 
         producer = Mock()
 
@@ -279,7 +280,7 @@ class PayloadTrackerTestCase(TestCase):
                     datetime_mock=datetime_mock,
                 )
 
-                expected_msg["inventory_id"] = expected_inventory_id
+                expected_msg["inventory_id"] = str(expected_inventory_id)
 
                 self.assertIsNone(tracker.inventory_id)
 
@@ -291,7 +292,7 @@ class PayloadTrackerTestCase(TestCase):
         expected_payload_id = "REQUEST_ID"
         expected_processing_status = "processing"
         expected_processing_status_msg = "ima processing msg"
-        expected_inventory_id = "000-111-222"
+        expected_inventory_id = uuid.uuid4()
 
         producer = Mock()
 
@@ -328,7 +329,7 @@ class PayloadTrackerTestCase(TestCase):
                     datetime_mock=datetime_mock,
                 )
 
-                expected_msg["inventory_id"] = expected_inventory_id
+                expected_msg["inventory_id"] = str(expected_inventory_id)
 
                 self.assertIsNone(tracker.inventory_id)
 
