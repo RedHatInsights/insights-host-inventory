@@ -165,10 +165,7 @@ class KafkaPayloadTracker(PayloadTracker):
                 message["account"] = self._account
 
             if self.inventory_id:
-                if isinstance(self.inventory_id, str):
-                    message["inventory_id"] = self.inventory_id
-                else:
-                    message["inventory_id"] = str(self.inventory_id)
+                message["inventory_id"] = "%s" % (self.inventory_id)
 
             if status_message:
                 message["status_msg"] = status_message
