@@ -1,4 +1,5 @@
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
@@ -21,6 +22,19 @@ from app.validators import verify_uuid_format
 logger = get_logger(__name__)
 
 db = SQLAlchemy()
+
+
+@contextmanager
+def db_session_guard():
+    session = db.session
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.remove()
 
 
 def _set_display_name_on_save(context):
@@ -72,7 +86,7 @@ class Host(db.Model):
             )
 
         self.canonical_facts = canonical_facts
-        
+
         if display_name:
             # Only set the display_name field if input the display_name has
             # been set...this will make it so that the "default" logic will
