@@ -9,10 +9,14 @@ from app import payload_tracker
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import configure_logging
+from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
 from app.validators import verify_uuid_format  # noqa: 401
 from tasks import init_tasks
+
+logger = get_logger(__name__)
+
 
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -24,7 +28,7 @@ def render_exception(exception):
     return response
 
 
-def create_app(config_name):
+def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
@@ -50,7 +54,7 @@ def create_app(config_name):
                 strict_validation=True,
                 base_path=api_url,
             )
-            app_config.logger.info("Listening on API: %s", api_url)
+            logger.info("Listening on API: %s", api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
@@ -72,12 +76,25 @@ def create_app(config_name):
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
-    init_tasks(app_config, flask_app)
+    if start_tasks:
+        init_tasks(app_config, flask_app)
+    else:
+        logger.warn(
+            'WARNING: The "tasks" subsystem has been disabled.  '
+            "The message queue based system_profile consumer "
+            "and message queue based event notifications have been disabled."
+        )
 
     payload_tracker_producer = None
-    if config_name == "testing":
+    if start_payload_tracker is False:
         # If we are running in "testing" mode, then inject the NullProducer.
         payload_tracker_producer = payload_tracker.NullProducer()
+
+        logger.warn(
+            "WARNING: Using the NullProducer for the payload tracker producer.  "
+            "No payload tracker events will be sent to to payload tracker."
+        )
+
     payload_tracker.init_payload_tracker(app_config, producer=payload_tracker_producer)
 
     return flask_app
