@@ -35,6 +35,11 @@ class Config:
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.kafka_enabled = all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
+        self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
+        self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
+        payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
+        self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
@@ -73,3 +78,6 @@ class Config:
                 self.logger.info("Using SSL for DB connection:")
                 self.logger.info("Postgresql SSL verification type: %s", self._db_ssl_mode)
                 self.logger.info("Path to certificate: %s", self._db_ssl_cert)
+            self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
+            self.logger.info("Payload Tracker Service Name: %s", self.payload_tracker_service_name)
+            self.logger.info("Payload Tracker Enabled: %s", self.payload_tracker_enabled)
