@@ -324,7 +324,6 @@ def delete_by_id(host_id_list):
             # Prevents ObjectDeletedError from being raised.
             if instance_state(deleted_host).expired:
                 logger.info("Host already deleted. Delete event not emitted.")
-                pass
             else:
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="deleted host"
