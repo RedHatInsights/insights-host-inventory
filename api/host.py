@@ -323,6 +323,7 @@ def delete_by_id(host_id_list):
         for deleted_host in hosts_to_delete:
             # Prevents ObjectDeletedError from being raised.
             if instance_state(deleted_host).expired:
+                # Can’t log the Host ID. Accessing an attribute raises ObjectDeletedError.
                 logger.info("Host already deleted. Delete event not emitted.")
             else:
                 with PayloadTrackerProcessingContext(
