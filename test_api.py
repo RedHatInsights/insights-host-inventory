@@ -21,7 +21,6 @@ from api.host import _get_host_list_by_id_list
 from app import create_app
 from app import db
 from app.auth.identity import Identity
-from app.models import Host
 from app.utils import HostWrapper
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
@@ -1219,17 +1218,17 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
-    def _create_race_condition(self, account_number, host_id_list):
-        with self.app.app_context() as ctx:
-            db.create_all()
-            ctx.push()
+    class RaceCondition:
+        def __init__(self, *args, **kwargs):
+            self.query = _get_host_list_by_id_list(*args, **kwargs)
 
-        result = _get_host_list_by_id_list(account_number, host_id_list)
-        host_to_delete = result.all()
-        Host.query.filter(Host == host_to_delete).delete()
-        db.session.commit()
+        def __getattr__(self, item):
+            return self.all if item == "all" else getattr(self.query, item)
 
-        return result
+        def all(self, *args, **kwargs):
+            result = self.query.all(*args, **kwargs)
+            self.query.delete(synchronize_session=False)
+            return result
 
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
@@ -1282,12 +1281,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
     @patch("api.host.emit_event")
     def test_delete_when_host_is_deleted(self, emit_event):
         url = HOST_URL + "/" + self.added_hosts[0].id
-        host_id_list = [self.added_hosts[0].id]
-        account = self.added_hosts[0].account
-
-        with patch("api.host._get_host_list_by_id_list", self._create_race_condition):
-            self._create_race_condition(account, host_id_list)
-
+        with patch("api.host._get_host_list_by_id_list", self.RaceCondition):
             # deletion should give back 200 status
             self.delete(url, 200, return_response_as_json=False)
 
