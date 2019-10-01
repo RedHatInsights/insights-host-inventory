@@ -1,15 +1,12 @@
 import json
-from time import sleep
 
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
-from sqlalchemy import exc
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
-from app.models import db
 from app.queue import metrics
 from app.queue.egress import build_event
 from lib import host_repository
@@ -91,18 +88,12 @@ def event_loop(consumer, flask_app, event_producer, handler=handle_message):
         logger.debug("Waiting for message")
         for msg in consumer:
             logger.debug("Message received")
-            while True:
-                try:
-                    handler(msg.value, event_producer)
-                    metrics.ingress_message_handler_success.inc()
-                    break
-                except exc.OperationalError:
-                    logger.error("Database connection error. Retrying...")
-                    db.session.rollback()
-                    sleep(5)
-                except Exception:
-                    metrics.ingress_message_handler_failure.inc()
-                    logger.exception("Unable to process message")
+            try:
+                handler(msg.value, event_producer)
+                metrics.ingress_message_handler_success.inc()
+            except Exception:
+                metrics.ingress_message_handler_failure.inc()
+                logger.exception("Unable to process message")
 
 
 def initialize_thread_local_storage(metadata):

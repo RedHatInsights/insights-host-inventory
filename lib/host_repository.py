@@ -5,6 +5,7 @@ from marshmallow import ValidationError
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import db
+from app.models import db_session_guard
 from app.models import Host
 from app.models import HostSchema
 from app.serialization import deserialize_host
@@ -39,12 +40,13 @@ def add_host(host, update_system_profile=True):
 
     input_host = deserialize_host(validated_input_host_dict.data)
 
-    existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
+    with db_session_guard():
+        existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
 
-    if existing_host:
-        return update_existing_host(existing_host, input_host, update_system_profile)
-    else:
-        return create_new_host(input_host)
+        if existing_host:
+            return update_existing_host(existing_host, input_host, update_system_profile)
+        else:
+            return create_new_host(input_host)
 
 
 @metrics.host_dedup_processing_time.time()
