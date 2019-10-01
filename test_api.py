@@ -1279,7 +1279,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
         self.delete(url, 400)
 
-    def test_delete_when_host_is_deleted(self):
+    @patch("api.host.emit_event")
+    def test_delete_when_host_is_deleted(self, emit_event):
         url = HOST_URL + "/" + self.added_hosts[0].id
         host_id_list = [self.added_hosts[0].id]
         account = self.added_hosts[0].account
