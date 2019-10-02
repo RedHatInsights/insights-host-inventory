@@ -7,6 +7,9 @@ from marshmallow import ValidationError
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
+from app.payload_tracker import get_payload_tracker
+from app.payload_tracker import PayloadTrackerContext
+from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
 from app.queue.egress import build_event
 from lib import host_repository
@@ -49,20 +52,27 @@ def parse_operation_message(message):
 
 
 def add_host(host_data):
-    try:
-        logger.info("Attempting to add host...")
-        (output_host, add_results) = host_repository.add_host(host_data)
-        metrics.add_host_success.inc()
-        logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
-        return (output_host, add_results)
-    except InventoryException:
-        logger.exception("Error adding host ", extra={"host": host_data})
-        metrics.add_host_failure.inc()
-        raise
-    except Exception:
-        logger.exception("Error while adding host", extra={"host": host_data})
-        metrics.add_host_failure.inc()
-        raise
+    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
+
+    with PayloadTrackerProcessingContext(
+        payload_tracker, processing_status_message="adding/updating host"
+    ) as payload_tracker_processing_ctx:
+
+        try:
+            logger.info("Attempting to add host...")
+            (output_host, add_results) = host_repository.add_host(host_data)
+            metrics.add_host_success.inc()
+            logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
+            payload_tracker_processing_ctx.inventory_id = output_host["id"]
+            return (output_host, add_results)
+        except InventoryException:
+            logger.exception("Error adding host ", extra={"host": host_data})
+            metrics.add_host_failure.inc()
+            raise
+        except Exception:
+            logger.exception("Error while adding host", extra={"host": host_data})
+            metrics.add_host_failure.inc()
+            raise
 
 
 @metrics.ingress_message_handler_time.time()
@@ -70,17 +80,22 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     metadata = validated_operation_msg.get("platform_metadata") or {}
     initialize_thread_local_storage(metadata)
-    # FIXME: verify operation type
-    (output_host, add_results) = add_host(validated_operation_msg["data"])
 
-    if add_results == host_repository.AddHostResults.created:
-        event_type = "created"
-    else:
-        event_type = "updated"
+    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
 
-    event = build_event(event_type, output_host, metadata)
+    with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
 
-    event_producer.write_event(event)
+        # FIXME: verify operation type
+        (output_host, add_results) = add_host(validated_operation_msg["data"])
+
+        if add_results == host_repository.AddHostResults.created:
+            event_type = "created"
+        else:
+            event_type = "updated"
+
+        event = build_event(event_type, output_host, metadata)
+
+        event_producer.write_event(event)
 
 
 def event_loop(consumer, flask_app, event_producer, handler=handle_message):
