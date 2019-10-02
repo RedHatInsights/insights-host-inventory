@@ -14,7 +14,7 @@ logger = get_logger("mq_service")
 
 def main():
     config_name = os.getenv("APP_SETTINGS", "development")
-    application = create_app(config_name, start_tasks=False)
+    application = create_app(config_name, start_tasks=False, start_payload_tracker=True)
     start_http_server(9126)
 
     config = Config()
