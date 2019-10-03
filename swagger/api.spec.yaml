@@ -134,6 +134,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully deleted hosts.
@@ -179,6 +180,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -205,6 +207,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -235,6 +238,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -670,10 +674,7 @@ components:
       description: Representation of one mounted device
       properties:
         device:
-          example:
-            device:
-              summary: device example
-              value: "/dev/fdd0"
+          example: "/dev/fdd0"
           type: string
         label:
           description: user-defined mount label
@@ -681,9 +682,8 @@ components:
         options:
           description: mount options
           example:
-            options:
-              summary: Options example
-              value: {"uid": "0", "ro": true}
+            uid: "0"
+            ro: true
           type: object
           properties:
             name:
@@ -692,17 +692,11 @@ components:
               type: string
         mount_point:
           description: mount point
-          example:
-            mountpoint:
-              summary: mount point example
-              value: "/mnt/remote_nfs_share"
+          example: "/mnt/remote_nfs_shares"
           type: string
         type:
           description: mount type
-          example:
-            mounttype:
-              summary: mount type example
-              value: "ext3"
+          example: "ext3"
           type: string
     YumRepo:
       title: Yum Repository
@@ -725,17 +719,11 @@ components:
           type: string
         id:
           description: the product ID
-          example:
-            product_id:
-              summary: product ID example
-              value: "71"
+          example: "71"
           type: string
         status:
           description: subscription status for product
-          example:
-            status:
-              summary: status example
-              value: "Subscribed"
+          example: "Subscribed"
           type: string
     NetworkInterface:
       title: Network Interface
@@ -755,45 +743,21 @@ components:
           description: MTU
           type: integer
         mac_address:
-          description: MAC address
-          example:
-            mac_colons:
-              summary: mac address with colons
-              value: "00:00:00:00:00:00"
-            mac_hex:
-              summary: mac address
-              value: "000000000000"
+          description: MAC address (with or without colons)
+          example: "00:00:00:00:00:00"
           type: string
         name:
           description: name of interface
           type: string
-          example:
-            eth0:
-              summary: eth0 example
-              value: "eth0"
+          example: eth0
         state:
-          description: interface state
+          description: interface state (UP, DOWN, UNKNOWN)
           type: string
-          example:
-            up:
-              summary: up example
-              value: "UP"
-            down:
-              summary: down example
-              value: "DOWN"
-            unknown:
-              summary: unknown example
-              value: "UNKNOWN"
+          example: "UP"
         type:
-          description: interface type
+          description: interface type (ether, loopback)
           type: string
-          example:
-            ether:
-              summary: ether example
-              value: "ether"
-            loop:
-              summary: loopback example
-              value: "loopback"
+          example: "ether"
     SystemProfileIn:
       title: System profile fields
       description: Representation of the system profile fields
@@ -874,10 +838,7 @@ components:
           items:
             description: a NEVRA string for a single installed package
             type: string
-            example:
-              package:
-                summary: package example
-                value: "0:krb5-libs-1.16.1-23.fc29.i686"
+            example: "0:krb5-libs-1.16.1-23.fc29.i686"
         installed_services:
           type: array
           items:

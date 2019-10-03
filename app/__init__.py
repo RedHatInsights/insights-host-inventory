@@ -5,6 +5,7 @@ from flask import jsonify
 from flask import request
 
 from api.mgmt import monitoring_blueprint
+from app import payload_tracker
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import configure_logging
@@ -26,7 +27,7 @@ def render_exception(exception):
     return response
 
 
-def create_app(config_name, start_tasks=False):
+def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
@@ -52,7 +53,7 @@ def create_app(config_name, start_tasks=False):
                 strict_validation=True,
                 base_path=api_url,
             )
-            app_config.logger.info("Listening on API: %s", api_url)
+            logger.info("Listening on API: %s", api_url)
 
     # Add an error handler that will convert our top level exceptions
     # into error responses
@@ -82,5 +83,17 @@ def create_app(config_name, start_tasks=False):
             "The message queue based system_profile consumer "
             "and message queue based event notifications have been disabled."
         )
+
+    payload_tracker_producer = None
+    if start_payload_tracker is False:
+        # If we are running in "testing" mode, then inject the NullProducer.
+        payload_tracker_producer = payload_tracker.NullProducer()
+
+        logger.warn(
+            "WARNING: Using the NullProducer for the payload tracker producer.  "
+            "No payload tracker events will be sent to to payload tracker."
+        )
+
+    payload_tracker.init_payload_tracker(app_config, producer=payload_tracker_producer)
 
     return flask_app

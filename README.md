@@ -92,7 +92,6 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
-
 ## Configuration environment variables
 
 ```
@@ -228,12 +227,22 @@ to the _platform.inventory.events_ message queue.  The delete event message
 will look like the following:
 
 ```json
-  {"id": <host id>, "timestamp": <delete timestamp>, "type": "delete"}
+{
+  "id": "<host id>",
+  "timestamp": "<delete timestamp>",
+  "type": "delete",
+  "account": "<account number>",
+  "insights_id": "<insights id>",
+  "request_id": "<request id>"
+}
 ```
 
   - type: type of host change (delete in this case)
   - id: Inventory host id of the host that was deleted
   - timestamp: the time at which the host was deleted
+  - account: the account number associated with the host that was deleted
+  - insights_id: the insights_id of the host that was deleted
+  - request_id: the request_id from the DELETE REST invocation that triggered the delete message
 
 #### Testing API Calls
 
@@ -250,6 +259,39 @@ This is the Base64 encoding of the following JSON document:
 ```json
 {"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
 ```
+
+#### Payload Tracker Integration
+
+The inventory service has been integrated with the Payload Tracker service.  The payload
+tracker integration can be configured using the following environment variables:
+
+```
+KAFKA_BOOTSTRAP_SERVERS=localhost:29092
+PAYLOAD_TRACKER_KAFKA_TOPIC=platform.payload-status
+PAYLOAD_TRACKER_SERVICE_NAME=inventory
+PAYLOAD_TRACKER_ENABLED=true
+```
+
+The payload tracker can be disabled by setting the PAYLOAD_TRACKER_ENABLED environment
+variable to _false_. The payload tracker will also be disabled for add/delete operations
+that do not include a request_id.  When the payload tracker is disabled, a NullObject
+implementation (NullPayloadTracker) of the PayloadTracker interface is used.
+The NullPayloadTracker implements the PayloadTracker interface but the methods are _no-op_ methods.
+
+The PayloadTracker purposefully eats all exceptions that it generates. The exceptions are logged.
+A failure/exception within the PayloadTracker should not cause a request to fail.
+
+The payload status is a bit "different" due to each "payload" potentially containing
+multiple hosts. For example, the add_host operation will only log an error for the
+payload if the entire payload fails (catastrophic failure during processing...db down, etc).
+One or more of the hosts could fail during the add_host method. These will get logged
+as a "processing_error". If a host is successfully added/updated, then it will be logged
+as a "processing_success". Having one or more hosts get logged as "processing_error"
+will not cause the payload to be flagged as "error" overall.
+
+The payload tracker status logging for the delete operation is similar. The overall status
+of the payload will only be logged as an "error" if the entire delete operation fails
+(a 404 due to the hosts not existing, db down, etc).
 
 ## Contributing
 

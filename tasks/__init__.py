@@ -5,9 +5,9 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 
 from api import metrics
-from app import db
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import db_session_guard
 from app.models import Host
 from app.models import SystemProfileSchema
 
@@ -53,14 +53,15 @@ def msg_handler(parsed):
     if not id_:
         logger.error("ID is null, something went wrong.")
         return
-    host = Host.query.get(id_)
-    if host is None:
-        logger.error("Host with id [%s] not found!", id_)
-        return
-    logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
-    profile = SystemProfileSchema(strict=True).load(parsed["system_profile"]).data
-    host._update_system_profile(profile)
-    db.session.commit()
+
+    with db_session_guard():
+        host = Host.query.get(id_)
+        if host is None:
+            logger.error("Host with id [%s] not found!", id_)
+            return
+        logger.info("Processing message id=%s request_id=%s", parsed["id"], parsed["request_id"])
+        profile = SystemProfileSchema(strict=True).load(parsed["system_profile"]).data
+        host._update_system_profile(profile)
 
 
 def _init_system_profile_consumer(config, flask_app, handler=msg_handler, consumer=None):

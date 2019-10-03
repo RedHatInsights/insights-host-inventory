@@ -6,6 +6,7 @@ import sqlalchemy
 import ujson
 from flask_api import status
 from marshmallow import ValidationError
+from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
 from api import metrics
@@ -15,8 +16,12 @@ from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.logging import threadctx
 from app.models import Host
 from app.models import PatchHostSchema
+from app.payload_tracker import get_payload_tracker
+from app.payload_tracker import PayloadTrackerContext
+from app.payload_tracker import PayloadTrackerProcessingContext
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from lib.host_repository import _canonical_facts_host_query
@@ -36,34 +41,43 @@ logger = get_logger(__name__)
 def add_host_list(host_list):
     response_host_list = []
     number_of_errors = 0
-    for host in host_list:
-        try:
-            (host, add_result) = _add_host(host)
-            status_code = _convert_host_results_to_http_status(add_result)
-            response_host_list.append({"status": status_code, "host": host})
-        except ValidationException as e:
-            number_of_errors += 1
-            logger.exception("Input validation error while adding host", extra={"host": host})
-            response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
-        except InventoryException as e:
-            number_of_errors += 1
-            logger.exception("Error adding host", extra={"host": host})
-            response_host_list.append({**e.to_json(), "host": host})
-        except Exception:
-            number_of_errors += 1
-            logger.exception("Error adding host", extra={"host": host})
-            response_host_list.append(
-                {
-                    "status": 500,
-                    "title": "Error",
-                    "type": "unknown",
-                    "detail": "Could not complete operation",
-                    "host": host,
-                }
-            )
 
-    response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
-    return _build_json_response(response, status=207)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
+
+    with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
+
+        for host in host_list:
+            try:
+                with PayloadTrackerProcessingContext(
+                    payload_tracker, processing_status_message="adding/updating host"
+                ) as payload_tracker_processing_ctx:
+                    (host, add_result) = _add_host(host)
+                    status_code = _convert_host_results_to_http_status(add_result)
+                    response_host_list.append({"status": status_code, "host": host})
+                    payload_tracker_processing_ctx.inventory_id = host["id"]
+            except ValidationException as e:
+                number_of_errors += 1
+                logger.exception("Input validation error while adding host", extra={"host": host})
+                response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
+            except InventoryException as e:
+                number_of_errors += 1
+                logger.exception("Error adding host", extra={"host": host})
+                response_host_list.append({**e.to_json(), "host": host})
+            except Exception:
+                number_of_errors += 1
+                logger.exception("Error adding host", extra={"host": host})
+                response_host_list.append(
+                    {
+                        "status": 500,
+                        "title": "Error",
+                        "type": "unknown",
+                        "detail": "Could not complete operation",
+                        "host": host,
+                    }
+                )
+
+        response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
+        return _build_json_response(response, status=207)
 
 
 def _convert_host_results_to_http_status(result):
@@ -203,31 +217,40 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
 
-    host_ids_to_delete = []
-    for host in query.all():
-        try:
-            host_ids_to_delete.append(host.id)
-        except sqlalchemy.orm.exc.ObjectDeletedError:
-            logger.exception(
-                "Encountered sqlalchemy.orm.exc.ObjectDeletedError exception during delete_by_id operation.  Host was "
-                "already deleted."
-            )
+    with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
 
-    if not host_ids_to_delete:
-        return flask.abort(status.HTTP_404_NOT_FOUND)
+        query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    with metrics.delete_host_processing_time.time():
-        query.delete(synchronize_session="fetch")
-    db.session.commit()
+        hosts_to_delete = query.all()
 
-    metrics.delete_host_count.inc(len(host_ids_to_delete))
+        if not hosts_to_delete:
+            return flask.abort(status.HTTP_404_NOT_FOUND)
 
-    logger.debug("Deleted hosts: %s", host_ids_to_delete)
+        with metrics.delete_host_processing_time.time():
+            query.delete(synchronize_session="fetch")
+        db.session.commit()
 
-    for deleted_host_id in host_ids_to_delete:
-        emit_event(events.delete(deleted_host_id))
+        metrics.delete_host_count.inc(len(hosts_to_delete))
+
+        # This process of checking for an already deleted host relies
+        # on checking the session after it has been updated by the commit()
+        # function and marked the deleted hosts as expired.  It is after this
+        # change that the host is called by a new query and, if deleted by a
+        # different process, triggers the ObjectDeletedError and is not emited.
+        for deleted_host in hosts_to_delete:
+            # Prevents ObjectDeletedError from being raised.
+            if instance_state(deleted_host).expired:
+                # Can’t log the Host ID. Accessing an attribute raises ObjectDeletedError.
+                logger.info("Host already deleted. Delete event not emitted.")
+            else:
+                with PayloadTrackerProcessingContext(
+                    payload_tracker, processing_status_message="deleted host"
+                ) as payload_tracker_processing_ctx:
+                    logger.debug("Deleted host: %s", deleted_host)
+                    emit_event(events.delete(deleted_host))
+                    payload_tracker_processing_ctx.inventory_id = deleted_host.id
 
 
 @api_operation
