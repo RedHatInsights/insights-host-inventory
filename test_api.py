@@ -255,6 +255,18 @@ class CreateHostsTestCase(DBAPITestCase):
         # host_lookup_results["results"][0]["insights_id"] = "1.2.3.4"
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
+    def test_create_with_branch_id(self):
+        facts = None
+
+        host_data = HostWrapper(test_data(facts=facts))
+
+        post_url = HOST_URL + "?" + "branch_id=1234"
+
+        # Create the host
+        response = self.post(post_url, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
     def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
         original_insights_id = generate_uuid()
 
@@ -876,6 +888,34 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         self.assertEqual(actual_host["system_profile"], host["system_profile"])
 
+    def test_create_host_with_system_profile_and_query_with_branch_id(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = generate_uuid()
+
+        host["system_profile"] = self._valid_system_profile()
+
+        # Create the host
+        response = self.post(HOST_URL, [host], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        # verify system_profile is not included
+        self.assertNotIn("system_profile", created_host)
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile?branch_id=1234", 200)
+        actual_host = host_lookup_results["results"][0]
+
+        self.assertEqual(original_id, actual_host["id"])
+
+        self.assertEqual(actual_host["system_profile"], host["system_profile"])
+
     def test_create_host_without_system_profile_then_update_with_system_profile(self):
         facts = None
 
@@ -1256,11 +1296,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return result
 
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete(self, datetime_mock):
-
-        url = HOST_URL + "/" + self.added_hosts[0].id
-
+    def _create_then_delete_host(self, url, timestamp_iso):
         # Get the host
         self.get(url, 200)
 
@@ -1275,7 +1311,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             event = json.loads(m.events[0])
-            timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
             self.assertIsInstance(event, dict)
             expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
@@ -1293,6 +1328,18 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["count"], 0)
         self.assertEqual(response["total"], 0)
         self.assertEqual(response["results"], [])
+
+    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_create_then_delete(self, datetime_mock):
+        url = HOST_URL + "/" + self.added_hosts[0].id
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
+        self._create_then_delete_host(url, timestamp_iso)
+
+    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_create_then_delete_with_branch_id(self, datetime_mock):
+        url = HOST_URL + "/" + self.added_hosts[0].id + "?" + "branch_id=1234"
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
+        self._create_then_delete_host(url, timestamp_iso)
 
     def test_delete_non_existent_host(self):
         url = HOST_URL + "/" + generate_uuid()
@@ -1732,6 +1779,23 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
         expected_facts = {**host_list[0].facts[0]["facts"], **facts_to_add}
 
         self._basic_fact_test(facts_to_add, expected_facts, False)
+
+    def test_replace_and_add_facts_to_multiple_hosts_with_branch_id(self):
+        facts_to_add = self._valid_fact_doc()
+
+        host_list = self.added_hosts
+
+        target_namespace = host_list[0].facts[0]["namespace"]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace + "?" + "branch_id=1234"
+
+        # Add facts
+        self.patch(patch_url, facts_to_add, 200)
+
+        # Replace facts
+        self.put(patch_url, facts_to_add, 200)
 
     def test_replace_and_add_facts_to_multiple_hosts_including_nonexistent_host(self):
         facts_to_add = self._valid_fact_doc()

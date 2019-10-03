@@ -134,6 +134,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully deleted hosts.
@@ -179,6 +180,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -205,6 +207,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -235,6 +238,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully searched for hosts.
