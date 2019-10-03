@@ -5,7 +5,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
-from app.serialization import _serialize_canonical_facts
+from app.serialization import serialize_canonical_facts
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def delete(host):
             {
                 "timestamp": datetime.utcnow(),
                 "id": host.id,
-                **_serialize_canonical_facts(host.canonical_facts),
+                **serialize_canonical_facts(host.canonical_facts),
                 "account": host.account,
                 "request_id": threadctx.request_id,
                 "type": "delete",
