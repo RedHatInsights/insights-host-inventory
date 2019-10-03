@@ -2,7 +2,7 @@ from app.exceptions import InputFormatException
 from app.models import Host as Host
 
 
-__all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile")
+__all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
 
 _CANONICAL_FACTS_FIELDS = (
@@ -32,7 +32,7 @@ def deserialize_host(data):
 
 
 def serialize_host(host):
-    json_dict = _serialize_canonical_facts(host.canonical_facts)
+    json_dict = serialize_canonical_facts(host.canonical_facts)
     json_dict["id"] = str(host.id)
     json_dict["account"] = host.account
     json_dict["display_name"] = host.display_name
@@ -57,7 +57,7 @@ def _deserialize_canonical_facts(data):
     return canonical_fact_list
 
 
-def _serialize_canonical_facts(canonical_facts):
+def serialize_canonical_facts(canonical_facts):
     canonical_fact_dict = dict.fromkeys(_CANONICAL_FACTS_FIELDS, None)
     for cf in _CANONICAL_FACTS_FIELDS:
         if cf in canonical_facts:

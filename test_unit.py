@@ -22,9 +22,9 @@ from app.exceptions import InputFormatException
 from app.models import Host
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
-from app.serialization import _serialize_canonical_facts
 from app.serialization import _serialize_facts
 from app.serialization import deserialize_host
+from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from test_utils import set_environment
@@ -598,7 +598,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
 
 @patch("app.serialization._serialize_facts")
-@patch("app.serialization._serialize_canonical_facts")
+@patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
     def test_with_all_fields(self, serialize_canonical_facts, serialize_facts):
         canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
@@ -737,7 +737,7 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "mac_addresses": ("c2:00:d0:c8:61:01",),
             "external_id": "i-05d2313e6b9a42b16",
         }
-        self.assertEqual(canonical_facts, _serialize_canonical_facts(canonical_facts))
+        self.assertEqual(canonical_facts, serialize_canonical_facts(canonical_facts))
 
     def test_missing_fields_are_filled_with_none(self):
         canonical_fact_fields = (
@@ -751,7 +751,7 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "mac_addresses",
             "external_id",
         )
-        self.assertEqual({field: None for field in canonical_fact_fields}, _serialize_canonical_facts({}))
+        self.assertEqual({field: None for field in canonical_fact_fields}, serialize_canonical_facts({}))
 
 
 class SerializationDeserializeFactsTestCase(TestCase):
