@@ -81,9 +81,7 @@ class APIBaseTestCase(unittest.TestCase):
         header = auth_header.copy()
         if request_id_header is not None:
             header.update(request_id_header)
-            return header
-        else:
-            return header
+        return header
 
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT)
