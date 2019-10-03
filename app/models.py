@@ -77,6 +77,7 @@ class Host(db.Model):
         ansible_host=None,
         account=None,
         facts=None,
+        tags=None,
         system_profile_facts=None,
     ):
 
@@ -95,6 +96,7 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
+        self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
     def save(self):
@@ -272,6 +274,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
+    tags = fields.List(fields.Str())
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")

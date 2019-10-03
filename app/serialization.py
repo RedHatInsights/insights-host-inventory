@@ -1,3 +1,5 @@
+import re
+
 from app.exceptions import InputFormatException
 from app.models import Host as Host
 
@@ -21,12 +23,14 @@ _CANONICAL_FACTS_FIELDS = (
 def deserialize_host(data):
     canonical_facts = _deserialize_canonical_facts(data)
     facts = _deserialize_facts(data.get("facts"))
+    tags = _deserialize_tags(data.get("tags"))
     return Host(
         canonical_facts,
         data.get("display_name", None),
         data.get("ansible_host"),
         data.get("account"),
         facts,
+        tags,
         data.get("system_profile", {}),
     )
 
@@ -38,6 +42,7 @@ def serialize_host(host):
     json_dict["display_name"] = host.display_name
     json_dict["ansible_host"] = host.ansible_host
     json_dict["facts"] = _serialize_facts(host.facts)
+    json_dict["tags"] = _serialize_tags(host.tags)
     json_dict["created"] = host.created_on.isoformat() + "Z"
     json_dict["updated"] = host.modified_on.isoformat() + "Z"
     return json_dict
@@ -84,6 +89,25 @@ def _deserialize_facts(data):
     return fact_dict
 
 
+def _deserialize_tags(data):
+    if data is None:
+        data = []
+
+    tag_dict = {}
+    for tag in data:
+        tag_info = re.split("[/]", tag)
+        if tag_info[0] not in tag_dict:
+            tag_dict[tag_info[0]] = [tag_info[1]]
+        else:
+            tag_dict[tag_info[0]].append(tag_info[1])
+    return tag_dict
+
+
 def _serialize_facts(facts):
     fact_list = [{"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in facts.items()]
     return fact_list
+
+
+def _serialize_tags(tags):
+    tag_list = [f"{namespace}/{tag}" for namespace in tags.keys() for tag in tags[namespace]]
+    return tag_list

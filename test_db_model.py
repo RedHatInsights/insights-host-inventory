@@ -117,3 +117,12 @@ def test_create_host_with_system_profile(flask_app_fixture):
     db.session.commit()
 
     assert host.system_profile_facts == system_profile_facts
+
+
+def test_create_host_with_tags(flask_app_fixture):
+    tags = ["Sat/env=prod", "AWS/env=ci"]
+    host = Host({"fqdn": "fred.flintstone.com"}, display_name="display_name", account="00102", tags=tags)
+    db.session.add(host)
+    db.session.commit()
+
+    assert host.tags == tags
