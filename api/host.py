@@ -24,9 +24,6 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from tasks import emit_event
 
-# from app.payload_tracker import payload_status
-# from app.payload_tracker import PayloadStatus
-
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
