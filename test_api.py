@@ -9,6 +9,7 @@ from datetime import datetime
 from datetime import timezone
 from itertools import chain
 from json import dumps
+from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
@@ -16,6 +17,7 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
+from api.host import _get_host_list_by_id_list
 from app import create_app
 from app import db
 from app.auth.identity import Identity
@@ -1256,6 +1258,18 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+    class RaceCondition:
+        def __init__(self, *args, **kwargs):
+            self.query = _get_host_list_by_id_list(*args, **kwargs)
+
+        def __getattr__(self, item):
+            return self.all if item == "all" else getattr(self.query, item)
+
+        def all(self, *args, **kwargs):
+            result = self.query.all(*args, **kwargs)
+            self.query.delete(synchronize_session=False)
+            return result
+
     def _create_then_delete_host(self, url, timestamp_iso):
         # Get the host
         self.get(url, 200)
@@ -1310,6 +1324,12 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         url = HOST_URL + "/" + "notauuid"
 
         self.delete(url, 400)
+
+    def test_delete_when_host_is_deleted(self):
+        url = HOST_URL + "/" + self.added_hosts[0].id
+        with patch("api.host._get_host_list_by_id_list", self.RaceCondition):
+            # deletion should give back 200 status
+            self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
