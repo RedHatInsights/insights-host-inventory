@@ -36,7 +36,6 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
-REQUEST_ID = "BestRequestIdEver"
 
 
 def generate_uuid():
@@ -1266,7 +1265,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
         url = HOST_URL + "/" + self.added_hosts[0].id
-        request_id_header = {"x-rh-insights-request-id": REQUEST_ID}
+        request_id_header = {"x-rh-insights-request-id": generate_uuid()}
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
 
         # test with request_id_header
