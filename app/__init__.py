@@ -79,7 +79,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     if start_tasks:
         init_tasks(app_config, flask_app)
     else:
-        logger.warn(
+        logger.warning(
             'WARNING: The "tasks" subsystem has been disabled.  '
             "The message queue based system_profile consumer "
             "and message queue based event notifications have been disabled."
@@ -90,7 +90,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
         # If we are running in "testing" mode, then inject the NullProducer.
         payload_tracker_producer = payload_tracker.NullProducer()
 
-        logger.warn(
+        logger.warning(
             "WARNING: Using the NullProducer for the payload tracker producer.  "
             "No payload tracker events will be sent to to payload tracker."
         )
