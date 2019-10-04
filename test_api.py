@@ -1252,7 +1252,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self.assertEqual(self.added_hosts[0].id, event["id"])
             self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
             if request_id_header is not None:
-                self.assertEqual(REQUEST_ID, event["request_id"])
+                self.assertEqual(request_id_header["x-rh-insights-request-id"], event["request_id"])
             else:
                 self.assertEqual("-1", event["request_id"])
 
