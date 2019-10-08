@@ -1259,6 +1259,13 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
 
 class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+    class MockEmitEvent:
+        def __init__(self):
+            self.events = []
+
+        def __call__(self, e):
+            self.events.append(e)
+
     class RaceCondition:
         @classmethod
         def mock(cls, host_ids_to_delete):
@@ -1300,15 +1307,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         # Get the host
         self.get(url, 200)
 
-        class MockEmitEvent:
-            def __init__(self):
-                self.events = []
-
-            def __call__(self, e):
-                self.events.append(e)
-
         # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
+        with unittest.mock.patch("api.host.emit_event", new=self.MockEmitEvent()) as m:
             self.delete(url, 200, return_response_as_json=False)
             event = json.loads(m.events[0])
 
