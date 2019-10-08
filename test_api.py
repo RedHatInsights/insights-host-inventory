@@ -1279,32 +1279,38 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         def __call__(self, e):
             self.events.append(e)
 
-    def _create_then_delete_host(self, url, host, timestamp):
-        # Get the host
+    def _delete(self, url):
+        with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+            self.delete(url, 200, return_response_as_json=False)
+            return json.loads(m.events[0])
+
+    def _assert_event_is_valid(self, event, host, timestamp):
+        self.assertIsInstance(event, dict)
+        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+        self.assertEqual(set(event.keys()), expected_keys)
+
+        self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
+        self.assertEqual("delete", event["type"])
+        self.assertEqual(host.id, event["id"])
+        self.assertEqual(host.insights_id, event["insights_id"])
+        self.assertEqual("-1", event["request_id"])
+
+    def _check_hosts_are_present(self, url):
         before_response = self.get(url, 200)
         self.assertEqual(before_response["total"], 1)
 
-        # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
-            self.delete(url, 200, return_response_as_json=False)
-            event = json.loads(m.events[0])
-
-            self.assertIsInstance(event, dict)
-            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-            self.assertEqual(set(event.keys()), expected_keys)
-
-            self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
-            self.assertEqual("delete", event["type"])
-            self.assertEqual(host.id, event["id"])
-            self.assertEqual(host.insights_id, event["insights_id"])
-            self.assertEqual("-1", event["request_id"])
-
-        # Try to get the host again
+    def _check_hosts_are_deleted(self, url):
         after_response = self.get(url, 200)
 
         self.assertEqual(after_response["count"], 0)
         self.assertEqual(after_response["total"], 0)
         self.assertEqual(after_response["results"], [])
+
+    def _create_then_delete_host(self, url, host, timestamp):
+        self._check_hosts_are_present(url)
+        event = self._delete(url)
+        self._assert_event_is_valid(event, host, timestamp)
+        self._check_hosts_are_deleted(url)
 
     def test_create_then_delete(self, datetime_mock):
         host = self.added_hosts[0]
