@@ -21,7 +21,7 @@ headers["x-rh-identity"] = base64.b64encode(json.dumps(identity).encode())
 
 
 def main():
-    all_payloads = payloads.build_http_payloads()
+    all_payloads = payloads.build_http_payloads(1)
 
     if bulk_insert:
         r = requests.post(URL, data=json.dumps(all_payloads), headers=headers)

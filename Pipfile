@@ -17,7 +17,7 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 request = "==2019.4.13"  # Not semver
 gunicorn = "~=19.9.0"
-connexion = {version = "~=2.3.0", extras = ["swagger-ui"]}
+connexion = {version = "~=2.3.0",extras = ["swagger-ui"]}
 pyyaml = "~=5.1.2"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
@@ -38,6 +38,7 @@ reorder-python-imports = "~=1.6.1"
 pre-commit-hooks = "~=2.2.3"
 black = "==19.3b0"  # Pre-release, not semver
 pre-commit = "~=1.18.1"
+pylint = "*"
 
 [requires]
 python_version = "3.6"

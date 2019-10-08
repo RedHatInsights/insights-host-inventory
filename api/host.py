@@ -200,6 +200,40 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
     return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number, sqlalchemy.or_(*filter_list)]))
 
 
+
+#/////////////////////////////////////////////////////////////////
+
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tag_count(host_id_list):
+    logger.debug("HELLO!")
+    #query = f"SELECT tags FROM hosts WHERE id='%host_id_list'"_get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).first()
+
+    logger.debug("Query: %s", query)
+
+    # for host in query.all():
+    #     try:
+    #         flask.Response(200, str("worked"))
+    #     except ValueError as e:
+    #         flask.abort(400, str(e))
+    #     else:
+    #         query = query
+    #query_results = query.first()
+
+    logger.debug("Tags: %s", query.tags)
+    count = 0
+    for key in query.tags: count += len(query.tags[key])
+    json_output = {
+        "tag_count": count
+    }
+
+    return _build_json_response(json_output, status=200)
+
+#/////////////////////////////////////////////////////////////////
+
+
+
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
