@@ -199,10 +199,6 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 
     return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number, sqlalchemy.or_(*filter_list)]))
 
-
-
-#/////////////////////////////////////////////////////////////////
-
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list):
@@ -218,7 +214,35 @@ def get_host_tag_count(host_id_list):
 
 #/////////////////////////////////////////////////////////////////
 
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tags(host_id_list, page=1, per_page=100):
+    host_list = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).all()
 
+    logger.debug(host_list)
+
+    tags_list = _build_tags_list(host_list)
+
+    return _build_paginated_host_tags_response(len(host_list), page, per_page, tags_list)
+
+def _build_tags_list(host_list):
+    tags_list = []
+
+    for host in host_list:
+        tags_list.append(host.tags)
+    
+    return tags_list
+
+def _build_paginated_host_tags_response(total, page, per_page, tags_list):
+    json_output = {
+        "total": total,
+        "count": len(tags_list),
+        "page": page,
+        "per_page": per_page,
+        "results": tags_list,
+    }
+
+    return _build_json_response(json_output, status=200)
 
 @api_operation
 @metrics.api_request_time.time()

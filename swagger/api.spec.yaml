@@ -268,6 +268,28 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
+  '/hosts/{host_id_list}/tags':
+    get:
+      tags:
+        - hosts
+      summary: Get the tags on a host
+      description: Get the tags on a host
+      operationId: api.host.get_host_tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagsOut'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -356,6 +378,24 @@ components:
         tag_count: 
           type: integer
           description: Total number of tags on a host
+    TagsOut:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items in the "data" list.
+        count:
+          description: A number of entries on the current page.
+          type: integer
+        page:
+          description: A current page number.
+          type: integer
+        per_page:
+          description: A page size – a number of entries per single page.
+          type: integer
+        results:
+          description: The list of tags on the systems
+          type: array
     BulkHostOut:
       type: object
       properties:
