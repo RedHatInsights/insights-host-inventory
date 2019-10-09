@@ -216,14 +216,14 @@ def get_host_tag_count(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tags(host_id_list, page=1, per_page=100):
-    host_list = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).all()
+def get_host_tags(host_id_list, page=1, per_page=2):
+    host_list = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).paginate(page, per_page, True)
 
     logger.debug(host_list)
 
-    tags_list = _build_tags_list(host_list)
+    tags_list = _build_tags_list(host_list.items)
 
-    return _build_paginated_host_tags_response(len(host_list), page, per_page, tags_list)
+    return _build_paginated_host_tags_response(host_list.total, page, per_page, tags_list)
 
 def _build_tags_list(host_list):
     tags_list = []
