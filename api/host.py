@@ -201,13 +201,30 @@ def find_hosts_by_hostname_or_id(account_number, hostname):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tag_count(host_id_list):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).first()
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    count = 0
-    for key in query.tags: count += len(query.tags[key])
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+    query = query.paginate(page, per_page, True)
+    
+    tags_list = _build_tags_list(query.items)
+
+    logger.debug(tags_list)
+
+    counts = []
+    for tags in tags_list:
+        count = 0
+        for key in tags: 
+            for item in tags[key]: count += len(tags[key][item])
+        counts.append({f"{key}" : count})
+
     json_output = {
-        "tag_count": count
+        "tag_count": counts
     }
 
     return _build_json_response(json_output, status=200)
@@ -216,20 +233,27 @@ def get_host_tag_count(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tags(host_id_list, page=1, per_page=100):
-    host_list = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list)).paginate(page, per_page, True)
+def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    logger.debug(host_list)
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+    query = query.paginate(page, per_page, True)
+    
+    tags_list = _build_tags_list(query.items)
 
-    tags_list = _build_tags_list(host_list.items)
-
-    return _build_paginated_host_tags_response(host_list.total, page, per_page, tags_list)
+    return _build_paginated_host_tags_response(query.total, page, per_page, tags_list)
 
 def _build_tags_list(host_list):
     tags_list = []
 
     for host in host_list:
-        tags_list.append(host.tags)
+        system_tag_list = { f"{host.display_name}" : host.tags }
+        tags_list.append(system_tag_list)
     
     return tags_list
 

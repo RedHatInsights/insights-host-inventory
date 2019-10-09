@@ -160,7 +160,7 @@ def build_host_chunk():
         "bios_uuid": str(uuid.uuid4()),
         "fqdn": fqdn,
         "display_name": fqdn,
-        "tags": ["Sat/env=prod", "SRC/geo=EU"],
+        "tags": ["Sat/env=ci", "SRC/geo=Neo", "AWS/fit=fresh"],
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
