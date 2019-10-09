@@ -246,28 +246,6 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
-  '/hosts/{host_id_list}/tags/count':
-    get:
-      tags:
-        - hosts
-      summary: Get the number of tags on a host
-      description: Get the number of tags on a host
-      operationId: api.host.get_host_tag_count
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-      responses:
-        '200':
-          description: Successfully searched for hosts.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TagCountOut'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host not found.
   '/hosts/{host_id_list}/tags':
     get:
       tags:
@@ -290,6 +268,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TagsOut'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
+  '/hosts/{host_id_list}/tags/count':
+    get:
+      tags:
+        - hosts
+      summary: Get the number of tags on a host
+      description: Get the number of tags on a host
+      operationId: api.host.get_host_tag_count
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
         '404':
@@ -376,12 +376,6 @@ components:
         Direction of the ordering, defaults to ASC for display_name and to DESC for
         updated
   schemas:
-    TagCountOut:
-      type: object
-      properties:
-        tag_count: 
-          type: array
-          description: Total number of tags on a host
     TagsOut:
       type: object
       properties:
@@ -400,6 +394,12 @@ components:
         results:
           description: The list of tags on the systems
           type: array
+    TagCountOut:
+      type: object
+      properties:
+        tag_count: 
+          type: array
+          description: Total number of tags on a host
     BulkHostOut:
       type: object
       properties:

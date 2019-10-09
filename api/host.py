@@ -212,6 +212,15 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
     
+    counts = _count_tags(query)
+
+    json_output = {
+        "tag_count": counts
+    }
+
+    return _build_json_response(json_output, status=200)
+
+def _count_tags(query):
     tags_list = _build_tags_list(query.items)
 
     logger.debug(tags_list)
@@ -223,13 +232,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
             for item in tags[key]: count += len(tags[key][item])
         counts.append({f"{key}" : count})
 
-    json_output = {
-        "tag_count": counts
-    }
-
-    return _build_json_response(json_output, status=200)
-
-#/////////////////////////////////////////////////////////////////
+    return counts
 
 @api_operation
 @metrics.api_request_time.time()
