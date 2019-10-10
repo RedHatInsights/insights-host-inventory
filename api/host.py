@@ -6,6 +6,7 @@ import sqlalchemy
 import ujson
 from flask_api import status
 from marshmallow import ValidationError
+from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
 from api import metrics
@@ -22,9 +23,6 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from tasks import emit_event
-
-# from app.payload_tracker import payload_status
-# from app.payload_tracker import PayloadStatus
 
 
 TAG_OPERATIONS = ("apply", "remove")
@@ -314,19 +312,23 @@ def delete_by_id(host_id_list):
 
         metrics.delete_host_count.inc(len(hosts_to_delete))
 
+        # This process of checking for an already deleted host relies
+        # on checking the session after it has been updated by the commit()
+        # function and marked the deleted hosts as expired.  It is after this
+        # change that the host is called by a new query and, if deleted by a
+        # different process, triggers the ObjectDeletedError and is not emited.
         for deleted_host in hosts_to_delete:
-            try:
+            # Prevents ObjectDeletedError from being raised.
+            if instance_state(deleted_host).expired:
+                # Can’t log the Host ID. Accessing an attribute raises ObjectDeletedError.
+                logger.info("Host already deleted. Delete event not emitted.")
+            else:
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="deleted host"
                 ) as payload_tracker_processing_ctx:
                     logger.debug("Deleted host: %s", deleted_host)
                     emit_event(events.delete(deleted_host))
                     payload_tracker_processing_ctx.inventory_id = deleted_host.id
-            except sqlalchemy.orm.exc.ObjectDeletedError:
-                logger.exception(
-                    "Encountered sqlalchemy.orm.exc.ObjectDeletedError exception during delete_by_id operation.  "
-                    "Host was already deleted."
-                )
 
 
 @api_operation
