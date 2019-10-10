@@ -1258,7 +1258,20 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
 
-class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+class DeleteHostsErrorTestCase(DBAPITestCase):
+    def test_delete_non_existent_host(self):
+        url = HOST_URL + "/" + generate_uuid()
+
+        self.delete(url, 404)
+
+    def test_delete_with_invalid_host_id(self):
+        url = HOST_URL + "/" + "notauuid"
+
+        self.delete(url, 400)
+
+
+@unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
     class MockEmitEvent:
         def __init__(self):
             self.events = []
@@ -1266,6 +1279,48 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
         def __call__(self, e):
             self.events.append(e)
 
+    def _create_then_delete_host(self, url, host, timestamp):
+        # Get the host
+        before_response = self.get(url, 200)
+        self.assertEqual(before_response["total"], 1)
+
+        # Delete the host
+        with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+            self.delete(url, 200, return_response_as_json=False)
+            event = json.loads(m.events[0])
+
+            self.assertIsInstance(event, dict)
+            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+            self.assertEqual(set(event.keys()), expected_keys)
+
+            self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
+            self.assertEqual("delete", event["type"])
+            self.assertEqual(host.id, event["id"])
+            self.assertEqual(host.insights_id, event["insights_id"])
+            self.assertEqual("-1", event["request_id"])
+
+        # Try to get the host again
+        after_response = self.get(url, 200)
+
+        self.assertEqual(after_response["count"], 0)
+        self.assertEqual(after_response["total"], 0)
+        self.assertEqual(after_response["results"], [])
+
+    def test_create_then_delete(self, datetime_mock):
+        host = self.added_hosts[0]
+        url = HOST_URL + "/" + host.id
+        timestamp = datetime_mock.utcnow.return_value
+        self._create_then_delete_host(url, host, timestamp)
+
+    def test_create_then_delete_with_branch_id(self, datetime_mock):
+        host = self.added_hosts[0]
+        url = HOST_URL + "/" + host.id + "?" + "branch_id=1234"
+        timestamp = datetime_mock.utcnow.return_value
+        self._create_then_delete_host(url, host, timestamp)
+
+
+@patch("api.host.emit_event")
+class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class RaceCondition:
         @classmethod
         def mock(cls, host_ids_to_delete):
@@ -1303,58 +1358,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return result
 
-    def _create_then_delete_host(self, url, host, timestamp):
-        # Get the host
-        before_response = self.get(url, 200)
-        self.assertEqual(before_response["total"], 1)
-
-        # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
-            self.delete(url, 200, return_response_as_json=False)
-            event = json.loads(m.events[0])
-
-            self.assertIsInstance(event, dict)
-            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-            self.assertEqual(set(event.keys()), expected_keys)
-
-            self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
-            self.assertEqual("delete", event["type"])
-            self.assertEqual(host.id, event["id"])
-            self.assertEqual(host.insights_id, event["insights_id"])
-            self.assertEqual("-1", event["request_id"])
-
-        # Try to get the host again
-        after_response = self.get(url, 200)
-
-        self.assertEqual(after_response["count"], 0)
-        self.assertEqual(after_response["total"], 0)
-        self.assertEqual(after_response["results"], [])
-
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete(self, datetime_mock):
-        host = self.added_hosts[0]
-        url = HOST_URL + "/" + host.id
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, timestamp)
-
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete_with_branch_id(self, datetime_mock):
-        host = self.added_hosts[0]
-        url = HOST_URL + "/" + host.id + "?" + "branch_id=1234"
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, timestamp)
-
-    def test_delete_non_existent_host(self):
-        url = HOST_URL + "/" + generate_uuid()
-
-        self.delete(url, 404)
-
-    def test_delete_with_invalid_host_id(self):
-        url = HOST_URL + "/" + "notauuid"
-
-        self.delete(url, 400)
-
-    @patch("api.host.emit_event")
     def test_delete_when_one_host_is_deleted(self, emit_event):
         host_id = self.added_hosts[0].id
         url = HOST_URL + "/" + host_id
@@ -1363,7 +1366,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             # 200 OK.
             self.delete(url, 200, return_response_as_json=False)
 
-    @patch("api.host.emit_event")
     def test_delete_when_all_hosts_are_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
@@ -1372,7 +1374,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             # returning 200 OK.
             self.delete(url, 200, return_response_as_json=False)
 
-    @patch("api.host.emit_event")
     def test_delete_when_some_hosts_is_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
