@@ -1303,7 +1303,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return result
 
-    def _create_then_delete_host(self, url, timestamp):
+    def _create_then_delete_host(self, url, host, timestamp):
         # Get the host
         before_response = self.get(url, 200)
         self.assertEqual(before_response["total"], 1)
@@ -1319,8 +1319,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
             self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
             self.assertEqual("delete", event["type"])
-            self.assertEqual(self.added_hosts[0].id, event["id"])
-            self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
+            self.assertEqual(host.id, event["id"])
+            self.assertEqual(host.insights_id, event["insights_id"])
             self.assertEqual("-1", event["request_id"])
 
         # Try to get the host again
@@ -1332,15 +1332,17 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
-        url = HOST_URL + "/" + self.added_hosts[0].id
+        host = self.added_hosts[0]
+        url = HOST_URL + "/" + host.id
         timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, timestamp)
+        self._create_then_delete_host(url, host, timestamp)
 
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete_with_branch_id(self, datetime_mock):
-        url = HOST_URL + "/" + self.added_hosts[0].id + "?" + "branch_id=1234"
+        host = self.added_hosts[0]
+        url = HOST_URL + "/" + host.id + "?" + "branch_id=1234"
         timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, timestamp)
+        self._create_then_delete_host(url, host, timestamp)
 
     def test_delete_non_existent_host(self):
         url = HOST_URL + "/" + generate_uuid()
