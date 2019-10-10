@@ -1,7 +1,12 @@
 import uuid
 
+import pytest
+from marshmallow import ValidationError
+
 from app import db
+from app.models import _deserialize_tags
 from app.models import Host
+from app.models import HostSchema
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -116,3 +121,60 @@ def test_create_host_with_system_profile(flask_app_fixture):
     db.session.commit()
 
     assert host.system_profile_facts == system_profile_facts
+
+
+def test_host_schema_valid_tags(flask_app_fixture):
+    tags = ["Sat/env=prod", "AWS/env=ci"]
+    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    validated_host = HostSchema(strict=True).load(host)
+
+    assert validated_host.data["tags"] == tags
+
+    tags = ["Sat/env", "AWS/env"]
+    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    validated_host = HostSchema(strict=True).load(host)
+
+    assert validated_host.data["tags"] == tags
+
+
+def test_host_schema_invalid_tags(flask_app_fixture):
+    tags = ["Sat/"]
+    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    with pytest.raises(ValidationError) as excinfo:
+        _ = HostSchema(strict=True).load(host)
+
+    assert "Sat/" in str(excinfo.value)
+
+    tags = ["Sat/env=prod", "bad_tag"]
+    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    with pytest.raises(ValidationError) as excinfo:
+        _ = HostSchema(strict=True).load(host)
+
+    assert "bad_tag" in str(excinfo.value)
+
+
+def test_tag_deserialization(flask_app_fixture):
+    tags = ["Sat/env=prod", "Sat/env=test", "Sat/geo=somewhere", "AWS/env=ci", "AWS/env"]
+    expected_tags = {"Sat": {"env": ["prod", "test"], "geo": ["somewhere"]}, "AWS": {"env": ["", "ci"]}}
+    deserialized_tags = _deserialize_tags(tags)
+
+    assert len(deserialized_tags["Sat"]["env"]) == len(expected_tags["Sat"]["env"])
+    assert len(deserialized_tags["Sat"]["geo"]) == len(expected_tags["Sat"]["geo"])
+    assert len(deserialized_tags["AWS"]["env"]) == len(expected_tags["AWS"]["env"])
+
+
+def test_create_host_with_tags(flask_app_fixture):
+    tags = ["Sat/env=prod", "AWS/env=ci"]
+    host = Host({"fqdn": "fred.flintstone.com"}, display_name="display_name", account="00102", tags=tags)
+    db.session.add(host)
+    db.session.commit()
+
+    assert host.tags == tags
+
+    # Tags aren't required to have a value
+    tags = ["Sat/env", "AWS/env"]
+    host = Host({"fqdn": "fred.flintstone.com"}, display_name="display_name", account="00102", tags=tags)
+    db.session.add(host)
+    db.session.commit()
+
+    assert host.tags == tags
