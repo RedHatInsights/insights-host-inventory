@@ -214,11 +214,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     
     counts = _count_tags(query)
 
-    json_output = {
-        "tag_count": counts
-    }
-
-    return _build_json_response(json_output, status=200)
+    return _build_paginated_host_tags_response(query.total, page, per_page, counts)
 
 def _count_tags(query):
     tags_list = _build_tags_list(query.items)
