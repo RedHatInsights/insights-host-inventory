@@ -1,3 +1,4 @@
+import re
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -49,6 +50,32 @@ def _set_display_name_on_save(context):
         return params["canonical_facts"].get("fqdn") or params["id"]
 
 
+def _split_tag(tag):
+    try:
+        namespace, t_key, t_value = re.split("[/ =]", tag)
+    except ValueError:
+        namespace, t_key = re.split("[/]", tag)
+        t_value = ""
+    return (namespace, t_key, t_value)
+
+
+def _deserialize_tags(data):
+    if data is None:
+        data = []
+
+    tag_dict = {}
+    for tag in set(data):
+        namespace, t_key, t_value = _split_tag(tag)
+        if namespace in tag_dict:
+            if t_key in tag_dict[namespace]:
+                tag_dict[namespace][t_key].append(t_value)
+            else:
+                tag_dict[namespace][t_key] = [t_value]
+        else:
+            tag_dict[namespace] = {t_key: [t_value]}
+    return tag_dict
+
+
 class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
@@ -78,6 +105,7 @@ class Host(db.Model):
         ansible_host=None,
         account=None,
         facts=None,
+        tags=None,
         system_profile_facts=None,
     ):
 
@@ -96,18 +124,21 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
+        self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
     @classmethod
     def from_json(cls, d):
         canonical_facts = CanonicalFacts.from_json(d)
         facts = Facts.from_json(d.get("facts"))
+        tags = _deserialize_tags(d.get("tags"))
         return cls(
             canonical_facts,
             d.get("display_name", None),
             d.get("ansible_host"),
             d.get("account"),
             facts,
+            tags,
             d.get("system_profile", {}),
         )
 
@@ -375,6 +406,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
+    tags = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")
@@ -386,6 +418,12 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
+
+    @validates("tags")
+    def validate_tags(self, tags):
+        for tag in tags:
+            if not re.match(r"\w+\/\w+(=)?\w*$", tag):
+                raise ValidationError(tag)
 
 
 class PatchHostSchema(Schema):
