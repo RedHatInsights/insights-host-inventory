@@ -1298,7 +1298,8 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
 
     def _create_then_delete_host(self, url, timestamp_iso):
         # Get the host
-        self.get(url, 200)
+        before_response = self.get(url, 200)
+        self.assertEqual(before_response["total"], 1)
 
         class MockEmitEvent:
             def __init__(self):
@@ -1323,11 +1324,11 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self.assertEqual("-1", event["request_id"])
 
         # Try to get the host again
-        response = self.get(url, 200)
+        after_response = self.get(url, 200)
 
-        self.assertEqual(response["count"], 0)
-        self.assertEqual(response["total"], 0)
-        self.assertEqual(response["results"], [])
+        self.assertEqual(after_response["count"], 0)
+        self.assertEqual(after_response["total"], 0)
+        self.assertEqual(after_response["results"], [])
 
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
