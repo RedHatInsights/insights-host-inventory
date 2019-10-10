@@ -1303,7 +1303,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return result
 
-    def _create_then_delete_host(self, url, timestamp_iso):
+    def _create_then_delete_host(self, url, timestamp):
         # Get the host
         self.get(url, 200)
 
@@ -1316,7 +1316,7 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
             self.assertEqual(set(event.keys()), expected_keys)
 
-            self.assertEqual(f"{timestamp_iso}+00:00", event["timestamp"])
+            self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
             self.assertEqual("delete", event["type"])
             self.assertEqual(self.added_hosts[0].id, event["id"])
             self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
@@ -1332,14 +1332,14 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete(self, datetime_mock):
         url = HOST_URL + "/" + self.added_hosts[0].id
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
-        self._create_then_delete_host(url, timestamp_iso)
+        timestamp = datetime_mock.utcnow.return_value
+        self._create_then_delete_host(url, timestamp)
 
     @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_create_then_delete_with_branch_id(self, datetime_mock):
         url = HOST_URL + "/" + self.added_hosts[0].id + "?" + "branch_id=1234"
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
-        self._create_then_delete_host(url, timestamp_iso)
+        timestamp = datetime_mock.utcnow.return_value
+        self._create_then_delete_host(url, timestamp)
 
     def test_delete_non_existent_host(self):
         url = HOST_URL + "/" + generate_uuid()
