@@ -42,7 +42,6 @@ def serialize_host(host):
     json_dict["display_name"] = host.display_name
     json_dict["ansible_host"] = host.ansible_host
     json_dict["facts"] = _serialize_facts(host.facts)
-    json_dict["tags"] = _serialize_tags(host.tags)
     json_dict["created"] = host.created_on.isoformat() + "Z"
     json_dict["updated"] = host.modified_on.isoformat() + "Z"
     return json_dict
@@ -89,17 +88,29 @@ def _deserialize_facts(data):
     return fact_dict
 
 
+def _split_tag(tag):
+    try:
+        namespace, t_key, t_value = re.split("[/ =]", tag)
+    except ValueError:
+        namespace, t_key = re.split("[/]", tag)
+        t_value = ""
+    return (namespace, t_key, t_value)
+
+
 def _deserialize_tags(data):
     if data is None:
         data = []
 
     tag_dict = {}
-    for tag in data:
-        tag_info = re.split("[/]", tag)
-        if tag_info[0] not in tag_dict:
-            tag_dict[tag_info[0]] = [tag_info[1]]
+    for tag in set(data):
+        namespace, t_key, t_value = _split_tag(tag)
+        if namespace in tag_dict:
+            if t_key in tag_dict[namespace]:
+                tag_dict[namespace][t_key].append(t_value)
+            else:
+                tag_dict[namespace][t_key] = [t_value]
         else:
-            tag_dict[tag_info[0]].append(tag_info[1])
+            tag_dict[namespace] = {t_key: [t_value]}
     return tag_dict
 
 

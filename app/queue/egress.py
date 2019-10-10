@@ -75,7 +75,6 @@ class HostSchema(Schema):
     # FIXME:
     created = fields.Str()
     updated = fields.Str()
-    tags = fields.List(fields.Str())
 
 
 class HostEvent(Schema):

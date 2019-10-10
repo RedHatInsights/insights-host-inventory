@@ -59,7 +59,7 @@ def create_system_profile():
         "insights_egg_version": "120.0.1",
         # "installed_packages": ["rpm1", "rpm2"],
         # "installed_packages": subprocess.getoutput("rpm -qa").split("\n"),
-        # "installed_packages": rpm_list,
+        "installed_packages": rpm_list,
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
@@ -160,7 +160,7 @@ def build_host_chunk():
         "bios_uuid": str(uuid.uuid4()),
         "fqdn": fqdn,
         "display_name": fqdn,
-        "tags": ["Sat/env=prod", "Sat/geo=NA"],
+        "tags": ["Sat/env=prod", "Sat/geo=NA", "AWS/env=ci", "Sat/geo=NA", "Sat/geo=Raleigh", "AWS/env"],
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
