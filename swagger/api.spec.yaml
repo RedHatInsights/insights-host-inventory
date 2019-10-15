@@ -287,6 +287,10 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully searched for hosts.
