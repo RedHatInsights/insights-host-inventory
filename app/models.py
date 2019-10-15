@@ -1,19 +1,42 @@
-import logging
+import re
 import uuid
-
+from contextlib import contextmanager
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from marshmallow import Schema, fields, validate, validates, ValidationError
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import orm
 
-from app.exceptions import InventoryException, InputFormatException
+from flask_sqlalchemy import SQLAlchemy
+from marshmallow import fields
+from marshmallow import Schema
+from marshmallow import validate
+from marshmallow import validates
+from marshmallow import ValidationError
+from sqlalchemy import Index
+from sqlalchemy import orm
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
+from app.logging import get_logger
 from app.validators import verify_uuid_format
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 db = SQLAlchemy()
+
+
+@contextmanager
+def db_session_guard():
+    session = db.session
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.remove()
 
 
 def _set_display_name_on_save(context):
@@ -23,20 +46,53 @@ def _set_display_name_on_save(context):
     the id exists and can be used as the display_name if necessary.
     """
     params = context.get_current_parameters()
-    if not params['display_name']:
-        return params["canonical_facts"].get("fqdn") or params['id']
+    if not params["display_name"]:
+        return params["canonical_facts"].get("fqdn") or params["id"]
+
+
+def _split_tag(tag):
+    try:
+        namespace, t_key, t_value = re.split("[/ =]", tag)
+    except ValueError:
+        namespace, t_key = re.split("[/]", tag)
+        t_value = ""
+    return (namespace, t_key, t_value)
+
+
+def _deserialize_tags(data):
+    if data is None:
+        data = []
+
+    tag_dict = {}
+    for tag in set(data):
+        namespace, t_key, t_value = _split_tag(tag)
+        if namespace in tag_dict:
+            if t_key in tag_dict[namespace]:
+                tag_dict[namespace][t_key].append(t_value)
+            else:
+                tag_dict[namespace][t_key] = [t_value]
+        else:
+            tag_dict[namespace] = {t_key: [t_value]}
+    return tag_dict
 
 
 class Host(db.Model):
     __tablename__ = "hosts"
+    # These Index entries are essentially place holders so that the
+    # alembic autogenerate functionality does not try to remove the indexes
+    __table_args__ = (
+        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
+        Index("idxgincanonicalfacts", "canonical_facts"),
+        Index("idxaccount", "account"),
+        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+    )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
+    ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
+    modified_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
@@ -45,16 +101,18 @@ class Host(db.Model):
     def __init__(
         self,
         canonical_facts,
-        display_name=display_name,
-        account=account,
+        display_name=None,
+        ansible_host=None,
+        account=None,
         facts=None,
+        tags=None,
         system_profile_facts=None,
     ):
 
         if not canonical_facts:
-            raise InventoryException(title="Invalid request",
-                                     detail="At least one of the canonical "
-                                     "fact fields must be present.")
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
 
         self.canonical_facts = canonical_facts
 
@@ -63,19 +121,24 @@ class Host(db.Model):
             # been set...this will make it so that the "default" logic will
             # get called during the save to fill in an empty display_name
             self.display_name = display_name
+        self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
+        self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
     @classmethod
     def from_json(cls, d):
         canonical_facts = CanonicalFacts.from_json(d)
         facts = Facts.from_json(d.get("facts"))
+        tags = _deserialize_tags(d.get("tags"))
         return cls(
             canonical_facts,
             d.get("display_name", None),
+            d.get("ansible_host"),
             d.get("account"),
             facts,
+            tags,
             d.get("system_profile", {}),
         )
 
@@ -84,15 +147,14 @@ class Host(db.Model):
         json_dict["id"] = str(self.id)
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
+        json_dict["ansible_host"] = self.ansible_host
         json_dict["facts"] = Facts.to_json(self.facts)
-        json_dict["created"] = self.created_on.isoformat()+"Z"
-        json_dict["updated"] = self.modified_on.isoformat()+"Z"
+        json_dict["created"] = self.created_on.isoformat() + "Z"
+        json_dict["updated"] = self.modified_on.isoformat() + "Z"
         return json_dict
 
     def to_system_profile_json(self):
-        json_dict = {"id": str(self.id),
-                     "system_profile": self.system_profile_facts or {}
-                     }
+        json_dict = {"id": str(self.id), "system_profile": self.system_profile_facts or {}}
         return json_dict
 
     def save(self):
@@ -101,15 +163,30 @@ class Host(db.Model):
     def update(self, input_host):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        self.update_display_name(input_host)
+        self.update_display_name(input_host.display_name)
+
+        self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
 
-        self._update_system_profile(input_host.system_profile_facts)
+    def patch(self, patch_data):
+        logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
-    def update_display_name(self, input_host):
-        if input_host.display_name:
-            self.display_name = input_host.display_name
+        if not patch_data:
+            raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
+
+        self._update_ansible_host(patch_data.get("ansible_host"))
+
+        self.update_display_name(patch_data.get("display_name"))
+
+    def _update_ansible_host(self, ansible_host):
+        if ansible_host is not None:
+            # Allow a user to clear out the ansible host with an empty string
+            self.ansible_host = ansible_host
+
+    def update_display_name(self, input_display_name):
+        if input_display_name:
+            self.display_name = input_display_name
         elif not self.display_name:
             # This is the case where the display_name is not set on the
             # existing host record and the input host does not have it set
@@ -119,12 +196,14 @@ class Host(db.Model):
                 self.display_name = self.id
 
     def update_canonical_facts(self, canonical_facts):
-        logger.debug(("Updating host's (id=%s) canonical_facts (%s)"
-                      " with input canonical_facts=%s")
-                     % (self.id, self.canonical_facts, canonical_facts))
+        logger.debug(
+            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
+            self.id,
+            self.canonical_facts,
+            canonical_facts,
+        )
         self.canonical_facts.update(canonical_facts)
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)"
-                     % (self.id, self.canonical_facts))
+        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
         orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
@@ -152,21 +231,18 @@ class Host(db.Model):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_system_profile(self, input_system_profile):
+        logger.debug("Updating host's (id=%s) system profile", self.id)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
         else:
             # Update the fields that were passed in
-            self.system_profile_facts = {**self.system_profile_facts,
-                                         **input_system_profile}
+            self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
 
     def __repr__(self):
-        tmpl = "<Host id='%s' account='%s' display_name='%s' canonical_facts=%s>"
-        return tmpl % (
-            self.id,
-            self.account,
-            self.display_name,
-            self.canonical_facts,
+        return (
+            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
+            f"canonical_facts={self.canonical_facts}>"
         )
 
 
@@ -234,38 +310,38 @@ class Facts:
                     fact_dict[fact["namespace"]] = fact["facts"]
             else:
                 # The facts from the request are formatted incorrectly
-                raise InputFormatException("Invalid format of Fact object.  Fact "
-                                           "must contain 'namespace' and 'facts' keys.")
+                raise InputFormatException(
+                    "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
+                )
         return fact_dict
 
     @staticmethod
     def to_json(fact_dict):
         fact_list = [
-            {"namespace": namespace, "facts": facts if facts else {}}
-            for namespace, facts in fact_dict.items()
+            {"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in fact_dict.items()
         ]
         return fact_list
 
 
 class DiskDeviceSchema(Schema):
-    device = fields.Str()
-    label = fields.Str()
+    device = fields.Str(validate=validate.Length(max=2048))
+    label = fields.Str(validate=validate.Length(max=1024))
     options = fields.Dict()
-    mount_point = fields.Str()
-    type = fields.Str()
+    mount_point = fields.Str(validate=validate.Length(max=2048))
+    type = fields.Str(validate=validate.Length(max=256))
 
 
 class YumRepoSchema(Schema):
-    name = fields.Str()
+    name = fields.Str(validate=validate.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Str()
+    base_url = fields.Str(validate=validate.Length(max=2048))
 
 
 class InstalledProductSchema(Schema):
-    name = fields.Str()
-    id = fields.Str()
-    status = fields.Str()
+    name = fields.Str(validate=validate.Length(max=512))
+    id = fields.Str(validate=validate.Length(max=64))
+    status = fields.Str(validate=validate.Length(max=256))
 
 
 class NetworkInterfaceSchema(Schema):
@@ -301,13 +377,14 @@ class SystemProfileSchema(Schema):
     subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
     katello_agent_running = fields.Bool()
     satellite_managed = fields.Bool()
+    cloud_provider = fields.Str(validate=validate.Length(max=100))
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))
     insights_egg_version = fields.Str(validate=validate.Length(max=50))
-    installed_packages = fields.List(fields.Str())
-    installed_services = fields.List(fields.Str())
-    enabled_services = fields.List(fields.Str())
+    installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
+    installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
 
 
 class FactsSchema(Schema):
@@ -317,20 +394,19 @@ class FactsSchema(Schema):
 
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
-    account = fields.Str(required=True,
-                         validate=validate.Length(min=1, max=10))
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
+    account = fields.Str(required=True, validate=validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
-    mac_addresses = fields.List(
-            fields.Str(validate=validate.Length(min=1, max=255)))
+    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
+    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
+    tags = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")
@@ -342,3 +418,14 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
+
+    @validates("tags")
+    def validate_tags(self, tags):
+        for tag in tags:
+            if not re.match(r"\w+\/\w+(=)?\w*$", tag):
+                raise ValidationError(tag)
+
+
+class PatchHostSchema(Schema):
+    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
+    display_name = fields.Str(validate=validate.Length(min=1, max=200))

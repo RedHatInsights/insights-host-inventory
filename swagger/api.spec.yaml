@@ -39,8 +39,11 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -104,17 +107,12 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -122,6 +120,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
+    delete:
+      tags:
+        - hosts
+      summary: Delete hosts by IDs
+      description: Delete hosts by IDs
+      operationId: api.host.delete_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
+      responses:
+        '200':
+          description: Successfully deleted hosts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
+    patch:
+      tags:
+        - hosts
+      summary: Update a host
+      description: Update a host
+      operationId: api.host.patch_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
+      requestBody:
+        description: A group of fields to be updated on the host
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: host_data
+              $ref: '#/components/schemas/PatchHostIn'
+      responses:
+        '200':
+          description: Successfully updated the host.
         '400':
           description: Invalid request.
         '404':
@@ -136,20 +178,9 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be merged.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -174,20 +205,9 @@ paths:
         - ApiKeyAuth: []
       operationId: api.host.replace_facts
       parameters:
-        - in: path
-          name: host_id_list
-          description: IDs of the hosts that own the facts to be replaced.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-        - in: path
-          name: namespace
-          description: A namespace of the merged facts.
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -213,17 +233,12 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - in: path
-          name: host_id_list
-          description: A comma separated list of host IDs.
-          required: true
-          schema:
-            type: array
-            items:
-              type: string
-              format: uuid
+        - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/orderByParam'
+        - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -318,6 +333,52 @@ components:
         maximum: 100
         default: 50
       description: A number of items to return per page.
+    hostIdList:
+      in: path
+      name: host_id_list
+      description: A comma separated list of host IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+    branchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Filter by branch_id
+      required: false
+    factsNamespace:
+      in: path
+      name: namespace
+      description: A namespace of the merged facts.
+      required: true
+      schema:
+        type: string
+    orderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - display_name
+          - updated
+      description: Ordering field name
+    orderHowParam:
+      name: order_how
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - ASC
+          - DESC
+      description: >-
+        Direction of the ordering, defaults to ASC for display_name and to DESC for
+        updated
   schemas:
     TagsOut:
       type: object
@@ -410,6 +471,11 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
+          type: string
+          example: host1.mydomain.com
         account:
           description: A Red Hat Account number that owns the host.
           type: string
@@ -495,6 +561,12 @@ components:
           description: >-
             A host’s human-readable display name, e.g. in a form of a domain
             name.
+          type: string
+          example: host1.mydomain.com
+          nullable: true
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
           type: string
           example: host1.mydomain.com
           nullable: true
@@ -674,10 +746,7 @@ components:
       description: Representation of one mounted device
       properties:
         device:
-          example:
-            device:
-              summary: device example
-              value: "/dev/fdd0"
+          example: "/dev/fdd0"
           type: string
         label:
           description: user-defined mount label
@@ -685,9 +754,8 @@ components:
         options:
           description: mount options
           example:
-            options:
-              summary: Options example
-              value: {"uid": "0", "ro": true}
+            uid: "0"
+            ro: true
           type: object
           properties:
             name:
@@ -696,17 +764,11 @@ components:
               type: string
         mount_point:
           description: mount point
-          example:
-            mountpoint:
-              summary: mount point example
-              value: "/mnt/remote_nfs_share"
+          example: "/mnt/remote_nfs_shares"
           type: string
         type:
           description: mount type
-          example:
-            mounttype:
-              summary: mount type example
-              value: "ext3"
+          example: "ext3"
           type: string
     YumRepo:
       title: Yum Repository
@@ -729,17 +791,11 @@ components:
           type: string
         id:
           description: the product ID
-          example:
-            product_id:
-              summary: product ID example
-              value: "71"
+          example: "71"
           type: string
         status:
           description: subscription status for product
-          example:
-            status:
-              summary: status example
-              value: "Subscribed"
+          example: "Subscribed"
           type: string
     NetworkInterface:
       title: Network Interface
@@ -759,45 +815,21 @@ components:
           description: MTU
           type: integer
         mac_address:
-          description: MAC address
-          example:
-            mac_colons:
-              summary: mac address with colons
-              value: "00:00:00:00:00:00"
-            mac_hex:
-              summary: mac address
-              value: "000000000000"
+          description: MAC address (with or without colons)
+          example: "00:00:00:00:00:00"
           type: string
         name:
           description: name of interface
           type: string
-          example:
-            eth0:
-              summary: eth0 example
-              value: "eth0"
+          example: eth0
         state:
-          description: interface state
+          description: interface state (UP, DOWN, UNKNOWN)
           type: string
-          example:
-            up:
-              summary: up example
-              value: "UP"
-            down:
-              summary: down example
-              value: "DOWN"
-            unknown:
-              summary: unknown example
-              value: "UNKNOWN"
+          example: "UP"
         type:
-          description: interface type
+          description: interface type (ether, loopback)
           type: string
-          example:
-            ether:
-              summary: ether example
-              value: "ether"
-            loop:
-              summary: loopback example
-              value: "loopback"
+          example: "ether"
     SystemProfileIn:
       title: System profile fields
       description: Representation of the system profile fields
@@ -859,6 +891,8 @@ components:
           type: boolean
         satellite_managed:
           type: boolean
+        cloud_provider:
+          type: string
         yum_repos:
           type: array  # technically a set, ordering is not important
           items:
@@ -876,10 +910,7 @@ components:
           items:
             description: a NEVRA string for a single installed package
             type: string
-            example:
-              package:
-                summary: package example
-                value: "0:krb5-libs-1.16.1-23.fc29.i686"
+            example: "0:krb5-libs-1.16.1-23.fc29.i686"
         installed_services:
           type: array
           items:
@@ -888,3 +919,20 @@ components:
           type: array
           items:
             type: string
+    PatchHostIn:
+      title: Host data
+      description: >-
+        Data of a single host to be updated.
+      type: object
+      properties:
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
+          type: string
+          example: host1.mydomain.com
+        display_name:
+          description: >-
+            A host’s human-readable display name, e.g. in a form of a domain
+            name.
+          type: string
+          example: host1.mydomain.com

@@ -1,21 +1,21 @@
 #!/usr/bin/env python
-
-import os
-
-from api import api_operation
-from app.config import Config
-from app.auth.identity import (Identity,
-                               validate,
-                               from_auth_header,
-                               from_bearer_token,
-                               SHARED_SECRET_ENV_VAR)
 from base64 import b64encode
 from json import dumps
-from unittest import main, TestCase
-from unittest.mock import Mock, patch
-import test.support
-from test.support import EnvironmentVarGuard
-from werkzeug.exceptions import Forbidden
+from unittest import main
+from unittest import TestCase
+from unittest.mock import Mock
+from unittest.mock import patch
+
+from api import api_operation
+from api.host import _order_how
+from api.host import _params_to_order_by
+from app.auth.identity import from_auth_header
+from app.auth.identity import from_bearer_token
+from app.auth.identity import Identity
+from app.auth.identity import SHARED_SECRET_ENV_VAR
+from app.auth.identity import validate
+from app.config import Config
+from test_utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):
@@ -23,6 +23,7 @@ class ApiOperationTestCase(TestCase):
     Test the API operation decorator that increments the request counter with every
     call.
     """
+
     @patch("api.api_request_count.inc")
     def test_counter_is_incremented(self, inc):
         @api_operation
@@ -60,7 +61,7 @@ class AuthIdentityConstructorTestCase(TestCase):
         return Identity(account_number="some number")
 
 
-class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
+class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
     """
     Tests creating an Identity from a Base64 encoded JSON string, which is what is in
     the HTTP header.
@@ -75,9 +76,11 @@ class AuthIdentityFromAuthHeaderTest(AuthIdentityConstructorTestCase):
 
         identity_data = expected_identity._asdict()
 
-        identity_data_dicts = [identity_data,
-                               # Test with extra data in the identity dict
-                               {**identity_data, **{"extra_data": "value"}}, ]
+        identity_data_dicts = [
+            identity_data,
+            # Test with extra data in the identity dict
+            {**identity_data, **{"extra_data": "value"}},
+        ]
 
         for identity_data in identity_data_dicts:
             with self.subTest(identity_data=identity_data):
@@ -144,10 +147,6 @@ class AuthIdentityValidateTestCase(TestCase):
 class TrustedIdentityTestCase(TestCase):
     shared_secret = "ImaSecret"
 
-    def setUp(self):
-        self.env = EnvironmentVarGuard()
-        self.env.set(SHARED_SECRET_ENV_VAR, self.shared_secret)
-
     def _build_id(self):
         identity = from_bearer_token(self.shared_secret)
         return identity
@@ -155,7 +154,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_validation(self):
         identity = self._build_id()
 
-        with self.env:
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
             validate(identity)
 
     def test_validation_with_invalid_identity(self):
@@ -167,8 +166,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_validation_env_var_not_set(self):
         identity = self._build_id()
 
-        self.env.unset(SHARED_SECRET_ENV_VAR)
-        with self.env:
+        with set_environment({}):
             with self.assertRaises(ValueError):
                 validate(identity)
 
@@ -184,9 +182,13 @@ class TrustedIdentityTestCase(TestCase):
 
         self.assertEqual(identity.is_trusted_system, True)
 
+    def test_account_number_is_not_set_for_trusted_system(self):
+        identity = self._build_id()
+
+        self.assertEqual(identity.account_number, None)
+
 
 class ConfigTestCase(TestCase):
-
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
         path_prefix = "r/slaterock/platform"
@@ -194,19 +196,21 @@ class ConfigTestCase(TestCase):
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
 
-        with test.support.EnvironmentVarGuard() as env:
-            env.unset(SHARED_SECRET_ENV_VAR)
-            env.set("INVENTORY_DB_USER", "fredflintstone")
-            env.set("INVENTORY_DB_PASS", "bedrock1234")
-            env.set("INVENTORY_DB_HOST", "localhost")
-            env.set("INVENTORY_DB_NAME", "SlateRockAndGravel")
-            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
-            env.set("INVENTORY_DB_POOL_SIZE", "8")
-            env.set("APP_NAME", app_name)
-            env.set("PATH_PREFIX", path_prefix)
-            env.set("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", expected_mgmt_url_path_prefix)
+        new_env = {
+            "INVENTORY_DB_USER": "fredflintstone",
+            "INVENTORY_DB_PASS": "bedrock1234",
+            "INVENTORY_DB_HOST": "localhost",
+            "INVENTORY_DB_NAME": "SlateRockAndGravel",
+            "INVENTORY_DB_POOL_TIMEOUT": "3",
+            "INVENTORY_DB_POOL_SIZE": "8",
+            "APP_NAME": app_name,
+            "PATH_PREFIX": path_prefix,
+            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix,
+        }
 
-            conf = Config("testing")
+        with set_environment(new_env):
+
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -218,16 +222,10 @@ class ConfigTestCase(TestCase):
         expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
-        with test.support.EnvironmentVarGuard() as env:
-            # Make sure the environment variables are not set
-            for env_var in ("INVENTORY_DB_USER", "INVENTORY_DB_PASS",
-                            "INVENTORY_DB_HOST", "INVENTORY_DB_NAME",
-                            "INVENTORY_DB_POOL_TIMEOUT", "INVENTORY_DB_POOL_SIZE",
-                            "APP_NAME", "PATH_PREFIX"
-                            "INVENTORY_MANAGEMENT_URL_PATH_PREFIX",):
-                env.unset(env_var)
+        # Make sure the environment variables are not set
+        with set_environment(None):
 
-            conf = Config("testing")
+            conf = Config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -236,13 +234,89 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_size, 5)
 
     def test_config_development_settings(self):
-        with test.support.EnvironmentVarGuard() as env:
-            env.set("INVENTORY_DB_POOL_TIMEOUT", "3")
+        with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
 
-            # Test a different "type" (development) of config settings
-            conf = Config("development")
+            conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
+
+
+class HostOrderHowTestCase(TestCase):
+    def test_asc(self):
+        column = Mock()
+        result = _order_how(column, "ASC")
+        self.assertEqual(result, column.asc())
+
+    def test_desc(self):
+        column = Mock()
+        result = _order_how(column, "DESC")
+        self.assertEqual(result, column.desc())
+
+    def test_error(self):
+        invalid_values = (None, "asc", "desc", "BBQ")
+        for invalid_value in invalid_values:
+            with self.subTest(order_how=invalid_value):
+                with self.assertRaises(ValueError):
+                    _order_how(Mock(), invalid_value)
+
+
+@patch("api.host._order_how")
+@patch("api.host.Host.modified_on")
+class HostParamsToOrderByTestCase(TestCase):
+    def test_default_is_updated_desc(self, modified_on, order_how):
+        actual = _params_to_order_by(None, None)
+        expected = (modified_on.desc.return_value,)
+        self.assertEqual(actual, expected)
+        order_how.assert_not_called()
+
+    def test_default_for_updated_is_desc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", None)
+        expected = (modified_on.desc.return_value,)
+        self.assertEqual(actual, expected)
+        order_how.assert_not_called()
+
+    def test_order_by_updated_asc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", "ASC")
+        expected = (order_how.return_value,)
+        self.assertEqual(actual, expected)
+        order_how.assert_called_once_with(modified_on, "ASC")
+
+    def test_order_by_updated_desc(self, modified_on, order_how):
+        actual = _params_to_order_by("updated", "DESC")
+        expected = (order_how.return_value,)
+        self.assertEqual(actual, expected)
+        order_how.assert_called_once_with(modified_on, "DESC")
+
+    @patch("api.host.Host.display_name")
+    def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name")
+        expected = (display_name.asc.return_value, modified_on.desc.return_value)
+        self.assertEqual(actual, expected)
+        order_how.assert_not_called()
+
+    @patch("api.host.Host.display_name")
+    def test_order_by_display_name_asc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name", "ASC")
+        expected = (order_how.return_value, modified_on.desc.return_value)
+        self.assertEqual(actual, expected)
+        order_how.assert_called_once_with(display_name, "ASC")
+
+    @patch("api.host.Host.display_name")
+    def test_order_by_display_name_desc(self, display_name, modified_on, order_how):
+        actual = _params_to_order_by("display_name", "DESC")
+        expected = (order_how.return_value, modified_on.desc.return_value)
+        self.assertEqual(actual, expected)
+        order_how.assert_called_once_with(display_name, "DESC")
+
+
+class HostParamsToOrderByErrorsTestCase(TestCase):
+    def test_order_by_bad_field_raises_error(self):
+        with self.assertRaises(ValueError):
+            _params_to_order_by(Mock(), "fqdn")
+
+    def test_order_by_only_how_raises_error(self):
+        with self.assertRaises(ValueError):
+            _params_to_order_by(Mock(), order_how="ASC")
 
 
 if __name__ == "__main__":

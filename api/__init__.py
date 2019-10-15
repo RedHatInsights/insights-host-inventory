@@ -1,16 +1,17 @@
-import logging
 import time
-
 from functools import wraps
 
+import flask
+
 from api.metrics import api_request_count
+from app.logging import get_logger
 
 __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def api_operation(old_func):
@@ -50,3 +51,7 @@ def _get_status_code(results):
         return results
     elif isinstance(results, tuple):
         return results[1]
+    elif isinstance(results, flask.Response):
+        return results.status_code
+    else:
+        return -1

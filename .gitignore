@@ -6,3 +6,5 @@ pip-selfcheck.json
 pyvenv.cfg
 .python-version
 tags
+.coverage
+.pytest_cache/

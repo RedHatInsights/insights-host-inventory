@@ -95,6 +95,14 @@ class HostWrapper:
         self.__data["facts"] = facts
 
     @property
+    def tags(self):
+        return self.__data.get("tags", None)
+
+    @tags.setter
+    def tags(self, tags):
+        self.__data["tags"] = tags
+
+    @property
     def id(self):
         return self.__data.get("id", None)
 
@@ -117,6 +125,14 @@ class HostWrapper:
     @display_name.setter
     def display_name(self, display_name):
         self.__data["display_name"] = display_name
+
+    @property
+    def ansible_host(self):
+        return self.__data.get("ansible_host", None)
+
+    @ansible_host.setter
+    def ansible_host(self, ansible_host):
+        self.__data["ansible_host"] = ansible_host
 
     def to_json(self):
         return json.dumps(self.__data)
