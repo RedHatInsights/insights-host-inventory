@@ -13,13 +13,13 @@ These tests are for testing the db model classes outside of the api.
 """
 
 
-def _create_host(insights_id=None, fqdn=None, display_name=None):
+def _create_host(insights_id=None, fqdn=None, display_name=None, tags=None):
     if not insights_id:
         insights_id = str(uuid.uuid4())
     canonical_facts = {"insights_id": insights_id}
     if fqdn is not None:
         canonical_facts["fqdn"] = fqdn
-    host = Host(canonical_facts, display_name=display_name, account="00102")
+    host = Host(canonical_facts, display_name=display_name, account="00102", tags=tags)
     db.session.add(host)
     db.session.commit()
     return host
@@ -152,8 +152,33 @@ def test_tag_deserialization():
 
 @pytest.mark.parametrize("tags", [["Sat/env=prod", "AWS/env=ci"], ["Sat/env", "AWS/env"]])
 def test_create_host_with_tags(flask_app_fixture, tags):
-    host = Host({"fqdn": "fred.flintstone.com"}, display_name="display_name", account="00102", tags=tags)
-    db.session.add(host)
-    db.session.commit()
+    host = _create_host(fqdn="fred.flintstone.com", display_name="display_name", tags=tags)
 
     assert host.tags == tags
+
+
+def test_update_host_with_tags(flask_app_fixture):
+    insights_id = str(uuid.uuid4())
+    old_tags = _deserialize_tags(["Sat/env=prod"])
+    existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
+
+    assert existing_host.tags == old_tags
+
+    # On update each namespace in the input host's tags should be updated.
+    new_tags = _deserialize_tags(["Sat/env=ci", "AWS/env=prod"])
+    input_host = _create_host(insights_id=insights_id, display_name="tagged", tags=new_tags)
+    existing_host.update(input_host)
+
+    assert existing_host.tags == new_tags
+
+
+def test_update_host_with_no_tags(flask_app_fixture):
+    insights_id = str(uuid.uuid4())
+    old_tags = _deserialize_tags(["Sat/env=prod"])
+    existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
+
+    # Updating a host should not remove any existing tags if tags are missing from the input host
+    input_host = _create_host(insights_id=insights_id, display_name="tagged")
+    existing_host.update(input_host)
+
+    assert existing_host.tags == old_tags
