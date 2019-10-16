@@ -5,7 +5,7 @@ This project is the home of the host-based inventory for the Insights Platform.
 ## Getting Started
 
 This project uses pipenv to manage the development and deployment environments.
-To set the project up for development do the following:
+To set the project up for development, we recommend using [pyenv|https://github.com/pyenv/pyenv] to install/manage the appropriate python (currently 3.6.x), pip and pipenv version. Once you have pipenv, do the following:
 
 ```
 pipenv install --dev
