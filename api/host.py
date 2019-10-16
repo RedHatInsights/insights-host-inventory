@@ -451,6 +451,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     return 200
 
+
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
@@ -463,10 +464,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     else:
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
-    
+
     counts = _count_tags(query)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, counts)
+
 
 def _count_tags(query):
     tags_list = _build_tags_list(query.items)
@@ -476,12 +478,14 @@ def _count_tags(query):
     counts = []
     for tags in tags_list:
         count = 0
-        for key in tags: 
-            for item in tags[key]: 
-                for value in tags[key][item]: count += len(tags[key][item][value])
-        counts.append({f"{key}" : count})
+        for key in tags:
+            for item in tags[key]:
+                for value in tags[key][item]:
+                    count += len(tags[key][item][value])
+        counts.append({f"{key}": count})
 
     return counts
+
 
 @api_operation
 @metrics.api_request_time.time()
@@ -495,19 +499,21 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     else:
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
-    
+
     tags_list = _build_tags_list(query.items)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, tags_list)
+
 
 def _build_tags_list(host_list):
     tags_list = []
 
     for host in host_list:
-        system_tag_list = { f"{host.display_name}" : host.tags }
+        system_tag_list = {f"{host.display_name}": host.tags}
         tags_list.append(system_tag_list)
-    
+
     return tags_list
+
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = {
