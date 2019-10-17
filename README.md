@@ -135,9 +135,9 @@ from inside of the deployment cluster.
 ## API Documentation
 
 The API is described by an OpenAPI specification file
-[_swagger/api/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
+[_swagger/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
 a browsable Swagger UI Console at
-[_/r/insights/platform/inventory/api/v1/ui/_](http://localhost:8080/r/insights/platform/inventory/api/v1/ui/).
+[_/api/inventory/v1/ui/_](http://localhost:8080/api/inventory/v1/ui/).
 
 ## Operation
 
