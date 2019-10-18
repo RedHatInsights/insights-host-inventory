@@ -1296,7 +1296,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
                 self.delete(url, 200, header, return_response_as_json=False)
                 return json.loads(m.events[0])
 
-    def _assert_event_is_valid(self, event, request_id):
+    def _assert_event_is_valid(self, event):
         self.assertIsInstance(event, dict)
         expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
         self.assertEqual(set(event.keys()), expected_keys)
@@ -1305,7 +1305,6 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual("delete", event["type"])
         self.assertEqual(self.host_to_delete.id, event["id"])
         self.assertEqual(self.host_to_delete.insights_id, event["insights_id"])
-        self.assertEqual(request_id or "-1", event["request_id"])
 
     def _check_hosts_are_present(self, url):
         before_response = self.get(url, 200)
@@ -1318,31 +1317,32 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(after_response["total"], 0)
         self.assertEqual(after_response["results"], [])
 
-    def _create_then_delete_host(self, url, request_id):
+    def _create_then_delete_host(self, url, request_id=None):
         self._check_hosts_are_present(url)
         event = self._delete(url, request_id)
-        self._assert_event_is_valid(event, request_id)
+        self._assert_event_is_valid(event)
         self._check_hosts_are_deleted(url)
+        return event
 
     def test_create_then_delete(self):
         url = HOST_URL + "/" + self.host_to_delete.id
-        request_id = None
-        self._create_then_delete_host(url, request_id)
+        self._create_then_delete_host(url)
 
     def test_create_then_delete_with_branch_id(self):
         url = HOST_URL + "/" + self.host_to_delete.id + "?" + "branch_id=1234"
-        request_id = None
-        self._create_then_delete_host(url, request_id)
+        self._create_then_delete_host(url)
 
     def test_create_then_delete_with_request_id(self):
         url = HOST_URL + "/" + self.host_to_delete.id
         request_id = generate_uuid()
-        self._create_then_delete_host(url, request_id)
+        event = self._create_then_delete_host(url, request_id)
+        self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         url = HOST_URL + "/" + self.host_to_delete.id
         request_id = None
-        self._create_then_delete_host(url, request_id)
+        event = self._create_then_delete_host(url, request_id)
+        self.assertEqual("-1", event["request_id"])
 
 
 @patch("api.host.emit_event")
