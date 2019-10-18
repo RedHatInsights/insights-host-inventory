@@ -293,7 +293,7 @@ paths:
         - $ref: '#/components/parameters/orderHowParam'
       responses:
         '200':
-          description: Successfully searched for hosts.
+          description: Successfully found tag count.
           content:
             application/json:
               schema:
@@ -408,6 +408,8 @@ components:
         tag_count: 
           type: array
           description: Total number of tags on a host
+          items:
+            type: integer
     BulkHostOut:
       type: object
       properties:

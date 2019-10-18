@@ -509,7 +509,7 @@ def _build_tags_list(host_list):
     tags_list = []
 
     for host in host_list:
-        system_tag_list = {f"{host.display_name}": host.tags}
+        system_tag_list = {f"{host.id}": host.tags}
         tags_list.append(system_tag_list)
 
     return tags_list
