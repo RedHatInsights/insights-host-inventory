@@ -2005,61 +2005,6 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
 #   Send a request for the tag count of 1 host and check
 #   that it is the correct number
-    def _valid_system_profile(self):
-        return {
-            "number_of_cpus": 1,
-            "number_of_sockets": 2,
-            "cores_per_socket": 4,
-            "system_memory_bytes": 1024,
-            "infrastructure_type": "massive cpu",
-            "infrastructure_vendor": "dell",
-            "network_interfaces": [
-                {
-                    "ipv4_addresses": ["10.10.10.1"],
-                    "state": "UP",
-                    "ipv6_addresses": ["2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
-                    "mtu": 1500,
-                    "mac_address": "aa:bb:cc:dd:ee:ff",
-                    "type": "loopback",
-                    "name": "eth0",
-                }
-            ],
-            "disk_devices": [
-                {
-                    "device": "/dev/sdb1",
-                    "label": "home drive",
-                    "options": {"uid": "0", "ro": True},
-                    "mount_point": "/home",
-                    "type": "ext3",
-                }
-            ],
-            "bios_vendor": "AMI",
-            "bios_version": "1.0.0uhoh",
-            "bios_release_date": "10/31/2013",
-            "cpu_flags": ["flag1", "flag2"],
-            "os_release": "Red Hat EL 7.0.1",
-            "os_kernel_version": "Linux 2.0.1",
-            "arch": "x86-64",
-            "last_boot_time": "12:25 Mar 19, 2019",
-            "kernel_modules": ["i915", "e1000e"],
-            "running_processes": ["vim", "gcc", "python"],
-            "subscription_status": "valid",
-            "subscription_auto_attach": "yes",
-            "katello_agent_running": False,
-            "satellite_managed": False,
-            "cloud_provider": "Maclean's Music",
-            "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
-            "installed_products": [
-                {"name": "eap", "id": "123", "status": "UP"},
-                {"name": "jbws", "id": "321", "status": "DOWN"},
-            ],
-            "insights_client_version": "12.0.12",
-            "insights_egg_version": "120.0.1",
-            "installed_packages": ["rpm1", "rpm2"],
-            "installed_services": ["ndb", "krb5"],
-            "enabled_services": ["ndb", "krb5"],
-        }
-
     def test_get_tags_of_multiple_hosts(self):
 
         facts = None
@@ -2068,11 +2013,8 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         for i in range(2):
             host = test_data(display_name="host1", facts=facts)
-            host["ip_addresses"] = [f"10.0.0.{i}"]
             host["rhel_machine_id"] = generate_uuid()
-            host["system_profile"] = self._valid_system_profile()
-            host["system_profile"]["number_of_cpus"] = i
-            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/fit=fresh"]
+            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"]
 
             response = self.post(HOST_URL, [host], 207)
             self._verify_host_status(response, 0, 201)
@@ -2082,15 +2024,12 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
             host_id_list.append(original_id)
             expected_tags_list.append(
-                {host["display_name"]: {"AWS": {"fit": ["fresh"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
+                {original_id: {"AWS": {"key": ["value"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
             )
 
         url_host_id_list = ",".join(host_id_list)
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags"
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         host_tag_results = self.get(test_url, 200)
-
-        print(host_tag_results["results"][0])
-        print(expected_tags_list[i])
 
         self.assertEqual(len(expected_tags_list), len(host_tag_results["results"]))
         for i in range(len(expected_tags_list)):
@@ -2105,11 +2044,8 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         for i in range(2):
             host = test_data(display_name="host1", facts=facts)
-            host["ip_addresses"] = [f"10.0.0.{i}"]
             host["rhel_machine_id"] = generate_uuid()
-            host["system_profile"] = self._valid_system_profile()
-            host["system_profile"]["number_of_cpus"] = i
-            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/fit=fresh"]
+            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"]
 
             response = self.post(HOST_URL, [host], 207)
             self._verify_host_status(response, 0, 201)
@@ -2119,15 +2055,20 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
             host_id_list.append(original_id)
             expected_tags_list.append(
-                {host["display_name"]: len(host["tags"])}
+                {original_id: len(host["tags"])}
             )
 
         url_host_id_list = ",".join(host_id_list)
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count"
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
         host_tag_results = self.get(test_url, 200)
 
+        print(host_id_list)
+        print(expected_tags_list)
+        print(url_host_id_list)
+        print(host_tag_results["results"])
+
         print(host_tag_results["results"][0])
-        print(expected_tags_list[i])
+        print(expected_tags_list[0])
 
         self.assertEqual(len(expected_tags_list), len(host_tag_results["results"]))
         for i in range(len(expected_tags_list)):
