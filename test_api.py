@@ -1290,7 +1290,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.delete_url = HOST_URL + "/" + self.host_to_delete.id
         self.timestamp = datetime.utcnow()
 
-    def _delete(self, url_query, header):
+    def _delete(self, url_query="", header=None):
         with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
             with unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
@@ -1318,27 +1318,29 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(after_response["total"], 0)
         self.assertEqual(after_response["results"], [])
 
-    def _create_then_delete_host(self, url_query="", header=None):
+    def test_create_then_delete(self):
         self._check_hosts_are_present()
-        event = self._delete(url_query, header)
+        event = self._delete()
         self._assert_event_is_valid(event)
         self._check_hosts_are_deleted()
-        return event
-
-    def test_create_then_delete(self):
-        self._create_then_delete_host()
 
     def test_create_then_delete_with_branch_id(self):
-        self._create_then_delete_host(url_query="?branch_id=1234")
+        self._check_hosts_are_present()
+        event = self._delete(url_query="?branch_id=1234")
+        self._assert_event_is_valid(event)
+        self._check_hosts_are_deleted()
 
     def test_create_then_delete_with_request_id(self):
         request_id = generate_uuid()
         header = {"x-rh-insights-request-id": request_id}
-        event = self._create_then_delete_host(header=header)
+        event = self._delete(header=header)
+        self._assert_event_is_valid(event)
         self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
-        event = self._create_then_delete_host(header=None)
+        self._check_hosts_are_present()
+        event = self._delete(header=None)
+        self._assert_event_is_valid(event)
         self.assertEqual("-1", event["request_id"])
 
 
