@@ -1285,9 +1285,8 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         def __call__(self, e):
             self.events.append(e)
 
-    def _delete(self, url, request_id):
+    def _delete(self, url, header):
         with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
-            header = {"x-rh-insights-request-id": request_id} if request_id else None
             self.delete(url, 200, header, return_response_as_json=False)
             return json.loads(m.events[0])
 
@@ -1345,7 +1344,8 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self._check_hosts_are_present(url)
 
         request_id = generate_uuid()
-        event = self._delete(url, request_id)
+        header = {"x-rh-insights-request-id": request_id}
+        event = self._delete(url, header)
 
         timestamp = datetime_mock.utcnow.return_value
         self._assert_event_is_valid(event, host, request_id, timestamp)
@@ -1356,7 +1356,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self._check_hosts_are_present(url)
 
         request_id = None
-        event = self._delete(url, request_id)
+        event = self._delete(url, header=None)
         self._assert_event_is_valid(event, host, request_id, datetime_mock.utcnow.return_value)
 
 
