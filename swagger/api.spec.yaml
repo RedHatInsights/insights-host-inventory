@@ -402,14 +402,55 @@ components:
         results:
           description: The list of tags on the systems
           type: array
+          items:
+            $ref: '#/components/schemas/Namespace'
+    Namespace:
+      type: object
+      properties:
+        namespace:
+          type: string
+          description: The namespace of the tag
+        tag:
+          $ref: '#/components/schemas/Tag'
+    Tag:
+      type: object
+      properties:
+        key:
+          type: string
+          description: the key
+        value:
+          type: array
+          items: 
+            type: integer
     TagCountOut:
       type: object
       properties:
-        tag_count: 
+        total:
+          type: integer
+          description: Total number of items in the "data" list.
+        count:
+          description: A number of entries on the current page.
+          type: integer
+        page:
+          description: A current page number.
+          type: integer
+        per_page:
+          description: A page size – a number of entries per single page.
+          type: integer
+        results:
+          description: The list of tags on the systems
           type: array
-          description: Total number of tags on a host
           items:
-            type: integer
+            $ref: '#/components/schemas/TagCount'
+    TagCount:
+      type: object
+      properties:
+        host:
+          type: string
+          description: the host
+        count:
+          type: integer
+          description: The number of tags on the host
     BulkHostOut:
       type: object
       properties:
