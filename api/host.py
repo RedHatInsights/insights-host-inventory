@@ -470,19 +470,16 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     return _build_paginated_host_tags_response(query.total, page, per_page, counts)
 
 
+# returns counts in format [{id: count}, {id: count}]
 def _count_tags(query):
-    tags_list = _build_tags_list(query.items)
-
-    logger.debug(tags_list)
-
     counts = []
-    for tags in tags_list:
-        count = 0
-        for key in tags:
-            for item in tags[key]:
-                for value in tags[key][item]:
-                    count += len(tags[key][item][value])
-        counts.append({f"{key}": count})
+
+    for host in query.items:
+        hostTagCount = 0
+        for namespace in host.tags:
+            for tag in host.tags[namespace]:
+                hostTagCount += len(host.tags[namespace][tag])
+        counts.append({f"{host.id}": hostTagCount})
 
     return counts
 
