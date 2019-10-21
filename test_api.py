@@ -2003,13 +2003,9 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
     """
     host_data = HostWrapper(test_data(facts=None))
 
-#   Send a request for the tag count of 1 host and check
-#   that it is the correct number
-    def test_get_tags_of_multiple_hosts(self):
-
+    def _make_host_id_list(self):
         facts = None
         host_id_list = []
-        expected_tags_list = []
 
         for i in range(2):
             host = test_data(display_name="host1", facts=facts)
@@ -2023,58 +2019,48 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
             original_id = created_host["id"]
 
             host_id_list.append(original_id)
-            expected_tags_list.append(
-                {original_id: {"AWS": {"key": ["value"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
+
+        return host_id_list
+
+#   Send a request for the tag count of 1 host and check
+#   that it is the correct number
+    def test_get_tags_of_multiple_hosts(self):
+        host_id_list = self._make_host_id_list()
+        expected_response = []
+
+        for i in range(len(host_id_list)):
+            expected_response.append(
+                {host_id_list[i]: {"AWS": {"key": ["value"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
             )
 
         url_host_id_list = ",".join(host_id_list)
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         host_tag_results = self.get(test_url, 200)
 
-        self.assertEqual(len(expected_tags_list), len(host_tag_results["results"]))
-        for i in range(len(expected_tags_list)):
-            self.assertEqual(expected_tags_list[i], host_tag_results["results"][i])
+        self.assertEqual(len(expected_response), len(host_tag_results["results"]))
+        for i in range(len(expected_response)):
+            self.assertEqual(expected_response[i], host_tag_results["results"][i])
 
-        self._base_paging_test(test_url, len(expected_tags_list))
+        self._base_paging_test(test_url, len(expected_response))
 
     def test_get_tag_count_of_multiple_hosts(self):
-        facts = None
-        host_id_list = []
-        expected_tags_list = []
+        host_id_list = self._make_host_id_list()
+        expected_response = []
 
-        for i in range(2):
-            host = test_data(display_name="host1", facts=facts)
-            host["rhel_machine_id"] = generate_uuid()
-            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"]
-
-            response = self.post(HOST_URL, [host], 207)
-            self._verify_host_status(response, 0, 201)
-
-            created_host = self._pluck_host_from_response(response, 0)
-            original_id = created_host["id"]
-
-            host_id_list.append(original_id)
-            expected_tags_list.append(
-                {original_id: len(host["tags"])}
+        for i in range(len(host_id_list)):
+            expected_response.append(
+                {host_id_list[i]: 3}
             )
 
         url_host_id_list = ",".join(host_id_list)
         test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
         host_tag_results = self.get(test_url, 200)
 
-        print(host_id_list)
-        print(expected_tags_list)
-        print(url_host_id_list)
-        print(host_tag_results["results"])
+        self.assertEqual(len(expected_response), len(host_tag_results["results"]))
+        for i in range(len(expected_response)):
+            self.assertEqual(expected_response[i], host_tag_results["results"][i])
 
-        print(host_tag_results["results"][0])
-        print(expected_tags_list[0])
-
-        self.assertEqual(len(expected_tags_list), len(host_tag_results["results"]))
-        for i in range(len(expected_tags_list)):
-            self.assertEqual(expected_tags_list[i], host_tag_results["results"][i])
-
-        self._base_paging_test(test_url, len(expected_tags_list))
+        self._base_paging_test(test_url, len(expected_response))
 
 
 if __name__ == "__main__":
