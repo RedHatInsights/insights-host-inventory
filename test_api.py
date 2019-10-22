@@ -2,13 +2,14 @@
 import copy
 import json
 import tempfile
-import unittest.mock
 import uuid
 from base64 import b64encode
 from datetime import datetime
 from datetime import timezone
 from itertools import chain
 from json import dumps
+from unittest import main
+from unittest import TestCase
 from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
@@ -76,7 +77,7 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-class APIBaseTestCase(unittest.TestCase):
+class APIBaseTestCase(TestCase):
     def _create_header(self, auth_header, request_id_header):
         header = auth_header.copy()
         if request_id_header is not None:
@@ -1291,8 +1292,8 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
-            with unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
+        with patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+            with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
                 return json.loads(m.events[0])
@@ -2102,4 +2103,4 @@ class HealthTestCase(APIBaseTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
