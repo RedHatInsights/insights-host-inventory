@@ -7,6 +7,7 @@ import ujson
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
+from sqlalchemy import func
 
 from api import api_operation
 from api import metrics
@@ -156,6 +157,41 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
+def find_hosts_by_tag(account_number, tag):
+    """
+    Returns all of the hosts with the tag/tags
+    """
+    logger.debug("FUN! You're in the find hosts by tag function. tag: " + tag)
+
+    splitTagWithNamespace = tag.split("/",1)
+    nameSpace = splitTagWithNamespace[0]
+    splitTag = splitTagWithNamespace[1].split("=",1)
+    key = splitTag[0]
+    value = splitTag[1]
+
+    X = {
+        nameSpace: {
+            key: [
+                value
+            ]
+        }
+    }
+
+    host = Host.query.filter(
+        (Host.account == account_number)
+        & (
+            Host.tags.contains(X)
+            #func.json_contains(Host.tags, X )
+            #Host.tags[nameSpace][key][1].astext == value
+        ))
+
+    if host:
+        logger.debug("found the host with those ids: ")
+        logger.debug(host)
+
+    return host
+
+
 @metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host):
     logger.debug("Creating a new host")
@@ -183,6 +219,7 @@ def get_host_list(
     fqdn=None,
     hostname_or_id=None,
     insights_id=None,
+    tag=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -196,6 +233,8 @@ def get_host_list(
         query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
     elif insights_id:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
+    elif tag:
+        query = find_hosts_by_tag(current_identity.account_number, tag)
     else:
         query = Host.query.filter(Host.account == current_identity.account_number)
 
