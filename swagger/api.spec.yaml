@@ -403,25 +403,7 @@ components:
           description: The list of tags on the systems
           type: array
           items:
-            $ref: '#/components/schemas/Namespace'
-    Namespace:
-      type: object
-      properties:
-        namespace:
-          type: string
-          description: The namespace of the tag
-        tag:
-          $ref: '#/components/schemas/Tag'
-    Tag:
-      type: object
-      properties:
-        key:
-          type: string
-          description: the key
-        value:
-          type: array
-          items: 
-            type: integer
+            type: string
     TagCountOut:
       type: object
       properties:
@@ -445,9 +427,9 @@ components:
     TagCount:
       type: object
       properties:
-        host:
+        id:
           type: string
-          description: the host
+          description: the id of the host
         count:
           type: integer
           description: The number of tags on the host
