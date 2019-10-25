@@ -1276,7 +1276,6 @@ class DeleteHostsErrorTestCase(DBAPITestCase):
         self.delete(url, 400)
 
 
-@unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
 class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
     class MockEmitEvent:
         def __init__(self):
@@ -1285,18 +1284,23 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         def __call__(self, e):
             self.events.append(e)
 
+    def setUp(self):
+        super().setUp()
+        self.timestamp = datetime.utcnow()
+
     def _delete(self, url, request_id):
         with unittest.mock.patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
-            header = {"x-rh-insights-request-id": request_id} if request_id else None
-            self.delete(url, 200, header, return_response_as_json=False)
-            return json.loads(m.events[0])
+            with unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
+                header = {"x-rh-insights-request-id": request_id} if request_id else None
+                self.delete(url, 200, header, return_response_as_json=False)
+                return json.loads(m.events[0])
 
-    def _assert_event_is_valid(self, event, host, request_id, timestamp):
+    def _assert_event_is_valid(self, event, host, request_id):
         self.assertIsInstance(event, dict)
         expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
         self.assertEqual(set(event.keys()), expected_keys)
 
-        self.assertEqual(f"{timestamp.isoformat()}+00:00", event["timestamp"])
+        self.assertEqual(f"{self.timestamp.isoformat()}+00:00", event["timestamp"])
         self.assertEqual("delete", event["type"])
         self.assertEqual(host.id, event["id"])
         self.assertEqual(host.insights_id, event["insights_id"])
@@ -1313,39 +1317,35 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(after_response["total"], 0)
         self.assertEqual(after_response["results"], [])
 
-    def _create_then_delete_host(self, url, host, request_id, timestamp):
+    def _create_then_delete_host(self, url, host, request_id):
         self._check_hosts_are_present(url)
         event = self._delete(url, request_id)
-        self._assert_event_is_valid(event, host, request_id, timestamp)
+        self._assert_event_is_valid(event, host, request_id)
         self._check_hosts_are_deleted(url)
 
-    def test_create_then_delete(self, datetime_mock):
+    def test_create_then_delete(self):
         host = self.added_hosts[0]
         url = HOST_URL + "/" + host.id
         request_id = None
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, request_id, timestamp)
+        self._create_then_delete_host(url, host, request_id)
 
-    def test_create_then_delete_with_branch_id(self, datetime_mock):
+    def test_create_then_delete_with_branch_id(self):
         host = self.added_hosts[0]
         url = HOST_URL + "/" + host.id + "?" + "branch_id=1234"
         request_id = None
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, request_id, timestamp)
+        self._create_then_delete_host(url, host, request_id)
 
-    def test_create_then_delete_with_request_id(self, datetime_mock):
+    def test_create_then_delete_with_request_id(self):
         host = self.added_hosts[0]
         url = HOST_URL + "/" + host.id
         request_id = generate_uuid()
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, request_id, timestamp)
+        self._create_then_delete_host(url, host, request_id)
 
-    def test_create_then_delete_without_request_id(self, datetime_mock):
+    def test_create_then_delete_without_request_id(self):
         host = self.added_hosts[0]
         url = HOST_URL + "/" + host.id
         request_id = None
-        timestamp = datetime_mock.utcnow.return_value
-        self._create_then_delete_host(url, host, request_id, timestamp)
+        self._create_then_delete_host(url, host, request_id)
 
 
 @patch("api.host.emit_event")
