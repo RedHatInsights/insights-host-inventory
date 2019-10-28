@@ -2008,7 +2008,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         facts = None
         host_id_list = []
 
-        for i in range(2):
+        for i in range(number_of_hosts):
             host = test_data(display_name="host1", facts=facts)
             host["rhel_machine_id"] = generate_uuid()
             host["tags"] = tags
