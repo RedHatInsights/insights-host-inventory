@@ -2004,14 +2004,14 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
     """
     host_data = HostWrapper(test_data(facts=None))
 
-    def _make_host_id_list(self):
+    def _make_hosts(self, number_of_hosts, tags):
         facts = None
         host_id_list = []
 
         for i in range(2):
             host = test_data(display_name="host1", facts=facts)
             host["rhel_machine_id"] = generate_uuid()
-            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"]
+            host["tags"] = tags
 
             response = self.post(HOST_URL, [host], 207)
             self._verify_host_status(response, 0, 201)
@@ -2026,7 +2026,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 #   Send a request for the tag count of 1 host and check
 #   that it is the correct number
     def test_get_tags_of_multiple_hosts(self):
-        host_id_list = self._make_host_id_list()
+        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         expected_response = []
 
         for i in range(len(host_id_list)):
@@ -2045,7 +2045,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         self._base_paging_test(test_url, len(expected_response))
 
     def test_get_tag_count_of_multiple_hosts(self):
-        host_id_list = self._make_host_id_list()
+        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         expected_response = []
 
         for i in range(len(host_id_list)):
@@ -2063,11 +2063,13 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         self._base_paging_test(test_url, len(expected_response))
 
+#   get only the one host with the special tag to find on it
     def test_get_host_by_tag(self):
-        host_id_list = self._make_host_id_list()
+        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
+        host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind"])
         expected_response = host_id_list
 
-        test_url = f"{HOST_URL}?tag=Sat/env=ci&order_by=updated&order_how=ASC"
+        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind&order_by=updated&order_how=ASC"
         host_by_tag_results = self.get(test_url, 200)
 
         print(host_by_tag_results)
@@ -2078,7 +2080,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
 #   attempt to get a host with a tag that no host has
     def test_get_host_by_fake_tag(self):
-        self._make_host_id_list()
+        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         expected_response = []
 
         test_url = f"{HOST_URL}?tag=Fake/Fake=Fake&order_by=updated&order_how=ASC"
