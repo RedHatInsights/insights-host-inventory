@@ -7,7 +7,6 @@ import ujson
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
-from sqlalchemy import func
 
 from api import api_operation
 from api import metrics
@@ -167,10 +166,10 @@ def find_hosts_by_tag(account_number, tags):
 
     X = {}
 
-    for tag in tagsArray: 
-        splitTagWithNamespace = tag.split("/",1)
+    for tag in tagsArray:
+        splitTagWithNamespace = tag.split("/", 1)
         nameSpace = splitTagWithNamespace[0]
-        splitTag = splitTagWithNamespace[1].split("=",1)
+        splitTag = splitTagWithNamespace[1].split("=", 1)
         key = splitTag[0]
         value = splitTag[1]
 
