@@ -2076,5 +2076,17 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         for i in range(len(expected_response)):
             self.assertEqual(expected_response[i], host_by_tag_results["results"][i]["id"])
 
+#   attempt to get a host with a tag that no host has
+    def test_get_host_by_fake_tag(self):
+        self._make_host_id_list()
+        expected_response = []
+
+        test_url = f"{HOST_URL}?tag=Fake/Fake=Fake&order_by=updated&order_how=ASC"
+        host_by_tag_results = self.get(test_url, 200)
+
+        print(host_by_tag_results)
+
+        self.assertEqual(len(expected_response), len(host_by_tag_results["results"]))
+
 if __name__ == "__main__":
     unittest.main()
