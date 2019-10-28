@@ -2003,14 +2003,14 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
     """
     host_data = HostWrapper(test_data(facts=None))
 
-    def _make_host_id_list(self):
+    def _make_hosts(self, number_of_hosts, tags):
         facts = None
         host_id_list = []
 
-        for i in range(2):
+        for i in range(number_of_hosts):
             host = test_data(display_name="host1", facts=facts)
             host["rhel_machine_id"] = generate_uuid()
-            host["tags"] = ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"]
+            host["tags"] = tags
 
             response = self.post(HOST_URL, [host], 207)
             self._verify_host_status(response, 0, 201)
@@ -2025,7 +2025,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 #   Send a request for the tag count of 1 host and check
 #   that it is the correct number
     def test_get_tags_of_multiple_hosts(self):
-        host_id_list = self._make_host_id_list()
+        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         expected_response = []
 
         for i in range(len(host_id_list)):
@@ -2044,7 +2044,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         self._base_paging_test(test_url, len(expected_response))
 
     def test_get_tag_count_of_multiple_hosts(self):
-        host_id_list = self._make_host_id_list()
+        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         expected_response = []
 
         for i in range(len(host_id_list)):
@@ -2072,13 +2072,14 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-#   send a request for some hosts that don't exist
-    def test_get_tag_count_of_host_that_doesnt_exist(self):
-        url_host_id_list = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
-        host_tag_results = self.get(test_url, 200)
+#   send a request for a host with no tags
+    def test_get_tags_form_host_with_no_tags(self):
+        host_id_list = self._make_hosts(1, [])
+        print(host_id_list[0])
+        expected_response = [{host_id_list[0]: []}]
 
-        expected_response = []
+        test_url = f"{HOST_URL}/{host_id_list[0]}/tags?order_by=updated&order_how=ASC"
+        host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
