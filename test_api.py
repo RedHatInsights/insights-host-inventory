@@ -2030,7 +2030,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         for i in range(len(host_id_list)):
             expected_response.append(
-                {host_id_list[i]: {"AWS": {"key": ["value"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
+                {host_id_list[i]:["AWS/key=value","SRC/geo=Neo","Sat/env=ci"]}
             )
 
         url_host_id_list = ",".join(host_id_list)
@@ -2062,6 +2062,25 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         self._base_paging_test(test_url, len(expected_response))
 
+#   send a request for some hosts that don't exist
+    def test_get_tags_of_hosts_that_doesnt_exist(self):
+        url_host_id_list = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
+        host_tag_results = self.get(test_url, 200)
+
+        expected_response = []
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+#   send a request for some hosts that don't exist
+    def test_get_tag_count_of_host_that_doesnt_exist(self):
+        url_host_id_list = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
+        host_tag_results = self.get(test_url, 200)
+
+        expected_response = []
+
+        self.assertEqual(expected_response, host_tag_results["results"])
 
 if __name__ == "__main__":
     unittest.main()

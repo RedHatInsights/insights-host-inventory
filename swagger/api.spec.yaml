@@ -414,7 +414,6 @@ components:
           type: array
           items:
             type: string
-
     TagCountOut:
       type: object
       properties:
