@@ -2067,16 +2067,31 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
     def test_get_host_by_tag(self):
         self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
         host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind"])
-        expected_response = host_id_list
 
         test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind&order_by=updated&order_how=ASC"
         host_by_tag_results = self.get(test_url, 200)
 
         print(host_by_tag_results)
 
-        self.assertEqual(len(expected_response), len(host_by_tag_results["results"]))
-        for i in range(len(expected_response)):
-            self.assertEqual(expected_response[i], host_by_tag_results["results"][i]["id"])
+        self.assertEqual(len(host_id_list), len(host_by_tag_results["results"]))
+        for i in range(len(host_id_list)):
+            self.assertEqual(host_id_list[i], host_by_tag_results["results"][i]["id"])
+
+#   get only the host with mutliple matching tags on it
+    def test_get_host_by_multiple_tags(self):
+        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
+        self._make_hosts(2, ["SPECIAL/tag=ToFind"])
+        host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind", "SPECIAL/other=tag", "SPECIAL/third=tag"])
+
+
+        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind,SPECIAL/other=tag,SPECIAL/third=tag&order_by=updated&order_how=ASC"
+        host_by_tag_results = self.get(test_url, 200)
+
+        print(host_by_tag_results)
+
+        self.assertEqual(len(host_id_list), len(host_by_tag_results["results"]))
+        for i in range(len(host_id_list)):
+            self.assertEqual(host_id_list[i], host_by_tag_results["results"][i]["id"])
 
 #   attempt to get a host with a tag that no host has
     def test_get_host_by_fake_tag(self):
