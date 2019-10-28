@@ -497,12 +497,12 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
 
-    tags_list = _build_tags_list(query.items)
+    tags_list = _build_serialized_tags_list(query.items)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, tags_list)
 
 
-def _build_tags_list(host_list):
+def _build_serialized_tags_list(host_list):
     serialized_tags_list = []
 
     #serialized_tags_list = _serialize_tags(host_list)
@@ -517,14 +517,6 @@ def _build_tags_list(host_list):
         serialized_tags_list.append(system_tag_list)
 
     return serialized_tags_list
-
-def _serialize_tags(host_list):
-    serialized_tags_list = []
-
-    for host in host_list:
-        current_tag = host.tags
-        serialized_tags_list.append(host.tags)
-
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):

@@ -403,7 +403,18 @@ components:
           description: The list of tags on the systems
           type: array
           items:
+            $ref: '#/components/schemas/TagsResults'
+    TagsResults:
+      type: object
+      properties:
+        id: 
+          type: string
+          description: the id of the host
+        tags:
+          type: array
+          items:
             type: string
+
     TagCountOut:
       type: object
       properties:
