@@ -2083,8 +2083,8 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         self._make_hosts(2, ["SPECIAL/tag=ToFind"])
         host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind", "SPECIAL/other=tag", "SPECIAL/third=tag"])
 
-
-        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind,SPECIAL/other=tag,SPECIAL/third=tag&order_by=updated&order_how=ASC"
+        test_url = (f"{HOST_URL}?tag=SPECIAL/tag=ToFind,SPECIAL/other=tag,SPECIAL/third=tag"
+                    f"&order_by=updated&order_how=ASC")
         host_by_tag_results = self.get(test_url, 200)
 
         print(host_by_tag_results)
@@ -2104,6 +2104,7 @@ class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
         print(host_by_tag_results)
 
         self.assertEqual(len(expected_response), len(host_by_tag_results["results"]))
+
 
 if __name__ == "__main__":
     unittest.main()
