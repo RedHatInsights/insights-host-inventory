@@ -506,13 +506,15 @@ def _build_serialized_tags_list(host_list):
     serialized_tags_list = []
 
     #serialized_tags_list = _serialize_tags(host_list)
+    logger.debug(host_list)
+
 
     for host in host_list:
-        host_tags = ""
+        host_tags = []
         for namespace in host.tags:
             for tag_name in host.tags[namespace]:
                 for value in host.tags[namespace][tag_name]:
-                    host_tags = namespace + "/" + tag_name + "=" + value
+                    host_tags.append(namespace + "/" + tag_name + "=" + value)
         system_tag_list = {f"{host.id}": host_tags}
         serialized_tags_list.append(system_tag_list)
 
