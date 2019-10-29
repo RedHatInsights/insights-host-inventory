@@ -42,7 +42,10 @@ paths:
         - in: query
           name: tag
           schema:
-            type: string
+            type: array
+            items:
+              type: string
+              pattern: '^[a-zA-Z0-9]+\/[a-zA-Z0-9]+=[a-zA-Z0-9]+$'
           description: search for a host by the tags on the system
           required: false
         - $ref: '#/components/parameters/branchId'
