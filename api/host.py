@@ -4,6 +4,7 @@ from enum import Enum
 import flask
 import sqlalchemy
 import ujson
+import re
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
@@ -160,28 +161,32 @@ def find_hosts_by_tag(account_number, tags):
     """
     Returns all of the hosts with the tag/tags
     """
-    #tagsArray = tags.split(",")
+    logger.debug("find_host_by_tag(%s)", tags)
 
-    X = {}
-
+    tags_to_find = {}
+    split_tag_array = []
     for tag in tags:
-        splitTagWithNamespace = tag.split("/", 1)
-        nameSpace = splitTagWithNamespace[0]
-        splitTag = splitTagWithNamespace[1].split("=", 1)
-        key = splitTag[0]
-        value = splitTag[1]
+        split_tag = re.split(r'/|=', tag)
+        namespace = split_tag[0]
+        key = split_tag[1]
+        value = split_tag[2]
 
-        X[nameSpace] = {key: [value]}
+        if namespace in tags_to_find:
+            if key in tags_to_find[namespace]:
+                tags_to_find[namespace][key].append(value)
+            else:
+                tags_to_find[namespace][key] = [value]
+        else:
+            tags_to_find[namespace] = {key: [value]}
 
     host = Host.query.filter(
         (Host.account == account_number)
         & (
-            Host.tags.contains(X)
+            Host.tags.contains(tags_to_find)
         ))
 
     if host:
-        logger.debug("found the host with those ids: ")
-        logger.debug(host)
+        logger.debug("found the host with those ids: %s", host)
 
     return host
 
