@@ -992,3 +992,4 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+          
