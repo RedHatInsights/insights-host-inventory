@@ -1151,7 +1151,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         hosts_to_create = [
             ("host1", generate_uuid(), "host1.domain.test"),
             ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test"),  # the same display_name is intentional
+            ("host3", generate_uuid(), "host2.domain.test"),
         ]
         host_list = []
 
@@ -1645,7 +1645,7 @@ class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
         return self.get(full_url, status)
 
 
-class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
+class QueryOrderWithAdditionalHostsBaseTestCase(QueryOrderBaseTestCase):
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
@@ -1655,6 +1655,13 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
+    def _assert_host_ids_in_response(self, response, expected_hosts):
+        response_ids = [host["id"] for host in response["results"]]
+        expected_ids = [host.id for host in expected_hosts]
+        self.assertEqual(response_ids, expected_ids)
+
+
+class QueryOrderTestCase(QueryOrderWithAdditionalHostsBaseTestCase):
     def _added_hosts_by_updated_desc(self):
         expected_hosts = self.added_hosts.copy()
         expected_hosts.reverse()
@@ -1680,11 +1687,6 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
             self.added_hosts[3],
             self.added_hosts[0],
         )
-
-    def _assert_host_ids_in_response(self, response, expected_hosts):
-        response_ids = [host["id"] for host in response["results"]]
-        expected_ids = [host.id for host in expected_hosts]
-        self.assertEqual(response_ids, expected_ids)
 
     def tests_hosts_are_ordered_by_updated_desc_by_default(self):
         for url in self._queries_subtests_with_added_hosts():
@@ -1734,6 +1736,83 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
                 response = self._get(url, order_by="display_name", order_how="DESC")
                 expected_hosts = self._added_hosts_by_display_name_desc()
                 self._assert_host_ids_in_response(response, expected_hosts)
+
+
+class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTestCase):
+    UUID_1 = "00000000-0000-0000-0000-000000000001"
+    UUID_2 = "00000000-0000-0000-0000-000000000002"
+    UUID_3 = "00000000-0000-0000-0000-000000000003"
+
+    def setUp(self):
+        super().setUp()
+
+    def _update_host(self, added_host_index, new_id, new_modified_on):
+        old_id = self.added_hosts[added_host_index].id
+
+        old_host = db.session.query(Host).get(old_id)
+        old_host.id = new_id
+        old_host.modified_on = new_modified_on
+        db.session.add(old_host)
+
+        self.added_hosts[added_host_index] = HostWrapper(old_host.to_json())
+
+    def _update_hosts(self, id_updates):
+        # New modified_on value must be set explicitly so it’s saved the same to all
+        # records. Otherwise SQLAlchemy would consider it unchanged and update it
+        # automatically to its own "now" only for records whose ID changed.
+        new_modified_on = datetime.now()
+
+        with self.app.app_context():
+            for added_host_index, new_id in id_updates:
+                self._update_host(added_host_index, new_id, new_modified_on)
+            db.session.commit()
+
+    def _added_hosts_by_indexes(self, indexes):
+        return tuple(self.added_hosts[added_host_index] for added_host_index in indexes)
+
+    def _test_order_by_id_desc(self, specifications, order_by, order_how):
+        """
+        Specification format is: Update these hosts (specification[*][0]) with these IDs
+        (specification[*][1]). The updated hosts also get the same current timestamp.
+        Then expect the query to return hosts in this order (specification[1]). Integers
+        at specification[*][0] and specification[1][*] are self.added_hosts indices.
+        """
+        for updates, expected_added_hosts in specifications:
+            # Update hosts to they have a same modified_on timestamp, but different IDs.
+            self._update_hosts(updates)
+
+            # Check the order in the response against the expected order. Only indexes
+            # are passed, because self.added_hosts values were replaced during the
+            # update.
+            expected_hosts = self._added_hosts_by_indexes(expected_added_hosts)
+            for url in self._queries_subtests_with_added_hosts():
+                with self.subTest(url=url, updates=updates):
+                    response = self._get(url, order_by=order_by, order_how=order_how)
+                    self._assert_host_ids_in_response(response, expected_hosts)
+
+    def test_hosts_ordered_by_updated_are_also_ordered_by_id_desc(self):
+        # The first two hosts (0 and 1) with different display_names will have the same
+        # modified_on timestamp, but different IDs.
+        specifications = (
+            (((0, self.UUID_1), (1, self.UUID_2)), (1, 0, 3, 2)),
+            (((1, self.UUID_2), (0, self.UUID_3)), (0, 1, 3, 2)),
+            # UPDATE order may influence actual result order.
+            (((1, self.UUID_2), (0, self.UUID_1)), (1, 0, 3, 2)),
+            (((0, self.UUID_3), (1, self.UUID_2)), (0, 1, 3, 2)),
+        )
+        self._test_order_by_id_desc(specifications, "updated", "DESC")
+
+    def test_hosts_ordered_by_display_name_are_also_ordered_by_id_desc(self):
+        # The two hosts with the same display_name (1 and 2) will have the same
+        # modified_on timestamp, but different IDs.
+        specifications = (
+            (((0, self.UUID_1), (3, self.UUID_2)), (3, 0, 1, 2)),
+            (((3, self.UUID_2), (0, self.UUID_3)), (0, 3, 1, 2)),
+            # UPDATE order may influence actual result order.
+            (((3, self.UUID_2), (0, self.UUID_1)), (3, 0, 1, 2)),
+            (((0, self.UUID_3), (3, self.UUID_2)), (0, 3, 1, 2)),
+        )
+        self._test_order_by_id_desc(specifications, "display_name", "ASC")
 
 
 class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
