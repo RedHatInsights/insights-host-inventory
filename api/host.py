@@ -160,13 +160,11 @@ def find_hosts_by_tag(account_number, tags):
     """
     Returns all of the hosts with the tag/tags
     """
-    logger.debug("FUN! You're in the find hosts by tag function. tags: " + tags)
-
-    tagsArray = tags.split(",")
+    #tagsArray = tags.split(",")
 
     X = {}
 
-    for tag in tagsArray:
+    for tag in tags:
         splitTagWithNamespace = tag.split("/", 1)
         nameSpace = splitTagWithNamespace[0]
         splitTag = splitTagWithNamespace[1].split("=", 1)
