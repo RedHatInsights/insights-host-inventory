@@ -157,14 +157,9 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
-def find_hosts_by_tag(account_number, tags):
-    """
-    Returns all of the hosts with the tag/tags
-    """
-    logger.debug("find_host_by_tag(%s)", tags)
-
+def _tags_host_query(account_number, tags):
     tags_to_find = {}
-    split_tag_array = []
+
     for tag in tags:
         split_tag = re.split(r'/|=', tag)
         namespace = split_tag[0]
@@ -179,16 +174,23 @@ def find_hosts_by_tag(account_number, tags):
         else:
             tags_to_find[namespace] = {key: [value]}
 
-    host = Host.query.filter(
+    return Host.query.filter(
         (Host.account == account_number)
-        & (
-            Host.tags.contains(tags_to_find)
-        ))
+        & (Host.tags.contains(tags_to_find)))
 
-    if host:
-        logger.debug("found the host with those ids: %s", host)
 
-    return host
+def find_hosts_by_tag(account_number, tags):
+    """
+    Returns all of the hosts with the tag/tags
+    """
+    logger.debug("find_host_by_tag(%s)", tags)
+
+    hosts = _tags_host_query(account_number, tags)
+
+    if hosts:
+        logger.debug("found the host with those ids: %s", hosts)
+
+    return hosts
 
 
 @metrics.new_host_commit_processing_time.time()
