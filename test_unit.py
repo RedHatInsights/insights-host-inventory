@@ -273,50 +273,51 @@ class HostOrderHowTestCase(TestCase):
 
 
 @patch("api.host._order_how")
+@patch("api.host.Host.id")
 @patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
-    def test_default_is_updated_desc(self, modified_on, order_how):
+    def test_default_is_updated_desc(self, modified_on, id_, order_how):
         actual = _params_to_order_by(None, None)
-        expected = (modified_on.desc.return_value,)
+        expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
-    def test_default_for_updated_is_desc(self, modified_on, order_how):
+    def test_default_for_updated_is_desc(self, modified_on, id_, order_how):
         actual = _params_to_order_by("updated", None)
-        expected = (modified_on.desc.return_value,)
+        expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
-    def test_order_by_updated_asc(self, modified_on, order_how):
+    def test_order_by_updated_asc(self, modified_on, id_, order_how):
         actual = _params_to_order_by("updated", "ASC")
-        expected = (order_how.return_value,)
+        expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "ASC")
 
-    def test_order_by_updated_desc(self, modified_on, order_how):
+    def test_order_by_updated_desc(self, modified_on, id_, order_how):
         actual = _params_to_order_by("updated", "DESC")
-        expected = (order_how.return_value,)
+        expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "DESC")
 
     @patch("api.host.Host.display_name")
-    def test_default_for_display_name_is_asc(self, display_name, modified_on, order_how):
+    def test_default_for_display_name_is_asc(self, display_name, modified_on, id_, order_how):
         actual = _params_to_order_by("display_name")
-        expected = (display_name.asc.return_value, modified_on.desc.return_value)
+        expected = (display_name.asc.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     @patch("api.host.Host.display_name")
-    def test_order_by_display_name_asc(self, display_name, modified_on, order_how):
+    def test_order_by_display_name_asc(self, display_name, modified_on, id_, order_how):
         actual = _params_to_order_by("display_name", "ASC")
-        expected = (order_how.return_value, modified_on.desc.return_value)
+        expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "ASC")
 
     @patch("api.host.Host.display_name")
-    def test_order_by_display_name_desc(self, display_name, modified_on, order_how):
+    def test_order_by_display_name_desc(self, display_name, modified_on, id_, order_how):
         actual = _params_to_order_by("display_name", "DESC")
-        expected = (order_how.return_value, modified_on.desc.return_value)
+        expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "DESC")
 

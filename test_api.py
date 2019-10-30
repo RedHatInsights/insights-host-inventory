@@ -2,13 +2,14 @@
 import copy
 import json
 import tempfile
-import unittest.mock
 import uuid
 from base64 import b64encode
 from datetime import datetime
 from datetime import timezone
 from itertools import chain
 from json import dumps
+from unittest import main
+from unittest import TestCase
 from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
@@ -76,7 +77,13 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-class APIBaseTestCase(unittest.TestCase):
+class APIBaseTestCase(TestCase):
+    def _create_header(self, auth_header, request_id_header):
+        header = auth_header.copy()
+        if request_id_header is not None:
+            header.update(request_id_header)
+        return header
+
     def _get_valid_auth_header(self):
         identity = Identity(account_number=ACCOUNT)
         dict_ = {"identity": identity._asdict()}
@@ -105,10 +112,10 @@ class APIBaseTestCase(unittest.TestCase):
     def put(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
 
-    def delete(self, path, status=200, return_response_as_json=True):
-        return self._response_check(
-            self.client().delete(path, headers=self._get_valid_auth_header()), status, return_response_as_json
-        )
+    def delete(self, path, status=200, header=None, return_response_as_json=True):
+        headers = self._create_header(self._get_valid_auth_header(), header)
+        response = self.client().delete(path, headers=headers)
+        return self._response_check(response, status, return_response_as_json)
 
     def verify_error_response(
         self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
@@ -803,6 +810,15 @@ class PaginationBaseTestCase(APIBaseTestCase):
             test_url = inject_qs(url, page=str(i), per_page="1")
             self.get(test_url, 404)
 
+    def _invalid_paging_parameters_test(self, base_url):
+        paging_parameters = ["per_page", "page"]
+        invalid_values = ["-1", "0", "notanumber"]
+        for paging_parameter in paging_parameters:
+            for invalid_value in invalid_values:
+                with self.subTest(paging_parameter=paging_parameter, invalid_value=invalid_value):
+                    test_url = inject_qs(base_url, **{paging_parameter: invalid_value})
+                    self.get(test_url, 400)
+
 
 class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase):
     def _valid_system_profile(self):
@@ -1118,6 +1134,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
             self.assertIn(expected_system_profile, host_lookup_results["results"])
 
         self._base_paging_test(test_url, len(expected_system_profiles))
+        self._invalid_paging_parameters_test(test_url)
 
     def test_get_system_profile_of_host_that_does_not_exist(self):
         expected_count = 0
@@ -1144,7 +1161,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         hosts_to_create = [
             ("host1", generate_uuid(), "host1.domain.test"),
             ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test"),  # the same display_name is intentional
+            ("host3", generate_uuid(), "host2.domain.test"),
         ]
         host_list = []
 
@@ -1258,7 +1275,88 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
 
-class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
+class DeleteHostsErrorTestCase(DBAPITestCase):
+    def test_delete_non_existent_host(self):
+        url = HOST_URL + "/" + generate_uuid()
+
+        self.delete(url, 404)
+
+    def test_delete_with_invalid_host_id(self):
+        url = HOST_URL + "/" + "notauuid"
+
+        self.delete(url, 400)
+
+
+class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
+    class MockEmitEvent:
+        def __init__(self):
+            self.events = []
+
+        def __call__(self, e):
+            self.events.append(e)
+
+    def setUp(self):
+        super().setUp()
+        self.host_to_delete = self.added_hosts[0]
+        self.delete_url = HOST_URL + "/" + self.host_to_delete.id
+        self.timestamp = datetime.utcnow()
+
+    def _delete(self, url_query="", header=None):
+        with patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+            with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
+                url = f"{self.delete_url}{url_query}"
+                self.delete(url, 200, header, return_response_as_json=False)
+                return json.loads(m.events[0])
+
+    def _assert_event_is_valid(self, event):
+        self.assertIsInstance(event, dict)
+        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+        self.assertEqual(set(event.keys()), expected_keys)
+
+        self.assertEqual(f"{self.timestamp.isoformat()}+00:00", event["timestamp"])
+        self.assertEqual("delete", event["type"])
+        self.assertEqual(self.host_to_delete.id, event["id"])
+        self.assertEqual(self.host_to_delete.insights_id, event["insights_id"])
+
+    def _check_hosts_are_present(self):
+        before_response = self.get(self.delete_url, 200)
+        self.assertEqual(before_response["total"], 1)
+
+    def _check_hosts_are_deleted(self):
+        after_response = self.get(self.delete_url, 200)
+
+        self.assertEqual(after_response["count"], 0)
+        self.assertEqual(after_response["total"], 0)
+        self.assertEqual(after_response["results"], [])
+
+    def test_create_then_delete(self):
+        self._check_hosts_are_present()
+        event = self._delete()
+        self._assert_event_is_valid(event)
+        self._check_hosts_are_deleted()
+
+    def test_create_then_delete_with_branch_id(self):
+        self._check_hosts_are_present()
+        event = self._delete(url_query="?branch_id=1234")
+        self._assert_event_is_valid(event)
+        self._check_hosts_are_deleted()
+
+    def test_create_then_delete_with_request_id(self):
+        request_id = generate_uuid()
+        header = {"x-rh-insights-request-id": request_id}
+        event = self._delete(header=header)
+        self._assert_event_is_valid(event)
+        self.assertEqual(request_id, event["request_id"])
+
+    def test_create_then_delete_without_request_id(self):
+        self._check_hosts_are_present()
+        event = self._delete(header=None)
+        self._assert_event_is_valid(event)
+        self.assertEqual("-1", event["request_id"])
+
+
+@patch("api.host.emit_event")
+class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class RaceCondition:
         @classmethod
         def mock(cls, host_ids_to_delete):
@@ -1296,62 +1394,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return result
 
-    def _create_then_delete_host(self, url, timestamp_iso):
-        # Get the host
-        self.get(url, 200)
-
-        class MockEmitEvent:
-            def __init__(self):
-                self.events = []
-
-            def __call__(self, e):
-                self.events.append(e)
-
-        # Delete the host
-        with unittest.mock.patch("api.host.emit_event", new=MockEmitEvent()) as m:
-            self.delete(url, 200, return_response_as_json=False)
-            event = json.loads(m.events[0])
-
-            self.assertIsInstance(event, dict)
-            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-            self.assertEqual(set(event.keys()), expected_keys)
-
-            self.assertEqual(f"{timestamp_iso}+00:00", event["timestamp"])
-            self.assertEqual("delete", event["type"])
-            self.assertEqual(self.added_hosts[0].id, event["id"])
-            self.assertEqual(self.added_hosts[0].insights_id, event["insights_id"])
-            self.assertEqual("-1", event["request_id"])
-
-        # Try to get the host again
-        response = self.get(url, 200)
-
-        self.assertEqual(response["count"], 0)
-        self.assertEqual(response["total"], 0)
-        self.assertEqual(response["results"], [])
-
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete(self, datetime_mock):
-        url = HOST_URL + "/" + self.added_hosts[0].id
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
-        self._create_then_delete_host(url, timestamp_iso)
-
-    @unittest.mock.patch("app.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_create_then_delete_with_branch_id(self, datetime_mock):
-        url = HOST_URL + "/" + self.added_hosts[0].id + "?" + "branch_id=1234"
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat()
-        self._create_then_delete_host(url, timestamp_iso)
-
-    def test_delete_non_existent_host(self):
-        url = HOST_URL + "/" + generate_uuid()
-
-        self.delete(url, 404)
-
-    def test_delete_with_invalid_host_id(self):
-        url = HOST_URL + "/" + "notauuid"
-
-        self.delete(url, 400)
-
-    @patch("api.host.emit_event")
     def test_delete_when_one_host_is_deleted(self, emit_event):
         host_id = self.added_hosts[0].id
         url = HOST_URL + "/" + host_id
@@ -1360,7 +1402,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             # 200 OK.
             self.delete(url, 200, return_response_as_json=False)
 
-    @patch("api.host.emit_event")
     def test_delete_when_all_hosts_are_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
@@ -1369,7 +1410,6 @@ class DeleteHostsTestCase(PreCreatedHostsBaseTestCase):
             # returning 200 OK.
             self.delete(url, 200, return_response_as_json=False)
 
-    @patch("api.host.emit_event")
     def test_delete_when_some_hosts_is_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
@@ -1390,13 +1430,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
-
-    def test_query_all_with_invalid_paging_parameters(self):
-        invalid_limit_parameters = ["-1", "0", "notanumber"]
-        for invalid_parameter in invalid_limit_parameters:
-            self.get(HOST_URL + "?per_page=" + invalid_parameter, 400)
-
-            self.get(HOST_URL + "?page=" + invalid_parameter, 400)
+        self._invalid_paging_parameters_test(HOST_URL)
 
     def test_query_using_display_name(self):
         host_list = self.added_hosts
@@ -1449,6 +1483,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
+        self._invalid_paging_parameters_test(test_url)
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
@@ -1466,6 +1501,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
             self.assertIn(host, host_data)
 
         self._base_paging_test(url, len(expected_host_list))
+        self._invalid_paging_parameters_test(url)
 
     def test_query_existent_hosts(self):
         host_lists = [self.added_hosts[0:1], self.added_hosts[1:3], self.added_hosts]
@@ -1538,6 +1574,7 @@ class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
         self._base_paging_test(test_url, expected_number_of_hosts)
+        self._invalid_paging_parameters_test(test_url)
 
     def test_query_using_display_name_as_hostname(self):
         host_list = self.added_hosts
@@ -1573,6 +1610,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(len(response["results"]), expected_number_of_hosts)
 
         self._base_paging_test(test_url, expected_number_of_hosts)
+        self._invalid_paging_parameters_test(test_url)
 
     def test_query_with_matching_insights_id(self):
         host_list = self.added_hosts
@@ -1615,7 +1653,7 @@ class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
         return self.get(full_url, status)
 
 
-class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
+class QueryOrderWithAdditionalHostsBaseTestCase(QueryOrderBaseTestCase):
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
@@ -1625,6 +1663,13 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
+    def _assert_host_ids_in_response(self, response, expected_hosts):
+        response_ids = [host["id"] for host in response["results"]]
+        expected_ids = [host.id for host in expected_hosts]
+        self.assertEqual(response_ids, expected_ids)
+
+
+class QueryOrderTestCase(QueryOrderWithAdditionalHostsBaseTestCase):
     def _added_hosts_by_updated_desc(self):
         expected_hosts = self.added_hosts.copy()
         expected_hosts.reverse()
@@ -1650,11 +1695,6 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
             self.added_hosts[3],
             self.added_hosts[0],
         )
-
-    def _assert_host_ids_in_response(self, response, expected_hosts):
-        response_ids = [host["id"] for host in response["results"]]
-        expected_ids = [host.id for host in expected_hosts]
-        self.assertEqual(response_ids, expected_ids)
 
     def tests_hosts_are_ordered_by_updated_desc_by_default(self):
         for url in self._queries_subtests_with_added_hosts():
@@ -1704,6 +1744,83 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
                 response = self._get(url, order_by="display_name", order_how="DESC")
                 expected_hosts = self._added_hosts_by_display_name_desc()
                 self._assert_host_ids_in_response(response, expected_hosts)
+
+
+class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTestCase):
+    UUID_1 = "00000000-0000-0000-0000-000000000001"
+    UUID_2 = "00000000-0000-0000-0000-000000000002"
+    UUID_3 = "00000000-0000-0000-0000-000000000003"
+
+    def setUp(self):
+        super().setUp()
+
+    def _update_host(self, added_host_index, new_id, new_modified_on):
+        old_id = self.added_hosts[added_host_index].id
+
+        old_host = db.session.query(Host).get(old_id)
+        old_host.id = new_id
+        old_host.modified_on = new_modified_on
+        db.session.add(old_host)
+
+        self.added_hosts[added_host_index] = HostWrapper(old_host.to_json())
+
+    def _update_hosts(self, id_updates):
+        # New modified_on value must be set explicitly so it’s saved the same to all
+        # records. Otherwise SQLAlchemy would consider it unchanged and update it
+        # automatically to its own "now" only for records whose ID changed.
+        new_modified_on = datetime.now()
+
+        with self.app.app_context():
+            for added_host_index, new_id in id_updates:
+                self._update_host(added_host_index, new_id, new_modified_on)
+            db.session.commit()
+
+    def _added_hosts_by_indexes(self, indexes):
+        return tuple(self.added_hosts[added_host_index] for added_host_index in indexes)
+
+    def _test_order_by_id_desc(self, specifications, order_by, order_how):
+        """
+        Specification format is: Update these hosts (specification[*][0]) with these IDs
+        (specification[*][1]). The updated hosts also get the same current timestamp.
+        Then expect the query to return hosts in this order (specification[1]). Integers
+        at specification[*][0] and specification[1][*] are self.added_hosts indices.
+        """
+        for updates, expected_added_hosts in specifications:
+            # Update hosts to they have a same modified_on timestamp, but different IDs.
+            self._update_hosts(updates)
+
+            # Check the order in the response against the expected order. Only indexes
+            # are passed, because self.added_hosts values were replaced during the
+            # update.
+            expected_hosts = self._added_hosts_by_indexes(expected_added_hosts)
+            for url in self._queries_subtests_with_added_hosts():
+                with self.subTest(url=url, updates=updates):
+                    response = self._get(url, order_by=order_by, order_how=order_how)
+                    self._assert_host_ids_in_response(response, expected_hosts)
+
+    def test_hosts_ordered_by_updated_are_also_ordered_by_id_desc(self):
+        # The first two hosts (0 and 1) with different display_names will have the same
+        # modified_on timestamp, but different IDs.
+        specifications = (
+            (((0, self.UUID_1), (1, self.UUID_2)), (1, 0, 3, 2)),
+            (((1, self.UUID_2), (0, self.UUID_3)), (0, 1, 3, 2)),
+            # UPDATE order may influence actual result order.
+            (((1, self.UUID_2), (0, self.UUID_1)), (1, 0, 3, 2)),
+            (((0, self.UUID_3), (1, self.UUID_2)), (0, 1, 3, 2)),
+        )
+        self._test_order_by_id_desc(specifications, "updated", "DESC")
+
+    def test_hosts_ordered_by_display_name_are_also_ordered_by_id_desc(self):
+        # The two hosts with the same display_name (1 and 2) will have the same
+        # modified_on timestamp, but different IDs.
+        specifications = (
+            (((0, self.UUID_1), (3, self.UUID_2)), (3, 0, 1, 2)),
+            (((3, self.UUID_2), (0, self.UUID_3)), (0, 3, 1, 2)),
+            # UPDATE order may influence actual result order.
+            (((3, self.UUID_2), (0, self.UUID_1)), (3, 0, 1, 2)),
+            (((0, self.UUID_3), (3, self.UUID_2)), (0, 3, 1, 2)),
+        )
+        self._test_order_by_id_desc(specifications, "display_name", "ASC")
 
 
 class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
@@ -1994,4 +2111,4 @@ class HealthTestCase(APIBaseTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
