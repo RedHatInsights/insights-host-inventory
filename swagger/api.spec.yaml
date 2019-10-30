@@ -17,7 +17,7 @@ paths:
         - in: query
           name: display_name
           schema:
-            type: string
+            type: string`
           description: A part of a searched host’s display name.
           required: false
         - in: query
@@ -259,58 +259,6 @@ paths:
           description: Invalid request.
         '404':
           description: Host not found.
-  '/hosts/{host_id_list}/tags':
-    get:
-      tags:
-        - hosts
-      summary: Get the tags on a host
-      description: Get the tags on a host
-      operationId: api.host.get_host_tags
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
-      responses:
-        '200':
-          description: Successfully found tags.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TagsOut'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host not found.
-  '/hosts/{host_id_list}/tags/count':
-    get:
-      tags:
-        - hosts
-      summary: Get the number of tags on a host
-      description: Get the number of tags on a host
-      operationId: api.host.get_host_tag_count
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
-      responses:
-        '200':
-          description: Successfully found tag count.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TagCountOut'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -393,73 +341,6 @@ components:
         Direction of the ordering, defaults to ASC for display_name and to DESC for
         updated
   schemas:
-    TagsOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: array
-          items:
-            $ref: '#/components/schemas/Namespace'
-    Namespace:
-      type: object
-      properties:
-        namespace:
-          type: string
-          description: The namespace of the tag
-        tag:
-          $ref: '#/components/schemas/Tag'
-    Tag:
-      type: object
-      properties:
-        key:
-          type: string
-          description: the key
-        value:
-          type: array
-          items: 
-            type: integer
-    TagCountOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: array
-          items:
-            $ref: '#/components/schemas/TagCount'
-    TagCount:
-      type: object
-      properties:
-        host:
-          type: string
-          description: the host
-        count:
-          type: integer
-          description: The number of tags on the host
     BulkHostOut:
       type: object
       properties:
@@ -992,4 +873,3 @@ components:
             name.
           type: string
           example: host1.mydomain.com
-          

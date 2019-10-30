@@ -1143,9 +1143,12 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", generate_uuid(), "host1.domain.test"),
-            ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test"),  # the same display_name is intentional
+            ("host1", generate_uuid(), "host1.domain.test",
+                ["NS1/key1=val1", "SPECIAL/tag=ToFind"]),
+            ("host2", generate_uuid(), "host1.domain.test",
+                ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]),  # the same fqdn is intentional
+            ("host3", generate_uuid(), "host2.domain.test",
+                ["NS2/key2=val2", "NS3/key3=val3"]),  # the same display_name is intentional
         ]
         host_list = []
 
@@ -1164,6 +1167,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+            host_wrapper.tags = host[3]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
@@ -1600,6 +1604,95 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.get(test_url, 200)
 
 
+class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    def test_get_host_by_tag(self):
+        """
+        Get only the one host with the special tag to find on it.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]  # host with tag SPECIAL/tag=ToFind
+
+        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind"
+        response_list = self.get(test_url, 200)
+
+        self.assertEqual(len(expected_response_list), len(response_list["results"]))
+        for host, result in zip(expected_response_list, response_list["results"]):
+            self.assertEqual(host.id, result["id"])
+        self._base_paging_test(test_url, len(expected_response_list))
+
+    def test_get_multiple_hosts_by_tag(self):
+        """
+        Get only the one host with the special tag to find on it.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0], host_list[1]]  # hosts with tag "NS1/key1=val1"
+
+        test_url = f"{HOST_URL}?tag=NS1/key1=val1&order_by=updated&order_how=ASC"
+        response_list = self.get(test_url, 200)
+
+        self.assertEqual(len(expected_response_list), len(response_list["results"]))
+        for host, result in zip(expected_response_list, response_list["results"]):
+            self.assertEqual(host.id, result["id"])
+        self._base_paging_test(test_url, len(expected_response_list))
+
+    def test_get_host_by_multiple_tags(self):
+        """
+        Get only the host with all three tags on it and not the other host
+        which both have some, but not all of the tags we query for.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = []
+        expected_response_list.append(host_list[1])  # host with tags ["NS1/key1=val1", "NS1/key1=val1"]
+
+        test_url = (f"{HOST_URL}?tag=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3")
+        response_list = self.get(test_url, 200)
+
+        self.assertEqual(len(expected_response_list), len(response_list["results"]))
+        for host, result in zip(expected_response_list, response_list["results"]):
+            self.assertEqual(host.id, result["id"])
+        self._base_paging_test(test_url, len(expected_response_list))
+
+
+    def test_get_host_by_all_fake_tag(self):
+        """
+        Attempt to get a host with a tag that no host has.
+        """
+        test_url = f"{HOST_URL}?tag=Fake/Fake=Fake"
+        response_list = self.get(test_url, 200)
+
+        self.assertEqual(0, len(response_list["results"]))
+
+ 
+    def test_get_host_with_incomplete_tag_no_value(self):
+        """
+        Attempt to find host with an incomplete tag (no value).
+        Expects 400 response.
+        """
+        test_url = f"{HOST_URL}?tag=namespace/key"
+        self.get(test_url, 400)
+
+
+    def test_get_host_with_incomplete_tag_no_key(self):
+        """
+        Attempt to find host with an incomplete tag (no key).
+        Expects 400 response.
+        """
+        test_url = f"{HOST_URL}?tag=namespace/=Value"
+        self.get(test_url, 400)
+
+
+    def test_get_host_with_incomplete_tag_no_namespace(self):
+        """
+        Attempt to find host with an incomplete tag (no namespace).
+        Expects 400 response.
+        """
+        test_url = f"{HOST_URL}?tag=/key=value"
+        self.get(test_url, 400)
+
+
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
@@ -1996,114 +2089,6 @@ class HealthTestCase(APIBaseTestCase):
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response["version"] is not None
-
-
-class TagTestCase(DBAPITestCase, PaginationBaseTestCase):
-    """
-    Tests the tag endpoints
-    """
-    host_data = HostWrapper(test_data(facts=None))
-
-    def _make_hosts(self, number_of_hosts, tags):
-        facts = None
-        host_id_list = []
-
-        for i in range(number_of_hosts):
-            host = test_data(display_name="host1", facts=facts)
-            host["rhel_machine_id"] = generate_uuid()
-            host["tags"] = tags
-
-            response = self.post(HOST_URL, [host], 207)
-            self._verify_host_status(response, 0, 201)
-
-            created_host = self._pluck_host_from_response(response, 0)
-            original_id = created_host["id"]
-
-            host_id_list.append(original_id)
-
-        return host_id_list
-
-#   Send a request for the tag count of 1 host and check
-#   that it is the correct number
-    def test_get_tags_of_multiple_hosts(self):
-        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
-        expected_response = []
-
-        for i in range(len(host_id_list)):
-            expected_response.append(
-                {host_id_list[i]: {"AWS": {"key": ["value"]}, "SRC": {"geo": ["Neo"]}, "Sat": {"env": ["ci"]}}}
-            )
-
-        url_host_id_list = ",".join(host_id_list)
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
-        host_tag_results = self.get(test_url, 200)
-
-        self.assertEqual(len(expected_response), len(host_tag_results["results"]))
-        for i in range(len(expected_response)):
-            self.assertEqual(expected_response[i], host_tag_results["results"][i])
-
-        self._base_paging_test(test_url, len(expected_response))
-
-    def test_get_tag_count_of_multiple_hosts(self):
-        host_id_list = self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
-        expected_response = []
-
-        for i in range(len(host_id_list)):
-            expected_response.append(
-                {host_id_list[i]: 3}
-            )
-
-        url_host_id_list = ",".join(host_id_list)
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
-        host_tag_results = self.get(test_url, 200)
-
-        self.assertEqual(len(expected_response), len(host_tag_results["results"]))
-        for i in range(len(expected_response)):
-            self.assertEqual(expected_response[i], host_tag_results["results"][i])
-
-        self._base_paging_test(test_url, len(expected_response))
-
-#   get only the one host with the special tag to find on it
-    def test_get_host_by_tag(self):
-        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
-        host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind"])
-
-        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind&order_by=updated&order_how=ASC"
-        host_by_tag_results = self.get(test_url, 200)
-
-        print(host_by_tag_results)
-
-        self.assertEqual(len(host_id_list), len(host_by_tag_results["results"]))
-        for i in range(len(host_id_list)):
-            self.assertEqual(host_id_list[i], host_by_tag_results["results"][i]["id"])
-
-#   get only the host with mutliple matching tags on it
-    def test_get_host_by_multiple_tags(self):
-        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
-        self._make_hosts(2, ["SPECIAL/tag=ToFind"])
-        host_id_list = self._make_hosts(2, ["SPECIAL/tag=ToFind", "SPECIAL/other=tag", "SPECIAL/third=tag"])
-
-        test_url = (f"{HOST_URL}?tag=SPECIAL/tag=ToFind,SPECIAL/other=tag,SPECIAL/third=tag"
-                    f"&order_by=updated&order_how=ASC")
-        host_by_tag_results = self.get(test_url, 200)
-
-        print(host_by_tag_results)
-
-        self.assertEqual(len(host_id_list), len(host_by_tag_results["results"]))
-        for i in range(len(host_id_list)):
-            self.assertEqual(host_id_list[i], host_by_tag_results["results"][i]["id"])
-
-#   attempt to get a host with a tag that no host has
-    def test_get_host_by_fake_tag(self):
-        self._make_hosts(2, ["Sat/env=ci", "SRC/geo=Neo", "AWS/key=value"])
-        expected_response = []
-
-        test_url = f"{HOST_URL}?tag=Fake/Fake=Fake&order_by=updated&order_how=ASC"
-        host_by_tag_results = self.get(test_url, 200)
-
-        print(host_by_tag_results)
-
-        self.assertEqual(len(expected_response), len(host_by_tag_results["results"]))
 
 
 if __name__ == "__main__":
