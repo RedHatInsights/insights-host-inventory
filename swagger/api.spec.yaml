@@ -40,7 +40,7 @@ paths:
           description: Search for a host by insights_id
           required: false
         - in: query
-          name: tag
+          name: tags
           schema:
             type: array
             items:
