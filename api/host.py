@@ -220,7 +220,7 @@ def get_host_list(
     fqdn=None,
     hostname_or_id=None,
     insights_id=None,
-    tag=None,
+    tags=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -234,8 +234,8 @@ def get_host_list(
         query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
     elif insights_id:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
-    elif tag:
-        query = find_hosts_by_tag(current_identity.account_number, tag)
+    elif tags:
+        query = find_hosts_by_tag(current_identity.account_number, tags)
     else:
         query = Host.query.filter(Host.account == current_identity.account_number)
 
