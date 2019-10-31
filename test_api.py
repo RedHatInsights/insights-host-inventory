@@ -1626,7 +1626,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[0]]  # host with tag SPECIAL/tag=ToFind
 
-        test_url = f"{HOST_URL}?tag=SPECIAL/tag=ToFind"
+        test_url = f"{HOST_URL}?tags=SPECIAL/tag=ToFind"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1639,7 +1639,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[0], host_list[1]]  # hosts with tag "NS1/key1=val1"
 
-        test_url = f"{HOST_URL}?tag=NS1/key1=val1&order_by=updated&order_how=ASC"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1&order_by=updated&order_how=ASC"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1654,7 +1654,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tag=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1668,7 +1668,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tag=NS1/key1=val1,NS3/key3=val3"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1681,7 +1681,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[0]]  # host with tags ["NS1/key1=val1", "NS1/key2=val1"]
 
-        test_url = f"{HOST_URL}?tag=NS1/key1=val1,NS1/key2=val1"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS1/key2=val1"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1694,7 +1694,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[2]]  # host with tags ["NS3/key3=val3", "NS1/key3=val3"]
 
-        test_url = f"{HOST_URL}?tag=NS3/key3=val3,NS1/key3=val3"
+        test_url = f"{HOST_URL}?tags=NS3/key3=val3,NS1/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1703,7 +1703,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         """
         Attempt to get a host with a tag that no host has.
         """
-        test_url = f"{HOST_URL}?tag=Fake/Fake=Fake"
+        test_url = f"{HOST_URL}?tags=Fake/Fake=Fake"
         response_list = self.get(test_url, 200)
 
         self.assertEqual(0, len(response_list["results"]))
@@ -1713,7 +1713,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         Attempt to find host with an incomplete tag (no value).
         Expects 400 response.
         """
-        test_url = f"{HOST_URL}?tag=namespace/key"
+        test_url = f"{HOST_URL}?tags=namespace/key"
         self.get(test_url, 400)
 
     def test_get_host_with_incomplete_tag_no_key(self):
@@ -1721,7 +1721,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         Attempt to find host with an incomplete tag (no key).
         Expects 400 response.
         """
-        test_url = f"{HOST_URL}?tag=namespace/=Value"
+        test_url = f"{HOST_URL}?tags=namespace/=Value"
         self.get(test_url, 400)
 
     def test_get_host_with_incomplete_tag_no_namespace(self):
@@ -1729,7 +1729,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         Attempt to find host with an incomplete tag (no namespace).
         Expects 400 response.
         """
-        test_url = f"{HOST_URL}?tag=/key=value"
+        test_url = f"{HOST_URL}?tags=/key=value"
         self.get(test_url, 400)
 
 
