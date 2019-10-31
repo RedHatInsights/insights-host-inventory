@@ -14,7 +14,6 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.exceptions import InputFormatException
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import verify_uuid_format
@@ -98,38 +97,10 @@ class Host(db.Model):
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
 
-    @classmethod
-    def from_json(cls, d):
-        canonical_facts = CanonicalFacts.from_json(d)
-        facts = Facts.from_json(d.get("facts"))
-        return cls(
-            canonical_facts,
-            d.get("display_name", None),
-            d.get("ansible_host"),
-            d.get("account"),
-            facts,
-            d.get("system_profile", {}),
-        )
-
-    def to_json(self):
-        json_dict = CanonicalFacts.to_json(self.canonical_facts)
-        json_dict["id"] = str(self.id)
-        json_dict["account"] = self.account
-        json_dict["display_name"] = self.display_name
-        json_dict["ansible_host"] = self.ansible_host
-        json_dict["facts"] = Facts.to_json(self.facts)
-        json_dict["created"] = self.created_on.isoformat() + "Z"
-        json_dict["updated"] = self.modified_on.isoformat() + "Z"
-        return json_dict
-
-    def to_system_profile_json(self):
-        json_dict = {"id": str(self.id), "system_profile": self.system_profile_facts or {}}
-        return json_dict
-
     def save(self):
         db.session.add(self)
 
-    def update(self, input_host):
+    def update(self, input_host, update_system_profile=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
         self.update_display_name(input_host.display_name)
@@ -137,6 +108,9 @@ class Host(db.Model):
         self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
+
+        if update_system_profile:
+            self._update_system_profile(input_host.system_profile_facts)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -213,83 +187,6 @@ class Host(db.Model):
             f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
-
-
-class CanonicalFacts:
-    """
-    There is a mismatch between how the canonical facts are sent as JSON
-    and how the canonical facts are stored in the DB.  This class contains
-    the logic that is responsible for performing the conversion.
-
-    The canonical facts will be stored as a dict in a single json column
-    in the DB.
-    """
-
-    field_names = (
-        "insights_id",
-        "rhel_machine_id",
-        "subscription_manager_id",
-        "satellite_id",
-        "bios_uuid",
-        "ip_addresses",
-        "fqdn",
-        "mac_addresses",
-        "external_id",
-    )
-
-    @staticmethod
-    def from_json(json_dict):
-        canonical_fact_list = {}
-        for cf in CanonicalFacts.field_names:
-            # Do not allow the incoming canonical facts to be None or ''
-            if cf in json_dict and json_dict[cf]:
-                canonical_fact_list[cf] = json_dict[cf]
-        return canonical_fact_list
-
-    @staticmethod
-    def to_json(internal_dict):
-        canonical_fact_dict = dict.fromkeys(CanonicalFacts.field_names, None)
-        for cf in CanonicalFacts.field_names:
-            if cf in internal_dict:
-                canonical_fact_dict[cf] = internal_dict[cf]
-        return canonical_fact_dict
-
-
-class Facts:
-    """
-    There is a mismatch between how the facts are sent as JSON
-    and how the facts are stored in the DB.  This class contains
-    the logic that is responsible for performing the conversion.
-
-    The facts will be stored as a dict in a single json column
-    in the DB.
-    """
-
-    @staticmethod
-    def from_json(fact_list):
-        if fact_list is None:
-            fact_list = []
-
-        fact_dict = {}
-        for fact in fact_list:
-            if "namespace" in fact and "facts" in fact:
-                if fact["namespace"] in fact_dict:
-                    fact_dict[fact["namespace"]].update(fact["facts"])
-                else:
-                    fact_dict[fact["namespace"]] = fact["facts"]
-            else:
-                # The facts from the request are formatted incorrectly
-                raise InputFormatException(
-                    "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
-                )
-        return fact_dict
-
-    @staticmethod
-    def to_json(fact_dict):
-        fact_list = [
-            {"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in fact_dict.items()
-        ]
-        return fact_list
 
 
 class DiskDeviceSchema(Schema):

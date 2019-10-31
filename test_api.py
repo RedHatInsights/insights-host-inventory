@@ -23,6 +23,7 @@ from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.models import Host
+from app.serialization import serialize_host
 from app.utils import HostWrapper
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
@@ -1762,7 +1763,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         old_host.modified_on = new_modified_on
         db.session.add(old_host)
 
-        self.added_hosts[added_host_index] = HostWrapper(old_host.to_json())
+        self.added_hosts[added_host_index] = HostWrapper(serialize_host(old_host))
 
     def _update_hosts(self, id_updates):
         # New modified_on value must be set explicitly so it’s saved the same to all

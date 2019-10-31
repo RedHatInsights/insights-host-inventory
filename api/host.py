@@ -14,26 +14,24 @@ from app import db
 from app import events
 from app.auth import current_identity
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.models import HostSchema
 from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.serialization import serialize_host
+from app.serialization import serialize_host_system_profile
+from lib.host_repository import _canonical_facts_host_query
+from lib.host_repository import add_host
+from lib.host_repository import AddHostResults
 from tasks import emit_event
 
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
-
-# These are the "elevated" canonical facts that are
-# given priority in the host deduplication process.
-# NOTE: The order of this tuple is important.  The order defines
-# the priority.
-ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
-
 
 logger = get_logger(__name__)
 
@@ -53,19 +51,18 @@ def add_host_list(host_list):
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
-                    (host, status_code) = _add_host(host)
+                    (host, add_result) = _add_host(host)
+                    status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": host})
                     payload_tracker_processing_ctx.inventory_id = host["id"]
+            except ValidationException as e:
+                number_of_errors += 1
+                logger.exception("Input validation error while adding host", extra={"host": host})
+                response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
             except InventoryException as e:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
                 response_host_list.append({**e.to_json(), "host": host})
-            except ValidationError as e:
-                number_of_errors += 1
-                logger.exception("Input validation error while adding host", extra={"host": host})
-                response_host_list.append(
-                    {"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown", "host": host}
-                )
             except Exception:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
@@ -83,97 +80,22 @@ def add_host_list(host_list):
         return _build_json_response(response, status=207)
 
 
-def _add_host(host):
-    """
-    Add or update a host
+def _convert_host_results_to_http_status(result):
+    if result == AddHostResults.created:
+        return 201
+    else:
+        return 200
 
-    Required parameters:
-     - at least one of the canonical facts fields is required
-     - account number
-    """
-    validated_input_host_dict = HostSchema(strict=True).load(host)
 
-    input_host = Host.from_json(validated_input_host_dict.data)
-
-    if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
+def _add_host(input_host):
+    if not current_identity.is_trusted_system and current_identity.account_number != input_host["account"]:
         raise InventoryException(
             title="Invalid request",
             detail="The account number associated with the user does not match the account number associated with the "
             "host",
         )
 
-    existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
-
-    if existing_host:
-        return update_existing_host(existing_host, input_host)
-    else:
-        return create_new_host(input_host)
-
-
-@metrics.host_dedup_processing_time.time()
-def find_existing_host(account_number, canonical_facts):
-    existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
-
-    if not existing_host:
-        existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
-
-    return existing_host
-
-
-@metrics.find_host_using_elevated_ids.time()
-def _find_host_by_elevated_ids(account_number, canonical_facts):
-    for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
-        cf_value = canonical_facts.get(elevated_cf_name)
-        if cf_value:
-            existing_host = find_host_by_canonical_facts(account_number, {elevated_cf_name: cf_value})
-            if existing_host:
-                return existing_host
-
-    return None
-
-
-def _canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
-    )
-
-
-def find_host_by_canonical_facts(account_number, canonical_facts):
-    """
-    Returns first match for a host containing given canonical facts
-    """
-    logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
-
-    host = _canonical_facts_host_query(account_number, canonical_facts).first()
-
-    if host:
-        logger.debug("Found existing host using canonical_fact match: %s", host)
-
-    return host
-
-
-@metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host):
-    logger.debug("Creating a new host")
-    input_host.save()
-    db.session.commit()
-    metrics.create_host_count.inc()
-    logger.debug("Created host:%s", input_host)
-    return input_host.to_json(), 201
-
-
-@metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host):
-    logger.debug("Updating an existing host")
-    existing_host.update(input_host)
-    db.session.commit()
-    metrics.update_host_count.inc()
-    logger.debug("Updated host:%s", existing_host)
-    return existing_host.to_json(), 200
+    return add_host(input_host, update_system_profile=False)
 
 
 @api_operation
@@ -245,7 +167,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
+    json_host_list = [serialize_host(host) for host in host_list]
     json_output = {
         "total": total,
         "count": len(host_list),
@@ -366,7 +288,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [host.to_system_profile_json() for host in query_results.items]
+    response_list = [serialize_host_system_profile(host) for host in query_results.items]
 
     json_output = {
         "total": query_results.total,
