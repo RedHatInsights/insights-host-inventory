@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from base64 import b64encode
 from datetime import datetime
+from datetime import timezone
 from json import dumps
 from random import choice
 from unittest import main
@@ -519,8 +520,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
 class SerializationSerializeHostBaseTestCase(TestCase):
     def _timestamp_to_str(self, timestamp):
-        formatted = timestamp.isoformat()
-        return f"{formatted}Z"
+        return timestamp.astimezone(timezone.utc).isoformat()
 
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
