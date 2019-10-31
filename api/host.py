@@ -4,6 +4,7 @@ from enum import Enum
 import flask
 import sqlalchemy
 import ujson
+import re
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
@@ -156,6 +157,42 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
+def _tags_host_query(account_number, tags):
+    tags_to_find = {}
+
+    for tag in tags:
+        split_tag = re.split(r'/|=', tag)
+        namespace = split_tag[0]
+        key = split_tag[1]
+        value = split_tag[2]
+
+        if namespace in tags_to_find:
+            if key in tags_to_find[namespace]:
+                tags_to_find[namespace][key].append(value)
+            else:
+                tags_to_find[namespace][key] = [value]
+        else:
+            tags_to_find[namespace] = {key: [value]}
+
+    return Host.query.filter(
+        (Host.account == account_number)
+        & (Host.tags.contains(tags_to_find)))
+
+
+def find_hosts_by_tag(account_number, tags):
+    """
+    Returns all of the hosts with the tag/tags
+    """
+    logger.debug("find_host_by_tag(%s)", tags)
+
+    hosts = _tags_host_query(account_number, tags)
+
+    if hosts:
+        logger.debug("found the host with those ids: %s", hosts)
+
+    return hosts
+
+
 @metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host):
     logger.debug("Creating a new host")
@@ -183,6 +220,7 @@ def get_host_list(
     fqdn=None,
     hostname_or_id=None,
     insights_id=None,
+    tags=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -196,6 +234,8 @@ def get_host_list(
         query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
     elif insights_id:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
+    elif tags:
+        query = find_hosts_by_tag(current_identity.account_number, tags)
     else:
         query = Host.query.filter(Host.account == current_identity.account_number)
 

@@ -169,6 +169,8 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
+        self.update_tags(input_host.tags)
+
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
@@ -218,6 +220,19 @@ class Host(db.Model):
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
+
+    def update_tags(self, tags_dict):
+        if tags_dict:
+            if not self.tags:
+                self.tags = tags_dict
+                return
+
+            for input_namespace, input_tags in tags_dict.items():
+                self.replace_tags_in_namespace(input_namespace, input_tags)
+
+    def replace_tags_in_namespace(self, namespace, tags_dict):
+        self.tags[namespace] = tags_dict
+        orm.attributes.flag_modified(self, "tags")
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
         if not facts_dict:

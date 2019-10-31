@@ -17,7 +17,7 @@ paths:
         - in: query
           name: display_name
           schema:
-            type: string
+            type: string`
           description: A part of a searched host’s display name.
           required: false
         - in: query
@@ -38,6 +38,15 @@ paths:
             type: string
             format: uuid
           description: Search for a host by insights_id
+          required: false
+        - in: query
+          name: tags
+          schema:
+            type: array
+            items:
+              type: string
+              pattern: '^\w+\/\w+=\w+$'
+          description: search for a host by the tags on the system
           required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
