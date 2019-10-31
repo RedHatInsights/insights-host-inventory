@@ -1,6 +1,7 @@
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
+from datetime import timezone
 
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import fields
@@ -48,6 +49,10 @@ def _set_display_name_on_save(context):
         return params["canonical_facts"].get("fqdn") or params["id"]
 
 
+def _time_now():
+    return datetime.now(timezone.utc)
+
+
 class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
@@ -63,8 +68,8 @@ class Host(db.Model):
     account = db.Column(db.String(10))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
-    created_on = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
