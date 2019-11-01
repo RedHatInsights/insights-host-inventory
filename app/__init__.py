@@ -17,7 +17,6 @@ from tasks import init_tasks
 
 logger = get_logger(__name__)
 
-
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 

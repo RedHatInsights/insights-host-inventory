@@ -2,9 +2,9 @@ import uuid
 
 from pytest import mark
 
-from api.host import find_existing_host
 from app import db
 from app.models import Host
+from lib.host_repository import find_existing_host
 
 
 ACCOUNT_NUMBER = "000102"

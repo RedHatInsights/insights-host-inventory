@@ -80,7 +80,7 @@ def _configure_contextual_logging_filter():
 
 class ContextualFilter(logging.Filter):
     """
-    This filter gets the request_id from the flask reqeust
+    This filter gets the request_id from the flask request
     and adds it to each log record.  This way we do not have
     to explicitly retrieve/pass around the request id for each
     log message.

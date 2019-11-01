@@ -12,3 +12,8 @@ class InventoryException(Exception):
 class InputFormatException(InventoryException):
     def __init__(self, detail):
         InventoryException.__init__(self, title="Bad Request", detail=detail)
+
+
+class ValidationException(InventoryException):
+    def __init__(self, detail):
+        InventoryException.__init__(self, title="Validation Error", detail=detail)
