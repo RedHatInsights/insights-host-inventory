@@ -1686,6 +1686,17 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._compare_responses(expected_response_list, response_list, test_url)
 
+    def test_get_no_host_with_different_tags_same_namespace(self):
+        """
+        Don’t get a host with two tags in the same namespace, from which only one match. This is a
+        regression test.
+        """
+        test_url = f"{HOST_URL}?tags=NS1/key1=val2,NS1/key2=val1"
+        response_list = self.get(test_url, 200)
+
+        # self.added_hosts[0] would have been matched by NS1/key2=val1, this must not happen.
+        self.assertEqual(0, len(response_list["results"]))
+
     def test_get_host_with_same_tags_different_namespaces(self):
         """
         get a host with two tags in the same namespace with diffent key and same value
