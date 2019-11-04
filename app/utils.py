@@ -1,5 +1,10 @@
 import json
+import re
+import urllib
 
+#TODO: REMOVE
+from app.logging import get_logger
+logger = get_logger(__name__)
 
 class HostWrapper:
     def __init__(self, data=None):
@@ -140,3 +145,65 @@ class HostWrapper:
     @classmethod
     def from_json(cls, d):
         return cls(json.loads(d))
+
+'''
+Tagging: functions for converting tags between valid representations
+'''
+def _split_string_tag(string_tag):
+    namespace = None
+    key = None 
+    value = None
+
+    if(re.match(r"\w+\/\w+=\w+", string_tag)):  # NS/key=value
+        namespace, key, value = re.split(r"/|=", string_tag)
+    elif(re.match(r"\w+\/\w+", string_tag)):  # NS/key
+        namespace, key = re.split(r"/", string_tag)
+    else:  # key
+        key = string_tag
+
+    return (namespace, key, value)
+
+def _create_nested(namespace, key, value):
+    return {
+        namespace: {
+            key: [
+                value
+            ]
+        }
+    }
+
+def tag_string_to_structured(string_tag):
+    namespace, key, value = _split_string_tag(string_tag)
+    
+    return {
+        "namespace" : namespace,
+        "key" : key,
+        "value" : value
+    }
+
+def tag_string_to_nested(string_tag):
+    namespace, key, value = _split_string_tag(string_tag)
+
+    return _create_nested(namespace, key, value)
+
+def tag_structured_to_string(structured_tag):
+    namespace = urllib.urlencode(structured_tag.namespace)
+    key = urllib.urlencode(structured_tag.key)
+    value = urllib.urlencode(structured_tag.value)
+
+    return f"{namespace}/{key}={value}"
+
+def tag_structured_to_nested(structured_tag):
+    return {
+        structured_tag.namespace: {
+            structured_tag.key: [
+                structured_tag.value
+            ]
+        }
+    }
+
+
+# def tag_nested_to_string(nested_tag):
+
+
+# def tag_nested_to_structured(nested_tag):

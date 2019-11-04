@@ -24,7 +24,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from tasks import emit_event
-
+from app.utils import tag_string_to_structured
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
@@ -157,22 +157,23 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
-def _tags_host_query(account_number, tags):
+def _tags_host_query(account_number, string_tags):
     tags_to_find = {}
+    tags = []
+
+    for string_tag in string_tags:
+        tags.append(tag_string_to_structured(string_tag))
 
     for tag in tags:
-        split_tag = re.split(r"/|=", tag)
-        namespace = split_tag[0]
-        key = split_tag[1]
-        value = split_tag[2]
-
-        if namespace in tags_to_find:
-            if key in tags_to_find[namespace]:
-                tags_to_find[namespace][key].append(value)
+        if tag["namespace"] in tags_to_find:
+            if tag["key"] in tags_to_find[tag["namespace"]]:
+                tags_to_find[tag["namespace"]][tag["key"]].append(tag["value"])
             else:
-                tags_to_find[namespace][key] = [value]
+                tags_to_find[tag["namespace"]][tag["key"]] = [tag["value"]]
         else:
-            tags_to_find[namespace] = {key: [value]}
+            tags_to_find[tag["namespace"]] = {tag["key"]: [tag["value"]]}
+
+    logger.info(tags_to_find)
 
     return Host.query.filter((Host.account == account_number) & (Host.tags.contains(tags_to_find)))
 
