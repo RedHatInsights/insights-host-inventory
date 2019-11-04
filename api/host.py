@@ -518,7 +518,7 @@ def _count_tags(query):
         for namespace in host.tags:
             for tag in host.tags[namespace]:
                 host_tag_count += len(host.tags[namespace][tag])
-        counts.append({f"{host.id}": host_tag_count})
+        counts.append({str(host.id): host_tag_count})
 
     return counts
 
@@ -544,17 +544,13 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
 def _build_serialized_tags_list(host_list):
     serialized_tags_list = []
 
-    #serialized_tags_list = _serialize_tags(host_list)
-    logger.debug(host_list)
-
-
     for host in host_list:
         host_tags = []
         for namespace in host.tags:
             for tag_name in host.tags[namespace]:
                 for value in host.tags[namespace][tag_name]:
                     host_tags.append(namespace + "/" + tag_name + "=" + value)
-        system_tag_list = {f"{host.id}": host_tags}
+        system_tag_list = {str(host.id): host_tags}
         serialized_tags_list.append(system_tag_list)
 
     return serialized_tags_list

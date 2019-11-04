@@ -2144,6 +2144,13 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         ["NS1/key3=val3", "NS2/key2=val2", "NS3/key3=val3"],
         []]
     
+    def _compare_responses(self, expected_response_list, response_list, test_url):
+        self.assertEqual(len(expected_response_list), len(response_list["results"]))
+        for expected_response, result in zip(expected_response_list, response_list["results"]):
+            self.assertEqual(expected_response, result)
+
+        self._base_paging_test(test_url, len(expected_response_list))
+
 #   Send a request for the tag count of 1 host and check
 #   that it is the correct number
     def test_get_tags_of_multiple_hosts(self):
@@ -2159,11 +2166,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         response_list = self.get(test_url, 200)
 
-        self.assertEqual(len(expected_response_list), len(response_list["results"]))
-        for expected_response, result in zip(expected_response_list, response_list["results"]):
-            self.assertEqual(expected_response, result)
-
-        self._base_paging_test(test_url, len(expected_response_list))
+        self._compare_responses(expected_response_list, response_list, test_url)
 
     def test_get_tag_count_of_multiple_hosts(self):
         host_list = self.added_hosts.copy()
@@ -2178,11 +2181,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
         response_list = self.get(test_url, 200)
 
-        self.assertEqual(len(expected_response_list), len(response_list["results"]))
-        for expected_response, result in zip(expected_response_list, response_list["results"]):
-            self.assertEqual(expected_response, result)
-
-        self._base_paging_test(test_url, len(expected_response_list))
+        self._compare_responses(expected_response_list, response_list, test_url)
 
 #   send a request for some hosts that don't exist
     def test_get_tags_of_hosts_that_doesnt_exist(self):
