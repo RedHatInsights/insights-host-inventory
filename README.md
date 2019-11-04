@@ -1,6 +1,7 @@
 # Insights Inventory
 
 This project is the home of the host-based inventory for the Insights Platform.
+(Just testing.)
 
 ## Getting Started
 
