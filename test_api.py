@@ -1610,7 +1610,6 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
-
     def _compare_responses(self, expected_response_list, response_list, test_url):
         self.assertEqual(len(expected_response_list), len(response_list["results"]))
         for host, result in zip(expected_response_list, response_list["results"]):
@@ -1653,7 +1652,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = (f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3")
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1667,7 +1666,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = (f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3")
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -1680,10 +1679,21 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[0]]  # host with tags ["NS1/key1=val1", "NS1/key2=val1"]
 
-        test_url = (f"{HOST_URL}?tags=NS1/key1=val1,NS1/key2=val1")
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS1/key2=val1"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_no_host_with_different_tags_same_namespace(self):
+        """
+        Don’t get a host with two tags in the same namespace, from which only one match. This is a
+        regression test.
+        """
+        test_url = f"{HOST_URL}?tags=NS1/key1=val2,NS1/key2=val1"
+        response_list = self.get(test_url, 200)
+
+        # self.added_hosts[0] would have been matched by NS1/key2=val1, this must not happen.
+        self.assertEqual(0, len(response_list["results"]))
 
     def test_get_host_with_same_tags_different_namespaces(self):
         """
@@ -1693,19 +1703,11 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = [host_list[2]]  # host with tags ["NS3/key3=val3", "NS1/key3=val3"]
 
-        test_url = (f"{HOST_URL}?tags=NS3/key3=val3,NS1/key3=val3")
+        test_url = f"{HOST_URL}?tags=NS3/key3=val3,NS1/key3=val3"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
-
-    def test_get_host_by_all_fake_tag(self):
-        """
-        Attempt to get a host with a tag that no host has.
-        """
         test_url = f"{HOST_URL}?tags=Fake/Fake=Fake"
-        response_list = self.get(test_url, 200)
-
-        self.assertEqual(0, len(response_list["results"]))
 
     def test_get_host_with_incomplete_tag_no_value(self):
         """

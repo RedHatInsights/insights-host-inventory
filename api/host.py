@@ -1,10 +1,10 @@
+import re
 import uuid
 from enum import Enum
 
 import flask
 import sqlalchemy
 import ujson
-import re
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
@@ -162,7 +162,7 @@ def _tags_host_query(account_number, tags):
     tags_to_find = {}
 
     for tag in tags:
-        split_tag = re.split(r'/|=', tag)
+        split_tag = re.split(r"/|=", tag)
         namespace = split_tag[0]
         key = split_tag[1]
         value = split_tag[2]
@@ -175,9 +175,7 @@ def _tags_host_query(account_number, tags):
         else:
             tags_to_find[namespace] = {key: [value]}
 
-    return Host.query.filter(
-        (Host.account == account_number)
-        & (Host.tags.contains(tags_to_find)))
+    return Host.query.filter((Host.account == account_number) & (Host.tags.contains(tags_to_find)))
 
 
 def find_hosts_by_tag(account_number, tags):
