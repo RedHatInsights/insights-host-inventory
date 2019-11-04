@@ -149,61 +149,96 @@ class HostWrapper:
 '''
 Tagging: functions for converting tags between valid representations
 '''
-def _split_string_tag(string_tag):
-    namespace = None
-    key = None 
-    value = None
+class Tag: 
+    def __init__(self, data=None):
+        self.__data = data or {}
 
-    if(re.match(r"\w+\/\w+=\w+", string_tag)):  # NS/key=value
-        namespace, key, value = re.split(r"/|=", string_tag)
-    elif(re.match(r"\w+\/\w+", string_tag)):  # NS/key
-        namespace, key = re.split(r"/", string_tag)
-    else:  # key
-        key = string_tag
+    def data(self):
+        return self.__data
 
-    return (namespace, key, value)
+    def __delattr__(self, name):
+        if name in self.__data:
+            del self.__data[name]
 
-def _create_nested(namespace, key, value):
-    return {
-        namespace: {
-            key: [
-                value
-            ]
+    @property
+    def namespace(self):
+        return self.__data.get("insights_id", None)
+
+    @namespace.setter
+    def namespace(self, namespace):
+        self.__data["namespace"] = namespace
+
+    @property
+    def key(self):
+        return self.__data.get("insights_id", None)
+
+    @key.setter
+    def key(self, key):
+        self.__data["key"] = key
+
+    @property
+    def value(self):
+        return self.__data.get("insights_id", None)
+
+    @value.setter
+    def value(self, value):
+        self.__data["value"] = value
+
+    def _split_string_tag(self, string_tag):
+        namespace = None
+        key = None 
+        value = None
+
+        if(re.match(r"\w+\/\w+=\w+", string_tag)):  # NS/key=value
+            namespace, key, value = re.split(r"/|=", string_tag)
+        elif(re.match(r"\w+\/\w+", string_tag)):  # NS/key
+            namespace, key = re.split(r"/", string_tag)
+        else:  # key
+            key = string_tag
+
+        return (namespace, key, value)
+
+    def _create_nested(self, namespace, key, value):
+        return {
+            namespace: {
+                key: [
+                    value
+                ]
+            }
         }
-    }
 
-def tag_string_to_structured(string_tag):
-    namespace, key, value = _split_string_tag(string_tag)
-    
-    return {
-        "namespace" : namespace,
-        "key" : key,
-        "value" : value
-    }
-
-def tag_string_to_nested(string_tag):
-    namespace, key, value = _split_string_tag(string_tag)
-
-    return _create_nested(namespace, key, value)
-
-def tag_structured_to_string(structured_tag):
-    namespace = urllib.urlencode(structured_tag.namespace)
-    key = urllib.urlencode(structured_tag.key)
-    value = urllib.urlencode(structured_tag.value)
-
-    return f"{namespace}/{key}={value}"
-
-def tag_structured_to_nested(structured_tag):
-    return {
-        structured_tag.namespace: {
-            structured_tag.key: [
-                structured_tag.value
-            ]
+    def tag_string_to_structured(self, string_tag):
+        namespace, key, value = self._split_string_tag(string_tag)
+        
+        return {
+            "namespace" : namespace,
+            "key" : key,
+            "value" : value
         }
-    }
+
+    def tag_string_to_nested(self, string_tag):
+        namespace, key, value = self._split_string_tag(string_tag)
+
+        return self._create_nested(namespace, key, value)
+
+    def tag_structured_to_string(self, structured_tag):
+        namespace = urllib.urlencode(structured_tag.namespace)
+        key = urllib.urlencode(structured_tag.key)
+        value = urllib.urlencode(structured_tag.value)
+
+        return f"{namespace}/{key}={value}"
+
+    def tag_structured_to_nested(self, structured_tag):
+        return {
+            structured_tag.namespace: {
+                structured_tag.key: [
+                    structured_tag.value
+                ]
+            }
+        }
 
 
-# def tag_nested_to_string(nested_tag):
+    # def tag_nested_to_string(nested_tag):
 
 
-# def tag_nested_to_structured(nested_tag):
+    # def tag_nested_to_structured(nested_tag):

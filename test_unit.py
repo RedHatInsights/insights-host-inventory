@@ -14,9 +14,9 @@ from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
+from app.utils import Tag
 from app.config import Config
 from test_utils import set_environment
-
 
 class ApiOperationTestCase(TestCase):
     """
@@ -318,6 +318,21 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
         with self.assertRaises(ValueError):
             _params_to_order_by(Mock(), order_how="ASC")
 
+
+class TagUtilsTestCase(TestCase):
+    def test_simple_string_to_structured(self):
+        string_tag = "NS/key=value"
+
+        expected_structured_tag = {
+            "namespace": "NS",
+            "key": "key",
+            "value": "value" 
+        }
+
+        structured_tag = Tag()
+        structured_tag.tag_string_to_structured(string_tag)
+
+        self.assertEqual(structured_tag, expected_structured_tag)
 
 if __name__ == "__main__":
     main()
