@@ -17,7 +17,7 @@ paths:
         - in: query
           name: display_name
           schema:
-            type: string`
+            type: string
           description: A part of a searched host’s display name.
           required: false
         - in: query
@@ -711,6 +711,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
+        tags:
+          type: array
+          items:
+            type: string
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

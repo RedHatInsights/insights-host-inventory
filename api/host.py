@@ -55,6 +55,7 @@ def add_host_list(host_list):
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
                     (host, status_code) = _add_host(host)
+
                     response_host_list.append({"status": status_code, "host": host})
                     payload_tracker_processing_ctx.inventory_id = host["id"]
             except InventoryException as e:
