@@ -2,10 +2,6 @@ import json
 import re
 import urllib
 
-#TODO: REMOVE
-from app.logging import get_logger
-logger = get_logger(__name__)
-
 class HostWrapper:
     def __init__(self, data=None):
         self.__data = data or {}
