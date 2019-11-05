@@ -18,6 +18,7 @@ from app.utils import Tag
 from app.config import Config
 from test_utils import set_environment
 
+
 class ApiOperationTestCase(TestCase):
     """
     Test the API operation decorator that increments the request counter with every
@@ -324,13 +325,13 @@ class TagUtilsTestCase(TestCase):
     def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
         structured_tag = Tag().from_string(string_tag)
         self.assertEqual(structured_tag.data(), expected_structured_tag.data())
-        
+
     def test_simple_string_to_structured(self):
         self._base_string_to_structured_test("NS/key=value", Tag("NS", "key", "value"))
 
     def test_string_to_structured_no_namespace(self):
         self._base_string_to_structured_test("key=value", Tag(None, "key", "value"))
-        
+
     def test_simple_string_to_structured_no_value(self):
         self._base_string_to_structured_test("NS/key", Tag("NS", "key", None))
 
@@ -360,8 +361,6 @@ class TagUtilsTestCase(TestCase):
 
         self.assertEqual(structured_tag.data(), expected_structured_tag.data())
 
-    #def test_nested_to_structured_to_mant_namespaces(self):
-
     def test_simple_structured_to_nested(self):
         structured_tag = Tag("NS", "key", "value")
 
@@ -378,7 +377,7 @@ class TagUtilsTestCase(TestCase):
         self.assertEqual(nested_tag, expected_nested_tag)
 
     def test_create_nested_combined(self):
-        tags =[
+        tags = [
             Tag("NS1", "Key", "val"),
             Tag("NS2", "k2")
         ]
@@ -399,7 +398,7 @@ class TagUtilsTestCase(TestCase):
         self.assertEqual(nested_tags, expected_nested_tags)
 
     def test_create_nested_single_no_value(self):
-        tags =[
+        tags = [
             Tag("NS2", "k2")
         ]
 

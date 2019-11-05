@@ -2,6 +2,7 @@ import json
 import re
 import urllib
 
+
 class HostWrapper:
     def __init__(self, data=None):
         self.__data = data or {}
@@ -142,10 +143,13 @@ class HostWrapper:
     def from_json(cls, d):
         return cls(json.loads(d))
 
+
 '''
 Tagging: functions for converting tags between valid representations
 '''
-class Tag: 
+
+
+class Tag:
     def __init__(self, namespace=None, key=None, value=None):
         self.__data = {
             "namespace": namespace,
@@ -182,7 +186,7 @@ class Tag:
 
     def _split_string_tag(self, string_tag):
         namespace = None
-        key = None 
+        key = None
         value = None
 
         if(re.match(r"\w+\/\w+=\w+", string_tag)):  # NS/key=value
@@ -208,9 +212,9 @@ class Tag:
     def from_string(self, string_tag):
         namespace, key, value = self._split_string_tag(string_tag)
 
-        self.namespace = namespace
-        self.key = key
-        self.value = value
+        self.namespace = urllib.parse.unquote(namespace)
+        self.key = urllib.parse.unquote(key)
+        self.value = urllib.parse.unquote(value)
 
         return self
 
@@ -228,9 +232,8 @@ class Tag:
                 if len(nested_tag[namespace][key]) > 1:
                     return "too many values"
                 else:
-                    logger.info("proper nested tag format")
                     value = nested_tag[namespace][key][0]
-        
+
         self.namespace = namespace
         self.key = key
         self.value = value
@@ -238,7 +241,11 @@ class Tag:
         return self
 
     def to_string(self):
-        return f"{self.namespace}/{self.key}={self.value}"
+        namespace = urllib.parse.quote(self.namespace)
+        key = urllib.parse.quote(self.key)
+        value = urllib.parse.quote(self.value)
+
+        return f"{namespace}/{key}={value}"
 
     def to_nested(self):
         return {
@@ -260,7 +267,7 @@ class Tag:
         for tag in tags:
             namespace, key, value = tag.namespace, tag.key, tag.value
             if namespace in nested_tags:
-                if value == None:
+                if value is None:
                     if key not in nested_tags[namespace]:
                         nested_tags[namespace][key] = []
                 else:
@@ -269,7 +276,7 @@ class Tag:
                     else:
                         nested_tags[namespace][key] = [value]
             else:
-                if value == None:
+                if value is None:
                     nested_tags[namespace] = {key: []}
                 else:
                     nested_tags[namespace] = {key: [value]}

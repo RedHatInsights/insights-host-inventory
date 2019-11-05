@@ -1,4 +1,3 @@
-import re
 import uuid
 from enum import Enum
 
@@ -156,6 +155,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
         logger.debug("Found existing host using canonical_fact match: %s", host)
 
     return host
+
 
 def _tags_host_query(account_number, string_tags):
     tags = []
