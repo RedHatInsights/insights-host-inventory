@@ -320,14 +320,22 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
 
 
 class TagUtilsTestCase(TestCase):
-    def test_simple_string_to_structured(self):
-        string_tag = "NS/key=value"
-        structured_tag = Tag()
-        structured_tag.from_string(string_tag)
 
-        expected_structured_tag = Tag("NS", "key", "value")
-
+    def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
+        structured_tag = Tag().from_string(string_tag)
         self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+        
+    def test_simple_string_to_structured(self):
+        self._base_string_to_structured_test("NS/key=value", Tag("NS", "key", "value"))
+
+    def test_string_to_structured_no_namespace(self):
+        self._base_string_to_structured_test("key=value", Tag(None, "key", "value"))
+        
+    def test_simple_string_to_structured_no_value(self):
+        self._base_string_to_structured_test("NS/key", Tag("NS", "key", None))
+
+    def test_simple_string_to_structured_only_key(self):
+        self._base_string_to_structured_test("key", Tag(None, "key", None))
 
     def test_simple_structured_to_string(self):
         structured_tag = Tag("NS", "key", "value")

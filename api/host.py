@@ -23,7 +23,9 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.utils import Tag
 from tasks import emit_event
+
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
@@ -161,16 +163,16 @@ def _tags_host_query(account_number, string_tags):
     tags = []
 
     for string_tag in string_tags:
-        tags.append(tag_string_to_structured(string_tag))
+        tags.append(Tag().from_string(string_tag))
 
     for tag in tags:
-        if tag["namespace"] in tags_to_find:
-            if tag["key"] in tags_to_find[tag["namespace"]]:
-                tags_to_find[tag["namespace"]][tag["key"]].append(tag["value"])
+        if tag.namespace in tags_to_find:
+            if tag.key in tags_to_find[tag.namespace]:
+                tags_to_find[tag.namespace][tag.key].append(tag.value)
             else:
-                tags_to_find[tag["namespace"]][tag["key"]] = [tag["value"]]
+                tags_to_find[tag.namespace][tag.key] = [tag.value]
         else:
-            tags_to_find[tag["namespace"]] = {tag["key"]: [tag["value"]]}
+            tags_to_find[tag.namespace] = {tag.key: [tag.value]}
 
     logger.info(tags_to_find)
 

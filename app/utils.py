@@ -193,6 +193,8 @@ class Tag:
             namespace, key, value = re.split(r"/|=", string_tag)
         elif(re.match(r"\w+\/\w+", string_tag)):  # NS/key
             namespace, key = re.split(r"/", string_tag)
+        elif(re.match(r"\w+=\w+", string_tag)):  # key=value
+            key, value = re.split(r"=", string_tag)
         else:  # key
             key = string_tag
 
@@ -222,7 +224,7 @@ class Tag:
         if len(nested_tag.keys()) > 1:
             return "too many keys"
         else:
-            namespace = list(nested_tag.keys())[0];
+            namespace = list(nested_tag.keys())[0]
             if len(nested_tag[namespace].keys()) > 1:
                 return "too many keys"
             else:
