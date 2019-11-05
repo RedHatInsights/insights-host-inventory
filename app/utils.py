@@ -252,3 +252,30 @@ class Tag:
                 ]
             }
         }
+
+    @staticmethod
+    def create_nested_from_tags(tags):
+        '''
+        accepts an array of structured tags and makes a combined nested version
+        of the tags
+        '''
+        nested_tags = {}
+
+        for tag in tags:
+            namespace, key, value = tag.namespace, tag.key, tag.value
+            if namespace in nested_tags:
+                if value == None:
+                    if key not in nested_tags[namespace]:
+                        nested_tags[namespace][key] = []
+                else:
+                    if key in nested_tags[namespace]:
+                        nested_tags[namespace][key].append(value)
+                    else:
+                        nested_tags[namespace][key] = [value]
+            else:
+                if value == None:
+                    nested_tags[namespace] = {key: []}
+                else:
+                    nested_tags[namespace] = {key: [value]}
+
+        return nested_tags

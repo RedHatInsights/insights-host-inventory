@@ -157,24 +157,15 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
 
     return host
 
-
 def _tags_host_query(account_number, string_tags):
-    tags_to_find = {}
     tags = []
 
     for string_tag in string_tags:
         tags.append(Tag().from_string(string_tag))
 
-    for tag in tags:
-        if tag.namespace in tags_to_find:
-            if tag.key in tags_to_find[tag.namespace]:
-                tags_to_find[tag.namespace][tag.key].append(tag.value)
-            else:
-                tags_to_find[tag.namespace][tag.key] = [tag.value]
-        else:
-            tags_to_find[tag.namespace] = {tag.key: [tag.value]}
+    tags_to_find = Tag.create_nested_from_tags(tags)
 
-    logger.info(tags_to_find)
+    logger.info("tags to find: %s", tags_to_find)
 
     return Host.query.filter((Host.account == account_number) & (Host.tags.contains(tags_to_find)))
 

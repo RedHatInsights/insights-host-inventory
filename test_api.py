@@ -1719,28 +1719,26 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(0, len(response_list["results"]))
 
-    def test_get_host_with_incomplete_tag_no_value(self):
+    def test_get_host_with_tag_no_value(self):
         """
-        Attempt to find host with an incomplete tag (no value).
-        Expects 400 response.
+        Attempt to find host with a tag with no value
         """
         test_url = f"{HOST_URL}?tags=namespace/key"
-        self.get(test_url, 400)
+        self.get(test_url, 200)
 
-    def test_get_host_with_incomplete_tag_no_key(self):
+    def test_get_host_with_tag_no_namespace(self):
+        """
+        Attempt to find host with a tag with no namespace.
+        """
+        test_url = f"{HOST_URL}?tags=key=value"
+        self.get(test_url, 200)
+
+    def test_get_host_with_invalid_tag_no_key(self):
         """
         Attempt to find host with an incomplete tag (no key).
         Expects 400 response.
         """
         test_url = f"{HOST_URL}?tags=namespace/=Value"
-        self.get(test_url, 400)
-
-    def test_get_host_with_incomplete_tag_no_namespace(self):
-        """
-        Attempt to find host with an incomplete tag (no namespace).
-        Expects 400 response.
-        """
-        test_url = f"{HOST_URL}?tags=/key=value"
         self.get(test_url, 400)
 
 

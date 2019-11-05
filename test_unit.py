@@ -377,6 +377,41 @@ class TagUtilsTestCase(TestCase):
 
         self.assertEqual(nested_tag, expected_nested_tag)
 
+    def test_create_nested_combined(self):
+        tags =[
+            Tag("NS1", "Key", "val"),
+            Tag("NS2", "k2")
+        ]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {
+            "NS1": {
+                "Key": [
+                    "val"
+                ]
+            },
+            "NS2": {
+                "k2": []
+            }
+        }
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    def test_create_nested_single_no_value(self):
+        tags =[
+            Tag("NS2", "k2")
+        ]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {
+            "NS2": {
+                "k2": []
+            }
+        }
+
+        self.assertEqual(nested_tags, expected_nested_tags)
 
 
 if __name__ == "__main__":
