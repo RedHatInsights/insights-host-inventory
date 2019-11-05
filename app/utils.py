@@ -150,19 +150,19 @@ class HostWrapper:
 Tagging: functions for converting tags between valid representations
 '''
 class Tag: 
-    def __init__(self, data=None):
-        self.__data = data or {}
+    def __init__(self, namespace=None, key=None, value=None):
+        self.__data = {
+            "namespace": namespace,
+            "key": key,
+            "value": value
+        }
 
     def data(self):
         return self.__data
 
-    def __delattr__(self, name):
-        if name in self.__data:
-            del self.__data[name]
-
     @property
     def namespace(self):
-        return self.__data.get("insights_id", None)
+        return self.__data.get("namespace", None)
 
     @namespace.setter
     def namespace(self, namespace):
@@ -170,7 +170,7 @@ class Tag:
 
     @property
     def key(self):
-        return self.__data.get("insights_id", None)
+        return self.__data.get("key", None)
 
     @key.setter
     def key(self, key):
@@ -178,7 +178,7 @@ class Tag:
 
     @property
     def value(self):
-        return self.__data.get("insights_id", None)
+        return self.__data.get("value", None)
 
     @value.setter
     def value(self, value):
@@ -207,38 +207,46 @@ class Tag:
             }
         }
 
-    def tag_string_to_structured(self, string_tag):
+    def from_string(self, string_tag):
         namespace, key, value = self._split_string_tag(string_tag)
+
+        self.namespace = namespace
+        self.key = key
+        self.value = value
+
+        return self
+
+    def from_nested(self, nested_tag):
+        namespace, key, value = None, None, None
+
+        if len(nested_tag.keys()) > 1:
+            return "too many keys"
+        else:
+            namespace = list(nested_tag.keys())[0];
+            if len(nested_tag[namespace].keys()) > 1:
+                return "too many keys"
+            else:
+                key = list(nested_tag[namespace].keys())[0]
+                if len(nested_tag[namespace][key]) > 1:
+                    return "too many values"
+                else:
+                    logger.info("proper nested tag format")
+                    value = nested_tag[namespace][key][0]
         
+        self.namespace = namespace
+        self.key = key
+        self.value = value
+
+        return self
+
+    def to_string(self):
+        return f"{self.namespace}/{self.key}={self.value}"
+
+    def to_nested(self):
         return {
-            "namespace" : namespace,
-            "key" : key,
-            "value" : value
-        }
-
-    def tag_string_to_nested(self, string_tag):
-        namespace, key, value = self._split_string_tag(string_tag)
-
-        return self._create_nested(namespace, key, value)
-
-    def tag_structured_to_string(self, structured_tag):
-        namespace = urllib.urlencode(structured_tag.namespace)
-        key = urllib.urlencode(structured_tag.key)
-        value = urllib.urlencode(structured_tag.value)
-
-        return f"{namespace}/{key}={value}"
-
-    def tag_structured_to_nested(self, structured_tag):
-        return {
-            structured_tag.namespace: {
-                structured_tag.key: [
-                    structured_tag.value
+            self.namespace: {
+                self.key: [
+                    self.value
                 ]
             }
         }
-
-
-    # def tag_nested_to_string(nested_tag):
-
-
-    # def tag_nested_to_structured(nested_tag):

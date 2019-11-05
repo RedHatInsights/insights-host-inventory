@@ -322,17 +322,54 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
 class TagUtilsTestCase(TestCase):
     def test_simple_string_to_structured(self):
         string_tag = "NS/key=value"
+        structured_tag = Tag()
+        structured_tag.from_string(string_tag)
 
-        expected_structured_tag = {
-            "namespace": "NS",
-            "key": "key",
-            "value": "value" 
+        expected_structured_tag = Tag("NS", "key", "value")
+
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    def test_simple_structured_to_string(self):
+        structured_tag = Tag("NS", "key", "value")
+        string_tag = structured_tag.to_string()
+
+        expected_string_tag = "NS/key=value"
+
+        self.assertEqual(string_tag, expected_string_tag)
+
+    def test_simple_nested_to_structured(self):
+        nested_tag = {
+            "NS": {
+                "key": [
+                    "value"
+                ]
+            }
         }
 
-        structured_tag = Tag()
-        structured_tag.tag_string_to_structured(string_tag)
+        structured_tag = Tag().from_nested(nested_tag)
 
-        self.assertEqual(structured_tag, expected_structured_tag)
+        expected_structured_tag = Tag("NS", "key", "value")
+
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    #def test_nested_to_structured_to_mant_namespaces(self):
+
+    def test_simple_structured_to_nested(self):
+        structured_tag = Tag("NS", "key", "value")
+
+        nested_tag = structured_tag.to_nested()
+
+        expected_nested_tag = {
+            "NS": {
+                "key": [
+                    "value"
+                ]
+            }
+        }
+
+        self.assertEqual(nested_tag, expected_nested_tag)
+
+
 
 if __name__ == "__main__":
     main()
