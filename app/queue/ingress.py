@@ -61,17 +61,17 @@ def add_host(host_data):
         try:
             logger.info("Attempting to add host...")
             (output_host, add_results) = host_repository.add_host(host_data)
-            metrics.add_host_success.inc()
+            metrics.add_host_success.labels(add_results.name).inc()  # created vs updated
             logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
-            metrics.add_host_failure.inc()
+            metrics.add_host_failure.labels("InventoryException").inc()
             raise
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
-            metrics.add_host_failure.inc()
+            metrics.add_host_failure.labels("Exception").inc()
             raise
 
 

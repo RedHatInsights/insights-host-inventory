@@ -5,6 +5,7 @@ import tempfile
 import uuid
 from base64 import b64encode
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from itertools import chain
 from json import dumps
@@ -223,8 +224,11 @@ class CreateHostsTestCase(DBAPITestCase):
         original_id = created_host["id"]
 
         self._validate_host(created_host, host_data, expected_id=original_id)
+
         created_time = dateutil.parser.parse(created_host["created"])
-        self.assertGreater(datetime.now(timezone.utc), created_time)
+        now = datetime.now(timezone.utc)
+        self.assertGreater(now, created_time)
+        self.assertLess(now - timedelta(minutes=15), created_time)
 
         host_data.facts = copy.deepcopy(FACTS)
 
