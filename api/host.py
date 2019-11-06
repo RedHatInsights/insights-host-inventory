@@ -55,7 +55,6 @@ def add_host_list(host_list):
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
                     (host, status_code) = _add_host(host)
-
                     response_host_list.append({"status": status_code, "host": host})
                     payload_tracker_processing_ctx.inventory_id = host["id"]
             except InventoryException as e:
@@ -504,16 +503,16 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
 
-    counts = _count_tags(query)
+    counts = _count_tags(query.items)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, counts)
 
 
 # returns counts in format [{id: count}, {id: count}]
-def _count_tags(query):
+def _count_tags(host_list):
     counts = []
 
-    for host in query.items:
+    for host in host_list:
         host_tag_count = 0
         for namespace in host.tags:
             for tag in host.tags[namespace]:
