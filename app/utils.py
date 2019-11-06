@@ -2,9 +2,6 @@ import json
 import re
 import urllib
 
-#TODO: Remove
-from app.logging import get_logger
-logger = get_logger(__name__)
 
 class HostWrapper:
     def __init__(self, data=None):
@@ -305,6 +302,5 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 for value in nested_tags[namespace][key]:
-                    logger.info("ns: %s | Key: %s | Value: %s", namespace, key, value)
                     tags.append(Tag(namespace, key, value))
         return tags

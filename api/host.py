@@ -542,7 +542,7 @@ def _build_serialized_tags(host_list):
         string_tags = []
         for tag in tags:
             string_tags.append(tag.to_string())
-        
+
         serialized_tags[str(host.id)] = string_tags
 
     return serialized_tags

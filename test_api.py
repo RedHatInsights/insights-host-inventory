@@ -2227,5 +2227,6 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
+
 if __name__ == "__main__":
     unittest.main()
