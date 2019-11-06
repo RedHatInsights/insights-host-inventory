@@ -549,12 +549,6 @@ def _build_serialized_tags(host_list):
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
-    json_output = {
-        "total": total,
-        "count": len(tags_list),
-        "page": page,
-        "per_page": per_page,
-        "results": tags_list,
-    }
+    json_output = {"total": total, "count": len(tags_list), "page": page, "per_page": per_page, "results": tags_list}
 
     return _build_json_response(json_output, status=200)

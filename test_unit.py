@@ -321,7 +321,6 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
 
 
 class TagUtilsTestCase(TestCase):
-
     def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
         structured_tag = Tag().from_string(string_tag)
         self.assertEqual(structured_tag.data(), expected_structured_tag.data())
@@ -347,13 +346,7 @@ class TagUtilsTestCase(TestCase):
         self.assertEqual(string_tag, expected_string_tag)
 
     def test_simple_nested_to_structured(self):
-        nested_tag = {
-            "NS": {
-                "key": [
-                    "value"
-                ]
-            }
-        }
+        nested_tag = {"NS": {"key": ["value"]}}
 
         structured_tag = Tag().from_nested(nested_tag)
 
@@ -366,49 +359,25 @@ class TagUtilsTestCase(TestCase):
 
         nested_tag = structured_tag.to_nested()
 
-        expected_nested_tag = {
-            "NS": {
-                "key": [
-                    "value"
-                ]
-            }
-        }
+        expected_nested_tag = {"NS": {"key": ["value"]}}
 
         self.assertEqual(nested_tag, expected_nested_tag)
 
     def test_create_nested_combined(self):
-        tags = [
-            Tag("NS1", "Key", "val"),
-            Tag("NS2", "k2")
-        ]
+        tags = [Tag("NS1", "Key", "val"), Tag("NS2", "k2")]
 
         nested_tags = Tag.create_nested_from_tags(tags)
 
-        expected_nested_tags = {
-            "NS1": {
-                "Key": [
-                    "val"
-                ]
-            },
-            "NS2": {
-                "k2": []
-            }
-        }
+        expected_nested_tags = {"NS1": {"Key": ["val"]}, "NS2": {"k2": []}}
 
         self.assertEqual(nested_tags, expected_nested_tags)
 
     def test_create_nested_single_no_value(self):
-        tags = [
-            Tag("NS2", "k2")
-        ]
+        tags = [Tag("NS2", "k2")]
 
         nested_tags = Tag.create_nested_from_tags(tags)
 
-        expected_nested_tags = {
-            "NS2": {
-                "k2": []
-            }
-        }
+        expected_nested_tags = {"NS2": {"k2": []}}
 
         self.assertEqual(nested_tags, expected_nested_tags)
 

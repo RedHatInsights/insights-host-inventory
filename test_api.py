@@ -1143,14 +1143,20 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", generate_uuid(), "host1.domain.test",
-                ["NS1/key1=val1", "NS1/key2=val1", "SPECIAL/tag=ToFind"]),
-            ("host2", generate_uuid(), "host1.domain.test",
-                ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test",
-                ["NS2/key2=val2", "NS3/key3=val3", "NS1/key3=val3"]),  # the same display_name is intentional
-            ("host4", generate_uuid(), "host4.domain.test",
-                [])
+            ("host1", generate_uuid(), "host1.domain.test", ["NS1/key1=val1", "NS1/key2=val1", "SPECIAL/tag=ToFind"]),
+            (
+                "host2",
+                generate_uuid(),
+                "host1.domain.test",
+                ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"],
+            ),  # the same fqdn is intentional
+            (
+                "host3",
+                generate_uuid(),
+                "host2.domain.test",
+                ["NS2/key2=val2", "NS3/key3=val3", "NS1/key3=val3"],
+            ),  # the same display_name is intentional
+            ("host4", generate_uuid(), "host4.domain.test", []),
         ]
         host_list = []
 
@@ -1774,7 +1780,7 @@ class QueryOrderWithAdditionalHostTestCase(QueryOrderBaseTestCase):
             self.added_hosts[0],
             self.added_hosts[1],
             self.added_hosts[2],
-            self.added_hosts[3]
+            self.added_hosts[3],
         )
 
     def _added_hosts_by_display_name_desc(self):
@@ -2133,11 +2139,13 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
     Tests the tag endpoints
     """
+
     tags_list = [
         ["NS1/key1=val1", "NS1/key2=val1", "SPECIAL/tag=ToFind"],
         ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"],
         ["NS1/key3=val3", "NS2/key2=val2", "NS3/key3=val3"],
-        []]
+        [],
+    ]
 
     def _compare_responses(self, expected_response, response, test_url):
         self.assertEqual(len(expected_response), len(response["results"]))
