@@ -17,7 +17,7 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 request = "==2019.4.13"  # Not semver
 gunicorn = "~=19.9.0"
-connexion = {version = "~=2.3.0", extras = ["swagger-ui"]}
+connexion = {version = "~=2.3.0",extras = ["swagger-ui"]}
 pyyaml = "~=5.1.2"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
@@ -27,6 +27,7 @@ ujson = "==1.35"  # Not semver
 watchtower = "~=0.6.0"
 boto3 = "~=1.9.183"
 kafka-python = "~=1.4.6"
+prometheus-flask-exporter = "*"
 
 [dev-packages]
 pytest = "~=5.0.1"
