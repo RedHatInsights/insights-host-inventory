@@ -537,13 +537,12 @@ def _build_serialized_tags_list(host_list):
     serialized_tags_list = []
 
     for host in host_list:
-        host_tags = []
-        for namespace in host.tags:
-            for tag_name in host.tags[namespace]:
-                for value in host.tags[namespace][tag_name]:
-                    host_tags.append(namespace + "/" + tag_name + "=" + value)
-        system_tag_list = {str(host.id): host_tags}
-        serialized_tags_list.append(system_tag_list)
+        tags = Tag.create_tags_from_nested(host.tags)
+        string_tags = []
+        for tag in tags:
+            string_tags.append(tag.to_string())
+        
+        serialized_tags_list.append({str(host.id): string_tags})
 
     return serialized_tags_list
 

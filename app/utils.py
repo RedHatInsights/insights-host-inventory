@@ -2,6 +2,9 @@ import json
 import re
 import urllib
 
+#TODO: Remove
+from app.logging import get_logger
+logger = get_logger(__name__)
 
 class HostWrapper:
     def __init__(self, data=None):
@@ -212,9 +215,11 @@ class Tag:
     def from_string(self, string_tag):
         namespace, key, value = self._split_string_tag(string_tag)
 
-        self.namespace = urllib.parse.unquote(namespace)
+        if namespace is not None:
+            self.namespace = urllib.parse.unquote(namespace)
         self.key = urllib.parse.unquote(key)
-        self.value = urllib.parse.unquote(value)
+        if value is not None:
+            self.value = urllib.parse.unquote(value)
 
         return self
 
@@ -241,11 +246,19 @@ class Tag:
         return self
 
     def to_string(self):
-        namespace = urllib.parse.quote(self.namespace)
-        key = urllib.parse.quote(self.key)
-        value = urllib.parse.quote(self.value)
+        namespace_string = ""
+        key_string = ""
+        value_string = ""
 
-        return f"{namespace}/{key}={value}"
+        if self.namespace is not None:
+            namespace = urllib.parse.quote(self.namespace)
+            namespace_string = f"{namespace}/"
+        key_string = urllib.parse.quote(self.key)
+        if self.value is not None:
+            value = urllib.parse.quote(self.value)
+            value_string = f"={value}"
+
+        return f"{namespace_string}{key_string}{value_string}"
 
     def to_nested(self):
         return {
@@ -282,3 +295,13 @@ class Tag:
                     nested_tags[namespace] = {key: [value]}
 
         return nested_tags
+
+    @staticmethod
+    def create_tags_from_nested(nested_tags):
+        tags = []
+        for namespace in nested_tags:
+            for key in nested_tags[namespace]:
+                for value in nested_tags[namespace][key]:
+                    logger.info("ns: %s | Key: %s | Value: %s", namespace, key, value)
+                    tags.append(Tag(namespace, key, value))
+        return tags

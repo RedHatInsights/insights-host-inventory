@@ -2189,7 +2189,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self.assertEqual(expected_response, host_tag_results["results"])
 
     # send a request for a host with no tags
-    def test_get_tags_form_host_with_no_tags(self):
+    def test_get_tags_from_host_with_no_tags(self):
         host_with_no_tags = self.added_hosts[3]
         expected_response = [{host_with_no_tags.id: []}]
 
