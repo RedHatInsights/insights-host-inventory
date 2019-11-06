@@ -14,6 +14,7 @@ from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
+from app.utils import Tag
 from app.config import Config
 from test_utils import set_environment
 
@@ -317,6 +318,99 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
     def test_order_by_only_how_raises_error(self):
         with self.assertRaises(ValueError):
             _params_to_order_by(Mock(), order_how="ASC")
+
+
+class TagUtilsTestCase(TestCase):
+
+    def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
+        structured_tag = Tag().from_string(string_tag)
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    def test_simple_string_to_structured(self):
+        self._base_string_to_structured_test("NS/key=value", Tag("NS", "key", "value"))
+
+    def test_string_to_structured_no_namespace(self):
+        self._base_string_to_structured_test("key=value", Tag(None, "key", "value"))
+
+    def test_simple_string_to_structured_no_value(self):
+        self._base_string_to_structured_test("NS/key", Tag("NS", "key", None))
+
+    def test_simple_string_to_structured_only_key(self):
+        self._base_string_to_structured_test("key", Tag(None, "key", None))
+
+    def test_simple_structured_to_string(self):
+        structured_tag = Tag("NS", "key", "value")
+        string_tag = structured_tag.to_string()
+
+        expected_string_tag = "NS/key=value"
+
+        self.assertEqual(string_tag, expected_string_tag)
+
+    def test_simple_nested_to_structured(self):
+        nested_tag = {
+            "NS": {
+                "key": [
+                    "value"
+                ]
+            }
+        }
+
+        structured_tag = Tag().from_nested(nested_tag)
+
+        expected_structured_tag = Tag("NS", "key", "value")
+
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    def test_simple_structured_to_nested(self):
+        structured_tag = Tag("NS", "key", "value")
+
+        nested_tag = structured_tag.to_nested()
+
+        expected_nested_tag = {
+            "NS": {
+                "key": [
+                    "value"
+                ]
+            }
+        }
+
+        self.assertEqual(nested_tag, expected_nested_tag)
+
+    def test_create_nested_combined(self):
+        tags = [
+            Tag("NS1", "Key", "val"),
+            Tag("NS2", "k2")
+        ]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {
+            "NS1": {
+                "Key": [
+                    "val"
+                ]
+            },
+            "NS2": {
+                "k2": []
+            }
+        }
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    def test_create_nested_single_no_value(self):
+        tags = [
+            Tag("NS2", "k2")
+        ]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {
+            "NS2": {
+                "k2": []
+            }
+        }
+
+        self.assertEqual(nested_tags, expected_nested_tags)
 
 
 if __name__ == "__main__":

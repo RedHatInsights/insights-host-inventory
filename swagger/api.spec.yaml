@@ -45,7 +45,7 @@ paths:
             type: array
             items:
               type: string
-              pattern: '^\w+\/\w+=\w+$'
+              pattern: '^\w+\/\w+=\w+$|^\w+\/\w+$|^\w+$|^\w+=\w+$'
           description: search for a host by the tags on the system
           required: false
         - $ref: '#/components/parameters/branchId'

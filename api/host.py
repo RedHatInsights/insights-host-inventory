@@ -1,4 +1,3 @@
-import re
 import uuid
 from enum import Enum
 
@@ -23,6 +22,7 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.utils import Tag
 from tasks import emit_event
 
 
@@ -157,22 +157,15 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
-def _tags_host_query(account_number, tags):
-    tags_to_find = {}
+def _tags_host_query(account_number, string_tags):
+    tags = []
 
-    for tag in tags:
-        split_tag = re.split(r"/|=", tag)
-        namespace = split_tag[0]
-        key = split_tag[1]
-        value = split_tag[2]
+    for string_tag in string_tags:
+        tags.append(Tag().from_string(string_tag))
 
-        if namespace in tags_to_find:
-            if key in tags_to_find[namespace]:
-                tags_to_find[namespace][key].append(value)
-            else:
-                tags_to_find[namespace][key] = [value]
-        else:
-            tags_to_find[namespace] = {key: [value]}
+    tags_to_find = Tag.create_nested_from_tags(tags)
+
+    logger.info("tags to find: %s", tags_to_find)
 
     return Host.query.filter((Host.account == account_number) & (Host.tags.contains(tags_to_find)))
 
@@ -544,13 +537,12 @@ def _build_serialized_tags_list(host_list):
     serialized_tags_list = []
 
     for host in host_list:
-        host_tags = []
-        for namespace in host.tags:
-            for tag_name in host.tags[namespace]:
-                for value in host.tags[namespace][tag_name]:
-                    host_tags.append(namespace + "/" + tag_name + "=" + value)
-        system_tag_list = {str(host.id): host_tags}
-        serialized_tags_list.append(system_tag_list)
+        tags = Tag.create_tags_from_nested(host.tags)
+        string_tags = []
+        for tag in tags:
+            string_tags.append(tag.to_string())
+        
+        serialized_tags_list.append({str(host.id): string_tags})
 
     return serialized_tags_list
 
