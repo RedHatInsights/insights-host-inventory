@@ -526,6 +526,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
         flask.abort(400, str(e))
     else:
         query = query.order_by(*order_by)
+
     query = query.paginate(page, per_page, True)
 
     tags = _build_serialized_tags(query.items)

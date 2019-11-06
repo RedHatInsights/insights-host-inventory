@@ -227,15 +227,15 @@ class Tag:
         namespace, key, value = None, None, None
 
         if len(nested_tag.keys()) > 1:
-            return "too many keys"
+            raise ValueError('too many namespaces. Expecting 1')
         else:
             namespace = list(nested_tag.keys())[0]
             if len(nested_tag[namespace].keys()) > 1:
-                return "too many keys"
+                raise ValueError('too many keys. Expecting 1')
             else:
                 key = list(nested_tag[namespace].keys())[0]
                 if len(nested_tag[namespace][key]) > 1:
-                    return "too many values"
+                    raise ValueError('too many values. Expecting 1')
                 else:
                     value = nested_tag[namespace][key][0]
 
@@ -298,6 +298,9 @@ class Tag:
 
     @staticmethod
     def create_tags_from_nested(nested_tags):
+        '''
+        takes a nesting of tags and returns an array of structured tags
+        '''
         tags = []
         for namespace in nested_tags:
             for key in nested_tags[namespace]:

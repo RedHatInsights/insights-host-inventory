@@ -283,6 +283,8 @@ paths:
                 $ref: '#/components/schemas/TagsOut'
         '400':
           description: Invalid request.
+        '404':
+          description: Host not found.
   '/hosts/{host_id_list}/tags/count':
     get:
       tags:
@@ -307,6 +309,8 @@ paths:
                 $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
+        '404':
+          description: Host not found.
 components:
   securitySchemes:
     BearerAuth:
