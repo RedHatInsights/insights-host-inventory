@@ -481,3 +481,80 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
     return 200
+
+
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+    query = query.paginate(page, per_page, True)
+
+    counts = _count_tags(query.items)
+
+    return _build_paginated_host_tags_response(query.total, page, per_page, counts)
+
+
+# returns counts in format [{id: count}, {id: count}]
+def _count_tags(host_list):
+    counts = []
+
+    for host in host_list:
+        host_tag_count = 0
+        for namespace in host.tags:
+            for tag in host.tags[namespace]:
+                host_tag_count += len(host.tags[namespace][tag])
+        counts.append({str(host.id): host_tag_count})
+
+    return counts
+
+
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+    query = query.paginate(page, per_page, True)
+
+    tags_list = _build_serialized_tags_list(query.items)
+
+    return _build_paginated_host_tags_response(query.total, page, per_page, tags_list)
+
+
+def _build_serialized_tags_list(host_list):
+    serialized_tags_list = []
+
+    for host in host_list:
+        host_tags = []
+        for namespace in host.tags:
+            for tag_name in host.tags[namespace]:
+                for value in host.tags[namespace][tag_name]:
+                    host_tags.append(namespace + "/" + tag_name + "=" + value)
+        system_tag_list = {str(host.id): host_tags}
+        serialized_tags_list.append(system_tag_list)
+
+    return serialized_tags_list
+
+
+def _build_paginated_host_tags_response(total, page, per_page, tags_list):
+    json_output = {
+        "total": total,
+        "count": len(tags_list),
+        "page": page,
+        "per_page": per_page,
+        "results": tags_list,
+    }
+
+    return _build_json_response(json_output, status=200)
