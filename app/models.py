@@ -337,6 +337,7 @@ class Facts:
         ]
         return fact_list
 
+
 class DiskDeviceSchema(Schema):
     device = fields.Str(validate=validate.Length(max=2048))
     label = fields.Str(validate=validate.Length(max=1024))

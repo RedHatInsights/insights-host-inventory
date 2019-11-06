@@ -1139,9 +1139,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
     def setUp(self):
         super().setUp()
-
-
-
         self.added_hosts = self.create_hosts()
 
     def create_hosts(self):
@@ -2143,7 +2140,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"],
         ["NS1/key3=val3", "NS2/key2=val2", "NS3/key3=val3"],
         []]
-    
+
     def _compare_responses(self, expected_response_list, response_list, test_url):
         self.assertEqual(len(expected_response_list), len(response_list["results"]))
         for expected_response, result in zip(expected_response_list, response_list["results"]):
@@ -2158,8 +2155,8 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = []
 
-        for host,tags in zip(host_list, self.tags_list):
-            expected_response_list.append({host.id : tags})
+        for host, tags in zip(host_list, self.tags_list):
+            expected_response_list.append({host.id: tags})
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
@@ -2173,7 +2170,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         expected_response_list = []
 
-        for host,tags in zip(host_list, self.tags_list):
+        for host, tags in zip(host_list, self.tags_list):
             expected_response_list.append({host.id: len(tags)})
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
@@ -2202,6 +2199,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
+
 
 if __name__ == "__main__":
     unittest.main()
