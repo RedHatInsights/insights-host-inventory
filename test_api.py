@@ -2148,10 +2148,10 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._base_paging_test(test_url, len(expected_response_list))
 
-#   Send a request for the tag count of 1 host and check
-#   that it is the correct number
+    # Send a request for the tag count of 1 host and check
+    # that it is the correct number
     def test_get_tags_of_multiple_hosts(self):
-        host_list = self.added_hosts.copy()
+        host_list = self.added_hosts
 
         expected_response_list = []
 
@@ -2166,7 +2166,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._compare_responses(expected_response_list, response_list, test_url)
 
     def test_get_tag_count_of_multiple_hosts(self):
-        host_list = self.added_hosts.copy()
+        host_list = self.added_hosts
 
         expected_response_list = []
 
@@ -2180,22 +2180,22 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._compare_responses(expected_response_list, response_list, test_url)
 
-#   send a request for some hosts that don't exist
+    # send a request for some hosts that don't exist
     def test_get_tags_of_hosts_that_doesnt_exist(self):
-        url_host_id_list = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
+        url_host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
+        test_url = f"{HOST_URL}/{url_host_id}/tags"
         host_tag_results = self.get(test_url, 200)
 
         expected_response = []
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-#   send a request for a host with no tags
+    # send a request for a host with no tags
     def test_get_tags_form_host_with_no_tags(self):
-        host_list = self.added_hosts.copy()
-        expected_response = [{host_list[3].id: []}]
+        host_with_no_tags = self.added_hosts[3]
+        expected_response = [{host_with_no_tags.id: []}]
 
-        test_url = f"{HOST_URL}/{host_list[3].id}/tags?order_by=updated&order_how=ASC"
+        test_url = f"{HOST_URL}/{host_with_no_tags.id}/tags"
         host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
