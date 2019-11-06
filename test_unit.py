@@ -14,8 +14,8 @@ from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
-from app.utils import Tag
 from app.config import Config
+from app.utils import Tag
 from test_utils import set_environment
 
 

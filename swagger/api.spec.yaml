@@ -413,7 +413,7 @@ components:
           type: object
           additionalProperties:
             type: array
-            items: 
+            items:
               type: string
     TagCountOut:
       type: object
