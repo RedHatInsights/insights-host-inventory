@@ -406,19 +406,11 @@ components:
           type: integer
         results:
           description: The list of tags on the systems
-          type: array
-          items:
-            $ref: '#/components/schemas/TagsResults'
-    TagsResults:
-      type: object
-      properties:
-        id: 
-          type: string
-          description: the id of the host
-        tags:
-          type: array
-          items:
-            type: string
+          type: object
+          additionalProperties:
+            type: array
+            items: 
+              type: string
     TagCountOut:
       type: object
       properties:
@@ -436,18 +428,9 @@ components:
           type: integer
         results:
           description: The list of tags on the systems
-          type: array
-          items:
-            $ref: '#/components/schemas/TagCount'
-    TagCount:
-      type: object
-      properties:
-        id:
-          type: string
-          description: the id of the host
-        count:
-          type: integer
-          description: The number of tags on the host
+          type: object
+          additionalProperties:
+            type: integer
     BulkHostOut:
       type: object
       properties:

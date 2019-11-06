@@ -503,14 +503,14 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
 # returns counts in format [{id: count}, {id: count}]
 def _count_tags(host_list):
-    counts = []
+    counts = {}
 
     for host in host_list:
         host_tag_count = 0
         for namespace in host.tags:
             for tag in host.tags[namespace]:
                 host_tag_count += len(host.tags[namespace][tag])
-        counts.append({str(host.id): host_tag_count})
+        counts[str(host.id)] = host_tag_count
 
     return counts
 
@@ -528,13 +528,13 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
 
-    tags_list = _build_serialized_tags_list(query.items)
+    tags = _build_serialized_tags(query.items)
 
-    return _build_paginated_host_tags_response(query.total, page, per_page, tags_list)
+    return _build_paginated_host_tags_response(query.total, page, per_page, tags)
 
 
-def _build_serialized_tags_list(host_list):
-    serialized_tags_list = []
+def _build_serialized_tags(host_list):
+    serialized_tags = {}
 
     for host in host_list:
         tags = Tag.create_tags_from_nested(host.tags)
@@ -542,9 +542,9 @@ def _build_serialized_tags_list(host_list):
         for tag in tags:
             string_tags.append(tag.to_string())
         
-        serialized_tags_list.append({str(host.id): string_tags})
+        serialized_tags[str(host.id)] = string_tags
 
-    return serialized_tags_list
+    return serialized_tags
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
