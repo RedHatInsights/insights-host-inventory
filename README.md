@@ -5,7 +5,7 @@ This project is the home of the host-based inventory for the Insights Platform.
 ## Getting Started
 
 This project uses pipenv to manage the development and deployment environments.
-To set the project up for development do the following:
+To set the project up for development, we recommend using [pyenv|https://github.com/pyenv/pyenv] to install/manage the appropriate python (currently 3.6.x), pip and pipenv version. Once you have pipenv, do the following:
 
 ```
 pipenv install --dev
@@ -135,9 +135,9 @@ from inside of the deployment cluster.
 ## API Documentation
 
 The API is described by an OpenAPI specification file
-[_swagger/api/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
+[_swagger/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
 a browsable Swagger UI Console at
-[_/r/insights/platform/inventory/api/v1/ui/_](http://localhost:8080/r/insights/platform/inventory/api/v1/ui/).
+[_/api/inventory/v1/ui/_](http://localhost:8080/api/inventory/v1/ui/).
 
 ## Operation
 
@@ -176,6 +176,48 @@ will be added to the existing host entry.
 
 If the canonical facts based lookup does not locate an existing host, then
 a new host entry is created.
+
+#### Bulk Insertion
+
+The REST api should _not_ be used for bulk insertion.  Instead, a batch of
+hosts should be added to the inventory system by sequentially writing the individual
+hosts to the kafka message queue.
+
+#### Message Queue Based Host Insertion
+
+A single host object (see HostSchema defined in
+[_app/models.py_](app/models.py)) should be wrapped in an _operation_
+json document (see OperationSchema defined in [_app/queue/ingress.py_](app/queue/ingress.py))
+ and sent to the kafka message queue.
+
+```json
+  {"operation": "add_host",
+   "platform_metadata": json_doc,
+   "data": host_json_doc}
+```
+  - operation: name of the operation to perform ("add_host" is only supported currently)
+  - platform_metadata: an optional json doc that can be used to pass data associated with the host
+   from the ingress service to the backend applications (request_id, s3 bucket url, etc)
+  - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
+
+The kafka topic for adding hosts is _platform.inventory.host-ingress_.
+
+The _platform_metadata_ field will be passed from the incoming message to the outgoing
+event message.  The data within the _platform_metadata_ will not be persisted to the database.
+If the _platform_metadata_ contains a request_id field, the value of the request_id will be
+associated with all of the log messages produced by the service.
+
+The Inventory service will write an event to the _platform.inventory.host-egress_
+kafka topic as a result of adding a host over the message queue.
+
+```json
+  {"type": "created",
+   "platform_metadata": metadata_json_doc,
+   "data": host_json_doc}
+```
+  - type: result of the add host operation ("created" and "updated" are only supported currently)
+  - platform_metadata: a json doc that contains the metadata associated with the host (s3 url, request_id, etc)
+  - data: a host json doc as defined by the HostSchema in [_app/queue/egress.py_](app/queue/egress.py)
 
 #### Host deletion
 

@@ -4,6 +4,7 @@ import pprint
 
 from app import create_app
 from app.models import Host
+from app.serialization import serialize_host
 
 application = create_app("cli")
 
@@ -40,7 +41,7 @@ with application.app_context():
     elif args.account_number:
         query_results = Host.query.filter(Host.account == args.account_number).all()
 
-    json_host_list = [host.to_json() for host in query_results]
+    json_host_list = [serialize_host(host) for host in query_results]
 
     if args.no_pp:
         print(json_host_list)

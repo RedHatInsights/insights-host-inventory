@@ -7,6 +7,7 @@ from app import db
 from app.models import _deserialize_tags
 from app.models import Host
 from app.models import HostSchema
+from app.serialization import deserialize_host
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -33,7 +34,7 @@ def test_create_host_with_canonical_facts_as_None(flask_app_fixture):
 
     host_dict = {**invalid_canonical_facts, **valid_canonical_facts}
 
-    host = Host.from_json(host_dict)
+    host = deserialize_host(host_dict)
 
     assert valid_canonical_facts == host.canonical_facts
 

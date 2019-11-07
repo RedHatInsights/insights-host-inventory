@@ -29,6 +29,9 @@ class Config:
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
+        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+        self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
+        self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
@@ -78,6 +81,11 @@ class Config:
                 self.logger.info("Using SSL for DB connection:")
                 self.logger.info("Postgresql SSL verification type: %s", self._db_ssl_mode)
                 self.logger.info("Path to certificate: %s", self._db_ssl_cert)
+            self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
+            self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
+            self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
+            self.logger.info("Kafka Consumer Group: %s" % self.consumer_group)
+            self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
             self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
             self.logger.info("Payload Tracker Service Name: %s", self.payload_tracker_service_name)
             self.logger.info("Payload Tracker Enabled: %s", self.payload_tracker_enabled)

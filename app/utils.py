@@ -245,11 +245,11 @@ class Tag:
         value_string = ""
 
         if self.namespace is not None:
-            namespace = urllib.parse.quote(self.namespace, safe='')
+            namespace = urllib.parse.quote(self.namespace, safe="")
             namespace_string = f"{namespace}/"
-        key_string = urllib.parse.quote(self.key, safe='')
+        key_string = urllib.parse.quote(self.key, safe="")
         if self.value is not None:
-            value = urllib.parse.quote(self.value, safe='')
+            value = urllib.parse.quote(self.value, safe="")
             value_string = f"={value}"
 
         return f"{namespace_string}{key_string}{value_string}"
@@ -261,7 +261,7 @@ class Tag:
 
         if self.value is not None:
             return {self.namespace: {self.key: [self.value]}}
-        
+
         return {self.namespace: {self.key: []}}
 
     @staticmethod
