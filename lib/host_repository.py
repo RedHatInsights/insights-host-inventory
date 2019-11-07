@@ -1,14 +1,9 @@
 from enum import Enum
 
-from marshmallow import ValidationError
-
-from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models import db
 from app.models import db_session_guard
 from app.models import Host
-from app.models import HostSchema
-from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from lib import metrics
 
@@ -25,7 +20,7 @@ ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 logger = get_logger(__name__)
 
 
-def add_host(host, update_system_profile=True):
+def add_host(input_host, update_system_profile=True):
     """
     Add or update a host
 
@@ -33,12 +28,6 @@ def add_host(host, update_system_profile=True):
      - at least one of the canonical facts fields is required
      - account number
     """
-    try:
-        validated_input_host_dict = HostSchema(strict=True).load(host)
-    except ValidationError as e:
-        raise ValidationException(str(e.messages)) from None
-
-    input_host = deserialize_host(validated_input_host_dict.data)
 
     with db_session_guard():
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
