@@ -381,6 +381,38 @@ class TagUtilsTestCase(TestCase):
 
         self.assertEqual(nested_tags, expected_nested_tags)
 
+    def test_create_nested_from_tags_no_tags(self):
+        tags = []
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {}
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    def test_create_structered_tags_from_tag_data_list(self):
+        tag_data_list = [
+            {"value": "val2", "key": "key2", "namespace": "NS2"},
+            {"value": "val3", "key": "key3", "namespace": "NS3"},
+            {"value": "val3", "key": "key3", "namespace": "NS1"},
+        ]
+        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
+
+        expected_tag_list = [Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3"), Tag("NS1", "key3", "val3")]
+
+        self.assertEqual(len(tag_list), len(expected_tag_list))
+        for tag, expected_tag in zip(tag_list, expected_tag_list):
+            self.assertEqual(tag.data(), expected_tag.data())
+
+    def test_create_structered_tags_from_tag_data_list_no_data(self):
+        tag_data_list = None
+        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
+
+        expected_tag_list = []
+
+        self.assertEqual(len(tag_list), len(expected_tag_list))
+        self.assertEqual(tag_list, expected_tag_list)
+
 
 if __name__ == "__main__":
     main()

@@ -18,6 +18,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.exceptions import InputFormatException
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.utils import Tag
 from app.validators import verify_uuid_format
 
 
@@ -57,23 +58,6 @@ def _split_tag(tag):
         namespace, t_key = re.split("[/]", tag)
         t_value = ""
     return (namespace, t_key, t_value)
-
-
-def _deserialize_tags(data):
-    if data is None:
-        data = []
-
-    tag_dict = {}
-    for tag in set(data):
-        namespace, t_key, t_value = _split_tag(tag)
-        if namespace in tag_dict:
-            if t_key in tag_dict[namespace]:
-                tag_dict[namespace][t_key].append(t_value)
-            else:
-                tag_dict[namespace][t_key] = [t_value]
-        else:
-            tag_dict[namespace] = {t_key: [t_value]}
-    return tag_dict
 
 
 class Host(db.Model):
@@ -131,7 +115,8 @@ class Host(db.Model):
     def from_json(cls, d):
         canonical_facts = CanonicalFacts.from_json(d)
         facts = Facts.from_json(d.get("facts"))
-        tags = _deserialize_tags(d.get("tags"))
+        logger.info(d.get("tags"))
+        tags = Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(d.get("tags")))
         return cls(
             canonical_facts,
             d.get("display_name", None),
@@ -407,6 +392,12 @@ class FactsSchema(Schema):
     facts = fields.Dict()
 
 
+class TagsSchema(Schema):
+    namespace = fields.Str()
+    key = fields.Str()
+    value = fields.Str()
+
+
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
@@ -421,7 +412,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    tags = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
+    tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")
@@ -434,11 +425,11 @@ class HostSchema(Schema):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
-    @validates("tags")
-    def validate_tags(self, tags):
-        for tag in tags:
-            if not re.match(r"\w+\/\w+(=)?\w*$", tag):
-                raise ValidationError(tag)
+    # @validates("tags")
+    # def validate_tags(self, tags):
+    #     for tag in tags:
+    #         if not re.match(r"\w+\/\w+(=)?\w*$", tag):
+    #             raise ValidationError(tag)
 
 
 class PatchHostSchema(Schema):

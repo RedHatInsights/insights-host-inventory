@@ -23,10 +23,10 @@ from app import db
 from app.auth.identity import Identity
 from app.models import Host
 from app.utils import HostWrapper
+from app.utils import Tag
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
-from app.utils import Tag
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
@@ -1143,18 +1143,35 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", generate_uuid(), "host1.domain.test", ["NS1/key1=val1", "NS1/key2=val1", "SPECIAL/tag=ToFind"]),
+            (
+                "host1",
+                generate_uuid(),
+                "host1.domain.test",
+                [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                ],
+            ),
             (
                 "host2",
                 generate_uuid(),
                 "host1.domain.test",
-                ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"],
+                [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
             ),  # the same fqdn is intentional
             (
                 "host3",
                 generate_uuid(),
                 "host2.domain.test",
-                ["NS2/key2=val2", "NS3/key3=val3", "NS1/key3=val3"],
+                [
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                ],
             ),  # the same display_name is intentional
             ("host4", generate_uuid(), "host4.domain.test", []),
         ]
@@ -1724,7 +1741,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         Attempt to find host with a tag with no namespace.
         """
         test_url = f"{HOST_URL}?tags=key=value"
-        self.get(test_url, 200)
+        self.get(test_url, 400)
 
     def test_get_host_with_invalid_tag_no_key(self):
         """
@@ -2141,9 +2158,9 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
 
     tags_list = [
-        [Tag("NS1","key1","val1"), Tag("NS1","key2","val1"), Tag("SPECIAL","tag","ToFind")],
-        [Tag("NS1","key1","val1"), Tag("NS2","key2","val2"), Tag("NS3","key3","val3")],
-        [Tag("NS1","key3","val3"), Tag("NS2","key2","val2"), Tag("NS3","key3","val3")],
+        [Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
+        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
+        [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
     ]
 

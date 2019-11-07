@@ -232,6 +232,13 @@ class Tag:
 
         return self
 
+    def from_tag_data(self, tag_data):
+        self.namespace = tag_data["namespace"]
+        self.key = tag_data["key"]
+        self.value = tag_data["value"]
+
+        return self
+
     def to_string(self):
         namespace_string = ""
         key_string = ""
@@ -259,6 +266,10 @@ class Tag:
         nested_tags = {}
 
         for tag in tags:
+            if tag is None:
+                raise TypeError(tag)
+            elif tag.key is None or tag.namespace is None:
+                raise TypeError(tag)
             namespace, key, value = tag.namespace, tag.key, tag.value
             if namespace in nested_tags:
                 if value is None:
@@ -288,3 +299,19 @@ class Tag:
                 for value in nested_tags[namespace][key]:
                     tags.append(Tag(namespace, key, value))
         return tags
+
+    @staticmethod
+    def create_structered_tags_from_tag_data_list(tag_data_list):
+        """
+        takes an array of structured tag data and
+        returns an array of tag class objects
+        """
+        tag_list = []
+
+        if tag_data_list is None:
+            return tag_list
+
+        for tag_data in tag_data_list:
+            tag_list.append(Tag(tag_data["namespace"], tag_data["key"], tag_data["value"]))
+
+        return tag_list
