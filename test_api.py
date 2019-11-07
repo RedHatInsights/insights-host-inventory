@@ -1727,7 +1727,6 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
-        test_url = f"{HOST_URL}?tags=Fake/Fake=Fake"
 
     def test_get_host_with_tag_no_value(self):
         """
@@ -1750,6 +1749,38 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         """
         test_url = f"{HOST_URL}?tags=namespace/=Value"
         self.get(test_url, 400)
+
+    def test_get_host_by_display_name_and_tag(self):
+        """
+        Attempt to get only the host with the specified key and
+        the specified display name
+        """
+
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]
+        # host with tag NS1/key1=val1 and host_name "host1"
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1&display_name=host1"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_by_display_name_and_tag_backwards(self):
+        """
+        Attempt to get only the host with the specified key and
+        the specified display name, but the parameters are backwards
+        """
+
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]
+        # host with tag NS1/key1=val1 and host_name "host1"
+
+        test_url = f"{HOST_URL}?display_name=host1&tags=NS1/key1=val1"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
 
 
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):

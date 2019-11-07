@@ -157,7 +157,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     return host
 
 
-def _tags_host_query(account_number, string_tags):
+def _tags_host_query(account_number, string_tags, query):
     tags = []
 
     for string_tag in string_tags:
@@ -167,16 +167,16 @@ def _tags_host_query(account_number, string_tags):
 
     logger.info("tags to find: %s", tags_to_find)
 
-    return Host.query.filter((Host.account == account_number) & (Host.tags.contains(tags_to_find)))
+    return query.filter(Host.tags.contains(tags_to_find))
 
 
-def find_hosts_by_tag(account_number, tags):
+def find_hosts_by_tag(account_number, tags, query):
     """
     Returns all of the hosts with the tag/tags
     """
     logger.debug("find_host_by_tag(%s)", tags)
 
-    hosts = _tags_host_query(account_number, tags)
+    hosts = _tags_host_query(account_number, tags, query)
 
     if hosts:
         logger.debug("found the host with those ids: %s", hosts)
@@ -225,10 +225,12 @@ def get_host_list(
         query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
     elif insights_id:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
-    elif tags:
-        query = find_hosts_by_tag(current_identity.account_number, tags)
     else:
         query = Host.query.filter(Host.account == current_identity.account_number)
+
+    if tags:
+        # add tag filtering to the query
+        query = find_hosts_by_tag(current_identity.account_number, tags, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
