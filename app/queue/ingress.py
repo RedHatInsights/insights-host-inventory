@@ -12,6 +12,7 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
 from app.queue.egress import build_event
+from app.serialization import deserialize_host
 from lib import host_repository
 
 
@@ -60,7 +61,8 @@ def add_host(host_data):
 
         try:
             logger.info("Attempting to add host...")
-            (output_host, add_results) = host_repository.add_host(host_data)
+            input_host = deserialize_host(host_data)
+            (output_host, add_results) = host_repository.add_host(input_host)
             metrics.add_host_success.labels(add_results.name).inc()  # created vs updated
             logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
