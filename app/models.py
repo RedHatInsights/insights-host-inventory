@@ -18,7 +18,6 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
-from app.utils import Tag
 from app.validators import verify_uuid_format
 
 
@@ -50,8 +49,10 @@ def _set_display_name_on_save(context):
     if not params["display_name"]:
         return params["canonical_facts"].get("fqdn") or params["id"]
 
+
 def _time_now():
     return datetime.now(timezone.utc)
+
 
 def _split_tag(tag):
     try:
@@ -60,7 +61,6 @@ def _split_tag(tag):
         namespace, t_key = re.split("[/]", tag)
         t_value = ""
     return (namespace, t_key, t_value)
-
 
 
 class Host(db.Model):

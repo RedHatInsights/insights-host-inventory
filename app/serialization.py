@@ -53,6 +53,7 @@ def serialize_host_system_profile(host):
     json_dict = {"id": str(host.id), "system_profile": host.system_profile_facts or {}}
     return json_dict
 
+
 def _deserialize_canonical_facts(data):
     canonical_fact_list = {}
     for cf in _CANONICAL_FACTS_FIELDS:

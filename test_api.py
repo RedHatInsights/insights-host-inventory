@@ -1194,7 +1194,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                     {"namespace": "NS1", "key": "key3", "value": "val3"},
                 ],
-            )
+            ),
         ]
         host_list = []
 
@@ -1519,6 +1519,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._base_paging_test(test_url, len(self.added_hosts))
         self._invalid_paging_parameters_test(test_url)
 
+
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1534,6 +1535,7 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
         response_ids = [host["id"] for host in response["results"]]
         expected_ids = [host.id for host in expected_hosts]
         self.assertEqual(response_ids, expected_ids)
+
 
 class QueryByHostIdTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     def _base_query_test(self, host_id_list, expected_host_list):
@@ -2311,6 +2313,7 @@ class HealthTestCase(APIBaseTestCase):
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response["version"] is not None
+
 
 class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """

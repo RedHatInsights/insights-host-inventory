@@ -99,38 +99,6 @@ def _add_host(input_host):
     return add_host(input_host, update_system_profile=False)
 
 
-# @metrics.host_dedup_processing_time.time()
-# def find_existing_host(account_number, canonical_facts):
-#     existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
-
-#     if not existing_host:
-#         existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
-
-#     return existing_host
-
-
-# @metrics.find_host_using_elevated_ids.time()
-# def _find_host_by_elevated_ids(account_number, canonical_facts):
-#     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
-#         cf_value = canonical_facts.get(elevated_cf_name)
-#         if cf_value:
-#             existing_host = find_host_by_canonical_facts(account_number, {elevated_cf_name: cf_value})
-#             if existing_host:
-#                 return existing_host
-
-#     return None
-
-
-def _canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
-        (Host.account == account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
-        )
-    )
-
-
 def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     Returns first match for a host containing given canonical facts
@@ -170,26 +138,6 @@ def find_hosts_by_tag(account_number, tags, query):
         logger.debug("found the host with those ids: %s", hosts)
 
     return hosts
-
-
-# @metrics.new_host_commit_processing_time.time()
-# def create_new_host(input_host):
-#     logger.debug("Creating a new host")
-#     input_host.save()
-#     db.session.commit()
-#     metrics.create_host_count.inc()
-#     logger.debug("Created host:%s", input_host)
-#     return input_host.to_json(), 201
-
-
-# @metrics.update_host_commit_processing_time.time()
-# def update_existing_host(existing_host, input_host):
-#     logger.debug("Updating an existing host")
-#     existing_host.update(input_host)
-#     db.session.commit()
-#     metrics.update_host_count.inc()
-#     logger.debug("Updated host:%s", existing_host)
-#     return existing_host.to_json(), 200
 
 
 @api_operation
