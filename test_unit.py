@@ -71,7 +71,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(account_number="some number")
+        return Identity(account_number="some acct")
 
 
 class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
@@ -143,7 +143,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(account_number="some number")
+            identity = Identity(account_number="some acct")
             validate(identity)
             self.assertTrue(True)
         except ValueError:
@@ -349,7 +349,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         input = {
             **canonical_facts,
@@ -379,14 +379,15 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertEqual(value, getattr(actual, key))
 
     def test_with_only_required_fields(self):
+        account = "some acct"
         canonical_facts = {"fqdn": "some fqdn"}
-        host = deserialize_host(canonical_facts)
+        host = deserialize_host({"account": account, **canonical_facts})
 
         self.assertIs(Host, type(host))
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
-        self.assertIsNone(host.account)
+        self.assertEqual(account, host.account)
         self.assertEqual({}, host.facts)
         self.assertEqual({}, host.system_profile_facts)
 
@@ -399,7 +400,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
             "insights_id": str(uuid4()),
             "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
@@ -409,10 +410,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
+            "facts": [
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -439,7 +440,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -465,11 +466,11 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, host):
         input = {
             "ansible_host": "some ansible host",
-            "account": "some account",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
+            "account": "some acct",
+            "facts": [
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -496,11 +497,11 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
-            "facts": {
-                "some namespace": {"some key": "some value"},
-                "another namespace": {"another key": "another value"},
-            },
+            "account": "some acct",
+            "facts": [
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            ],
         }
 
         result = deserialize_host(input)
@@ -539,7 +540,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -613,7 +614,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
         host = Host(**host_init_data)
