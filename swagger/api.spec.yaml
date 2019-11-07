@@ -283,8 +283,6 @@ paths:
                 $ref: '#/components/schemas/TagsOut'
         '400':
           description: Invalid request.
-        '404':
-          description: Host not found.
   '/hosts/{host_id_list}/tags/count':
     get:
       tags:
@@ -309,8 +307,6 @@ paths:
                 $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
-        '404':
-          description: Host not found.
 components:
   securitySchemes:
     BearerAuth:
@@ -413,8 +409,17 @@ components:
           type: object
           additionalProperties:
             type: array
-            items:
-              type: string
+            items: 
+              $ref: '#/components/schemas/StructuredTag'
+    StructuredTag:
+      type: object
+      properties:
+        namespace:
+          type: string
+        key:
+          type: string
+        value:
+          type: string
     TagCountOut:
       type: object
       properties:
@@ -697,7 +702,7 @@ components:
         tags:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/StructuredTag'
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

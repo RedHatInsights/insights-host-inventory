@@ -26,7 +26,7 @@ from app.utils import HostWrapper
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
-
+from app.utils import Tag
 
 HOST_URL = "/api/inventory/v1/hosts"
 HEALTH_URL = "/health"
@@ -2141,9 +2141,9 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
 
     tags_list = [
-        ["NS1/key1=val1", "NS1/key2=val1", "SPECIAL/tag=ToFind"],
-        ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"],
-        ["NS1/key3=val3", "NS2/key2=val2", "NS3/key3=val3"],
+        [Tag("NS1","key1","val1"), Tag("NS1","key2","val1"), Tag("SPECIAL","tag","ToFind")],
+        [Tag("NS1","key1","val1"), Tag("NS2","key2","val2"), Tag("NS3","key3","val3")],
+        [Tag("NS1","key3","val3"), Tag("NS2","key2","val2"), Tag("NS3","key3","val3")],
         [],
     ]
 
@@ -2163,7 +2163,7 @@ class TagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response = {}
 
         for host, tags in zip(host_list, self.tags_list):
-            expected_response[str(host.id)] = tags
+            expected_response[str(host.id)] = [tag.data() for tag in tags]
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 

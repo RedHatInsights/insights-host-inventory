@@ -535,17 +535,17 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
 
 
 def _build_serialized_tags(host_list):
-    serialized_tags = {}
+    response_tags = {}
 
     for host in host_list:
         tags = Tag.create_tags_from_nested(host.tags)
-        string_tags = []
+        tag_dictionaries = []
         for tag in tags:
-            string_tags.append(tag.to_string())
+            tag_dictionaries.append(tag.data())
 
-        serialized_tags[str(host.id)] = string_tags
+        response_tags[str(host.id)] = tag_dictionaries
 
-    return serialized_tags
+    return response_tags
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
