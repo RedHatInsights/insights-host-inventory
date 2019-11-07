@@ -321,6 +321,11 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
 
 
 class TagUtilsTestCase(TestCase):
+
+    """
+    string to structured tests
+    """
+
     def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
         structured_tag = Tag().from_string(string_tag)
         self.assertEqual(structured_tag.data(), expected_structured_tag.data())
@@ -337,31 +342,81 @@ class TagUtilsTestCase(TestCase):
     def test_simple_string_to_structured_only_key(self):
         self._base_string_to_structured_test("key", Tag(None, "key", None))
 
+    """
+    structured to string tests
+    """
+
+    def _base_structured_to_string_test(self, structured_tag, expected_string_tag):
+        string_tag = structured_tag.to_string()
+        self.assertEqual(string_tag, expected_string_tag)
+
     def test_simple_structured_to_string(self):
         structured_tag = Tag("NS", "key", "value")
-        string_tag = structured_tag.to_string()
-
         expected_string_tag = "NS/key=value"
 
-        self.assertEqual(string_tag, expected_string_tag)
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_no_value(self):
+        structured_tag = Tag("namespace", "key")
+        expected_string_tag = "namespace/key"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_no_namespace(self):
+        structured_tag = Tag(key="key", value="value")
+        expected_string_tag = "key=value"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_only_key(self):
+        structured_tag = Tag(key="key")
+        expected_string_tag = "key"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    """
+    nested to structured tests
+    """
+
+    def _base_nested_to_structured_test(self, nested_tag, expected_structured_tag):
+        structured_tag = Tag().from_nested(nested_tag)
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
 
     def test_simple_nested_to_structured(self):
         nested_tag = {"NS": {"key": ["value"]}}
-
-        structured_tag = Tag().from_nested(nested_tag)
-
         expected_structured_tag = Tag("NS", "key", "value")
 
-        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+        self._base_nested_to_structured_test(nested_tag, expected_structured_tag)
+
+    def test_simple_nested_to_structured_no_value(self):
+        nested_tag = {"NS": {"key": []}}
+        expected_structured_tag = Tag("NS", "key")
+
+        self._base_nested_to_structured_test(nested_tag, expected_structured_tag)
+
+    """
+    structured to nested tests
+    """
+
+    def _base_structured_to_nested_test(self, structured_tag, expected_nested_tag):
+        nested_tag = structured_tag.to_nested()
+        self.assertEqual(nested_tag, expected_nested_tag)
 
     def test_simple_structured_to_nested(self):
         structured_tag = Tag("NS", "key", "value")
-
-        nested_tag = structured_tag.to_nested()
-
         expected_nested_tag = {"NS": {"key": ["value"]}}
 
-        self.assertEqual(nested_tag, expected_nested_tag)
+        self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
+
+    def test_structured_to_nested_no_value(self):
+        structured_tag = Tag("NS", "key")
+        expected_nested_tag = {"NS": {"key": []}}
+
+        self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
+    
+    """
+    create nested from many tags tests
+    """
 
     def test_create_nested_combined(self):
         tags = [Tag("NS1", "Key", "val"), Tag("NS2", "k2")]
@@ -390,6 +445,10 @@ class TagUtilsTestCase(TestCase):
 
         self.assertEqual(nested_tags, expected_nested_tags)
 
+    """
+    tags from tag data tests
+    """
+
     def test_create_structered_tags_from_tag_data_list(self):
         tag_data_list = [
             {"value": "val2", "key": "key2", "namespace": "NS2"},
@@ -413,6 +472,23 @@ class TagUtilsTestCase(TestCase):
         self.assertEqual(len(tag_list), len(expected_tag_list))
         self.assertEqual(tag_list, expected_tag_list)
 
+    """
+    special character tests
+    """
+
+    def test_structured_to_string_with_special_characters(self):
+        tag = Tag("Ns!@#$%^&()","k/e=y\\","v:|\{\}''-+al")
+
+        expected_string_tag = "Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal"
+
+        self._base_structured_to_string_test(tag, expected_string_tag)
+
+    def test_string_to_structured_with_special_characters(self):
+        string_tag = "Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal"
+
+        expected_structured_tag = Tag("Ns!@#$%^&()","k/e=y\\","v:|\{\}''-+al")
+
+        self._base_string_to_structured_test(string_tag, expected_structured_tag)
 
 if __name__ == "__main__":
     main()

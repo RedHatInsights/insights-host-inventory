@@ -185,11 +185,11 @@ class Tag:
         key = None
         value = None
 
-        if re.match(r"\w+\/\w+=\w+", string_tag):  # NS/key=value
+        if re.match(r"\S+\/\S+=\S+", string_tag):  # NS/key=value
             namespace, key, value = re.split(r"/|=", string_tag)
-        elif re.match(r"\w+\/\w+", string_tag):  # NS/key
+        elif re.match(r"\S+\/\S+", string_tag):  # NS/key
             namespace, key = re.split(r"/", string_tag)
-        elif re.match(r"\w+=\w+", string_tag):  # key=value
+        elif re.match(r"\S+=\S+", string_tag):  # key=value
             key, value = re.split(r"=", string_tag)
         else:  # key
             key = string_tag
@@ -223,7 +223,7 @@ class Tag:
                 key = list(nested_tag[namespace].keys())[0]
                 if len(nested_tag[namespace][key]) > 1:
                     raise ValueError("too many values. Expecting 1")
-                else:
+                elif len(nested_tag[namespace][key]) == 1:
                     value = nested_tag[namespace][key][0]
 
         self.namespace = namespace
@@ -245,17 +245,24 @@ class Tag:
         value_string = ""
 
         if self.namespace is not None:
-            namespace = urllib.parse.quote(self.namespace)
+            namespace = urllib.parse.quote(self.namespace, safe='')
             namespace_string = f"{namespace}/"
-        key_string = urllib.parse.quote(self.key)
+        key_string = urllib.parse.quote(self.key, safe='')
         if self.value is not None:
-            value = urllib.parse.quote(self.value)
+            value = urllib.parse.quote(self.value, safe='')
             value_string = f"={value}"
 
         return f"{namespace_string}{key_string}{value_string}"
 
     def to_nested(self):
-        return {self.namespace: {self.key: [self.value]}}
+
+        if self.namespace is None:
+            raise ValueError("No namespace")
+
+        if self.value is not None:
+            return {self.namespace: {self.key: [self.value]}}
+        
+        return {self.namespace: {self.key: []}}
 
     @staticmethod
     def create_nested_from_tags(tags):
