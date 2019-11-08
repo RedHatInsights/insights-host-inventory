@@ -125,6 +125,8 @@ def test_host_model_assigned_values(flask_app_fixture):
         "tags": {"namespace": {"key": ["value"]}},
         "canonical_facts": {"fqdn": "fqdn"},
         "system_profile_facts": {"number_of_cpus": 1},
+        "stale_timestamp": datetime.now(timezone.utc),
+        "reporter": "reporter",
     }
 
     inserted_host = TestHost(**values)
@@ -178,16 +180,18 @@ def test_host_model_updated_timestamp(flask_app_fixture):
 
 
 def test_host_model_timestamp_timezones(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
     db.session.add(host)
     db.session.commit()
 
     assert host.created_on.tzinfo
     assert host.modified_on.tzinfo
+    assert host.stale_timestamp.tzinfo
 
 
 @mark.parametrize(
-    ("field", "value"), (("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256))
+    ("field", "value"),
+    (("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)),
 )
 def test_host_model_constraints(flask_app_fixture, field, value):
     values = {"account": "00102", "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
