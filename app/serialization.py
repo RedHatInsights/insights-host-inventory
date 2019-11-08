@@ -1,8 +1,13 @@
 from datetime import timezone
 
+from marshmallow import ValidationError
+
 from app.exceptions import InputFormatException
+from app.exceptions import ValidationException
 from app.models import Host as Host
 from app.utils import Tag
+from app.models import HostSchema
+
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
@@ -20,18 +25,24 @@ _CANONICAL_FACTS_FIELDS = (
 )
 
 
-def deserialize_host(data):
-    canonical_facts = _deserialize_canonical_facts(data)
-    facts = _deserialize_facts(data.get("facts"))
-    tags = _deserialize_tags(data.get("tags"))
+def deserialize_host(raw_data):
+    try:
+        validated_data = HostSchema(strict=True).load(raw_data).data
+    except ValidationError as e:
+        raise ValidationException(str(e.messages)) from None
+
+    canonical_facts = _deserialize_canonical_facts(validated_data)
+    facts = _deserialize_facts(validated_data.get("facts"))
+    tags = _deserialize_tags(validated_data.get("tags"))
     return Host(
         canonical_facts,
-        data.get("display_name", None),
-        data.get("ansible_host"),
-        data.get("account"),
+        validated_data.get("display_name", None),
+        validated_data.get("ansible_host"),
+        validated_data.get("account"),
         facts,
         tags,
-        data.get("system_profile", {}),
+        # tags,
+        validated_data.get("system_profile", {}),
     )
 
 

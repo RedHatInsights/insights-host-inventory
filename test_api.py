@@ -49,18 +49,22 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-def test_data(display_name="hi", facts=None):
-    return {
+def test_data(**values):
+    data = {
         "account": ACCOUNT,
-        "display_name": display_name,
+        "display_name": "hi",
         # "insights_id": "1234-56-789",
         # "rhel_machine_id": "1234-56-789",
         # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
         "ip_addresses": ["10.10.0.1"],
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
-        "facts": facts if facts else FACTS,
+        "facts": None,
+        **values,
     }
+    if not data["facts"]:
+        data["facts"] = FACTS
+    return data
 
 
 def build_auth_header(token):
@@ -414,7 +418,27 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = self.post(HOST_URL, [host_data.data()], 400)
 
-        self.verify_error_response(response_data, expected_title="Bad Request")
+        self.verify_error_response(
+            response_data, expected_title="Bad Request", expected_detail="'account' is a required property"
+        )
+
+    def test_create_host_with_invalid_account(self):
+        accounts = ("", "someaccount")
+        for account in accounts:
+            with self.subTest(account=account):
+                host_data = HostWrapper(test_data(account=account, facts=None))
+
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
+
+                self._verify_host_status(response_data, 0, 400)
+
+                response_data = response_data["data"][0]
+
+                self.verify_error_response(
+                    response_data,
+                    expected_title="Bad Request",
+                    expected_detail="{'account': ['Length must be between 1 and 10.']}",
+                )
 
     def test_create_host_with_mismatched_account_numbers(self):
         host_data = HostWrapper(test_data(facts=None))
@@ -426,7 +450,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
         response_data = response_data["data"][0]
 
-        self.verify_error_response(response_data, expected_title="Invalid request")
+        self.verify_error_response(
+            response_data,
+            expected_title="Invalid request",
+            expected_detail="The account number associated with the user does not match the account number associated "
+            "with the host",
+        )
 
     def test_create_host_with_invalid_facts(self):
         facts_with_no_namespace = copy.deepcopy(FACTS)

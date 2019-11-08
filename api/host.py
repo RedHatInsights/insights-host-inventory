@@ -22,6 +22,7 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -52,10 +53,11 @@ def add_host_list(host_list):
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
-                    (host, add_result) = _add_host(host)
+                    input_host = deserialize_host(host)
+                    (output_host, add_result) = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
-                    response_host_list.append({"status": status_code, "host": host})
-                    payload_tracker_processing_ctx.inventory_id = host["id"]
+                    response_host_list.append({"status": status_code, "host": output_host})
+                    payload_tracker_processing_ctx.inventory_id = output_host["id"]
             except ValidationException as e:
                 number_of_errors += 1
                 logger.exception("Input validation error while adding host", extra={"host": host})
@@ -89,7 +91,7 @@ def _convert_host_results_to_http_status(result):
 
 
 def _add_host(input_host):
-    if not current_identity.is_trusted_system and current_identity.account_number != input_host["account"]:
+    if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
         raise InventoryException(
             title="Invalid request",
             detail="The account number associated with the user does not match the account number associated with the "

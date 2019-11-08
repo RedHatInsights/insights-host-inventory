@@ -20,7 +20,9 @@ from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
 from app.exceptions import InputFormatException
+from app.exceptions import ValidationException
 from app.models import Host
+from app.models import HostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _serialize_facts
@@ -72,7 +74,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(account_number="some number")
+        return Identity(account_number="some acct")
 
 
 class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
@@ -144,7 +146,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(account_number="some number")
+            identity = Identity(account_number="some acct")
             validate(identity)
             self.assertTrue(True)
         except ValueError:
@@ -521,7 +523,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         input = {
             **canonical_facts,
@@ -551,28 +553,63 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertEqual(value, getattr(actual, key))
 
     def test_with_only_required_fields(self):
+        account = "some acct"
         canonical_facts = {"fqdn": "some fqdn"}
-        host = deserialize_host(canonical_facts)
+        host = deserialize_host({"account": account, **canonical_facts})
 
         self.assertIs(Host, type(host))
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
-        self.assertIsNone(host.account)
+        self.assertEqual(account, host.account)
         self.assertEqual({}, host.facts)
         self.assertEqual({}, host.system_profile_facts)
+
+    def test_with_invalid_input(self):
+        inputs = (
+            {},
+            {"account": ""},
+            {"account": "some account", "fqdn": "some fqdn"},
+            {"account": "someacct", "fqdn": None},
+            {"account": "someacct", "fqdn": ""},
+            {"account": "someacct", "fqdn": "x" * 256},
+            {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
+        )
+        for input in inputs:
+            with self.subTest(input=input):
+                with self.assertRaises(ValidationException) as context:
+                    deserialize_host(input)
+
+                expected_errors = HostSchema().load(input).errors
+                self.assertEqual(str(expected_errors), str(context.exception))
 
 
 @patch("app.serialization.Host")
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
+@patch("app.serialization.HostSchema")
 class SerializationDeserializeHostMockedTestCase(TestCase):
-    def test_with_all_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    class ValidationError(Exception):
+        """
+        Marshmallow ValidationError mock.
+        """
+
+        def __init__(self, messages):
+            self.messages = messages
+
+    def _assertRaisedContext(self, exception, context):
+        self.assertIs(context, exception.__context__)
+
+    def _assertRaisedFromNone(self, exception):
+        self.assertTrue(exception.__suppress_context__)
+        self.assertIsNone(exception.__cause__)
+
+    def test_with_all_fields(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
             "insights_id": str(uuid4()),
             "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
@@ -597,6 +634,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "system_memory_bytes": 4,
             },
         }
+        host_schema.return_value.load.return_value.data = input
 
         result = deserialize_host(input)
         self.assertEqual(host.return_value, result)
@@ -614,7 +652,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["system_profile"],
         )
 
-    def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -630,8 +668,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "system_memory_bytes": 4,
             },
         }
+        host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host(input)
+        result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -647,7 +686,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["system_profile"],
         )
 
-    def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_display_name(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -666,8 +705,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "system_memory_bytes": 4,
             },
         }
+        host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host(input)
+        result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -683,7 +723,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["system_profile"],
         )
 
-    def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_system_profile(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -697,8 +737,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "another namespace": {"another key": "another value"},
             },
         }
+        host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host(input)
+        result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -713,6 +754,34 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_tags.return_value,
             {},
         )
+
+    def test_host_validation(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+        input = {"ansible_host": "some ansible host", "account": "some acct"}
+
+        deserialize_host(input)
+
+        host_schema.assert_called_once_with(strict=True)
+        host_schema.return_value.load.assert_called_with(input)
+
+    @patch("app.serialization.ValidationError", new=ValidationError)
+    def test_invalid_host_error(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+        caught_exception = self.ValidationError(["first message", "second message"])
+        host_schema.return_value.load.side_effect = caught_exception
+
+        with self.assertRaises(ValidationException) as raises_context:
+            deserialize_host({})
+
+        raised_exception = raises_context.exception
+
+        self.assertEqual(str(caught_exception.messages), str(raised_exception))
+        self._assertRaisedContext(raised_exception, caught_exception)
+        self._assertRaisedFromNone(raised_exception)
+
+        deserialize_canonical_facts.assert_not_called()
+        deserialize_facts.assert_not_called()
+        host.assert_not_called()
+
+        host_schema.return_value.load.return_value.data.get.assert_not_called()
 
 
 class SerializationSerializeHostBaseTestCase(TestCase):
@@ -736,7 +805,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -810,7 +879,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
         }
         host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
         host = Host(**host_init_data)
