@@ -3,6 +3,7 @@ import yaml
 from connexion.resolver import RestyResolver
 from flask import jsonify
 from flask import request
+from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
 from app import payload_tracker
@@ -95,5 +96,15 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
         )
 
     payload_tracker.init_payload_tracker(app_config, producer=payload_tracker_producer)
+
+    # HTTP request metrics
+    if config_name != "testing":
+        PrometheusMetrics(
+            flask_app,
+            defaults_prefix="inventory",
+            group_by="url_rule",
+            path=None,
+            excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
+        )
 
     return flask_app

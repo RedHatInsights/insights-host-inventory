@@ -29,3 +29,6 @@ run_inv_mq_service_test_consumer:
 
 run_inv_http_test_producer:
 	python utils/rest_producer.py
+
+style:
+	pre-commit run --all-files
