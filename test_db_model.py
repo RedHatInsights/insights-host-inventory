@@ -2,7 +2,6 @@ import uuid
 
 from app import db
 from app.models import Host
-from app.serialization import deserialize_host
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -19,19 +18,6 @@ def _create_host(insights_id=None, fqdn=None, display_name=None):
     db.session.add(host)
     db.session.commit()
     return host
-
-
-def test_create_host_with_canonical_facts_as_None(flask_app_fixture):
-    # Test to make sure canonical facts that are None or '' do
-    # not get inserted into the db
-    invalid_canonical_facts = {"fqdn": None, "insights_id": ""}
-    valid_canonical_facts = {"bios_uuid": "1234"}
-
-    host_dict = {**invalid_canonical_facts, **valid_canonical_facts}
-
-    host = deserialize_host(host_dict)
-
-    assert valid_canonical_facts == host.canonical_facts
 
 
 def test_create_host_with_fqdn_and_display_name_as_empty_str(flask_app_fixture):
