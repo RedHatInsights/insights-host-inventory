@@ -23,7 +23,7 @@ _CANONICAL_FACTS_FIELDS = (
 def deserialize_host(data):
     canonical_facts = _deserialize_canonical_facts(data)
     facts = _deserialize_facts(data.get("facts"))
-    tags = Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(data.get("tags")))
+    tags = _deserialize_tags(data.get("tags"))
     return Host(
         canonical_facts,
         data.get("display_name", None),
@@ -93,3 +93,7 @@ def _deserialize_facts(data):
 def _serialize_facts(facts):
     fact_list = [{"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in facts.items()]
     return fact_list
+
+
+def _deserialize_tags(tags):
+    return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))

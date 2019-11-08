@@ -1,4 +1,3 @@
-import re
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -54,15 +53,6 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-def _split_tag(tag):
-    try:
-        namespace, t_key, t_value = re.split("[/ =]", tag)
-    except ValueError:
-        namespace, t_key = re.split("[/]", tag)
-        t_value = ""
-    return (namespace, t_key, t_value)
-
-
 class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
@@ -111,40 +101,10 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
+        # TODO: remove
         logger.info("tags in model: %s", tags)
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
-
-    # @classmethod
-    # def from_json(cls, d):
-    #     canonical_facts = CanonicalFacts.from_json(d)
-    #     facts = Facts.from_json(d.get("facts"))
-    #     logger.info(d.get("tags"))
-    #     tags = Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(d.get("tags")))
-    #     return cls(
-    #         canonical_facts,
-    #         d.get("display_name", None),
-    #         d.get("ansible_host"),
-    #         d.get("account"),
-    #         facts,
-    #         tags,
-    #         d.get("system_profile", {}),
-    #     )
-
-    # def to_json(self):
-    #     json_dict = CanonicalFacts.to_json(self.canonical_facts)
-    #     json_dict["id"] = str(self.id)
-    #     json_dict["account"] = self.account
-    #     json_dict["display_name"] = self.display_name
-    #     json_dict["ansible_host"] = self.ansible_host
-    #     json_dict["facts"] = Facts.to_json(self.facts)
-    #     json_dict["created"] = self.created_on.isoformat() + "Z"
-    #     json_dict["updated"] = self.modified_on.isoformat() + "Z"
-    #     return json_dict
-
-    # def to_system_profile_json(self):
-    #     json_dict = {"id": str(self.id), "system_profile": self.system_profile_facts or {}}
-    #     return json_dict
 
     def save(self):
         db.session.add(self)
@@ -157,6 +117,8 @@ class Host(db.Model):
         self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
+
+        self.update_tags(input_host.tags)
 
         if update_system_profile:
             self._update_system_profile(input_host.system_profile_facts)
@@ -353,11 +315,11 @@ class HostSchema(Schema):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
-    # @validates("tags")
-    # def validate_tags(self, tags):
-    #     for tag in tags:
-    #         if not re.match(r"\w+\/\w+(=)?\w*$", tag):
-    #             raise ValidationError(tag)
+    @validates("tags")
+    def validate_tags(self, tags):
+        for tag in tags:
+            if "key" not in tag:
+                raise ValidationError("Key is requred in all tags")
 
 
 class PatchHostSchema(Schema):

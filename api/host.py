@@ -99,21 +99,7 @@ def _add_host(input_host):
     return add_host(input_host, update_system_profile=False)
 
 
-def find_host_by_canonical_facts(account_number, canonical_facts):
-    """
-    Returns first match for a host containing given canonical facts
-    """
-    logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
-
-    host = _canonical_facts_host_query(account_number, canonical_facts).first()
-
-    if host:
-        logger.debug("Found existing host using canonical_fact match: %s", host)
-
-    return host
-
-
-def _tags_host_query(account_number, string_tags, query):
+def find_hosts_by_tag(account_number, string_tags, query):
     tags = []
 
     for string_tag in string_tags:
@@ -124,20 +110,6 @@ def _tags_host_query(account_number, string_tags, query):
     logger.info("tags to find: %s", tags_to_find)
 
     return query.filter(Host.tags.contains(tags_to_find))
-
-
-def find_hosts_by_tag(account_number, tags, query):
-    """
-    Returns all of the hosts with the tag/tags
-    """
-    logger.debug("find_host_by_tag(%s)", tags)
-
-    hosts = _tags_host_query(account_number, tags, query)
-
-    if hosts:
-        logger.debug("found the host with those ids: %s", hosts)
-
-    return hosts
 
 
 @api_operation
@@ -447,7 +419,10 @@ def _count_tags(host_list):
         host_tag_count = 0
         for namespace in host.tags:
             for tag in host.tags[namespace]:
-                host_tag_count += len(host.tags[namespace][tag])
+                if len(host.tags[namespace][tag]) == 0:
+                    host_tag_count += 1  # for tags with no value
+                else:
+                    host_tag_count += len(host.tags[namespace][tag])
         counts[str(host.id)] = host_tag_count
 
     return counts

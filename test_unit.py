@@ -564,10 +564,11 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
 
 @patch("app.serialization.Host")
+@patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
 class SerializationDeserializeHostMockedTestCase(TestCase):
-    def test_with_all_fields(self, deserialize_canonical_facts, deserialize_facts, host):
+    def test_with_all_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -585,6 +586,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -598,20 +603,26 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -625,16 +636,18 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(None)
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -642,6 +655,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -655,20 +672,26 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             None,
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -680,12 +703,14 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             {},
         )
 

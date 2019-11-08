@@ -2,6 +2,10 @@ import json
 import re
 import urllib
 
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class HostWrapper:
     def __init__(self, data=None):
@@ -185,6 +189,7 @@ class Tag:
         key = None
         value = None
 
+        # TODO, match with new validation pattern, and try using regex groups
         if re.match(r"\S+\/\S+=\S+", string_tag):  # NS/key=value
             namespace, key, value = re.split(r"/|=", string_tag)
         elif re.match(r"\S+\/\S+", string_tag):  # NS/key
@@ -272,11 +277,13 @@ class Tag:
         """
         nested_tags = {}
 
+        # TODO: Remove
+
         for tag in tags:
             if tag is None:
-                raise TypeError(tag)
+                raise TypeError("tag is none")
             elif tag.key is None or tag.namespace is None:
-                raise TypeError(tag)
+                raise TypeError("tag is missing key or namespace")
             namespace, key, value = tag.namespace, tag.key, tag.value
             if namespace in nested_tags:
                 if value is None:
@@ -293,6 +300,7 @@ class Tag:
                 else:
                     nested_tags[namespace] = {key: [value]}
 
+        logger.info("tag in create nested: \n %s", nested_tags)
         return nested_tags
 
     @staticmethod
@@ -303,8 +311,11 @@ class Tag:
         tags = []
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
-                for value in nested_tags[namespace][key]:
-                    tags.append(Tag(namespace, key, value))
+                if len(nested_tags[namespace][key]) == 0:
+                    tags.append(Tag(namespace, key))
+                else:
+                    for value in nested_tags[namespace][key]:
+                        tags.append(Tag(namespace, key, value))
         return tags
 
     @staticmethod
@@ -319,6 +330,12 @@ class Tag:
             return tag_list
 
         for tag_data in tag_data_list:
-            tag_list.append(Tag(tag_data["namespace"], tag_data["key"], tag_data["value"]))
+            namespace = tag_data.get("namespace", None)
+            value = tag_data.get("value", None)
+
+            logger.info("tag data: %s", tag_data)
+            logger.info("namespace: %s | value: %s", namespace, value)
+
+            tag_list.append(Tag(namespace, tag_data["key"], value))
 
         return tag_list

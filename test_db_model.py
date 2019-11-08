@@ -4,10 +4,10 @@ import pytest
 from marshmallow import ValidationError
 
 from app import db
-from app.models import _deserialize_tags
 from app.models import Host
 from app.models import HostSchema
 from app.serialization import deserialize_host
+from app.utils import Tag
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -124,7 +124,13 @@ def test_create_host_with_system_profile(flask_app_fixture):
     assert host.system_profile_facts == system_profile_facts
 
 
-@pytest.mark.parametrize("tags", [["Sat/env=prod", "AWS/env=ci"], ["Sat/env", "AWS/env"]])
+@pytest.mark.parametrize(
+    "tags",
+    [
+        [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
+        [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+    ],
+)
 def test_host_schema_valid_tags(tags):
     host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
     validated_host = HostSchema(strict=True).load(host)
@@ -132,26 +138,40 @@ def test_host_schema_valid_tags(tags):
     assert validated_host.data["tags"] == tags
 
 
-@pytest.mark.parametrize("tags", [["Sat/"], ["bad_tag"]])
+# TODO
+# look into making this acutally work. Will have to add real validation
+@pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
 def test_host_schema_invalid_tags(tags):
     host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
     with pytest.raises(ValidationError) as excinfo:
         _ = HostSchema(strict=True).load(host)
 
-    assert host["tags"][0] in str(excinfo.value)
+    assert "Key is requred in all tags" in str(excinfo.value)
 
 
 def test_tag_deserialization():
-    tags = ["Sat/env=prod", "Sat/env=test", "Sat/geo=somewhere", "AWS/env=ci", "AWS/env"]
-    expected_tags = {"Sat": {"env": ["prod", "test"], "geo": ["somewhere"]}, "AWS": {"env": ["", "ci"]}}
-    deserialized_tags = _deserialize_tags(tags)
+    tags = [
+        {"namespace": "Sat", "key": "env", "value": "prod"},
+        {"namespace": "Sat", "key": "env", "value": "test"},
+        {"namespace": "Sat", "key": "geo", "value": "somewhere"},
+        {"namespace": "AWS", "key": "env", "value": "ci"},
+        {"namespace": "AWS", "key": "env"},
+    ]
+    expected_tags = {"Sat": {"env": ["prod", "test"], "geo": ["somewhere"]}, "AWS": {"env": ["ci"]}}
+    deserialized_tags = Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))
 
     assert sorted(deserialized_tags["Sat"]["env"]) == sorted(expected_tags["Sat"]["env"])
     assert sorted(deserialized_tags["Sat"]["geo"]) == sorted(expected_tags["Sat"]["geo"])
     assert sorted(deserialized_tags["AWS"]["env"]) == sorted(expected_tags["AWS"]["env"])
 
 
-@pytest.mark.parametrize("tags", [["Sat/env=prod", "AWS/env=ci"], ["Sat/env", "AWS/env"]])
+@pytest.mark.parametrize(
+    "tags",
+    [
+        [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
+        [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+    ],
+)
 def test_create_host_with_tags(flask_app_fixture, tags):
     host = _create_host(fqdn="fred.flintstone.com", display_name="display_name", tags=tags)
 
@@ -160,13 +180,13 @@ def test_create_host_with_tags(flask_app_fixture, tags):
 
 def test_update_host_with_tags(flask_app_fixture):
     insights_id = str(uuid.uuid4())
-    old_tags = _deserialize_tags(["Sat/env=prod"])
+    old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
 
     assert existing_host.tags == old_tags
 
     # On update each namespace in the input host's tags should be updated.
-    new_tags = _deserialize_tags(["Sat/env=ci", "AWS/env=prod"])
+    new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
     input_host = _create_host(insights_id=insights_id, display_name="tagged", tags=new_tags)
     existing_host.update(input_host)
 
@@ -175,7 +195,7 @@ def test_update_host_with_tags(flask_app_fixture):
 
 def test_update_host_with_no_tags(flask_app_fixture):
     insights_id = str(uuid.uuid4())
-    old_tags = _deserialize_tags(["Sat/env=prod"])
+    old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
 
     # Updating a host should not remove any existing tags if tags are missing from the input host

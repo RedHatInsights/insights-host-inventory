@@ -1173,6 +1173,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS1", "key": "key1", "value": "val1"},
                     {"namespace": "NS1", "key": "key2", "value": "val1"},
                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                    {"namespace": "no", "key": "value"},
                 ],
             ),
             (
@@ -2321,7 +2322,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
 
     tags_list = [
-        [Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
+        [Tag("no", "value"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
         [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
@@ -2349,6 +2350,12 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         response = self.get(test_url, 200)
+
+        # TODO: remove
+        print("expected results")
+        print(expected_response)
+        print("response results")
+        print(response["results"])
 
         self._compare_responses(expected_response, response, test_url)
 
@@ -2411,6 +2418,16 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response = {host_with_no_tags.id: 0}
 
         test_url = f"{HOST_URL}/{host_with_no_tags.id}/tags/count"
+        host_tag_results = self.get(test_url, 200)
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_count_from_host_with_tag_with_no_value(self):
+        # host 0 has 4 tags, one of which has no value
+        host_with_valueless_tag = self.added_hosts[0]
+        expected_response = {host_with_valueless_tag.id: 4}
+
+        test_url = f"{HOST_URL}/{host_with_valueless_tag.id}/tags/count"
         host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
