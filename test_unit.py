@@ -605,7 +605,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         self.assertTrue(exception.__suppress_context__)
         self.assertIsNone(exception.__cause__)
 
-    def test_with_all_fields(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_with_all_fields(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -686,7 +688,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["system_profile"],
         )
 
-    def test_without_display_name(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_display_name(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -723,7 +727,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["system_profile"],
         )
 
-    def test_without_system_profile(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_system_profile(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -755,7 +761,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             {},
         )
 
-    def test_host_validation(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_host_validation(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {"ansible_host": "some ansible host", "account": "some acct"}
 
         deserialize_host(input)
@@ -764,7 +772,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema.return_value.load.assert_called_with(input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
-    def test_invalid_host_error(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_invalid_host_error(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         caught_exception = self.ValidationError(["first message", "second message"])
         host_schema.return_value.load.side_effect = caught_exception
 

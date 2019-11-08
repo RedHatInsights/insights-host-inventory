@@ -5,8 +5,8 @@ from marshmallow import ValidationError
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host as Host
-from app.utils import Tag
 from app.models import HostSchema
+from app.utils import Tag
 
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")

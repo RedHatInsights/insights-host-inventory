@@ -6,7 +6,6 @@ from marshmallow import ValidationError
 from app import db
 from app.models import Host
 from app.models import HostSchema
-from app.serialization import deserialize_host
 from app.utils import Tag
 
 """
