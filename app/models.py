@@ -103,8 +103,6 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
-        # TODO: remove
-        logger.info("tags in model: %s", tags)
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
@@ -287,7 +285,7 @@ class FactsSchema(Schema):
 class TagsSchema(Schema):
     namespace = fields.Str()
     key = fields.Str()
-    value = fields.Str()
+    value = fields.Str(required=False, allow_none=True)
 
 
 class HostSchema(Schema):

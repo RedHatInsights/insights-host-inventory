@@ -190,7 +190,9 @@ class Tag:
         value = None
 
         # TODO, match with new validation pattern, and try using regex groups
+        groups = re.search(r"\S+\/\S+=\S+", string_tag)
         if re.match(r"\S+\/\S+=\S+", string_tag):  # NS/key=value
+            logger.info(groups.group(0))
             namespace, key, value = re.split(r"/|=", string_tag)
         elif re.match(r"\S+\/\S+", string_tag):  # NS/key
             namespace, key = re.split(r"/", string_tag)

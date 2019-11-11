@@ -55,7 +55,7 @@ def test_data(**values):
         "display_name": "hi",
         # "insights_id": "1234-56-789",
         # "rhel_machine_id": "1234-56-789",
-        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],		        # "ip_addrlogger = getLogger('sqlalchemy.engine')
         "ip_addresses": ["10.10.0.1"],
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
@@ -1202,7 +1202,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS1", "key": "key1", "value": "val1"},
                     {"namespace": "NS1", "key": "key2", "value": "val1"},
                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-                    {"namespace": "no", "key": "value"},
+                    {"namespace": "no", "key": "key", "value": None},
                 ],
             ),
             (
@@ -1567,7 +1567,7 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response_ids, expected_ids)
 
 
-class QueryByHostIdTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -2014,6 +2014,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         return tuple(self.added_hosts[added_host_index] for added_host_index in indexes)
 
     def _test_order_by_id_desc(self, specifications, order_by, order_how):
+
         """
         Specification format is: Update these hosts (specification[*][0]) with these IDs
         (specification[*][1]). The updated hosts also get the same current timestamp.
@@ -2351,7 +2352,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
 
     tags_list = [
-        [Tag("no", "value"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
+        [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
         [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
@@ -2362,6 +2363,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self.assertEqual(expected_response, response["results"])
 
         self._base_paging_test(test_url, len(expected_response))
+        self._invalid_paging_parameters_test(test_url)
 
     def test_get_tags_of_multiple_hosts(self):
         """
@@ -2379,12 +2381,6 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         response = self.get(test_url, 200)
-
-        # TODO: remove
-        print("expected results")
-        print(expected_response)
-        print("response results")
-        print(response["results"])
 
         self._compare_responses(expected_response, response, test_url)
 

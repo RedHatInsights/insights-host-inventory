@@ -41,7 +41,6 @@ def deserialize_host(raw_data):
         validated_data.get("account"),
         facts,
         tags,
-        # tags,
         validated_data.get("system_profile", {}),
     )
 
