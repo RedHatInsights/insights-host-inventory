@@ -31,7 +31,6 @@ def add_host(input_host, update_system_profile=True):
 
     with db_session_guard():
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
-
         if existing_host:
             return update_existing_host(existing_host, input_host, update_system_profile)
         else:
@@ -97,6 +96,7 @@ def create_new_host(input_host):
 @metrics.update_host_commit_processing_time.time()
 def update_existing_host(existing_host, input_host, update_system_profile):
     logger.debug("Updating an existing host")
+    logger.debug(f"existing host = {existing_host}")
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()

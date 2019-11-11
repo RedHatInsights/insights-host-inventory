@@ -39,6 +39,8 @@ def deserialize_host(raw_data):
         validated_data.get("account"),
         facts,
         validated_data.get("system_profile", {}),
+        validated_data.get("stale_timestamp"),
+        validated_data.get("reporter"),
     )
 
 

@@ -85,11 +85,18 @@ class Host(db.Model):
         account=None,
         facts=None,
         system_profile_facts=None,
+        stale_timestamp=None,
+        reporter=None,
     ):
 
         if not canonical_facts:
             raise InventoryException(
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
+
+        if (not stale_timestamp and reporter) or (stale_timestamp and not reporter):
+            raise InventoryException(
+                title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
         self.canonical_facts = canonical_facts
@@ -103,6 +110,8 @@ class Host(db.Model):
         self.account = account
         self.facts = facts
         self.system_profile_facts = system_profile_facts or {}
+        self.stale_timestamp = stale_timestamp
+        self.reporter = reporter
 
     def save(self):
         db.session.add(self)
@@ -118,6 +127,8 @@ class Host(db.Model):
 
         if update_system_profile:
             self._update_system_profile(input_host.system_profile_facts)
+
+        self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -164,6 +175,19 @@ class Host(db.Model):
 
             for input_namespace, input_facts in facts_dict.items():
                 self.replace_facts_in_namespace(input_namespace, input_facts)
+
+    def _update_stale_timestamp(self, stale_timestamp, reporter):
+        if (
+            stale_timestamp
+            and reporter
+            and (
+                (not self.reporter and not self.stale_timestamp)
+                or (reporter == self.reporter and stale_timestamp >= self.stale_timestamp)
+                or (reporter != self.reporter and stale_timestamp <= self.stale_timestamp)
+            )
+        ):
+            self.stale_timestamp = stale_timestamp
+            self.reporter = reporter
 
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
@@ -280,6 +304,8 @@ class HostSchema(Schema):
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
+    stale_timestamp = fields.DateTime(timezone=True)
+    reporter = fields.Str(validate=validate.Length(min=1, max=255))
 
     @validates("ip_addresses")
     def validate_ip_addresses(self, ip_address_list):

@@ -63,6 +63,8 @@ def test_data(**values):
     }
     if not data["facts"]:
         data["facts"] = FACTS
+    if "stale_timestamp" in data:
+        data["stale_timestamp"] = data["stale_timestamp"].isoformat()
     return data
 
 
@@ -706,6 +708,154 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(error_host["status"], 400)
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
+
+
+class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
+    def _add_host(self, expected_status, **values):
+        host_data = HostWrapper(test_data(fqdn="match this host", **values))
+        response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(response, 0, expected_status)
+        created_host = self._pluck_host_from_response(response, 0)
+        return created_host["id"]
+
+    def _retrieve_host(self, host_id):
+        with self.app.app_context():
+            return Host.query.filter(Host.id == host_id).first()
+
+    def test_create_host_with_stale_timestamp_and_reporter(self):
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+
+        retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, retrieved_host.reporter)
+
+    def test_update_host_with_stale_timestamp_and_reporter(self):
+        created_host_id = self._add_host(201)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertIsNone(old_retrieved_host.stale_timestamp)
+        self.assertIsNone(old_retrieved_host.reporter)
+
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+
+        self._add_host(200, stale_timestamp=stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_host_with_stale_timestamp_and_reporter(self):
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, old_retrieved_host.reporter)
+
+        self._add_host(200)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_update_stale_timestamp_from_same_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=1)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_stale_timestamp_from_same_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=2)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+
+        new_stale_timestamp = now + timedelta(days=1)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
+
+    def test_update_stale_timestamp_from_different_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=2)
+        old_reporter = "old reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=1)
+        new_reporter = "new reporter"
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=new_reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(new_reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_stale_timestamp_from_different_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=1)
+        old_reporter = "old reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter="new_reporter")
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, new_retrieved_host.reporter)
+
+    def test_create_host_with_only_one_culling_field(self):
+        valueses = ({"stale_timestamp": datetime.now(timezone.utc)}, {"reporter": "some reporter"})
+        for values in valueses:
+            host_data = HostWrapper(test_data(**values))
+            response = self.post(HOST_URL, [host_data.data()], 207)
+
+            error_host = response["data"][0]
+
+            self.assertEqual(error_host["status"], 400)
+            self.verify_error_response(error_host, expected_title="Invalid request")
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
