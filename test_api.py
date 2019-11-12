@@ -2457,56 +2457,20 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-    # def test_tags_pagination_test(self):
-    #     """
-    #     Use a query that will return multiple hosts and page
-    #     through them checking each one appears on the right
-    #     page.
-    #     """
-    #     def _test_get_tags_page(page, expected_count, expected_response, url_host_id_list):
-    #         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
-    #         test_url = inject_qs(test_url, page=page, per_page=expected_count)
-    #         response = self.get(test_url, 200)
-
-    #         self.assertEqual(len(response["results"]), expected_count)
-    #         self.assertEqual(response["count"], expected_count)
-    #         self.assertEqual(response["results"], expected_response)
-
-    #     host_list = self.added_hosts
-
-    #     expected_response = {}
-
-    #     # for host, tags in zip(host_list, self.tags_list):
-    #     #     expected_response[str(host.id)] = [tag.data() for tag in tags]
-
-    #     url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-    #     # 1 at a time
-    #     for i in range(1, len(host_list) + 1):
-    #         with self.subTest(pagination_test=i):
-    #             expected_response[str(host_list[i].id)] = [tag.data() for tag in self.tags_list[i]]
-    #             _test_get_tags_page(str(i), 1, expected_response[str(host_list[i].id)], url_host_id_list)
-
-    #     # 2 at a time
-    #     # for i in range(1, (len(url_host_id_list) + 1)/2):
-    #     #     with self.subTest(pagination_test=i):
-    #     #         _test_get_tags_page(str(i), 2)
+    def _per_page_test(self, per_page, total, range_end, test_url, expected_responses):
+        for i in range(1, range_end):
+            test_url = inject_qs(test_url, page=str(i), per_page=str(per_page))
+            response = self.get(test_url, 200)
+            with self.subTest(pagination_test_1_per_page=i):
+                self.assertEqual(response["results"], expected_responses[i - 1])
+                self.assertEqual(len(response["results"]), per_page)
+                self.assertEqual(response["count"], per_page)
+                self.assertEqual(response["total"], total)
 
     def test_tags_pagination(self):
         """
         simple test to check pagination works for /tags
         """
-
-        def _per_page_test(per_page, total, range_end, test_url, expected_responses):
-            for i in range(1, range_end):
-                test_url = inject_qs(test_url, page=str(i), per_page=str(per_page))
-                response = self.get(test_url, 200)
-                with self.subTest(pagination_test_1_per_page=i):
-                    self.assertEqual(response["results"], expected_responses[i - 1])
-                    self.assertEqual(len(response["results"]), per_page)
-                    self.assertEqual(response["count"], per_page)
-                    self.assertEqual(response["total"], len(host_list))
-
         host_list = self.added_hosts
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
@@ -2518,7 +2482,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
 
         # 1 per page test
-        _per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
 
         expected_responses_2_per_page = [
             {
@@ -2532,7 +2496,32 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         ]
 
         # 2 per page test
-        _per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+
+    def test_tags_count_pagination(self):
+        """
+        simple test to check pagination works for /tags
+        """
+        host_list = self.added_hosts
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        expected_responses_1_per_page = []
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_responses_1_per_page.append({str(host.id): len(tags)})
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
+
+        # 1 per page test
+        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+
+        expected_responses_2_per_page = [
+            {str(host_list[0].id): len(self.tags_list[0]), str(host_list[1].id): len(self.tags_list[1])},
+            {str(host_list[2].id): len(self.tags_list[2]), str(host_list[3].id): len(self.tags_list[3])},
+        ]
+
+        # 2 per page test
+        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
 if __name__ == "__main__":
