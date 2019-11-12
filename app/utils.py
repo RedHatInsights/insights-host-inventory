@@ -189,7 +189,6 @@ class Tag:
         key = None
         value = None
 
-        # TODO, match with new validation pattern, and try using regex groups
         groups = re.match(r"([\w.\-%~]+)\/([\w.\-%~]+)=([\w.\-%~]+)", string_tag)
         if groups:  # NS/key=value
             namespace, key, value = groups.group(1), groups.group(2), groups.group(3)

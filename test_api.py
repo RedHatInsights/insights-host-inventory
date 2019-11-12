@@ -55,7 +55,7 @@ def test_data(**values):
         "display_name": "hi",
         # "insights_id": "1234-56-789",
         # "rhel_machine_id": "1234-56-789",
-        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],		        # "ip_addrlogger = getLogger('sqlalchemy.engine')
+        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
         "ip_addresses": ["10.10.0.1"],
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
@@ -1926,8 +1926,8 @@ class QueryOrderTestCase(QueryOrderWithAdditionalHostsBaseTestCase):
         return (
             self.added_hosts[2],
             self.added_hosts[1],
-            self.added_hosts[3],
             # Hosts with same display_name are ordered by updated descending
+            self.added_hosts[3],
             self.added_hosts[0],
         )
 
@@ -2014,7 +2014,6 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         return tuple(self.added_hosts[added_host_index] for added_host_index in indexes)
 
     def _test_order_by_id_desc(self, specifications, order_by, order_how):
-
         """
         Specification format is: Update these hosts (specification[*][0]) with these IDs
         (specification[*][1]). The updated hosts also get the same current timestamp.
