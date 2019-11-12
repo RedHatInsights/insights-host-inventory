@@ -134,8 +134,6 @@ def test_host_schema_valid_tags(tags):
     assert validated_host.data["tags"] == tags
 
 
-# TODO
-# look into making this acutally work. Will have to add real validation
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
 def test_host_schema_invalid_tags(tags):
     host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
