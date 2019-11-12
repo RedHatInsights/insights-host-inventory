@@ -109,8 +109,6 @@ def find_hosts_by_tag(account_number, string_tags, query):
 
     tags_to_find = Tag.create_nested_from_tags(tags)
 
-    logger.info("tags to find: %s", tags_to_find)
-
     return query.filter(Host.tags.contains(tags_to_find))
 
 

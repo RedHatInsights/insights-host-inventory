@@ -190,16 +190,19 @@ class Tag:
         value = None
 
         # TODO, match with new validation pattern, and try using regex groups
-        groups = re.search(r"\S+\/\S+=\S+", string_tag)
-        if re.match(r"\S+\/\S+=\S+", string_tag):  # NS/key=value
-            logger.info(groups.group(0))
-            namespace, key, value = re.split(r"/|=", string_tag)
-        elif re.match(r"\S+\/\S+", string_tag):  # NS/key
-            namespace, key = re.split(r"/", string_tag)
-        elif re.match(r"\S+=\S+", string_tag):  # key=value
-            key, value = re.split(r"=", string_tag)
-        else:  # key
-            key = string_tag
+        groups = re.match(r"([\w.\-%~]+)\/([\w.\-%~]+)=([\w.\-%~]+)", string_tag)
+        if groups:  # NS/key=value
+            namespace, key, value = groups.group(1), groups.group(2), groups.group(3)
+        else:
+            groups = re.match(r"([\w.\-%~]+)\/([\w.\-%~]+)", string_tag)  # NS/key
+            if groups:
+                namespace, key = groups.group(1), groups.group(2)
+            else:
+                groups = re.match(r"([\w.\-%~]+)=([\w.\-%~]+)", string_tag)  # key=value
+                if groups:
+                    key, value = re.split(r"=", string_tag)
+                else:  # key
+                    key = string_tag
 
         return (namespace, key, value)
 
@@ -279,8 +282,6 @@ class Tag:
         """
         nested_tags = {}
 
-        # TODO: Remove
-
         for tag in tags:
             if tag is None:
                 raise TypeError("tag is none")
@@ -301,8 +302,6 @@ class Tag:
                     nested_tags[namespace] = {key: []}
                 else:
                     nested_tags[namespace] = {key: [value]}
-
-        logger.info("tag in create nested: \n %s", nested_tags)
         return nested_tags
 
     @staticmethod
@@ -334,9 +333,6 @@ class Tag:
         for tag_data in tag_data_list:
             namespace = tag_data.get("namespace", None)
             value = tag_data.get("value", None)
-
-            logger.info("tag data: %s", tag_data)
-            logger.info("namespace: %s | value: %s", namespace, value)
 
             tag_list.append(Tag(namespace, tag_data["key"], value))
 
