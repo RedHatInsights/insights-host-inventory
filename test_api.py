@@ -1802,7 +1802,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         # New modified_on value must be set explicitly so it’s saved the same to all
         # records. Otherwise SQLAlchemy would consider it unchanged and update it
         # automatically to its own "now" only for records whose ID changed.
-        new_modified_on = datetime.now()
+        new_modified_on = datetime.now(timezone.utc)
 
         with self.app.app_context():
             for added_host_index, new_id in id_updates:
