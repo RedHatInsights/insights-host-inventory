@@ -212,6 +212,7 @@ kafka topic as a result of adding a host over the message queue.
 
 ```json
   {"type": "created",
+   "host": reported_host,
    "platform_metadata": metadata_json_doc,
    "data": host_json_doc}
 ```
