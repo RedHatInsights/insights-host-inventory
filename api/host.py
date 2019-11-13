@@ -25,6 +25,7 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
+from app.utils import Tag
 from lib.host_repository import _canonical_facts_host_query
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
@@ -100,6 +101,17 @@ def _add_host(input_host):
     return add_host(input_host, update_system_profile=False)
 
 
+def find_hosts_by_tag(account_number, string_tags, query):
+    tags = []
+
+    for string_tag in string_tags:
+        tags.append(Tag().from_string(string_tag))
+
+    tags_to_find = Tag.create_nested_from_tags(tags)
+
+    return query.filter(Host.tags.contains(tags_to_find))
+
+
 @api_operation
 @metrics.api_request_time.time()
 def get_host_list(
@@ -107,6 +119,7 @@ def get_host_list(
     fqdn=None,
     hostname_or_id=None,
     insights_id=None,
+    tags=None,
     page=1,
     per_page=100,
     order_by=None,
@@ -122,6 +135,10 @@ def get_host_list(
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
     else:
         query = Host.query.filter(Host.account == current_identity.account_number)
+
+    if tags:
+        # add tag filtering to the query
+        query = find_hosts_by_tag(current_identity.account_number, tags, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -374,3 +391,77 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
     return 200
+
+
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+    query = query.paginate(page, per_page, True)
+
+    counts = _count_tags(query.items)
+
+    return _build_paginated_host_tags_response(query.total, page, per_page, counts)
+
+
+# returns counts in format [{id: count}, {id: count}]
+def _count_tags(host_list):
+    counts = {}
+
+    for host in host_list:
+        host_tag_count = 0
+        for namespace in host.tags:
+            for tag in host.tags[namespace]:
+                if len(host.tags[namespace][tag]) == 0:
+                    host_tag_count += 1  # for tags with no value
+                else:
+                    host_tag_count += len(host.tags[namespace][tag])
+        counts[str(host.id)] = host_tag_count
+
+    return counts
+
+
+@api_operation
+@metrics.api_request_time.time()
+def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+
+    try:
+        order_by = _params_to_order_by(order_by, order_how)
+    except ValueError as e:
+        flask.abort(400, str(e))
+    else:
+        query = query.order_by(*order_by)
+
+    query = query.paginate(page, per_page, True)
+
+    tags = _build_serialized_tags(query.items)
+
+    return _build_paginated_host_tags_response(query.total, page, per_page, tags)
+
+
+def _build_serialized_tags(host_list):
+    response_tags = {}
+
+    for host in host_list:
+        tags = Tag.create_tags_from_nested(host.tags)
+        tag_dictionaries = []
+        for tag in tags:
+            tag_dictionaries.append(tag.data())
+
+        response_tags[str(host.id)] = tag_dictionaries
+
+    return response_tags
+
+
+def _build_paginated_host_tags_response(total, page, per_page, tags_list):
+    json_output = {"total": total, "count": len(tags_list), "page": page, "per_page": per_page, "results": tags_list}
+
+    return _build_json_response(json_output, status=200)

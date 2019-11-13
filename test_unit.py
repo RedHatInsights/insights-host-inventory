@@ -30,6 +30,7 @@ from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
+from app.utils import Tag
 from test_utils import set_environment
 
 
@@ -335,6 +336,177 @@ class HostParamsToOrderByErrorsTestCase(TestCase):
             _params_to_order_by(Mock(), order_how="ASC")
 
 
+class TagUtilsTestCase(TestCase):
+
+    """
+    string to structured tests
+    """
+
+    def _base_string_to_structured_test(self, string_tag, expected_structured_tag):
+        structured_tag = Tag().from_string(string_tag)
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    def test_simple_string_to_structured(self):
+        self._base_string_to_structured_test("NS/key=value", Tag("NS", "key", "value"))
+
+    def test_string_to_structured_no_namespace(self):
+        self._base_string_to_structured_test("key=value", Tag(None, "key", "value"))
+
+    def test_simple_string_to_structured_no_value(self):
+        self._base_string_to_structured_test("NS/key", Tag("NS", "key", None))
+
+    def test_simple_string_to_structured_only_key(self):
+        self._base_string_to_structured_test("key", Tag(None, "key", None))
+
+    """
+    structured to string tests
+    """
+
+    def _base_structured_to_string_test(self, structured_tag, expected_string_tag):
+        string_tag = structured_tag.to_string()
+        self.assertEqual(string_tag, expected_string_tag)
+
+    def test_simple_structured_to_string(self):
+        structured_tag = Tag("NS", "key", "value")
+        expected_string_tag = "NS/key=value"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_no_value(self):
+        structured_tag = Tag("namespace", "key")
+        expected_string_tag = "namespace/key"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_no_namespace(self):
+        structured_tag = Tag(key="key", value="value")
+        expected_string_tag = "key=value"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    def test_structured_to_string_only_key(self):
+        structured_tag = Tag(key="key")
+        expected_string_tag = "key"
+
+        self._base_structured_to_string_test(structured_tag, expected_string_tag)
+
+    """
+    nested to structured tests
+    """
+
+    def _base_nested_to_structured_test(self, nested_tag, expected_structured_tag):
+        structured_tag = Tag().from_nested(nested_tag)
+        self.assertEqual(structured_tag.data(), expected_structured_tag.data())
+
+    def test_simple_nested_to_structured(self):
+        nested_tag = {"NS": {"key": ["value"]}}
+        expected_structured_tag = Tag("NS", "key", "value")
+
+        self._base_nested_to_structured_test(nested_tag, expected_structured_tag)
+
+    def test_simple_nested_to_structured_no_value(self):
+        nested_tag = {"NS": {"key": []}}
+        expected_structured_tag = Tag("NS", "key")
+
+        self._base_nested_to_structured_test(nested_tag, expected_structured_tag)
+
+    """
+    structured to nested tests
+    """
+
+    def _base_structured_to_nested_test(self, structured_tag, expected_nested_tag):
+        nested_tag = structured_tag.to_nested()
+        self.assertEqual(nested_tag, expected_nested_tag)
+
+    def test_simple_structured_to_nested(self):
+        structured_tag = Tag("NS", "key", "value")
+        expected_nested_tag = {"NS": {"key": ["value"]}}
+
+        self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
+
+    def test_structured_to_nested_no_value(self):
+        structured_tag = Tag("NS", "key")
+        expected_nested_tag = {"NS": {"key": []}}
+
+        self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
+
+    """
+    create nested from many tags tests
+    """
+
+    def test_create_nested_combined(self):
+        tags = [Tag("NS1", "Key", "val"), Tag("NS2", "k2")]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {"NS1": {"Key": ["val"]}, "NS2": {"k2": []}}
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    def test_create_nested_single_no_value(self):
+        tags = [Tag("NS2", "k2")]
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {"NS2": {"k2": []}}
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    def test_create_nested_from_tags_no_tags(self):
+        tags = []
+
+        nested_tags = Tag.create_nested_from_tags(tags)
+
+        expected_nested_tags = {}
+
+        self.assertEqual(nested_tags, expected_nested_tags)
+
+    """
+    tags from tag data tests
+    """
+
+    def test_create_structered_tags_from_tag_data_list(self):
+        tag_data_list = [
+            {"value": "val2", "key": "key2", "namespace": "NS2"},
+            {"value": "val3", "key": "key3", "namespace": "NS3"},
+            {"value": "val3", "key": "key3", "namespace": "NS1"},
+        ]
+        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
+
+        expected_tag_list = [Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3"), Tag("NS1", "key3", "val3")]
+
+        self.assertEqual(len(tag_list), len(expected_tag_list))
+        for tag, expected_tag in zip(tag_list, expected_tag_list):
+            self.assertEqual(tag.data(), expected_tag.data())
+
+    def test_create_structered_tags_from_tag_data_list_no_data(self):
+        tag_data_list = None
+        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
+
+        expected_tag_list = []
+
+        self.assertEqual(len(tag_list), len(expected_tag_list))
+        self.assertEqual(tag_list, expected_tag_list)
+
+    """
+    special character tests
+    """
+
+    def test_structured_to_string_with_special_characters(self):
+        tag = Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al")
+
+        expected_string_tag = "Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal"
+
+        self._base_structured_to_string_test(tag, expected_string_tag)
+
+    def test_string_to_structured_with_special_characters(self):
+        string_tag = "Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal"
+
+        expected_structured_tag = Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al")
+
+        self._base_string_to_structured_test(string_tag, expected_structured_tag)
+
+
 class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
         canonical_facts = {
@@ -413,6 +585,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
 
 @patch("app.serialization.Host")
+@patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
 @patch("app.serialization.HostSchema")
@@ -432,7 +605,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         self.assertTrue(exception.__suppress_context__)
         self.assertIsNone(exception.__cause__)
 
-    def test_with_all_fields(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_with_all_fields(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -446,9 +621,13 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
-            "facts": [
-                {"namespace": "some namespace", "facts": {"some key": "some value"}},
-                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
             ],
             "system_profile": {
                 "number_of_cpus": 1,
@@ -464,20 +643,26 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
+            "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -492,22 +677,30 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(None)
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_display_name(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_display_name(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "ansible_host": "some ansible host",
-            "account": "some acct",
-            "facts": [
-                {"namespace": "some namespace", "facts": {"some key": "some value"}},
-                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            "account": "some account",
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
             ],
             "system_profile": {
                 "number_of_cpus": 1,
@@ -523,24 +716,32 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             None,
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             input["system_profile"],
         )
 
-    def test_without_system_profile(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_without_system_profile(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
-            "facts": [
-                {"namespace": "some namespace", "facts": {"some key": "some value"}},
-                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
             ],
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -549,16 +750,20 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_called_once_with(input)
         deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             input["display_name"],
             input["ansible_host"],
             input["account"],
             deserialize_facts.return_value,
+            deserialize_tags.return_value,
             {},
         )
 
-    def test_host_validation(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_host_validation(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         input = {"ansible_host": "some ansible host", "account": "some acct"}
 
         deserialize_host(input)
@@ -567,7 +772,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema.return_value.load.assert_called_with(input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
-    def test_invalid_host_error(self, host_schema, deserialize_canonical_facts, deserialize_facts, host):
+    def test_invalid_host_error(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
         caught_exception = self.ValidationError(["first message", "second message"])
         host_schema.return_value.load.side_effect = caught_exception
 

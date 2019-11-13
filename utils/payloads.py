@@ -160,6 +160,12 @@ def build_host_chunk():
         "bios_uuid": str(uuid.uuid4()),
         "fqdn": fqdn,
         "display_name": fqdn,
+        "tags": [
+            {"namespace": "SPECIAL", "key": "key", "value": "val"},
+            {"namespace": "NS3", "key": "key3", "value": "val3"},
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ],
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
