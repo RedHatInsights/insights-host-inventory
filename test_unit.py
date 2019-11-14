@@ -903,6 +903,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+            "stale_warning_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"] + timedelta(weeks=1)),
+            "culled_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"] + timedelta(weeks=2)),
         }
         self.assertEqual(expected, actual)
 
@@ -933,6 +935,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": None,
+            "stale_warning_timestamp": None,
+            "culled_timestamp": None,
             "reporter": None,
         }
         self.assertEqual(expected, actual)

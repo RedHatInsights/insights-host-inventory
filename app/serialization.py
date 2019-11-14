@@ -1,3 +1,4 @@
+from datetime import timedelta
 from datetime import timezone
 
 from marshmallow import ValidationError
@@ -54,9 +55,17 @@ def serialize_host(host):
     json_dict["display_name"] = host.display_name
     json_dict["ansible_host"] = host.ansible_host
     json_dict["facts"] = _serialize_facts(host.facts)
-    json_dict["stale_timestamp"] = (
-        host.stale_timestamp.astimezone(timezone.utc).isoformat() if host.stale_timestamp else None
-    )
+
+    if host.stale_timestamp:
+        stale_timestamp = host.stale_timestamp.astimezone(timezone.utc)
+        json_dict["stale_timestamp"] = stale_timestamp.isoformat()
+        json_dict["stale_warning_timestamp"] = (stale_timestamp + timedelta(weeks=1)).isoformat()
+        json_dict["culled_timestamp"] = (stale_timestamp + timedelta(weeks=2)).isoformat()
+    else:
+        json_dict["stale_timestamp"] = None
+        json_dict["stale_warning_timestamp"] = None
+        json_dict["culled_timestamp"] = None
+
     json_dict["reporter"] = host.reporter
     # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
     # requires it

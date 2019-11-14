@@ -1354,8 +1354,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
                     {"namespace": "no", "key": "key", "value": None},
                 ],
-                datetime.now(timezone.utc).isoformat(),
-                "insights",
             ),
             (
                 "host2",
@@ -1366,8 +1364,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                 ],
-                None,
-                None,
             ),  # the same fqdn is intentional
             (
                 "host3",
@@ -1378,8 +1374,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                     {"namespace": "NS1", "key": "key3", "value": "val3"},
                 ],
-                None,
-                None,
             ),
         ]
         host_list = []
@@ -1400,11 +1394,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
             host_wrapper.tags = host[3]
-            host_wrapper.stale_timestamp = host[4]
-            host_wrapper.reporter = host[5]
 
-            post_data = {key: value for key, value in host_wrapper.data().items() if value is not None}
-            response_data = self.post(HOST_URL, [post_data], 207)
+            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
@@ -2262,8 +2253,12 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
     def test_without_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)
+            self.assertIn("stale_warning_timestamp", response_host)
+            self.assertIn("culled_timestamp", response_host)
             self.assertIn("reporter", response_host)
             self.assertIsNone(response_host["stale_timestamp"])
+            self.assertIsNone(response_host["stale_warning_timestamp"])
+            self.assertIsNone(response_host["culled_timestamp"])
             self.assertIsNone(response_host["reporter"])
 
         host_to_create = HostWrapper(self._host_data())
@@ -2283,14 +2278,23 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
     def test_with_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)
+            self.assertIn("stale_warning_timestamp", response_host)
+            self.assertIn("culled_timestamp", response_host)
             self.assertIn("reporter", response_host)
-            self.assertEqual(stale_timestamp, response_host["stale_timestamp"])
+            self.assertEqual(stale_timestamp_str, response_host["stale_timestamp"])
+            self.assertEqual(stale_warning_timestamp_str, response_host["stale_warning_timestamp"])
+            self.assertEqual(culled_timestamp_str, response_host["culled_timestamp"])
             self.assertEqual(reporter, response_host["reporter"])
 
-        stale_timestamp = datetime.now(timezone.utc).isoformat()
+        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp_str = stale_timestamp.isoformat()
+        stale_warning_timestamp = stale_timestamp + timedelta(weeks=1)
+        stale_warning_timestamp_str = stale_warning_timestamp.isoformat()
+        culled_timestamp = stale_timestamp + timedelta(weeks=2)
+        culled_timestamp_str = culled_timestamp.isoformat()
         reporter = "some reporter"
 
-        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp, reporter=reporter))
+        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp_str, reporter=reporter))
 
         created_host = self._create_host(host_to_create)
         _assert_values(created_host)
