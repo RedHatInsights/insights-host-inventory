@@ -636,6 +636,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -653,6 +655,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -670,6 +674,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -687,6 +693,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_display_name(
@@ -709,6 +717,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -726,6 +736,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_system_profile(
@@ -743,6 +755,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -760,6 +774,50 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             {},
+            input["stale_timestamp"],
+            input["reporter"],
+        )
+
+    def test_without_stale_timestamp(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
+        input = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            },
+        }
+        host_schema.return_value.load.return_value.data = input
+
+        result = deserialize_host({})
+        self.assertEqual(host.return_value, result)
+
+        deserialize_canonical_facts.assert_called_once_with(input)
+        deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            input["display_name"],
+            input["ansible_host"],
+            input["account"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            input["system_profile"],
+            None,
+            None,
         )
 
     def test_host_validation(
