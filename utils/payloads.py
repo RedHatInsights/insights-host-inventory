@@ -171,6 +171,8 @@ def build_host_chunk():
         # "mac_addresses": None,
         "subscription_manager_id": str(uuid.uuid4()),
         "system_profile": create_system_profile(),
+        "stale_timestamp": "2019-12-12T16:32:40.355-04:00",
+        "reporter": "me",
     }
     return payload
 
