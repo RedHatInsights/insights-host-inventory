@@ -586,13 +586,11 @@ components:
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
         stale_timestamp:
-          description: >-
-            Timestamp from which the host is considered stale.
+          description: Timestamp from which the host is considered stale.
           type: string
           format: date-time
         reporter:
-          description: >-
-            Reporting source of the host. Used when updating the stale_timestamp.
+          description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
     CreateHostOut:
       title: Create Host Out
@@ -713,6 +711,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StructuredTag'
+        stale_timestamp:
+          description: Timestamp from which the host is considered stale.
+          type: string
+          format: date-time
+          nullable: true
+        reporter:
+          description: Reporting source of the host. Used when updating the stale_timestamp.
+          type: string
+          nullable: true
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

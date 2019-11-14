@@ -875,6 +875,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": "insights",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -883,6 +884,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "stale_timestamp": datetime.now(timezone.utc),
         }
         host = Host(**host_init_data)
 
@@ -900,6 +902,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
         }
         self.assertEqual(expected, actual)
 
@@ -929,6 +932,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_timestamp": None,
+            "reporter": None,
         }
         self.assertEqual(expected, actual)
 

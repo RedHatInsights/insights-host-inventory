@@ -54,6 +54,10 @@ def serialize_host(host):
     json_dict["display_name"] = host.display_name
     json_dict["ansible_host"] = host.ansible_host
     json_dict["facts"] = _serialize_facts(host.facts)
+    json_dict["stale_timestamp"] = (
+        host.stale_timestamp.astimezone(timezone.utc).isoformat() if host.stale_timestamp else None
+    )
+    json_dict["reporter"] = host.reporter
     # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
     # requires it
     json_dict["created"] = host.created_on.astimezone(timezone.utc).isoformat()

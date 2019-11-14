@@ -1354,6 +1354,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
                     {"namespace": "no", "key": "key", "value": None},
                 ],
+                datetime.now(timezone.utc).isoformat(),
+                "insights",
             ),
             (
                 "host2",
@@ -1364,6 +1366,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                 ],
+                None,
+                None,
             ),  # the same fqdn is intentional
             (
                 "host3",
@@ -1374,6 +1378,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                     {"namespace": "NS1", "key": "key3", "value": "val3"},
                 ],
+                None,
+                None,
             ),
         ]
         host_list = []
@@ -1394,8 +1400,11 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
             host_wrapper.tags = host[3]
+            host_wrapper.stale_timestamp = host[4]
+            host_wrapper.reporter = host[5]
 
-            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+            post_data = {key: value for key, value in host_wrapper.data().items() if value is not None}
+            response_data = self.post(HOST_URL, [post_data], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
         return host_list
