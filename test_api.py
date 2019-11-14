@@ -2234,6 +2234,77 @@ class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
                 self._get(url, None, "ASC", 400)
 
 
+class QueryStaleTimestampTestCase(DBAPITestCase):
+    def setUp(self):
+        super().setUp()
+
+    def _host_data(self, **values):
+        return {"account": ACCOUNT, "fqdn": "matching fqdn", **values}
+
+    def _create_host(self, host):
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 201)
+        return self._pluck_host_from_response(response, 0)
+
+    def _update_host(self, host):
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 200)
+        return self._pluck_host_from_response(response, 0)
+
+    def _get_all_hosts(self):
+        response = self.get(HOST_URL, 200)
+        return response["results"][0]
+
+    def _get_host_by_id(self, host_id):
+        response = self.get(f"{HOST_URL}/{host_id}", 200)
+        return response["results"][0]
+
+    def test_without_stale_timestamp(self):
+        def _assert_values(response_host):
+            self.assertIn("stale_timestamp", response_host)
+            self.assertIn("reporter", response_host)
+            self.assertIsNone(response_host["stale_timestamp"])
+            self.assertIsNone(response_host["reporter"])
+
+        host_to_create = HostWrapper(self._host_data())
+
+        created_host = self._create_host(host_to_create)
+        _assert_values(created_host)
+
+        updated_host = self._update_host(host_to_create)
+        _assert_values(updated_host)
+
+        retrieved_host_from_all = self._get_all_hosts()
+        _assert_values(retrieved_host_from_all)
+
+        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
+        _assert_values(retrieved_host_from_by_id)
+
+    def test_with_stale_timestamp(self):
+        def _assert_values(response_host):
+            self.assertIn("stale_timestamp", response_host)
+            self.assertIn("reporter", response_host)
+            self.assertEqual(stale_timestamp, response_host["stale_timestamp"])
+            self.assertEqual(reporter, response_host["reporter"])
+
+        stale_timestamp = datetime.now(timezone.utc).isoformat()
+        reporter = "some reporter"
+
+        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp, reporter=reporter))
+
+        created_host = self._create_host(host_to_create)
+        _assert_values(created_host)
+
+        updated_host = self._update_host(host_to_create)
+        _assert_values(updated_host)
+
+        retrieved_host_from_all = self._get_all_hosts()
+        _assert_values(retrieved_host_from_all)
+
+        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
+        _assert_values(retrieved_host_from_by_id)
+
+
 class FactsTestCase(PreCreatedHostsBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
