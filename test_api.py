@@ -2309,6 +2309,86 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         _assert_values(retrieved_host_from_by_id)
 
 
+class QueryStalenessTestCase(DBAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.fresh_host = self._create_host(datetime.now(timezone.utc) + timedelta(hours=1))
+        self.stale_host = self._create_host(datetime.now(timezone.utc) - timedelta(hours=1))
+        self.stale_warning_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=1, hours=1))
+        self.culled_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=2, hours=1))
+        self.unknown_host = self._create_host(None)
+
+    def _create_host(self, stale_timestamp):
+        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        if stale_timestamp:
+            data["reporter"] = "some reporter"
+            data["stale_timestamp"] = stale_timestamp.isoformat()
+
+        host = HostWrapper(data)
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 201)
+        return self._pluck_host_from_response(response, 0)
+
+    def _get_all_hosts(self, query):
+        response = self.get(f"{HOST_URL}{query}", 200)
+        return tuple(host["id"] for host in response["results"])
+
+    def _get_hosts_by_id(self, query, host_id_list=None):
+        if host_id_list is None:
+            host_id_list = (
+                self.fresh_host["id"],
+                self.stale_host["id"],
+                self.stale_warning_host["id"],
+                self.culled_host["id"],
+            )
+        host_id_query = ",".join(host_id_list)
+        response = self.get(f"{HOST_URL}/{host_id_query}{query}", 200)
+        return tuple(host["id"] for host in response["results"])
+
+    def _sub_tests_for_get_operations(self):
+        for method in (self._get_all_hosts, self._get_hosts_by_id):
+            with self.subTest(method=method):
+                yield method
+
+    def test_get_only_fresh(self):
+        for get_method in self._sub_tests_for_get_operations():
+            retrieved_host_ids = get_method("?staleness=fresh")
+            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+
+    def test_get_only_stale(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=stale")
+        self.assertEqual((self.stale_host["id"],), retrieved_host_ids)
+
+    def test_get_only_stale_warning(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=stale_warning")
+        self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
+
+    def test_get_only_culled(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=culled")
+        self.assertEqual((self.culled_host["id"],), retrieved_host_ids)
+
+    def test_get_only_unknown(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=unknown")
+        self.assertEqual((self.unknown_host["id"],), retrieved_host_ids)
+
+    def test_get_all_known(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=fresh,stale,stale_warning,culled")
+        self.assertEqual(4, len(retrieved_host_ids))
+        self.assertIn(self.fresh_host["id"], retrieved_host_ids)
+        self.assertIn(self.stale_host["id"], retrieved_host_ids)
+        self.assertIn(self.stale_warning_host["id"], retrieved_host_ids)
+        self.assertIn(self.culled_host["id"], retrieved_host_ids)
+
+    def test_get_default(self):
+        retrieved_host_ids = self._get_all_hosts("")
+        self.assertEqual(3, len(retrieved_host_ids))
+        self.assertIn(self.fresh_host["id"], retrieved_host_ids)
+        self.assertIn(self.stale_host["id"], retrieved_host_ids)
+        self.assertNotIn(self.stale_warning_host["id"], retrieved_host_ids)
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+        self.assertIn(self.unknown_host["id"], retrieved_host_ids)
+
+
 class FactsTestCase(PreCreatedHostsBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}

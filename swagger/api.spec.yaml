@@ -53,6 +53,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -122,6 +123,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -388,6 +390,21 @@ components:
       description: >-
         Direction of the ordering, defaults to ASC for display_name and to DESC for
         updated
+    stalenessParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+            - culled
+            - unknown
+      description: "Culling states of the hosts. Default: fresh,stale,unknown"
   schemas:
     TagsOut:
       type: object

@@ -1,4 +1,7 @@
 import uuid
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from enum import Enum
 
 import flask
@@ -34,6 +37,7 @@ from tasks import emit_event
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
+DEFAULT_STALENESS = ("stale", "fresh", "unknown")
 
 logger = get_logger(__name__)
 
@@ -112,6 +116,21 @@ def find_hosts_by_tag(account_number, string_tags, query):
     return query.filter(Host.tags.contains(tags_to_find))
 
 
+def find_hosts_by_staleness(states, query):
+    now = datetime.now(timezone.utc)
+    stale_warning_timestamp = Host.stale_timestamp + timedelta(weeks=1)
+    culled_timestamp = Host.stale_timestamp + timedelta(weeks=2)
+    null = None
+    condition_map = {
+        "fresh": Host.stale_timestamp > now,
+        "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
+        "stale_warning": sqlalchemy.and_(stale_warning_timestamp <= now, culled_timestamp > now),
+        "culled": culled_timestamp <= now,
+        "unknown": Host.stale_timestamp == null,
+    }
+    return query.filter(sqlalchemy.or_(condition_map[state] for state in states))
+
+
 @api_operation
 @metrics.api_request_time.time()
 def get_host_list(
@@ -124,6 +143,7 @@ def get_host_list(
     per_page=100,
     order_by=None,
     order_how=None,
+    staleness=DEFAULT_STALENESS,
 ):
     if fqdn:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
@@ -139,6 +159,9 @@ def get_host_list(
     if tags:
         # add tag filtering to the query
         query = find_hosts_by_tag(current_identity.account_number, tags, query)
+
+    if staleness:
+        query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -274,8 +297,11 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=DEFAULT_STALENESS):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+
+    if staleness:
+        query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
