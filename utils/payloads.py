@@ -518,26 +518,18 @@ def build_host_chunk():
     return payload
 
 
-def build_data(payload_type):
-    if payload_type == "default":
-        return build_host_chunk()
-    elif payload_type == "rhsm":
-        return rhsm_payload
-    elif payload_type == "qpc":
-        return qpc_payload
+def build_host_payload(payload_builder=build_host_chunk):
+    return payload_builder()
 
 
-def build_payload(payload_builder=build_host_chunk):
+def build_mq_payload(payload_builder=build_host_chunk):
     message = {
         "operation": "add_host",
-        "platform_metadata": {
-            "request_id": random_uuid(),
-            "archive_url": "http://s3.aws.com/redhat/insights/1234567"
-        },
-        "data": payload_builder()
+        "platform_metadata": {"request_id": random_uuid(), "archive_url": "http://s3.aws.com/redhat/insights/1234567"},
+        "data": build_host_payload(payload_builder),
     }
     return json.dumps(message).encode("utf-8")
 
 
-def build_http_payload(payload_type="default"):  # FIXME: Could combine with the above method?
-    return build_data(payload_type)
+def build_http_payload(payload_builder=build_host_chunk):
+    return build_host_payload(payload_builder)
