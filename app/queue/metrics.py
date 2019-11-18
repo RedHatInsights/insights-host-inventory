@@ -11,9 +11,11 @@ ingress_message_parsing_failure = Counter(
     "inventory_ingress_message_parsing_failures", "Total amount of failures parsing ingress messages"
 )
 add_host_success = Counter(
-    "inventory_ingress_add_host_successes", "Total amount of successfully added hosts", ["result"]
+    "inventory_ingress_add_host_successes", "Total amount of successfully added hosts", ["result", "reporter"]
 )
-add_host_failure = Counter("inventory_ingress_add_host_failures", "Total amount of failures adding hosts", ["cause"])
+add_host_failure = Counter(
+    "inventory_ingress_add_host_failures", "Total amount of failures adding hosts", ["cause", "reporter"]
+)
 ingress_message_handler_success = Counter(
     "inventory_ingress_message_handler_successes",
     "Total amount of successfully handled messages from the ingress queue",
