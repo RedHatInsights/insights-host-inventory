@@ -49,6 +49,7 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.inc()
         raise
 
+    logger.info("parsed_message: %s", parsed_operation)
     return parsed_operation
 
 
