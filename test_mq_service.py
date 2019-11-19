@@ -115,7 +115,7 @@ class MQServiceTestCase(TestCase):
         pass
 
 
-class MQAddHostTestCase(MQServiceTestCase):
+class MQAddHostBaseClass(MQServiceTestCase):
     @classmethod
     def setUpClass(cls):
         """
@@ -147,6 +147,38 @@ class MQAddHostTestCase(MQServiceTestCase):
                 json.loads(mock_event_producer.get_write_event())["host"][key], expected_results["host"][key]
             )
 
+
+class MQAddHostTestCase(MQAddHostBaseClass):
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_simple(self, datetime_mock):
+        """
+        Tests to see if the host is succesfully created with both reporter
+        and stale_timestamp set.
+        """
+        expected_insights_id = str(uuid.uuid4())
+        host_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+
+        host_data = {
+            "id": host_id,
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["id", "display_name", "insights_id", "account"]
+
+        self._base_add_host_test(host_data, expected_results, host_id, host_keys_to_check)
+
+
+class MQCullingTests(MQAddHostBaseClass):
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_stale_timestamp(self, datetime_mock):
         """
