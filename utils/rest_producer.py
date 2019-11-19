@@ -6,6 +6,7 @@ import requests
 
 # URL = "http://localhost:8080/r/insights/platform/inventory/api/v1/hosts" # LEGACY
 URL = "http://localhost:8080/api/inventory/v1/hosts"
+NUM_HOSTS = 1
 
 account_number = "0000001"
 
@@ -21,7 +22,7 @@ headers["x-rh-identity"] = base64.b64encode(json.dumps(identity).encode())
 
 
 def main():
-    all_payloads = payloads.build_http_payloads()
+    all_payloads = [payloads.build_http_payload() for _ in range(NUM_HOSTS)]
 
     if bulk_insert:
         r = requests.post(URL, data=json.dumps(all_payloads), headers=headers)
