@@ -424,7 +424,7 @@ def _count_tags(host_list):
                         host_tag_count += 1  # for tags with no value
                     else:
                         host_tag_count += len(host.tags[namespace][tag])
-            counts[str(host.id)] = host_tag_count
+        counts[str(host.id)] = host_tag_count
 
     return counts
 
