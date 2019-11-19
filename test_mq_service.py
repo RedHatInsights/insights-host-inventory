@@ -152,8 +152,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_simple(self, datetime_mock):
         """
-        Tests to see if the host is succesfully created with both reporter
-        and stale_timestamp set.
+        Tests adding a host with some simple data
         """
         expected_insights_id = str(uuid.uuid4())
         host_id = str(uuid.uuid4())
