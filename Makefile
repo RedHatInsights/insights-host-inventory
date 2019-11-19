@@ -22,10 +22,10 @@ run_inv_mq_service:
 	INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
 
 run_inv_mq_service_test_producer:
-	KAFKA_GROUP="inventory-mq" KAFKA_TOPIC="platform.inventory.host-ingress" python utils/kafka_producer.py
+	python utils/kafka_producer.py
 
 run_inv_mq_service_test_consumer:
-	KAFKA_GROUP="inventory-mq" KAFKA_TOPIC="platform.inventory.host-egress" python utils/kafka_consumer.py
+	python utils/kafka_consumer.py
 
 run_inv_http_test_producer:
 	python utils/rest_producer.py
