@@ -514,6 +514,7 @@ def build_host_chunk():
             {"namespace": "NS3", "key": "key3", "value": "val3"},
             {"namespace": "NS1", "key": "key3", "value": "val3"},
             {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "CAMP", "value": "OUCH"},
         ],
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
