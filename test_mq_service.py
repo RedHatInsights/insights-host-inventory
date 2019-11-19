@@ -12,10 +12,12 @@ from unittest.mock import patch
 import marshmallow
 
 from app import create_app
+from app import db
 from app.exceptions import InventoryException
 from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
+from test_utils import rename_host_table_and_indexes
 
 
 class FakeKafkaMessage:
@@ -114,8 +116,24 @@ class MQServiceTestCase(TestCase):
 
 
 class MQAddHostTestCase(MQServiceTestCase):
+    @classmethod
+    def setUpClass(cls):
+        """
+        Temporarily rename the host table while the tests run.  This is done
+        to make dropping the table at the end of the tests a bit safer.
+        """
+        rename_host_table_and_indexes()
+
     def setUp(self):
+        """
+        Initializes the database by creating all tables.
+        """
         super().setUp()
+
+        # binds the app to the current context
+        with self.app.app_context():
+            # create all tables
+            db.create_all()
 
     def _base_add_host_test(self, host_data, expected_results, host_id, host_keys_to_check):
         message = {"operation": "add_host", "data": host_data}
