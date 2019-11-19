@@ -6,6 +6,7 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host as Host
 from app.models import HostSchema
+from app.utils import Tag
 
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
@@ -32,12 +33,14 @@ def deserialize_host(raw_data):
 
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
+    tags = _deserialize_tags(validated_data.get("tags"))
     return Host(
         canonical_facts,
         validated_data.get("display_name", None),
         validated_data.get("ansible_host"),
         validated_data.get("account"),
         facts,
+        tags,
         validated_data.get("system_profile", {}),
     )
 
@@ -100,3 +103,7 @@ def _deserialize_facts(data):
 def _serialize_facts(facts):
     fact_list = [{"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in facts.items()]
     return fact_list
+
+
+def _deserialize_tags(tags):
+    return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))

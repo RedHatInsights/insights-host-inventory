@@ -84,6 +84,7 @@ class Host(db.Model):
         ansible_host=None,
         account=None,
         facts=None,
+        tags=None,
         system_profile_facts=None,
     ):
 
@@ -102,6 +103,7 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
+        self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
     def save(self):
@@ -115,6 +117,8 @@ class Host(db.Model):
         self._update_ansible_host(input_host.ansible_host)
 
         self.update_facts(input_host.facts)
+
+        self.update_tags(input_host.tags)
 
         if update_system_profile:
             self._update_system_profile(input_host.system_profile_facts)
@@ -168,6 +172,19 @@ class Host(db.Model):
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
+
+    def update_tags(self, tags_dict):
+        if tags_dict:
+            if not self.tags:
+                self.tags = tags_dict
+                return
+
+            for input_namespace, input_tags in tags_dict.items():
+                self.replace_tags_in_namespace(input_namespace, input_tags)
+
+    def replace_tags_in_namespace(self, namespace, tags_dict):
+        self.tags[namespace] = tags_dict
+        orm.attributes.flag_modified(self, "tags")
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
         if not facts_dict:
@@ -265,6 +282,12 @@ class FactsSchema(Schema):
     facts = fields.Dict()
 
 
+class TagsSchema(Schema):
+    namespace = fields.Str()
+    key = fields.Str()
+    value = fields.Str(required=False, allow_none=True)
+
+
 class HostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
@@ -279,6 +302,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
+    tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
 
     @validates("ip_addresses")
@@ -290,6 +314,12 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
+
+    @validates("tags")
+    def validate_tags(self, tags):
+        for tag in tags:
+            if "key" not in tag:
+                raise ValidationError("Key is requred in all tags")
 
 
 class PatchHostSchema(Schema):

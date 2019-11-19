@@ -26,6 +26,7 @@ from app.auth.identity import Identity
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
+from app.utils import Tag
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
@@ -1193,9 +1194,37 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
     def create_hosts(self):
         hosts_to_create = [
-            ("host1", generate_uuid(), "host1.domain.test"),
-            ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
-            ("host3", generate_uuid(), "host2.domain.test"),
+            (
+                "host1",
+                generate_uuid(),
+                "host1.domain.test",
+                [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                    {"namespace": "no", "key": "key", "value": None},
+                ],
+            ),
+            (
+                "host2",
+                generate_uuid(),
+                "host1.domain.test",
+                [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+            ),  # the same fqdn is intentional
+            (
+                "host3",
+                generate_uuid(),
+                "host2.domain.test",
+                [
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                ],
+            ),
         ]
         host_list = []
 
@@ -1214,6 +1243,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+            host_wrapper.tags = host[3]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
@@ -1520,6 +1550,23 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._invalid_paging_parameters_test(test_url)
 
 
+class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        host_wrapper = HostWrapper()
+        host_wrapper.account = ACCOUNT
+        host_wrapper.display_name = "host4"
+        host_wrapper.insights_id = generate_uuid()
+        host_wrapper.tags = []
+        response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+        self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
+
+    def _assert_host_ids_in_response(self, response, expected_hosts):
+        response_ids = [host["id"] for host in response["results"]]
+        expected_ids = [host.id for host in expected_hosts]
+        self.assertEqual(response_ids, expected_ids)
+
+
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
@@ -1667,6 +1714,160 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.get(test_url, 200)
 
 
+class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    def _compare_responses(self, expected_response_list, response_list, test_url):
+        self.assertEqual(len(expected_response_list), len(response_list["results"]))
+        for host, result in zip(expected_response_list, response_list["results"]):
+            self.assertEqual(host.id, result["id"])
+        self._base_paging_test(test_url, len(expected_response_list))
+
+    def test_get_host_by_tag(self):
+        """
+        Get only the one host with the special tag to find on it.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]  # host with tag SPECIAL/tag=ToFind
+
+        test_url = f"{HOST_URL}?tags=SPECIAL/tag=ToFind"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_multiple_hosts_by_tag(self):
+        """
+        Get only the one host with the special tag to find on it.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0], host_list[1]]  # hosts with tag "NS1/key1=val1"
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1&order_by=updated&order_how=ASC"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_by_multiple_tags(self):
+        """
+        Get only the host with all three tags on it and not the other host
+        which both have some, but not all of the tags we query for.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[1]]
+        # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_by_subset_of_tags(self):
+        """
+        Get a host using a subset of it's tags
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[1]]
+        # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_with_different_tags_same_namespace(self):
+        """
+        get a host with two tags in the same namespace with diffent key and same value
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]  # host with tags ["NS1/key1=val1", "NS1/key2=val1"]
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS1/key2=val1"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_no_host_with_different_tags_same_namespace(self):
+        """
+        Don’t get a host with two tags in the same namespace, from which only one match. This is a
+        regression test.
+        """
+        test_url = f"{HOST_URL}?tags=NS1/key1=val2,NS1/key2=val1"
+        response_list = self.get(test_url, 200)
+
+        # self.added_hosts[0] would have been matched by NS1/key2=val1, this must not happen.
+        self.assertEqual(0, len(response_list["results"]))
+
+    def test_get_host_with_same_tags_different_namespaces(self):
+        """
+        get a host with two tags in the same namespace with diffent key and same value
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[2]]  # host with tags ["NS3/key3=val3", "NS1/key3=val3"]
+
+        test_url = f"{HOST_URL}?tags=NS3/key3=val3,NS1/key3=val3"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_with_tag_no_value(self):
+        """
+        Attempt to find host with a tag with no value
+        """
+        test_url = f"{HOST_URL}?tags=namespace/key"
+        self.get(test_url, 200)
+
+    def test_get_host_with_tag_no_namespace(self):
+        """
+        Attempt to find host with a tag with no namespace.
+        """
+        test_url = f"{HOST_URL}?tags=key=value"
+        self.get(test_url, 400)
+
+    def test_get_host_with_invalid_tag_no_key(self):
+        """
+        Attempt to find host with an incomplete tag (no key).
+        Expects 400 response.
+        """
+        test_url = f"{HOST_URL}?tags=namespace/=Value"
+        self.get(test_url, 400)
+
+    def test_get_host_by_display_name_and_tag(self):
+        """
+        Attempt to get only the host with the specified key and
+        the specified display name
+        """
+
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]
+        # host with tag NS1/key1=val1 and host_name "host1"
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1&display_name=host1"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_by_display_name_and_tag_backwards(self):
+        """
+        Attempt to get only the host with the specified key and
+        the specified display name, but the parameters are backwards
+        """
+
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]
+        # host with tag NS1/key1=val1 and host_name "host1"
+
+        test_url = f"{HOST_URL}?display_name=host1&tags=NS1/key1=val1"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
     def _queries_subtests_with_added_hosts(self):
         host_id_list = [host.id for host in self.added_hosts]
@@ -1802,7 +2003,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         # New modified_on value must be set explicitly so it’s saved the same to all
         # records. Otherwise SQLAlchemy would consider it unchanged and update it
         # automatically to its own "now" only for records whose ID changed.
-        new_modified_on = datetime.now()
+        new_modified_on = datetime.now(timezone.utc)
 
         with self.app.app_context():
             for added_host_index, new_id in id_updates:
@@ -2142,6 +2343,184 @@ class HealthTestCase(APIBaseTestCase):
     def test_version(self):
         response = self.get(VERSION_URL, 200)
         assert response["version"] is not None
+
+
+class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    """
+    Tests the tag endpoints
+    """
+
+    tags_list = [
+        [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
+        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
+        [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
+        [],
+    ]
+
+    def _compare_responses(self, expected_response, response, test_url):
+        self.assertEqual(len(expected_response), len(response["results"]))
+        self.assertEqual(expected_response, response["results"])
+
+        self._base_paging_test(test_url, len(expected_response))
+        self._invalid_paging_parameters_test(test_url)
+
+    def test_get_tags_of_multiple_hosts(self):
+        """
+        Send a request for the tag count of 1 host and check
+        that it is the correct number
+        """
+        host_list = self.added_hosts
+
+        expected_response = {}
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_response[str(host.id)] = [tag.data() for tag in tags]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
+        response = self.get(test_url, 200)
+
+        self._compare_responses(expected_response, response, test_url)
+
+    def test_get_tag_count_of_multiple_hosts(self):
+        host_list = self.added_hosts
+
+        expected_response = {}
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_response[str(host.id)] = len(tags)
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
+        response = self.get(test_url, 200)
+
+        self._compare_responses(expected_response, response, test_url)
+
+    def test_get_tags_of_hosts_that_doesnt_exist(self):
+        """
+        send a request for some hosts that don't exist
+        """
+        url_host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
+        test_url = f"{HOST_URL}/{url_host_id}/tags"
+        host_tag_results = self.get(test_url, 200)
+
+        expected_response = {}
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_count_of_hosts_that_doesnt_exist(self):
+        """
+        send a request for some hosts that don't exist
+        """
+        url_host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
+        test_url = f"{HOST_URL}/{url_host_id}/tags/count"
+        host_tag_results = self.get(test_url, 200)
+
+        expected_response = {}
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_from_host_with_no_tags(self):
+        """
+        send a request for a host with no tags
+        """
+        host_with_no_tags = self.added_hosts[3]
+        expected_response = {host_with_no_tags.id: []}
+
+        test_url = f"{HOST_URL}/{host_with_no_tags.id}/tags"
+        host_tag_results = self.get(test_url, 200)
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_count_from_host_with_no_tags(self):
+        """
+        send a request for a host with no tags
+        """
+        host_with_no_tags = self.added_hosts[3]
+        expected_response = {host_with_no_tags.id: 0}
+
+        test_url = f"{HOST_URL}/{host_with_no_tags.id}/tags/count"
+        host_tag_results = self.get(test_url, 200)
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_count_from_host_with_tag_with_no_value(self):
+        # host 0 has 4 tags, one of which has no value
+        host_with_valueless_tag = self.added_hosts[0]
+        expected_response = {host_with_valueless_tag.id: 4}
+
+        test_url = f"{HOST_URL}/{host_with_valueless_tag.id}/tags/count"
+        host_tag_results = self.get(test_url, 200)
+
+        self.assertEqual(expected_response, host_tag_results["results"])
+
+    def _per_page_test(self, per_page, total, range_end, test_url, expected_responses):
+        for i in range(1, range_end):
+            test_url = inject_qs(test_url, page=str(i), per_page=str(per_page))
+            response = self.get(test_url, 200)
+            with self.subTest(pagination_test_1_per_page=i):
+                self.assertEqual(response["results"], expected_responses[i - 1])
+                self.assertEqual(len(response["results"]), per_page)
+                self.assertEqual(response["count"], per_page)
+                self.assertEqual(response["total"], total)
+
+    def test_tags_pagination(self):
+        """
+        simple test to check pagination works for /tags
+        """
+        host_list = self.added_hosts
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        expected_responses_1_per_page = []
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_responses_1_per_page.append({str(host.id): [tag.data() for tag in tags]})
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
+
+        # 1 per page test
+        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+
+        expected_responses_2_per_page = [
+            {
+                str(host_list[0].id): [tag.data() for tag in self.tags_list[0]],
+                str(host_list[1].id): [tag.data() for tag in self.tags_list[1]],
+            },
+            {
+                str(host_list[2].id): [tag.data() for tag in self.tags_list[2]],
+                str(host_list[3].id): [tag.data() for tag in self.tags_list[3]],
+            },
+        ]
+
+        # 2 per page test
+        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+
+    def test_tags_count_pagination(self):
+        """
+        simple test to check pagination works for /tags
+        """
+        host_list = self.added_hosts
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        expected_responses_1_per_page = []
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_responses_1_per_page.append({str(host.id): len(tags)})
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
+
+        # 1 per page test
+        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+
+        expected_responses_2_per_page = [
+            {str(host_list[0].id): len(self.tags_list[0]), str(host_list[1].id): len(self.tags_list[1])},
+            {str(host_list[2].id): len(self.tags_list[2]), str(host_list[3].id): len(self.tags_list[3])},
+        ]
+
+        # 2 per page test
+        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
 if __name__ == "__main__":
