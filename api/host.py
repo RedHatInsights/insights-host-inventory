@@ -417,13 +417,14 @@ def _count_tags(host_list):
 
     for host in host_list:
         host_tag_count = 0
-        for namespace in host.tags:
-            for tag in host.tags[namespace]:
-                if len(host.tags[namespace][tag]) == 0:
-                    host_tag_count += 1  # for tags with no value
-                else:
-                    host_tag_count += len(host.tags[namespace][tag])
-        counts[str(host.id)] = host_tag_count
+        if host.tags is not None:
+            for namespace in host.tags:
+                for tag in host.tags[namespace]:
+                    if len(host.tags[namespace][tag]) == 0:
+                        host_tag_count += 1  # for tags with no value
+                    else:
+                        host_tag_count += len(host.tags[namespace][tag])
+            counts[str(host.id)] = host_tag_count
 
     return counts
 
