@@ -308,6 +308,9 @@ class Tag:
         """
         takes a nesting of tags and returns an array of structured tags
         """
+        if nested_tags is None:
+            nested_tags = {}
+
         tags = []
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
