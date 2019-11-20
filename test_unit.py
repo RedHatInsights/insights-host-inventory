@@ -858,11 +858,19 @@ class SerializationSerializeHostBaseTestCase(TestCase):
         return timestamp.astimezone(timezone.utc).isoformat()
 
     @staticmethod
-    def _config():
-        return Mock(culling_stale_warning_offset_days=7, culling_culled_offset_days=14)
+    def _config(**values):
+        return Mock(**{"culling_stale_warning_offset_days": 7, "culling_culled_offset_days": 14, **values})
 
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
+    @staticmethod
+    def _stale_warning_timestamp(stale_timestamp, config):
+        return stale_timestamp + timedelta(days=config.culling_stale_warning_offset_days)
+
+    @staticmethod
+    def _culled_timestamp(stale_timestamp, config):
+        return stale_timestamp + timedelta(days=config.culling_culled_offset_days)
+
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
@@ -909,10 +917,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
             "stale_warning_timestamp": self._timestamp_to_str(
-                host_init_data["stale_timestamp"] + timedelta(days=config.culling_stale_warning_offset_days)
+                self._stale_warning_timestamp(host_init_data["stale_timestamp"], config)
             ),
             "culled_timestamp": self._timestamp_to_str(
-                host_init_data["stale_timestamp"] + timedelta(days=config.culling_culled_offset_days)
+                self._culled_timestamp(host_init_data["stale_timestamp"], config)
             ),
         }
         self.assertEqual(expected, actual)
@@ -949,6 +957,32 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "reporter": None,
         }
         self.assertEqual(expected, actual)
+
+    def test_stale_timestamp_config(self):
+        for culling_stale_warning_offset_days, culling_culled_offset_days in ((1, 2), (7, 14), (100, 1000)):
+            with self.subTest(
+                culling_stale_warning_offset_days=culling_stale_warning_offset_days,
+                culling_culled_offset_days=culling_culled_offset_days,
+            ):
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+                host = Host({"fqdn": "some fqdn"}, facts={}, stale_timestamp=stale_timestamp, reporter="some reporter")
+
+                for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
+                    setattr(host, k, v)
+
+                config = self._config(
+                    culling_stale_warning_offset_days=culling_stale_warning_offset_days,
+                    culling_culled_offset_days=culling_culled_offset_days,
+                )
+                serialized = serialize_host(host, config)
+                self.assertEqual(
+                    self._timestamp_to_str(self._stale_warning_timestamp(stale_timestamp, config)),
+                    serialized["stale_warning_timestamp"],
+                )
+                self.assertEqual(
+                    self._timestamp_to_str(self._culled_timestamp(stale_timestamp, config)),
+                    serialized["culled_timestamp"],
+                )
 
 
 @patch("app.serialization._serialize_facts")
