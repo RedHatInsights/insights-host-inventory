@@ -857,6 +857,10 @@ class SerializationSerializeHostBaseTestCase(TestCase):
     def _timestamp_to_str(self, timestamp):
         return timestamp.astimezone(timezone.utc).isoformat()
 
+    @staticmethod
+    def _config():
+        return Mock(culling_stale_warning_offset_days=7, culling_culled_offset_days=14)
+
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
     def test_with_all_fields(self):
@@ -892,7 +896,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        config = self._config()
+        actual = serialize_host(host, config)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -903,8 +908,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
-            "stale_warning_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"] + timedelta(weeks=1)),
-            "culled_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"] + timedelta(weeks=2)),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                host_init_data["stale_timestamp"] + timedelta(days=config.culling_stale_warning_offset_days)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                host_init_data["stale_timestamp"] + timedelta(days=config.culling_culled_offset_days)
+            ),
         }
         self.assertEqual(expected, actual)
 
@@ -917,7 +926,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        actual = serialize_host(host, self._config())
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -966,7 +975,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        actual = serialize_host(host, self._config())
         expected = {
             **canonical_facts,
             **unchanged_data,

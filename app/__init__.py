@@ -68,6 +68,8 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     flask_app.config["SQLALCHEMY_POOL_SIZE"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.db_pool_timeout
 
+    flask_app.config["INVENTORY_CONFIG"] = app_config
+
     db.init_app(flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)

@@ -102,7 +102,7 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, update_system_profile=False)
+    return add_host(input_host, flask.current_app.config["INVENTORY_CONFIG"], update_system_profile=False)
 
 
 def find_hosts_by_tag(account_number, string_tags, query):
@@ -117,10 +117,13 @@ def find_hosts_by_tag(account_number, string_tags, query):
 
 
 def find_hosts_by_staleness(states, query):
-    now = datetime.now(timezone.utc)
-    stale_warning_timestamp = Host.stale_timestamp + timedelta(weeks=1)
-    culled_timestamp = Host.stale_timestamp + timedelta(weeks=2)
+    config = flask.current_app.config["INVENTORY_CONFIG"]
+    stale_warning_timestamp = Host.stale_timestamp + timedelta(days=config.culling_stale_warning_offset_days)
+    culled_timestamp = Host.stale_timestamp + timedelta(days=config.culling_culled_offset_days)
+
     null = None
+    now = datetime.now(timezone.utc)
+
     condition_map = {
         "fresh": Host.stale_timestamp > now,
         "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
@@ -209,7 +212,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [serialize_host(host) for host in host_list]
+    json_host_list = [serialize_host(host, flask.current_app.config["INVENTORY_CONFIG"]) for host in host_list]
     json_output = {
         "total": total,
         "count": len(host_list),

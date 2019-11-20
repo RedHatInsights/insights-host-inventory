@@ -48,7 +48,7 @@ def deserialize_host(raw_data):
     )
 
 
-def serialize_host(host):
+def serialize_host(host, config):
     json_dict = serialize_canonical_facts(host.canonical_facts)
     json_dict["id"] = str(host.id)
     json_dict["account"] = host.account
@@ -59,8 +59,10 @@ def serialize_host(host):
     if host.stale_timestamp:
         stale_timestamp = host.stale_timestamp.astimezone(timezone.utc)
         json_dict["stale_timestamp"] = stale_timestamp.isoformat()
-        json_dict["stale_warning_timestamp"] = (stale_timestamp + timedelta(weeks=1)).isoformat()
-        json_dict["culled_timestamp"] = (stale_timestamp + timedelta(weeks=2)).isoformat()
+        stale_warning_timestamp = stale_timestamp + timedelta(days=config.culling_stale_warning_offset_days)
+        json_dict["stale_warning_timestamp"] = stale_warning_timestamp.isoformat()
+        culled_timestamp = stale_timestamp + timedelta(days=config.culling_culled_offset_days)
+        json_dict["culled_timestamp"] = culled_timestamp.isoformat()
     else:
         json_dict["stale_timestamp"] = None
         json_dict["stale_warning_timestamp"] = None
