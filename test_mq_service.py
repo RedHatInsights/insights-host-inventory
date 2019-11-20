@@ -86,22 +86,23 @@ class MQServiceTestCase(TestCase):
         host_id = uuid.uuid4()
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
         message = {"operation": "add_host", "data": {"insights_id": expected_insights_id, "account": "0000001"}}
-        with unittest.mock.patch("app.queue.ingress.host_repository.add_host") as m:
-            m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
-            mock_event_producer = Mock()
-            handle_message(json.dumps(message), mock_event_producer)
+        with self.app.app_context():
+            with unittest.mock.patch("app.queue.ingress.host_repository.add_host") as m:
+                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
+                mock_event_producer = Mock()
+                handle_message(json.dumps(message), mock_event_producer)
 
-            mock_event_producer.write_event.assert_called_once()
+                mock_event_producer.write_event.assert_called_once()
 
-            self.assertEquals(
-                json.loads(mock_event_producer.write_event.call_args[0][0]),
-                {
-                    "host": {"id": str(host_id), "insights_id": None},
-                    "platform_metadata": {},
-                    "timestamp": timestamp_iso,
-                    "type": "created",
-                },
-            )
+                self.assertEquals(
+                    json.loads(mock_event_producer.write_event.call_args[0][0]),
+                    {
+                        "host": {"id": str(host_id), "insights_id": None},
+                        "platform_metadata": {},
+                        "timestamp": timestamp_iso,
+                        "type": "created",
+                    },
+                )
 
     def test_handle_message_verify_threadctx_request_id_set_and_cleared(self):
         # set the threadctx.request_id
