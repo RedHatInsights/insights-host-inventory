@@ -402,7 +402,6 @@ components:
             - fresh
             - stale
             - stale_warning
-            - culled
             - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
   schemas:

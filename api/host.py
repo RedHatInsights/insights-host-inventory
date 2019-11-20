@@ -128,7 +128,6 @@ def find_hosts_by_staleness(states, query):
         "fresh": Host.stale_timestamp > now,
         "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
         "stale_warning": sqlalchemy.and_(stale_warning_timestamp <= now, culled_timestamp > now),
-        "culled": culled_timestamp <= now,
         "unknown": Host.stale_timestamp == null,
     }
     return query.filter(sqlalchemy.or_(condition_map[state] for state in states))
