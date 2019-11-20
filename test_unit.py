@@ -14,6 +14,7 @@ from uuid import uuid4
 from api import api_operation
 from api.host import _order_how
 from api.host import _params_to_order_by
+from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
@@ -212,6 +213,8 @@ class ConfigTestCase(TestCase):
         expected_base_url = f"/{path_prefix}/{app_name}"
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
+        culling_stale_warning_offset_days = 10
+        culling_culled_offset_days = 20
 
         new_env = {
             "INVENTORY_DB_USER": "fredflintstone",
@@ -223,6 +226,8 @@ class ConfigTestCase(TestCase):
             "APP_NAME": app_name,
             "PATH_PREFIX": path_prefix,
             "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix,
+            "CULLING_STALE_WARNING_OFFSET_DAYS": str(culling_stale_warning_offset_days),
+            "CULLING_CULLED_OFFSET_DAYS": str(culling_culled_offset_days),
         }
 
         with set_environment(new_env):
@@ -234,6 +239,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_size, 8)
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
+            self.assertEqual(conf.culling_stale_warning_offset_days, culling_stale_warning_offset_days)
+            self.assertEqual(conf.culling_culled_offset_days, culling_culled_offset_days)
 
     def test_config_default_settings(self):
         expected_api_path = "/api/inventory/v1"
@@ -249,6 +256,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
             self.assertEqual(conf.db_pool_size, 5)
+            self.assertEqual(conf.culling_stale_warning_offset_days, 7)
+            self.assertEqual(conf.culling_culled_offset_days, 14)
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
@@ -256,6 +265,14 @@ class ConfigTestCase(TestCase):
             conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
+
+
+@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
+class CreateAppConfigTestCase(TestCase):
+    def test_config_is_assigned(self, config):
+        app = create_app("testing")
+        self.assertIn("INVENTORY_CONFIG", app.config)
+        self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
 
 
 class HostOrderHowTestCase(TestCase):
