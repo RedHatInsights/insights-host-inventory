@@ -135,7 +135,16 @@ class MQAddHostBaseClass(MQServiceTestCase):
             # create all tables
             db.create_all()
 
-    def _base_add_host_test(self, host_data, expected_results, host_id, host_keys_to_check):
+    def tearDown(self):
+        """
+        Cleans up the database by dropping all tables.
+        """
+        with self.app.app_context():
+            # drop all tables
+            db.session.remove()
+            db.drop_all()
+
+    def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
         message = {"operation": "add_host", "data": host_data}
 
         mock_event_producer = mockEventProducer()
@@ -155,15 +164,9 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         Tests adding a host with some simple data
         """
         expected_insights_id = str(uuid.uuid4())
-        host_id = str(uuid.uuid4())
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
 
-        host_data = {
-            "id": host_id,
-            "display_name": "test_host",
-            "insights_id": expected_insights_id,
-            "account": "0000001",
-        }
+        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
 
         expected_results = {
             "host": {**host_data},
@@ -172,9 +175,9 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "type": "created",
         }
 
-        host_keys_to_check = ["id", "display_name", "insights_id", "account"]
+        host_keys_to_check = ["display_name", "insights_id", "account"]
 
-        self._base_add_host_test(host_data, expected_results, host_id, host_keys_to_check)
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
 
 class MQCullingTests(MQAddHostBaseClass):
@@ -185,12 +188,10 @@ class MQCullingTests(MQAddHostBaseClass):
         and stale_timestamp set.
         """
         expected_insights_id = str(uuid.uuid4())
-        host_id = uuid.uuid4()
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
         stale_timestamp = datetime.now(timezone.utc)
 
         host_data = {
-            "id": str(host_id),
             "display_name": "test_host",
             "insights_id": expected_insights_id,
             "account": "0000001",
@@ -211,14 +212,12 @@ class MQCullingTests(MQAddHostBaseClass):
 
         host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
-        self._base_add_host_test(host_data, expected_results, host_id, host_keys_to_check)
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
     def _base_incomplete_staleness_data_test(self, additional_host_data):
         expected_insights_id = str(uuid.uuid4())
-        host_id = uuid.uuid4()
 
         host_data = {
-            "id": str(host_id),
             "display_name": "test_host",
             "insights_id": expected_insights_id,
             "account": "0000001",
