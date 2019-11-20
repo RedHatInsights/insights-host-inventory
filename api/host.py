@@ -37,7 +37,6 @@ from tasks import emit_event
 
 TAG_OPERATIONS = ("apply", "remove")
 FactOperations = Enum("FactOperations", ["merge", "replace"])
-DEFAULT_STALENESS = ("stale", "fresh", "unknown")
 
 logger = get_logger(__name__)
 
@@ -145,7 +144,7 @@ def get_host_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    staleness=DEFAULT_STALENESS,
+    staleness=None,
 ):
     if fqdn:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
@@ -299,7 +298,7 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=DEFAULT_STALENESS):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     if staleness:
