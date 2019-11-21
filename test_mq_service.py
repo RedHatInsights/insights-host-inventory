@@ -104,16 +104,12 @@ class MQServiceTestCase(TestCase):
                     },
                 )
 
-    def test_handle_message_verify_threadctx_request_id_set_and_cleared(self):
-        # set the threadctx.request_id
-        # and clear it
-        pass
-
-    def test_handle_message_verify_metadata_pass_through(self):
-        pass
-
-    def test_handle_message_verify_metadata_is_not_required(self):
-        pass
+    # Leaving this in as a reminder that we need to impliment this test eventually
+    # when the problem that it is supposed to test is fixed
+    # def test_handle_message_verify_threadctx_request_id_set_and_cleared(self):
+    #     # set the threadctx.request_id
+    #     # and clear it
+    #     pass
 
 
 class MQAddHostBaseClass(MQServiceTestCase):
@@ -151,6 +147,49 @@ class MQAddHostBaseClass(MQServiceTestCase):
         mock_event_producer = mockEventProducer()
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
+
+        for key in host_keys_to_check:
+            self.assertEqual(
+                json.loads(mock_event_producer.get_write_event())["host"][key], expected_results["host"][key]
+            )
+
+
+class MQhandleMessageTestCase(MQAddHostBaseClass):
+    def test_handle_message_verify_metadata_pass_through(self):
+        request_id = str(uuid.uuid4())
+        expected_insights_id = str(uuid.uuid4())
+
+        metadata = {"request_id": request_id, "archive_url": "https://some.url"}
+
+        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+
+        message = {"operation": "add_host", "platform_metadata": metadata, "data": host_data}
+
+        expected_results = {"platform_metadata": {**metadata}}
+
+        mock_event_producer = mockEventProducer()
+        with self.app.app_context():
+            handle_message(json.dumps(message), mock_event_producer)
+
+        self.assertEqual(
+            json.loads(mock_event_producer.get_write_event())["platform_metadata"],
+            expected_results["platform_metadata"],
+        )
+
+    def test_handle_message_verify_metadata_is_not_required(self):
+        expected_insights_id = str(uuid.uuid4())
+
+        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+
+        message = {"operation": "add_host", "data": host_data}
+
+        expected_results = {"host": {**host_data}}
+
+        mock_event_producer = mockEventProducer()
+        with self.app.app_context():
+            handle_message(json.dumps(message), mock_event_producer)
+
+        host_keys_to_check = ["display_name", "insights_id", "account"]
 
         for key in host_keys_to_check:
             self.assertEqual(
