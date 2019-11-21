@@ -36,7 +36,7 @@ def deserialize_host(raw_data):
     tags = _deserialize_tags(validated_data.get("tags"))
     return Host(
         canonical_facts,
-        validated_data.get("display_name", None),
+        validated_data.get("display_name"),
         validated_data.get("ansible_host"),
         validated_data.get("account"),
         facts,
@@ -46,64 +46,60 @@ def deserialize_host(raw_data):
 
 
 def serialize_host(host):
-    json_dict = serialize_canonical_facts(host.canonical_facts)
-    json_dict["id"] = str(host.id)
-    json_dict["account"] = host.account
-    json_dict["display_name"] = host.display_name
-    json_dict["ansible_host"] = host.ansible_host
-    json_dict["facts"] = _serialize_facts(host.facts)
-    # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
-    # requires it
-    json_dict["created"] = host.created_on.astimezone(timezone.utc).isoformat()
-    json_dict["updated"] = host.modified_on.astimezone(timezone.utc).isoformat()
-    return json_dict
+    return {
+        **serialize_canonical_facts(host.canonical_facts),
+        "id": _serialize_uuid(host.id),
+        "account": host.account,
+        "display_name": host.display_name,
+        "ansible_host": host.ansible_host,
+        "facts": _serialize_facts(host.facts),
+        # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
+        # requires it
+        "created": _serialize_datetime(host.created_on),
+        "updated": _serialize_datetime(host.modified_on),
+    }
 
 
 def serialize_host_system_profile(host):
-    json_dict = {"id": str(host.id), "system_profile": host.system_profile_facts or {}}
-    return json_dict
+    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
 
 def _deserialize_canonical_facts(data):
-    canonical_fact_list = {}
-    for cf in _CANONICAL_FACTS_FIELDS:
-        # Do not allow the incoming canonical facts to be None or ''
-        if cf in data and data[cf]:
-            canonical_fact_list[cf] = data[cf]
-    return canonical_fact_list
+    return {field: data[field] for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def serialize_canonical_facts(canonical_facts):
-    canonical_fact_dict = dict.fromkeys(_CANONICAL_FACTS_FIELDS, None)
-    for cf in _CANONICAL_FACTS_FIELDS:
-        if cf in canonical_facts:
-            canonical_fact_dict[cf] = canonical_facts[cf]
-    return canonical_fact_dict
+    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
 
 
 def _deserialize_facts(data):
-    if data is None:
-        data = []
-
-    fact_dict = {}
-    for fact in data:
-        if "namespace" in fact and "facts" in fact:
-            if fact["namespace"] in fact_dict:
-                fact_dict[fact["namespace"]].update(fact["facts"])
+    facts = {}
+    for fact in [] if data is None else data:
+        try:
+            if fact["namespace"] in facts:
+                facts[fact["namespace"]].update(fact["facts"])
             else:
-                fact_dict[fact["namespace"]] = fact["facts"]
-        else:
+                facts[fact["namespace"]] = fact["facts"]
+        except KeyError:
             # The facts from the request are formatted incorrectly
             raise InputFormatException(
                 "Invalid format of Fact object.  Fact must contain 'namespace' and 'facts' keys."
             )
-    return fact_dict
+    return facts
 
 
 def _serialize_facts(facts):
-    fact_list = [{"namespace": namespace, "facts": facts if facts else {}} for namespace, facts in facts.items()]
-    return fact_list
+    return [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()]
+
+
+def _serialize_datetime(dt):
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def _serialize_uuid(u):
+    return str(u)
 
 
 def _deserialize_tags(tags):
+    # TODO: Move the deserialization logic to this method.
     return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))

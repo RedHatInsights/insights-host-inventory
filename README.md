@@ -168,11 +168,17 @@ finds a host with a matching insights_id, then the host will be updated
 and the canonical facts from the update request will replace the existing
 canonical facts.
 
-If the update request does not include an insights_id, then the canonical facts
-will be used to lookup the host.  If the canonical facts from the update
-request are a subset or a superset of the previously stored canonical facts,
-then the host will be updated and any new canonical facts from the request
-will be added to the existing host entry.
+If there was not a match on the insights_id, then the inventory service
+will lookup the host using the subscription_manager_id.  If the inventory service
+finds a host with a matching subscription_manager_id, then the host will be updated
+and the canonical facts from the update request will replace the existing
+canonical facts.
+
+If there was not a match on the insights_id or subscription_manager_id,
+then the canonical facts will be used to lookup the host.  If the canonical
+facts from the update request are a subset or a superset of the previously
+stored canonical facts, then the host will be updated and any new canonical
+facts from the request will be added to the existing host entry.
 
 If the canonical facts based lookup does not locate an existing host, then
 a new host entry is created.
