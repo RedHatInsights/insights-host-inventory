@@ -1,5 +1,8 @@
 import json
 import uuid
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 
 
 def rpm_list():
@@ -520,7 +523,7 @@ def build_host_chunk():
         # "mac_addresses": None,
         "subscription_manager_id": random_uuid(),
         "system_profile": create_system_profile(),
-        "stale_timestamp": "2019-12-12T16:32:40.355-04:00",
+        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "me",
     }
     return payload
