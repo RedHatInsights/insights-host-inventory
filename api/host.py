@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from datetime import timedelta
 from datetime import timezone
 from enum import Enum
 
@@ -15,6 +14,7 @@ from api import api_operation
 from api import metrics
 from app import db
 from app import events
+from app import staleness_offset
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -101,7 +101,7 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, flask.current_app.config["INVENTORY_CONFIG"], update_system_profile=False)
+    return add_host(input_host, staleness_offset(), update_system_profile=False)
 
 
 def find_hosts_by_tag(account_number, string_tags, query):
@@ -116,15 +116,16 @@ def find_hosts_by_tag(account_number, string_tags, query):
 
 
 def find_hosts_by_staleness(states, query):
-    config = flask.current_app.config["INVENTORY_CONFIG"]
-    stale_warning_timestamp = Host.stale_timestamp + timedelta(days=config.culling_stale_warning_offset_days)
-    culled_timestamp = Host.stale_timestamp + timedelta(days=config.culling_culled_offset_days)
+    staleness_offset_ = staleness_offset()
+    stale_timestamp = staleness_offset_.stale_timestamp(Host.stale_timestamp)
+    stale_warning_timestamp = staleness_offset_.stale_warning_timestamp(Host.stale_timestamp)
+    culled_timestamp = staleness_offset_.culled_timestamp(Host.stale_timestamp)
 
     null = None
     now = datetime.now(timezone.utc)
 
     condition_map = {
-        "fresh": Host.stale_timestamp > now,
+        "fresh": stale_timestamp > now,
         "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
         "stale_warning": sqlalchemy.and_(stale_warning_timestamp <= now, culled_timestamp > now),
         "unknown": Host.stale_timestamp == null,
@@ -210,7 +211,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [serialize_host(host, flask.current_app.config["INVENTORY_CONFIG"]) for host in host_list]
+    json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
     json_output = {
         "total": total,
         "count": len(host_list),

@@ -1,4 +1,3 @@
-from datetime import timedelta
 from datetime import timezone
 
 from marshmallow import ValidationError
@@ -48,11 +47,11 @@ def deserialize_host(raw_data):
     )
 
 
-def serialize_host(host, config):
+def serialize_host(host, staleness_offset):
     if host.stale_timestamp:
-        stale_timestamp = host.stale_timestamp
-        stale_warning_timestamp = stale_timestamp + timedelta(days=config.culling_stale_warning_offset_days)
-        culled_timestamp = stale_timestamp + timedelta(days=config.culling_culled_offset_days)
+        stale_timestamp = staleness_offset.stale_timestamp(host.stale_timestamp)
+        stale_warning_timestamp = staleness_offset.stale_warning_timestamp(host.stale_timestamp)
+        culled_timestamp = staleness_offset.culled_timestamp(host.stale_timestamp)
     else:
         stale_timestamp = None
         stale_warning_timestamp = None

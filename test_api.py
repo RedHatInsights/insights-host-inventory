@@ -23,6 +23,7 @@ from api.host import _get_host_list_by_id_list
 from app import create_app
 from app import db
 from app.auth.identity import Identity
+from app.culling import StalenessOffset
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
@@ -2147,7 +2148,8 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         old_host.modified_on = new_modified_on
         db.session.add(old_host)
 
-        serialized_old_host = serialize_host(old_host, self.app.config["INVENTORY_CONFIG"])
+        staleness_offset = StalenessOffset.from_config(self.app.config["INVENTORY_CONFIG"])
+        serialized_old_host = serialize_host(old_host, staleness_offset)
         self.added_hosts[added_host_index] = HostWrapper(serialized_old_host)
 
     def _update_hosts(self, id_updates):
