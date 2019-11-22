@@ -300,8 +300,8 @@ class Tag:
         for tag in tags:
             if tag is None:
                 raise TypeError("tag is none")
-            elif tag.key is None or tag.namespace is None:
-                raise TypeError("tag is missing key or namespace")
+            elif tag.key is None:
+                raise TypeError("tag is missing key")
             namespace, key, value = tag.namespace, tag.key, tag.value
             if namespace in nested_tags:
                 if value is None:
