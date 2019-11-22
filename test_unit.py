@@ -1021,6 +1021,8 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": None,
+            "stale_timestamp": None,
         }
         host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
         host = Host(**host_init_data)
@@ -1037,6 +1039,8 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_warning_timestamp": None,
+            "culled_timestamp": None,
         }
         self.assertEqual(expected, actual)
 
