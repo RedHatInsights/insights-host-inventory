@@ -2255,7 +2255,7 @@ class HeaderAuthTestCase(DBAPITestCase):
         """
         Provides a valid Identity object.
         """
-        return Identity(account_number="some account number")
+        return Identity(account_number="some acct")
 
     @staticmethod
     def _valid_payload():

@@ -518,7 +518,7 @@ class SerializationBaseTestCase(TestCase):
         return str(uuid_)
 
 
-class SerializationDeserializeHostCompoundTestCase(TestCase):
+class SerializationDeserializeHostCompoundTestCase(SerializationBaseTestCase):
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": self._format_uuid_with_hyphens(uuid4()),
@@ -534,7 +534,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
         }
         host_init_data = {
             **canonical_facts,
@@ -581,10 +581,10 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             {},
             {"account": ""},
             {"account": "some account", "fqdn": "some fqdn"},
-            {"account": "someacct", "fqdn": None},
-            {"account": "someacct", "fqdn": ""},
-            {"account": "someacct", "fqdn": "x" * 256},
-            {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
+            {"account": "some acct", "fqdn": None},
+            {"account": "some acct", "fqdn": ""},
+            {"account": "some acct", "fqdn": "x" * 256},
+            {"account": "some acct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
         )
         for input in inputs:
             with self.subTest(input=input):
@@ -622,7 +622,7 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
         host_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
             "insights_id": self._format_uuid_with_hyphens(uuid4()),
             "rhel_machine_id": self._format_uuid_with_hyphens(uuid4()),
             "subscription_manager_id": self._format_uuid_with_hyphens(uuid4()),
@@ -647,14 +647,14 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
                 "system_memory_bytes": 4,
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_data
 
         result = deserialize_host(host_data)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_data)
         deserialize_facts.assert_called_once_with(host_data["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_tags.assert_called_once_with(host_data["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             host_data["display_name"],
@@ -669,7 +669,7 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
         host_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
             "tags": [
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
@@ -681,14 +681,14 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
                 "system_memory_bytes": 4,
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_data
 
         result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_data)
         deserialize_facts.assert_called_once_with(None)
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_tags.assert_called_once_with(host_data["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             host_data["display_name"],
@@ -704,7 +704,7 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
     ):
         host_data = {
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -720,14 +720,14 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
                 "system_memory_bytes": 4,
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_data
 
         result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_data)
         deserialize_facts.assert_called_once_with(host_data["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_tags.assert_called_once_with(host_data["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             None,
@@ -744,7 +744,7 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
         host_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
             "tags": [
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
@@ -754,14 +754,14 @@ class SerializationDeserializeHostMockedTestCase(SerializationBaseTestCase):
                 "another namespace": {"another key": "another value"},
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_data
 
         result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_data)
         deserialize_facts.assert_called_once_with(host_data["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_tags.assert_called_once_with(host_data["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             host_data["display_name"],
@@ -821,7 +821,7 @@ class SerializationSerializeHostBaseTestCase(SerializationBaseTestCase):
             "updated": self._timestamp_to_str(host.modified_on),
         }
 
-    def _all_canonical_facts(self, canonical_facts):
+    def _all_canonical_facts(self, canonical_facts: object) -> object:
         fields = (
             "insights_id",
             "rhel_machine_id",
@@ -852,7 +852,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "someacct",
+            "account": "some acct",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -931,7 +931,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         serialize_facts.assert_called_once_with(host_init_data["facts"])
 
 
-class SerializationHostFromToJsonCompoundTestCase(SerializationHostToJsonBaseTestCase):
+class SerializationHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
     def test_with_all_fields(self):
         system_profile = {
             "system_profile": {
@@ -953,7 +953,7 @@ class SerializationHostFromToJsonCompoundTestCase(SerializationHostToJsonBaseTes
             "external_id": "i-05d2313e6b9a42b16",
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some account",
+            "account": "some acct",
             "facts": [
                 {"namespace": "some namespace", "facts": {"some key": "some value"}},
                 {"namespace": "another namespace", "facts": {"another key": "another value"}},
@@ -961,24 +961,25 @@ class SerializationHostFromToJsonCompoundTestCase(SerializationHostToJsonBaseTes
         }
 
         host_init_data = {**unchanged_data, **system_profile}
-        host = SerializationHost.from_json(host_init_data)
+        host = deserialize_host(host_init_data)
         self._add_saved_fields_to_host(host)
 
-        actual = SerializationHost.to_json(host)
+        actual = serialize_host(host)
         expected = {**unchanged_data, **self._serialize_host_saved_fields(host)}
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
         canonical_facts = {"fqdn": "some fqdn"}
-        host = SerializationHost.from_json(canonical_facts)
+        unchanged_data = {"account": "some acct"}
+        host = deserialize_host({**canonical_facts, **unchanged_data})
         self._add_saved_fields_to_host(host)
 
-        actual = SerializationHost.to_json(host)
+        actual = serialize_host(host)
         expected = {
             **self._all_canonical_facts(canonical_facts),
+            **unchanged_data,
             "ansible_host": None,
             "display_name": None,
-            "account": None,
             "facts": [],
             **self._serialize_host_saved_fields(host),
         }
