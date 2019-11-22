@@ -211,7 +211,6 @@ class DBAPITestCase(APIBaseTestCase):
         self.assertEqual(received_host["display_name"], expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
         self.assertEqual(received_host["ansible_host"], expected_host.ansible_host)
-
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
 
@@ -710,6 +709,72 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(error_host["status"], 400)
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
+
+    def test_create_host_with_tags(self):
+        host_data = HostWrapper(
+            test_data(
+                tags=[
+                    {"namespace": "NS3", "key": "key2", "value": "val2"},
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "Sat", "key": "prod", "value": None},
+                ]
+            )
+        )
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "NS3", "key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
+
+    def test_create_host_with_tag_without_namespace(self):
+        tags = [
+            {"namespace": None, "key": "key3", "value": "val3"},
+            {"key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ]
+
+        host_data = HostWrapper(test_data(tags=tags))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [
+            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "null", "key": "key2", "value": "val2"},
+            {"namespace": "null", "key": "key3", "value": "val3"},
+        ]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
