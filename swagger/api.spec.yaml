@@ -309,6 +309,45 @@ paths:
                 $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
+
+  # TODO
+  # - pagination
+  # - ordering
+  # - filter parameters (tags, tag name)
+  # - metadata in response representation
+  /tags:
+    get:
+      tags:
+        - tags
+      summary: Get the active host tags for a given account
+      operationId: api.tag.get_tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/perPageParam'
+        - in: query
+          name: tag_name
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: tags
+          schema:
+            type: array
+            items:
+              type: string
+              pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
+      responses:
+        '200':
+            description: Tags
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ActiveTags'
+        '400':
+            description: Invalid request.
+
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1046,3 +1085,42 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+
+    ActiveTags:
+      title: Host data
+      description: >-
+        Data of a single host to be updated.
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveTag'
+      example:
+        results:
+          - tag:
+              namespace: Sat
+              key: env
+              value: prod
+            count: 3
+          - tag:
+              namespace: aws
+              key: region
+              value: us-east-1
+            count: 1
+          - tag:
+              namespace: insights-client
+              key: web
+              value: null
+            count: -1
+
+    ActiveTag:
+      title: Host data
+      description: >-
+        Data of a single host to be updated.
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/StructuredTag'
+        count:
+          type: integer
