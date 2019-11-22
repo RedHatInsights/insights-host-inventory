@@ -43,6 +43,9 @@ class Config:
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
 
+        self.culling_stale_warning_offset_days = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7"))
+        self.culling_culled_offset_days = int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14"))
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")

@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from datetime import timezone
 from enum import Enum
 
 import flask
@@ -12,6 +14,7 @@ from api import api_operation
 from api import metrics
 from app import db
 from app import events
+from app import staleness_offset
 from app.auth import current_identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -98,7 +101,7 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, update_system_profile=False)
+    return add_host(input_host, staleness_offset(), update_system_profile=False)
 
 
 def find_hosts_by_tag(account_number, string_tags, query):
@@ -110,6 +113,24 @@ def find_hosts_by_tag(account_number, string_tags, query):
     tags_to_find = Tag.create_nested_from_tags(tags)
 
     return query.filter(Host.tags.contains(tags_to_find))
+
+
+def find_hosts_by_staleness(states, query):
+    staleness_offset_ = staleness_offset()
+    stale_timestamp = staleness_offset_.stale_timestamp(Host.stale_timestamp)
+    stale_warning_timestamp = staleness_offset_.stale_warning_timestamp(Host.stale_timestamp)
+    culled_timestamp = staleness_offset_.culled_timestamp(Host.stale_timestamp)
+
+    null = None
+    now = datetime.now(timezone.utc)
+
+    condition_map = {
+        "fresh": stale_timestamp > now,
+        "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
+        "stale_warning": sqlalchemy.and_(stale_warning_timestamp <= now, culled_timestamp > now),
+        "unknown": Host.stale_timestamp == null,
+    }
+    return query.filter(sqlalchemy.or_(condition_map[state] for state in states))
 
 
 @api_operation
@@ -124,6 +145,7 @@ def get_host_list(
     per_page=100,
     order_by=None,
     order_how=None,
+    staleness=None,
 ):
     if fqdn:
         query = find_hosts_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
@@ -139,6 +161,9 @@ def get_host_list(
     if tags:
         # add tag filtering to the query
         query = find_hosts_by_tag(current_identity.account_number, tags, query)
+
+    if staleness:
+        query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -186,7 +211,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [serialize_host(host) for host in host_list]
+    json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
     json_output = {
         "total": total,
         "count": len(host_list),
@@ -274,8 +299,11 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+
+    if staleness:
+        query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)

@@ -1,6 +1,7 @@
 import connexion
 import yaml
 from connexion.resolver import RestyResolver
+from flask import current_app
 from flask import jsonify
 from flask import request
 from prometheus_flask_exporter import PrometheusMetrics
@@ -8,6 +9,7 @@ from prometheus_flask_exporter import PrometheusMetrics
 from api.mgmt import monitoring_blueprint
 from app import payload_tracker
 from app.config import Config
+from app.culling import StalenessOffset
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -26,6 +28,10 @@ def render_exception(exception):
     response = jsonify(exception.to_json())
     response.status_code = exception.status
     return response
+
+
+def staleness_offset():
+    return StalenessOffset.from_config(current_app.config["INVENTORY_CONFIG"])
 
 
 def create_app(config_name, start_tasks=False, start_payload_tracker=False):
@@ -67,6 +73,8 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = app_config.db_uri
     flask_app.config["SQLALCHEMY_POOL_SIZE"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.db_pool_timeout
+
+    flask_app.config["INVENTORY_CONFIG"] = app_config
 
     db.init_app(flask_app)
 

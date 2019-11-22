@@ -140,6 +140,22 @@ class HostWrapper:
     def ansible_host(self, ansible_host):
         self.__data["ansible_host"] = ansible_host
 
+    @property
+    def stale_timestamp(self):
+        return self.__data.get("stale_timestamp", None)
+
+    @stale_timestamp.setter
+    def stale_timestamp(self, stale_timestamp):
+        self.__data["stale_timestamp"] = stale_timestamp
+
+    @property
+    def reporter(self):
+        return self.__data.get("reporter", None)
+
+    @reporter.setter
+    def reporter(self, reporter):
+        self.__data["reporter"] = reporter
+
     def to_json(self):
         return json.dumps(self.__data)
 

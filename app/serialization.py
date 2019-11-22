@@ -42,10 +42,21 @@ def deserialize_host(raw_data):
         facts,
         tags,
         validated_data.get("system_profile", {}),
+        validated_data.get("stale_timestamp"),
+        validated_data.get("reporter"),
     )
 
 
-def serialize_host(host):
+def serialize_host(host, staleness_offset):
+    if host.stale_timestamp:
+        stale_timestamp = staleness_offset.stale_timestamp(host.stale_timestamp)
+        stale_warning_timestamp = staleness_offset.stale_warning_timestamp(host.stale_timestamp)
+        culled_timestamp = staleness_offset.culled_timestamp(host.stale_timestamp)
+    else:
+        stale_timestamp = None
+        stale_warning_timestamp = None
+        culled_timestamp = None
+
     return {
         **serialize_canonical_facts(host.canonical_facts),
         "id": _serialize_uuid(host.id),
@@ -53,6 +64,10 @@ def serialize_host(host):
         "display_name": host.display_name,
         "ansible_host": host.ansible_host,
         "facts": _serialize_facts(host.facts),
+        "reporter": host.reporter,
+        "stale_timestamp": stale_timestamp and _serialize_datetime(stale_timestamp),
+        "stale_warning_timestamp": stale_timestamp and _serialize_datetime(stale_warning_timestamp),
+        "culled_timestamp": stale_timestamp and _serialize_datetime(culled_timestamp),
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
         "created": _serialize_datetime(host.created_on),

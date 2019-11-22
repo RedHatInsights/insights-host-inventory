@@ -4,6 +4,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 
+from app import staleness_offset
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
@@ -49,6 +50,7 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.inc()
         raise
 
+    logger.info("parsed_message: %s", parsed_operation)
     return parsed_operation
 
 
@@ -62,18 +64,20 @@ def add_host(host_data):
         try:
             logger.info("Attempting to add host...")
             input_host = deserialize_host(host_data)
-            (output_host, add_results) = host_repository.add_host(input_host)
-            metrics.add_host_success.labels(add_results.name).inc()  # created vs updated
+            (output_host, add_results) = host_repository.add_host(input_host, staleness_offset())
+            metrics.add_host_success.labels(
+                add_results.name, host_data.get("reporter", "null")
+            ).inc()  # created vs updated
             logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
-            metrics.add_host_failure.labels("InventoryException").inc()
+            metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
             raise
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
-            metrics.add_host_failure.labels("Exception").inc()
+            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
 
 
