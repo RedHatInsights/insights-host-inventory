@@ -106,6 +106,7 @@ class MQServiceTestCase(TestCase):
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
+    # https://projects.engineering.redhat.com/browse/RHCLOUD-3503
     # def test_handle_message_verify_threadctx_request_id_set_and_cleared(self):
     #     # set the threadctx.request_id
     #     # and clear it
