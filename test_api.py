@@ -708,6 +708,53 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
+    def test_create_host_with_invalid_tags(self):
+        tags = [
+            {
+                "namespace": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+                "key": "",
+                "value": "val",
+            },
+            {"namespace": "", "key": "", "value": "val"},
+            {"namespace": "              ", "key": "", "value": "val"},
+            {
+                "namespace": "SPECIAL",
+                "key": "something",
+                "value": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+            },
+            {"namespace": "val", "key": "", "value": ""},
+            {"namespace": "val", "key": "", "value": "              "},
+            {"namespace": "SPECIAL", "key": "", "value": "val"},
+            {"namespace": "NS3", "key": "         ", "value": "val3"},
+            {
+                "namespace": "NS1",
+                "key": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+                "value": "val3",
+            },
+        ]
+
+        for tag in tags:
+            host_data = HostWrapper(test_data(tags=[tag]))
+
+            response = self.post(HOST_URL, [host_data.data()], 207)
+
+            assert "'status': 400" in str(response)
+
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
     def test_create_host_without_display_name_and_without_fqdn(self):
