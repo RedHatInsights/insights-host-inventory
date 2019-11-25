@@ -140,7 +140,7 @@ def test_host_schema_invalid_tags(tags):
     with pytest.raises(ValidationError) as excinfo:
         _ = HostSchema(strict=True).load(host)
 
-    assert "Key is requred in all tags" in str(excinfo.value)
+    assert "Missing data for required field" in str(excinfo.value)
 
 
 def test_tag_deserialization():

@@ -436,6 +436,7 @@ components:
       properties:
         namespace:
           type: string
+          nullable: true
         key:
           type: string
         value:
