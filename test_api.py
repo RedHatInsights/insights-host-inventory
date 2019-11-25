@@ -769,8 +769,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         expected_tags = [
             {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "null", "key": "key2", "value": "val2"},
-            {"namespace": "null", "key": "key3", "value": "val3"},
+            {"namespace": None, "key": "key2", "value": "val2"},
+            {"namespace": None, "key": "key3", "value": "val3"},
         ]
 
         for tag, expected_tag in zip(host_tags, expected_tags):

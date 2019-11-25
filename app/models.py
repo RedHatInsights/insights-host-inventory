@@ -308,7 +308,7 @@ class FactsSchema(Schema):
 
 class TagsSchema(Schema):
     namespace = fields.Str(required=False, allow_none=True)
-    key = fields.Str()
+    key = fields.Str(required=True)
     value = fields.Str(required=False, allow_none=True)
 
 
