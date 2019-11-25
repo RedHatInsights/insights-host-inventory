@@ -283,11 +283,11 @@ class FactsSchema(Schema):
 
 
 class TagsSchema(Schema):
-    namespace = fields.Str()
+    namespace = fields.Str(required=False, allow_none=True, validate=[validate.Length(min=1, max=255)])
     key = fields.Str(
         required=True, allow_none=False, validate=[validate.Length(min=1, max=255), validate.Regexp(r"[\w.\-%~]+")]
     )
-    value = fields.Str(required=False, allow_none=True)
+    value = fields.Str(required=False, allow_none=True, validate=[validate.Length(min=0, max=255)])
 
 
 class HostSchema(Schema):
