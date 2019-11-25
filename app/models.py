@@ -317,12 +317,6 @@ class HostSchema(Schema):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
-    # @validates("tags")
-    # def validate_tags(self, tags):
-    #     for tag in tags:
-    #         if "key" not in tag:
-    #             raise ValidationError("Key is requred in all tags")
-
 
 class PatchHostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
