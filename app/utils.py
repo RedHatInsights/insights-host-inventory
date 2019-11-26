@@ -140,6 +140,22 @@ class HostWrapper:
     def ansible_host(self, ansible_host):
         self.__data["ansible_host"] = ansible_host
 
+    @property
+    def stale_timestamp(self):
+        return self.__data.get("stale_timestamp", None)
+
+    @stale_timestamp.setter
+    def stale_timestamp(self, stale_timestamp):
+        self.__data["stale_timestamp"] = stale_timestamp
+
+    @property
+    def reporter(self):
+        return self.__data.get("reporter", None)
+
+    @reporter.setter
+    def reporter(self, reporter):
+        self.__data["reporter"] = reporter
+
     def to_json(self):
         return json.dumps(self.__data)
 
@@ -303,6 +319,16 @@ class Tag:
                     nested_tags[namespace] = {key: [value]}
         return nested_tags
 
+    @classmethod
+    def _if_null(cls, value):
+        """
+        replaces the null string used in the database with None
+        """
+        if value == "null":
+            return None
+        else:
+            return value
+
     @staticmethod
     def create_tags_from_nested(nested_tags):
         """
@@ -315,10 +341,10 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
-                    tags.append(Tag(namespace, key))
+                    tags.append(Tag(Tag._if_null(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
-                        tags.append(Tag(namespace, key, value))
+                        tags.append(Tag(Tag._if_null(namespace), key, value))
         return tags
 
     @staticmethod
@@ -333,7 +359,8 @@ class Tag:
             return tag_list
 
         for tag_data in tag_data_list:
-            namespace = tag_data.get("namespace", None)
+            namespace = Tag._if_null(tag_data.get("namespace", None))
+
             value = tag_data.get("value", None)
 
             tag_list.append(Tag(namespace, tag_data["key"], value))
