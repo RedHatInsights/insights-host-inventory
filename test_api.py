@@ -710,7 +710,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
-
     def test_create_host_with_invalid_tags(self):
         tags = [
             {
