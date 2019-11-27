@@ -793,7 +793,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
     def test_create_host_with_tags_special_characters(self):
         host_data = HostWrapper(
-            test_data(tags=[{"namespace": "NS1", "key": "12!@#$%^&*()_+-=", "value": ":;'|,./?~`"}])
+            test_data(tags=[{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}])
         )
 
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -810,7 +810,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
         host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
 
-        expected_tags = [{"namespace": "NS1", "key": "12!@#$%^&*()_+-=", "value": ":;'|,./?~`"}]
+        expected_tags = [{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}]
 
         for tag, expected_tag in zip(host_tags, expected_tags):
             self.assertEqual(tag, expected_tag)
