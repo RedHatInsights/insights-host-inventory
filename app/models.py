@@ -307,9 +307,15 @@ class FactsSchema(Schema):
 
 
 class TagsSchema(Schema):
-    namespace = fields.Str(required=False, allow_none=True)
-    key = fields.Str(required=True)
-    value = fields.Str(required=False, allow_none=True)
+    namespace = fields.Str(
+        required=False, allow_none=True, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
+    key = fields.Str(
+        required=True, allow_none=False, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
+    value = fields.Str(
+        required=False, allow_none=True, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
 
 
 class HostSchema(Schema):
