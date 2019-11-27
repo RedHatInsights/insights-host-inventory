@@ -791,6 +791,30 @@ class CreateHostsTestCase(DBAPITestCase):
         for tag, expected_tag in zip(host_tags, expected_tags):
             self.assertEqual(tag, expected_tag)
 
+    def test_create_host_with_tags_special_characters(self):
+        host_data = HostWrapper(
+            test_data(tags=[{"namespace": "NS1", "key": "12!@#$%^&*()_+-=", "value": ":;'|,./?~`"}])
+        )
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [{"namespace": "NS1", "key": "12!@#$%^&*()_+-=", "value": ":;'|,./?~`"}]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
+
     def test_create_host_with_tag_without_namespace(self):
         tags = [
             {"namespace": None, "key": "key3", "value": "val3"},
