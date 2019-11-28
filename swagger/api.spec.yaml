@@ -39,21 +39,13 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
-        - in: query
-          name: tags
-          schema:
-            type: array
-            items:
-              type: string
-              pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
-          description: search for a host by the tags on the system
-          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/tagsParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -310,11 +302,6 @@ paths:
         '400':
           description: Invalid request.
 
-  # TODO
-  # - pagination
-  # - ordering
-  # - filter parameters (tags, tag name)
-  # - metadata in response representation
   /tags:
     get:
       tags:
@@ -324,19 +311,17 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/tagsOrderBy'
+        - $ref: '#/components/parameters/tagsOrderHow'
         - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
         - in: query
           name: tag_name
+          required: false
+          description: Only include tags that match the given name. A substring match is used.
           schema:
             type: string
-          required: false
-        - in: query
-          name: tags
-          schema:
-            type: array
-            items:
-              type: string
-              pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
       responses:
         '200':
             description: Tags
@@ -447,6 +432,40 @@ components:
           - stale
           - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
+    tagsParam:
+      name: tags
+      in: query
+      description: filters out hosts not tagged by the given tags
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
+    tagsOrderBy:
+      in: query
+      name: order_by
+      required: false
+      schema:
+        type: string
+        default: tag
+        enum:
+          - tag
+          - count
+      description: Ordering field name
+    tagsOrderHow:
+      in: query
+      name: order_how
+      required: false
+      schema:
+        type: string
+        default: ASC
+        enum:
+          - ASC
+          - DESC
+      description: Direction of the ordering. Default to ASC
+
+
   schemas:
     TagsOut:
       type: object
@@ -1088,15 +1107,25 @@ components:
 
     ActiveTags:
       title: Host data
-      description: >-
-        Data of a single host to be updated.
       type: object
       properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        page:
+          $ref: '#/components/schemas/Page'
+        per_page:
+          $ref: '#/components/schemas/PerPage'
         results:
           type: array
           items:
             $ref: '#/components/schemas/ActiveTag'
       example:
+        total: 3
+        count: 3
+        page: 1
+        per_page: 50
         results:
           - tag:
               namespace: Sat
@@ -1116,11 +1145,23 @@ components:
 
     ActiveTag:
       title: Host data
-      description: >-
-        Data of a single host to be updated.
+      description: Information about a host tag
       type: object
       properties:
         tag:
           $ref: '#/components/schemas/StructuredTag'
         count:
           type: integer
+
+    Total:
+      type: integer
+      description: Total number of items
+    Count:
+      type: integer
+      description: The number of items on the current page
+    Page:
+      type: integer
+      description: The page number
+    PerPage:
+      type: integer
+      description: The number of items to return per page

@@ -34,6 +34,7 @@ from test_utils import set_environment
 from test_utils import valid_system_profile
 
 HOST_URL = "/api/inventory/v1/hosts"
+TAGS_URL = "/api/inventory/v1/tags"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -109,9 +110,11 @@ class APIBaseTestCase(TestCase):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
 
-    def get(self, path, status=200, return_response_as_json=True):
+    def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
         return self._response_check(
-            self.client().get(path, headers=self._get_valid_auth_header()), status, return_response_as_json
+            self.client().get(path, headers={**self._get_valid_auth_header(), **extra_headers}),
+            status,
+            return_response_as_json,
         )
 
     def post(self, path, data, status=200, return_response_as_json=True):
@@ -3091,6 +3094,37 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         # 2 per page test
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+
+
+class TagsTestCase(APIBaseTestCase):
+
+    EMPTY_RESPONSE = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
+
+    @patch("api.tag.graphql_query", return_value=EMPTY_RESPONSE)
+    def test_headers_forwarded(self, graphql_query):
+        self.get(
+            TAGS_URL,
+            200,
+            extra_headers={"x-rh-insights-request-id": "353b230b-5607-4454-90a1-589fbd61fde9", "foo": "bar"},
+        )
+
+        graphql_query.assert_called_once()
+        headers = graphql_query.call_args[0][2]
+        self.assertEqual(
+            headers,
+            {
+                "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
+                "x-rh-insights-request-id": "353b230b-5607-4454-90a1-589fbd61fde9",
+            },
+        )
+
+    @patch("api.tag.graphql_query", return_value=EMPTY_RESPONSE)
+    def test_query_variables_default(self, graphql_query):
+        self.get(TAGS_URL, 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0})
 
 
 if __name__ == "__main__":
