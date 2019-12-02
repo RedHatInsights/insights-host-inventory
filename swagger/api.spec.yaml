@@ -421,6 +421,8 @@ components:
         value:
           type: string
           nullable: true
+    MarshmallowError:
+      type: string
     TagCountOut:
       type: object
       properties:
@@ -701,9 +703,12 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         tags:
+          description: An array of the tags on the host
           type: array
           items:
-            $ref: '#/components/schemas/StructuredTag'
+            oneOf:
+              - $ref: '#/components/schemas/StructuredTag'
+              - $ref: '#/components/schemas/MarshmallowError'
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

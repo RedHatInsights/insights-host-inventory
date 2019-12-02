@@ -285,7 +285,7 @@ class FactsSchema(Schema):
 class TagsSchema(Schema):
     namespace = fields.Str()
     key = fields.Str()
-    value = fields.Str(required=False, allow_none=True)
+    value = fields.Str()
 
 
 class HostSchema(Schema):
@@ -314,12 +314,6 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
-
-    @validates("tags")
-    def validate_tags(self, tags):
-        for tag in tags:
-            if "key" not in tag:
-                raise ValidationError("Key is requred in all tags")
 
 
 class PatchHostSchema(Schema):
