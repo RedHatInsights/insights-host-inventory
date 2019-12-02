@@ -23,6 +23,7 @@ from api.host import _get_host_list_by_id_list
 from app import create_app
 from app import db
 from app.auth.identity import Identity
+from app.culling import StalenessOffset
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
@@ -64,6 +65,8 @@ def test_data(**values):
     }
     if not data["facts"]:
         data["facts"] = FACTS
+    if "stale_timestamp" in data:
+        data["stale_timestamp"] = data["stale_timestamp"].isoformat()
     return data
 
 
@@ -208,7 +211,6 @@ class DBAPITestCase(APIBaseTestCase):
         self.assertEqual(received_host["display_name"], expected_host.display_name)
         self.assertEqual(received_host["facts"], expected_host.facts)
         self.assertEqual(received_host["ansible_host"], expected_host.ansible_host)
-
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
 
@@ -707,6 +709,291 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.assertEqual(error_host["status"], 400)
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
+
+    def test_create_host_with_invalid_tags(self):
+        tags = [
+            {
+                "namespace": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+                "key": "",
+                "value": "val",
+            },
+            {"namespace": "", "key": "", "value": "val"},
+            {"namespace": "              ", "key": "", "value": "val"},
+            {
+                "namespace": "SPECIAL",
+                "key": "something",
+                "value": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+            },
+            {"namespace": "val", "key": "", "value": ""},
+            {"namespace": "val", "key": "", "value": "              "},
+            {"namespace": "SPECIAL", "key": "", "value": "val"},
+            {"namespace": "NS3", "key": "         ", "value": "val3"},
+            {
+                "namespace": "NS1",
+                "key": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
+                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
+                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
+                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
+                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
+                    tyuiop""",
+                "value": "val3",
+            },
+        ]
+
+        for tag in tags:
+            host_data = HostWrapper(test_data(tags=[tag]))
+
+            response = self.post(HOST_URL, [host_data.data()], 207)
+
+            assert "'status': 400" in str(response)
+
+    def test_create_host_with_tags(self):
+        host_data = HostWrapper(
+            test_data(
+                tags=[
+                    {"namespace": "NS3", "key": "key2", "value": "val2"},
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "Sat", "key": "prod", "value": None},
+                ]
+            )
+        )
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "NS3", "key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
+
+    def test_create_host_with_tags_special_characters(self):
+        host_data = HostWrapper(
+            test_data(tags=[{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}])
+        )
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
+
+    def test_create_host_with_tag_without_namespace(self):
+        tags = [
+            {"namespace": None, "key": "key3", "value": "val3"},
+            {"key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ]
+
+        host_data = HostWrapper(test_data(tags=tags))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+
+        expected_tags = [
+            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": None, "key": "key2", "value": "val2"},
+            {"namespace": None, "key": "key3", "value": "val3"},
+        ]
+
+        for tag, expected_tag in zip(host_tags, expected_tags):
+            self.assertEqual(tag, expected_tag)
+
+
+class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
+    def _add_host(self, expected_status, **values):
+        host_data = HostWrapper(test_data(fqdn="match this host", **values))
+        response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(response, 0, expected_status)
+        created_host = self._pluck_host_from_response(response, 0)
+        return created_host["id"]
+
+    def _retrieve_host(self, host_id):
+        with self.app.app_context():
+            return Host.query.filter(Host.id == host_id).first()
+
+    def test_create_host_with_stale_timestamp_and_reporter(self):
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+
+        retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, retrieved_host.reporter)
+
+    def test_update_host_with_stale_timestamp_and_reporter(self):
+        created_host_id = self._add_host(201)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertIsNone(old_retrieved_host.stale_timestamp)
+        self.assertIsNone(old_retrieved_host.reporter)
+
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+
+        self._add_host(200, stale_timestamp=stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_host_with_stale_timestamp_and_reporter(self):
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, old_retrieved_host.reporter)
+
+        self._add_host(200)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_update_stale_timestamp_from_same_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=1)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_stale_timestamp_from_same_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=2)
+        reporter = "some reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+
+        new_stale_timestamp = now + timedelta(days=1)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
+
+    def test_update_stale_timestamp_from_different_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=2)
+        old_reporter = "old reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=1)
+        new_reporter = "new reporter"
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=new_reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(new_reporter, new_retrieved_host.reporter)
+
+    def test_dont_update_stale_timestamp_from_different_reporter(self):
+        now = datetime.now(timezone.utc)
+
+        old_stale_timestamp = now + timedelta(days=1)
+        old_reporter = "old reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = now + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter="new_reporter")
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, new_retrieved_host.reporter)
+
+    def test_create_host_with_only_one_culling_field(self):
+        valueses = ({"stale_timestamp": datetime.now(timezone.utc)}, {"reporter": "some reporter"})
+        for values in valueses:
+            host_data = HostWrapper(test_data(**values))
+            response = self.post(HOST_URL, [host_data.data()], 207)
+
+            error_host = response["data"][0]
+
+            self.assertEqual(error_host["status"], 400)
+            self.verify_error_response(error_host, expected_title="Invalid request")
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
@@ -1997,7 +2284,9 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         old_host.modified_on = new_modified_on
         db.session.add(old_host)
 
-        self.added_hosts[added_host_index] = HostWrapper(serialize_host(old_host))
+        staleness_offset = StalenessOffset.from_config(self.app.config["INVENTORY_CONFIG"])
+        serialized_old_host = serialize_host(old_host, staleness_offset)
+        self.added_hosts[added_host_index] = HostWrapper(serialized_old_host)
 
     def _update_hosts(self, id_updates):
         # New modified_on value must be set explicitly so it’s saved the same to all
@@ -2073,6 +2362,239 @@ class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
         for url in self._queries_subtests_with_added_hosts():
             with self.subTest(url=url):
                 self._get(url, None, "ASC", 400)
+
+
+class QueryStaleTimestampTestCase(DBAPITestCase):
+    def setUp(self):
+        super().setUp()
+
+    def _host_data(self, **values):
+        return {"account": ACCOUNT, "fqdn": "matching fqdn", **values}
+
+    def _create_host(self, host):
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 201)
+        return self._pluck_host_from_response(response, 0)
+
+    def _update_host(self, host):
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 200)
+        return self._pluck_host_from_response(response, 0)
+
+    def _get_all_hosts(self):
+        response = self.get(HOST_URL, 200)
+        return response["results"][0]
+
+    def _get_host_by_id(self, host_id):
+        response = self.get(f"{HOST_URL}/{host_id}", 200)
+        return response["results"][0]
+
+    def test_without_stale_timestamp(self):
+        def _assert_values(response_host):
+            self.assertIn("stale_timestamp", response_host)
+            self.assertIn("stale_warning_timestamp", response_host)
+            self.assertIn("culled_timestamp", response_host)
+            self.assertIn("reporter", response_host)
+            self.assertIsNone(response_host["stale_timestamp"])
+            self.assertIsNone(response_host["stale_warning_timestamp"])
+            self.assertIsNone(response_host["culled_timestamp"])
+            self.assertIsNone(response_host["reporter"])
+
+        host_to_create = HostWrapper(self._host_data())
+
+        created_host = self._create_host(host_to_create)
+        _assert_values(created_host)
+
+        updated_host = self._update_host(host_to_create)
+        _assert_values(updated_host)
+
+        retrieved_host_from_all = self._get_all_hosts()
+        _assert_values(retrieved_host_from_all)
+
+        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
+        _assert_values(retrieved_host_from_by_id)
+
+    def test_with_stale_timestamp(self):
+        def _assert_values(response_host):
+            self.assertIn("stale_timestamp", response_host)
+            self.assertIn("stale_warning_timestamp", response_host)
+            self.assertIn("culled_timestamp", response_host)
+            self.assertIn("reporter", response_host)
+            self.assertEqual(stale_timestamp_str, response_host["stale_timestamp"])
+            self.assertEqual(stale_warning_timestamp_str, response_host["stale_warning_timestamp"])
+            self.assertEqual(culled_timestamp_str, response_host["culled_timestamp"])
+            self.assertEqual(reporter, response_host["reporter"])
+
+        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp_str = stale_timestamp.isoformat()
+        stale_warning_timestamp = stale_timestamp + timedelta(weeks=1)
+        stale_warning_timestamp_str = stale_warning_timestamp.isoformat()
+        culled_timestamp = stale_timestamp + timedelta(weeks=2)
+        culled_timestamp_str = culled_timestamp.isoformat()
+        reporter = "some reporter"
+
+        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp_str, reporter=reporter))
+
+        created_host = self._create_host(host_to_create)
+        _assert_values(created_host)
+
+        updated_host = self._update_host(host_to_create)
+        _assert_values(updated_host)
+
+        retrieved_host_from_all = self._get_all_hosts()
+        _assert_values(retrieved_host_from_all)
+
+        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
+        _assert_values(retrieved_host_from_by_id)
+
+
+class QueryStalenessBaseTestCase(DBAPITestCase):
+    def _create_host(self, stale_timestamp):
+        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        if stale_timestamp:
+            data["reporter"] = "some reporter"
+            data["stale_timestamp"] = stale_timestamp.isoformat()
+
+        host = HostWrapper(data)
+        response = self.post(HOST_URL, [host.data()], 207)
+        self._verify_host_status(response, 0, 201)
+        return self._pluck_host_from_response(response, 0)
+
+    def _get_hosts_by_id_url(self, query, host_id_list):
+        host_id_query = ",".join(host_id_list)
+        return f"{HOST_URL}/{host_id_query}{query}"
+
+    def _get_hosts_by_id(self, query, host_id_list):
+        url = self._get_hosts_by_id_url(query, host_id_list)
+        response = self.get(url, 200)
+        return response["results"]
+
+
+class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fresh_host = self._create_host(datetime.now(timezone.utc) + timedelta(hours=1))
+        self.stale_host = self._create_host(datetime.now(timezone.utc) - timedelta(hours=1))
+        self.stale_warning_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=1, hours=1))
+        self.culled_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=2, hours=1))
+        self.unknown_host = self._create_host(None)
+
+    def _created_hosts(self):
+        return (self.fresh_host["id"], self.stale_host["id"], self.stale_warning_host["id"], self.culled_host["id"])
+
+    def _get_all_hosts_url(self, query):
+        return f"{HOST_URL}{query}"
+
+    def _get_all_hosts(self, query):
+        url = self._get_all_hosts_url(query)
+        response = self.get(url, 200)
+        return tuple(host["id"] for host in response["results"])
+
+    def _get_created_hosts_by_id_url(self, query):
+        return self._get_hosts_by_id_url(query, self._created_hosts())
+
+    def _get_created_hosts_by_id(self, query):
+        hosts = self._get_hosts_by_id(query, self._created_hosts())
+        return tuple(host["id"] for host in hosts)
+
+    def _sub_tests_for_get_operations(self):
+        for method in (self._get_all_hosts, self._get_created_hosts_by_id):
+            with self.subTest(method=method):
+                yield method
+
+    def test_get_only_fresh(self):
+        for get_method in self._sub_tests_for_get_operations():
+            retrieved_host_ids = get_method("?staleness=fresh")
+            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+
+    def test_get_only_stale(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=stale")
+        self.assertEqual((self.stale_host["id"],), retrieved_host_ids)
+
+    def test_get_only_stale_warning(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=stale_warning")
+        self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
+
+    def test_dont_get_only_culled(self):
+        for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
+            with self.subTest(get_hosts_url_method=get_hosts_url_method):
+                url = get_hosts_url_method("?staleness=culled")
+                from logging import DEBUG, getLogger
+
+                logger = getLogger(__name__)
+                logger.setLevel(DEBUG)
+                logger.debug(url)
+                self.get(url, 400)
+
+
+class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
+    def _create_and_get_host(self, stale_timestamp):
+        host_to_create = self._create_host(stale_timestamp)
+        query = "?staleness=fresh,stale,stale_warning,unknown"
+        retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
+        self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
+        return retrieved_host
+
+    def test_stale_warning_timestamp(self):
+        for culling_stale_warning_offset_days in (1, 7, 12):
+            with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+                host = self._create_and_get_host(stale_timestamp)
+
+                stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
+                self.assertEqual(stale_warning_timestamp.isoformat(), host["stale_warning_timestamp"])
+
+    def test_culled_timestamp(self):
+        for culling_culled_offset_days in (8, 14, 20):
+            with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_culled_offset_days = culling_culled_offset_days
+
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+                host = self._create_and_get_host(stale_timestamp)
+
+                culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
+                self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
+
+
+class QueryStalenessConfigFilterTestCase(QueryStalenessBaseTestCase):
+    def _assert_host_state(self, host, state, assert_method):
+        hosts = self._get_hosts_by_id(f"?staleness={state}", (host["id"],))
+        assert_method(host["id"], tuple(host["id"] for host in hosts))
+
+    def _assert_host_in_state(self, host, state):
+        self._assert_host_state(host, state, self.assertIn)
+
+    def _assert_host_not_in_state(self, host, state):
+        self._assert_host_state(host, state, self.assertNotIn)
+
+    def test_stale_warning_config_timestamp(self):
+        for culling_stale_warning_offset_days in (1, 6, 7, 8, 12):
+            with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
+                host = self._create_host(
+                    datetime.now(timezone.utc) - timedelta(days=culling_stale_warning_offset_days, hours=1)
+                )
+
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+
+                self._assert_host_in_state(host, "stale_warning")
+                self._assert_host_not_in_state(host, "fresh,stale,unknown")
+
+    def test_culled_config_timestamp(self):
+        for culling_culled_offset_days in (8, 13, 14, 15, 20):
+            with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
+                host = self._create_host(
+                    datetime.now(timezone.utc) - timedelta(days=culling_culled_offset_days, hours=1)
+                )
+
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_culled_offset_days = culling_culled_offset_days
+
+                self._assert_host_not_in_state(host, "fresh,stale,stale_warning,unknown")
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):

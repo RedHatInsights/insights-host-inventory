@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from base64 import b64encode
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from json import dumps
 from random import choice
@@ -8,24 +9,29 @@ from unittest import main
 from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import UUID
 from uuid import uuid4
 
 from api import api_operation
 from api.host import _order_how
 from api.host import _params_to_order_by
+from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
+from app.culling import StalenessOffset
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
 from app.models import HostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
+from app.serialization import _serialize_datetime
 from app.serialization import _serialize_facts
+from app.serialization import _serialize_uuid
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
@@ -211,6 +217,8 @@ class ConfigTestCase(TestCase):
         expected_base_url = f"/{path_prefix}/{app_name}"
         expected_api_path = f"{expected_base_url}/v1"
         expected_mgmt_url_path_prefix = "/mgmt_testing"
+        culling_stale_warning_offset_days = 10
+        culling_culled_offset_days = 20
 
         new_env = {
             "INVENTORY_DB_USER": "fredflintstone",
@@ -222,6 +230,8 @@ class ConfigTestCase(TestCase):
             "APP_NAME": app_name,
             "PATH_PREFIX": path_prefix,
             "INVENTORY_MANAGEMENT_URL_PATH_PREFIX": expected_mgmt_url_path_prefix,
+            "CULLING_STALE_WARNING_OFFSET_DAYS": str(culling_stale_warning_offset_days),
+            "CULLING_CULLED_OFFSET_DAYS": str(culling_culled_offset_days),
         }
 
         with set_environment(new_env):
@@ -233,6 +243,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_size, 8)
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
+            self.assertEqual(conf.culling_stale_warning_offset_days, culling_stale_warning_offset_days)
+            self.assertEqual(conf.culling_culled_offset_days, culling_culled_offset_days)
 
     def test_config_default_settings(self):
         expected_api_path = "/api/inventory/v1"
@@ -248,6 +260,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
             self.assertEqual(conf.db_pool_size, 5)
+            self.assertEqual(conf.culling_stale_warning_offset_days, 7)
+            self.assertEqual(conf.culling_culled_offset_days, 14)
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
@@ -255,6 +269,14 @@ class ConfigTestCase(TestCase):
             conf = Config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
+
+
+@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
+class CreateAppConfigTestCase(TestCase):
+    def test_config_is_assigned(self, config):
+        app = create_app("testing")
+        self.assertIn("INVENTORY_CONFIG", app.config)
+        self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
 
 
 class HostOrderHowTestCase(TestCase):
@@ -635,6 +657,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -652,6 +676,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -669,6 +695,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -686,6 +714,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_display_name(
@@ -708,6 +738,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -725,6 +757,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             input["system_profile"],
+            input["stale_timestamp"],
+            input["reporter"],
         )
 
     def test_without_system_profile(
@@ -742,6 +776,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
         }
         host_schema.return_value.load.return_value.data = input
 
@@ -759,6 +795,50 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             {},
+            input["stale_timestamp"],
+            input["reporter"],
+        )
+
+    def test_without_stale_timestamp(
+        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
+    ):
+        input = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some account",
+            "tags": [
+                {"namespace": "NS1", "key": "key1", "value": "value1"},
+                {"namespace": "NS2", "key": "key2", "value": "value2"},
+            ],
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            },
+        }
+        host_schema.return_value.load.return_value.data = input
+
+        result = deserialize_host({})
+        self.assertEqual(host.return_value, result)
+
+        deserialize_canonical_facts.assert_called_once_with(input)
+        deserialize_facts.assert_called_once_with(input["facts"])
+        deserialize_tags.assert_called_once_with(input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            input["display_name"],
+            input["ansible_host"],
+            input["account"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            input["system_profile"],
+            None,
+            None,
         )
 
     def test_host_validation(
@@ -800,6 +880,10 @@ class SerializationSerializeHostBaseTestCase(TestCase):
 
 
 class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseTestCase):
+    @staticmethod
+    def _add_days(stale_timestamp, days):
+        return stale_timestamp + timedelta(days=days)
+
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
@@ -816,6 +900,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": "insights",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -824,6 +909,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
+            "stale_timestamp": datetime.now(timezone.utc),
         }
         host = Host(**host_init_data)
 
@@ -831,7 +917,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        stale_warning_offset_days = 7
+        culled_offset_days = 14
+        staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
+        actual = serialize_host(host, staleness_offset)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -841,6 +930,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], stale_warning_offset_days)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], culled_offset_days)
+            ),
         }
         self.assertEqual(expected, actual)
 
@@ -853,7 +949,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        staleness_offset = StalenessOffset(7, 14)
+        actual = serialize_host(host, staleness_offset)
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -870,8 +967,34 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_timestamp": None,
+            "stale_warning_timestamp": None,
+            "culled_timestamp": None,
+            "reporter": None,
         }
         self.assertEqual(expected, actual)
+
+    def test_stale_timestamp_config(self):
+        for stale_warning_offset_days, culled_offset_days in ((1, 2), (7, 14), (100, 1000)):
+            with self.subTest(
+                stale_warning_offset_days=stale_warning_offset_days, culled_offset_days=culled_offset_days
+            ):
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+                host = Host({"fqdn": "some fqdn"}, facts={}, stale_timestamp=stale_timestamp, reporter="some reporter")
+
+                for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
+                    setattr(host, k, v)
+
+                staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
+                serialized = serialize_host(host, staleness_offset)
+                self.assertEqual(
+                    self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
+                    serialized["stale_warning_timestamp"],
+                )
+                self.assertEqual(
+                    self._timestamp_to_str(self._add_days(stale_timestamp, culled_offset_days)),
+                    serialized["culled_timestamp"],
+                )
 
 
 @patch("app.serialization._serialize_facts")
@@ -885,20 +1008,34 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             {"namespace": "another namespace", "facts": {"another key": "another value"}},
         ]
         serialize_facts.return_value = facts
+        stale_timestamp = datetime.now(timezone.utc)
 
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": "some reporter",
         }
-        host_init_data = {"canonical_facts": canonical_facts, **unchanged_data, "facts": facts}
+        host_init_data = {
+            "canonical_facts": canonical_facts,
+            **unchanged_data,
+            "facts": facts,
+            "stale_timestamp": stale_timestamp,
+        }
         host = Host(**host_init_data)
 
         host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        actual = serialize_host(host)
+        staleness_offset = Mock(
+            **{
+                "stale_timestamp.return_value": datetime.now(timezone.utc),
+                "stale_timestamp.stale_warning_timestamp": datetime.now(timezone.utc) + timedelta(hours=1),
+                "stale_timestamp.culled_timestamp": datetime.now(timezone.utc) + timedelta(hours=2),
+            }
+        )
+        actual = serialize_host(host, staleness_offset)
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -906,6 +1043,9 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
+            "stale_timestamp": self._timestamp_to_str(staleness_offset.stale_timestamp.return_value),
+            "stale_warning_timestamp": self._timestamp_to_str(staleness_offset.stale_warning_timestamp.return_value),
+            "culled_timestamp": self._timestamp_to_str(staleness_offset.culled_timestamp.return_value),
         }
         self.assertEqual(expected, actual)
 
@@ -1099,6 +1239,87 @@ class SerializationSerializeFactsTestCase(TestCase):
                     [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()],
                     _serialize_facts(facts),
                 )
+
+
+class SerializationSerializeDatetime(TestCase):
+    def test_utc_timezone_is_used(self):
+        now = datetime.now(timezone.utc)
+        self.assertEqual(now.isoformat(), _serialize_datetime(now))
+
+    def test_iso_format_is_used(self):
+        dt = datetime(2019, 7, 3, 1, 1, 4, 20647, timezone.utc)
+        self.assertEqual("2019-07-03T01:01:04.020647+00:00", _serialize_datetime(dt))
+
+
+class SerializationSerializeUuid(TestCase):
+    def test_uuid_has_hyphens_computed(self):
+        u = uuid4()
+        self.assertEqual(str(u), _serialize_uuid(u))
+
+    def test_uuid_has_hyphens_literal(self):
+        u = "4950e534-bbef-4432-bde2-aa3dd2bd0a52"
+        self.assertEqual(u, _serialize_uuid(UUID(u)))
+
+
+class HostUpdateStaleTimestamp(TestCase):
+    def _make_host(self, **values):
+        return Host(**{"canonical_facts": {"fqdn": "some fqdn"}, **values})
+
+    def test_updated_when_empty(self):
+        host = self._make_host()
+
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "some reporter"
+        host._update_stale_timestamp(stale_timestamp, reporter)
+
+        self.assertEqual(stale_timestamp, host.stale_timestamp)
+        self.assertEqual(reporter, host.reporter)
+
+    def test_updated_with_same_reporter(self):
+        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+        reporter = "some reporter"
+        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
+
+        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        host._update_stale_timestamp(new_stale_timestamp, reporter)
+
+        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+        self.assertEqual(reporter, host.reporter)
+
+    def test_updated_with_different_reporter(self):
+        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        old_reporter = "some old reporter"
+        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+
+        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+        new_reporter = "some new reporter"
+        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
+
+        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+        self.assertEqual(new_reporter, host.reporter)
+
+    def test_not_updated_with_same_reporter(self):
+        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        reporter = "some reporter"
+        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
+
+        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+        host._update_stale_timestamp(new_stale_timestamp, reporter)
+
+        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
+        self.assertEqual(reporter, host.reporter)
+
+    def test_not_updated_with_different_reporter(self):
+        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+        old_reporter = "some old reporter"
+        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+
+        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        new_reporter = "some new reporter"
+        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
+
+        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
+        self.assertEqual(old_reporter, host.reporter)
 
 
 if __name__ == "__main__":

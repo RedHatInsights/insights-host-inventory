@@ -75,6 +75,10 @@ class HostSchema(Schema):
     # FIXME:
     created = fields.Str()
     updated = fields.Str()
+    stale_timestamp = fields.Str()
+    stale_warning_timestamp = fields.Str()
+    culled_timestamp = fields.Str()
+    reporter = fields.Str()
 
 
 class HostEvent(Schema):

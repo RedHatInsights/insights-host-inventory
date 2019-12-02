@@ -53,6 +53,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -122,6 +123,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -388,6 +390,24 @@ components:
       description: >-
         Direction of the ordering, defaults to ASC for display_name and to DESC for
         updated
+    stalenessParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+            - unknown
+        default:
+          - fresh
+          - stale
+          - unknown
+      description: "Culling states of the hosts. Default: fresh,stale,unknown"
   schemas:
     TagsOut:
       type: object
@@ -416,6 +436,7 @@ components:
       properties:
         namespace:
           type: string
+          nullable: true
         key:
           type: string
         value:
@@ -587,6 +608,13 @@ components:
             $ref: '#/components/schemas/FactSet'
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
+        stale_timestamp:
+          description: Timestamp from which the host is considered stale.
+          type: string
+          format: date-time
+        reporter:
+          description: Reporting source of the host. Used when updating the stale_timestamp.
+          type: string
     CreateHostOut:
       title: Create Host Out
       description: >-
@@ -709,6 +737,27 @@ components:
             oneOf:
               - $ref: '#/components/schemas/StructuredTag'
               - $ref: '#/components/schemas/MarshmallowError'
+        stale_timestamp:
+          description: Timestamp from which the host is considered stale.
+          type: string
+          format: date-time
+          nullable: true
+        stale_warning_timestamp:
+          description: >-
+            Timestamp from which the host is considered too stale to be listed without an explicit
+            toggle.
+          type: string
+          format: date-time
+          nullable: true
+        culled_timestamp:
+          description: Timestamp from which the host is considered deleted.
+          type: string
+          format: date-time
+          nullable: true
+        reporter:
+          description: Reporting source of the host. Used when updating the stale_timestamp.
+          type: string
+          nullable: true
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.
