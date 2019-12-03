@@ -1186,14 +1186,26 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
             "katello_agent_running": False,
             "satellite_managed": False,
             "cloud_provider": "Maclean's Music",
-            "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
+            "yum_repos": [
+                {
+                    "id": "repo1",
+                    "name": "repo1",
+                    "gpgcheck": True,
+                    "enabled": True,
+                    "base_url": "http://rpms.redhat.com",
+                }
+            ],
+            "dnf_modules": [
+                {"name": "postgresql", "stream": "11"},
+                {"name": "java", "stream": "8"}
+            ],
             "installed_products": [
                 {"name": "eap", "id": "123", "status": "UP"},
                 {"name": "jbws", "id": "321", "status": "DOWN"},
             ],
             "insights_client_version": "12.0.12",
             "insights_egg_version": "120.0.1",
-            "installed_packages": ["rpm1", "rpm2"],
+            "installed_packages": ["rpm1-0:0.0.1.el7.i686", "rpm1-2:0.0.1.el7.i686"],
             "installed_services": ["ndb", "krb5"],
             "enabled_services": ["ndb", "krb5"],
         }
