@@ -1,4 +1,5 @@
 import re
+from urllib import parse
 
 import flask
 from flask import request
@@ -76,7 +77,10 @@ def get_tags(tag_name=None, tags=None, order_by=None, order_how=None, page=None,
     variables = {"order_by": order_by, "order_how": order_how, "limit": limit, "offset": offset}
 
     if tag_name:
-        variables["filter"] = {"name": f".*{re.escape(tag_name)}.*"}  # Escaped to prevent ReDoS
+        variables["filter"] = {
+            # Escaped to prevent ReDoS
+            "name": f".*{re.escape(parse.quote_plus(tag_name, safe=[]))}.*"
+        }
 
     if tags:
         variables["hostFilter"] = {"AND": [{"tag": Tag().from_string(tag).data()} for tag in tags]}

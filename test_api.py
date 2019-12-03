@@ -3096,11 +3096,11 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
-class TagsTestCase(APIBaseTestCase):
+TAGS_EMPTY_RESPONSE = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
 
-    EMPTY_RESPONSE = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
 
-    @patch("api.tag.graphql_query", return_value=EMPTY_RESPONSE)
+@patch("api.tag.graphql_query", return_value=TAGS_EMPTY_RESPONSE)
+class TagsRequestTestCase(APIBaseTestCase):
     def test_headers_forwarded(self, graphql_query):
         self.get(
             TAGS_URL,
@@ -3118,13 +3118,132 @@ class TagsTestCase(APIBaseTestCase):
             },
         )
 
-    @patch("api.tag.graphql_query", return_value=EMPTY_RESPONSE)
     def test_query_variables_default(self, graphql_query):
         self.get(TAGS_URL, 200)
 
         graphql_query.assert_called_once()
         variables = graphql_query.call_args[0][1]["variables"]
         self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0})
+
+    def test_query_variables_tags_simple(self, graphql_query):
+        self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(
+            variables,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {"AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}]},
+            },
+        )
+
+    def test_query_variables_tags_complex(self, graphql_query):
+        self.get(
+            f"{TAGS_URL}?tags=Sat/env=prod&tags=insights-client%2Fspecial%252Fkey%25CE%2594with%25C4%258Dhars"
+            "%3Dspecial%252Fvalue%25CE%2594with%25C4%258Dhars%2521",
+            200,
+        )
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(
+            variables,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": [
+                        {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}},
+                        {
+                            "tag": {
+                                "namespace": "insights-client",
+                                "key": "special/keyΔwithčhars",
+                                "value": "special/valueΔwithčhars!",
+                            }
+                        },
+                    ]
+                },
+            },
+        )
+
+    def test_query_variables_tag_name(self, graphql_query):
+        self.get(f"{TAGS_URL}?tag_name=%CE%94with%C4%8Dhar%21%2F%7E%7C%2B", 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(
+            variables,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B.*"},
+            },
+        )
+
+    def test_query_variables_ordering_dir(self, graphql_query):
+        self.get(f"{TAGS_URL}?order_how=DESC", 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(variables, {"order_by": "tag", "order_how": "DESC", "limit": 50, "offset": 0})
+
+    def test_query_variables_ordering_by(self, graphql_query):
+        self.get(f"{TAGS_URL}?order_by=count", 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(variables, {"order_by": "count", "order_how": "ASC", "limit": 50, "offset": 0})
+
+    def test_query_variables_pagination(self, graphql_query):
+        self.get(f"{TAGS_URL}?per_page=2&page=2", 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 2})
+
+
+class TagsResponseTestCase(APIBaseTestCase):
+
+    RESPONSE = {
+        "data": {
+            "hostTags": {
+                "meta": {"count": 3, "total": 3},
+                "data": [
+                    {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
+                    {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
+                    {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+                ],
+            }
+        }
+    }
+
+    @patch("api.tag.graphql_query", return_value=RESPONSE)
+    def test_response_processed_properly(self, graphql_query):
+        result = self.get(TAGS_URL, 200)
+        graphql_query.assert_called_once()
+
+        self.assertEqual(
+            result,
+            {
+                "total": 3,
+                "count": 3,
+                "page": 1,
+                "per_page": 50,
+                "results": [
+                    {"count": 3, "tag": {"key": "env", "namespace": "Sat", "value": "prod"}},
+                    {"count": 2, "tag": {"key": "database", "namespace": "insights-client", "value": None}},
+                    {"count": 2, "tag": {"key": "os", "namespace": "insights-client", "value": "fedora"}},
+                ],
+            },
+        )
 
 
 if __name__ == "__main__":
