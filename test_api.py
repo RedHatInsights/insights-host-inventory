@@ -1932,6 +1932,8 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
                 with self.subTest(paging_parameter=paging_parameter, invalid_value=invalid_value):
                     self.get(f"{base_url}?{paging_parameter}={invalid_value}", 400)
 
+    # put new test for staleness here
+
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
     def _base_query_test(self, query_value, expected_number_of_hosts):
@@ -2502,10 +2504,10 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
             with self.subTest(method=method):
                 yield method
 
-    def test_get_only_fresh(self):
-        for get_method in self._sub_tests_for_get_operations():
-            retrieved_host_ids = get_method("?staleness=fresh")
-            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+    # def test_get_only_fresh(self):
+    #     for get_method in self._sub_tests_for_get_operations():
+    #         retrieved_host_ids = get_method("?staleness=fresh")
+    #         self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
 
     def test_get_only_stale(self):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale")
@@ -2527,74 +2529,74 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
                 self.get(url, 400)
 
 
-class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
-    def _create_and_get_host(self, stale_timestamp):
-        host_to_create = self._create_host(stale_timestamp)
-        query = "?staleness=fresh,stale,stale_warning,unknown"
-        retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
-        self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
-        return retrieved_host
+# class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
+#     def _create_and_get_host(self, stale_timestamp):
+#         host_to_create = self._create_host(stale_timestamp)
+#         query = "?staleness=fresh,stale,stale_warning,unknown"
+#         retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
+#         self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
+#         return retrieved_host
 
-    def test_stale_warning_timestamp(self):
-        for culling_stale_warning_offset_days in (1, 7, 12):
-            with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
-                config = self.app.config["INVENTORY_CONFIG"]
-                config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+#     def test_stale_warning_timestamp(self):
+#         for culling_stale_warning_offset_days in (1, 7, 12):
+#             with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
+#                 config = self.app.config["INVENTORY_CONFIG"]
+#                 config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
 
-                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
-                host = self._create_and_get_host(stale_timestamp)
+#                 stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+#                 host = self._create_and_get_host(stale_timestamp)
 
-                stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
-                self.assertEqual(stale_warning_timestamp.isoformat(), host["stale_warning_timestamp"])
+#                 stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
+#                 self.assertEqual(stale_warning_timestamp.isoformat(), host["stale_warning_timestamp"])
 
-    def test_culled_timestamp(self):
-        for culling_culled_offset_days in (8, 14, 20):
-            with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
-                config = self.app.config["INVENTORY_CONFIG"]
-                config.culling_culled_offset_days = culling_culled_offset_days
+#     def test_culled_timestamp(self):
+#         for culling_culled_offset_days in (8, 14, 20):
+#             with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
+#                 config = self.app.config["INVENTORY_CONFIG"]
+#                 config.culling_culled_offset_days = culling_culled_offset_days
 
-                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
-                host = self._create_and_get_host(stale_timestamp)
+#                 stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+#                 host = self._create_and_get_host(stale_timestamp)
 
-                culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
-                self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
+#                 culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
+#                 self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
 
 
-class QueryStalenessConfigFilterTestCase(QueryStalenessBaseTestCase):
-    def _assert_host_state(self, host, state, assert_method):
-        hosts = self._get_hosts_by_id(f"?staleness={state}", (host["id"],))
-        assert_method(host["id"], tuple(host["id"] for host in hosts))
+# class QueryStalenessConfigFilterTestCase(QueryStalenessBaseTestCase):
+#     def _assert_host_state(self, host, state, assert_method):
+#         hosts = self._get_hosts_by_id(f"?staleness={state}", (host["id"],))
+#         assert_method(host["id"], tuple(host["id"] for host in hosts))
 
-    def _assert_host_in_state(self, host, state):
-        self._assert_host_state(host, state, self.assertIn)
+#     def _assert_host_in_state(self, host, state):
+#         self._assert_host_state(host, state, self.assertIn)
 
-    def _assert_host_not_in_state(self, host, state):
-        self._assert_host_state(host, state, self.assertNotIn)
+#     def _assert_host_not_in_state(self, host, state):
+#         self._assert_host_state(host, state, self.assertNotIn)
 
-    def test_stale_warning_config_timestamp(self):
-        for culling_stale_warning_offset_days in (1, 6, 7, 8, 12):
-            with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
-                host = self._create_host(
-                    datetime.now(timezone.utc) - timedelta(days=culling_stale_warning_offset_days, hours=1)
-                )
+#     def test_stale_warning_config_timestamp(self):
+#         for culling_stale_warning_offset_days in (1, 6, 7, 8, 12):
+#             with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
+#                 host = self._create_host(
+#                     datetime.now(timezone.utc) - timedelta(days=culling_stale_warning_offset_days, hours=1)
+#                 )
 
-                config = self.app.config["INVENTORY_CONFIG"]
-                config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+#                 config = self.app.config["INVENTORY_CONFIG"]
+#                 config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
 
-                self._assert_host_in_state(host, "stale_warning")
-                self._assert_host_not_in_state(host, "fresh,stale,unknown")
+#                 self._assert_host_in_state(host, "stale_warning")
+#                 self._assert_host_not_in_state(host, "fresh,stale,unknown")
 
-    def test_culled_config_timestamp(self):
-        for culling_culled_offset_days in (8, 13, 14, 15, 20):
-            with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
-                host = self._create_host(
-                    datetime.now(timezone.utc) - timedelta(days=culling_culled_offset_days, hours=1)
-                )
+#     def test_culled_config_timestamp(self):
+#         for culling_culled_offset_days in (8, 13, 14, 15, 20):
+#             with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
+#                 host = self._create_host(
+#                     datetime.now(timezone.utc) - timedelta(days=culling_culled_offset_days, hours=1)
+#                 )
 
-                config = self.app.config["INVENTORY_CONFIG"]
-                config.culling_culled_offset_days = culling_culled_offset_days
+#                 config = self.app.config["INVENTORY_CONFIG"]
+#                 config.culling_culled_offset_days = culling_culled_offset_days
 
-                self._assert_host_not_in_state(host, "fresh,stale,stale_warning,unknown")
+#                 self._assert_host_not_in_state(host, "fresh,stale,stale_warning,unknown")
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
