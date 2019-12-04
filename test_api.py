@@ -1932,8 +1932,6 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
                 with self.subTest(paging_parameter=paging_parameter, invalid_value=invalid_value):
                     self.get(f"{base_url}?{paging_parameter}={invalid_value}", 400)
 
-    # put new test for staleness here
-
 
 class QueryByHostnameOrIdTestCase(PreCreatedHostsBaseTestCase):
     def _base_query_test(self, query_value, expected_number_of_hosts):
@@ -2500,14 +2498,14 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
         return tuple(host["id"] for host in hosts)
 
     def _sub_tests_for_get_operations(self):
-        for method in (self._get_all_hosts, self._get_created_hosts_by_id):
+        for method in (self._get_all_hosts,):
             with self.subTest(method=method):
                 yield method
 
-    # def test_get_only_fresh(self):
-    #     for get_method in self._sub_tests_for_get_operations():
-    #         retrieved_host_ids = get_method("?staleness=fresh")
-    #         self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+    def test_get_only_fresh(self):
+        for get_method in self._sub_tests_for_get_operations():
+            retrieved_host_ids = get_method("?staleness=fresh")
+            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
 
     def test_get_only_stale(self):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale")
@@ -2529,13 +2527,14 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
                 self.get(url, 400)
 
 
-# class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
-#     def _create_and_get_host(self, stale_timestamp):
-#         host_to_create = self._create_host(stale_timestamp)
-#         query = "?staleness=fresh,stale,stale_warning,unknown"
-#         retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
-#         self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
-#         return retrieved_host
+class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
+    def _create_and_get_host(self, stale_timestamp):
+        host_to_create = self._create_host(stale_timestamp)
+        query = "?staleness=fresh,stale,stale_warning,unknown"
+        retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
+        self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
+        return retrieved_host
+
 
 #     def test_stale_warning_timestamp(self):
 #         for culling_stale_warning_offset_days in (1, 7, 12):
