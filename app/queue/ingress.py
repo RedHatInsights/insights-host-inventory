@@ -1,4 +1,5 @@
 import json
+import re
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -16,7 +17,7 @@ from app.queue.egress import build_event
 from app.serialization import deserialize_host
 from lib import host_repository
 
-
+INVALID_UNICODE_PATTERN = re.compile("[\uDC00-\uDFFF][\uDC00-\uDFFF]")
 logger = get_logger(__name__)
 
 
@@ -26,15 +27,26 @@ class OperationSchema(Schema):
     data = fields.Dict(required=True)
 
 
+# Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
+# Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS blow up)
+# This functions looks for such invalid sequences with the intention of marking such messages as invalid
+def _validate_unicode_code_points(message):
+    match = re.search(INVALID_UNICODE_PATTERN, message.encode().decode("unicode-escape"))
+    if match:
+        raise UnicodeError("utf-8", f"invalid unicode sequence {match.group(0)}", message, match.start(), match.end())
+
+
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
+        _validate_unicode_code_points(message)
         parsed_message = json.loads(message)
+
     except Exception:
         # The "extra" dict cannot have a key named "msg" or "message"
         # otherwise an exception in thrown in the logging code
         logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
-        metrics.ingress_message_parsing_failure.inc()
+        metrics.ingress_message_parsing_failure.labels("invalid").inc()
         raise
 
     try:
@@ -43,11 +55,11 @@ def parse_operation_message(message):
         logger.error(
             "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
         )  # logger.error is used to avoid printing out the same traceback twice
-        metrics.ingress_message_parsing_failure.inc()
+        metrics.ingress_message_parsing_failure.labels("invalid").inc()
         raise
     except Exception:
         logger.exception("Error parsing operation message", extra={"operation": parsed_message})
-        metrics.ingress_message_parsing_failure.inc()
+        metrics.ingress_message_parsing_failure.labels("error").inc()
         raise
 
     logger.info("parsed_message: %s", parsed_operation)
