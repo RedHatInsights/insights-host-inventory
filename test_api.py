@@ -848,7 +848,11 @@ class CreateHostsTestCase(DBAPITestCase):
             self.assertEqual(tag, expected_tag)
 
     def test_create_host_with_20_byte_MAC_address(self):
-        host_data = HostWrapper(test_data(mac_address="80:00:02:08:fe:80:00:00:00:00:00:00:50:65:f3:ff:ff:8c:5c:51"))
+        system_profile = {
+            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
 
         response = self.post(HOST_URL, [host_data.data()], 207)
 
@@ -861,6 +865,17 @@ class CreateHostsTestCase(DBAPITestCase):
         host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+    def test_create_host_with_too_long_MAC_address(self):
+        system_profile = {
+            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 400)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
