@@ -847,6 +847,21 @@ class CreateHostsTestCase(DBAPITestCase):
         for tag, expected_tag in zip(host_tags, expected_tags):
             self.assertEqual(tag, expected_tag)
 
+    def test_create_host_with_20_byte_MAC_address(self):
+        host_data = HostWrapper(test_data(mac_address="80:00:02:08:fe:80:00:00:00:00:00:00:50:65:f3:ff:ff:8c:5c:51"))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
     def _add_host(self, expected_status, **values):
