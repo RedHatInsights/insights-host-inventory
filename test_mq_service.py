@@ -104,6 +104,15 @@ class MQServiceTestCase(TestCase):
                     },
                 )
 
+    def test_handle_message_failure_invalid_unicode_chars(self):
+        invalid_message = "hello\udce2\udce2"
+        mock_event_producer = Mock()
+
+        with self.assertRaises(UnicodeError):
+            handle_message(invalid_message, mock_event_producer)
+
+        mock_event_producer.assert_not_called()
+
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
     # https://projects.engineering.redhat.com/browse/RHCLOUD-3503

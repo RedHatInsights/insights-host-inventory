@@ -8,7 +8,7 @@ ingress_message_parsing_time = Summary(
     "inventory_ingress_message_parsing_seconds", "Time spent parsing a message from the ingress queue"
 )
 ingress_message_parsing_failure = Counter(
-    "inventory_ingress_message_parsing_failures", "Total amount of failures parsing ingress messages"
+    "inventory_ingress_message_parsing_failures", "Total amount of failures parsing ingress messages", ["cause"]
 )
 add_host_success = Counter(
     "inventory_ingress_add_host_successes", "Total amount of successfully added hosts", ["result", "reporter"]
