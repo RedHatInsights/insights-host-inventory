@@ -18,6 +18,7 @@ from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
 from test_utils import rename_host_table_and_indexes
+from test_utils import valid_system_profile
 
 
 class FakeKafkaMessage:
@@ -60,7 +61,6 @@ class MQServiceTestCase(TestCase):
         self.assertEqual(handle_message_mock.call_count, 3)
 
     def test_handle_message_failure_invalid_json_message(self):
-
         invalid_message = "failure {} "
         mock_event_producer = Mock()
 
@@ -70,7 +70,6 @@ class MQServiceTestCase(TestCase):
         mock_event_producer.assert_not_called()
 
     def test_handle_message_failure_invalid_message_format(self):
-
         invalid_message = json.dumps({"operation": "add_host", "NOTdata": {}})  # Missing data field
 
         mock_event_producer = Mock()
@@ -208,6 +207,32 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
 
         host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_host_add_with_system_profile(self, datetime_mock):
+        """
+         Tests adding a host with message containing system profile
+         """
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "system_profile": valid_system_profile(),
+        }
 
         expected_results = {
             "host": {**host_data},
