@@ -300,8 +300,8 @@ class Tag:
         for tag in tags:
             if tag is None:
                 raise TypeError("tag is none")
-            elif tag.key is None or tag.namespace is None:
-                raise TypeError("tag is missing key or namespace")
+            elif tag.key is None:
+                raise TypeError("tag is missing key")
             namespace, key, value = tag.namespace, tag.key, tag.value
             if namespace in nested_tags:
                 if value is None:
@@ -319,6 +319,16 @@ class Tag:
                     nested_tags[namespace] = {key: [value]}
         return nested_tags
 
+    @classmethod
+    def _if_null(cls, value):
+        """
+        replaces the null string used in the database with None
+        """
+        if value == "null":
+            return None
+        else:
+            return value
+
     @staticmethod
     def create_tags_from_nested(nested_tags):
         """
@@ -331,10 +341,10 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
-                    tags.append(Tag(namespace, key))
+                    tags.append(Tag(Tag._if_null(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
-                        tags.append(Tag(namespace, key, value))
+                        tags.append(Tag(Tag._if_null(namespace), key, value))
         return tags
 
     @staticmethod
@@ -349,7 +359,8 @@ class Tag:
             return tag_list
 
         for tag_data in tag_data_list:
-            namespace = tag_data.get("namespace", None)
+            namespace = Tag._if_null(tag_data.get("namespace", None))
+
             value = tag_data.get("value", None)
 
             tag_list.append(Tag(namespace, tag_data["key"], value))

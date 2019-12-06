@@ -263,7 +263,7 @@ class NetworkInterfaceSchema(Schema):
     ipv6_addresses = fields.List(fields.Str())
     state = fields.Str(validate=validate.Length(max=25))
     mtu = fields.Int()
-    mac_address = fields.Str(validate=validate.Length(max=18))
+    mac_address = fields.Str(validate=validate.Length(max=59))
     name = fields.Str(validate=validate.Length(min=1, max=50))
     type = fields.Str(validate=validate.Length(max=18))
 
@@ -307,9 +307,15 @@ class FactsSchema(Schema):
 
 
 class TagsSchema(Schema):
-    namespace = fields.Str()
-    key = fields.Str()
-    value = fields.Str(required=False, allow_none=True)
+    namespace = fields.Str(
+        required=False, allow_none=True, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
+    key = fields.Str(
+        required=True, allow_none=False, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
+    value = fields.Str(
+        required=False, allow_none=True, validate=[validate.Length(min=1, max=255), validate.Regexp(r"\S+")]
+    )
 
 
 class HostSchema(Schema):
@@ -340,12 +346,6 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
-
-    @validates("tags")
-    def validate_tags(self, tags):
-        for tag in tags:
-            if "key" not in tag:
-                raise ValidationError("Key is requred in all tags")
 
 
 class PatchHostSchema(Schema):
