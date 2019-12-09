@@ -38,13 +38,15 @@ class mockEventProducer:
         return self.__data["write_event"]
 
 
-class MQServiceTestCase(TestCase):
+class MQServiceBaseTestCase(TestCase):
     def setUp(self):
         """
         Creates the application and a test client to make requests.
         """
         self.app = create_app(config_name="testing")
 
+
+class MQServiceTestCase(MQServiceBaseTestCase):
     def test_event_loop_exception_handling(self):
         """
         Test to ensure that an exception in message handler method does not cause the
@@ -104,15 +106,6 @@ class MQServiceTestCase(TestCase):
                     },
                 )
 
-    def test_handle_message_failure_invalid_unicode_chars(self):
-        invalid_message = "hello\udce2\udce2"
-        mock_event_producer = Mock()
-
-        with self.assertRaises(UnicodeError):
-            handle_message(invalid_message, mock_event_producer)
-
-        mock_event_producer.assert_not_called()
-
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
     # https://projects.engineering.redhat.com/browse/RHCLOUD-3503
@@ -122,7 +115,40 @@ class MQServiceTestCase(TestCase):
     #     pass
 
 
-class MQAddHostBaseClass(MQServiceTestCase):
+@patch("app.queue.ingress.build_event")
+@patch("app.queue.ingress.add_host", return_value=(None, None))
+class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
+    def _message(self, display_name):
+        return f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
+
+    def test_handle_message_failure_invalid_surrogates(self, add_host, build_event):
+        raw = "\udce2\udce2"
+        escaped = "\\udce2\\udce2"
+        display_names = (f"{raw}", f"{escaped}", f"{raw}{escaped}")
+        for display_name in display_names:
+            with self.subTest(display_names=display_names):
+                invalid_message = self._message(display_name)
+                with self.assertRaises(UnicodeError):
+                    handle_message(invalid_message, Mock())
+                add_host.assert_not_called()
+
+    def test_handle_message_unicode_not_damaged(self, add_host, build_event):
+        operation_raw = "🧜🏿‍♂️"
+        operation_escaped = json.dumps(operation_raw)[1:-1]
+
+        messages = (
+            f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}"}}}}',
+            f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}"}}}}',
+            f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
+        )
+        for message in messages:
+            with self.subTest(message=message):
+                add_host.reset_mock()
+                handle_message(message, Mock())
+                add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+
+
+class MQAddHostBaseClass(MQServiceBaseTestCase):
     @classmethod
     def setUpClass(cls):
         """
