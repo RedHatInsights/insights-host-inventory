@@ -442,8 +442,6 @@ components:
         value:
           type: string
           nullable: true
-    MarshmallowError:
-      type: string
     TagCountOut:
       type: object
       properties:
@@ -606,6 +604,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
+        tags:
+          description: The tags on a host
+          type: array
+          items:
+            $ref: '#/components/schemas/StructuredTag'
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
         stale_timestamp:
@@ -734,9 +737,7 @@ components:
           description: An array of the tags on the host
           type: array
           items:
-            oneOf:
-              - $ref: '#/components/schemas/StructuredTag'
-              - $ref: '#/components/schemas/MarshmallowError'
+            - $ref: '#/components/schemas/StructuredTag'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
