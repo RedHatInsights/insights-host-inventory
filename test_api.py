@@ -762,9 +762,14 @@ class CreateHostsTestCase(DBAPITestCase):
 
         host_data = HostWrapper(test_data(tags=[tag]))
 
-        response = self.post(HOST_URL, [host_data.data()], 207)
+        self.post(HOST_URL, [host_data.data()], 400)
 
-        assert "'status': 400" in str(response)
+    def test_create_host_with_invalid_tag_format(self):
+        tag = {"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}
+
+        host_data = HostWrapper(test_data(tags=[tag]))
+
+        self.post(HOST_URL, [host_data.data()], 400)
 
     def test_create_host_with_tags(self):
         host_data = HostWrapper(
