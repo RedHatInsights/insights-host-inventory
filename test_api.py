@@ -2184,6 +2184,63 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._compare_responses(expected_response_list, response_list, test_url)
 
+    def test_get_host_namespace_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAdedQU"
+            "TTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriFPjg"
+            "WrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLgcQq"
+            "WfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLFwUE"
+            "GCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPhViH"
+            "rcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs/key=val"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "namespace" in str(response)
+
+    def test_get_host_key_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=NS/JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAde"
+            "dQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriF"
+            "PjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLg"
+            "cQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLF"
+            "wUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPh"
+            "ViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs=val"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "key" in str(response)
+
+    def test_get_host_value_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=NS/key=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLy"
+            "IAdedQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQ"
+            "XriFPjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVz"
+            "lNLgcQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGA"
+            "twLFwUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPh"
+            "CfPhViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "value" in str(response)
+
 
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
     def _queries_subtests_with_added_hosts(self):
