@@ -302,8 +302,10 @@ def delete_by_id(host_id_list):
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    if staleness:
-        query = find_hosts_by_staleness(staleness, query)
+    # The staleness check is currently disabled when getting a single host by id
+    # to ease onboarding (RHCLOUD-3562)
+    # if staleness:
+    #     query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
