@@ -1,5 +1,4 @@
 import json
-import re
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -17,7 +16,6 @@ from app.queue.egress import build_event
 from app.serialization import deserialize_host
 from lib import host_repository
 
-INVALID_UNICODE_PATTERN = re.compile("[\uDC00-\uDFFF][\uDC00-\uDFFF]")
 logger = get_logger(__name__)
 
 
@@ -30,22 +28,38 @@ class OperationSchema(Schema):
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
 # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS blow up)
 # This functions looks for such invalid sequences with the intention of marking such messages as invalid
-def _validate_unicode_code_points(message):
-    match = re.search(INVALID_UNICODE_PATTERN, message.encode().decode("unicode-escape"))
-    if match:
-        raise UnicodeError("utf-8", f"invalid unicode sequence {match.group(0)}", message, match.start(), match.end())
+def _validate_json_object_for_utf8(json_object):
+    object_type = type(json_object)
+    if object_type is str:
+        json_object.encode()
+    elif object_type is dict:
+        for value in json_object.values():
+            _validate_json_object_for_utf8(value)
+    elif object_type is list:
+        for item in json_object:
+            _validate_json_object_for_utf8(item)
+    else:
+        pass
 
 
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
-        _validate_unicode_code_points(message)
+        # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
+        # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS
+        # blow up)
         parsed_message = json.loads(message)
-
-    except Exception:
+    except json.decoder.JSONDecodeError:
         # The "extra" dict cannot have a key named "msg" or "message"
         # otherwise an exception in thrown in the logging code
         logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
+        metrics.ingress_message_parsing_failure.labels("invalid").inc()
+        raise
+
+    try:
+        _validate_json_object_for_utf8(parsed_message)
+    except UnicodeEncodeError:
+        logger.exception("Invalid Unicode sequence in message from message queue", extra={"incoming_message": message})
         metrics.ingress_message_parsing_failure.labels("invalid").inc()
         raise
 
