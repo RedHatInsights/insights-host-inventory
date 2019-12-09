@@ -3096,17 +3096,12 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
-TAGS_EMPTY_RESPONSE = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
-
-
-@patch("api.tag.graphql_query", return_value=TAGS_EMPTY_RESPONSE)
+@patch("api.tag.graphql_query", return_value={"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}})
 class TagsRequestTestCase(APIBaseTestCase):
     def test_headers_forwarded(self, graphql_query):
-        self.get(
-            TAGS_URL,
-            200,
-            extra_headers={"x-rh-insights-request-id": "353b230b-5607-4454-90a1-589fbd61fde9", "foo": "bar"},
-        )
+        req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
+
+        self.get(TAGS_URL, 200, extra_headers={"x-rh-insights-request-id": req_id, "foo": "bar"})
 
         graphql_query.assert_called_once()
         headers = graphql_query.call_args[0][2]
@@ -3114,7 +3109,7 @@ class TagsRequestTestCase(APIBaseTestCase):
             headers,
             {
                 "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
-                "x-rh-insights-request-id": "353b230b-5607-4454-90a1-589fbd61fde9",
+                "x-rh-insights-request-id": req_id,
             },
         )
 
@@ -3188,6 +3183,22 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
+    def test_query_variables_tag_name_special(self, graphql_query):
+        self.get(f'{TAGS_URL}?tag_name=".~ "', 200)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(
+            variables,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "filter": {"name": ".*\\%22\\.\\%7E\\+\\%22.*"},
+            },
+        )
+
     def test_query_variables_ordering_dir(self, graphql_query):
         self.get(f"{TAGS_URL}?order_how=DESC", 200)
 
@@ -3227,21 +3238,18 @@ class TagsResponseTestCase(APIBaseTestCase):
 
     @patch("api.tag.graphql_query", return_value=RESPONSE)
     def test_response_processed_properly(self, graphql_query):
+        expected = self.RESPONSE["data"]["hostTags"]
         result = self.get(TAGS_URL, 200)
         graphql_query.assert_called_once()
 
         self.assertEqual(
             result,
             {
-                "total": 3,
-                "count": 3,
+                "total": expected["meta"]["total"],
+                "count": expected["meta"]["count"],
                 "page": 1,
                 "per_page": 50,
-                "results": [
-                    {"count": 3, "tag": {"key": "env", "namespace": "Sat", "value": "prod"}},
-                    {"count": 2, "tag": {"key": "database", "namespace": "insights-client", "value": None}},
-                    {"count": 2, "tag": {"key": "os", "namespace": "insights-client", "value": "fedora"}},
-                ],
+                "results": expected["data"],
             },
         )
 

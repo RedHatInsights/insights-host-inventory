@@ -1,5 +1,5 @@
 import re
-from urllib import parse
+from urllib.parse import quote_plus as url_quote
 
 import flask
 from flask import request
@@ -19,7 +19,8 @@ TAGS_QUERY = """
         $order_by: HOST_TAGS_ORDER_BY,
         $order_how: ORDER_DIR,
         $limit: Int,
-        $offset: Int) {
+        $offset: Int
+    ) {
         hostTags (
             hostFilter: $hostFilter,
             filter: $filter,
@@ -27,8 +28,7 @@ TAGS_QUERY = """
             order_how: $order_how,
             limit: $limit,
             offset: $offset
-        )
-        {
+        ) {
             meta {
                 count,
                 total
@@ -69,7 +69,7 @@ def _build_response(data, page, per_page):
 @api_operation
 @metrics.api_request_time.time()
 def get_tags(tag_name=None, tags=None, order_by=None, order_how=None, page=None, per_page=None):
-    if False:  # TODO: check if ES configured
+    if False:  # TODO: check if XJOIN_GRAPHQL_URL is configured
         flask.abort(503)
 
     limit, offset = _pagination_params(page, per_page)
@@ -79,13 +79,13 @@ def get_tags(tag_name=None, tags=None, order_by=None, order_how=None, page=None,
     if tag_name:
         variables["filter"] = {
             # Escaped to prevent ReDoS
-            "name": f".*{re.escape(parse.quote_plus(tag_name, safe=[]))}.*"
+            "name": f".*{re.escape(url_quote(tag_name, safe=''))}.*"
         }
 
     if tags:
         variables["hostFilter"] = {"AND": [{"tag": Tag().from_string(tag).data()} for tag in tags]}
 
-    logger.debug(f"variables {variables}")
+    logger.debug("executing TAGS_QUERY, variables: %s", variables)
     payload = {"query": TAGS_QUERY, "variables": variables}
 
     headers = _get_forwarded_headers(request.headers)
@@ -102,6 +102,7 @@ def graphql_query(url, payload, headers):
     response = post(url, json=payload, headers=headers)
 
     if response.status_code != 200:
-        raise Exception()  # TODO proper handling
+        logger.error("TAGS_QUERY failed with %s", response.status_code)
+        flask.abort(503, "GraphQL query failed.")
 
     return response.json()
