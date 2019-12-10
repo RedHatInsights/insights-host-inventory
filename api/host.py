@@ -423,8 +423,11 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+
+    if staleness:
+        query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
