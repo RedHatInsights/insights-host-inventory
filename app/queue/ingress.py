@@ -33,7 +33,8 @@ def _validate_json_object_for_utf8(json_object):
     if object_type is str:
         json_object.encode()
     elif object_type is dict:
-        for value in json_object.values():
+        for key, value in json_object.items():
+            _validate_json_object_for_utf8(key)
             _validate_json_object_for_utf8(value)
     elif object_type is list:
         for item in json_object:
