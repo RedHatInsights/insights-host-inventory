@@ -263,7 +263,7 @@ class NetworkInterfaceSchema(Schema):
     ipv6_addresses = fields.List(fields.Str())
     state = fields.Str(validate=validate.Length(max=25))
     mtu = fields.Int()
-    mac_address = fields.Str(validate=validate.Length(max=18))
+    mac_address = fields.Str(validate=validate.Length(max=59))
     name = fields.Str(validate=validate.Length(min=1, max=50))
     type = fields.Str(validate=validate.Length(max=18))
 
