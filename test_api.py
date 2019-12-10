@@ -2582,7 +2582,7 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
 
     def _get_created_hosts_by_id(self, query):
         hosts = self._get_hosts_by_id(query, self._created_hosts())
-        return tuple(host["id"] for host in hosts)
+        return tuple(host for host in hosts)
 
     def _sub_tests_for_get_operations(self):
         for method in (self._get_all_hosts,):
@@ -2612,6 +2612,16 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
                 logger.setLevel(DEBUG)
                 logger.debug(url)
                 self.get(url, 400)
+
+    def test_tags_default_doesnt_get_culled(self):
+        retrieved_host_ids = self._get_created_hosts_by_id("/tags")
+        expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
+        self.assertEqual(expected_hosts, retrieved_host_ids)
+
+    def test_tags_count_default_doesnt_get_culled(self):
+        retrieved_host_ids = self._get_created_hosts_by_id("/tags")
+        expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
+        self.assertEqual(expected_hosts, retrieved_host_ids)
 
 
 class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
