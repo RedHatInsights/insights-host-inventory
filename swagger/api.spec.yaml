@@ -737,7 +737,7 @@ components:
           description: An array of the tags on the host
           type: array
           items:
-            - $ref: '#/components/schemas/StructuredTag'
+            $ref: '#/components/schemas/StructuredTag'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
