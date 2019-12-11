@@ -20,6 +20,7 @@ from tasks import init_tasks
 
 logger = get_logger(__name__)
 
+IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
