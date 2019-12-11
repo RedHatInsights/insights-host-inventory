@@ -246,10 +246,16 @@ class DiskDeviceSchema(Schema):
 
 
 class YumRepoSchema(Schema):
+    id = fields.Str(validate=validate.Length(max=256))
     name = fields.Str(validate=validate.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
     base_url = fields.Str(validate=validate.Length(max=2048))
+
+
+class DnfModuleSchema(Schema):
+    name = fields.Str(validate=validate.Length(max=128))
+    stream = fields.Str(validate=validate.Length(max=128))
 
 
 class InstalledProductSchema(Schema):
@@ -293,6 +299,7 @@ class SystemProfileSchema(Schema):
     satellite_managed = fields.Bool()
     cloud_provider = fields.Str(validate=validate.Length(max=100))
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
+    dnf_modules = fields.List(fields.Nested(DnfModuleSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))
     insights_egg_version = fields.Str(validate=validate.Length(max=50))
