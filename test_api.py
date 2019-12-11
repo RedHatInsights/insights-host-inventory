@@ -3199,12 +3199,13 @@ class TagsRequestTestCase(APIBaseTestCase):
 
     def test_query_variables_ordering_dir(self):
         for direction in ["ASC", "DESC"]:
-            with self.patch_with_empty_response() as graphql_query:
-                self.get(f"{TAGS_URL}?order_how={direction}", 200)
+            with self.subTest(direction=direction):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?order_how={direction}", 200)
 
-                graphql_query.assert_called_once()
-                variables = graphql_query.call_args[0][1]["variables"]
-                self.assertEqual(variables, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0})
+                    graphql_query.assert_called_once()
+                    variables = graphql_query.call_args[0][1]["variables"]
+                    self.assertEqual(variables, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0})
 
     def test_query_variables_ordering_by(self):
         for ordering in ["tag", "count"]:
@@ -3215,17 +3216,26 @@ class TagsRequestTestCase(APIBaseTestCase):
                 variables = graphql_query.call_args[0][1]["variables"]
                 self.assertEqual(variables, {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0})
 
-    @patch_with_empty_response()
-    def test_query_variables_pagination(self, graphql_query):
-        self.get(f"{TAGS_URL}?per_page=2&page=2", 200)
+    def test_response_pagination(self):
+        for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
+            with self.subTest(page=page):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 2})
+                    graphql_query.assert_called_once()
+                    variables = graphql_query.call_args[0][1]["variables"]
+                    self.assertEqual(
+                        variables, {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset}
+                    )
+
+    def test_response_invalid_pagination(self):
+        for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
+            with self.subTest(page=page):
+                with self.patch_with_empty_response():
+                    self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
 
 
 class TagsResponseTestCase(APIBaseTestCase):
-
     RESPONSE = {
         "data": {
             "hostTags": {
@@ -3238,6 +3248,8 @@ class TagsResponseTestCase(APIBaseTestCase):
             }
         }
     }
+
+    patch_with_3_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
 
     @patch("api.tag.graphql_query", return_value=RESPONSE)
     def test_response_processed_properly(self, graphql_query):
@@ -3255,6 +3267,16 @@ class TagsResponseTestCase(APIBaseTestCase):
                 "results": expected["data"],
             },
         )
+
+    @patch("api.tag.graphql_query", return_value=RESPONSE)
+    def test_response_pagination_index_error(self, graphql_query):
+        result = self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
+
+        graphql_query.assert_called_once()
+        variables = graphql_query.call_args[0][1]["variables"]
+        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4})
+
+        self.assertEqual(result["detail"], "Page number too high, no more tags.")
 
 
 if __name__ == "__main__":

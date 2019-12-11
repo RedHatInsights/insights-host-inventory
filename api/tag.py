@@ -95,6 +95,9 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
     response = graphql_query("http://localhost:4000/graphql", payload, headers)
     data = response["data"]["hostTags"]
 
+    if data["meta"]["total"] and offset >= data["meta"]["total"]:
+        flask.abort(404, "Page number too high, no more tags.")
+
     return _build_response(data, page, per_page)
 
 
