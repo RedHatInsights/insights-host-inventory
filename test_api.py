@@ -14,6 +14,7 @@ from unittest import main
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.parse import parse_qs
+from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
@@ -47,6 +48,8 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+
+quote = partial(url_quote, safe="")
 
 
 def generate_uuid():
@@ -3148,11 +3151,10 @@ class TagsRequestTestCase(APIBaseTestCase):
 
     @patch_with_empty_response()
     def test_query_variables_tags_complex(self, graphql_query):
-        self.get(
-            f"{TAGS_URL}?tags=Sat/env=prod&tags=insights-client%2Fspecial%252Fkey%25CE%2594with%25C4%258Dhars"
-            "%3Dspecial%252Fvalue%25CE%2594with%25C4%258Dhars%2521",
-            200,
-        )
+        tag1 = Tag("Sat", "env", "prod")
+        tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
+
+        self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
 
         graphql_query.assert_called_once()
         variables = graphql_query.call_args[0][1]["variables"]
@@ -3180,7 +3182,7 @@ class TagsRequestTestCase(APIBaseTestCase):
 
     @patch_with_empty_response()
     def test_query_variables_tag_name(self, graphql_query):
-        self.get(f"{TAGS_URL}?tag_name=%CE%94with%C4%8Dhar%21%2F%7E%7C%2B", 200)
+        self.get(f"{TAGS_URL}?tag_name={quote('Δwithčhar!/~|+ ')}", 200)
 
         graphql_query.assert_called_once()
         variables = graphql_query.call_args[0][1]["variables"]
@@ -3191,24 +3193,7 @@ class TagsRequestTestCase(APIBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B.*"},
-            },
-        )
-
-    @patch_with_empty_response()
-    def test_query_variables_tag_name_special(self, graphql_query):
-        self.get(f'{TAGS_URL}?tag_name=".~ "', 200)
-
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(
-            variables,
-            {
-                "order_by": "tag",
-                "order_how": "ASC",
-                "limit": 50,
-                "offset": 0,
-                "filter": {"name": ".*\\%22\\.\\%7E\\+\\%22.*"},
+                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
             },
         )
 
