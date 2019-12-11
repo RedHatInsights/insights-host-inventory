@@ -7,6 +7,7 @@ from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from functools import partial
 from itertools import chain
 from json import dumps
 from unittest import main
@@ -3096,8 +3097,15 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
-@patch("api.tag.graphql_query", return_value={"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}})
 class TagsRequestTestCase(APIBaseTestCase):
+
+    patch_with_empty_response = partial(
+        patch,
+        "api.tag.graphql_query",
+        return_value={"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}},
+    )
+
+    @patch_with_empty_response()
     def test_headers_forwarded(self, graphql_query):
         req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
 
@@ -3113,6 +3121,7 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
+    @patch_with_empty_response()
     def test_query_variables_default(self, graphql_query):
         self.get(TAGS_URL, 200)
 
@@ -3120,6 +3129,7 @@ class TagsRequestTestCase(APIBaseTestCase):
         variables = graphql_query.call_args[0][1]["variables"]
         self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0})
 
+    @patch_with_empty_response()
     def test_query_variables_tags_simple(self, graphql_query):
         self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
 
@@ -3136,6 +3146,7 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
+    @patch_with_empty_response()
     def test_query_variables_tags_complex(self, graphql_query):
         self.get(
             f"{TAGS_URL}?tags=Sat/env=prod&tags=insights-client%2Fspecial%252Fkey%25CE%2594with%25C4%258Dhars"
@@ -3167,6 +3178,7 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
+    @patch_with_empty_response()
     def test_query_variables_tag_name(self, graphql_query):
         self.get(f"{TAGS_URL}?tag_name=%CE%94with%C4%8Dhar%21%2F%7E%7C%2B", 200)
 
@@ -3183,6 +3195,7 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
+    @patch_with_empty_response()
     def test_query_variables_tag_name_special(self, graphql_query):
         self.get(f'{TAGS_URL}?tag_name=".~ "', 200)
 
@@ -3199,20 +3212,25 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
-    def test_query_variables_ordering_dir(self, graphql_query):
-        self.get(f"{TAGS_URL}?order_how=DESC", 200)
+    def test_query_variables_ordering_dir(self):
+        for direction in ["ASC", "DESC"]:
+            with self.patch_with_empty_response() as graphql_query:
+                self.get(f"{TAGS_URL}?order_how={direction}", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(variables, {"order_by": "tag", "order_how": "DESC", "limit": 50, "offset": 0})
+                graphql_query.assert_called_once()
+                variables = graphql_query.call_args[0][1]["variables"]
+                self.assertEqual(variables, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0})
 
-    def test_query_variables_ordering_by(self, graphql_query):
-        self.get(f"{TAGS_URL}?order_by=count", 200)
+    def test_query_variables_ordering_by(self):
+        for ordering in ["tag", "count"]:
+            with self.patch_with_empty_response() as graphql_query:
+                self.get(f"{TAGS_URL}?order_by={ordering}", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(variables, {"order_by": "count", "order_how": "ASC", "limit": 50, "offset": 0})
+                graphql_query.assert_called_once()
+                variables = graphql_query.call_args[0][1]["variables"]
+                self.assertEqual(variables, {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0})
 
+    @patch_with_empty_response()
     def test_query_variables_pagination(self, graphql_query):
         self.get(f"{TAGS_URL}?per_page=2&page=2", 200)
 
