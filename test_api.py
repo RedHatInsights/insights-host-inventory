@@ -3181,8 +3181,8 @@ class TagsRequestTestCase(APIBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_tag_name(self, graphql_query):
-        self.get(f"{TAGS_URL}?tag_name={quote('Δwithčhar!/~|+ ')}", 200)
+    def test_query_variables_search(self, graphql_query):
+        self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
 
         graphql_query.assert_called_once()
         variables = graphql_query.call_args[0][1]["variables"]

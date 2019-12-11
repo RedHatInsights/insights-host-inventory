@@ -68,7 +68,7 @@ def _build_response(data, page, per_page):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_tags(tag_name=None, tags=None, order_by=None, order_how=None, page=None, per_page=None):
+def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, per_page=None):
     if False:  # TODO: check if XJOIN_GRAPHQL_URL is configured
         flask.abort(503)
 
@@ -76,10 +76,10 @@ def get_tags(tag_name=None, tags=None, order_by=None, order_how=None, page=None,
 
     variables = {"order_by": order_by, "order_how": order_how, "limit": limit, "offset": offset}
 
-    if tag_name:
+    if search:
         variables["filter"] = {
             # Escaped to prevent ReDoS
-            "name": f".*{re.escape(url_quote(tag_name, safe=''))}.*"
+            "name": f".*{re.escape(url_quote(search, safe=''))}.*"
         }
 
     if tags:

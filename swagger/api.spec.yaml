@@ -317,9 +317,9 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - in: query
-          name: tag_name
+          name: search
           required: false
-          description: Only include tags that match the given name. The value is matched against namespace, key and value.
+          description: Only include tags that match the given search string. The value is matched against namespace, key and value.
           schema:
             type: string
       responses:
