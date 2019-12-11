@@ -2537,7 +2537,11 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
     def _create_host(self, stale_timestamp):
-        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        data = {
+            "account": ACCOUNT,
+            "insights_id": str(generate_uuid()),
+            "facts": [{"facts": {"ARCHITECTURE": "x86_64"}, "namespace": "rhsm"}],
+        }
         if stale_timestamp:
             data["reporter"] = "some reporter"
             data["stale_timestamp"] = stale_timestamp.isoformat()
@@ -2613,15 +2617,45 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
                 logger.debug(url)
                 self.get(url, 400)
 
-    def test_tags_default_doesnt_get_culled(self):
+    def test_tags_default_ignores_culled(self):
         retrieved_host_ids = self._get_created_hosts_by_id("/tags")
         expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
         self.assertEqual(expected_hosts, retrieved_host_ids)
 
-    def test_tags_count_default_doesnt_get_culled(self):
+    def test_tags_count_default_ignores_culled(self):
         retrieved_host_ids = self._get_created_hosts_by_id("/tags")
         expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
         self.assertEqual(expected_hosts, retrieved_host_ids)
+
+    def test_get_system_profile_ignores_culled(self):
+        results = self._get_created_hosts_by_id("/system_profile")
+        expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
+
+        retrieved_host_ids = ()
+        for result in results:
+            retrieved_host_ids = retrieved_host_ids + (result["id"],)
+
+        self.assertEqual(expected_hosts, retrieved_host_ids)
+
+    def test_delete_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"]
+
+        self.delete(url, 404)
+
+    def test_patch_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"]
+
+        self.patch(url, {"display_name": "patched"}, 404)
+
+    def test_patch_facts_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"] + "/rhsm"
+
+        self.patch(url, {"ARCHITECTURE": "patched"}, 404)
+
+    def test_put_facts_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"] + "/otherNS"
+
+        self.put(url, {"ARCHITECTURE": "patched"}, 404)
 
 
 class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):

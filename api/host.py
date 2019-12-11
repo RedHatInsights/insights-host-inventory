@@ -264,8 +264,10 @@ def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
-
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+
+        staleness = ["fresh", "stale", "unknown"]
+        query = find_hosts_by_staleness(staleness, query)
 
         hosts_to_delete = query.all()
 
@@ -327,12 +329,16 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
+    staleness = ["fresh", "stale", "unknown"]
+    query = find_hosts_by_staleness(staleness, query)
+
     try:
         order_by = _params_to_order_by(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
         query = query.order_by(*order_by)
+
     query_results = query.paginate(page, per_page, True)
 
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
@@ -358,6 +364,9 @@ def patch_by_id(host_id_list, host_data):
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+
+    staleness = ["fresh", "stale", "unknown"]
+    query = find_hosts_by_staleness(staleness, query)
 
     hosts_to_update = query.all()
 
