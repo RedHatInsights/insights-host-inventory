@@ -1,7 +1,9 @@
 import connexion
+from flask import request
 from werkzeug.local import LocalProxy
 
 from api.metrics import login_failure_count
+from app import IDENTITY_HEADER
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import validate
@@ -34,6 +36,13 @@ def bearer_token_handler(token):
         return None
 
     return {"uid": identity}
+
+
+def authenticated_request(method, *args, **kwargs):
+    headers = kwargs.get("headers", {})
+    headers[IDENTITY_HEADER] = request.headers[IDENTITY_HEADER]
+    authenticated_kwargs = {**kwargs, "headers": headers}
+    return method(*args, **authenticated_kwargs)
 
 
 def _get_identity():
