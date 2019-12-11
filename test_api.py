@@ -758,6 +758,20 @@ class CreateHostsTestCase(DBAPITestCase):
 
             assert "'status': 400" in str(response)
 
+    def test_create_host_with_invalid_string_tag_format(self):
+        tag = "string/tag=format"
+
+        host_data = HostWrapper(test_data(tags=[tag]))
+
+        self.post(HOST_URL, [host_data.data()], 400)
+
+    def test_create_host_with_invalid_tag_format(self):
+        tag = {"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}
+
+        host_data = HostWrapper(test_data(tags=[tag]))
+
+        self.post(HOST_URL, [host_data.data()], 400)
+
     def test_create_host_with_tags(self):
         host_data = HostWrapper(
             test_data(
@@ -2129,6 +2143,63 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_namespace_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAdedQU"
+            "TTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriFPjg"
+            "WrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLgcQq"
+            "WfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLFwUE"
+            "GCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPhViH"
+            "rcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs/key=val"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "namespace" in str(response)
+
+    def test_get_host_key_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=NS/JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAde"
+            "dQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriF"
+            "PjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLg"
+            "cQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLF"
+            "wUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPh"
+            "ViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs=val"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "key" in str(response)
+
+    def test_get_host_value_too_long(self):
+        """
+        send a request to find hosts with a string tag where the length
+        of the namespace excedes the 255 character limit
+        """
+
+        test_url = (
+            f"{HOST_URL}?tags=NS/key=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLy"
+            "IAdedQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQ"
+            "XriFPjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVz"
+            "lNLgcQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGA"
+            "twLFwUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPh"
+            "CfPhViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs"
+        )
+
+        response = self.get(test_url, 400)
+
+        assert "value" in str(response)
 
 
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):

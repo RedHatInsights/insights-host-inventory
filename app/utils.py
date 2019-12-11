@@ -2,6 +2,7 @@ import json
 import re
 import urllib
 
+from app.exceptions import ValidationException
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -228,10 +229,19 @@ class Tag:
         namespace, key, value = self._split_string_tag(string_tag)
 
         if namespace is not None:
-            self.namespace = urllib.parse.unquote(namespace)
-        self.key = urllib.parse.unquote(key)
+            namespace = urllib.parse.unquote(namespace)
+            if len(namespace) > 255:
+                raise ValidationException("namespace is longer than 255 characters")
+            self.namespace = namespace
+        key = urllib.parse.unquote(key)
+        if len(key) > 255:
+            raise ValidationException("key is longer than 255 characters")
+        self.key = key
         if value is not None:
-            self.value = urllib.parse.unquote(value)
+            value = urllib.parse.unquote(value)
+            if len(value) > 255:
+                raise ValidationException("value is longer than 255 characters")
+            self.value = value
 
         return self
 
