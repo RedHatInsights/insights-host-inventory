@@ -115,7 +115,7 @@ def find_hosts_by_tag(account_number, string_tags, query):
     return query.filter(Host.tags.contains(tags_to_find))
 
 
-def find_hosts_by_staleness(states, query):
+def find_hosts_by_staleness(states=["fresh", "stale", "unknown"], query=None):
     staleness_offset_ = staleness_offset()
     stale_timestamp = staleness_offset_.stale_timestamp(Host.stale_timestamp)
     stale_warning_timestamp = staleness_offset_.stale_warning_timestamp(Host.stale_timestamp)
@@ -266,8 +266,7 @@ def delete_by_id(host_id_list):
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-        staleness = ["fresh", "stale", "unknown"]
-        query = find_hosts_by_staleness(staleness, query)
+        query = find_hosts_by_staleness(query=query)
 
         hosts_to_delete = query.all()
 
@@ -329,8 +328,7 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    staleness = ["fresh", "stale", "unknown"]
-    query = find_hosts_by_staleness(staleness, query)
+    query = find_hosts_by_staleness(query=query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -365,8 +363,7 @@ def patch_by_id(host_id_list, host_data):
 
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    staleness = ["fresh", "stale", "unknown"]
-    query = find_hosts_by_staleness(staleness, query)
+    query = find_hosts_by_staleness(query=query)
 
     hosts_to_update = query.all()
 
@@ -432,11 +429,10 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
+def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    if staleness:
-        query = find_hosts_by_staleness(staleness, query)
+    query = find_hosts_by_staleness(query=query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)
@@ -471,11 +467,10 @@ def _count_tags(host_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
+def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    if staleness:
-        query = find_hosts_by_staleness(staleness, query)
+    query = find_hosts_by_staleness(query=query)
 
     try:
         order_by = _params_to_order_by(order_by, order_how)

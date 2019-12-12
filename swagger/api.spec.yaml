@@ -276,7 +276,6 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
-        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully found tags.
@@ -301,7 +300,6 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
-        - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
           description: Successfully found tag count.
