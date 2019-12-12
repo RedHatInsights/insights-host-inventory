@@ -11,7 +11,9 @@ from functools import partial
 from itertools import chain
 from json import dumps
 from unittest import main
+from unittest import mock
 from unittest import TestCase
+from unittest.mock import ANY
 from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
@@ -22,6 +24,7 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from api.host import _get_host_list_by_id_list
+from api.tag import TAGS_QUERY
 from app import create_app
 from app import db
 from app.auth.identity import Identity
@@ -3100,46 +3103,46 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
+@patch("api.tag.is_enabled", return_value=True)
 class TagsRequestTestCase(APIBaseTestCase):
 
     patch_with_empty_response = partial(
-        patch,
-        "api.tag.graphql_query",
-        return_value={"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}},
+        patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
     )
 
+    def test_headers_forwarded(self, is_enabled):
+        value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
+        response = mock.Mock()
+        response.text = json.dumps(value)
+        response.json = mock.Mock(return_value=value)
+
+        with patch("app.xjoin.post", return_value=response) as resp:
+            req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
+            self.get(TAGS_URL, 200, extra_headers={"x-rh-insights-request-id": req_id, "foo": "bar"})
+
+            resp.assert_called_once_with(
+                ANY,
+                json=ANY,
+                headers={
+                    "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
+                    # "x-rh-insights-request-id": req_id,
+                },
+            )
+
     @patch_with_empty_response()
-    def test_headers_forwarded(self, graphql_query):
-        req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
+    def test_query_variables_default(self, graphql_query, is_enabled):
+        self.get(TAGS_URL, 200)
 
-        self.get(TAGS_URL, 200, extra_headers={"x-rh-insights-request-id": req_id, "foo": "bar"})
-
-        graphql_query.assert_called_once()
-        headers = graphql_query.call_args[0][2]
-        self.assertEqual(
-            headers,
-            {
-                "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
-                "x-rh-insights-request-id": req_id,
-            },
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0}
         )
 
     @patch_with_empty_response()
-    def test_query_variables_default(self, graphql_query):
-        self.get(TAGS_URL, 200)
-
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0})
-
-    @patch_with_empty_response()
-    def test_query_variables_tags_simple(self, graphql_query):
+    def test_query_variables_tags_simple(self, graphql_query, is_enabled):
         self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(
-            variables,
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
             {
                 "order_by": "tag",
                 "order_how": "ASC",
@@ -3150,16 +3153,14 @@ class TagsRequestTestCase(APIBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_complex(self, graphql_query):
+    def test_query_variables_tags_complex(self, graphql_query, is_enabled):
         tag1 = Tag("Sat", "env", "prod")
         tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
 
         self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(
-            variables,
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
             {
                 "order_by": "tag",
                 "order_how": "ASC",
@@ -3181,13 +3182,11 @@ class TagsRequestTestCase(APIBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_search(self, graphql_query):
+    def test_query_variables_search(self, graphql_query, is_enabled):
         self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(
-            variables,
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
             {
                 "order_by": "tag",
                 "order_how": "ASC",
@@ -3197,63 +3196,58 @@ class TagsRequestTestCase(APIBaseTestCase):
             },
         )
 
-    def test_query_variables_ordering_dir(self):
+    def test_query_variables_ordering_dir(self, is_enabled):
         for direction in ["ASC", "DESC"]:
             with self.subTest(direction=direction):
                 with self.patch_with_empty_response() as graphql_query:
                     self.get(f"{TAGS_URL}?order_how={direction}", 200)
 
-                    graphql_query.assert_called_once()
-                    variables = graphql_query.call_args[0][1]["variables"]
-                    self.assertEqual(variables, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0})
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0}
+                    )
 
-    def test_query_variables_ordering_by(self):
+    def test_query_variables_ordering_by(self, is_enabled):
         for ordering in ["tag", "count"]:
             with self.patch_with_empty_response() as graphql_query:
                 self.get(f"{TAGS_URL}?order_by={ordering}", 200)
 
-                graphql_query.assert_called_once()
-                variables = graphql_query.call_args[0][1]["variables"]
-                self.assertEqual(variables, {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0})
+                graphql_query.assert_called_once_with(
+                    TAGS_QUERY, {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0}
+                )
 
-    def test_response_pagination(self):
+    def test_response_pagination(self, is_enabled):
         for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response() as graphql_query:
                     self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
 
-                    graphql_query.assert_called_once()
-                    variables = graphql_query.call_args[0][1]["variables"]
-                    self.assertEqual(
-                        variables, {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset}
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset}
                     )
 
-    def test_response_invalid_pagination(self):
+    def test_response_invalid_pagination(self, is_enabled):
         for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response():
                     self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
 
 
+@patch("api.tag.is_enabled", return_value=True)
 class TagsResponseTestCase(APIBaseTestCase):
     RESPONSE = {
-        "data": {
-            "hostTags": {
-                "meta": {"count": 3, "total": 3},
-                "data": [
-                    {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
-                    {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
-                    {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
-                ],
-            }
+        "hostTags": {
+            "meta": {"count": 3, "total": 3},
+            "data": [
+                {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
+                {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
+                {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+            ],
         }
     }
 
-    patch_with_3_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
-
     @patch("api.tag.graphql_query", return_value=RESPONSE)
-    def test_response_processed_properly(self, graphql_query):
-        expected = self.RESPONSE["data"]["hostTags"]
+    def test_response_processed_properly(self, graphql_query, is_enabled):
+        expected = self.RESPONSE["hostTags"]
         result = self.get(TAGS_URL, 200)
         graphql_query.assert_called_once()
 
@@ -3269,12 +3263,12 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
     @patch("api.tag.graphql_query", return_value=RESPONSE)
-    def test_response_pagination_index_error(self, graphql_query):
+    def test_response_pagination_index_error(self, graphql_query, is_enabled):
         self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 
-        graphql_query.assert_called_once()
-        variables = graphql_query.call_args[0][1]["variables"]
-        self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4})
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4}
+        )
 
 
 if __name__ == "__main__":

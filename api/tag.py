@@ -3,8 +3,6 @@ from urllib.parse import quote_plus as url_quote
 
 import flask
 from flask import current_app
-from flask import request
-from requests import post
 
 from api import api_operation
 from api import metrics
@@ -12,6 +10,7 @@ from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
 from app.xjoin import check_pagination
+from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 
 logger = get_logger(__name__)
@@ -63,10 +62,14 @@ def _build_response(data, page, per_page):
     }
 
 
+def is_enabled():
+    return current_app.config["INVENTORY_CONFIG"].bulk_query_source == BulkQuerySource.xjoin
+
+
 @api_operation
 @metrics.api_request_time.time()
 def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, per_page=None):
-    if current_app.config["INVENTORY_CONFIG"].bulk_query_source != BulkQuerySource.xjoin:
+    if not is_enabled():
         flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
@@ -83,25 +86,10 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
         variables["hostFilter"] = {"AND": [{"tag": Tag().from_string(tag).data()} for tag in tags]}
 
     logger.debug("executing TAGS_QUERY, variables: %s", variables)
-    payload = {"query": TAGS_QUERY, "variables": variables}
 
-    headers = _get_forwarded_headers(request.headers)
-
-    # TODO: reuse graphql client code
-    # TODO: actual URL
-    response = graphql_query("http://localhost:4000/graphql", payload, headers)
-    data = response["data"]["hostTags"]
+    response = graphql_query(TAGS_QUERY, variables)
+    data = response["hostTags"]
 
     check_pagination(offset, data["meta"]["total"])
 
     return _build_response(data, page, per_page)
-
-
-def graphql_query(url, payload, headers):
-    response = post(url, json=payload, headers=headers)
-
-    if response.status_code != 200:
-        logger.error("TAGS_QUERY failed with %s", response.status_code)
-        flask.abort(503, "GraphQL query failed.")
-
-    return response.json()
