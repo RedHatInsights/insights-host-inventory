@@ -6,6 +6,8 @@ from flask import current_app
 
 from api import api_operation
 from api import metrics
+from api.common import build_collection_response
+from api.common import json_response
 from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
@@ -47,16 +49,6 @@ TAGS_QUERY = """
 """
 
 
-def _build_response(data, page, per_page):
-    return {
-        "total": data["meta"]["total"],
-        "count": data["meta"]["count"],
-        "page": page,
-        "per_page": per_page,
-        "results": data["data"],
-    }
-
-
 def is_enabled():
     return current_app.config["INVENTORY_CONFIG"].bulk_query_source == BulkQuerySource.xjoin
 
@@ -87,4 +79,6 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
 
     check_pagination(offset, data["meta"]["total"])
 
-    return _build_response(data, page, per_page)
+    return json_response(
+        build_collection_response(data["data"], page, per_page, data["meta"]["total"], data["meta"]["count"])
+    )

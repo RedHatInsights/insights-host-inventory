@@ -5,13 +5,13 @@ from enum import Enum
 
 import flask
 import sqlalchemy
-import ujson
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
 from api import metrics
+from api.common import json_response
 from app import db
 from app import events
 from app import staleness_offset
@@ -83,7 +83,7 @@ def add_host_list(host_list):
                 )
 
         response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
-        return _build_json_response(response, status=207)
+        return json_response(response, status=207)
 
 
 def _convert_host_results_to_http_status(result):
@@ -219,11 +219,7 @@ def _build_paginated_host_list_response(total, page, per_page, host_list):
         "per_page": per_page,
         "results": json_host_list,
     }
-    return _build_json_response(json_output, status=200)
-
-
-def _build_json_response(json_data, status=200):
-    return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
+    return json_response(json_output, status=200)
 
 
 def find_hosts_by_display_name(account, display_name):
@@ -347,7 +343,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
         "results": response_list,
     }
 
-    return _build_json_response(json_output, status=200)
+    return json_response(json_output, status=200)
 
 
 @api_operation
@@ -495,4 +491,4 @@ def _build_serialized_tags(host_list):
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = {"total": total, "count": len(tags_list), "page": page, "per_page": per_page, "results": tags_list}
 
-    return _build_json_response(json_output, status=200)
+    return json_response(json_output, status=200)
