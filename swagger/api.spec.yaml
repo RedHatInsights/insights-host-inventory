@@ -604,6 +604,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
+        tags:
+          description: The tags on a host
+          type: array
+          items:
+            $ref: '#/components/schemas/StructuredTag'
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
         stale_timestamp:
@@ -729,6 +734,7 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         tags:
+          description: An array of the tags on the host
           type: array
           items:
             $ref: '#/components/schemas/StructuredTag'
@@ -864,6 +870,8 @@ components:
       title: Yum Repository
       description: Representation of one yum repository
       properties:
+        id:
+          type: string
         name:
           type: string
         gpgcheck:
@@ -873,6 +881,14 @@ components:
         baseurl:
           type: string
           format: uri
+    DnfModule:
+      title: DNF Module
+      description: Representation of one DNF module
+      properties:
+        name:
+          type: string
+        stream:
+          type: string
     InstalledProduct:
       title: Installed Product
       description: Representation of one installed product
@@ -987,6 +1003,10 @@ components:
           type: array  # technically a set, ordering is not important
           items:
             $ref: '#/components/schemas/YumRepo'
+        dnf_modules:
+          type: array # technically a set, ordering is not important
+          items:
+            $ref: '#/components/schemas/DnfModule'
         installed_products:
           type: array  # technically a set, ordering is not important
           items:
@@ -1000,7 +1020,7 @@ components:
           items:
             description: a NEVRA string for a single installed package
             type: string
-            example: "0:krb5-libs-1.16.1-23.fc29.i686"
+            example: "krb5-libs-0:-1.16.1-23.fc29.i686"
         installed_services:
           type: array
           items:

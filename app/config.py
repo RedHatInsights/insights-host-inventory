@@ -1,7 +1,10 @@
 import os
+from enum import Enum
 
 from app.common import get_build_version
 from app.logging import get_logger
+
+BulkQuerySource = Enum("BulkQuerySource", ("db", "xjoin"))
 
 
 class Config:
@@ -45,6 +48,9 @@ class Config:
 
         self.culling_stale_warning_offset_days = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7"))
         self.culling_culled_offset_days = int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14"))
+
+        self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
+        self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")

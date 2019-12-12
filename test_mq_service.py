@@ -6,6 +6,7 @@ from datetime import timedelta
 from datetime import timezone
 from unittest import main
 from unittest import TestCase
+from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -14,10 +15,12 @@ import marshmallow
 from app import create_app
 from app import db
 from app.exceptions import InventoryException
+from app.queue.ingress import _validate_json_object_for_utf8
 from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
 from test_utils import rename_host_table_and_indexes
+from test_utils import valid_system_profile
 
 
 class FakeKafkaMessage:
@@ -38,13 +41,15 @@ class mockEventProducer:
         return self.__data["write_event"]
 
 
-class MQServiceTestCase(TestCase):
+class MQServiceBaseTestCase(TestCase):
     def setUp(self):
         """
         Creates the application and a test client to make requests.
         """
         self.app = create_app(config_name="testing")
 
+
+class MQServiceTestCase(MQServiceBaseTestCase):
     def test_event_loop_exception_handling(self):
         """
         Test to ensure that an exception in message handler method does not cause the
@@ -60,7 +65,6 @@ class MQServiceTestCase(TestCase):
         self.assertEqual(handle_message_mock.call_count, 3)
 
     def test_handle_message_failure_invalid_json_message(self):
-
         invalid_message = "failure {} "
         mock_event_producer = Mock()
 
@@ -70,7 +74,6 @@ class MQServiceTestCase(TestCase):
         mock_event_producer.assert_not_called()
 
     def test_handle_message_failure_invalid_message_format(self):
-
         invalid_message = json.dumps({"operation": "add_host", "NOTdata": {}})  # Missing data field
 
         mock_event_producer = Mock()
@@ -113,7 +116,40 @@ class MQServiceTestCase(TestCase):
     #     pass
 
 
-class MQAddHostBaseClass(MQServiceTestCase):
+@patch("app.queue.ingress.build_event")
+@patch("app.queue.ingress.add_host", return_value=(None, None))
+class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
+    def _message(self, display_name):
+        return f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
+
+    def test_handle_message_failure_invalid_surrogates(self, add_host, build_event):
+        raw = "\udce2\udce2"
+        escaped = "\\udce2\\udce2"
+        display_names = (f"{raw}", f"{escaped}", f"{raw}{escaped}")
+        for display_name in display_names:
+            with self.subTest(display_names=display_names):
+                invalid_message = self._message(display_name)
+                with self.assertRaises(UnicodeError):
+                    handle_message(invalid_message, Mock())
+                add_host.assert_not_called()
+
+    def test_handle_message_unicode_not_damaged(self, add_host, build_event):
+        operation_raw = "🧜🏿‍♂️"
+        operation_escaped = json.dumps(operation_raw)[1:-1]
+
+        messages = (
+            f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}"}}}}',
+            f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}"}}}}',
+            f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
+        )
+        for message in messages:
+            with self.subTest(message=message):
+                add_host.reset_mock()
+                handle_message(message, Mock())
+                add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+
+
+class MQAddHostBaseClass(MQServiceBaseTestCase):
     @classmethod
     def setUpClass(cls):
         """
@@ -220,6 +256,32 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_host_add_with_system_profile(self, datetime_mock):
+        """
+         Tests adding a host with message containing system profile
+         """
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "system_profile": valid_system_profile(),
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
 
 class MQCullingTests(MQAddHostBaseClass):
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
@@ -293,6 +355,69 @@ class MQCullingTests(MQAddHostBaseClass):
         additional_host_data = {"reporter": "puptoo"}
 
         self._base_incomplete_staleness_data_test(additional_host_data)
+
+
+class MQValidateJsonObjectForUtf8TestCase(TestCase):
+    def test_valid_string_is_ok(self):
+        _validate_json_object_for_utf8("naïve fiancé 👰🏻")
+        self.assertTrue(True)
+
+    def test_invalid_string_raises_exception(self):
+        with self.assertRaises(UnicodeEncodeError):
+            _validate_json_object_for_utf8("hello\udce2\udce2")
+
+    @patch("app.queue.ingress._validate_json_object_for_utf8")
+    def test_dicts_are_traversed(self, mock):
+        _validate_json_object_for_utf8({"first": "item", "second": "value"})
+        mock.assert_has_calls((call("first"), call("item"), call("second"), call("value")), any_order=True)
+
+    @patch("app.queue.ingress._validate_json_object_for_utf8")
+    def test_lists_are_traversed(self, mock):
+        _validate_json_object_for_utf8(["first", "second"])
+        mock.assert_has_calls((call("first"), call("second")), any_order=True)
+
+    def test_invalid_string_is_found_in_dict_value(self):
+        objects = (
+            {"first": "naïve fiancé 👰🏻", "second": "hello\udce2\udce2"},
+            {"first": {"subkey": "hello\udce2\udce2"}, "second": "🤷🏻‍♂️"},
+            [{"first": "hello\udce2\udce2"}],
+            {"deep": ["deeper", {"deepest": ["Mariana trench", {"Earth core": "hello\udce2\udce2"}]}]},
+        )
+        for obj in objects:
+            with self.subTest(object=obj):
+                with self.assertRaises(UnicodeEncodeError):
+                    _validate_json_object_for_utf8(obj)
+
+    def test_invalid_string_is_found_in_dict_key(self):
+        objects = (
+            {"naïve fiancé 👰🏻": "first", "hello\udce2\udce2": "second"},
+            {"first": {"hello\udce2\udce2": "subvalue"}, "🤷🏻‍♂️": "second"},
+            [{"hello\udce2\udce2": "first"}],
+            {"deep": ["deeper", {"deepest": ["Mariana trench", {"hello\udce2\udce2": "Earth core"}]}]},
+        )
+        for obj in objects:
+            with self.subTest(object=obj):
+                with self.assertRaises(UnicodeEncodeError):
+                    _validate_json_object_for_utf8(obj)
+
+    def test_invalid_string_is_found_in_list_item(self):
+        objects = (
+            ["naïve fiancé 👰🏻", "hello\udce2\udce2"],
+            {"first": ["hello\udce2\udce2"], "second": "🤷🏻‍♂️"},
+            ["first", ["hello\udce2\udce2"]],
+            ["deep", {"deeper": ["deepest", {"Mariana trench": ["Earth core", "hello\udce2\udce2"]}]}],
+        )
+        for obj in objects:
+            with self.subTest(object=obj):
+                with self.assertRaises(UnicodeEncodeError):
+                    _validate_json_object_for_utf8(obj)
+
+    def test_other_values_are_ignored(self):
+        values = (1.23, 0, 123, -123, True, False, None)
+        for value in values:
+            with self.subTest(value=value):
+                _validate_json_object_for_utf8(value)
+                self.assertTrue(True)
 
 
 if __name__ == "__main__":

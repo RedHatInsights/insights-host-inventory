@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import timezone
 
 from marshmallow import ValidationError
@@ -109,6 +110,11 @@ def _serialize_facts(facts):
 
 def _serialize_datetime(dt):
     return dt.astimezone(timezone.utc).isoformat()
+
+
+def _deserialize_datetime_xjoin(s):
+    dt = datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%fZ")
+    return dt.replace(tzinfo=timezone.utc)
 
 
 def _serialize_uuid(u):
