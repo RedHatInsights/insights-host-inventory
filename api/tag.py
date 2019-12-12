@@ -2,13 +2,17 @@ import re
 from urllib.parse import quote_plus as url_quote
 
 import flask
+from flask import current_app
 from flask import request
 from requests import post
 
 from api import api_operation
 from api import metrics
+from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
+from app.xjoin import check_pagination
+from app.xjoin import pagination_params
 
 logger = get_logger(__name__)
 
@@ -49,13 +53,6 @@ def _get_forwarded_headers(headers):
     return {key: headers.get(key) for key in ["x-rh-identity", "x-rh-insights-request-id"]}
 
 
-# TODO: reuse this function
-def _pagination_params(page, per_page):
-    limit = per_page
-    offset = (page - 1) * per_page
-    return limit, offset
-
-
 def _build_response(data, page, per_page):
     return {
         "total": data["meta"]["total"],
@@ -69,10 +66,10 @@ def _build_response(data, page, per_page):
 @api_operation
 @metrics.api_request_time.time()
 def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, per_page=None):
-    if False:  # TODO: check if XJOIN_GRAPHQL_URL is configured
+    if current_app.config["INVENTORY_CONFIG"].bulk_query_source != BulkQuerySource.xjoin:
         flask.abort(503)
 
-    limit, offset = _pagination_params(page, per_page)
+    limit, offset = pagination_params(page, per_page)
 
     variables = {"order_by": order_by, "order_how": order_how, "limit": limit, "offset": offset}
 
@@ -95,8 +92,7 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
     response = graphql_query("http://localhost:4000/graphql", payload, headers)
     data = response["data"]["hostTags"]
 
-    if data["meta"]["total"] and offset >= data["meta"]["total"]:
-        flask.abort(404, "Page number too high, no more tags.")
+    check_pagination(offset, data["meta"]["total"])
 
     return _build_response(data, page, per_page)
 

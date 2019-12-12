@@ -3270,13 +3270,11 @@ class TagsResponseTestCase(APIBaseTestCase):
 
     @patch("api.tag.graphql_query", return_value=RESPONSE)
     def test_response_pagination_index_error(self, graphql_query):
-        result = self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
+        self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 
         graphql_query.assert_called_once()
         variables = graphql_query.call_args[0][1]["variables"]
         self.assertEqual(variables, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4})
-
-        self.assertEqual(result["detail"], "Page number too high, no more tags.")
 
 
 if __name__ == "__main__":
