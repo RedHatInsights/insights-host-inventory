@@ -3125,7 +3125,7 @@ class TagsRequestTestCase(APIBaseTestCase):
                 json=ANY,
                 headers={
                     "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
-                    # "x-rh-insights-request-id": req_id,
+                    "x-rh-insights-request-id": req_id,
                 },
             )
 

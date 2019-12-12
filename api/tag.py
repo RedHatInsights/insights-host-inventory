@@ -47,11 +47,6 @@ TAGS_QUERY = """
 """
 
 
-# TODO: reuse this function
-def _get_forwarded_headers(headers):
-    return {key: headers.get(key) for key in ["x-rh-identity", "x-rh-insights-request-id"]}
-
-
 def _build_response(data, page, per_page):
     return {
         "total": data["meta"]["total"],
