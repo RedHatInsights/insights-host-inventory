@@ -214,7 +214,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
     json_output = build_collection_response(json_host_list, page, per_page, total, len(host_list))
-    return json_response(json_output, status=200)
+    return json_response(json_output)
 
 
 def find_hosts_by_display_name(account, display_name):
@@ -330,7 +330,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
     json_output = build_collection_response(response_list, page, per_page, query_results.total, len(response_list))
-    return json_response(json_output, status=200)
+    return json_response(json_output)
 
 
 @api_operation
@@ -477,4 +477,4 @@ def _build_serialized_tags(host_list):
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = build_collection_response(tags_list, page, per_page, total, len(tags_list))
-    return json_response(json_output, status=200)
+    return json_response(json_output)
