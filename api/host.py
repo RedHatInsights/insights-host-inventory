@@ -11,6 +11,7 @@ from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
 from api import metrics
+from api.common import build_collection_response
 from api.common import json_response
 from app import db
 from app import events
@@ -212,13 +213,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
-    json_output = {
-        "total": total,
-        "count": len(host_list),
-        "page": page,
-        "per_page": per_page,
-        "results": json_host_list,
-    }
+    json_output = build_collection_response(json_host_list, page, per_page, total, len(host_list))
     return json_response(json_output, status=200)
 
 
@@ -334,15 +329,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     query_results = query.paginate(page, per_page, True)
 
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
-
-    json_output = {
-        "total": query_results.total,
-        "count": len(response_list),
-        "page": page,
-        "per_page": per_page,
-        "results": response_list,
-    }
-
+    json_output = build_collection_response(response_list, page, per_page, query_results.total, len(response_list))
     return json_response(json_output, status=200)
 
 
@@ -489,6 +476,5 @@ def _build_serialized_tags(host_list):
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
-    json_output = {"total": total, "count": len(tags_list), "page": page, "per_page": per_page, "results": tags_list}
-
+    json_output = build_collection_response(tags_list, page, per_page, total, len(tags_list))
     return json_response(json_output, status=200)
