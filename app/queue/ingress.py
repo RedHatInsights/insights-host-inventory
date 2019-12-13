@@ -4,7 +4,8 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 
-from app import staleness_offset
+from app import inventory_config
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
@@ -91,7 +92,8 @@ def add_host(host_data):
         try:
             logger.info("Attempting to add host...")
             input_host = deserialize_host(host_data)
-            (output_host, add_results) = host_repository.add_host(input_host, staleness_offset())
+            staleness_timestamps = Timestamps.from_config(inventory_config())
+            (output_host, add_results) = host_repository.add_host(input_host, staleness_timestamps)
             metrics.add_host_success.labels(
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated

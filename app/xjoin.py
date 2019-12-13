@@ -5,11 +5,13 @@ from flask import current_app
 from flask import request
 from requests import post
 
+from app import IDENTITY_HEADER
+from app import inventory_config
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth import authenticated_request
+from app.culling import staleness_to_conditions
 
-__all__ = ("graphql_query", "pagination_params", "string_contains", "url")
+__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "url")
 
 logger = getLogger("graphql")
 
@@ -23,10 +25,9 @@ def graphql_query(query_string, variables):
     url_ = url()
     logger.info("QUERY: URL %s; query %s, variables %s", url_, query_string, variables)
     payload = {"query": query_string, "variables": variables}
-    headers = {REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)}
 
-    response = authenticated_request(post, url_, json=payload, headers=headers)
-    logger.info("QUERY: response %s", response.text)
+    response = post(url_, json=payload, headers=_forwarded_headers())
+    logger.debug("QUERY: response %s", response.text)
     response_body = response.json()
     return response_body["data"]
 
@@ -37,9 +38,30 @@ def pagination_params(page, per_page):
     return limit, offset
 
 
+def staleness_filter(staleness):
+    config = inventory_config()
+    return staleness_to_conditions(config, staleness, _stale_timestamp_filter)
+
+
 def string_contains(string):
     return f"*{string}*"
 
 
 def url():
     return current_app.config["INVENTORY_CONFIG"].xjoin_graphql_url
+
+
+def _forwarded_headers():
+    return {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE),
+    }
+
+
+def _stale_timestamp_filter(gte=None, lte=None):
+    filter_ = {}
+    if gte:
+        filter_["gte"] = gte.isoformat()
+    if lte:
+        filter_["lte"] = lte.isoformat()
+    return {"stale_timestamp": filter_}

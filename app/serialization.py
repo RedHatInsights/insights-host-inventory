@@ -48,11 +48,29 @@ def deserialize_host(raw_data):
     )
 
 
-def serialize_host(host, staleness_offset):
+def deserialize_host_xjoin(data):
+    host = Host(
+        canonical_facts=data["canonical_facts"],
+        display_name=data["display_name"],
+        ansible_host=data["ansible_host"],
+        account=data["account"],
+        facts=data["facts"] or {},
+        tags={},  # Not a part of host list output
+        system_profile_facts={},  # Not a part of host list output
+        stale_timestamp=_deserialize_datetime_xjoin(data["stale_timestamp"]),
+        reporter=data["reporter"],
+    )
+    for field in ("created_on", "modified_on"):
+        setattr(host, field, _deserialize_datetime_xjoin(data[field]))
+    host.id = data["id"]
+    return host
+
+
+def serialize_host(host, staleness_timestamps):
     if host.stale_timestamp:
-        stale_timestamp = staleness_offset.stale_timestamp(host.stale_timestamp)
-        stale_warning_timestamp = staleness_offset.stale_warning_timestamp(host.stale_timestamp)
-        culled_timestamp = staleness_offset.culled_timestamp(host.stale_timestamp)
+        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
+        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
+        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
     else:
         stale_timestamp = None
         stale_warning_timestamp = None
