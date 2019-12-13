@@ -4,6 +4,7 @@ import json
 import tempfile
 import uuid
 from base64 import b64encode
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -24,11 +25,12 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from api.host import _get_host_list_by_id_list
+from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
 from app import create_app
 from app import db
 from app.auth.identity import Identity
-from app.culling import StalenessOffset
+from app.culling import Timestamps
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
@@ -52,7 +54,9 @@ TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
 
-quote = partial(url_quote, safe="")
+
+def quote(*args, **kwargs):
+    return url_quote(str(args[0]), *args[1:], safe="", **kwargs)
 
 
 def generate_uuid():
@@ -2341,7 +2345,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         old_host.modified_on = new_modified_on
         db.session.add(old_host)
 
-        staleness_offset = StalenessOffset.from_config(self.app.config["INVENTORY_CONFIG"])
+        staleness_offset = Timestamps.from_config(self.app.config["INVENTORY_CONFIG"])
         serialized_old_host = serialize_host(old_host, staleness_offset)
         self.added_hosts[added_host_index] = HostWrapper(serialized_old_host)
 
@@ -2497,6 +2501,11 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
 
         updated_host = self._update_host(host_to_create)
         _assert_values(updated_host)
+
+        from logging import getLogger, INFO
+
+        logger = getLogger("sqlalchemy.engine")
+        logger.setLevel(INFO)
 
         retrieved_host_from_all = self._get_all_hosts()
         _assert_values(retrieved_host_from_all)
@@ -3103,246 +3112,712 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
-@patch("api.tag.is_enabled", return_value=True)
-class TagsRequestTestCase(APIBaseTestCase):
+class XjoinRequestBaseTestCase(APIBaseTestCase):
+    @contextmanager
+    def _patch_xjoin_post(self, response):
+        with patch(
+            "app.xjoin.post", **{"return_value.text": json.dumps(response), "return_value.json.return_value": response}
+        ) as post:
+            yield post
 
-    patch_with_empty_response = partial(
-        patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
-    )
+    def _get_with_request_id(self, url, request_id):
+        return self.get(url, 200, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
 
-    def test_headers_forwarded(self, is_enabled):
-        value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
-        response = mock.Mock(**{"text": json.dumps(value), "json.return_value": value})
-
-        with patch("app.xjoin.post", return_value=response) as resp:
-            req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
-            self.get(TAGS_URL, 200, extra_headers={"x-rh-insights-request-id": req_id, "foo": "bar"})
-
-            resp.assert_called_once_with(
-                ANY,
-                json=ANY,
-                headers={
-                    "x-rh-identity": self._get_valid_auth_header()["x-rh-identity"].decode(),
-                    "x-rh-insights-request-id": req_id,
-                },
-            )
-
-    @patch_with_empty_response()
-    def test_query_variables_default_except_staleness(self, graphql_query, is_enabled):
-        self.get(TAGS_URL, 200)
-
-        graphql_query.assert_called_once_with(
-            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}}
+    def _assert_called_with_headers(self, post, request_id):
+        identity = self._get_valid_auth_header()["x-rh-identity"].decode()
+        post.assert_called_once_with(
+            ANY, json=ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}
         )
 
-    @patch_with_empty_response()
-    @patch("app.culling.datetime")
-    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, is_enabled):
-        datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
 
-        self.get(TAGS_URL, 200)
+class HostsXjoinBaseTestCase(APIBaseTestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "xjoin"}):
+            super().setUp()
 
+
+class HostsXjoinRequestBaseTestCase(XjoinRequestBaseTestCase, HostsXjoinBaseTestCase):
+    EMPTY_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
+    patch_graphql_query_empty_response = partial(
+        patch, "api.host_query_xjoin.graphql_query", return_value=EMPTY_RESPONSE
+    )
+
+
+class HostsXjoinRequestHeadersTestCase(HostsXjoinRequestBaseTestCase):
+    def test_headers_forwarded(self):
+        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}) as post:
+            request_id = generate_uuid()
+            self._get_with_request_id(HOST_URL, request_id)
+            self._assert_called_with_headers(post, request_id)
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
+    STALENESS_ANY = ANY
+
+    def test_query_variables_fqdn(self, graphql_query):
+        fqdn = "host.domain.com"
+        self.get(f"{HOST_URL}?fqdn={quote(fqdn)}", 200)
         graphql_query.assert_called_once_with(
-            TAGS_QUERY,
+            HOST_QUERY,
             {
                 "order_by": ANY,
                 "order_how": ANY,
                 "limit": ANY,
                 "offset": ANY,
-                "hostFilter": {
-                    "OR": [
-                        {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
-                        {
-                            "stale_timestamp": {
-                                "gte": "2019-12-09T10:10:06.754201+00:00",
-                                "lte": "2019-12-16T10:10:06.754201+00:00",
-                            }
-                        },
-                    ]
-                },
+                "filter": ({"fqdn": fqdn}, self.STALENESS_ANY),
             },
         )
 
-    @patch("app.culling.datetime")
-    def test_query_variables_staleness(self, datetime_mock, is_enabled):
-        now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
-        datetime_mock.now = mock.Mock(return_value=now)
+    def test_query_variables_display_name(self, graphql_query):
+        display_name = "my awesome host uwu"
+        self.get(f"{HOST_URL}?display_name={quote(display_name)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": ({"display_name": f"*{display_name}*"}, self.STALENESS_ANY),
+            },
+        )
 
+    def test_query_variables_hostname_or_id_non_uuid(self, graphql_query):
+        hostname_or_id = "host.domain.com"
+        self.get(f"{HOST_URL}?hostname_or_id={quote(hostname_or_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": (
+                    {"OR": ({"display_name": f"*{hostname_or_id}*"}, {"fqdn": f"*{hostname_or_id}*"})},
+                    self.STALENESS_ANY,
+                ),
+            },
+        )
+
+    def test_query_variables_hostname_or_id_uuid(self, graphql_query):
+        hostname_or_id = generate_uuid()
+        self.get(f"{HOST_URL}?hostname_or_id={quote(hostname_or_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": (
+                    {
+                        "OR": (
+                            {"display_name": f"*{hostname_or_id}*"},
+                            {"fqdn": f"*{hostname_or_id}*"},
+                            {"id": hostname_or_id},
+                        )
+                    },
+                    self.STALENESS_ANY,
+                ),
+            },
+        )
+
+    def test_query_variables_insights_id(self, graphql_query):
+        insights_id = generate_uuid()
+        self.get(f"{HOST_URL}?insights_id={quote(insights_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": ({"insights_id": insights_id}, self.STALENESS_ANY),
+            },
+        )
+
+    def test_query_variables_none(self, graphql_query):
+        self.get(HOST_URL, 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {"order_by": ANY, "order_how": ANY, "limit": ANY, "offset": ANY, "filter": (self.STALENESS_ANY,)},
+        )
+
+    def test_query_variables_priority(self, graphql_query):
+        param = quote(generate_uuid())
+        for filter_, query in (
+            ("fqdn", f"fqdn={param}&display_name={param}"),
+            ("fqdn", f"fqdn={param}&hostname_or_id={param}"),
+            ("fqdn", f"fqdn={param}&insights_id={param}"),
+            ("display_name", f"display_name={param}&hostname_or_id={param}"),
+            ("display_name", f"display_name={param}&insights_id={param}"),
+            ("OR", f"hostname_or_id={param}&insights_id={param}"),
+        ):
+            with self.subTest(filter=filter_, query=query):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?{query}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": ({filter_: ANY}, self.STALENESS_ANY),
+                    },
+                )
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
+    STALENESS_ANY = ANY
+
+    def test_query_variables_tags(self, graphql_query):
+        for tags, query_param in (
+            (({"namespace": "a", "key": "b", "value": "c"},), "a/b=c"),
+            (({"namespace": "a", "key": "b", "value": None},), "a/b"),
+            (
+                ({"namespace": "a", "key": "b", "value": "c"}, {"namespace": "d", "key": "e", "value": "f"}),
+                "a/b=c,d/e=f",
+            ),
+            (
+                ({"namespace": "a/a=a", "key": "b/b=b", "value": "c/c=c"},),
+                quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            ),
+            (({"namespace": "ɑ", "key": "β", "value": "ɣ"},), "ɑ/β=ɣ"),
+        ):
+            with self.subTest(tags=tags, query_param=query_param):
+                graphql_query.reset_mock()
+
+                self.get(f"{HOST_URL}?tags={quote(query_param)}")
+
+                tag_filters = tuple({"tag": item} for item in tags)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": tag_filters + (self.STALENESS_ANY,),
+                    },
+                )
+
+    def test_query_variables_tags_with_search(self, graphql_query):
+        for field in ("fqdn", "display_name", "hostname_or_id", "insights_id"):
+            with self.subTest(field=field):
+                graphql_query.reset_mock()
+
+                value = quote(generate_uuid())
+                self.get(f"{HOST_URL}?{field}={value}&tags=a/b=c")
+
+                search_any = ANY
+                tag_filter = {"tag": {"namespace": "a", "key": "b", "value": "c"}}
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": (search_any, tag_filter, self.STALENESS_ANY),
+                    },
+                )
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestOrderingTestCase(HostsXjoinRequestBaseTestCase):
+    def test_query_variables_ordering_dir(self, graphql_query):
+        for direction in ("ASC", "DESC"):
+            with self.subTest(direction=direction):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?order_by=updated&order_how={quote(direction)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY, {"limit": ANY, "offset": ANY, "order_by": ANY, "order_how": direction, "filter": ANY}
+                )
+
+    def test_query_variables_ordering_by(self, graphql_query):
+        for params_order_by, xjoin_order_by, default_xjoin_order_how in (
+            ("updated", "modified_on", "DESC"),
+            ("display_name", "display_name", "ASC"),
+        ):
+            with self.subTest(ordering=params_order_by):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?order_by={quote(params_order_by)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "limit": ANY,
+                        "offset": ANY,
+                        "order_by": xjoin_order_by,
+                        "order_how": default_xjoin_order_how,
+                        "filter": ANY,
+                    },
+                )
+
+    def test_query_variables_ordering_by_invalid(self, graphql_query):
+        self.get(f"{HOST_URL}?order_by=fqdn", 400)
+        graphql_query.assert_not_called()
+
+    def test_query_variables_ordering_dir_invalid(self, graphql_query):
+        self.get(f"{HOST_URL}?order_by=updated&order_how=REVERSE", 400)
+        graphql_query.assert_not_called()
+
+    def test_query_variables_ordering_dir_without_by(self, graphql_query):
+        self.get(f"{HOST_URL}?order_how=ASC", 400)
+        graphql_query.assert_not_called()
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestPaginationTestCase(HostsXjoinRequestBaseTestCase):
+    def test_response_pagination(self, graphql_query):
+        for page, limit, offset in ((1, 2, 0), (2, 2, 2), (4, 50, 150)):
+            with self.subTest(page=page, limit=limit, offset=offset):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?per_page={quote(limit)}&page={quote(page)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY, {"order_by": ANY, "order_how": ANY, "limit": limit, "offset": offset, "filter": ANY}
+                )
+
+    def test_response_invalid_pagination(self, graphql_query):
+        for page, per_page in ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)):
+            with self.subTest(page=page):
+                self.get(f"{HOST_URL}?per_page={quote(per_page)}&page={quote(page)}", 400)
+                graphql_query.assert_not_called()
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
+    def _assert_graph_query_single_call_with_staleness(self, graphql_query, staleness_conditions):
+        conditions = tuple({"stale_timestamp": staleness_condition} for staleness_condition in staleness_conditions)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {"order_by": ANY, "order_how": ANY, "limit": ANY, "offset": ANY, "filter": ({"OR": conditions},)},
+        )
+
+    def test_query_variables_default_except_staleness(self, graphql_query):
+        self.get(HOST_URL, 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY, {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": ANY}
+        )
+
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query):
+        self.get(HOST_URL, 200)
+        self._assert_graph_query_single_call_with_staleness(
+            graphql_query,
+            (
+                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+            ),
+        )
+
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_variables_staleness(self, datetime_mock, graphql_query):
         for staleness, expected in (
             ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
             ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
             ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
-                with self.patch_with_empty_response() as graphql_query:
-                    self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?staleness={staleness}", 200)
+                self._assert_graph_query_single_call_with_staleness(graphql_query, (expected,))
 
-                    graphql_query.assert_called_once_with(
-                        TAGS_QUERY,
-                        {
-                            "order_by": "tag",
-                            "order_how": "ASC",
-                            "limit": 50,
-                            "offset": 0,
-                            "hostFilter": {"OR": [{"stale_timestamp": expected}]},
-                        },
-                    )
+    def test_query_variables_staleness_with_search(self, graphql_query):
+        for field, value in (
+            ("fqdn", generate_uuid()),
+            ("display_name", "some display name"),
+            ("hostname_or_id", "some hostname"),
+            ("insights_id", generate_uuid()),
+            ("tags", "some/tag"),
+        ):
+            with self.subTest(field=field):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?{field}={quote(value)}")
 
-    @patch_with_empty_response()
-    def test_query_variables_tags_simple(self, graphql_query, is_enabled):
-        self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
-
-        graphql_query.assert_called_once_with(
-            TAGS_QUERY,
-            {
-                "order_by": "tag",
-                "order_how": "ASC",
-                "limit": 50,
-                "offset": 0,
-                "hostFilter": {
-                    "AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}],
-                    "OR": ANY,
-                },
-            },
-        )
-
-    @patch_with_empty_response()
-    def test_query_variables_tags_complex(self, graphql_query, is_enabled):
-        tag1 = Tag("Sat", "env", "prod")
-        tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
-
-        self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
-
-        graphql_query.assert_called_once_with(
-            TAGS_QUERY,
-            {
-                "order_by": "tag",
-                "order_how": "ASC",
-                "limit": 50,
-                "offset": 0,
-                "hostFilter": {
-                    "AND": [
-                        {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}},
-                        {
-                            "tag": {
-                                "namespace": "insights-client",
-                                "key": "special/keyΔwithčhars",
-                                "value": "special/valueΔwithčhars!",
-                            }
-                        },
-                    ],
-                    "OR": ANY,
-                },
-            },
-        )
-
-    @patch_with_empty_response()
-    def test_query_variables_search(self, graphql_query, is_enabled):
-        self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
-
-        graphql_query.assert_called_once_with(
-            TAGS_QUERY,
-            {
-                "order_by": "tag",
-                "order_how": "ASC",
-                "limit": 50,
-                "offset": 0,
-                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
-                "hostFilter": {"OR": ANY},
-            },
-        )
-
-    def test_query_variables_ordering_dir(self, is_enabled):
-        for direction in ["ASC", "DESC"]:
-            with self.subTest(direction=direction):
-                with self.patch_with_empty_response() as graphql_query:
-                    self.get(f"{TAGS_URL}?order_how={direction}", 200)
-
-                    graphql_query.assert_called_once_with(
-                        TAGS_QUERY,
-                        {
-                            "order_by": "tag",
-                            "order_how": direction,
-                            "limit": 50,
-                            "offset": 0,
-                            "hostFilter": {"OR": ANY},
-                        },
-                    )
-
-    def test_query_variables_ordering_by(self, is_enabled):
-        for ordering in ["tag", "count"]:
-            with self.patch_with_empty_response() as graphql_query:
-                self.get(f"{TAGS_URL}?order_by={ordering}", 200)
-
+                SEARCH_ANY = ANY
+                STALENESS_ANY = ANY
                 graphql_query.assert_called_once_with(
-                    TAGS_QUERY,
-                    {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": (SEARCH_ANY, STALENESS_ANY),
+                    },
                 )
 
-    def test_response_pagination(self, is_enabled):
-        for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
-            with self.subTest(page=page):
-                with self.patch_with_empty_response() as graphql_query:
-                    self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
 
-                    graphql_query.assert_called_once_with(
-                        TAGS_QUERY,
-                        {
-                            "order_by": "tag",
-                            "order_how": "ASC",
-                            "limit": limit,
-                            "offset": offset,
-                            "hostFilter": {"OR": ANY},
-                        },
-                    )
-
-    def test_response_invalid_pagination(self, is_enabled):
-        for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
-            with self.subTest(page=page):
-                with self.patch_with_empty_response():
-                    self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
-
-
-@patch("api.tag.is_enabled", return_value=True)
-class TagsResponseTestCase(APIBaseTestCase):
+class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
     RESPONSE = {
-        "hostTags": {
-            "meta": {"count": 3, "total": 3},
+        "hosts": {
+            "meta": {"total": 2},
             "data": [
-                {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
-                {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
-                {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+                {
+                    "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                    "account": "test",
+                    "display_name": "test01.rhel7.jharting.local",
+                    "ansible_host": "test01.rhel7.jharting.local",
+                    "created_on": "2019-02-10T08:07:03.354307Z",
+                    "modified_on": "2019-02-10T08:07:03.354312Z",
+                    "canonical_facts": {
+                        "fqdn": "fqdn.test01.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                    },
+                    "facts": None,
+                    "stale_timestamp": "2020-02-10T08:07:03.354307Z",
+                    "reporter": "puptoo",
+                },
+                {
+                    "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                    "account": "test",
+                    "display_name": "test02.rhel7.jharting.local",
+                    "ansible_host": "test02.rhel7.jharting.local",
+                    "created_on": "2019-01-10T08:07:03.354307Z",
+                    "modified_on": "2019-01-10T08:07:03.354312Z",
+                    "canonical_facts": {
+                        "fqdn": "fqdn.test02.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                    },
+                    "facts": {
+                        "os": {"os.release": "Red Hat Enterprise Linux Server"},
+                        "bios": {
+                            "bios.vendor": "SeaBIOS",
+                            "bios.release_date": "2014-04-01",
+                            "bios.version": "1.11.0-2.el7",
+                        },
+                    },
+                    "stale_timestamp": "2020-01-10T08:07:03.354307Z",
+                    "reporter": "puptoo",
+                },
             ],
         }
     }
 
-    patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=RESPONSE)
 
-    @patch_with_tags()
-    def test_response_processed_properly(self, graphql_query, is_enabled):
-        expected = self.RESPONSE["hostTags"]
-        result = self.get(TAGS_URL, 200)
+    @patch_with_response()
+    def test_response_processed_properly(self, graphql_query):
+        result = self.get(HOST_URL, 200)
         graphql_query.assert_called_once()
 
         self.assertEqual(
             result,
             {
-                "total": expected["meta"]["total"],
-                "count": expected["meta"]["count"],
+                "total": 2,
+                "count": 2,
                 "page": 1,
                 "per_page": 50,
-                "results": expected["data"],
+                "results": [
+                    {
+                        "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                        "account": "test",
+                        "display_name": "test01.rhel7.jharting.local",
+                        "ansible_host": "test01.rhel7.jharting.local",
+                        "created": "2019-02-10T08:07:03.354307+00:00",
+                        "updated": "2019-02-10T08:07:03.354312+00:00",
+                        "fqdn": "fqdn.test01.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "reporter": "puptoo",
+                        "rhel_machine_id": None,
+                        "subscription_manager_id": None,
+                        "bios_uuid": None,
+                        "ip_addresses": None,
+                        "mac_addresses": None,
+                        "external_id": None,
+                        "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
+                        "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
+                        "facts": [],
+                    },
+                    {
+                        "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                        "account": "test",
+                        "display_name": "test02.rhel7.jharting.local",
+                        "ansible_host": "test02.rhel7.jharting.local",
+                        "created": "2019-01-10T08:07:03.354307+00:00",
+                        "updated": "2019-01-10T08:07:03.354312+00:00",
+                        "fqdn": "fqdn.test02.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                        "stale_timestamp": "2020-01-10T08:07:03.354307+00:00",
+                        "reporter": "puptoo",
+                        "rhel_machine_id": None,
+                        "subscription_manager_id": None,
+                        "bios_uuid": None,
+                        "ip_addresses": None,
+                        "mac_addresses": None,
+                        "external_id": None,
+                        "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
+                        "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
+                        "facts": [
+                            {"namespace": "os", "facts": {"os.release": "Red Hat Enterprise Linux Server"}},
+                            {
+                                "namespace": "bios",
+                                "facts": {
+                                    "bios.vendor": "SeaBIOS",
+                                    "bios.release_date": "2014-04-01",
+                                    "bios.version": "1.11.0-2.el7",
+                                },
+                            },
+                        ],
+                    },
+                ],
             },
         )
 
-    @patch_with_tags()
-    def test_response_pagination_index_error(self, graphql_query, is_enabled):
-        self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
+    @patch_with_response()
+    def test_response_pagination_index_error(self, graphql_query):
+        self.get(f"{HOST_URL}?per_page=2&page=3", 404)
+        graphql_query.assert_called_once()
 
-        graphql_query.assert_called_once_with(
-            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
+    @patch("api.tag.is_enabled", return_value=True)
+    class TagsRequestTestCase(XjoinRequestBaseTestCase):
+        patch_with_empty_response = partial(
+            patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
         )
 
+        def test_headers_forwarded(self, is_enabled):
+            value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
+            with self._patch_xjoin_post(value) as resp:
+                req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
+                self._get_with_request_id(TAGS_URL, req_id)
+                self._assert_called_with_headers(resp, req_id)
 
-if __name__ == "__main__":
-    main()
+        @patch_with_empty_response()
+        def test_query_variables_default_except_staleness(self, graphql_query, is_enabled):
+            self.get(TAGS_URL, 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
+            )
+
+        @patch_with_empty_response()
+        @patch("app.culling.datetime")
+        def test_query_variables_default_staleness(self, datetime_mock, graphql_query, is_enabled):
+            datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+
+            self.get(TAGS_URL, 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": ANY,
+                    "order_how": ANY,
+                    "limit": ANY,
+                    "offset": ANY,
+                    "hostFilter": {
+                        "OR": [
+                            {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                            {
+                                "stale_timestamp": {
+                                    "gte": "2019-12-09T10:10:06.754201+00:00",
+                                    "lte": "2019-12-16T10:10:06.754201+00:00",
+                                }
+                            },
+                        ]
+                    },
+                },
+            )
+
+        @patch("app.culling.datetime")
+        def test_query_variables_staleness(self, datetime_mock, is_enabled):
+            now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+            datetime_mock.now = mock.Mock(return_value=now)
+
+            for staleness, expected in (
+                ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
+                ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+                (
+                    "stale_warning",
+                    {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"},
+                ),
+            ):
+                with self.subTest(staleness=staleness):
+                    with self.patch_with_empty_response() as graphql_query:
+                        self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+
+                        graphql_query.assert_called_once_with(
+                            TAGS_QUERY,
+                            {
+                                "order_by": "tag",
+                                "order_how": "ASC",
+                                "limit": 50,
+                                "offset": 0,
+                                "hostFilter": {"OR": [{"stale_timestamp": expected}]},
+                            },
+                        )
+
+        @patch_with_empty_response()
+        def test_query_variables_tags_simple(self, graphql_query, is_enabled):
+            self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": "tag",
+                    "order_how": "ASC",
+                    "limit": 50,
+                    "offset": 0,
+                    "hostFilter": {
+                        "AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}],
+                        "OR": ANY,
+                    },
+                },
+            )
+
+        @patch_with_empty_response()
+        def test_query_variables_tags_complex(self, graphql_query, is_enabled):
+            tag1 = Tag("Sat", "env", "prod")
+            tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
+
+            self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": "tag",
+                    "order_how": "ASC",
+                    "limit": 50,
+                    "offset": 0,
+                    "hostFilter": {
+                        "AND": [
+                            {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}},
+                            {
+                                "tag": {
+                                    "namespace": "insights-client",
+                                    "key": "special/keyΔwithčhars",
+                                    "value": "special/valueΔwithčhars!",
+                                }
+                            },
+                        ],
+                        "OR": ANY,
+                    },
+                },
+            )
+
+        @patch_with_empty_response()
+        def test_query_variables_search(self, graphql_query, is_enabled):
+            self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": "tag",
+                    "order_how": "ASC",
+                    "limit": 50,
+                    "offset": 0,
+                    "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
+                    "hostFilter": {"OR": ANY},
+                },
+            )
+
+        def test_query_variables_ordering_dir(self, is_enabled):
+            for direction in ["ASC", "DESC"]:
+                with self.subTest(direction=direction):
+                    with self.patch_with_empty_response() as graphql_query:
+                        self.get(f"{TAGS_URL}?order_how={direction}", 200)
+
+                        graphql_query.assert_called_once_with(
+                            TAGS_QUERY,
+                            {
+                                "order_by": "tag",
+                                "order_how": direction,
+                                "limit": 50,
+                                "offset": 0,
+                                "hostFilter": {"OR": ANY},
+                            },
+                        )
+
+        def test_query_variables_ordering_by(self, is_enabled):
+            for ordering in ["tag", "count"]:
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?order_by={ordering}", 200)
+
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY,
+                        {
+                            "order_by": ordering,
+                            "order_how": "ASC",
+                            "limit": 50,
+                            "offset": 0,
+                            "hostFilter": {"OR": ANY},
+                        },
+                    )
+
+        def test_response_pagination(self, is_enabled):
+            for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
+                with self.subTest(page=page):
+                    with self.patch_with_empty_response() as graphql_query:
+                        self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
+
+                        graphql_query.assert_called_once_with(
+                            TAGS_QUERY,
+                            {
+                                "order_by": "tag",
+                                "order_how": "ASC",
+                                "limit": limit,
+                                "offset": offset,
+                                "hostFilter": {"OR": ANY},
+                            },
+                        )
+
+        def test_response_invalid_pagination(self, is_enabled):
+            for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
+                with self.subTest(page=page):
+                    with self.patch_with_empty_response():
+                        self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
+
+    @patch("api.tag.is_enabled", return_value=True)
+    class TagsResponseTestCase(APIBaseTestCase):
+        RESPONSE = {
+            "hostTags": {
+                "meta": {"count": 3, "total": 3},
+                "data": [
+                    {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
+                    {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
+                    {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+                ],
+            }
+        }
+
+        patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
+
+        @patch_with_tags()
+        def test_response_processed_properly(self, graphql_query, is_enabled):
+            expected = self.RESPONSE["hostTags"]
+            result = self.get(TAGS_URL, 200)
+            graphql_query.assert_called_once()
+
+            self.assertEqual(
+                result,
+                {
+                    "total": expected["meta"]["total"],
+                    "count": expected["meta"]["count"],
+                    "page": 1,
+                    "per_page": 50,
+                    "results": expected["data"],
+                },
+            )
+
+        @patch_with_tags()
+        def test_response_pagination_index_error(self, graphql_query, is_enabled):
+            self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
+            )
+
+    if __name__ == "__main__":
+        main()

@@ -7,13 +7,14 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
+from app import inventory_config
 from app.config import BulkQuerySource
-from app.culling import StalenessMap
 from app.logging import get_logger
 from app.utils import Tag
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
+from app.xjoin import staleness_filter
 
 logger = get_logger(__name__)
 
@@ -48,17 +49,9 @@ TAGS_QUERY = """
 """
 
 
-def staleness_filter(gte=None, lte=None):
-    filter = {}
-    if gte:
-        filter["gte"] = gte.isoformat()
-    if lte:
-        filter["lte"] = lte.isoformat()
-    return {"stale_timestamp": filter}
-
-
 def is_enabled():
-    return flask.current_app.config["INVENTORY_CONFIG"].bulk_query_source == BulkQuerySource.xjoin
+    config = inventory_config()
+    return config.bulk_query_source == BulkQuerySource.xjoin
 
 
 @api_operation
@@ -68,7 +61,6 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
         flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
-    staleness_map = StalenessMap()
 
     variables = {
         "order_by": order_by,
@@ -77,7 +69,7 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
         "offset": offset,
         "hostFilter": {
             # we're not indexing null timestamps in ES
-            "OR": [staleness_filter(*getattr(staleness_map, state)()) for state in staleness if state != "unknown"]
+            "OR": list(staleness_filter(staleness))
         },
     }
 

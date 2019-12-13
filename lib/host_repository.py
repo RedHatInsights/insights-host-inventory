@@ -59,7 +59,7 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     return None
 
 
-def _canonical_facts_host_query(account_number, canonical_facts):
+def canonical_facts_host_query(account_number, canonical_facts):
     return Host.query.filter(
         (Host.account == account_number)
         & (
@@ -75,7 +75,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
 
-    host = _canonical_facts_host_query(account_number, canonical_facts).first()
+    host = canonical_facts_host_query(account_number, canonical_facts).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
