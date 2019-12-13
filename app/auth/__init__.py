@@ -4,8 +4,6 @@ from werkzeug.local import LocalProxy
 
 from api.metrics import login_failure_count
 from app import IDENTITY_HEADER
-from app import REQUEST_ID_HEADER
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import validate
@@ -43,7 +41,6 @@ def bearer_token_handler(token):
 def authenticated_request(method, *args, **kwargs):
     headers = kwargs.get("headers", {})
     headers[IDENTITY_HEADER] = request.headers[IDENTITY_HEADER]
-    headers[REQUEST_ID_HEADER] = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
     authenticated_kwargs = {**kwargs, "headers": headers}
     return method(*args, **authenticated_kwargs)
 
