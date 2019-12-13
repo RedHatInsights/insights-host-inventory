@@ -1136,8 +1136,9 @@ components:
               tag:
                 $ref: '#/components/schemas/StructuredTag'
               count:
-                description: The number of hosts with the given tag. -1 indicates that the count is unknown.
+                description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
                 type: integer
+                nullable: true
       example:
         total: 3
         count: 3

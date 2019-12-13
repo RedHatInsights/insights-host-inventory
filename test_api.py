@@ -3112,9 +3112,7 @@ class TagsRequestTestCase(APIBaseTestCase):
 
     def test_headers_forwarded(self, is_enabled):
         value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
-        response = mock.Mock()
-        response.text = json.dumps(value)
-        response.json = mock.Mock(return_value=value)
+        response = mock.Mock(**{"text": json.dumps(value), "json.return_value": value})
 
         with patch("app.xjoin.post", return_value=response) as resp:
             req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
@@ -3245,7 +3243,9 @@ class TagsResponseTestCase(APIBaseTestCase):
         }
     }
 
-    @patch("api.tag.graphql_query", return_value=RESPONSE)
+    patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
+
+    @patch_with_tags()
     def test_response_processed_properly(self, graphql_query, is_enabled):
         expected = self.RESPONSE["hostTags"]
         result = self.get(TAGS_URL, 200)
@@ -3262,7 +3262,7 @@ class TagsResponseTestCase(APIBaseTestCase):
             },
         )
 
-    @patch("api.tag.graphql_query", return_value=RESPONSE)
+    @patch_with_tags()
     def test_response_pagination_index_error(self, graphql_query, is_enabled):
         self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 

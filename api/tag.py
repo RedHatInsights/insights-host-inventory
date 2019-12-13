@@ -2,12 +2,11 @@ import re
 from urllib.parse import quote_plus as url_quote
 
 import flask
-from flask import current_app
 
 from api import api_operation
+from api import build_collection_response
+from api import flask_json_response
 from api import metrics
-from api.common import build_collection_response
-from api.common import json_response
 from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
@@ -35,7 +34,6 @@ TAGS_QUERY = """
             offset: $offset
         ) {
             meta {
-                count,
                 total
             }
             data {
@@ -50,7 +48,7 @@ TAGS_QUERY = """
 
 
 def is_enabled():
-    return current_app.config["INVENTORY_CONFIG"].bulk_query_source == BulkQuerySource.xjoin
+    return flask.current_app.config["INVENTORY_CONFIG"].bulk_query_source == BulkQuerySource.xjoin
 
 
 @api_operation
@@ -72,13 +70,9 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
     if tags:
         variables["hostFilter"] = {"AND": [{"tag": Tag().from_string(tag).data()} for tag in tags]}
 
-    logger.debug("executing TAGS_QUERY, variables: %s", variables)
-
     response = graphql_query(TAGS_QUERY, variables)
     data = response["hostTags"]
 
     check_pagination(offset, data["meta"]["total"])
 
-    return json_response(
-        build_collection_response(data["data"], page, per_page, data["meta"]["total"], data["meta"]["count"])
-    )
+    return flask_json_response(build_collection_response(data["data"], page, per_page, data["meta"]["total"]))
