@@ -331,6 +331,8 @@ paths:
                   $ref: '#/components/schemas/ActiveTags'
         '400':
             description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
 
 
 components:
@@ -1172,3 +1174,8 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
+
+
+  responses:
+    PageOutOfBounds:
+      description: Requested page is outside of the range of available pages

@@ -3122,7 +3122,7 @@ class TagsRequestTestCase(APIBaseTestCase):
                 ANY,
                 json=ANY,
                 headers={
-                    "x-rh-identity": "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwNTAxIn19",
+                    "x-rh-identity": self._get_valid_auth_header()["x-rh-identity"].decode(),
                     "x-rh-insights-request-id": req_id,
                 },
             )
