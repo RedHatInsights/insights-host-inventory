@@ -316,6 +316,7 @@ paths:
         - $ref: '#/components/parameters/tagsOrderHow'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
         - in: query
           name: search
           required: false
