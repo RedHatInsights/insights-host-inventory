@@ -3128,12 +3128,65 @@ class TagsRequestTestCase(APIBaseTestCase):
             )
 
     @patch_with_empty_response()
-    def test_query_variables_default(self, graphql_query, is_enabled):
+    def test_query_variables_default_except_staleness(self, graphql_query, is_enabled):
         self.get(TAGS_URL, 200)
 
         graphql_query.assert_called_once_with(
-            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0}
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}}
         )
+
+    @patch_with_empty_response()
+    @patch("app.culling.datetime")
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, is_enabled):
+        datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+
+        self.get(TAGS_URL, 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "hostFilter": {
+                    "OR": [
+                        {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                        {
+                            "stale_timestamp": {
+                                "gte": "2019-12-09T10:10:06.754201+00:00",
+                                "lte": "2019-12-16T10:10:06.754201+00:00",
+                            }
+                        },
+                    ]
+                },
+            },
+        )
+
+    @patch("app.culling.datetime")
+    def test_query_variables_staleness(self, datetime_mock, is_enabled):
+        now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+        datetime_mock.now = mock.Mock(return_value=now)
+
+        for staleness, expected in (
+            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ):
+            with self.subTest(staleness=staleness):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": "ASC",
+                            "limit": 50,
+                            "offset": 0,
+                            "hostFilter": {"OR": [{"stale_timestamp": expected}]},
+                        },
+                    )
 
     @patch_with_empty_response()
     def test_query_variables_tags_simple(self, graphql_query, is_enabled):
@@ -3146,7 +3199,10 @@ class TagsRequestTestCase(APIBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "hostFilter": {"AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}]},
+                "hostFilter": {
+                    "AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}],
+                    "OR": ANY,
+                },
             },
         )
 
@@ -3174,7 +3230,8 @@ class TagsRequestTestCase(APIBaseTestCase):
                                 "value": "special/valueΔwithčhars!",
                             }
                         },
-                    ]
+                    ],
+                    "OR": ANY,
                 },
             },
         )
@@ -3191,6 +3248,7 @@ class TagsRequestTestCase(APIBaseTestCase):
                 "limit": 50,
                 "offset": 0,
                 "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
+                "hostFilter": {"OR": ANY},
             },
         )
 
@@ -3201,7 +3259,14 @@ class TagsRequestTestCase(APIBaseTestCase):
                     self.get(f"{TAGS_URL}?order_how={direction}", 200)
 
                     graphql_query.assert_called_once_with(
-                        TAGS_QUERY, {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0}
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": direction,
+                            "limit": 50,
+                            "offset": 0,
+                            "hostFilter": {"OR": ANY},
+                        },
                     )
 
     def test_query_variables_ordering_by(self, is_enabled):
@@ -3210,7 +3275,8 @@ class TagsRequestTestCase(APIBaseTestCase):
                 self.get(f"{TAGS_URL}?order_by={ordering}", 200)
 
                 graphql_query.assert_called_once_with(
-                    TAGS_QUERY, {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0}
+                    TAGS_QUERY,
+                    {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
                 )
 
     def test_response_pagination(self, is_enabled):
@@ -3220,7 +3286,14 @@ class TagsRequestTestCase(APIBaseTestCase):
                     self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
 
                     graphql_query.assert_called_once_with(
-                        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset}
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": "ASC",
+                            "limit": limit,
+                            "offset": offset,
+                            "hostFilter": {"OR": ANY},
+                        },
                     )
 
     def test_response_invalid_pagination(self, is_enabled):
@@ -3267,7 +3340,7 @@ class TagsResponseTestCase(APIBaseTestCase):
         self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 
         graphql_query.assert_called_once_with(
-            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4}
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
         )
 
 
