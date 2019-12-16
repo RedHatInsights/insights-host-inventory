@@ -2,6 +2,7 @@ import time
 from functools import wraps
 
 import flask
+import ujson
 
 from api.metrics import api_request_count
 from app.logging import get_logger
@@ -55,3 +56,11 @@ def _get_status_code(results):
         return results.status_code
     else:
         return -1
+
+
+def flask_json_response(json_data, status=200):
+    return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
+
+
+def build_collection_response(data, page, per_page, total):
+    return {"total": total, "count": len(data), "page": page, "per_page": per_page, "results": data}
