@@ -5,12 +5,13 @@ from enum import Enum
 
 import flask
 import sqlalchemy
-import ujson
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
+from api import build_collection_response
+from api import flask_json_response
 from api import metrics
 from app import db
 from app import events
@@ -83,7 +84,7 @@ def add_host_list(host_list):
                 )
 
         response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
-        return _build_json_response(response, status=207)
+        return flask_json_response(response, status=207)
 
 
 def _convert_host_results_to_http_status(result):
@@ -212,18 +213,8 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 def _build_paginated_host_list_response(total, page, per_page, host_list):
     json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
-    json_output = {
-        "total": total,
-        "count": len(host_list),
-        "page": page,
-        "per_page": per_page,
-        "results": json_host_list,
-    }
-    return _build_json_response(json_output, status=200)
-
-
-def _build_json_response(json_data, status=200):
-    return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
+    json_output = build_collection_response(json_host_list, page, per_page, total)
+    return flask_json_response(json_output)
 
 
 def find_hosts_by_display_name(account, display_name):
@@ -338,16 +329,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     query_results = query.paginate(page, per_page, True)
 
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
-
-    json_output = {
-        "total": query_results.total,
-        "count": len(response_list),
-        "page": page,
-        "per_page": per_page,
-        "results": response_list,
-    }
-
-    return _build_json_response(json_output, status=200)
+    json_output = build_collection_response(response_list, page, per_page, query_results.total)
+    return flask_json_response(json_output)
 
 
 @api_operation
@@ -493,6 +476,5 @@ def _build_serialized_tags(host_list):
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
-    json_output = {"total": total, "count": len(tags_list), "page": page, "per_page": per_page, "results": tags_list}
-
-    return _build_json_response(json_output, status=200)
+    json_output = build_collection_response(tags_list, page, per_page, total)
+    return flask_json_response(json_output)
