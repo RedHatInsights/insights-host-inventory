@@ -596,8 +596,12 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             {"account": "someacct", "fqdn": ""},
             {"account": "someacct", "fqdn": "x" * 256},
             {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
-            {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}, 
-            "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"]}
+            {
+                "account": "someacct",
+                "fqdn": "some fqdn",
+                "facts": {"some ns": {"some key": "some value"}},
+                "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
+            },
         )
         for input in inputs:
             with self.subTest(input=input):
