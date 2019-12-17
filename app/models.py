@@ -336,7 +336,7 @@ class HostSchema(Schema):
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
-    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
+    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     tags = fields.List(fields.Nested(TagsSchema))
