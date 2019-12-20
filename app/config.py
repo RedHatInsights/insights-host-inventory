@@ -41,6 +41,20 @@ class Config:
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.kafka_enabled = all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
+        # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
+        self.kafka_consumer = {
+            "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
+            "max_in_flight_requests_per_connection": int(
+                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
+            ),
+            "auto_offset_reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
+            "auto_commit_interval_ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
+            "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10")),
+            "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
+            "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+        }
+
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")

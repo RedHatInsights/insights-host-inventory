@@ -23,8 +23,9 @@ def main():
         config.host_ingress_topic,
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10),
+        api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
+        **config.kafka_consumer,
     )
 
     event_producer = create_event_producer(config, "kafka")
