@@ -1010,6 +1010,7 @@ components:
           type: integer
         system_memory_bytes:
           type: integer
+          format: int64
         infrastructure_type:
           type: string
         infrastructure_vendor:
