@@ -340,7 +340,7 @@ class Tag:
             return value
 
     @staticmethod
-    def create_tags_from_nested(nested_tags):
+    def create_tags_from_nested(nested_tags, search):
         """
         takes a nesting of tags and returns an array of structured tags
         """
@@ -351,10 +351,18 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
-                    tags.append(Tag(Tag._if_null(namespace), key))
+                    if search is not None:
+                        if search in namespace or search in key:
+                            tags.append(Tag(Tag._if_null(namespace), key))
+                    else:
+                        tags.append(Tag(Tag._if_null(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
-                        tags.append(Tag(Tag._if_null(namespace), key, value))
+                        if search is not None:
+                            if search in namespace or search in key or search in nested_tags[namespace][key]:
+                                tags.append(Tag(Tag._if_null(namespace), key, value))
+                        else:
+                            tags.append(Tag(Tag._if_null(namespace), key, value))
         return tags
 
     @staticmethod
