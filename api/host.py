@@ -336,7 +336,7 @@ def _count_tags(host_list):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list) & ())
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -356,7 +356,10 @@ def _build_serialized_tags(host_list, search):
     response_tags = {}
 
     for host in host_list:
-        tags = Tag.create_tags_from_nested(host.tags, search)
+        if search is None:
+            tags = Tag.create_tags_from_nested(host.tags)
+        else:
+            tags = Tag.create_tags_from_nested_search(host.tags, search)
         tag_dictionaries = []
         for tag in tags:
             tag_dictionaries.append(tag.data())
