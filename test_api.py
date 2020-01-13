@@ -2990,6 +2990,34 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
+    def test_get_filtered_by_search_tags_of_multiple_hosts(self):
+        """
+        send a request for tags to one host with the search='a'
+        """
+        host_list = self.added_hosts
+
+        expected_response = {}
+        filtered_responses = {}
+
+        for host, tags in zip(host_list, self.tags_list):
+            expected_response[str(host.id)] = [tag.data() for tag in tags]
+            filtered_responses[str(host.id)] = []
+        # print(expected_response)
+        for key in expected_response.keys():
+            for elem in expected_response[key]:
+                if "a" in "".join(elem.values()):
+                    filtered_responses[key].append(elem)
+
+        print(filtered_responses)
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?search=a"
+
+        response = self.get(test_url, 200)
+        print(response)
+        self.assertEqual(filtered_responses, response["results"])
+
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):
         """
         send a request for some hosts that don't exist
