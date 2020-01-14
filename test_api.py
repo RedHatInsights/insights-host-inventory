@@ -3115,20 +3115,20 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         for host, tags in zip(host_list, self.tags_list):
             expected_response[str(host.id)] = [tag.data() for tag in tags]
             filtered_responses[str(host.id)] = []
-        # print(expected_response)
+
         for key in expected_response.keys():
             for elem in expected_response[key]:
-                if "a" in "".join(elem.values()):
-                    filtered_responses[key].append(elem)
+                values = list(filter(None, elem.values()))
 
-        print(filtered_responses)
+                if any("a" in value for value in values):
+                    filtered_responses[key].append(elem)
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?search=a"
 
         response = self.get(test_url, 200)
-        print(response)
+
         self.assertEqual(filtered_responses, response["results"])
 
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):

@@ -352,14 +352,19 @@ class Tag:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
                     if search is not None:
-                        if search in namespace or search in key:
+                        if search in nested_tags[namespace]:
                             tags.append(Tag(Tag._if_null(namespace), key))
                     else:
                         tags.append(Tag(Tag._if_null(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
                         if search is not None:
-                            if search in namespace or search in key or search in nested_tags[namespace][key]:
+                            if (
+                                (search in nested_tags[namespace])
+                                or (search in value)
+                                or (search in nested_tags[namespace][key])
+                                or (search in key)
+                            ):
                                 tags.append(Tag(Tag._if_null(namespace), key, value))
                         else:
                             tags.append(Tag(Tag._if_null(namespace), key, value))
