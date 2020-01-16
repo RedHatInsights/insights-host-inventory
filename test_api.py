@@ -1657,7 +1657,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+        with patch("lib.host_delete.emit_event", new_callable=self.MockEmitEvent) as m:
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
@@ -1710,7 +1710,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual("-1", event["request_id"])
 
 
-@patch("api.host.emit_event")
+@patch("lib.host_delete.emit_event")
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class RaceCondition:
         @classmethod

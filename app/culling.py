@@ -55,6 +55,9 @@ class Conditions(_WithConfig):
     def stale_warning(self):
         return self._culled_timestamp(), self._stale_warning_timestamp()
 
+    def culled(self):
+        return None, self._culled_timestamp()
+
     def _stale_warning_timestamp(self):
         offset = timedelta(days=self.config.stale_warning_offset_days)
         return self.now - offset

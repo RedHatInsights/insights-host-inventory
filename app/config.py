@@ -39,7 +39,7 @@ class Config:
         self.consumer_group = os.environ.get("KAFKA_GROUP", "inventory")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
-        self.kafka_enabled = all(map(os.environ.get, ["KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
+        self.kafka_enabled = all(map(os.environ.get, ["KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
         # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
         self.kafka_consumer = {
@@ -107,6 +107,7 @@ class Config:
             self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
             self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
             self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
+            self.logger.info("Kafka Event Topic: %s" % self.event_topic)
             self.logger.info("Kafka Consumer Group: %s" % self.consumer_group)
             self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
             self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
