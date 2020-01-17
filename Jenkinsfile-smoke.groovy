@@ -2,11 +2,11 @@
  * Requires: https://github.com/RedHatInsights/insights-pipeline-lib
  */
 
-@Library("github.com/RedHatInsights/insights-pipeline-lib@v1.3") _
+@Library("github.com/RedHatInsights/insights-pipeline-lib@v3") _
 
 
 if (env.CHANGE_ID) {
-    runSmokeTest (
+    execSmokeTest (
         ocDeployerBuilderPath: "platform/insights-inventory",
         ocDeployerComponentPath: "platform/insights-inventory",
         ocDeployerServiceSets: "advisor,platform,platform-mq",
