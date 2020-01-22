@@ -468,7 +468,7 @@ def _build_serialized_tags(host_list, search):
         if search is None:
             tags = Tag.create_tags_from_nested(host.tags)
         else:
-            tags = Tag.create_tags_from_nested_search(host.tags, search)
+            tags = Tag.filter_tags(Tag.create_tags_from_nested(host.tags), search)
         tag_dictionaries = []
         for tag in tags:
             tag_dictionaries.append(tag.data())
