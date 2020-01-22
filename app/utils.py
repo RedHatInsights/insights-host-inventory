@@ -340,35 +340,21 @@ class Tag:
             return value
 
     @staticmethod
-    def create_tags_from_nested_search(nested_tags, search):
+    def filter_tags(tags, searchTerm):
         """
-        takes a nesting of tags and returns an array of structured tags that are filtered by search
+        takes structured tags and returns an array of structured tags that are filtered by a searchterm
         """
-        if nested_tags is None:
-            nested_tags = {}
 
-        tags = []
-        for namespace in nested_tags:
-            for key in nested_tags[namespace]:
-                if len(nested_tags[namespace][key]) == 0:
-                    if search is not None:
-                        if search in nested_tags[namespace]:
-                            tags.append(Tag(Tag._if_null(namespace), key))
-                    else:
-                        tags.append(Tag(Tag._if_null(namespace), key))
-                else:
-                    for value in nested_tags[namespace][key]:
-                        if search is not None:
-                            if (
-                                (search in nested_tags[namespace])
-                                or (search in value)
-                                or (search in nested_tags[namespace][key])
-                                or (search in key)
-                            ):
-                                tags.append(Tag(Tag._if_null(namespace), key, value))
-                        else:
-                            tags.append(Tag(Tag._if_null(namespace), key, value))
-        return tags
+        if tags is None:
+            tags = {}
+
+        filtered_tags = []
+
+        for tag in tags:
+            if any(filter(lambda x: x is not None and searchTerm in x, tag.__data.values())):
+                filtered_tags.append(tag)
+
+        return filtered_tags
 
     @staticmethod
     def create_tags_from_nested(nested_tags):

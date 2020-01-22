@@ -3103,29 +3103,24 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-    def test_get_filtered_by_search_tags_of_multiple_hosts(self):
+    def test_get_filtered_by_search_tags_of_multiple_hosts(self, searchTerm="To"):
         """
-        send a request for tags to one host with the search='a'
+        send a request for tags to one host with some searchTerm
         """
         host_list = self.added_hosts
 
-        expected_response = {}
         filtered_responses = {}
 
         for host, tags in zip(host_list, self.tags_list):
-            expected_response[str(host.id)] = [tag.data() for tag in tags]
-            filtered_responses[str(host.id)] = []
-
-        for key in expected_response.keys():
-            for elem in expected_response[key]:
-                values = list(filter(None, elem.values()))
-
-                if any("a" in value for value in values):
-                    filtered_responses[key].append(elem)
+            filtered_responses[str(host.id)] = [
+                tag.data()
+                for tag in tags
+                if any(filter(lambda x: x is not None and searchTerm in x, tag.data().values()))
+            ]
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        test_url = f"{HOST_URL}/{url_host_id_list}/tags?search=a"
+        test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={searchTerm}"
 
         response = self.get(test_url, 200)
 
