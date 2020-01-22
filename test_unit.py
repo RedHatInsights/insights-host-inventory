@@ -453,6 +453,31 @@ class TagUtilsTestCase(TestCase):
         self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
 
     """
+    structure to filtered structured test
+    """
+
+    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_tags):
+        filtered_tags = Tag.filter_tags(structured_tags, "val")
+        self.assertEqual(len(filtered_tags), len(expected_filtered_tags))
+
+        for i in range(len(filtered_tags)):
+            self.assertEqual(filtered_tags[i].namespace, structured_tags[i].namespace)
+            self.assertEqual(filtered_tags[i].key, structured_tags[i].key)
+            self.assertEqual(filtered_tags[i].value, structured_tags[i].value)
+
+    def test_simple_filter(self):
+        structured_tags = [Tag("NS1", "key", "val"), Tag(None, "key", "something"), Tag("NS2", "key2")]
+        expected_filtered_tags = [Tag("NS1", "key", "val")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags)
+
+    def test_empty_tags(self):
+        structured_tags = []
+        expected_filtered_tags = []
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags)
+
+    """
     create nested from many tags tests
     """
 
