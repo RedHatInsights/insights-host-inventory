@@ -1,4 +1,3 @@
-from logging.config import fileConfig as logging_file_config
 from os import getenv
 
 from sqlalchemy import create_engine
@@ -7,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.culling import Conditions
+from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -56,7 +56,7 @@ def main(config_name):
 
 
 if __name__ == "__main__":
-    logging_file_config("logconfig.ini")
     config_name = getenv("APP_SETTINGS", "development")
+    configure_logging(config_name)
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     main(config_name)
