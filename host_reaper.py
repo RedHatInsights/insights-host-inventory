@@ -54,6 +54,9 @@ def main(config_name):
     else:
         logger.info("No hosts deleted.")
 
+    session.commit()
+    session.close()
+
 
 if __name__ == "__main__":
     config_name = getenv("APP_SETTINGS", "development")

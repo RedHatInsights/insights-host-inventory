@@ -18,6 +18,9 @@ class NullProducer:
     def send(self, topic, value=None):
         logger.debug("NullProducer - logging message:  topic (%s) - message: %s", topic, value)
 
+    def flush(self):
+        print("NullProducer – flushing")
+
 
 producer = None
 cfg = None
