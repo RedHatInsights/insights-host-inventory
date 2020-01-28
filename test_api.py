@@ -35,6 +35,7 @@ from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from app.utils import Tag
+from host_reaper import main as host_reaper_main
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
@@ -1055,6 +1056,64 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
             self.verify_error_response(error_host, expected_title="Invalid request")
 
 
+class HostReaperTestCase(DBAPITestCase):
+    def _run_host_reaper(self):
+        host_reaper_main("testing")
+
+    def _add_hosts(self, data):
+        post = []
+        for d in data:
+            host = HostWrapper(test_data(insights_id=generate_uuid(), **d))
+            post.append(host.data())
+
+        response = self.post(HOST_URL, post, 207)
+
+        host_ids = []
+        for i in range(len(data)):
+            self._verify_host_status(response, i, 201)
+            added_host = self._pluck_host_from_response(response, i)
+            host_ids.append(added_host["id"])
+
+        return host_ids
+
+    def _get_hosts(self, host_ids):
+        url_part = ",".join(host_ids)
+        return self.get(f"{HOST_URL}/{url_part}")
+
+    def test_culled_host_is_removed(self):
+        stale_timestamp = datetime.now(timezone.utc) - timedelta(weeks=2)
+        added_hosts = self._add_hosts(({"stale_timestamp": stale_timestamp, "reporter": "some reporter"},))
+
+        self._run_host_reaper()
+
+        response = self._get_hosts(added_hosts)
+        self.assertEqual(response["count"], 0)
+
+    def test_non_culled_host_is_not_removed(self):
+        now = datetime.now(timezone.utc)
+
+        stale_warnning = now - timedelta(weeks=1)
+        stale = now
+        fresh = now + timedelta(hours=1)
+
+        hosts_to_add = []
+        for stale_timestamp in (stale_warnning, stale, fresh):
+            hosts_to_add.append({"stale_timestamp": stale_timestamp, "reporter": "some reporter"})
+        added_hosts = self._add_hosts(hosts_to_add)
+
+        self._run_host_reaper()
+
+        response = self._get_hosts(added_hosts)
+        self.assertEqual(response["count"], len(hosts_to_add))
+
+    def test_unknown_host_is_not_removed(self):
+        added_hosts = self._add_hosts(({},))
+        self._run_host_reaper()
+
+        response = self._get_hosts(added_hosts)
+        self.assertEqual(response["count"], len(added_hosts))
+
+
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
     def test_create_host_without_display_name_and_without_fqdn(self):
         """
@@ -1657,7 +1716,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+        with patch("lib.host_delete.emit_event", new_callable=self.MockEmitEvent) as m:
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
@@ -1710,7 +1769,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual("-1", event["request_id"])
 
 
-@patch("api.host.emit_event")
+@patch("lib.host_delete.emit_event")
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class RaceCondition:
         @classmethod
