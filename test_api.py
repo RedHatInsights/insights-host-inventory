@@ -1106,7 +1106,7 @@ class HostReaperTestCase(DBAPITestCase):
         response = self._get_hosts(added_hosts)
         self.assertEqual(response["count"], len(hosts_to_add))
 
-    def test_unknown_host_ist_not_removed(self):
+    def test_unknown_host_is_not_removed(self):
         added_hosts = self._add_hosts(({},))
         self._run_host_reaper()
 
