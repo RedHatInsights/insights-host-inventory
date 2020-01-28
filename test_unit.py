@@ -13,8 +13,8 @@ from uuid import UUID
 from uuid import uuid4
 
 from api import api_operation
-from api.host import _order_how
-from api.host import _params_to_order_by
+from api.host_query_db import _order_how
+from api.host_query_db import params_to_order_by
 from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
@@ -22,7 +22,8 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
-from app.culling import StalenessOffset
+from app.culling import _Config as CullingConfig
+from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -298,51 +299,51 @@ class HostOrderHowTestCase(TestCase):
                     _order_how(Mock(), invalid_value)
 
 
-@patch("api.host._order_how")
+@patch("api.host_query_db._order_how")
 @patch("api.host.Host.id")
 @patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
     def test_default_is_updated_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by(None, None)
+        actual = params_to_order_by(None, None)
         expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     def test_default_for_updated_is_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", None)
+        actual = params_to_order_by("updated", None)
         expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     def test_order_by_updated_asc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", "ASC")
+        actual = params_to_order_by("updated", "ASC")
         expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "ASC")
 
     def test_order_by_updated_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", "DESC")
+        actual = params_to_order_by("updated", "DESC")
         expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "DESC")
 
     @patch("api.host.Host.display_name")
     def test_default_for_display_name_is_asc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name")
+        actual = params_to_order_by("display_name")
         expected = (display_name.asc.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     @patch("api.host.Host.display_name")
     def test_order_by_display_name_asc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name", "ASC")
+        actual = params_to_order_by("display_name", "ASC")
         expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "ASC")
 
     @patch("api.host.Host.display_name")
     def test_order_by_display_name_desc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name", "DESC")
+        actual = params_to_order_by("display_name", "DESC")
         expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "DESC")
@@ -351,11 +352,11 @@ class HostParamsToOrderByTestCase(TestCase):
 class HostParamsToOrderByErrorsTestCase(TestCase):
     def test_order_by_bad_field_raises_error(self):
         with self.assertRaises(ValueError):
-            _params_to_order_by(Mock(), "fqdn")
+            params_to_order_by(Mock(), "fqdn")
 
     def test_order_by_only_how_raises_error(self):
         with self.assertRaises(ValueError):
-            _params_to_order_by(Mock(), order_how="ASC")
+            params_to_order_by(Mock(), order_how="ASC")
 
 
 class TagUtilsTestCase(TestCase):
@@ -1026,10 +1027,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        stale_warning_offset_days = 7
-        culled_offset_days = 14
-        staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
-        actual = serialize_host(host, staleness_offset)
+        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        actual = serialize_host(host, Timestamps(config))
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1041,10 +1040,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
             "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], stale_warning_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_days)
             ),
             "culled_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], culled_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_days)
             ),
         }
         self.assertEqual(expected, actual)
@@ -1058,8 +1057,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        staleness_offset = StalenessOffset(7, 14)
-        actual = serialize_host(host, staleness_offset)
+        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        actual = serialize_host(host, Timestamps(config))
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -1094,8 +1093,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
                     setattr(host, k, v)
 
-                staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
-                serialized = serialize_host(host, staleness_offset)
+                config = CullingConfig(stale_warning_offset_days, culled_offset_days)
+                serialized = serialize_host(host, Timestamps(config))
                 self.assertEqual(
                     self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
                     serialized["stale_warning_timestamp"],

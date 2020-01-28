@@ -1,10 +1,6 @@
-import uuid
-from datetime import datetime
-from datetime import timezone
 from enum import Enum
 
 import flask
-import sqlalchemy
 from flask_api import status
 from marshmallow import ValidationError
 from sqlalchemy.orm.base import instance_state
@@ -13,10 +9,16 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
+from api.host_query import build_paginated_host_list_response
+from api.host_query import staleness_timestamps
+from api.host_query_db import get_host_list as get_host_list_db
+from api.host_query_db import params_to_order_by
+from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
 from app import events
-from app import staleness_offset
+from app import inventory_config
 from app.auth import current_identity
+from app.config import BulkQuerySource
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -27,17 +29,18 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.serialization import deserialize_host
-from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
-from lib.host_repository import _canonical_facts_host_query
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
 from tasks import emit_event
 
+# from api.host_query_db import find_hosts_by_staleness
 
+
+FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
-FactOperations = Enum("FactOperations", ["merge", "replace"])
+GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 
 logger = get_logger(__name__)
 
@@ -102,36 +105,7 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, staleness_offset(), update_system_profile=False)
-
-
-def find_hosts_by_tag(account_number, string_tags, query):
-    tags = []
-
-    for string_tag in string_tags:
-        tags.append(Tag().from_string(string_tag))
-
-    tags_to_find = Tag.create_nested_from_tags(tags)
-
-    return query.filter(Host.tags.contains(tags_to_find))
-
-
-def find_hosts_by_staleness(states, query):
-    staleness_offset_ = staleness_offset()
-    stale_timestamp = staleness_offset_.stale_timestamp(Host.stale_timestamp)
-    stale_warning_timestamp = staleness_offset_.stale_warning_timestamp(Host.stale_timestamp)
-    culled_timestamp = staleness_offset_.culled_timestamp(Host.stale_timestamp)
-
-    null = None
-    now = datetime.now(timezone.utc)
-
-    condition_map = {
-        "fresh": stale_timestamp > now,
-        "stale": sqlalchemy.and_(Host.stale_timestamp <= now, stale_warning_timestamp > now),
-        "stale_warning": sqlalchemy.and_(stale_warning_timestamp <= now, culled_timestamp > now),
-        "unknown": Host.stale_timestamp == null,
-    }
-    return query.filter(sqlalchemy.or_(condition_map[state] for state in states))
+    return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
 @api_operation
@@ -148,105 +122,20 @@ def get_host_list(
     order_how=None,
     staleness=None,
 ):
-    if fqdn:
-        query = find_hosts_by_canonical_facts(current_identity.account_number, {"fqdn": fqdn})
-    elif display_name:
-        query = find_hosts_by_display_name(current_identity.account_number, display_name)
-    elif hostname_or_id:
-        query = find_hosts_by_hostname_or_id(current_identity.account_number, hostname_or_id)
-    elif insights_id:
-        query = find_hosts_by_canonical_facts(current_identity.account_number, {"insights_id": insights_id})
-    else:
-        query = Host.query.filter(Host.account == current_identity.account_number)
+    total = 0
+    host_list = ()
 
-    if tags:
-        # add tag filtering to the query
-        query = find_hosts_by_tag(current_identity.account_number, tags, query)
-
-    if staleness:
-        query = find_hosts_by_staleness(staleness, query)
-
+    config = inventory_config()
+    get_host_list = GET_HOST_LIST_FUNCTIONS[config.bulk_query_source]
     try:
-        order_by = _params_to_order_by(order_by, order_how)
+        host_list, total = get_host_list(
+            display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness
+        )
     except ValueError as e:
         flask.abort(400, str(e))
-    else:
-        query = query.order_by(*order_by)
 
-    query_results = query.paginate(page, per_page, True)
-    logger.debug("Found hosts: %s", query_results.items)
-
-    return _build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
-
-
-def _order_how(column, order_how):
-    if order_how == "ASC":
-        return column.asc()
-    elif order_how == "DESC":
-        return column.desc()
-    else:
-        raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
-
-
-def _params_to_order_by(order_by=None, order_how=None):
-    modified_on_ordering = (Host.modified_on.desc(),)
-    ordering = ()
-
-    if order_by == "updated":
-        if order_how:
-            modified_on_ordering = (_order_how(Host.modified_on, order_how),)
-    elif order_by == "display_name":
-        if order_how:
-            ordering = (_order_how(Host.display_name, order_how),)
-        else:
-            ordering = (Host.display_name.asc(),)
-    elif order_by:
-        raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
-    elif order_how:
-        raise ValueError(
-            "Providing ordering direction without a column is not supported. "
-            "Provide order_by={updated,display_name}."
-        )
-
-    return ordering + modified_on_ordering + (Host.id.desc(),)
-
-
-def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [serialize_host(host, staleness_offset()) for host in host_list]
-    json_output = build_collection_response(json_host_list, page, per_page, total)
-    return flask_json_response(json_output)
-
-
-def find_hosts_by_display_name(account, display_name):
-    logger.debug("find_hosts_by_display_name(%s)", display_name)
-    return Host.query.filter((Host.account == account) & Host.display_name.comparator.contains(display_name))
-
-
-def find_hosts_by_canonical_facts(account_number, canonical_facts):
-    """
-    Returns results for all hosts containing given canonical facts
-    """
-    logger.debug("find_hosts_by_canonical_facts(%s)", canonical_facts)
-    return _canonical_facts_host_query(account_number, canonical_facts)
-
-
-def find_hosts_by_hostname_or_id(account_number, hostname):
-    logger.debug("find_hosts_by_hostname_or_id(%s)", hostname)
-    filter_list = [
-        Host.display_name.comparator.contains(hostname),
-        Host.canonical_facts["fqdn"].astext.contains(hostname),
-    ]
-
-    try:
-        uuid.UUID(hostname)
-        host_id = hostname
-        filter_list.append(Host.id == host_id)
-        logger.debug("Adding id (uuid) to the filter list")
-    except Exception:
-        # Do not filter using the id
-        logger.debug("The hostname (%s) could not be converted into a UUID", hostname, exc_info=True)
-
-    return Host.query.filter(sqlalchemy.and_(*[Host.account == account_number, sqlalchemy.or_(*filter_list)]))
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list)
+    return flask_json_response(json_data)
 
 
 @api_operation
@@ -299,7 +188,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
     #     query = find_hosts_by_staleness(staleness, query)
 
     try:
-        order_by = _params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
@@ -308,7 +197,8 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
     logger.debug("Found hosts: %s", query_results.items)
 
-    return _build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
+    json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
+    return flask_json_response(json_data)
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
@@ -321,7 +211,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
-        order_by = _params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
@@ -412,7 +302,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
     try:
-        order_by = _params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
@@ -448,7 +338,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
     try:
-        order_by = _params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:

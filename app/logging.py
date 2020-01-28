@@ -42,7 +42,7 @@ def _configure_watchtower_logging_handler():
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = os.getenv("AWS_LOG_GROUP", "platform")
-    stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
+    stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
 
     if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
@@ -62,14 +62,8 @@ def _configure_watchtower_logging_handler():
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
 
 
-def _get_aws_logging_stream_name(namespace_filename):
-    try:
-        with open(namespace_filename) as namespace_fh:
-            return namespace_fh.read()
-    except FileNotFoundError:
-        namespace = DEFAULT_AWS_LOGGING_NAMESPACE
-        print(f"Error reading the OpenShift namepsace file.  Using {namespace} as aws logging stream name")
-        return namespace
+def _get_hostname():
+    return os.uname()[1]
 
 
 def _configure_contextual_logging_filter():
