@@ -18,19 +18,23 @@ class NullProducer:
     def send(self, topic, value=None):
         logger.debug("NullProducer - logging message:  topic (%s) - message: %s", topic, value)
 
+    def flush(self):
+        logger.debug("NullProducer – flushing")
+
 
 producer = None
 cfg = None
 
 
-def init_tasks(config, flask_app):
+def init_tasks(config, flask_app=None):
     global cfg
     global producer
 
     cfg = config
 
     producer = _init_event_producer(config)
-    _init_system_profile_consumer(config, flask_app)
+    if flask_app:
+        _init_system_profile_consumer(config, flask_app)
 
 
 def _init_event_producer(config):
@@ -44,6 +48,10 @@ def _init_event_producer(config):
 
 def emit_event(e):
     producer.send(cfg.event_topic, value=e.encode("utf-8"))
+
+
+def flush():
+    producer.flush()
 
 
 @metrics.system_profile_commit_processing_time.time()
