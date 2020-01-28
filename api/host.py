@@ -42,7 +42,8 @@ from tasks import emit_event
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
-XJOIN_HEADER = "x-rh-cloud-xjoin"
+XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
+REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
 
@@ -110,14 +111,17 @@ def _add_host(input_host):
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
-def _xjoin_enabled_by_header():
-    logger.info("Request Headers: %s", connexion.request.headers)
+def _get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
-        if connexion.request.headers[XJOIN_HEADER].lower() == "true":
-            logger.info("%s set to true", XJOIN_HEADER)
-            return True
+        if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
+            return BulkQuerySource.xjoin
+        elif connexion.request.headers[XJOIN_HEADER].lower() == "db":
+            return BulkQuerySource.db
+    if REFERAL_HEADER in connexion.request.headers:
+        if "/beta" in connexion.request.headers[REFERAL_HEADER]:
+            return BulkQuerySource.xjoin
     else:
-        return False
+        return inventory_config().bulk_query_source
 
 
 @api_operation
@@ -137,15 +141,7 @@ def get_host_list(
     total = 0
     host_list = ()
 
-    config = inventory_config()
-    bulk_query_source = config.bulk_query_source
-
-    if _xjoin_enabled_by_header():
-        logger.info("setting bulk_query_source to xjoin")
-        bulk_query_source = BulkQuerySource.xjoin
-
-    # TODO: Remove logger
-    logger.info("Bulk_query_source: %s", bulk_query_source)
+    bulk_query_source = _get_bulk_query_source()
 
     get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
 
