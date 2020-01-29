@@ -3641,13 +3641,13 @@ class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
         graphql_query.assert_called_once()
 
 
-@patch("api.tag.is_enabled", return_value=True)
+@patch("api.tag.xjoin_enabled", return_value=True)
 class TagsRequestTestCase(XjoinRequestBaseTestCase):
     patch_with_empty_response = partial(
         patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
     )
 
-    def test_headers_forwarded(self, is_enabled):
+    def test_headers_forwarded(self, xjoin_enabled):
         value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
         with self._patch_xjoin_post(value) as resp:
             req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
@@ -3655,7 +3655,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
             self._assert_called_with_headers(resp, req_id)
 
     @patch_with_empty_response()
-    def test_query_variables_default_except_staleness(self, graphql_query, is_enabled):
+    def test_query_variables_default_except_staleness(self, graphql_query, xjoin_enabled):
         self.get(TAGS_URL, 200)
 
         graphql_query.assert_called_once_with(
@@ -3664,7 +3664,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
 
     @patch_with_empty_response()
     @patch("app.culling.datetime")
-    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, is_enabled):
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, xjoin_enabled):
         datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
 
         self.get(TAGS_URL, 200)
@@ -3691,7 +3691,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch("app.culling.datetime")
-    def test_query_variables_staleness(self, datetime_mock, is_enabled):
+    def test_query_variables_staleness(self, datetime_mock, xjoin_enabled):
         now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
         datetime_mock.now = mock.Mock(return_value=now)
 
@@ -3716,7 +3716,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_simple(self, graphql_query, is_enabled):
+    def test_query_variables_tags_simple(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
 
         graphql_query.assert_called_once_with(
@@ -3734,7 +3734,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_complex(self, graphql_query, is_enabled):
+    def test_query_variables_tags_complex(self, graphql_query, xjoin_enabled):
         tag1 = Tag("Sat", "env", "prod")
         tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
 
@@ -3764,7 +3764,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_search(self, graphql_query, is_enabled):
+    def test_query_variables_search(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
 
         graphql_query.assert_called_once_with(
@@ -3779,7 +3779,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
             },
         )
 
-    def test_query_variables_ordering_dir(self, is_enabled):
+    def test_query_variables_ordering_dir(self, xjoin_enabled):
         for direction in ["ASC", "DESC"]:
             with self.subTest(direction=direction):
                 with self.patch_with_empty_response() as graphql_query:
@@ -3796,7 +3796,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                         },
                     )
 
-    def test_query_variables_ordering_by(self, is_enabled):
+    def test_query_variables_ordering_by(self, xjoin_enabled):
         for ordering in ["tag", "count"]:
             with self.patch_with_empty_response() as graphql_query:
                 self.get(f"{TAGS_URL}?order_by={ordering}", 200)
@@ -3806,7 +3806,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
                 )
 
-    def test_response_pagination(self, is_enabled):
+    def test_response_pagination(self, xjoin_enabled):
         for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response() as graphql_query:
@@ -3823,14 +3823,14 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                         },
                     )
 
-    def test_response_invalid_pagination(self, is_enabled):
+    def test_response_invalid_pagination(self, xjoin_enabled):
         for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response():
                     self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
 
 
-@patch("api.tag.is_enabled", return_value=True)
+@patch("api.tag.xjoin_enabled", return_value=True)
 class TagsResponseTestCase(APIBaseTestCase):
     RESPONSE = {
         "hostTags": {
@@ -3846,7 +3846,7 @@ class TagsResponseTestCase(APIBaseTestCase):
     patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
 
     @patch_with_tags()
-    def test_response_processed_properly(self, graphql_query, is_enabled):
+    def test_response_processed_properly(self, graphql_query, xjoin_enabled):
         expected = self.RESPONSE["hostTags"]
         result = self.get(TAGS_URL, 200)
         graphql_query.assert_called_once()
@@ -3863,13 +3863,17 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
     @patch_with_tags()
-    def test_response_pagination_index_error(self, graphql_query, is_enabled):
+    def test_response_pagination_index_error(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 
         graphql_query.assert_called_once_with(
             TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
         )
 
+
+# class xjoinBulkSourceSwitchTestCase(APIBaseTestCase):
+#     def test_header_set_to_db():
+#         print("hi")
 
 if __name__ == "__main__":
     main()
