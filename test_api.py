@@ -3871,9 +3871,71 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
 
-# class xjoinBulkSourceSwitchTestCase(APIBaseTestCase):
-#     def test_header_set_to_db():
-#         print("hi")
+class xjoinBulkSourceSwitchTestCaseEnvXjoin(APIBaseTestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value="sup dawg")
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 500, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_not_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 500, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use xjoin
+    def test_no_header_env_var_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 500)
+        graphql_query.assert_called_once()
+
+
+class xjoinBulkSourceSwitchTestCaseEnvDB(APIBaseTestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value="sup dawg")
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 500, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()
+    def test_referer_not_beta(self, graphql_query):  # should use db
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 500, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db
+    def test_no_header_env_var_db(self, graphql_query):
+        self.get(f"{HOST_URL}", 200)
+        graphql_query.assert_not_called()
+
 
 if __name__ == "__main__":
     main()

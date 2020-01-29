@@ -116,6 +116,8 @@ def _get_bulk_query_source():
     if REFERAL_HEADER in connexion.request.headers:
         if "/beta" in connexion.request.headers[REFERAL_HEADER]:
             return inventory_config().bulk_query_source_beta
+        else:
+            return inventory_config().bulk_query_source
     else:
         return inventory_config().bulk_query_source
 
