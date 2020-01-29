@@ -7,7 +7,7 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
-from app import inventory_config
+from api.host import _get_bulk_query_source
 from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
@@ -49,15 +49,14 @@ TAGS_QUERY = """
 """
 
 
-def is_enabled():
-    config = inventory_config()
-    return config.bulk_query_source == BulkQuerySource.xjoin
+def xjoin_enabled():
+    return _get_bulk_query_source == BulkQuerySource.xjoin
 
 
 @api_operation
 @metrics.api_request_time.time()
 def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, per_page=None, staleness=None):
-    if not is_enabled():
+    if not xjoin_enabled():
         flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
