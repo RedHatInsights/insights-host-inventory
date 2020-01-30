@@ -158,19 +158,22 @@ def delete_by_id(host_id_list):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-        events = delete_hosts(query)
-        if events:
-            for deleted_host in events:
-                with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message="deleted host"
-                ) as payload_tracker_processing_ctx:
-                    if deleted_host:
-                        logger.info("Deleted host: %s", deleted_host.id)
-                        payload_tracker_processing_ctx.inventory_id = deleted_host.id
-                    else:
-                        logger.info("Host already deleted. Delete event not emitted.")
-        else:
-            return flask.abort(status.HTTP_404_NOT_FOUND)
+
+        if not query.count():
+            flask.abort(status.HTTP_404_NOT_FOUND)
+
+        for host_id, deleted in delete_hosts(query):
+            if deleted:
+                logger.info("Deleted host: %s", host_id)
+                tracker_message = "deleted host"
+            else:
+                logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+                tracker_message = "not deleted host"
+
+            with PayloadTrackerProcessingContext(
+                payload_tracker, processing_status_message=tracker_message
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = host_id
 
 
 @api_operation

@@ -30,29 +30,31 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def main(config_name):
-    config = _init_config(config_name)
-    Session = _init_db(config)
+def run(config, session):
     logger = get_logger("host_reaper")
-    init_tasks(config)
 
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
-
-    session = Session()
     query = session.query(Host).filter(query_filter)
 
     events = delete_hosts(query)
-    if events:
-        for deleted_host in events:
-            if deleted_host:
-                logger.info("Deleted host: %s", deleted_host.id)
-            else:
-                logger.info("Host already deleted. Delete event not emitted.")
+    for host_id, deleted in events:
+        if deleted:
+            logger.info("Deleted host: %s", host_id)
+        else:
+            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
 
-        flush()
-    else:
-        logger.info("No hosts deleted.")
+
+def main(config_name):
+    config = _init_config(config_name)
+    init_tasks(config)
+
+    Session = _init_db(config)
+    session = Session()
+
+    run(config, session)
+
+    flush()
 
     session.commit()
     session.close()
