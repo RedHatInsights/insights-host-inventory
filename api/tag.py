@@ -7,7 +7,7 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
-from api.host import _get_bulk_query_source
+from api.host import get_bulk_query_source
 from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.utils import Tag
@@ -50,7 +50,7 @@ TAGS_QUERY = """
 
 
 def xjoin_enabled():
-    return _get_bulk_query_source == BulkQuerySource.xjoin
+    return get_bulk_query_source() == BulkQuerySource.xjoin
 
 
 @api_operation

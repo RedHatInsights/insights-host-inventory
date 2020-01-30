@@ -54,6 +54,52 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+MOCK_XJOIN_HOST_RESPONSE = {
+    "hosts": {
+        "meta": {"total": 2},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "account": "test",
+                "display_name": "test01.rhel7.jharting.local",
+                "ansible_host": "test01.rhel7.jharting.local",
+                "created_on": "2019-02-10T08:07:03.354307Z",
+                "modified_on": "2019-02-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test01.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                },
+                "facts": None,
+                "stale_timestamp": "2020-02-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "account": "test",
+                "display_name": "test02.rhel7.jharting.local",
+                "ansible_host": "test02.rhel7.jharting.local",
+                "created_on": "2019-01-10T08:07:03.354307Z",
+                "modified_on": "2019-01-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test02.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                },
+                "facts": {
+                    "os": {"os.release": "Red Hat Enterprise Linux Server"},
+                    "bios": {
+                        "bios.vendor": "SeaBIOS",
+                        "bios.release_date": "2014-04-01",
+                        "bios.version": "1.11.0-2.el7",
+                    },
+                },
+                "stale_timestamp": "2020-01-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+        ],
+    }
+}
 
 
 def quote(*args, **kwargs):
@@ -3515,54 +3561,7 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
 
 
 class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
-    RESPONSE = {
-        "hosts": {
-            "meta": {"total": 2},
-            "data": [
-                {
-                    "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-                    "account": "test",
-                    "display_name": "test01.rhel7.jharting.local",
-                    "ansible_host": "test01.rhel7.jharting.local",
-                    "created_on": "2019-02-10T08:07:03.354307Z",
-                    "modified_on": "2019-02-10T08:07:03.354312Z",
-                    "canonical_facts": {
-                        "fqdn": "fqdn.test01.rhel7.jharting.local",
-                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
-                        "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
-                    },
-                    "facts": None,
-                    "stale_timestamp": "2020-02-10T08:07:03.354307Z",
-                    "reporter": "puptoo",
-                },
-                {
-                    "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
-                    "account": "test",
-                    "display_name": "test02.rhel7.jharting.local",
-                    "ansible_host": "test02.rhel7.jharting.local",
-                    "created_on": "2019-01-10T08:07:03.354307Z",
-                    "modified_on": "2019-01-10T08:07:03.354312Z",
-                    "canonical_facts": {
-                        "fqdn": "fqdn.test02.rhel7.jharting.local",
-                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
-                        "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
-                    },
-                    "facts": {
-                        "os": {"os.release": "Red Hat Enterprise Linux Server"},
-                        "bios": {
-                            "bios.vendor": "SeaBIOS",
-                            "bios.release_date": "2014-04-01",
-                            "bios.version": "1.11.0-2.el7",
-                        },
-                    },
-                    "stale_timestamp": "2020-01-10T08:07:03.354307Z",
-                    "reporter": "puptoo",
-                },
-            ],
-        }
-    }
-
-    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=RESPONSE)
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
 
     @patch_with_response()
     def test_response_processed_properly(self, graphql_query):
@@ -3871,67 +3870,67 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
 
-class xjoinBulkSourceSwitchTestCaseEnvXjoin(APIBaseTestCase):
+class xjoinBulkSourceSwitchTestCaseEnvXjoin(DBAPITestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
             super().setUp()
 
-    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value="sup dawg")
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
 
     @patch_with_response()
-    def test_bulk_source_header_set_to_db(self, graphql_query):
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
         self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
         graphql_query.assert_not_called()
 
     @patch_with_response()
     def test_bulk_source_header_set_to_xjoin(self, graphql_query):
-        self.get(f"{HOST_URL}", 500, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
         graphql_query.assert_called_once()
 
-    @patch_with_response()  # should use db
+    @patch_with_response()  # should use db FAILING
     def test_referer_header_set_to_beta(self, graphql_query):
         self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
         graphql_query.assert_not_called()
 
     @patch_with_response()  # should use xjoin
     def test_referer_not_beta(self, graphql_query):
-        self.get(f"{HOST_URL}", 500, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
         graphql_query.assert_called_once()
 
     @patch_with_response()  # should use xjoin
     def test_no_header_env_var_xjoin(self, graphql_query):
-        self.get(f"{HOST_URL}", 500)
+        self.get(f"{HOST_URL}", 200)
         graphql_query.assert_called_once()
 
 
-class xjoinBulkSourceSwitchTestCaseEnvDB(APIBaseTestCase):
+class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
             super().setUp()
 
-    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value="sup dawg")
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
 
     @patch_with_response()
-    def test_bulk_source_header_set_to_db(self, graphql_query):
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
         self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
         graphql_query.assert_not_called()
 
     @patch_with_response()
     def test_bulk_source_header_set_to_xjoin(self, graphql_query):
-        self.get(f"{HOST_URL}", 500, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
         graphql_query.assert_called_once()
 
     @patch_with_response()
-    def test_referer_not_beta(self, graphql_query):  # should use db
+    def test_referer_not_beta(self, graphql_query):  # should use db FAILING
         self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
         graphql_query.assert_not_called()
 
     @patch_with_response()  # should use xjoin
     def test_referer_header_set_to_beta(self, graphql_query):
-        self.get(f"{HOST_URL}", 500, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
         graphql_query.assert_called_once()
 
-    @patch_with_response()  # should use db
+    @patch_with_response()  # should use db FAILING
     def test_no_header_env_var_db(self, graphql_query):
         self.get(f"{HOST_URL}", 200)
         graphql_query.assert_not_called()

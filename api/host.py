@@ -107,7 +107,7 @@ def _add_host(input_host):
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
-def _get_bulk_query_source():
+def get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
         if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
             return BulkQuerySource.xjoin
@@ -116,10 +116,7 @@ def _get_bulk_query_source():
     if REFERAL_HEADER in connexion.request.headers:
         if "/beta" in connexion.request.headers[REFERAL_HEADER]:
             return inventory_config().bulk_query_source_beta
-        else:
-            return inventory_config().bulk_query_source
-    else:
-        return inventory_config().bulk_query_source
+    return inventory_config().bulk_query_source
 
 
 @api_operation
@@ -139,7 +136,7 @@ def get_host_list(
     total = 0
     host_list = ()
 
-    bulk_query_source = _get_bulk_query_source()
+    bulk_query_source = get_bulk_query_source()
 
     get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
 
