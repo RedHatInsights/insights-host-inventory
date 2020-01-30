@@ -257,10 +257,10 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_host_add_with_system_profile(self, datetime_mock):
+    def test_add_host_with_system_profile(self, datetime_mock):
         """
          Tests adding a host with message containing system profile
-         """
+        """
         expected_insights_id = str(uuid.uuid4())
         timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
 
@@ -278,7 +278,38 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "type": "created",
         }
 
-        host_keys_to_check = ["display_name", "insights_id", "account"]
+        host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_with_tags(self, datetime_mock):
+        """
+         Tests adding a host with message containing tags
+        """
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "tags": [
+                {"namespace": "NS1", "key": "key3", "value": "val3"},
+                {"namespace": "NS3", "key": "key2", "value": "val2"},
+                {"namespace": "Sat", "key": "prod", "value": None},
+                {"namespace": None, "key": "key", "value": "val"},
+            ],
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 

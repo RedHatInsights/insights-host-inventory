@@ -25,6 +25,20 @@ _CANONICAL_FACTS_FIELDS = (
     "external_id",
 )
 
+DEFAULT_FIELDS = (
+    "id",
+    "account",
+    "display_name",
+    "ansible_host",
+    "facts",
+    "reporter",
+    "stale_timestamp",
+    "stale_warning_timestamp",
+    "culled_timestamp",
+    "created",
+    "updated",
+)
+
 
 def deserialize_host(raw_data):
     try:
@@ -66,7 +80,7 @@ def deserialize_host_xjoin(data):
     return host
 
 
-def serialize_host(host, staleness_timestamps):
+def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
@@ -76,22 +90,38 @@ def serialize_host(host, staleness_timestamps):
         stale_warning_timestamp = None
         culled_timestamp = None
 
-    return {
-        **serialize_canonical_facts(host.canonical_facts),
-        "id": _serialize_uuid(host.id),
-        "account": host.account,
-        "display_name": host.display_name,
-        "ansible_host": host.ansible_host,
-        "facts": _serialize_facts(host.facts),
-        "reporter": host.reporter,
-        "stale_timestamp": stale_timestamp and _serialize_datetime(stale_timestamp),
-        "stale_warning_timestamp": stale_timestamp and _serialize_datetime(stale_warning_timestamp),
-        "culled_timestamp": stale_timestamp and _serialize_datetime(culled_timestamp),
+    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+
+    if "id" in fields:
+        serialized_host["id"] = _serialize_uuid(host.id)
+    if "account" in fields:
+        serialized_host["account"] = host.account
+    if "display_name" in fields:
+        serialized_host["display_name"] = host.display_name
+    if "ansible_host" in fields:
+        serialized_host["ansible_host"] = host.ansible_host
+    if "facts" in fields:
+        serialized_host["facts"] = _serialize_facts(host.facts)
+    if "reporter" in fields:
+        serialized_host["reporter"] = host.reporter
+    if "stale_timestamp" in fields:
+        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
+    if "stale_warning_timestamp" in fields:
+        serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
+    if "culled_timestamp" in fields:
+        serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
-        "created": _serialize_datetime(host.created_on),
-        "updated": _serialize_datetime(host.modified_on),
-    }
+    if "created" in fields:
+        serialized_host["created"] = _serialize_datetime(host.created_on)
+    if "updated" in fields:
+        serialized_host["updated"] = _serialize_datetime(host.modified_on)
+    if "tags" in fields:
+        serialized_host["tags"] = _serialize_tags(host.tags)
+    if "system_profile" in fields:
+        serialized_host["system_profile"] = host.system_profile_facts or {}
+
+    return serialized_host
 
 
 def serialize_host_system_profile(host):
@@ -142,3 +172,7 @@ def _serialize_uuid(u):
 def _deserialize_tags(tags):
     # TODO: Move the deserialization logic to this method.
     return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))
+
+
+def _serialize_tags(tags):
+    return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
