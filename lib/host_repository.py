@@ -5,6 +5,7 @@ from sqlalchemy import and_
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
+from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
@@ -31,7 +32,7 @@ ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 logger = get_logger(__name__)
 
 
-def add_host(input_host, staleness_offset, update_system_profile=True):
+def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
     """
     Add or update a host
 
@@ -43,9 +44,9 @@ def add_host(input_host, staleness_offset, update_system_profile=True):
     with session_guard(db.session):
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
-            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
+            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
-            return create_new_host(input_host, staleness_offset)
+            return create_new_host(input_host, staleness_offset, fields)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -95,24 +96,24 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset):
+def create_new_host(input_host, staleness_offset, fields):
     logger.debug("Creating a new host")
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
-    return serialize_host(input_host, staleness_offset), AddHostResults.created
+    return serialize_host(input_host, staleness_offset, fields), AddHostResults.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    return serialize_host(existing_host, staleness_offset), AddHostResults.updated
+    return serialize_host(existing_host, staleness_offset, fields), AddHostResults.updated
 
 
 def stale_timestamp_filter(gte=None, lte=None):
