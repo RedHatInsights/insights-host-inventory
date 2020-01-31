@@ -382,6 +382,13 @@ class TagUtilsTestCase(TestCase):
         self._base_string_to_structured_test("key", Tag(None, "key", None))
 
     """
+    testing new regex schema
+    """
+
+    def test_special_characters(self):
+        self._base_string_to_structured_test("-_NS*!/ke~y=v()alue", Tag("-_NS*!", "ke~y", "v()alue"))
+
+    """
     structured to string tests
     """
 
