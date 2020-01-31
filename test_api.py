@@ -35,7 +35,7 @@ from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from app.utils import Tag
-from host_reaper import main as host_reaper_main
+from host_reaper import run as host_reaper_run
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
@@ -1105,7 +1105,8 @@ class HostReaperTestCase(DeleteHostsBaseTestCase):
 
     def _run_host_reaper(self):
         with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
-            host_reaper_main("testing")
+            with self.app.app_context():
+                host_reaper_run(self.app.config["INVENTORY_CONFIG"], db.session)
 
     def _add_hosts(self, data):
         post = []

@@ -21,9 +21,10 @@ from tasks import flush
 from tasks import init_tasks
 
 
-__all__ = ("main",)
+__all__ = ("main", "run")
 
 PROMETHEUS_JOB = "host_reaper"
+LOGGER_NAME = "host_reaper"
 COLLECTED_METRICS = (delete_host_count, delete_host_processing_time)
 
 
@@ -38,7 +39,9 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def _run(config, logger, session):
+def run(config, session):
+    logger = get_logger(LOGGER_NAME)
+
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
@@ -60,8 +63,6 @@ def main(config_name):
     config = _init_config(config_name)
     init_tasks(config)
 
-    logger = get_logger("host_reaper")
-
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)
@@ -69,7 +70,7 @@ def main(config_name):
     Session = _init_db(config)
     session = Session()
 
-    _run(config, logger, session)
+    run(config, session)
 
     session.commit()
     session.close()
