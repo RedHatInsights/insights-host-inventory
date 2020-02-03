@@ -10,6 +10,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from tasks import flush
@@ -52,12 +53,10 @@ def main(config_name):
     Session = _init_db(config)
     session = Session()
 
-    run(config, session)
+    with session_guard(session):
+        run(config, session)
 
     flush()
-
-    session.commit()
-    session.close()
 
 
 if __name__ == "__main__":
