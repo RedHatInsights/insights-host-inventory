@@ -14,7 +14,7 @@ def delete_hosts(select_query):
     for host in select_query:
         host_id = host.id
         with delete_host_processing_time.time():
-            _delete_host(select_query, host)
+            _delete_host(select_query.session, host)
 
         host_deleted = _deleted_by_this_query(host)
         if host_deleted:
@@ -24,8 +24,8 @@ def delete_hosts(select_query):
         yield host_id, host_deleted
 
 
-def _delete_host(select_query, host):
-    delete_query = select_query.filter(Host.id == host.id)
+def _delete_host(session, host):
+    delete_query = session.query(Host).filter(Host.id == host.id)
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
