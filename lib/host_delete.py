@@ -8,20 +8,22 @@ from tasks import emit_event
 
 
 __all__ = ("delete_hosts",)
+CHUNK_SIZE = 1000
 
 
 def delete_hosts(select_query):
-    for host in select_query:
-        host_id = host.id
-        with delete_host_processing_time.time():
-            _delete_host(select_query.session, host)
+    while select_query.count():
+        for host in select_query.limit(CHUNK_SIZE):
+            host_id = host.id
+            with delete_host_processing_time.time():
+                _delete_host(select_query.session, host)
 
-        host_deleted = _deleted_by_this_query(host)
-        if host_deleted:
-            delete_host_count.inc()
-            _emit_event(host)
+            host_deleted = _deleted_by_this_query(host)
+            if host_deleted:
+                delete_host_count.inc()
+                _emit_event(host)
 
-        yield host_id, host_deleted
+            yield host_id, host_deleted
 
 
 def _delete_host(session, host):
