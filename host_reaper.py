@@ -17,6 +17,7 @@ from tasks import init_tasks
 
 
 __all__ = ("main",)
+SELECT_CHUNK_SIZE = 1000
 
 
 def _init_config(config_name):
@@ -35,7 +36,7 @@ def run(config, session):
 
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
-    query = session.query(Host).filter(query_filter)
+    query = session.query(Host).filter(query_filter).yield_per(SELECT_CHUNK_SIZE)
 
     events = delete_hosts(query)
     for host_id, deleted in events:
