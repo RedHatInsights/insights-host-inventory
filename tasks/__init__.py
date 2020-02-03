@@ -5,11 +5,12 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 
 from api import metrics
+from app import db
 from app.logging import get_logger
 from app.logging import threadctx
-from app.models import db_session_guard
 from app.models import Host
 from app.models import SystemProfileSchema
+from lib.db import session_guard
 
 logger = get_logger(__name__)
 
@@ -62,7 +63,7 @@ def msg_handler(parsed):
         logger.error("ID is null, something went wrong.")
         return
 
-    with db_session_guard():
+    with session_guard(db.session):
         host = Host.query.get(id_)
         if host is None:
             logger.error("Host with id [%s] not found!", id_)
