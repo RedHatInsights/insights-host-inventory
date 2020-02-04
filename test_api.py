@@ -54,6 +54,52 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+MOCK_XJOIN_HOST_RESPONSE = {
+    "hosts": {
+        "meta": {"total": 2},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "account": "test",
+                "display_name": "test01.rhel7.jharting.local",
+                "ansible_host": "test01.rhel7.jharting.local",
+                "created_on": "2019-02-10T08:07:03.354307Z",
+                "modified_on": "2019-02-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test01.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                },
+                "facts": None,
+                "stale_timestamp": "2020-02-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "account": "test",
+                "display_name": "test02.rhel7.jharting.local",
+                "ansible_host": "test02.rhel7.jharting.local",
+                "created_on": "2019-01-10T08:07:03.354307Z",
+                "modified_on": "2019-01-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test02.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                },
+                "facts": {
+                    "os": {"os.release": "Red Hat Enterprise Linux Server"},
+                    "bios": {
+                        "bios.vendor": "SeaBIOS",
+                        "bios.release_date": "2014-04-01",
+                        "bios.version": "1.11.0-2.el7",
+                    },
+                },
+                "stale_timestamp": "2020-01-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+        ],
+    }
+}
 
 
 def quote(*args, **kwargs):
@@ -3540,54 +3586,7 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
 
 
 class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
-    RESPONSE = {
-        "hosts": {
-            "meta": {"total": 2},
-            "data": [
-                {
-                    "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-                    "account": "test",
-                    "display_name": "test01.rhel7.jharting.local",
-                    "ansible_host": "test01.rhel7.jharting.local",
-                    "created_on": "2019-02-10T08:07:03.354307Z",
-                    "modified_on": "2019-02-10T08:07:03.354312Z",
-                    "canonical_facts": {
-                        "fqdn": "fqdn.test01.rhel7.jharting.local",
-                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
-                        "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
-                    },
-                    "facts": None,
-                    "stale_timestamp": "2020-02-10T08:07:03.354307Z",
-                    "reporter": "puptoo",
-                },
-                {
-                    "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
-                    "account": "test",
-                    "display_name": "test02.rhel7.jharting.local",
-                    "ansible_host": "test02.rhel7.jharting.local",
-                    "created_on": "2019-01-10T08:07:03.354307Z",
-                    "modified_on": "2019-01-10T08:07:03.354312Z",
-                    "canonical_facts": {
-                        "fqdn": "fqdn.test02.rhel7.jharting.local",
-                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
-                        "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
-                    },
-                    "facts": {
-                        "os": {"os.release": "Red Hat Enterprise Linux Server"},
-                        "bios": {
-                            "bios.vendor": "SeaBIOS",
-                            "bios.release_date": "2014-04-01",
-                            "bios.version": "1.11.0-2.el7",
-                        },
-                    },
-                    "stale_timestamp": "2020-01-10T08:07:03.354307Z",
-                    "reporter": "puptoo",
-                },
-            ],
-        }
-    }
-
-    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=RESPONSE)
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
 
     @patch_with_response()
     def test_response_processed_properly(self, graphql_query):
@@ -3666,13 +3665,13 @@ class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
         graphql_query.assert_called_once()
 
 
-@patch("api.tag.is_enabled", return_value=True)
+@patch("api.tag.xjoin_enabled", return_value=True)
 class TagsRequestTestCase(XjoinRequestBaseTestCase):
     patch_with_empty_response = partial(
         patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
     )
 
-    def test_headers_forwarded(self, is_enabled):
+    def test_headers_forwarded(self, xjoin_enabled):
         value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
         with self._patch_xjoin_post(value) as resp:
             req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
@@ -3680,7 +3679,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
             self._assert_called_with_headers(resp, req_id)
 
     @patch_with_empty_response()
-    def test_query_variables_default_except_staleness(self, graphql_query, is_enabled):
+    def test_query_variables_default_except_staleness(self, graphql_query, xjoin_enabled):
         self.get(TAGS_URL, 200)
 
         graphql_query.assert_called_once_with(
@@ -3689,7 +3688,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
 
     @patch_with_empty_response()
     @patch("app.culling.datetime")
-    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, is_enabled):
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, xjoin_enabled):
         datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
 
         self.get(TAGS_URL, 200)
@@ -3716,7 +3715,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch("app.culling.datetime")
-    def test_query_variables_staleness(self, datetime_mock, is_enabled):
+    def test_query_variables_staleness(self, datetime_mock, xjoin_enabled):
         now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
         datetime_mock.now = mock.Mock(return_value=now)
 
@@ -3741,7 +3740,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_simple(self, graphql_query, is_enabled):
+    def test_query_variables_tags_simple(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
 
         graphql_query.assert_called_once_with(
@@ -3759,7 +3758,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_complex(self, graphql_query, is_enabled):
+    def test_query_variables_tags_complex(self, graphql_query, xjoin_enabled):
         tag1 = Tag("Sat", "env", "prod")
         tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
 
@@ -3789,7 +3788,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_search(self, graphql_query, is_enabled):
+    def test_query_variables_search(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
 
         graphql_query.assert_called_once_with(
@@ -3804,7 +3803,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
             },
         )
 
-    def test_query_variables_ordering_dir(self, is_enabled):
+    def test_query_variables_ordering_dir(self, xjoin_enabled):
         for direction in ["ASC", "DESC"]:
             with self.subTest(direction=direction):
                 with self.patch_with_empty_response() as graphql_query:
@@ -3821,7 +3820,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                         },
                     )
 
-    def test_query_variables_ordering_by(self, is_enabled):
+    def test_query_variables_ordering_by(self, xjoin_enabled):
         for ordering in ["tag", "count"]:
             with self.patch_with_empty_response() as graphql_query:
                 self.get(f"{TAGS_URL}?order_by={ordering}", 200)
@@ -3831,7 +3830,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
                 )
 
-    def test_response_pagination(self, is_enabled):
+    def test_response_pagination(self, xjoin_enabled):
         for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response() as graphql_query:
@@ -3848,14 +3847,14 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                         },
                     )
 
-    def test_response_invalid_pagination(self, is_enabled):
+    def test_response_invalid_pagination(self, xjoin_enabled):
         for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
             with self.subTest(page=page):
                 with self.patch_with_empty_response():
                     self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
 
 
-@patch("api.tag.is_enabled", return_value=True)
+@patch("api.tag.xjoin_enabled", return_value=True)
 class TagsResponseTestCase(APIBaseTestCase):
     RESPONSE = {
         "hostTags": {
@@ -3871,7 +3870,7 @@ class TagsResponseTestCase(APIBaseTestCase):
     patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
 
     @patch_with_tags()
-    def test_response_processed_properly(self, graphql_query, is_enabled):
+    def test_response_processed_properly(self, graphql_query, xjoin_enabled):
         expected = self.RESPONSE["hostTags"]
         result = self.get(TAGS_URL, 200)
         graphql_query.assert_called_once()
@@ -3888,12 +3887,78 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
     @patch_with_tags()
-    def test_response_pagination_index_error(self, graphql_query, is_enabled):
+    def test_response_pagination_index_error(self, graphql_query, xjoin_enabled):
         self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
 
         graphql_query.assert_called_once_with(
             TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
         )
+
+
+class xjoinBulkSourceSwitchTestCaseEnvXjoin(DBAPITestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db FAILING
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_not_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use xjoin
+    def test_no_header_env_var_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200)
+        graphql_query.assert_called_once()
+
+
+class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()
+    def test_referer_not_beta(self, graphql_query):  # should use db FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db FAILING
+    def test_no_header_env_var_db(self, graphql_query):
+        self.get(f"{HOST_URL}", 200)
+        graphql_query.assert_not_called()
 
 
 if __name__ == "__main__":

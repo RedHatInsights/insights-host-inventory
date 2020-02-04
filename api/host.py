@@ -1,5 +1,6 @@
 from enum import Enum
 
+import connexion
 import flask
 from flask_api import status
 from marshmallow import ValidationError
@@ -37,6 +38,8 @@ from lib.host_repository import AddHostResults
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
+XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
+REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
 
@@ -104,6 +107,18 @@ def _add_host(input_host):
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
+def get_bulk_query_source():
+    if XJOIN_HEADER in connexion.request.headers:
+        if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
+            return BulkQuerySource.xjoin
+        elif connexion.request.headers[XJOIN_HEADER].lower() == "db":
+            return BulkQuerySource.db
+    if REFERAL_HEADER in connexion.request.headers:
+        if "/beta" in connexion.request.headers[REFERAL_HEADER]:
+            return inventory_config().bulk_query_source_beta
+    return inventory_config().bulk_query_source
+
+
 @api_operation
 @metrics.api_request_time.time()
 def get_host_list(
@@ -121,8 +136,10 @@ def get_host_list(
     total = 0
     host_list = ()
 
-    config = inventory_config()
-    get_host_list = GET_HOST_LIST_FUNCTIONS[config.bulk_query_source]
+    bulk_query_source = get_bulk_query_source()
+
+    get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
+
     try:
         host_list, total = get_host_list(
             display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness
