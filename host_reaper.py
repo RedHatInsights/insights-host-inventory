@@ -5,8 +5,6 @@ from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from api.metrics import delete_host_count
-from api.metrics import delete_host_processing_time
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.config import RuntimeEnvironment
@@ -17,15 +15,17 @@ from app.logging import threadctx
 from app.models import Host
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
+from lib.metrics import delete_host_count
+from lib.metrics import delete_host_processing_time
+from lib.metrics import host_reaper_fail_count
 from tasks import flush
 from tasks import init_tasks
-
 
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-reaper"
 LOGGER_NAME = "host_reaper"
-COLLECTED_METRICS = (delete_host_count, delete_host_processing_time)
+COLLECTED_METRICS = (delete_host_count, delete_host_processing_time, host_reaper_fail_count)
 
 
 def _init_config(config_name):
@@ -43,6 +43,7 @@ def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
+@host_reaper_fail_count.count_exceptions()
 def run(config, session):
     logger = get_logger(LOGGER_NAME)
 
@@ -74,15 +75,19 @@ def main(config_name):
     Session = _init_db(config)
     session = Session()
 
-    run(config, session)
+    try:
+        run(config, session)
+        session.commit()
+    except Exception as exception:
+        session.rollback()
+        logger = get_logger(LOGGER_NAME)
+        logger.exception(exception)
+    finally:
+        session.close()
+        flush()
 
-    session.commit()
-    session.close()
-
-    flush()
-
-    job = _prometheus_job(config.kubernetes_namespace)
-    push_to_gateway(config.prometheus_pushgateway, job, registry)
+        job = _prometheus_job(config.kubernetes_namespace)
+        push_to_gateway(config.prometheus_pushgateway, job, registry)
 
 
 if __name__ == "__main__":

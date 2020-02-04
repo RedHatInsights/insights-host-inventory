@@ -1,10 +1,9 @@
 from sqlalchemy.orm.base import instance_state
 
-from api.metrics import delete_host_count
-from api.metrics import delete_host_processing_time
 from app.events import delete as delete_event
+from lib.metrics import delete_host_count
+from lib.metrics import delete_host_processing_time
 from tasks import emit_event
-
 
 __all__ = ("delete_hosts",)
 

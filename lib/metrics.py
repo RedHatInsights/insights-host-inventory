@@ -16,3 +16,8 @@ update_host_commit_processing_time = Summary(
 )
 create_host_count = Counter("inventory_create_host_count", "The total amount of hosts created")
 update_host_count = Counter("inventory_update_host_count", "The total amount of hosts updated")
+delete_host_count = Counter("inventory_delete_host_count", "The total amount of hosts deleted")
+delete_host_processing_time = Summary(
+    "inventory_delete_host_commit_seconds", "Time spent deleting hosts from the database"
+)
+host_reaper_fail_count = Counter("inventory_reaper_fail_count", "The total amount of Host Reaper failures.")
