@@ -23,7 +23,7 @@ from tasks import init_tasks
 
 __all__ = ("main", "run")
 
-PROMETHEUS_JOB = "host_reaper"
+PROMETHEUS_JOB = "inventory-reaper"
 LOGGER_NAME = "host_reaper"
 COLLECTED_METRICS = (delete_host_count, delete_host_processing_time)
 
@@ -37,6 +37,10 @@ def _init_config(config_name):
 def _init_db(config):
     engine = create_engine(config.db_uri)
     return sessionmaker(bind=engine)
+
+
+def _prometheus_job(namespace):
+    return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
 def run(config, session):
@@ -76,7 +80,9 @@ def main(config_name):
     session.close()
 
     flush()
-    push_to_gateway(config.prometheus_pushgateway, PROMETHEUS_JOB, registry)
+
+    job = _prometheus_job(config.kubernetes_namespace)
+    push_to_gateway(config.prometheus_pushgateway, job, registry)
 
 
 if __name__ == "__main__":

@@ -44,6 +44,7 @@ class Config:
         self.kafka_enabled = all(map(os.environ.get, ["KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS"]))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
+        self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
         self.kafka_consumer = {
@@ -120,3 +121,4 @@ class Config:
                 self.logger.info("Payload Tracker Enabled: %s", self.payload_tracker_enabled)
             elif self._environment == RuntimeEnvironment.job:
                 self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
+                self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)
