@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from app.config import Config
+from app.config import RuntimeEnvironment
 from app.payload_tracker import _UNKNOWN_PAYLOAD_ID
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import init_payload_tracker
@@ -338,7 +339,7 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def _get_tracker(self, account=None, payload_id=None, producer=None):
-        config = Config()
+        config = Config(RuntimeEnvironment.server)
         init_payload_tracker(config, producer=producer)
         return get_payload_tracker(account=account, payload_id=payload_id)
 

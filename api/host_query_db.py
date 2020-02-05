@@ -10,6 +10,7 @@ from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
 from lib.host_repository import canonical_facts_host_query
+from lib.host_repository import stale_timestamp_filter
 
 __all__ = ("get_host_list", "find_hosts_by_staleness", "params_to_order_by")
 
@@ -51,7 +52,7 @@ def get_host_list(
 def find_hosts_by_staleness(staleness, query):
     logger.debug("find_hosts_by_staleness(%s)", staleness)
     config = inventory_config()
-    staleness_conditions = tuple(staleness_to_conditions(config, staleness, _stale_timestamp_filter))
+    staleness_conditions = tuple(staleness_to_conditions(config, staleness, stale_timestamp_filter))
     if "unknown" in staleness:
         staleness_conditions += (Host.stale_timestamp == NULL,)
 
@@ -136,12 +137,3 @@ def _find_hosts_by_display_name(display_name):
     return Host.query.filter(
         and_(Host.account == current_identity.account_number, Host.display_name.comparator.contains(display_name))
     )
-
-
-def _stale_timestamp_filter(gte=None, lte=None):
-    filter_ = ()
-    if gte:
-        filter_ += (Host.stale_timestamp >= gte,)
-    if lte:
-        filter_ += (Host.stale_timestamp <= lte,)
-    return and_(*filter_)

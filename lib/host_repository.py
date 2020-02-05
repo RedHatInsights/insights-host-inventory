@@ -1,11 +1,23 @@
 from enum import Enum
 
+from sqlalchemy import and_
+
 from app.logging import get_logger
 from app.models import db
-from app.models import db_session_guard
 from app.models import Host
 from app.serialization import serialize_host
 from lib import metrics
+from lib.db import session_guard
+
+__all__ = (
+    "add_host",
+    "canonical_facts_host_query",
+    "create_new_host",
+    "find_existing_host",
+    "find_host_by_canonical_facts",
+    "stale_timestamp_filter",
+    "update_existing_host",
+)
 
 # FIXME:  rename this
 AddHostResults = Enum("AddHostResults", ["created", "updated"])
@@ -15,7 +27,6 @@ AddHostResults = Enum("AddHostResults", ["created", "updated"])
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
-
 
 logger = get_logger(__name__)
 
@@ -29,7 +40,7 @@ def add_host(input_host, staleness_offset, update_system_profile=True):
      - account number
     """
 
-    with db_session_guard():
+    with session_guard(db.session):
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
@@ -102,3 +113,12 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
     return serialize_host(existing_host, staleness_offset), AddHostResults.updated
+
+
+def stale_timestamp_filter(gte=None, lte=None):
+    filter_ = ()
+    if gte:
+        filter_ += (Host.stale_timestamp >= gte,)
+    if lte:
+        filter_ += (Host.stale_timestamp <= lte,)
+    return and_(*filter_)

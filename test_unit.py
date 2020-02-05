@@ -22,6 +22,7 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
+from app.config import RuntimeEnvironment
 from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
 from app.exceptions import InputFormatException
@@ -212,6 +213,10 @@ class TrustedIdentityTestCase(TestCase):
 
 
 class ConfigTestCase(TestCase):
+    @staticmethod
+    def _config():
+        return Config(RuntimeEnvironment.server)
+
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
         path_prefix = "r/slaterock/platform"
@@ -236,8 +241,7 @@ class ConfigTestCase(TestCase):
         }
 
         with set_environment(new_env):
-
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -254,7 +258,7 @@ class ConfigTestCase(TestCase):
         # Make sure the environment variables are not set
         with set_environment(None):
 
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -267,7 +271,7 @@ class ConfigTestCase(TestCase):
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
 
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
 
