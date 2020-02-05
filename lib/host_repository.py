@@ -4,10 +4,10 @@ from sqlalchemy import and_
 
 from app.logging import get_logger
 from app.models import db
-from app.models import db_session_guard
 from app.models import Host
 from app.serialization import serialize_host
 from lib import metrics
+from lib.db import session_guard
 
 __all__ = (
     "add_host",
@@ -40,7 +40,7 @@ def add_host(input_host, staleness_offset, update_system_profile=True):
      - account number
     """
 
-    with db_session_guard():
+    with session_guard(db.session):
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)

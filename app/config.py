@@ -70,6 +70,7 @@ class Config:
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
         self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))
+        self.bulk_query_source_beta = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE_BETA", "db"))
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")

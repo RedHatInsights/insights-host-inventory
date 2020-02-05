@@ -13,6 +13,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
@@ -53,15 +54,11 @@ def run(config, session):
     query = session.query(Host).filter(query_filter)
 
     events = delete_hosts(query)
-
-    if events:
-        for deleted_host in events:
-            if deleted_host:
-                logger.info("Deleted host: %s", deleted_host.id)
-            else:
-                logger.info("Host already deleted. Delete event not emitted.")
-    else:
-        logger.info("No hosts deleted.")
+    for host_id, deleted in events:
+        if deleted:
+            logger.info("Deleted host: %s", host_id)
+        else:
+            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
 
 
 def main(config_name):
@@ -76,14 +73,12 @@ def main(config_name):
     session = Session()
 
     try:
-        run(config, session)
-        session.commit()
+        with session_guard(session):
+            run(config, session)
     except Exception as exception:
-        session.rollback()
         logger = get_logger(LOGGER_NAME)
         logger.exception(exception)
     finally:
-        session.close()
         flush()
 
         job = _prometheus_job(config.kubernetes_namespace)
