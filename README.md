@@ -132,6 +132,10 @@ from inside of the deployment cluster.
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
+Cron jobs push their metrics to a
+[Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
+running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
+
 ## API Documentation
 
 The API is described by an OpenAPI specification file

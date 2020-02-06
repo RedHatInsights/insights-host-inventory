@@ -5,6 +5,7 @@ from prometheus_client import start_http_server
 
 from app import create_app
 from app.config import Config
+from app.config import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.egress import create_event_producer
 from app.queue.ingress import event_loop
@@ -17,7 +18,7 @@ def main():
     application = create_app(config_name, start_tasks=False, start_payload_tracker=True)
     start_http_server(9126)
 
-    config = Config()
+    config = Config(RuntimeEnvironment.server)
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,

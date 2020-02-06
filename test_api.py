@@ -2642,11 +2642,6 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         updated_host = self._update_host(host_to_create)
         _assert_values(updated_host)
 
-        from logging import getLogger, INFO
-
-        logger = getLogger("sqlalchemy.engine")
-        logger.setLevel(INFO)
-
         retrieved_host_from_all = self._get_all_hosts()
         _assert_values(retrieved_host_from_all)
 
@@ -2725,11 +2720,6 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
         for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
             with self.subTest(get_hosts_url_method=get_hosts_url_method):
                 url = get_hosts_url_method("?staleness=culled")
-                from logging import DEBUG, getLogger
-
-                logger = getLogger(__name__)
-                logger.setLevel(DEBUG)
-                logger.debug(url)
                 self.get(url, 400)
 
 
