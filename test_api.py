@@ -3299,15 +3299,16 @@ class HostsXjoinRequestHeadersTestCase(HostsXjoinRequestBaseTestCase):
 class XjoinSearchResponseCheckingTestCase(XjoinRequestBaseTestCase, HostsXjoinBaseTestCase):
     EMPTY_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
 
-    def test_host_request_xjoin_status_403(self):
-        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}, 403):
+    def base_xjoin_response_status_test(self, xjoin_res_status, expected_HBI_res_status):
+        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}, xjoin_res_status):
             request_id = generate_uuid()
-            self._get_with_request_id(HOST_URL, request_id, 500)
+            self._get_with_request_id(HOST_URL, request_id, expected_HBI_res_status)
+
+    def test_host_request_xjoin_status_403(self):
+        self.base_xjoin_response_status_test(403, 500)
 
     def test_host_request_xjoin_status_200(self):
-        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}, 200):
-            request_id = generate_uuid()
-            self._get_with_request_id(HOST_URL, request_id, 200)
+        self.base_xjoin_response_status_test(200, 200)
 
 
 @HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
