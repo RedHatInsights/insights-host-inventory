@@ -3256,7 +3256,12 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
     @contextmanager
     def _patch_xjoin_post(self, response):
         with patch(
-            "app.xjoin.post", **{"return_value.text": json.dumps(response), "return_value.json.return_value": response}
+            "app.xjoin.post",
+            **{
+                "return_value.text": json.dumps(response),
+                "return_value.json.return_value": response,
+                "return_value.status_code": 200,
+            },
         ) as post:
             yield post
 
