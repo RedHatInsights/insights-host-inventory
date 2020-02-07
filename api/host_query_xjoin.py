@@ -1,11 +1,21 @@
 from uuid import UUID
 
+from marshmallow import Schema
+from marshmallow.fields import DateTime
+from marshmallow.fields import Dict
+from marshmallow.fields import List
+from marshmallow.fields import Nested
+from marshmallow.fields import String
+from marshmallow.validate import Length
+
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
 from app.utils import Tag
+from app.validators import verify_uuid_format
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
+from app.xjoin import ResponseMetaSchema
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains
 
@@ -51,6 +61,40 @@ ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
+class HostQueryResponseHostDataCanonicalFactsSchema(Schema):
+    insights_id = String(validate=verify_uuid_format)
+    rhel_machine_id = String(validate=verify_uuid_format)
+    subscription_manager_id = String(validate=verify_uuid_format)
+    satellite_id = String(validate=verify_uuid_format)
+    bios_uuid = String(validate=verify_uuid_format)
+    ip_addresses = List(String(validate=Length(min=1, max=255)), validate=Length(min=1))
+    fqdn = String(validate=Length(min=1, max=255))
+    mac_addresses = List(String(validate=Length(min=1, max=59)), validate=Length(min=1))
+    external_id = String(validate=Length(min=1, max=500))
+
+
+class HostQueryResponseHostDataSchema(Schema):
+    id = String(required=True, validate=verify_uuid_format)
+    account = String(required=True, validate=Length(min=1, max=10))
+    display_name = String(required=True, validate=Length(min=1, max=200))
+    ansible_host = String(required=True, allow_none=True, validate=Length(min=0, max=255))
+    created_on = DateTime(required=True)
+    modified_on = DateTime(required=True)
+    canonical_facts = Nested(HostQueryResponseHostDataCanonicalFactsSchema())
+    facts = Dict(required=True, allow_none=True)
+    stale_timestamp = DateTime(required=True, allow_none=True)
+    reporter = String(required=True, allow_none=True, validate=Length(min=1, max=255))
+
+
+class HostQueryResponseHostSchema(Schema):
+    meta = Nested(ResponseMetaSchema())
+    data = List(Nested(HostQueryResponseHostDataSchema()))
+
+
+class HostQueryResponseDataSchema(Schema):
+    hosts = Nested(HostQueryResponseHostSchema())
+
+
 def get_host_list(
     display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, param_order_by, param_order_how, staleness
 ):
@@ -64,12 +108,15 @@ def get_host_list(
         "order_how": xjoin_order_how,
         "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness),
     }
-    response = graphql_query(QUERY, variables)["hosts"]
+    raw_response = graphql_query(QUERY, variables)
+    schema = HostQueryResponseDataSchema(strict=True)
+    hosts_response = schema.load(raw_response).data["hosts"]
+    logger.debug("hosts_response %s", hosts_response)
 
-    total = response["meta"]["total"]
+    total = hosts_response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total
+    return map(deserialize_host, hosts_response["data"]), total
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):

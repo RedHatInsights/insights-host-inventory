@@ -1,4 +1,3 @@
-from datetime import datetime
 from datetime import timezone
 
 from marshmallow import ValidationError
@@ -24,6 +23,7 @@ _CANONICAL_FACTS_FIELDS = (
     "mac_addresses",
     "external_id",
 )
+_DATE_TIME_FIELDS = ("created_on", "modified_on", "stale_timestamp")
 
 DEFAULT_FIELDS = (
     "id",
@@ -49,6 +49,7 @@ def deserialize_host(raw_data):
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
+    stale_timestamp = validated_data.get("stale_timestamp")
     return Host(
         canonical_facts,
         validated_data.get("display_name"),
@@ -57,7 +58,7 @@ def deserialize_host(raw_data):
         facts,
         tags,
         validated_data.get("system_profile", {}),
-        validated_data.get("stale_timestamp"),
+        _deserialize_date_time(stale_timestamp) if stale_timestamp else None,
         validated_data.get("reporter"),
     )
 
@@ -71,12 +72,12 @@ def deserialize_host_xjoin(data):
         facts=data["facts"] or {},
         tags={},  # Not a part of host list output
         system_profile_facts={},  # Not a part of host list output
-        stale_timestamp=_deserialize_datetime_xjoin(data["stale_timestamp"]),
+        stale_timestamp=_deserialize_date_time(data["stale_timestamp"]) if data["stale_timestamp"] else None,
         reporter=data["reporter"],
     )
-    for field in ("created_on", "modified_on"):
-        setattr(host, field, _deserialize_datetime_xjoin(data[field]))
-    host.id = data["id"]
+    for field in ("id", "created_on", "modified_on"):
+        value = _deserialize_date_time(data[field]) if field in _DATE_TIME_FIELDS else data[field]
+        setattr(host, field, value)
     return host
 
 
@@ -160,9 +161,8 @@ def _serialize_datetime(dt):
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def _deserialize_datetime_xjoin(s):
-    dt = datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%fZ")
-    return dt.replace(tzinfo=timezone.utc)
+def _deserialize_date_time(dt):
+    return dt.astimezone(timezone.utc)
 
 
 def _serialize_uuid(u):

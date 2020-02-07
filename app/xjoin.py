@@ -3,6 +3,10 @@ from logging import getLogger
 from flask import abort
 from flask import current_app
 from flask import request
+from marshmallow import Schema
+from marshmallow.fields import Dict
+from marshmallow.fields import Integer
+from marshmallow.validate import Range
 from requests import post
 
 from app import IDENTITY_HEADER
@@ -14,6 +18,14 @@ from app.culling import staleness_to_conditions
 __all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "url")
 
 logger = getLogger("graphql")
+
+
+class ResponseMetaSchema(Schema):
+    total = Integer(validate=Range(min=0))
+
+
+class ResponseSchema(Schema):
+    data = Dict(required=True)
 
 
 def check_pagination(offset, total):
@@ -33,8 +45,11 @@ def graphql_query(query_string, variables):
         abort(500, "Error, request could not be completed")
 
     logger.debug("QUERY: response %s", response.text)
-    response_body = response.json()
-    return response_body["data"]
+
+    raw_response_body = response.json()
+    schema = ResponseSchema(strict=True)
+    validated_response_body = schema.load(raw_response_body).data
+    return validated_response_body["data"]
 
 
 def pagination_params(page, per_page):

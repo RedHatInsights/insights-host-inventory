@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
+from marshmallow.validate import ValidationError
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
@@ -34,6 +35,7 @@ from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from app.utils import Tag
+from app.xjoin import graphql_query
 from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from tasks import msg_handler
@@ -3242,7 +3244,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
 
 
-class XjoinRequestBaseTestCase(APIBaseTestCase):
+class XjoinBaseTestCase(APIBaseTestCase):
     @contextmanager
     def _patch_xjoin_post(self, response, status=200):
         with patch(
@@ -3255,6 +3257,8 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
         ) as post:
             yield post
 
+
+class XjoinRequestBaseTestCase(XjoinBaseTestCase):
     def _get_with_request_id(self, url, request_id, status=200):
         return self.get(url, status, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
 
@@ -3263,6 +3267,31 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
         post.assert_called_once_with(
             ANY, json=ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}
         )
+
+
+class XjoinSchemaTestCase(XjoinBaseTestCase):
+    @patch("app.xjoin.request", headers={"x-rh-identity": ""})
+    def _graphql_query(self, response, request):
+        with self._patch_xjoin_post(response):
+            with self.app.app_context():
+                return graphql_query("", {})
+
+    def test_invalid_data_missing(self):
+        response = {"hosts": {"meta": {"total": 0}, "data": []}}
+        with self.assertRaises(ValidationError):
+            self._graphql_query(response)
+
+    def test_invalid_data_not_dict(self):
+        for data in (None, []):
+            with self.subTest(data=data):
+                response = {"data": data}
+                with self.assertRaises(ValidationError):
+                    self._graphql_query(response)
+
+    def test_valid_data_returned(self):
+        response = {"data": {"hosts": {"meta": {"total": 0}, "data": []}}}
+        result = self._graphql_query(response)
+        self.assertEqual(result, response["data"])
 
 
 class HostsXjoinBaseTestCase(APIBaseTestCase):
@@ -3872,6 +3901,323 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
             with self.subTest(page=page):
                 with self.patch_with_empty_response():
                     self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
+
+
+class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
+    HOST_DATA = {
+        "id": "472d31c4-3743-41f1-8ff4-4ed418639dd4",
+        "account": "0000001",
+        "display_name": "some display_name",
+        "ansible_host": "some ansible host",
+        "created_on": "2019-02-10T08:07:03.354307Z",
+        "modified_on": "2019-02-10T08:08:03.354307Z",
+        "canonical_facts": {},
+        "facts": {},
+        "stale_timestamp": "2019-02-24T07:08:03.354307Z",
+        "reporter": "some reporter",
+    }
+    INVALID_VALUES = (None, "", "not a uuid", {})
+
+    def _get_hosts(self, data, code):
+        with patch("api.host_query_xjoin.graphql_query", return_value=data):
+            self.get(HOST_URL, code)
+
+    def test_invalid_hosts_missing(self):
+        response_data = {"meta": {"total": 0}, "data": []}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_not_dict(self):
+        for hosts in (None, [], [{"meta": {"total": 0}, "data": []}]):
+            with self.subTest(hosts=hosts):
+                response_data = {"hosts": hosts}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_meta_missing(self):
+        response_data = {"hosts": {"data": []}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_meta_total_missing(self):
+        response_data = {"hosts": {"meta": {"count": 0}, "data": []}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_meta_total_invalid(self):
+        response_data = {"hosts": {"meta": {"total": -1}, "data": []}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_missing(self):
+        response_data = {"hosts": {"meta": {"total": 0}}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_not_list(self):
+        response_data = {"hosts": {"meta": {"total": 0}, "data": {}}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_id_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["id"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_id_invalid(self):
+        for id in self.INVALID_VALUES:
+            with self.subTest(id=id):
+                host_data = {**self.HOST_DATA, "id": id}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_account_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["account"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_account_invalid(self):
+        for account in (None, "", "too long account number"):
+            with self.subTest(account=account):
+                host_data = {**self.HOST_DATA, "account": account}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_display_name_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["display_name"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_display_name_invalid(self):
+        for display_name in (None, "", "x" * 201):
+            with self.subTest(display_name=display_name):
+                host_data = {**self.HOST_DATA, "display_name": display_name}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_ansible_host_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["ansible_host"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_ansible_host_invalid(self):
+        host_data = {**self.HOST_DATA, "ansible_host": "x" * 256}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_created_on_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["created_on"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_created_on_invalid(self):
+        for created_on in self.INVALID_VALUES:
+            with self.subTest(created_on=created_on):
+                host_data = {**self.HOST_DATA, "created_on": created_on}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_modified_on_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["modified_on"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_modified_on_invalid(self):
+        for modified_on in self.INVALID_VALUES:
+            with self.subTest(modified_on=modified_on):
+                host_data = {**self.HOST_DATA, "modified_on": modified_on}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_stale_timestamp_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["stale_timestamp"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_stale_timestamp_invalid(self):
+        for stale_timestamp in ("", "not a timestamp"):
+            with self.subTest(stale_timestamp=stale_timestamp):
+                host_data = {**self.HOST_DATA, "stale_timestamp": stale_timestamp}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_reporter_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["reporter"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_reporter_invalid(self):
+        host_data = {**self.HOST_DATA, "reporter": "x" * 256}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_missing(self):
+        host_data = {**self.HOST_DATA}
+        del host_data["canonical_facts"]
+
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_not_dict(self):
+        for canonical_facts in (None, []):
+            with self.subTest(canonical_facts=canonical_facts):
+                host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_insights_id_invalid(self):
+        for insights_id in self.INVALID_VALUES:
+            with self.subTest(insights_id=insights_id):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"insights_id": insights_id}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_rhel_machine_id_invalid(self):
+        for rhel_machine_id in self.INVALID_VALUES:
+            with self.subTest(rhel_machine_id=rhel_machine_id):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"rhel_machine_id": rhel_machine_id}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_subscription_manager_id_invalid(self):
+        for subscription_manager_id in self.INVALID_VALUES:
+            with self.subTest(subscription_manager_id=subscription_manager_id):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"subscription_manager_id": subscription_manager_id}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_satellite_id_invalid(self):
+        for satellite_id in self.INVALID_VALUES:
+            with self.subTest(satellite_id=satellite_id):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"satellite_id": satellite_id}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_bios_uuid_invalid(self):
+        for bios_uuid in self.INVALID_VALUES:
+            with self.subTest(bios_uuid=bios_uuid):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"bios_uuid": bios_uuid}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_ip_addresses_not_list(self):
+        for ip_addresses in (None, {"eth0": "10.0.0.1"}):
+            with self.subTest(ip_addresses=ip_addresses):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"ip_addresses": ip_addresses}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_ip_addresses_list_invalid(self):
+        host_data = {**self.HOST_DATA, "canonical_facts": {"ip_addresses": []}}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_ip_addresses_item_invalid(self):
+        host_data = {**self.HOST_DATA, "canonical_facts": {"ip_addresses": ["10." * 100 + "1"]}}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_fqdn_invalid(self):
+        for fqdn in ({}, "", "x" * 256):
+            with self.subTest(fqdn=fqdn):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"fqdn": fqdn}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_mac_addresses_not_list(self):
+        for mac_addresses in (None, {"eth0": "ff:ee:dd:cc:bb:aa"}):
+            with self.subTest(mac_addresses=mac_addresses):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"mac_addresses": mac_addresses}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_mac_addresses_list_invalid(self):
+        host_data = {**self.HOST_DATA, "canonical_facts": {"mac_addresses": []}}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_mac_addresses_item_invalid(self):
+        host_data = {**self.HOST_DATA, "canonical_facts": {"mac_addresses": ["ff:" * 20 + "ff"]}}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 500)
+
+    def test_invalid_hosts_data_canonical_facts_external_id_invalid(self):
+        for external_id in ({}, "", "x" * 501):
+            with self.subTest(external_id=external_id):
+                host_data = {**self.HOST_DATA, "canonical_facts": {"external_id": external_id}}
+
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 500)
+
+    def test_valid_with_all_canonical_facts(self):
+        canonical_facts = {
+            "insights_id": generate_uuid(),
+            "rhel_machine_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
+            "satellite_id": generate_uuid(),
+            "bios_uuid": generate_uuid(),
+            "ip_addresses": ["10.0.0.1", "10.0.0.2"],
+            "fqdn": "test01.rhel7.jharting.local",
+            "mac_addresses": ["ff:ee:dd:cc:bb:aa", "aa:bb:cc:dd:ee:ff"],
+        }
+        host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
+
+    def test_valid_with_empty_ansible_host(self):
+        for ansible_host in (None, ""):
+            with self.subTest(ansible_host=ansible_host):
+                host_data = {
+                    **self.HOST_DATA,
+                    "canonical_facts": {"fqdn": "test01.rhel7.jharting.local"},
+                    "ansible_host": ansible_host,
+                }
+                response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+                self._get_hosts(response_data, 200)
+
+    def test_valid_with_empty_stale_timestamp_and_reporter(self):
+        host_data = {
+            **self.HOST_DATA,
+            "canonical_facts": {"fqdn": "test01.rhel7.jharting.local"},
+            "stale_timestamp": None,
+            "reporter": None,
+        }
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
+
+    def test_valid_with_timestamps_without_decimal_part(self):
+        host_data = {
+            **self.HOST_DATA,
+            "canonical_facts": {"fqdn": "test01.rhel7.jharting.local"},
+            "created_on": "2019-02-10T07:07:03Z",
+            "modified_on": "2019-02-10T08:07:03Z",
+            "stale_timestamp": "2019-02-24T07:07:03Z",
+        }
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
 
 
 @patch("api.tag.xjoin_enabled", return_value=True)
