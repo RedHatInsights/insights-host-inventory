@@ -27,6 +27,11 @@ def graphql_query(query_string, variables):
     payload = {"query": query_string, "variables": variables}
 
     response = post(url_, json=payload, headers=_forwarded_headers())
+    status = response.status_code
+    if status != 200:
+        logger.error("xjoin-search returned status: %s", status)
+        abort(500, "Error, request could not be completed")
+
     logger.debug("QUERY: response %s", response.text)
     response_body = response.json()
     return response_body["data"]

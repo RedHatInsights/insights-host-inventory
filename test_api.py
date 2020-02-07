@@ -3244,14 +3244,19 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
 class XjoinRequestBaseTestCase(APIBaseTestCase):
     @contextmanager
-    def _patch_xjoin_post(self, response):
+    def _patch_xjoin_post(self, response, status=200):
         with patch(
-            "app.xjoin.post", **{"return_value.text": json.dumps(response), "return_value.json.return_value": response}
+            "app.xjoin.post",
+            **{
+                "return_value.text": json.dumps(response),
+                "return_value.json.return_value": response,
+                "return_value.status_code": status,
+            },
         ) as post:
             yield post
 
-    def _get_with_request_id(self, url, request_id):
-        return self.get(url, 200, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
+    def _get_with_request_id(self, url, request_id, status=200):
+        return self.get(url, status, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
 
     def _assert_called_with_headers(self, post, request_id):
         identity = self._get_valid_auth_header()["x-rh-identity"].decode()
@@ -3279,6 +3284,21 @@ class HostsXjoinRequestHeadersTestCase(HostsXjoinRequestBaseTestCase):
             request_id = generate_uuid()
             self._get_with_request_id(HOST_URL, request_id)
             self._assert_called_with_headers(post, request_id)
+
+
+class XjoinSearchResponseCheckingTestCase(XjoinRequestBaseTestCase, HostsXjoinBaseTestCase):
+    EMPTY_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
+
+    def base_xjoin_response_status_test(self, xjoin_res_status, expected_HBI_res_status):
+        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}, xjoin_res_status):
+            request_id = generate_uuid()
+            self._get_with_request_id(HOST_URL, request_id, expected_HBI_res_status)
+
+    def test_host_request_xjoin_status_403(self):
+        self.base_xjoin_response_status_test(403, 500)
+
+    def test_host_request_xjoin_status_200(self):
+        self.base_xjoin_response_status_test(200, 200)
 
 
 @HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
