@@ -7,6 +7,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import validate
 from marshmallow import validates
+from marshmallow import validates_schema
 from marshmallow import ValidationError
 from sqlalchemy import Index
 from sqlalchemy import orm
@@ -339,6 +340,24 @@ class HostSchema(Schema):
     def validate_mac_addresses(self, mac_address_list):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
+
+    @validates_schema(pass_original=True)
+    def check_unknown_fields(self, data, original_data):
+
+        def emptycheck(d):
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    emptycheck(v)
+                elif isinstance(v, list):
+                    for l in v:
+                        if isinstance(l, dict):
+                            emptycheck(l)
+                else:
+                    if (k == ""):
+                        print("invalid")
+                        raise ValidationError('Empty key names are not allowed.')
+
+        emptycheck(original_data)
 
 
 class PatchHostSchema(Schema):

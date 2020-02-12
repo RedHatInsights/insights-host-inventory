@@ -961,6 +961,39 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self._verify_host_status(response, 0, 400)
 
+    def test_create_host_with_empty_json_key_in_nested_array(self):
+        system_profile = {
+            "network_interfaces": [{"": "invalid"}]
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_nested_object(self):
+        system_profile = {
+            "a-key": {"": "invalid"}
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_root(self):
+        system_profile = {
+            "": "invalid"
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 400)
+
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
     def _add_host(self, expected_status, **values):
