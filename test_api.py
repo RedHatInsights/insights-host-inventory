@@ -1007,6 +1007,34 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self._verify_host_status(response, 0, 400)
 
+    def test_create_host_with_empty_json_key_in_system_profile(self):
+        samples = (
+            {"disk_devices": [{"options": {"": "invalid"}}]},
+            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
+            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
+            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
+        )
+
+        for sample in samples:
+            with self.subTest(system_profile=sample):
+                host_data = HostWrapper(test_data(system_profile=sample))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_facts(self):
+        samples = (
+            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
+        )
+
+        for facts in samples:
+            with self.subTest(facts=facts):
+                host_data = HostWrapper(test_data(facts=facts))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
+
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
     def _add_host(self, expected_status, **values):
