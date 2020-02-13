@@ -76,7 +76,7 @@ class HostQueryResponseHostDataCanonicalFactsSchema(Schema):
 class HostQueryResponseHostDataSchema(Schema):
     id = String(required=True, validate=verify_uuid_format)
     account = String(required=True, validate=Length(min=1, max=10))
-    display_name = String(required=True, validate=Length(min=1, max=200))
+    display_name = String(required=True, allow_none=True, validate=Length(min=1, max=200))
     ansible_host = String(required=True, allow_none=True, validate=Length(min=0, max=255))
     created_on = DateTime(required=True)
     modified_on = DateTime(required=True)

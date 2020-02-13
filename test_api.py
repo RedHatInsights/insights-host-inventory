@@ -755,7 +755,6 @@ class CreateHostsTestCase(DBAPITestCase):
         # Update the ansible_host
         for ansible_host in ansible_hosts:
             with self.subTest(ansible_host=ansible_host):
-
                 host_data.ansible_host = ansible_host
 
                 # Update the hosts
@@ -1502,7 +1501,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
-
                 host["system_profile"] = system_profile
 
                 # Create the host
@@ -3990,7 +3988,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
         self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_display_name_invalid(self):
-        for display_name in (None, "", "x" * 201):
+        for display_name in ("", "x" * 201):
             with self.subTest(display_name=display_name):
                 host_data = {**self.HOST_DATA, "display_name": display_name}
 
@@ -4184,6 +4182,15 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
             "mac_addresses": ["ff:ee:dd:cc:bb:aa", "aa:bb:cc:dd:ee:ff"],
         }
         host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
+
+    def test_valid_without_display_name(self):
+        host_data = {
+            **self.HOST_DATA,
+            "canonical_facts": {"fqdn": "test01.rhel7.jharting.local"},
+            "display_name": None,
+        }
         response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
         self._get_hosts(response_data, 200)
 
