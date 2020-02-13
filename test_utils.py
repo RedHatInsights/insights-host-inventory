@@ -86,6 +86,7 @@ def valid_system_profile():
         ],
         "insights_client_version": "12.0.12",
         "insights_egg_version": "120.0.1",
+        "captured_date": "2020-02-13T12:08:55Z",
         "installed_packages": ["rpm1-0:0.0.1.el7.i686", "rpm1-2:0.0.1.el7.i686"],
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],

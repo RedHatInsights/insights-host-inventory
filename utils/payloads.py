@@ -419,6 +419,7 @@ def create_system_profile():
         ],
         "insights_client_version": "12.0.12",
         "insights_egg_version": "120.0.1",
+        "captured_date": "2020-02-13T12:16:00Z",
         # "installed_packages": ["rpm1", "rpm2"],
         # "installed_packages": subprocess.getoutput("rpm -qa").split("\n"),
         # "installed_packages": rpm_list(),
