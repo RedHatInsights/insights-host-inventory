@@ -128,7 +128,14 @@ def test_create_host_with_system_profile(flask_app_fixture):
     ],
 )
 def test_host_schema_valid_tags(tags):
-    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    host = {
+        "fqdn": "fred.flintstone.com",
+        "display_name": "display_name",
+        "account": "00102",
+        "tags": tags,
+        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+        "reporter": "test",
+    }
     validated_host = HostSchema(strict=True).load(host)
 
     assert validated_host.data["tags"] == tags

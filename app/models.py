@@ -327,8 +327,8 @@ class HostSchema(Schema):
     facts = fields.List(fields.Nested(FactsSchema))
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
-    stale_timestamp = fields.DateTime(timezone=True)
-    reporter = fields.Str(validate=validate.Length(min=1, max=255))
+    stale_timestamp = fields.DateTime(required=True, timezone=True)
+    reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
 
     @validates("ip_addresses")
     def validate_ip_addresses(self, ip_address_list):

@@ -110,6 +110,10 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+def now():
+    return datetime.now(timezone.utc)
+
+
 def test_data(**values):
     data = {
         "account": ACCOUNT,
@@ -121,12 +125,12 @@ def test_data(**values):
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
         "facts": None,
+        "stale_timestamp": now().isoformat(),
+        "reporter": "test",
         **values,
     }
     if not data["facts"]:
         data["facts"] = FACTS
-    if "stale_timestamp" in data:
-        data["stale_timestamp"] = data["stale_timestamp"].isoformat()
     return data
 
 
@@ -303,9 +307,9 @@ class CreateHostsTestCase(DBAPITestCase):
         self._validate_host(created_host, host_data, expected_id=original_id)
 
         created_time = dateutil.parser.parse(created_host["created"])
-        now = datetime.now(timezone.utc)
-        self.assertGreater(now, created_time)
-        self.assertLess(now - timedelta(minutes=15), created_time)
+        current_timestamp = now()
+        self.assertGreater(current_timestamp, created_time)
+        self.assertLess(current_timestamp - timedelta(minutes=15), created_time)
 
         host_data.facts = copy.deepcopy(FACTS)
 
@@ -566,7 +570,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
-    def test_create_host_with_non_nullable_fields_as_None(self):
+    def test_create_host_with_non_nullable_fields_as_none(self):
         non_nullable_field_names = (
             "display_name",
             "account",
@@ -580,6 +584,8 @@ class CreateHostsTestCase(DBAPITestCase):
             "mac_addresses",
             "external_id",
             "ansible_host",
+            "stale_timestamp",
+            "reporter",
         )
 
         host_data = HostWrapper(test_data(facts=None))
@@ -598,6 +604,17 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 response_data = self.post(HOST_URL, [invalid_host_dict], 400)
 
+                self.verify_error_response(response_data, expected_title="Bad Request")
+
+    def test_create_host_without_required_fields(self):
+        fields = ("account", "stale_timestamp", "reporter")
+        for field in fields:
+            with self.subTest(fields=fields):
+                data = test_data()
+                del data[field]
+
+                host_data = HostWrapper(data)
+                response_data = self.post(HOST_URL, [host_data.data()], 400)
                 self.verify_error_response(response_data, expected_title="Bad Request")
 
     def test_create_host_with_valid_ip_address(self):
@@ -753,7 +770,6 @@ class CreateHostsTestCase(DBAPITestCase):
         # Update the ansible_host
         for ansible_host in ansible_hosts:
             with self.subTest(ansible_host=ansible_host):
-
                 host_data.ansible_host = ansible_host
 
                 # Update the hosts
@@ -968,70 +984,60 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         response = self.post(HOST_URL, [host_data.data()], 207)
         self._verify_host_status(response, 0, expected_status)
         created_host = self._pluck_host_from_response(response, 0)
-        return created_host["id"]
+        return created_host.get("id")
 
     def _retrieve_host(self, host_id):
         with self.app.app_context():
             return Host.query.filter(Host.id == host_id).first()
 
+    def test_create_host_without_culling_fields(self):
+        fields_to_delete = (("stale_timestamp", "reporter"), ("stale_timestamp",), ("reporter",))
+        for fields in fields_to_delete:
+            with self.subTest(fields=fields):
+                host_data = test_data(fqdn="match this host")
+                for field in fields:
+                    del host_data[field]
+                self.post(HOST_URL, [host_data], 400)
+
+    def test_create_host_with_null_culling_fields(self):
+        culling_fields = (("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter"))
+        for fields in culling_fields:
+            host_data = test_data(fqdn="match this host", **{field: None for field in fields})
+            self.post(HOST_URL, [host_data], 400)
+
+    def test_create_host_with_empty_culling_fields(self):
+        culling_fields = (("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter"))
+        for fields in culling_fields:
+            with self.subTest(fields=fields):
+                self._add_host(400, **{field: "" for field in fields})
+
+    def test_create_host_with_invalid_stale_timestamp(self):
+        self._add_host(400, stale_timestamp="not a timestamp")
+
     def test_create_host_with_stale_timestamp_and_reporter(self):
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         reporter = "some reporter"
-        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp.isoformat(), reporter=reporter)
 
         retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(stale_timestamp, retrieved_host.stale_timestamp)
         self.assertEqual(reporter, retrieved_host.reporter)
 
-    def test_update_host_with_stale_timestamp_and_reporter(self):
-        created_host_id = self._add_host(201)
-        old_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertIsNone(old_retrieved_host.stale_timestamp)
-        self.assertIsNone(old_retrieved_host.reporter)
-
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-
-        self._add_host(200, stale_timestamp=stale_timestamp, reporter=reporter)
-
-        new_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, new_retrieved_host.reporter)
-
-    def test_dont_update_host_with_stale_timestamp_and_reporter(self):
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-
-        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
-        old_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, old_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, old_retrieved_host.reporter)
-
-        self._add_host(200)
-
-        new_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, new_retrieved_host.reporter)
-
     def test_update_stale_timestamp_from_same_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=1)
+        old_stale_timestamp = current_timestamp + timedelta(days=1)
         reporter = "some reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=2)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+        new_stale_timestamp = current_timestamp + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
@@ -1039,38 +1045,38 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(reporter, new_retrieved_host.reporter)
 
     def test_dont_update_stale_timestamp_from_same_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=2)
+        old_stale_timestamp = current_timestamp + timedelta(days=2)
         reporter = "some reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
 
-        new_stale_timestamp = now + timedelta(days=1)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+        new_stale_timestamp = current_timestamp + timedelta(days=1)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
 
     def test_update_stale_timestamp_from_different_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=2)
+        old_stale_timestamp = current_timestamp + timedelta(days=2)
         old_reporter = "old reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=1)
+        new_stale_timestamp = current_timestamp + timedelta(days=1)
         new_reporter = "new reporter"
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=new_reporter)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
@@ -1078,36 +1084,25 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(new_reporter, new_retrieved_host.reporter)
 
     def test_dont_update_stale_timestamp_from_different_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=1)
+        old_stale_timestamp = current_timestamp + timedelta(days=1)
         old_reporter = "old reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
 
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=2)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter="new_reporter")
+        new_stale_timestamp = current_timestamp + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter")
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, new_retrieved_host.reporter)
-
-    def test_create_host_with_only_one_culling_field(self):
-        valueses = ({"stale_timestamp": datetime.now(timezone.utc)}, {"reporter": "some reporter"})
-        for values in valueses:
-            host_data = HostWrapper(test_data(**values))
-            response = self.post(HOST_URL, [host_data.data()], 207)
-
-            error_host = response["data"][0]
-
-            self.assertEqual(error_host["status"], 400)
-            self.verify_error_response(error_host, expected_title="Invalid request")
 
 
 class DeleteHostsBaseTestCase(DBAPITestCase):
@@ -1143,8 +1138,18 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         self.assertEqual(response["results"], [])
 
 
+class CullingBaseTestCase(APIBaseTestCase):
+    def _nullify_culling_fields(self, host_id):
+        with self.app.app_context():
+            host = db.session.query(Host).get(host_id)
+            host.stale_timestamp = None
+            host.reporter = None
+            db.session.add(host)
+            db.session.commit()
+
+
 @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
-class HostReaperTestCase(DeleteHostsBaseTestCase):
+class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
         self.now_timestamp = datetime.utcnow()
@@ -1183,7 +1188,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase):
 
     def test_culled_host_is_removed(self, emit_event):
         added_hosts = self._add_hosts(
-            ({"stale_timestamp": self.staleness_timestamps["culled"], "reporter": "some reporter"},)
+            ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
         )
         added_host_id = added_hosts[0].id
         self._check_hosts_are_present((added_host_id,))
@@ -1201,7 +1206,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase):
             self.staleness_timestamps["stale"],
             self.staleness_timestamps["fresh"],
         ):
-            hosts_to_add.append({"stale_timestamp": stale_timestamp, "reporter": "some reporter"})
+            hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
 
         added_hosts = self._add_hosts(hosts_to_add)
         added_host_ids = tuple(host.id for host in added_hosts)
@@ -1216,6 +1221,8 @@ class HostReaperTestCase(DeleteHostsBaseTestCase):
         added_hosts = self._add_hosts(({},))
         added_host_id = added_hosts[0].id
         self._check_hosts_are_present((added_host_id,))
+
+        self._nullify_culling_fields(added_host_id)
 
         self._run_host_reaper()
         self._check_hosts_are_present((added_host_id,))
@@ -1500,7 +1507,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
-
                 host["system_profile"] = system_profile
 
                 # Create the host
@@ -1702,6 +1708,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
             host_wrapper.tags = host[3]
+            host_wrapper.stale_timestamp = now().isoformat()
+            host_wrapper.reporter = "test"
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
@@ -1989,6 +1997,9 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
         host_wrapper.display_name = "host4"
         host_wrapper.insights_id = generate_uuid()
         host_wrapper.tags = []
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
+
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
@@ -2383,6 +2394,8 @@ class QueryOrderWithAdditionalHostsBaseTestCase(QueryOrderBaseTestCase):
         host_wrapper.account = ACCOUNT
         host_wrapper.display_name = "host1"  # Same as self.added_hosts[0]
         host_wrapper.insights_id = generate_uuid()
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
@@ -2493,7 +2506,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         # New modified_on value must be set explicitly so it’s saved the same to all
         # records. Otherwise SQLAlchemy would consider it unchanged and update it
         # automatically to its own "now" only for records whose ID changed.
-        new_modified_on = datetime.now(timezone.utc)
+        new_modified_on = now()
 
         with self.app.app_context():
             for added_host_index, new_id in id_updates:
@@ -2566,55 +2579,6 @@ class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
 
 
 class QueryStaleTimestampTestCase(DBAPITestCase):
-    def setUp(self):
-        super().setUp()
-
-    def _host_data(self, **values):
-        return {"account": ACCOUNT, "fqdn": "matching fqdn", **values}
-
-    def _create_host(self, host):
-        response = self.post(HOST_URL, [host.data()], 207)
-        self._verify_host_status(response, 0, 201)
-        return self._pluck_host_from_response(response, 0)
-
-    def _update_host(self, host):
-        response = self.post(HOST_URL, [host.data()], 207)
-        self._verify_host_status(response, 0, 200)
-        return self._pluck_host_from_response(response, 0)
-
-    def _get_all_hosts(self):
-        response = self.get(HOST_URL, 200)
-        return response["results"][0]
-
-    def _get_host_by_id(self, host_id):
-        response = self.get(f"{HOST_URL}/{host_id}", 200)
-        return response["results"][0]
-
-    def test_without_stale_timestamp(self):
-        def _assert_values(response_host):
-            self.assertIn("stale_timestamp", response_host)
-            self.assertIn("stale_warning_timestamp", response_host)
-            self.assertIn("culled_timestamp", response_host)
-            self.assertIn("reporter", response_host)
-            self.assertIsNone(response_host["stale_timestamp"])
-            self.assertIsNone(response_host["stale_warning_timestamp"])
-            self.assertIsNone(response_host["culled_timestamp"])
-            self.assertIsNone(response_host["reporter"])
-
-        host_to_create = HostWrapper(self._host_data())
-
-        created_host = self._create_host(host_to_create)
-        _assert_values(created_host)
-
-        updated_host = self._update_host(host_to_create)
-        _assert_values(updated_host)
-
-        retrieved_host_from_all = self._get_all_hosts()
-        _assert_values(retrieved_host_from_all)
-
-        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
-        _assert_values(retrieved_host_from_by_id)
-
     def test_with_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)
@@ -2626,7 +2590,7 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
             self.assertEqual(culled_timestamp_str, response_host["culled_timestamp"])
             self.assertEqual(reporter, response_host["reporter"])
 
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         stale_timestamp_str = stale_timestamp.isoformat()
         stale_warning_timestamp = stale_timestamp + timedelta(weeks=1)
         stale_warning_timestamp_str = stale_warning_timestamp.isoformat()
@@ -2634,19 +2598,26 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         culled_timestamp_str = culled_timestamp.isoformat()
         reporter = "some reporter"
 
-        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp_str, reporter=reporter))
+        host_to_create = HostWrapper(
+            {"account": ACCOUNT, "fqdn": "matching fqdn", "stale_timestamp": stale_timestamp_str, "reporter": reporter}
+        )
 
-        created_host = self._create_host(host_to_create)
+        create_response = self.post(HOST_URL, [host_to_create.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        created_host = self._pluck_host_from_response(create_response, 0)
         _assert_values(created_host)
 
-        updated_host = self._update_host(host_to_create)
+        update_response = self.post(HOST_URL, [host_to_create.data()], 207)
+        self._verify_host_status(update_response, 0, 200)
+        updated_host = self._pluck_host_from_response(update_response, 0)
         _assert_values(updated_host)
 
-        retrieved_host_from_all = self._get_all_hosts()
-        _assert_values(retrieved_host_from_all)
+        get_list_response = self.get(HOST_URL, 200)
+        _assert_values(get_list_response["results"][0])
 
-        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
-        _assert_values(retrieved_host_from_by_id)
+        created_host_id = created_host["id"]
+        get_by_id_response = self.get(f"{HOST_URL}/{created_host_id}", 200)
+        _assert_values(get_by_id_response["results"][0])
 
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
@@ -2671,14 +2642,17 @@ class QueryStalenessBaseTestCase(DBAPITestCase):
         return response["results"]
 
 
-class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
+class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.fresh_host = self._create_host(datetime.now(timezone.utc) + timedelta(hours=1))
-        self.stale_host = self._create_host(datetime.now(timezone.utc) - timedelta(hours=1))
-        self.stale_warning_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=1, hours=1))
-        self.culled_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=2, hours=1))
-        self.unknown_host = self._create_host(None)
+        current_timestamp = now()
+        self.fresh_host = self._create_host(current_timestamp + timedelta(hours=1))
+        self.stale_host = self._create_host(current_timestamp - timedelta(hours=1))
+        self.stale_warning_host = self._create_host(current_timestamp - timedelta(weeks=1, hours=1))
+        self.culled_host = self._create_host(current_timestamp - timedelta(weeks=2, hours=1))
+
+        self.unknown_host = self._create_host(current_timestamp)
+        self._nullify_culling_fields(self.unknown_host["id"])
 
     def _created_hosts(self):
         return (self.fresh_host["id"], self.stale_host["id"], self.stale_warning_host["id"], self.culled_host["id"])
