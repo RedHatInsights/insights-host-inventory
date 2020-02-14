@@ -62,15 +62,15 @@ ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
 class HostQueryResponseHostDataCanonicalFactsSchema(Schema):
-    insights_id = String(validate=verify_uuid_format)
-    rhel_machine_id = String(validate=verify_uuid_format)
-    subscription_manager_id = String(validate=verify_uuid_format)
-    satellite_id = String(validate=verify_uuid_format)
-    bios_uuid = String(validate=verify_uuid_format)
-    ip_addresses = List(String(validate=Length(min=1, max=255)), validate=Length(min=1))
-    fqdn = String(validate=Length(min=1, max=255))
-    mac_addresses = List(String(validate=Length(min=1, max=59)), validate=Length(min=1))
-    external_id = String(validate=Length(min=1, max=500))
+    insights_id = String(allow_none=True, validate=verify_uuid_format)
+    rhel_machine_id = String(allow_none=True, validate=verify_uuid_format)
+    subscription_manager_id = String(allow_none=True, validate=verify_uuid_format)
+    satellite_id = String(allow_none=True, validate=verify_uuid_format)
+    bios_uuid = String(allow_none=True, validate=verify_uuid_format)
+    ip_addresses = List(String(validate=Length(min=1, max=255)))
+    fqdn = String(allow_none=True, validate=Length(min=1, max=255))
+    mac_addresses = List(String(validate=Length(min=1, max=59)))
+    external_id = String(allow_none=True, validate=Length(min=1, max=500))
 
 
 class HostQueryResponseHostDataSchema(Schema):

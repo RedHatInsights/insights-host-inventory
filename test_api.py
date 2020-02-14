@@ -3914,7 +3914,8 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
         "stale_timestamp": "2019-02-24T07:08:03.354307Z",
         "reporter": "some reporter",
     }
-    INVALID_VALUES = (None, "", "not a uuid", {})
+    INVALID_CANONICAL_FACT_VALUES = ("", "not a uuid", {})
+    INVALID_ROOT_VALUES = INVALID_CANONICAL_FACT_VALUES + (None,)
 
     def _get_hosts(self, data, code):
         with patch("api.host_query_xjoin.graphql_query", return_value=data):
@@ -3958,7 +3959,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
         self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_id_invalid(self):
-        for id in self.INVALID_VALUES:
+        for id in self.INVALID_ROOT_VALUES:
             with self.subTest(id=id):
                 host_data = {**self.HOST_DATA, "id": id}
 
@@ -4015,7 +4016,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
         self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_created_on_invalid(self):
-        for created_on in self.INVALID_VALUES:
+        for created_on in self.INVALID_ROOT_VALUES:
             with self.subTest(created_on=created_on):
                 host_data = {**self.HOST_DATA, "created_on": created_on}
 
@@ -4030,7 +4031,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
         self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_modified_on_invalid(self):
-        for modified_on in self.INVALID_VALUES:
+        for modified_on in self.INVALID_ROOT_VALUES:
             with self.subTest(modified_on=modified_on):
                 host_data = {**self.HOST_DATA, "modified_on": modified_on}
 
@@ -4079,7 +4080,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
                 self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_insights_id_invalid(self):
-        for insights_id in self.INVALID_VALUES:
+        for insights_id in self.INVALID_CANONICAL_FACT_VALUES:
             with self.subTest(insights_id=insights_id):
                 host_data = {**self.HOST_DATA, "canonical_facts": {"insights_id": insights_id}}
 
@@ -4087,7 +4088,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
                 self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_rhel_machine_id_invalid(self):
-        for rhel_machine_id in self.INVALID_VALUES:
+        for rhel_machine_id in self.INVALID_CANONICAL_FACT_VALUES:
             with self.subTest(rhel_machine_id=rhel_machine_id):
                 host_data = {**self.HOST_DATA, "canonical_facts": {"rhel_machine_id": rhel_machine_id}}
 
@@ -4095,7 +4096,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
                 self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_subscription_manager_id_invalid(self):
-        for subscription_manager_id in self.INVALID_VALUES:
+        for subscription_manager_id in self.INVALID_CANONICAL_FACT_VALUES:
             with self.subTest(subscription_manager_id=subscription_manager_id):
                 host_data = {**self.HOST_DATA, "canonical_facts": {"subscription_manager_id": subscription_manager_id}}
 
@@ -4103,7 +4104,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
                 self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_satellite_id_invalid(self):
-        for satellite_id in self.INVALID_VALUES:
+        for satellite_id in self.INVALID_CANONICAL_FACT_VALUES:
             with self.subTest(satellite_id=satellite_id):
                 host_data = {**self.HOST_DATA, "canonical_facts": {"satellite_id": satellite_id}}
 
@@ -4111,7 +4112,7 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
                 self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_bios_uuid_invalid(self):
-        for bios_uuid in self.INVALID_VALUES:
+        for bios_uuid in self.INVALID_CANONICAL_FACT_VALUES:
             with self.subTest(bios_uuid=bios_uuid):
                 host_data = {**self.HOST_DATA, "canonical_facts": {"bios_uuid": bios_uuid}}
 
@@ -4125,11 +4126,6 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
 
                 response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
                 self._get_hosts(response_data, 500)
-
-    def test_invalid_hosts_data_canonical_facts_ip_addresses_list_invalid(self):
-        host_data = {**self.HOST_DATA, "canonical_facts": {"ip_addresses": []}}
-        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
-        self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_ip_addresses_item_invalid(self):
         host_data = {**self.HOST_DATA, "canonical_facts": {"ip_addresses": ["10." * 100 + "1"]}}
@@ -4151,11 +4147,6 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
 
                 response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
                 self._get_hosts(response_data, 500)
-
-    def test_invalid_hosts_data_canonical_facts_mac_addresses_list_invalid(self):
-        host_data = {**self.HOST_DATA, "canonical_facts": {"mac_addresses": []}}
-        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
-        self._get_hosts(response_data, 500)
 
     def test_invalid_hosts_data_canonical_facts_mac_addresses_item_invalid(self):
         host_data = {**self.HOST_DATA, "canonical_facts": {"mac_addresses": ["ff:" * 20 + "ff"]}}
@@ -4180,7 +4171,28 @@ class HostsXjoinSchemaTestCase(HostsXjoinBaseTestCase):
             "ip_addresses": ["10.0.0.1", "10.0.0.2"],
             "fqdn": "test01.rhel7.jharting.local",
             "mac_addresses": ["ff:ee:dd:cc:bb:aa", "aa:bb:cc:dd:ee:ff"],
+            "external_id": "i-05d2313e6b9a42b16",
         }
+        host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
+
+    def test_valid_with_null_canonical_facts(self):
+        canonical_facts = {
+            "insights_id": None,
+            "rhel_machine_id": None,
+            "subscription_manager_id": None,
+            "satellite_id": None,
+            "bios_uuid": None,
+            "fqdn": None,
+            "external_id": None,
+        }
+        host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
+        response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
+        self._get_hosts(response_data, 200)
+
+    def test_valid_with_empty_addresses(self):
+        canonical_facts = {"ip_addresses": [], "mac_addresses": []}
         host_data = {**self.HOST_DATA, "canonical_facts": canonical_facts}
         response_data = {"hosts": {"meta": {"total": 1}, "data": [host_data]}}
         self._get_hosts(response_data, 200)
