@@ -491,7 +491,7 @@ class CreateHostsTestCase(DBAPITestCase):
         response_data = self.post(HOST_URL, [host_data.data()], 400)
 
         self.verify_error_response(
-            response_data, expected_title="Bad Request", expected_detail="'account' is a required property"
+            response_data, expected_title="Bad Request", expected_detail="'account' is a required property - '0'"
         )
 
     def test_create_host_with_invalid_account(self):

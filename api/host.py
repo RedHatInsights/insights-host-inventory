@@ -175,6 +175,8 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
+    return flask.Response(None, status.HTTP_200_OK)
+
 
 @api_operation
 @metrics.api_request_time.time()
