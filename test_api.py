@@ -3685,6 +3685,44 @@ class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
         graphql_query.assert_called_once()
 
 
+class HostsXjoinTimestampsTestCase(HostsXjoinBaseTestCase):
+    @staticmethod
+    def _xjoin_host_response(timestamp):
+        return {
+            "hosts": {
+                **MOCK_XJOIN_HOST_RESPONSE["hosts"],
+                "meta": {"total": 1},
+                "data": [
+                    {
+                        **MOCK_XJOIN_HOST_RESPONSE["hosts"]["data"][0],
+                        "created_on": timestamp,
+                        "modified_on": timestamp,
+                        "stale_timestamp": timestamp,
+                    }
+                ],
+            }
+        }
+
+    def test_valid_without_decimal_part(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03Z")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T08:07:03+00:00")
+
+    def test_valid_with_offset_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307+01:00")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T07:07:03.354307+00:00")
+
+    def test_invalid_without_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            self.get(HOST_URL, 500)
+
+
 @patch("api.tag.xjoin_enabled", return_value=True)
 class TagsRequestTestCase(XjoinRequestBaseTestCase):
     patch_with_empty_response = partial(
