@@ -1667,6 +1667,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS1", "key": "key2", "value": "val1"},
                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
                     {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "-_NS*!", "key": "ke~y", "value": "v()alue"},
                 ],
             ),
             (
