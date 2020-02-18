@@ -3129,6 +3129,131 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
+    def _testing_apparatus_for_filtering(self, expected_filtered_results, given_results):
+        self.assertEqual(len(expected_filtered_results), len(given_results))
+
+        expectedValues = list(expected_filtered_results.values())
+        givenValues = list(given_results.values())
+
+        for i in range(len(givenValues)):
+            self.assertEqual(expectedValues[i], givenValues[i])
+
+    def test_get_filtered_by_search_tags_of_multiple_hosts(self):
+        """
+        send a request for tags to one host with some searchTerm
+        """
+        host_list = self.added_hosts
+
+        """
+        unfiltered_result = [
+            {
+                '5c322406-9ab2-467c-b968-1730e9b56cc3': [],
+        'a2aea312-d6c0-4bae-a820-fc46f7abd123': [
+                {'namespace': 'NS1', 'key': 'key3', 'value': 'val3'},
+                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
+                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
+            ],
+        '6582fdc7-4059-4a53-909b-f0691daff19b': [
+                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
+                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
+                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
+            ],
+        '53327c6a-dcbd-45c8-b63a-a1f66bea10cf': [
+                {'namespace': 'no', 'key': 'key', 'value': None},
+                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
+                {'namespace': 'NS1', 'key': 'key2', 'value': 'val1'},
+                {'namespace': 'SPECIAL', 'key': 'tag', 'value': 'ToFind'}
+                ]
+            }
+        ]
+        """
+
+        expected_filtered_results = [
+            {
+                "d3118a7a-f256-4cdd-a262-3c1d41507119": [],
+                "d60da678-083a-4325-b79a-7b6c9c020ec6": [
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "34798f51-421c-47b2-99c3-b1a646c8fa32": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "82c67d19-5fb0-4898-a6bb-56e2c64760c5": [
+                    {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                ],
+            },
+            {
+                "ef4b2967-ad89-4d70-9ea8-31d529644ef4": [],
+                "3ebe7bbd-f24a-4177-bb15-f7e8d118eedf": [],
+                "e2161dc9-a8d5-4df4-92e8-f55f993424a5": [],
+                "a85f87f7-6067-4319-869f-15153b6a1432": [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
+            },
+            {
+                "ac065b69-8f78-4f2d-b0e3-4a6191774c87": [],
+                "75264a41-7054-4a0e-84bf-5fcb68274977": [{"namespace": "NS1", "key": "key3", "value": "val3"}],
+                "10f04142-c628-43ef-b52d-8e0bfb1a6dde": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "11f9a1e5-6cfa-4d5c-a275-035fbf1c0f83": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "1980a8b2-a9a9-4bf9-9e61-956307dad1ba": [],
+                "87afe4e6-9321-4d1e-b5ad-25d6797c29ce": [],
+                "83373e4f-36ae-48a0-b8f6-48a33db6e054": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "959d8732-500c-4a03-8384-29723cb5f4c3": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+            },
+            {
+                "9c9a6c05-eb72-443e-9bca-90b32c32e865": [],
+                "1c22b9a5-256f-4ca4-9079-3bb8d596e6e0": [],
+                "a10c9158-cf64-443d-8df3-ef90492ec119": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "368cbd5d-6843-4fcf-91bf-d73e5b5a81b6": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "a23a6609-3a77-4ba8-ae1c-1786e6f8f888": [],
+                "fb1c5073-f323-4969-b019-d3ba306262b7": [
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "90e3235e-cc81-4c55-b28a-4720826b9d44": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "5cdd679f-ae70-4699-a593-f01eafaa0202": [
+                    {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "2bf91606-3430-4e12-8d50-0c11ab0f5aa4": [],
+                "29761ca4-f483-4325-8a6e-6088ad7a50bb": [],
+                "282dbf62-ea82-4a54-82c3-2e42a752d200": [],
+                "721e9ee9-931f-4833-8f75-7f30f217dc96": [],
+            },
+        ]
+
+        searchTerms = ["", "To", "NS1", "key1", "val1", "e", " "]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        for i in range(len(searchTerms)):
+            test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={searchTerms[i]}"
+            response = self.get(test_url, 200)
+
+            self._testing_apparatus_for_filtering(expected_filtered_results[i], response["results"])
+
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):
         """
         send a request for some hosts that don't exist
@@ -3683,6 +3808,44 @@ class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
     def test_response_pagination_index_error(self, graphql_query):
         self.get(f"{HOST_URL}?per_page=2&page=3", 404)
         graphql_query.assert_called_once()
+
+
+class HostsXjoinTimestampsTestCase(HostsXjoinBaseTestCase):
+    @staticmethod
+    def _xjoin_host_response(timestamp):
+        return {
+            "hosts": {
+                **MOCK_XJOIN_HOST_RESPONSE["hosts"],
+                "meta": {"total": 1},
+                "data": [
+                    {
+                        **MOCK_XJOIN_HOST_RESPONSE["hosts"]["data"][0],
+                        "created_on": timestamp,
+                        "modified_on": timestamp,
+                        "stale_timestamp": timestamp,
+                    }
+                ],
+            }
+        }
+
+    def test_valid_without_decimal_part(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03Z")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T08:07:03+00:00")
+
+    def test_valid_with_offset_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307+01:00")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T07:07:03.354307+00:00")
+
+    def test_invalid_without_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            self.get(HOST_URL, 500)
 
 
 @patch("api.tag.xjoin_enabled", return_value=True)

@@ -1,6 +1,6 @@
-from datetime import datetime
 from datetime import timezone
 
+from dateutil.parser import isoparse
 from marshmallow import ValidationError
 
 from app.exceptions import InputFormatException
@@ -71,11 +71,11 @@ def deserialize_host_xjoin(data):
         facts=data["facts"] or {},
         tags={},  # Not a part of host list output
         system_profile_facts={},  # Not a part of host list output
-        stale_timestamp=_deserialize_datetime_xjoin(data["stale_timestamp"]),
+        stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
     )
     for field in ("created_on", "modified_on"):
-        setattr(host, field, _deserialize_datetime_xjoin(data[field]))
+        setattr(host, field, _deserialize_datetime(data[field]))
     host.id = data["id"]
     return host
 
@@ -160,9 +160,11 @@ def _serialize_datetime(dt):
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def _deserialize_datetime_xjoin(s):
-    dt = datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%fZ")
-    return dt.replace(tzinfo=timezone.utc)
+def _deserialize_datetime(s):
+    dt = isoparse(s)
+    if not dt.tzinfo:
+        raise ValueError(f'Timezone not specified in "{s}".')
+    return dt.astimezone(timezone.utc)
 
 
 def _serialize_uuid(u):

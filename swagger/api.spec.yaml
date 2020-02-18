@@ -268,6 +268,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/searchParam'
       responses:
         '200':
           description: Successfully found tags.
@@ -317,12 +318,7 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
-        - in: query
-          name: search
-          required: false
-          description: Only include tags that match the given search string. The value is matched against namespace, key and value.
-          schema:
-            type: string
+        - $ref: '#/components/parameters/searchParam'
       responses:
         '200':
             description: Tags
@@ -467,6 +463,13 @@ components:
           - ASC
           - DESC
       description: Direction of the ordering. Default to ASC
+    searchParam:
+      in: query
+      name: search
+      required: false
+      description: Only include tags that match the given search string. The value is matched against namespace, key and value.
+      schema:
+        type: string
 
 
   schemas:
