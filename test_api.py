@@ -158,8 +158,8 @@ class MockEmitEvent:
     def __init__(self):
         self.events = []
 
-    def __call__(self, e):
-        self.events.append(e)
+    def __call__(self, e, key=None):
+        self.events.append((e, key))
 
 
 class APIBaseTestCase(TestCase):
@@ -1168,21 +1168,17 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}", 200)
 
-    def _assert_events_are_valid(self, events, hosts, timestamp):
-        self.assertEqual(len(events), len(hosts))
-        hosts_by_ids = {host.id: host for host in hosts}
+    def _assert_event_is_valid(self, event, key, host, timestamp):
+        self.assertIsInstance(event, dict)
+        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+        self.assertEqual(set(event.keys()), expected_keys)
 
-        for event in events:
-            self.assertIsInstance(event, dict)
-            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-            self.assertEqual(set(event.keys()), expected_keys)
+        self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), event["timestamp"])
+        self.assertEqual("delete", event["type"])
 
-            self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), event["timestamp"])
-            self.assertEqual("delete", event["type"])
+        self.assertEqual(host.insights_id, event["insights_id"])
 
-            self.assertIn(event["id"], hosts_by_ids)
-            deleted_host = hosts_by_ids[event["id"]]
-            self.assertEqual(deleted_host.insights_id, event["insights_id"])
+        self.assertEqual(key, host.id)
 
     def _check_hosts_are_present(self, host_ids):
         response = self._get_hosts(host_ids)
@@ -1245,17 +1241,18 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         return self.get(f"{HOST_URL}/{url_part}")
 
     def test_culled_host_is_removed(self, emit_event):
-        added_hosts = self._add_hosts(
+        added_host = self._add_hosts(
             ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
-        )
-        added_host_id = added_hosts[0].id
-        self._check_hosts_are_present((added_host_id,))
+        )[0]
+        self._check_hosts_are_present((added_host.id,))
 
         self._run_host_reaper()
-        self._check_hosts_are_deleted((added_host_id,))
+        self._check_hosts_are_deleted((added_host.id,))
 
-        events = tuple(json.loads(event) for event in emit_event.events)
-        self._assert_events_are_valid(events, added_hosts, self.now_timestamp)
+        self.assertEqual(len(emit_event.events), 1)
+
+        event, key = emit_event.events[0]
+        self._assert_event_is_valid(json.loads(event), key, added_host, self.now_timestamp)
 
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
@@ -1887,34 +1884,32 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
-                return json.loads(m.events[0])
-
-    def _assert_event_is_valid(self, event):
-        self._assert_events_are_valid((event,), (self.host_to_delete,), self.timestamp)
+                event, key = m.events[0]
+                return json.loads(event), key
 
     def test_create_then_delete(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete()
-        self._assert_event_is_valid(event)
+        event, key = self._delete()
+        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_branch_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete(url_query="?branch_id=1234")
-        self._assert_event_is_valid(event)
+        event, key = self._delete(url_query="?branch_id=1234")
+        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_request_id(self):
         request_id = generate_uuid()
         header = {"x-rh-insights-request-id": request_id}
-        event = self._delete(header=header)
-        self._assert_event_is_valid(event)
+        event, key = self._delete(header=header)
+        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
         self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete(header=None)
-        self._assert_event_is_valid(event)
+        event, key = self._delete(header=None)
+        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
         self.assertEqual("-1", event["request_id"])
 
 
