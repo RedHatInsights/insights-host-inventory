@@ -351,7 +351,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     return _build_paginated_host_tags_response(query.total, page, per_page, tags)
 
 
-def _build_serialized_tags(host_list, search):
+def _build_serialized_tags(host_list, search=None):
     response_tags = {}
 
     for host in host_list:

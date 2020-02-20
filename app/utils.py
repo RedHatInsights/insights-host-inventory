@@ -340,21 +340,22 @@ class Tag:
             return value
 
     @staticmethod
-    def filter_tags(tags, searchTerm):
+    def filter_tags(tags, search_term):
         """
         takes structured tags and returns an array of structured tags that are filtered by a searchterm
         """
 
-        if tags is None:
-            tags = {}
-
         filtered_tags = []
 
-        for tag in tags:
-            if any(filter(lambda x: x is not None and searchTerm in x, tag.__data.values())):
+        for tag in tags or {}:
+            if any(filter(lambda part: part is not None and search_term in part, tag.data().values())):
                 filtered_tags.append(tag)
 
         return filtered_tags
+        # def _filter(tag):
+        #     values = tag.data().values()
+        #     return values is not None and search_term in values
+        # return _filter
 
     @staticmethod
     def create_tags_from_nested(nested_tags):
