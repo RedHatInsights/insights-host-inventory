@@ -586,6 +586,8 @@ components:
       type: object
       required:
         - account
+        - stale_timestamp
+        - reporter
       properties:
         display_name:
           description: >-

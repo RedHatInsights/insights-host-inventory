@@ -654,10 +654,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": "puptoo",
         }
+        stale_timestamp = datetime.now(timezone.utc)
         input = {
             **canonical_facts,
             **unchanged_input,
+            "stale_timestamp": stale_timestamp.isoformat(),
             "facts": [
                 {"namespace": "some namespace", "facts": {"some key": "some value"}},
                 {"namespace": "another namespace", "facts": {"another key": "another value"}},
@@ -674,6 +677,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
+            "stale_timestamp": stale_timestamp,
             "facts": {item["namespace"]: item["facts"] for item in input["facts"]},
             "system_profile_facts": input["system_profile"],
         }
@@ -684,14 +688,25 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
     def test_with_only_required_fields(self):
         account = "some acct"
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
-        host = deserialize_host({"account": account, **canonical_facts})
+        host = deserialize_host(
+            {
+                "account": account,
+                "stale_timestamp": stale_timestamp.isoformat(),
+                "reporter": reporter,
+                **canonical_facts,
+            }
+        )
 
         self.assertIs(Host, type(host))
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
         self.assertEqual(account, host.account)
+        self.assertEqual(stale_timestamp, host.stale_timestamp)
+        self.assertEqual(reporter, host.reporter)
         self.assertEqual({}, host.facts)
         self.assertEqual({}, host.system_profile_facts)
 
@@ -913,10 +928,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["reporter"],
         )
 
-    def test_without_stale_timestamp(
+    def test_without_culling_fields(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
     ):
-        input = {
+        common_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -935,25 +950,21 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "system_memory_bytes": 4,
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
+            with self.subTest(additional_data=additional_data):
+                for mock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
+                    mock.reset_mock()
 
-        result = deserialize_host({})
-        self.assertEqual(host.return_value, result)
+                all_data = {**common_data, **additional_data}
+                host_schema.return_value.load.return_value.data = all_data
 
-        deserialize_canonical_facts.assert_called_once_with(input)
-        deserialize_facts.assert_called_once_with(input["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
-        host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
-            deserialize_facts.return_value,
-            deserialize_tags.return_value,
-            input["system_profile"],
-            None,
-            None,
-        )
+                with self.assertRaises(KeyError):
+                    deserialize_host({})
+
+                deserialize_canonical_facts.assert_called_once_with(all_data)
+                deserialize_facts.assert_called_once_with(common_data["facts"])
+                deserialize_tags.assert_called_once_with(common_data["tags"])
+                host.assert_not_called()
 
     def test_host_validation(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
