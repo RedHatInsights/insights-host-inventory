@@ -13,8 +13,8 @@ from uuid import UUID
 from uuid import uuid4
 
 from api import api_operation
-from api.host import _order_how
-from api.host import _params_to_order_by
+from api.host_query_db import _order_how
+from api.host_query_db import params_to_order_by
 from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
@@ -22,7 +22,9 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
-from app.culling import StalenessOffset
+from app.config import RuntimeEnvironment
+from app.culling import _Config as CullingConfig
+from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -211,6 +213,10 @@ class TrustedIdentityTestCase(TestCase):
 
 
 class ConfigTestCase(TestCase):
+    @staticmethod
+    def _config():
+        return Config(RuntimeEnvironment.server)
+
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
         path_prefix = "r/slaterock/platform"
@@ -235,8 +241,7 @@ class ConfigTestCase(TestCase):
         }
 
         with set_environment(new_env):
-
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -253,7 +258,7 @@ class ConfigTestCase(TestCase):
         # Make sure the environment variables are not set
         with set_environment(None):
 
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -266,7 +271,7 @@ class ConfigTestCase(TestCase):
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
 
-            conf = Config()
+            conf = self._config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
 
@@ -298,51 +303,51 @@ class HostOrderHowTestCase(TestCase):
                     _order_how(Mock(), invalid_value)
 
 
-@patch("api.host._order_how")
+@patch("api.host_query_db._order_how")
 @patch("api.host.Host.id")
 @patch("api.host.Host.modified_on")
 class HostParamsToOrderByTestCase(TestCase):
     def test_default_is_updated_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by(None, None)
+        actual = params_to_order_by(None, None)
         expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     def test_default_for_updated_is_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", None)
+        actual = params_to_order_by("updated", None)
         expected = (modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     def test_order_by_updated_asc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", "ASC")
+        actual = params_to_order_by("updated", "ASC")
         expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "ASC")
 
     def test_order_by_updated_desc(self, modified_on, id_, order_how):
-        actual = _params_to_order_by("updated", "DESC")
+        actual = params_to_order_by("updated", "DESC")
         expected = (order_how.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(modified_on, "DESC")
 
     @patch("api.host.Host.display_name")
     def test_default_for_display_name_is_asc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name")
+        actual = params_to_order_by("display_name")
         expected = (display_name.asc.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_not_called()
 
     @patch("api.host.Host.display_name")
     def test_order_by_display_name_asc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name", "ASC")
+        actual = params_to_order_by("display_name", "ASC")
         expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "ASC")
 
     @patch("api.host.Host.display_name")
     def test_order_by_display_name_desc(self, display_name, modified_on, id_, order_how):
-        actual = _params_to_order_by("display_name", "DESC")
+        actual = params_to_order_by("display_name", "DESC")
         expected = (order_how.return_value, modified_on.desc.return_value, id_.desc.return_value)
         self.assertEqual(actual, expected)
         order_how.assert_called_once_with(display_name, "DESC")
@@ -351,11 +356,11 @@ class HostParamsToOrderByTestCase(TestCase):
 class HostParamsToOrderByErrorsTestCase(TestCase):
     def test_order_by_bad_field_raises_error(self):
         with self.assertRaises(ValueError):
-            _params_to_order_by(Mock(), "fqdn")
+            params_to_order_by(Mock(), "fqdn")
 
     def test_order_by_only_how_raises_error(self):
         with self.assertRaises(ValueError):
-            _params_to_order_by(Mock(), order_how="ASC")
+            params_to_order_by(Mock(), order_how="ASC")
 
 
 class TagUtilsTestCase(TestCase):
@@ -453,6 +458,109 @@ class TagUtilsTestCase(TestCase):
         self._base_structured_to_nested_test(structured_tag, expected_nested_tag)
 
     """
+    structure to filtered structured test
+    """
+
+    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_tags, searchTerm):
+        filtered_tags = Tag.filter_tags(structured_tags, searchTerm)
+        self.assertEqual(len(filtered_tags), len(expected_filtered_tags))
+
+        for i in range(len(filtered_tags)):
+            self.assertEqual(filtered_tags[i].namespace, expected_filtered_tags[i].namespace)
+            self.assertEqual(filtered_tags[i].key, expected_filtered_tags[i].key)
+            self.assertEqual(filtered_tags[i].value, expected_filtered_tags[i].value)
+
+    def test_simple_filter(self):
+        structured_tags = [Tag("NS1", "key", "val"), Tag(None, "key", "something"), Tag("NS2", "key2")]
+        expected_filtered_tags = [Tag("NS1", "key", "val")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+
+    def test_empty_tags(self):
+        structured_tags = []
+        expected_filtered_tags = []
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+
+    def test_search_matches_namesapce(self):
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "NS1")
+
+    def test_search_matches_tag_key(self):
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "key1")
+
+    def test_complex_filter(self):
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "value3")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+
+    def test_empty_filter(self):
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "")
+
+    def test_space(self):
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = []
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, " ")
+
+    def test_search_prefix(self):
+        # namespace
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "N")
+
+        # key
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS2", "Key2")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "K")
+
+        # value
+        structured_tags = [
+            Tag("NS1", "key1", "val"),
+            Tag(None),
+            Tag("NS2", "Key2", "something"),
+            Tag("NS3", "key3", "value3"),
+        ]
+        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "value3")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+
+    def test_search_suffix(self):
+        # namespace
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS1", "key1", "val")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "S1")
+
+        # key
+        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
+        expected_filtered_tags = [Tag("NS2", "Key2")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "y2")
+
+        # value
+        structured_tags = [
+            Tag("NS1", "key1", "val"),
+            Tag(None),
+            Tag("NS2", "Key2", "something"),
+            Tag("NS3", "key3", "value3"),
+        ]
+        expected_filtered_tags = [Tag("NS3", "key3", "value3")]
+
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "ue3")
+
+    """
     create nested from many tags tests
     """
 
@@ -546,10 +654,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "reporter": "puptoo",
         }
+        stale_timestamp = datetime.now(timezone.utc)
         input = {
             **canonical_facts,
             **unchanged_input,
+            "stale_timestamp": stale_timestamp.isoformat(),
             "facts": [
                 {"namespace": "some namespace", "facts": {"some key": "some value"}},
                 {"namespace": "another namespace", "facts": {"another key": "another value"}},
@@ -566,6 +677,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
+            "stale_timestamp": stale_timestamp,
             "facts": {item["namespace"]: item["facts"] for item in input["facts"]},
             "system_profile_facts": input["system_profile"],
         }
@@ -576,14 +688,25 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
     def test_with_only_required_fields(self):
         account = "some acct"
+        stale_timestamp = datetime.now(timezone.utc)
+        reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
-        host = deserialize_host({"account": account, **canonical_facts})
+        host = deserialize_host(
+            {
+                "account": account,
+                "stale_timestamp": stale_timestamp.isoformat(),
+                "reporter": reporter,
+                **canonical_facts,
+            }
+        )
 
         self.assertIs(Host, type(host))
         self.assertEqual(canonical_facts, host.canonical_facts)
         self.assertIsNone(host.display_name)
         self.assertIsNone(host.ansible_host)
         self.assertEqual(account, host.account)
+        self.assertEqual(stale_timestamp, host.stale_timestamp)
+        self.assertEqual(reporter, host.reporter)
         self.assertEqual({}, host.facts)
         self.assertEqual({}, host.system_profile_facts)
 
@@ -596,6 +719,12 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             {"account": "someacct", "fqdn": ""},
             {"account": "someacct", "fqdn": "x" * 256},
             {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
+            {
+                "account": "someacct",
+                "fqdn": "some fqdn",
+                "facts": {"some ns": {"some key": "some value"}},
+                "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
+            },
         )
         for input in inputs:
             with self.subTest(input=input):
@@ -799,10 +928,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             input["reporter"],
         )
 
-    def test_without_stale_timestamp(
+    def test_without_culling_fields(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
     ):
-        input = {
+        common_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -821,25 +950,21 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "system_memory_bytes": 4,
             },
         }
-        host_schema.return_value.load.return_value.data = input
+        for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
+            with self.subTest(additional_data=additional_data):
+                for mock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
+                    mock.reset_mock()
 
-        result = deserialize_host({})
-        self.assertEqual(host.return_value, result)
+                all_data = {**common_data, **additional_data}
+                host_schema.return_value.load.return_value.data = all_data
 
-        deserialize_canonical_facts.assert_called_once_with(input)
-        deserialize_facts.assert_called_once_with(input["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
-        host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
-            deserialize_facts.return_value,
-            deserialize_tags.return_value,
-            input["system_profile"],
-            None,
-            None,
-        )
+                with self.assertRaises(KeyError):
+                    deserialize_host({})
+
+                deserialize_canonical_facts.assert_called_once_with(all_data)
+                deserialize_facts.assert_called_once_with(common_data["facts"])
+                deserialize_tags.assert_called_once_with(common_data["tags"])
+                host.assert_not_called()
 
     def test_host_validation(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
@@ -917,10 +1042,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        stale_warning_offset_days = 7
-        culled_offset_days = 14
-        staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
-        actual = serialize_host(host, staleness_offset)
+        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        actual = serialize_host(host, Timestamps(config))
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -932,10 +1055,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
             "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], stale_warning_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_days)
             ),
             "culled_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], culled_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_days)
             ),
         }
         self.assertEqual(expected, actual)
@@ -949,8 +1072,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        staleness_offset = StalenessOffset(7, 14)
-        actual = serialize_host(host, staleness_offset)
+        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        actual = serialize_host(host, Timestamps(config))
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -985,8 +1108,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
                     setattr(host, k, v)
 
-                staleness_offset = StalenessOffset(stale_warning_offset_days, culled_offset_days)
-                serialized = serialize_host(host, staleness_offset)
+                config = CullingConfig(stale_warning_offset_days, culled_offset_days)
+                serialized = serialize_host(host, Timestamps(config))
                 self.assertEqual(
                     self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
                     serialized["stale_warning_timestamp"],

@@ -132,6 +132,10 @@ from inside of the deployment cluster.
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
+Cron jobs push their metrics to a
+[Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
+running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
+
 ## API Documentation
 
 The API is described by an OpenAPI specification file
@@ -214,16 +218,28 @@ If the _platform_metadata_ contains a request_id field, the value of the request
 associated with all of the log messages produced by the service.
 
 The Inventory service will write an event to the _platform.inventory.host-egress_
-kafka topic as a result of adding a host over the message queue.
+kafka topic as a result of adding or updating a host over the message queue.
 
 ```json
-  {"type": "created",
-   "platform_metadata": metadata_json_doc,
-   "data": host_json_doc}
+{
+    "type": "created",
+    "platform_metadata": metadata_json_doc,
+    "host": {
+        "id": ...,
+        "subscription_manager_id": ...,
+        "ansible_host": ...,
+        "display_name": ...,
+        "reporter": ...,
+        "stale_timestamp": ...,
+        "tags": ...,
+        "system_profile": ...,
+        ...
+    }
+}
 ```
   - type: result of the add host operation ("created" and "updated" are only supported currently)
   - platform_metadata: a json doc that contains the metadata associated with the host (s3 url, request_id, etc)
-  - data: a host json doc as defined by the HostSchema in [_app/queue/egress.py_](app/queue/egress.py)
+  - host: a host json doc as defined by the HostSchema in [_app/queue/egress.py_](app/queue/egress.py)
 
 #### Host deletion
 

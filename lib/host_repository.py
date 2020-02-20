@@ -1,11 +1,24 @@
 from enum import Enum
 
+from sqlalchemy import and_
+
 from app.logging import get_logger
 from app.models import db
-from app.models import db_session_guard
 from app.models import Host
+from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
+from lib.db import session_guard
+
+__all__ = (
+    "add_host",
+    "canonical_facts_host_query",
+    "create_new_host",
+    "find_existing_host",
+    "find_host_by_canonical_facts",
+    "stale_timestamp_filter",
+    "update_existing_host",
+)
 
 # FIXME:  rename this
 AddHostResults = Enum("AddHostResults", ["created", "updated"])
@@ -16,11 +29,10 @@ AddHostResults = Enum("AddHostResults", ["created", "updated"])
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
 
-
 logger = get_logger(__name__)
 
 
-def add_host(input_host, staleness_offset, update_system_profile=True):
+def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
     """
     Add or update a host
 
@@ -29,12 +41,12 @@ def add_host(input_host, staleness_offset, update_system_profile=True):
      - account number
     """
 
-    with db_session_guard():
+    with session_guard(db.session):
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
-            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile)
+            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
-            return create_new_host(input_host, staleness_offset)
+            return create_new_host(input_host, staleness_offset, fields)
 
 
 @metrics.host_dedup_processing_time.time()
@@ -59,7 +71,7 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     return None
 
 
-def _canonical_facts_host_query(account_number, canonical_facts):
+def canonical_facts_host_query(account_number, canonical_facts):
     return Host.query.filter(
         (Host.account == account_number)
         & (
@@ -75,7 +87,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
 
-    host = _canonical_facts_host_query(account_number, canonical_facts).first()
+    host = canonical_facts_host_query(account_number, canonical_facts).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -84,21 +96,30 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
 
 
 @metrics.new_host_commit_processing_time.time()
-def create_new_host(input_host, staleness_offset):
+def create_new_host(input_host, staleness_offset, fields):
     logger.debug("Creating a new host")
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
-    return serialize_host(input_host, staleness_offset), AddHostResults.created
+    return serialize_host(input_host, staleness_offset, fields), AddHostResults.created
 
 
 @metrics.update_host_commit_processing_time.time()
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    return serialize_host(existing_host, staleness_offset), AddHostResults.updated
+    return serialize_host(existing_host, staleness_offset, fields), AddHostResults.updated
+
+
+def stale_timestamp_filter(gte=None, lte=None):
+    filter_ = ()
+    if gte:
+        filter_ += (Host.stale_timestamp >= gte,)
+    if lte:
+        filter_ += (Host.stale_timestamp <= lte,)
+    return and_(*filter_)

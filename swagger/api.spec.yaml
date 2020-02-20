@@ -39,21 +39,13 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
-        - in: query
-          name: tags
-          schema:
-            type: array
-            items:
-              type: string
-              pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
-          description: search for a host by the tags on the system
-          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/tagsParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -276,6 +268,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/searchParam'
       responses:
         '200':
           description: Successfully found tags.
@@ -309,6 +302,36 @@ paths:
                 $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
+
+  /tags:
+    get:
+      tags:
+        - tags
+      summary: Get the active host tags for a given account
+      operationId: api.tag.get_tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/tagsOrderBy'
+        - $ref: '#/components/parameters/tagsOrderHow'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+            description: Tags
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ActiveTags'
+        '400':
+            description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+
 components:
   securitySchemes:
     BearerAuth:
@@ -408,6 +431,47 @@ components:
           - stale
           - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
+    tagsParam:
+      name: tags
+      in: query
+      description: filters out hosts not tagged by the given tags
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
+    tagsOrderBy:
+      in: query
+      name: order_by
+      required: false
+      schema:
+        type: string
+        default: tag
+        enum:
+          - tag
+          - count
+      description: Ordering field name
+    tagsOrderHow:
+      in: query
+      name: order_how
+      required: false
+      schema:
+        type: string
+        default: ASC
+        enum:
+          - ASC
+          - DESC
+      description: Direction of the ordering. Default to ASC
+    searchParam:
+      in: query
+      name: search
+      required: false
+      description: Only include tags that match the given search string. The value is matched against namespace, key and value.
+      schema:
+        type: string
+
+
   schemas:
     TagsOut:
       type: object
@@ -522,6 +586,8 @@ components:
       type: object
       required:
         - account
+        - stale_timestamp
+        - reporter
       properties:
         display_name:
           description: >-
@@ -949,6 +1015,7 @@ components:
           type: integer
         system_memory_bytes:
           type: integer
+          format: int64
         infrastructure_type:
           type: string
         infrastructure_vendor:
@@ -1046,3 +1113,76 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+
+    ActiveTags:
+      title: Host data
+      type: object
+      required:
+        - total
+        - count
+        - page
+        - per_page
+        - results
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        page:
+          $ref: '#/components/schemas/Page'
+        per_page:
+          $ref: '#/components/schemas/PerPage'
+        results:
+          type: array
+          items:
+            title: ActiveTag
+            description: Information about a host tag
+            type: object
+            required:
+              - tag
+              - count
+            properties:
+              tag:
+                $ref: '#/components/schemas/StructuredTag'
+              count:
+                description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
+                type: integer
+                nullable: true
+      example:
+        total: 3
+        count: 3
+        page: 1
+        per_page: 50
+        results:
+          - tag:
+              namespace: Sat
+              key: env
+              value: prod
+            count: 3
+          - tag:
+              namespace: aws
+              key: region
+              value: us-east-1
+            count: 1
+          - tag:
+              namespace: insights-client
+              key: web
+              value: null
+            count: -1
+    Total:
+      type: integer
+      description: Total number of items
+    Count:
+      type: integer
+      description: The number of items on the current page
+    Page:
+      type: integer
+      description: The page number
+    PerPage:
+      type: integer
+      description: The number of items to return per page
+
+
+  responses:
+    PageOutOfBounds:
+      description: Requested page is outside of the range of available pages

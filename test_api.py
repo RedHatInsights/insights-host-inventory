@@ -4,36 +4,45 @@ import json
 import tempfile
 import uuid
 from base64 import b64encode
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from functools import partial
 from itertools import chain
 from json import dumps
 from unittest import main
+from unittest import mock
 from unittest import TestCase
+from unittest.mock import ANY
 from unittest.mock import patch
 from urllib.parse import parse_qs
+from urllib.parse import quote_plus as url_quote
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
 
-from api.host import _get_host_list_by_id_list
+from api.host_query_xjoin import QUERY as HOST_QUERY
+from api.tag import TAGS_QUERY
 from app import create_app
 from app import db
 from app.auth.identity import Identity
-from app.culling import StalenessOffset
+from app.culling import Timestamps
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from app.utils import Tag
+from host_reaper import run as host_reaper_run
+from lib.host_delete import delete_hosts
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
 from test_utils import valid_system_profile
 
 HOST_URL = "/api/inventory/v1/hosts"
+TAGS_URL = "/api/inventory/v1/tags"
 HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
@@ -45,10 +54,64 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
+MOCK_XJOIN_HOST_RESPONSE = {
+    "hosts": {
+        "meta": {"total": 2},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "account": "test",
+                "display_name": "test01.rhel7.jharting.local",
+                "ansible_host": "test01.rhel7.jharting.local",
+                "created_on": "2019-02-10T08:07:03.354307Z",
+                "modified_on": "2019-02-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test01.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                },
+                "facts": None,
+                "stale_timestamp": "2020-02-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "account": "test",
+                "display_name": "test02.rhel7.jharting.local",
+                "ansible_host": "test02.rhel7.jharting.local",
+                "created_on": "2019-01-10T08:07:03.354307Z",
+                "modified_on": "2019-01-10T08:07:03.354312Z",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test02.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                },
+                "facts": {
+                    "os": {"os.release": "Red Hat Enterprise Linux Server"},
+                    "bios": {
+                        "bios.vendor": "SeaBIOS",
+                        "bios.release_date": "2014-04-01",
+                        "bios.version": "1.11.0-2.el7",
+                    },
+                },
+                "stale_timestamp": "2020-01-10T08:07:03.354307Z",
+                "reporter": "puptoo",
+            },
+        ],
+    }
+}
+
+
+def quote(*args, **kwargs):
+    return url_quote(str(args[0]), *args[1:], safe="", **kwargs)
 
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+
+def now():
+    return datetime.now(timezone.utc)
 
 
 def test_data(**values):
@@ -62,12 +125,12 @@ def test_data(**values):
         # "mac_addresses": ["c2:00:d0:c8:61:01"],
         # "external_id": "i-05d2313e6b9a42b16"
         "facts": None,
+        "stale_timestamp": now().isoformat(),
+        "reporter": "test",
         **values,
     }
     if not data["facts"]:
         data["facts"] = FACTS
-    if "stale_timestamp" in data:
-        data["stale_timestamp"] = data["stale_timestamp"].isoformat()
     return data
 
 
@@ -86,6 +149,14 @@ def inject_qs(url, **kwargs):
     params.update(kwargs)
     new_query = urlencode(params, doseq=True)
     return urlunsplit((scheme, netloc, path, new_query, fragment))
+
+
+class MockEmitEvent:
+    def __init__(self):
+        self.events = []
+
+    def __call__(self, e):
+        self.events.append(e)
 
 
 class APIBaseTestCase(TestCase):
@@ -109,9 +180,11 @@ class APIBaseTestCase(TestCase):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
 
-    def get(self, path, status=200, return_response_as_json=True):
+    def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
         return self._response_check(
-            self.client().get(path, headers=self._get_valid_auth_header()), status, return_response_as_json
+            self.client().get(path, headers={**self._get_valid_auth_header(), **extra_headers}),
+            status,
+            return_response_as_json,
         )
 
     def post(self, path, data, status=200, return_response_as_json=True):
@@ -234,9 +307,9 @@ class CreateHostsTestCase(DBAPITestCase):
         self._validate_host(created_host, host_data, expected_id=original_id)
 
         created_time = dateutil.parser.parse(created_host["created"])
-        now = datetime.now(timezone.utc)
-        self.assertGreater(now, created_time)
-        self.assertLess(now - timedelta(minutes=15), created_time)
+        current_timestamp = now()
+        self.assertGreater(current_timestamp, created_time)
+        self.assertLess(current_timestamp - timedelta(minutes=15), created_time)
 
         host_data.facts = copy.deepcopy(FACTS)
 
@@ -422,7 +495,7 @@ class CreateHostsTestCase(DBAPITestCase):
         response_data = self.post(HOST_URL, [host_data.data()], 400)
 
         self.verify_error_response(
-            response_data, expected_title="Bad Request", expected_detail="'account' is a required property"
+            response_data, expected_title="Bad Request", expected_detail="'account' is a required property - '0'"
         )
 
     def test_create_host_with_invalid_account(self):
@@ -497,7 +570,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
-    def test_create_host_with_non_nullable_fields_as_None(self):
+    def test_create_host_with_non_nullable_fields_as_none(self):
         non_nullable_field_names = (
             "display_name",
             "account",
@@ -511,6 +584,8 @@ class CreateHostsTestCase(DBAPITestCase):
             "mac_addresses",
             "external_id",
             "ansible_host",
+            "stale_timestamp",
+            "reporter",
         )
 
         host_data = HostWrapper(test_data(facts=None))
@@ -529,6 +604,17 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 response_data = self.post(HOST_URL, [invalid_host_dict], 400)
 
+                self.verify_error_response(response_data, expected_title="Bad Request")
+
+    def test_create_host_without_required_fields(self):
+        fields = ("account", "stale_timestamp", "reporter")
+        for field in fields:
+            with self.subTest(fields=fields):
+                data = test_data()
+                del data[field]
+
+                host_data = HostWrapper(data)
+                response_data = self.post(HOST_URL, [host_data.data()], 400)
                 self.verify_error_response(response_data, expected_title="Bad Request")
 
     def test_create_host_with_valid_ip_address(self):
@@ -684,7 +770,6 @@ class CreateHostsTestCase(DBAPITestCase):
         # Update the ansible_host
         for ansible_host in ansible_hosts:
             with self.subTest(ansible_host=ansible_host):
-
                 host_data.ansible_host = ansible_host
 
                 # Update the hosts
@@ -899,70 +984,60 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         response = self.post(HOST_URL, [host_data.data()], 207)
         self._verify_host_status(response, 0, expected_status)
         created_host = self._pluck_host_from_response(response, 0)
-        return created_host["id"]
+        return created_host.get("id")
 
     def _retrieve_host(self, host_id):
         with self.app.app_context():
             return Host.query.filter(Host.id == host_id).first()
 
+    def test_create_host_without_culling_fields(self):
+        fields_to_delete = (("stale_timestamp", "reporter"), ("stale_timestamp",), ("reporter",))
+        for fields in fields_to_delete:
+            with self.subTest(fields=fields):
+                host_data = test_data(fqdn="match this host")
+                for field in fields:
+                    del host_data[field]
+                self.post(HOST_URL, [host_data], 400)
+
+    def test_create_host_with_null_culling_fields(self):
+        culling_fields = (("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter"))
+        for fields in culling_fields:
+            host_data = test_data(fqdn="match this host", **{field: None for field in fields})
+            self.post(HOST_URL, [host_data], 400)
+
+    def test_create_host_with_empty_culling_fields(self):
+        culling_fields = (("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter"))
+        for fields in culling_fields:
+            with self.subTest(fields=fields):
+                self._add_host(400, **{field: "" for field in fields})
+
+    def test_create_host_with_invalid_stale_timestamp(self):
+        self._add_host(400, stale_timestamp="not a timestamp")
+
     def test_create_host_with_stale_timestamp_and_reporter(self):
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         reporter = "some reporter"
-        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp.isoformat(), reporter=reporter)
 
         retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(stale_timestamp, retrieved_host.stale_timestamp)
         self.assertEqual(reporter, retrieved_host.reporter)
 
-    def test_update_host_with_stale_timestamp_and_reporter(self):
-        created_host_id = self._add_host(201)
-        old_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertIsNone(old_retrieved_host.stale_timestamp)
-        self.assertIsNone(old_retrieved_host.reporter)
-
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-
-        self._add_host(200, stale_timestamp=stale_timestamp, reporter=reporter)
-
-        new_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, new_retrieved_host.reporter)
-
-    def test_dont_update_host_with_stale_timestamp_and_reporter(self):
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-
-        created_host_id = self._add_host(201, stale_timestamp=stale_timestamp, reporter=reporter)
-        old_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, old_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, old_retrieved_host.reporter)
-
-        self._add_host(200)
-
-        new_retrieved_host = self._retrieve_host(created_host_id)
-
-        self.assertEqual(stale_timestamp, new_retrieved_host.stale_timestamp)
-        self.assertEqual(reporter, new_retrieved_host.reporter)
-
     def test_update_stale_timestamp_from_same_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=1)
+        old_stale_timestamp = current_timestamp + timedelta(days=1)
         reporter = "some reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=2)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+        new_stale_timestamp = current_timestamp + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
@@ -970,38 +1045,38 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(reporter, new_retrieved_host.reporter)
 
     def test_dont_update_stale_timestamp_from_same_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=2)
+        old_stale_timestamp = current_timestamp + timedelta(days=2)
         reporter = "some reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
 
-        new_stale_timestamp = now + timedelta(days=1)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=reporter)
+        new_stale_timestamp = current_timestamp + timedelta(days=1)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
 
     def test_update_stale_timestamp_from_different_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=2)
+        old_stale_timestamp = current_timestamp + timedelta(days=2)
         old_reporter = "old reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=1)
+        new_stale_timestamp = current_timestamp + timedelta(days=1)
         new_reporter = "new reporter"
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter=new_reporter)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
@@ -1009,36 +1084,149 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(new_reporter, new_retrieved_host.reporter)
 
     def test_dont_update_stale_timestamp_from_different_reporter(self):
-        now = datetime.now(timezone.utc)
+        current_timestamp = now()
 
-        old_stale_timestamp = now + timedelta(days=1)
+        old_stale_timestamp = current_timestamp + timedelta(days=1)
         old_reporter = "old reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
 
         old_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = now + timedelta(days=2)
-        self._add_host(200, stale_timestamp=new_stale_timestamp, reporter="new_reporter")
+        new_stale_timestamp = current_timestamp + timedelta(days=2)
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter")
 
         new_retrieved_host = self._retrieve_host(created_host_id)
 
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, new_retrieved_host.reporter)
 
-    def test_create_host_with_only_one_culling_field(self):
-        valueses = ({"stale_timestamp": datetime.now(timezone.utc)}, {"reporter": "some reporter"})
-        for values in valueses:
-            host_data = HostWrapper(test_data(**values))
-            response = self.post(HOST_URL, [host_data.data()], 207)
 
-            error_host = response["data"][0]
+class DeleteHostsBaseTestCase(DBAPITestCase):
+    def _get_hosts(self, host_ids):
+        url_part = ",".join(host_ids)
+        return self.get(f"{HOST_URL}/{url_part}?staleness=fresh,stale,stale_warning,unknown", 200)
 
-            self.assertEqual(error_host["status"], 400)
-            self.verify_error_response(error_host, expected_title="Invalid request")
+    def _assert_events_are_valid(self, events, hosts, timestamp):
+        self.assertEqual(len(events), len(hosts))
+        hosts_by_ids = {host.id: host for host in hosts}
+
+        for event in events:
+            self.assertIsInstance(event, dict)
+            expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+            self.assertEqual(set(event.keys()), expected_keys)
+
+            self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), event["timestamp"])
+            self.assertEqual("delete", event["type"])
+
+            self.assertIn(event["id"], hosts_by_ids)
+            deleted_host = hosts_by_ids[event["id"]]
+            self.assertEqual(deleted_host.insights_id, event["insights_id"])
+
+    def _check_hosts_are_present(self, host_ids):
+        response = self._get_hosts(host_ids)
+        self.assertEqual(response["total"], len(host_ids))
+
+    def _check_hosts_are_deleted(self, host_ids):
+        response = self._get_hosts(host_ids)
+
+        self.assertEqual(response["count"], 0)
+        self.assertEqual(response["total"], 0)
+        self.assertEqual(response["results"], [])
+
+
+class CullingBaseTestCase(APIBaseTestCase):
+    def _nullify_culling_fields(self, host_id):
+        with self.app.app_context():
+            host = db.session.query(Host).get(host_id)
+            host.stale_timestamp = None
+            host.reporter = None
+            db.session.add(host)
+            db.session.commit()
+
+
+@patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
+class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.now_timestamp = datetime.utcnow()
+        self.staleness_timestamps = {
+            "fresh": self.now_timestamp + timedelta(hours=1),
+            "stale": self.now_timestamp,
+            "stale_warning": self.now_timestamp - timedelta(weeks=1),
+            "culled": self.now_timestamp - timedelta(weeks=2),
+        }
+
+    def _run_host_reaper(self):
+        with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
+            with self.app.app_context():
+                config = self.app.config["INVENTORY_CONFIG"]
+                host_reaper_run(config, db.session)
+
+    def _add_hosts(self, data):
+        post = []
+        for d in data:
+            host = HostWrapper(test_data(insights_id=generate_uuid(), **d))
+            post.append(host.data())
+
+        response = self.post(HOST_URL, post, 207)
+
+        hosts = []
+        for i in range(len(data)):
+            self._verify_host_status(response, i, 201)
+            added_host = self._pluck_host_from_response(response, i)
+            hosts.append(HostWrapper(added_host))
+
+        return hosts
+
+    def _get_hosts(self, host_ids):
+        url_part = ",".join(host_ids)
+        return self.get(f"{HOST_URL}/{url_part}")
+
+    def test_culled_host_is_removed(self, emit_event):
+        added_hosts = self._add_hosts(
+            ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
+        )
+        added_host_id = added_hosts[0].id
+        self._check_hosts_are_present((added_host_id,))
+
+        self._run_host_reaper()
+        self._check_hosts_are_deleted((added_host_id,))
+
+        events = tuple(json.loads(event) for event in emit_event.events)
+        self._assert_events_are_valid(events, added_hosts, self.now_timestamp)
+
+    def test_non_culled_host_is_not_removed(self, emit_event):
+        hosts_to_add = []
+        for stale_timestamp in (
+            self.staleness_timestamps["stale_warning"],
+            self.staleness_timestamps["stale"],
+            self.staleness_timestamps["fresh"],
+        ):
+            hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
+
+        added_hosts = self._add_hosts(hosts_to_add)
+        added_host_ids = tuple(host.id for host in added_hosts)
+        self._check_hosts_are_present(added_host_ids)
+
+        self._run_host_reaper()
+
+        response = self._get_hosts(added_host_ids)
+        self.assertEqual(response["count"], len(hosts_to_add))
+
+    def test_unknown_host_is_not_removed(self, emit_event):
+        added_hosts = self._add_hosts(({},))
+        added_host_id = added_hosts[0].id
+        self._check_hosts_are_present((added_host_id,))
+
+        self._nullify_culling_fields(added_host_id)
+
+        self._run_host_reaper()
+        self._check_hosts_are_present((added_host_id,))
+        self.assertEqual(len(emit_event.events), 0)
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
@@ -1319,7 +1507,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
 
         for system_profile in system_profiles:
             with self.subTest(system_profile=system_profile):
-
                 host["system_profile"] = system_profile
 
                 # Create the host
@@ -1521,6 +1708,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.external_id = generate_uuid()
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
             host_wrapper.tags = host[3]
+            host_wrapper.stale_timestamp = now().isoformat()
+            host_wrapper.reporter = "test"
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
             host_list.append(HostWrapper(response_data["data"][0]["host"]))
@@ -1628,14 +1817,7 @@ class DeleteHostsErrorTestCase(DBAPITestCase):
         self.delete(url, 400)
 
 
-class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
-    class MockEmitEvent:
-        def __init__(self):
-            self.events = []
-
-        def __call__(self, e):
-            self.events.append(e)
-
+class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestCase):
     def setUp(self):
         super().setUp()
         self.host_to_delete = self.added_hosts[0]
@@ -1643,44 +1825,26 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with patch("api.host.emit_event", new_callable=self.MockEmitEvent) as m:
+        with patch("lib.host_delete.emit_event", new_callable=MockEmitEvent) as m:
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
                 return json.loads(m.events[0])
 
     def _assert_event_is_valid(self, event):
-        self.assertIsInstance(event, dict)
-        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-        self.assertEqual(set(event.keys()), expected_keys)
-
-        self.assertEqual(f"{self.timestamp.isoformat()}+00:00", event["timestamp"])
-        self.assertEqual("delete", event["type"])
-        self.assertEqual(self.host_to_delete.id, event["id"])
-        self.assertEqual(self.host_to_delete.insights_id, event["insights_id"])
-
-    def _check_hosts_are_present(self):
-        before_response = self.get(self.delete_url, 200)
-        self.assertEqual(before_response["total"], 1)
-
-    def _check_hosts_are_deleted(self):
-        after_response = self.get(self.delete_url, 200)
-
-        self.assertEqual(after_response["count"], 0)
-        self.assertEqual(after_response["total"], 0)
-        self.assertEqual(after_response["results"], [])
+        self._assert_events_are_valid((event,), (self.host_to_delete,), self.timestamp)
 
     def test_create_then_delete(self):
-        self._check_hosts_are_present()
+        self._check_hosts_are_present((self.host_to_delete.id,))
         event = self._delete()
         self._assert_event_is_valid(event)
-        self._check_hosts_are_deleted()
+        self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_branch_id(self):
-        self._check_hosts_are_present()
+        self._check_hosts_are_present((self.host_to_delete.id,))
         event = self._delete(url_query="?branch_id=1234")
         self._assert_event_is_valid(event)
-        self._check_hosts_are_deleted()
+        self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_request_id(self):
         request_id = generate_uuid()
@@ -1690,74 +1854,72 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
-        self._check_hosts_are_present()
+        self._check_hosts_are_present((self.host_to_delete.id,))
         event = self._delete(header=None)
         self._assert_event_is_valid(event)
         self.assertEqual("-1", event["request_id"])
 
 
-@patch("api.host.emit_event")
+@patch("lib.host_delete.emit_event")
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
-    class RaceCondition:
+    class DeleteHostsMock:
         @classmethod
-        def mock(cls, host_ids_to_delete):
-            def _get_host_list_by_id_list(*args, **kwargs):
-                """
-                Creates a _get_host_list_by_id_list mock, remembering the list of Host IDs to delete.
-                """
-                return cls(host_ids_to_delete, *args, **kwargs)
+        def create_mock(cls, hosts_ids_to_delete):
+            def _constructor(select_query):
+                return cls(hosts_ids_to_delete, select_query)
 
-            return _get_host_list_by_id_list
+            return _constructor
 
-        def __init__(self, host_ids_to_delete, *args, **kwargs):
-            """
-            Gets a query from the original _get_host_list_by_id_list and remembers it.
-            """
+        def __init__(self, host_ids_to_delete, original_query):
             self.host_ids_to_delete = host_ids_to_delete
-            self.original_query = _get_host_list_by_id_list(*args, **kwargs)
+            self.original_query = delete_hosts(original_query)
 
         def __getattr__(self, item):
             """
             Forwards all calls to the original query, only intercepting the actual SELECT.
             """
-            return self.all if item == "all" else getattr(self.original_query, item)
+            return self.__iter__ if item == "__iter__" else getattr(self.original_query, item)
 
         def _delete_hosts(self):
             delete_query = Host.query.filter(Host.id.in_(self.host_ids_to_delete))
             delete_query.delete(synchronize_session=False)
+            delete_query.session.commit()
 
-        def all(self, *args, **kwargs):
+        def __iter__(self, *args, **kwargs):
             """
-            Intercepts the actual SELECT by first grabbing the result and then deleting the
-            retrieved hosts, causing the race condition.
+            Intercepts the actual SELECT by first running the query and then deleting the hosts,
+            causing the race condition.
             """
-            result = self.original_query.all(*args, **kwargs)
+            iterator = self.original_query.__iter__(*args, **kwargs)
             self._delete_hosts()
-            return result
+            return iterator
 
     def test_delete_when_one_host_is_deleted(self, emit_event):
         host_id = self.added_hosts[0].id
         url = HOST_URL + "/" + host_id
-        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock([host_id])):
+        with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock([host_id])):
             # One host queried, but deleted by a different process. No event emitted yet returning
             # 200 OK.
             self.delete(url, 200, return_response_as_json=False)
+            emit_event.assert_not_called()
 
     def test_delete_when_all_hosts_are_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
-        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock(host_id_list)):
+        with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list)):
             # Two hosts queried, but both deleted by a different process. No event emitted yet
             # returning 200 OK.
             self.delete(url, 200, return_response_as_json=False)
+            emit_event.assert_not_called()
 
     def test_delete_when_some_hosts_is_deleted(self, emit_event):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
-        with patch("api.host._get_host_list_by_id_list", self.RaceCondition.mock(host_id_list[0:1])):
+        with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list[0:1])):
             # Two hosts queried, one of them deleted by a different process. Only one event emitted,
             # returning 200 OK.
             self.delete(url, 200, return_response_as_json=False)
+            emit_event.assert_called_once()
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
@@ -1835,6 +1997,9 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
         host_wrapper.display_name = "host4"
         host_wrapper.insights_id = generate_uuid()
         host_wrapper.tags = []
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
+
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
@@ -2229,6 +2394,8 @@ class QueryOrderWithAdditionalHostsBaseTestCase(QueryOrderBaseTestCase):
         host_wrapper.account = ACCOUNT
         host_wrapper.display_name = "host1"  # Same as self.added_hosts[0]
         host_wrapper.insights_id = generate_uuid()
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
         self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
@@ -2331,7 +2498,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         old_host.modified_on = new_modified_on
         db.session.add(old_host)
 
-        staleness_offset = StalenessOffset.from_config(self.app.config["INVENTORY_CONFIG"])
+        staleness_offset = Timestamps.from_config(self.app.config["INVENTORY_CONFIG"])
         serialized_old_host = serialize_host(old_host, staleness_offset)
         self.added_hosts[added_host_index] = HostWrapper(serialized_old_host)
 
@@ -2339,7 +2506,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         # New modified_on value must be set explicitly so it’s saved the same to all
         # records. Otherwise SQLAlchemy would consider it unchanged and update it
         # automatically to its own "now" only for records whose ID changed.
-        new_modified_on = datetime.now(timezone.utc)
+        new_modified_on = now()
 
         with self.app.app_context():
             for added_host_index, new_id in id_updates:
@@ -2412,55 +2579,6 @@ class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
 
 
 class QueryStaleTimestampTestCase(DBAPITestCase):
-    def setUp(self):
-        super().setUp()
-
-    def _host_data(self, **values):
-        return {"account": ACCOUNT, "fqdn": "matching fqdn", **values}
-
-    def _create_host(self, host):
-        response = self.post(HOST_URL, [host.data()], 207)
-        self._verify_host_status(response, 0, 201)
-        return self._pluck_host_from_response(response, 0)
-
-    def _update_host(self, host):
-        response = self.post(HOST_URL, [host.data()], 207)
-        self._verify_host_status(response, 0, 200)
-        return self._pluck_host_from_response(response, 0)
-
-    def _get_all_hosts(self):
-        response = self.get(HOST_URL, 200)
-        return response["results"][0]
-
-    def _get_host_by_id(self, host_id):
-        response = self.get(f"{HOST_URL}/{host_id}", 200)
-        return response["results"][0]
-
-    def test_without_stale_timestamp(self):
-        def _assert_values(response_host):
-            self.assertIn("stale_timestamp", response_host)
-            self.assertIn("stale_warning_timestamp", response_host)
-            self.assertIn("culled_timestamp", response_host)
-            self.assertIn("reporter", response_host)
-            self.assertIsNone(response_host["stale_timestamp"])
-            self.assertIsNone(response_host["stale_warning_timestamp"])
-            self.assertIsNone(response_host["culled_timestamp"])
-            self.assertIsNone(response_host["reporter"])
-
-        host_to_create = HostWrapper(self._host_data())
-
-        created_host = self._create_host(host_to_create)
-        _assert_values(created_host)
-
-        updated_host = self._update_host(host_to_create)
-        _assert_values(updated_host)
-
-        retrieved_host_from_all = self._get_all_hosts()
-        _assert_values(retrieved_host_from_all)
-
-        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
-        _assert_values(retrieved_host_from_by_id)
-
     def test_with_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)
@@ -2472,7 +2590,7 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
             self.assertEqual(culled_timestamp_str, response_host["culled_timestamp"])
             self.assertEqual(reporter, response_host["reporter"])
 
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         stale_timestamp_str = stale_timestamp.isoformat()
         stale_warning_timestamp = stale_timestamp + timedelta(weeks=1)
         stale_warning_timestamp_str = stale_warning_timestamp.isoformat()
@@ -2480,19 +2598,26 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         culled_timestamp_str = culled_timestamp.isoformat()
         reporter = "some reporter"
 
-        host_to_create = HostWrapper(self._host_data(stale_timestamp=stale_timestamp_str, reporter=reporter))
+        host_to_create = HostWrapper(
+            {"account": ACCOUNT, "fqdn": "matching fqdn", "stale_timestamp": stale_timestamp_str, "reporter": reporter}
+        )
 
-        created_host = self._create_host(host_to_create)
+        create_response = self.post(HOST_URL, [host_to_create.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        created_host = self._pluck_host_from_response(create_response, 0)
         _assert_values(created_host)
 
-        updated_host = self._update_host(host_to_create)
+        update_response = self.post(HOST_URL, [host_to_create.data()], 207)
+        self._verify_host_status(update_response, 0, 200)
+        updated_host = self._pluck_host_from_response(update_response, 0)
         _assert_values(updated_host)
 
-        retrieved_host_from_all = self._get_all_hosts()
-        _assert_values(retrieved_host_from_all)
+        get_list_response = self.get(HOST_URL, 200)
+        _assert_values(get_list_response["results"][0])
 
-        retrieved_host_from_by_id = self._get_host_by_id(created_host["id"])
-        _assert_values(retrieved_host_from_by_id)
+        created_host_id = created_host["id"]
+        get_by_id_response = self.get(f"{HOST_URL}/{created_host_id}", 200)
+        _assert_values(get_by_id_response["results"][0])
 
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
@@ -2521,14 +2646,17 @@ class QueryStalenessBaseTestCase(DBAPITestCase):
         return response["results"]
 
 
-class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
+class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.fresh_host = self._create_host(datetime.now(timezone.utc) + timedelta(hours=1))
-        self.stale_host = self._create_host(datetime.now(timezone.utc) - timedelta(hours=1))
-        self.stale_warning_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=1, hours=1))
-        self.culled_host = self._create_host(datetime.now(timezone.utc) - timedelta(weeks=2, hours=1))
-        self.unknown_host = self._create_host(None)
+        current_timestamp = now()
+        self.fresh_host = self._create_host(current_timestamp + timedelta(hours=1))
+        self.stale_host = self._create_host(current_timestamp - timedelta(hours=1))
+        self.stale_warning_host = self._create_host(current_timestamp - timedelta(weeks=1, hours=1))
+        self.culled_host = self._create_host(current_timestamp - timedelta(weeks=2, hours=1))
+
+        self.unknown_host = self._create_host(current_timestamp)
+        self._nullify_culling_fields(self.unknown_host["id"])
 
     def _created_hosts(self):
         return (self.fresh_host["id"], self.stale_host["id"], self.stale_warning_host["id"], self.culled_host["id"])
@@ -2570,11 +2698,6 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase):
         for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
             with self.subTest(get_hosts_url_method=get_hosts_url_method):
                 url = get_hosts_url_method("?staleness=culled")
-                from logging import DEBUG, getLogger
-
-                logger = getLogger(__name__)
-                logger.setLevel(DEBUG)
-                logger.debug(url)
                 self.get(url, 400)
 
     def test_tags_default_ignores_culled(self):
@@ -3023,6 +3146,131 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
+    def _testing_apparatus_for_filtering(self, expected_filtered_results, given_results):
+        self.assertEqual(len(expected_filtered_results), len(given_results))
+
+        expectedValues = list(expected_filtered_results.values())
+        givenValues = list(given_results.values())
+
+        for i in range(len(givenValues)):
+            self.assertEqual(expectedValues[i], givenValues[i])
+
+    def test_get_filtered_by_search_tags_of_multiple_hosts(self):
+        """
+        send a request for tags to one host with some searchTerm
+        """
+        host_list = self.added_hosts
+
+        """
+        unfiltered_result = [
+            {
+                '5c322406-9ab2-467c-b968-1730e9b56cc3': [],
+        'a2aea312-d6c0-4bae-a820-fc46f7abd123': [
+                {'namespace': 'NS1', 'key': 'key3', 'value': 'val3'},
+                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
+                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
+            ],
+        '6582fdc7-4059-4a53-909b-f0691daff19b': [
+                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
+                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
+                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
+            ],
+        '53327c6a-dcbd-45c8-b63a-a1f66bea10cf': [
+                {'namespace': 'no', 'key': 'key', 'value': None},
+                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
+                {'namespace': 'NS1', 'key': 'key2', 'value': 'val1'},
+                {'namespace': 'SPECIAL', 'key': 'tag', 'value': 'ToFind'}
+                ]
+            }
+        ]
+        """
+
+        expected_filtered_results = [
+            {
+                "d3118a7a-f256-4cdd-a262-3c1d41507119": [],
+                "d60da678-083a-4325-b79a-7b6c9c020ec6": [
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "34798f51-421c-47b2-99c3-b1a646c8fa32": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "82c67d19-5fb0-4898-a6bb-56e2c64760c5": [
+                    {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                ],
+            },
+            {
+                "ef4b2967-ad89-4d70-9ea8-31d529644ef4": [],
+                "3ebe7bbd-f24a-4177-bb15-f7e8d118eedf": [],
+                "e2161dc9-a8d5-4df4-92e8-f55f993424a5": [],
+                "a85f87f7-6067-4319-869f-15153b6a1432": [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
+            },
+            {
+                "ac065b69-8f78-4f2d-b0e3-4a6191774c87": [],
+                "75264a41-7054-4a0e-84bf-5fcb68274977": [{"namespace": "NS1", "key": "key3", "value": "val3"}],
+                "10f04142-c628-43ef-b52d-8e0bfb1a6dde": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "11f9a1e5-6cfa-4d5c-a275-035fbf1c0f83": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "1980a8b2-a9a9-4bf9-9e61-956307dad1ba": [],
+                "87afe4e6-9321-4d1e-b5ad-25d6797c29ce": [],
+                "83373e4f-36ae-48a0-b8f6-48a33db6e054": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "959d8732-500c-4a03-8384-29723cb5f4c3": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+            },
+            {
+                "9c9a6c05-eb72-443e-9bca-90b32c32e865": [],
+                "1c22b9a5-256f-4ca4-9079-3bb8d596e6e0": [],
+                "a10c9158-cf64-443d-8df3-ef90492ec119": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                "368cbd5d-6843-4fcf-91bf-d73e5b5a81b6": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "a23a6609-3a77-4ba8-ae1c-1786e6f8f888": [],
+                "fb1c5073-f323-4969-b019-d3ba306262b7": [
+                    {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "90e3235e-cc81-4c55-b28a-4720826b9d44": [
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS2", "key": "key2", "value": "val2"},
+                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                ],
+                "5cdd679f-ae70-4699-a593-f01eafaa0202": [
+                    {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                ],
+            },
+            {
+                "2bf91606-3430-4e12-8d50-0c11ab0f5aa4": [],
+                "29761ca4-f483-4325-8a6e-6088ad7a50bb": [],
+                "282dbf62-ea82-4a54-82c3-2e42a752d200": [],
+                "721e9ee9-931f-4833-8f75-7f30f217dc96": [],
+            },
+        ]
+
+        searchTerms = ["", "To", "NS1", "key1", "val1", "e", " "]
+
+        url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+        for i in range(len(searchTerms)):
+            test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={searchTerms[i]}"
+            response = self.get(test_url, 200)
+
+            self._testing_apparatus_for_filtering(expected_filtered_results[i], response["results"])
+
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):
         """
         send a request for some hosts that don't exist
@@ -3134,6 +3382,783 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         # 2 per page test
         self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+
+
+class XjoinRequestBaseTestCase(APIBaseTestCase):
+    @contextmanager
+    def _patch_xjoin_post(self, response, status=200):
+        with patch(
+            "app.xjoin.post",
+            **{
+                "return_value.text": json.dumps(response),
+                "return_value.json.return_value": response,
+                "return_value.status_code": status,
+            },
+        ) as post:
+            yield post
+
+    def _get_with_request_id(self, url, request_id, status=200):
+        return self.get(url, status, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
+
+    def _assert_called_with_headers(self, post, request_id):
+        identity = self._get_valid_auth_header()["x-rh-identity"].decode()
+        post.assert_called_once_with(
+            ANY, json=ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}
+        )
+
+
+class HostsXjoinBaseTestCase(APIBaseTestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "xjoin"}):
+            super().setUp()
+
+
+class HostsXjoinRequestBaseTestCase(XjoinRequestBaseTestCase, HostsXjoinBaseTestCase):
+    EMPTY_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
+    patch_graphql_query_empty_response = partial(
+        patch, "api.host_query_xjoin.graphql_query", return_value=EMPTY_RESPONSE
+    )
+
+
+class HostsXjoinRequestHeadersTestCase(HostsXjoinRequestBaseTestCase):
+    def test_headers_forwarded(self):
+        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}) as post:
+            request_id = generate_uuid()
+            self._get_with_request_id(HOST_URL, request_id)
+            self._assert_called_with_headers(post, request_id)
+
+
+class XjoinSearchResponseCheckingTestCase(XjoinRequestBaseTestCase, HostsXjoinBaseTestCase):
+    EMPTY_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
+
+    def base_xjoin_response_status_test(self, xjoin_res_status, expected_HBI_res_status):
+        with self._patch_xjoin_post({"data": self.EMPTY_RESPONSE}, xjoin_res_status):
+            request_id = generate_uuid()
+            self._get_with_request_id(HOST_URL, request_id, expected_HBI_res_status)
+
+    def test_host_request_xjoin_status_403(self):
+        self.base_xjoin_response_status_test(403, 500)
+
+    def test_host_request_xjoin_status_200(self):
+        self.base_xjoin_response_status_test(200, 200)
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
+    STALENESS_ANY = ANY
+
+    def test_query_variables_fqdn(self, graphql_query):
+        fqdn = "host.domain.com"
+        self.get(f"{HOST_URL}?fqdn={quote(fqdn)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": ({"fqdn": fqdn}, self.STALENESS_ANY),
+            },
+        )
+
+    def test_query_variables_display_name(self, graphql_query):
+        display_name = "my awesome host uwu"
+        self.get(f"{HOST_URL}?display_name={quote(display_name)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": ({"display_name": f"*{display_name}*"}, self.STALENESS_ANY),
+            },
+        )
+
+    def test_query_variables_hostname_or_id_non_uuid(self, graphql_query):
+        hostname_or_id = "host.domain.com"
+        self.get(f"{HOST_URL}?hostname_or_id={quote(hostname_or_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": (
+                    {"OR": ({"display_name": f"*{hostname_or_id}*"}, {"fqdn": f"*{hostname_or_id}*"})},
+                    self.STALENESS_ANY,
+                ),
+            },
+        )
+
+    def test_query_variables_hostname_or_id_uuid(self, graphql_query):
+        hostname_or_id = generate_uuid()
+        self.get(f"{HOST_URL}?hostname_or_id={quote(hostname_or_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": (
+                    {
+                        "OR": (
+                            {"display_name": f"*{hostname_or_id}*"},
+                            {"fqdn": f"*{hostname_or_id}*"},
+                            {"id": hostname_or_id},
+                        )
+                    },
+                    self.STALENESS_ANY,
+                ),
+            },
+        )
+
+    def test_query_variables_insights_id(self, graphql_query):
+        insights_id = generate_uuid()
+        self.get(f"{HOST_URL}?insights_id={quote(insights_id)}", 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": ({"insights_id": insights_id}, self.STALENESS_ANY),
+            },
+        )
+
+    def test_query_variables_none(self, graphql_query):
+        self.get(HOST_URL, 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {"order_by": ANY, "order_how": ANY, "limit": ANY, "offset": ANY, "filter": (self.STALENESS_ANY,)},
+        )
+
+    def test_query_variables_priority(self, graphql_query):
+        param = quote(generate_uuid())
+        for filter_, query in (
+            ("fqdn", f"fqdn={param}&display_name={param}"),
+            ("fqdn", f"fqdn={param}&hostname_or_id={param}"),
+            ("fqdn", f"fqdn={param}&insights_id={param}"),
+            ("display_name", f"display_name={param}&hostname_or_id={param}"),
+            ("display_name", f"display_name={param}&insights_id={param}"),
+            ("OR", f"hostname_or_id={param}&insights_id={param}"),
+        ):
+            with self.subTest(filter=filter_, query=query):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?{query}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": ({filter_: ANY}, self.STALENESS_ANY),
+                    },
+                )
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
+    STALENESS_ANY = ANY
+
+    def test_query_variables_tags(self, graphql_query):
+        for tags, query_param in (
+            (({"namespace": "a", "key": "b", "value": "c"},), "a/b=c"),
+            (({"namespace": "a", "key": "b", "value": None},), "a/b"),
+            (
+                ({"namespace": "a", "key": "b", "value": "c"}, {"namespace": "d", "key": "e", "value": "f"}),
+                "a/b=c,d/e=f",
+            ),
+            (
+                ({"namespace": "a/a=a", "key": "b/b=b", "value": "c/c=c"},),
+                quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            ),
+            (({"namespace": "ɑ", "key": "β", "value": "ɣ"},), "ɑ/β=ɣ"),
+        ):
+            with self.subTest(tags=tags, query_param=query_param):
+                graphql_query.reset_mock()
+
+                self.get(f"{HOST_URL}?tags={quote(query_param)}")
+
+                tag_filters = tuple({"tag": item} for item in tags)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": tag_filters + (self.STALENESS_ANY,),
+                    },
+                )
+
+    def test_query_variables_tags_with_search(self, graphql_query):
+        for field in ("fqdn", "display_name", "hostname_or_id", "insights_id"):
+            with self.subTest(field=field):
+                graphql_query.reset_mock()
+
+                value = quote(generate_uuid())
+                self.get(f"{HOST_URL}?{field}={value}&tags=a/b=c")
+
+                search_any = ANY
+                tag_filter = {"tag": {"namespace": "a", "key": "b", "value": "c"}}
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": (search_any, tag_filter, self.STALENESS_ANY),
+                    },
+                )
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestOrderingTestCase(HostsXjoinRequestBaseTestCase):
+    def test_query_variables_ordering_dir(self, graphql_query):
+        for direction in ("ASC", "DESC"):
+            with self.subTest(direction=direction):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?order_by=updated&order_how={quote(direction)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY, {"limit": ANY, "offset": ANY, "order_by": ANY, "order_how": direction, "filter": ANY}
+                )
+
+    def test_query_variables_ordering_by(self, graphql_query):
+        for params_order_by, xjoin_order_by, default_xjoin_order_how in (
+            ("updated", "modified_on", "DESC"),
+            ("display_name", "display_name", "ASC"),
+        ):
+            with self.subTest(ordering=params_order_by):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?order_by={quote(params_order_by)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "limit": ANY,
+                        "offset": ANY,
+                        "order_by": xjoin_order_by,
+                        "order_how": default_xjoin_order_how,
+                        "filter": ANY,
+                    },
+                )
+
+    def test_query_variables_ordering_by_invalid(self, graphql_query):
+        self.get(f"{HOST_URL}?order_by=fqdn", 400)
+        graphql_query.assert_not_called()
+
+    def test_query_variables_ordering_dir_invalid(self, graphql_query):
+        self.get(f"{HOST_URL}?order_by=updated&order_how=REVERSE", 400)
+        graphql_query.assert_not_called()
+
+    def test_query_variables_ordering_dir_without_by(self, graphql_query):
+        self.get(f"{HOST_URL}?order_how=ASC", 400)
+        graphql_query.assert_not_called()
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestPaginationTestCase(HostsXjoinRequestBaseTestCase):
+    def test_response_pagination(self, graphql_query):
+        for page, limit, offset in ((1, 2, 0), (2, 2, 2), (4, 50, 150)):
+            with self.subTest(page=page, limit=limit, offset=offset):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?per_page={quote(limit)}&page={quote(page)}", 200)
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY, {"order_by": ANY, "order_how": ANY, "limit": limit, "offset": offset, "filter": ANY}
+                )
+
+    def test_response_invalid_pagination(self, graphql_query):
+        for page, per_page in ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)):
+            with self.subTest(page=page):
+                self.get(f"{HOST_URL}?per_page={quote(per_page)}&page={quote(page)}", 400)
+                graphql_query.assert_not_called()
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
+    def _assert_graph_query_single_call_with_staleness(self, graphql_query, staleness_conditions):
+        conditions = tuple({"stale_timestamp": staleness_condition} for staleness_condition in staleness_conditions)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {"order_by": ANY, "order_how": ANY, "limit": ANY, "offset": ANY, "filter": ({"OR": conditions},)},
+        )
+
+    def test_query_variables_default_except_staleness(self, graphql_query):
+        self.get(HOST_URL, 200)
+        graphql_query.assert_called_once_with(
+            HOST_QUERY, {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": ANY}
+        )
+
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query):
+        self.get(HOST_URL, 200)
+        self._assert_graph_query_single_call_with_staleness(
+            graphql_query,
+            (
+                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+            ),
+        )
+
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_variables_staleness(self, datetime_mock, graphql_query):
+        for staleness, expected in (
+            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ):
+            with self.subTest(staleness=staleness):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?staleness={staleness}", 200)
+                self._assert_graph_query_single_call_with_staleness(graphql_query, (expected,))
+
+    def test_query_variables_staleness_with_search(self, graphql_query):
+        for field, value in (
+            ("fqdn", generate_uuid()),
+            ("display_name", "some display name"),
+            ("hostname_or_id", "some hostname"),
+            ("insights_id", generate_uuid()),
+            ("tags", "some/tag"),
+        ):
+            with self.subTest(field=field):
+                graphql_query.reset_mock()
+                self.get(f"{HOST_URL}?{field}={quote(value)}")
+
+                SEARCH_ANY = ANY
+                STALENESS_ANY = ANY
+                graphql_query.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": ANY,
+                        "order_how": ANY,
+                        "limit": ANY,
+                        "offset": ANY,
+                        "filter": (SEARCH_ANY, STALENESS_ANY),
+                    },
+                )
+
+
+class HostsXjoinResponseTestCase(HostsXjoinBaseTestCase):
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
+
+    @patch_with_response()
+    def test_response_processed_properly(self, graphql_query):
+        result = self.get(HOST_URL, 200)
+        graphql_query.assert_called_once()
+
+        self.assertEqual(
+            result,
+            {
+                "total": 2,
+                "count": 2,
+                "page": 1,
+                "per_page": 50,
+                "results": [
+                    {
+                        "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                        "account": "test",
+                        "display_name": "test01.rhel7.jharting.local",
+                        "ansible_host": "test01.rhel7.jharting.local",
+                        "created": "2019-02-10T08:07:03.354307+00:00",
+                        "updated": "2019-02-10T08:07:03.354312+00:00",
+                        "fqdn": "fqdn.test01.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "reporter": "puptoo",
+                        "rhel_machine_id": None,
+                        "subscription_manager_id": None,
+                        "bios_uuid": None,
+                        "ip_addresses": None,
+                        "mac_addresses": None,
+                        "external_id": None,
+                        "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
+                        "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
+                        "facts": [],
+                    },
+                    {
+                        "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                        "account": "test",
+                        "display_name": "test02.rhel7.jharting.local",
+                        "ansible_host": "test02.rhel7.jharting.local",
+                        "created": "2019-01-10T08:07:03.354307+00:00",
+                        "updated": "2019-01-10T08:07:03.354312+00:00",
+                        "fqdn": "fqdn.test02.rhel7.jharting.local",
+                        "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                        "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                        "stale_timestamp": "2020-01-10T08:07:03.354307+00:00",
+                        "reporter": "puptoo",
+                        "rhel_machine_id": None,
+                        "subscription_manager_id": None,
+                        "bios_uuid": None,
+                        "ip_addresses": None,
+                        "mac_addresses": None,
+                        "external_id": None,
+                        "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
+                        "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
+                        "facts": [
+                            {"namespace": "os", "facts": {"os.release": "Red Hat Enterprise Linux Server"}},
+                            {
+                                "namespace": "bios",
+                                "facts": {
+                                    "bios.vendor": "SeaBIOS",
+                                    "bios.release_date": "2014-04-01",
+                                    "bios.version": "1.11.0-2.el7",
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        )
+
+    @patch_with_response()
+    def test_response_pagination_index_error(self, graphql_query):
+        self.get(f"{HOST_URL}?per_page=2&page=3", 404)
+        graphql_query.assert_called_once()
+
+
+class HostsXjoinTimestampsTestCase(HostsXjoinBaseTestCase):
+    @staticmethod
+    def _xjoin_host_response(timestamp):
+        return {
+            "hosts": {
+                **MOCK_XJOIN_HOST_RESPONSE["hosts"],
+                "meta": {"total": 1},
+                "data": [
+                    {
+                        **MOCK_XJOIN_HOST_RESPONSE["hosts"]["data"][0],
+                        "created_on": timestamp,
+                        "modified_on": timestamp,
+                        "stale_timestamp": timestamp,
+                    }
+                ],
+            }
+        }
+
+    def test_valid_without_decimal_part(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03Z")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T08:07:03+00:00")
+
+    def test_valid_with_offset_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307+01:00")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            get_host_list_response = self.get(HOST_URL, 200)
+            retrieved_host = get_host_list_response["results"][0]
+            self.assertEqual(retrieved_host["stale_timestamp"], "2020-02-10T07:07:03.354307+00:00")
+
+    def test_invalid_without_timezone(self):
+        xjoin_host_response = self._xjoin_host_response("2020-02-10T08:07:03.354307")
+        with patch("api.host_query_xjoin.graphql_query", return_value=xjoin_host_response):
+            self.get(HOST_URL, 500)
+
+
+@patch("api.tag.xjoin_enabled", return_value=True)
+class TagsRequestTestCase(XjoinRequestBaseTestCase):
+    patch_with_empty_response = partial(
+        patch, "api.tag.graphql_query", return_value={"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
+    )
+
+    def test_headers_forwarded(self, xjoin_enabled):
+        value = {"data": {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}}
+        with self._patch_xjoin_post(value) as resp:
+            req_id = "353b230b-5607-4454-90a1-589fbd61fde9"
+            self._get_with_request_id(TAGS_URL, req_id)
+            self._assert_called_with_headers(resp, req_id)
+
+    @patch_with_empty_response()
+    def test_query_variables_default_except_staleness(self, graphql_query, xjoin_enabled):
+        self.get(TAGS_URL, 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}}
+        )
+
+    @patch_with_empty_response()
+    @patch("app.culling.datetime")
+    def test_query_variables_default_staleness(self, datetime_mock, graphql_query, xjoin_enabled):
+        datetime_mock.now.return_value = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+
+        self.get(TAGS_URL, 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "hostFilter": {
+                    "OR": [
+                        {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                        {
+                            "stale_timestamp": {
+                                "gte": "2019-12-09T10:10:06.754201+00:00",
+                                "lte": "2019-12-16T10:10:06.754201+00:00",
+                            }
+                        },
+                    ]
+                },
+            },
+        )
+
+    @patch("app.culling.datetime")
+    def test_query_variables_staleness(self, datetime_mock, xjoin_enabled):
+        now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+        datetime_mock.now = mock.Mock(return_value=now)
+
+        for staleness, expected in (
+            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ):
+            with self.subTest(staleness=staleness):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": "ASC",
+                            "limit": 50,
+                            "offset": 0,
+                            "hostFilter": {"OR": [{"stale_timestamp": expected}]},
+                        },
+                    )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_simple(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=insights-client/os=fedora", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}],
+                    "OR": ANY,
+                },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_complex(self, graphql_query, xjoin_enabled):
+        tag1 = Tag("Sat", "env", "prod")
+        tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
+
+        self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": [
+                        {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}},
+                        {
+                            "tag": {
+                                "namespace": "insights-client",
+                                "key": "special/keyΔwithčhars",
+                                "value": "special/valueΔwithčhars!",
+                            }
+                        },
+                    ],
+                    "OR": ANY,
+                },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_search(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?search={quote('Δwithčhar!/~|+ ')}", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
+                "hostFilter": {"OR": ANY},
+            },
+        )
+
+    def test_query_variables_ordering_dir(self, xjoin_enabled):
+        for direction in ["ASC", "DESC"]:
+            with self.subTest(direction=direction):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?order_how={direction}", 200)
+
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": direction,
+                            "limit": 50,
+                            "offset": 0,
+                            "hostFilter": {"OR": ANY},
+                        },
+                    )
+
+    def test_query_variables_ordering_by(self, xjoin_enabled):
+        for ordering in ["tag", "count"]:
+            with self.patch_with_empty_response() as graphql_query:
+                self.get(f"{TAGS_URL}?order_by={ordering}", 200)
+
+                graphql_query.assert_called_once_with(
+                    TAGS_QUERY,
+                    {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": ANY}},
+                )
+
+    def test_response_pagination(self, xjoin_enabled):
+        for page, limit, offset in [(1, 2, 0), (2, 2, 2), (4, 50, 150)]:
+            with self.subTest(page=page):
+                with self.patch_with_empty_response() as graphql_query:
+                    self.get(f"{TAGS_URL}?per_page={limit}&page={page}", 200)
+
+                    graphql_query.assert_called_once_with(
+                        TAGS_QUERY,
+                        {
+                            "order_by": "tag",
+                            "order_how": "ASC",
+                            "limit": limit,
+                            "offset": offset,
+                            "hostFilter": {"OR": ANY},
+                        },
+                    )
+
+    def test_response_invalid_pagination(self, xjoin_enabled):
+        for page, per_page in [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)]:
+            with self.subTest(page=page):
+                with self.patch_with_empty_response():
+                    self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
+
+
+@patch("api.tag.xjoin_enabled", return_value=True)
+class TagsResponseTestCase(APIBaseTestCase):
+    RESPONSE = {
+        "hostTags": {
+            "meta": {"count": 3, "total": 3},
+            "data": [
+                {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
+                {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
+                {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+            ],
+        }
+    }
+
+    patch_with_tags = partial(patch, "api.tag.graphql_query", return_value=RESPONSE)
+
+    @patch_with_tags()
+    def test_response_processed_properly(self, graphql_query, xjoin_enabled):
+        expected = self.RESPONSE["hostTags"]
+        result = self.get(TAGS_URL, 200)
+        graphql_query.assert_called_once()
+
+        self.assertEqual(
+            result,
+            {
+                "total": expected["meta"]["total"],
+                "count": expected["meta"]["count"],
+                "page": 1,
+                "per_page": 50,
+                "results": expected["data"],
+            },
+        )
+
+    @patch_with_tags()
+    def test_response_pagination_index_error(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?per_page=2&page=3", 404)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": ANY}}
+        )
+
+
+class xjoinBulkSourceSwitchTestCaseEnvXjoin(DBAPITestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db FAILING
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_not_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use xjoin
+    def test_no_header_env_var_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200)
+        graphql_query.assert_called_once()
+
+
+class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
+    def setUp(self):
+        with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
+            super().setUp()
+
+    patch_with_response = partial(patch, "api.host_query_xjoin.graphql_query", return_value=MOCK_XJOIN_HOST_RESPONSE)
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_db(self, graphql_query):  # FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()
+    def test_bulk_source_header_set_to_xjoin(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()
+    def test_referer_not_beta(self, graphql_query):  # should use db FAILING
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/something"})
+        graphql_query.assert_not_called()
+
+    @patch_with_response()  # should use xjoin
+    def test_referer_header_set_to_beta(self, graphql_query):
+        self.get(f"{HOST_URL}", 200, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"})
+        graphql_query.assert_called_once()
+
+    @patch_with_response()  # should use db FAILING
+    def test_no_header_env_var_db(self, graphql_query):
+        self.get(f"{HOST_URL}", 200)
+        graphql_query.assert_not_called()
 
 
 if __name__ == "__main__":

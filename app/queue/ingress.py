@@ -4,7 +4,8 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 
-from app import staleness_offset
+from app import inventory_config
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
@@ -13,10 +14,13 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
 from app.queue.egress import build_event
+from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
 
 logger = get_logger(__name__)
+
+EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 
 
 class OperationSchema(Schema):
@@ -91,7 +95,10 @@ def add_host(host_data):
         try:
             logger.info("Attempting to add host...")
             input_host = deserialize_host(host_data)
-            (output_host, add_results) = host_repository.add_host(input_host, staleness_offset())
+            staleness_timestamps = Timestamps.from_config(inventory_config())
+            (output_host, add_results) = host_repository.add_host(
+                input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
+            )
             metrics.add_host_success.labels(
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated

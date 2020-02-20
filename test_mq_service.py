@@ -87,8 +87,16 @@ class MQServiceTestCase(MQServiceBaseTestCase):
     def test_handle_message_happy_path(self, datetime_mock):
         expected_insights_id = str(uuid.uuid4())
         host_id = uuid.uuid4()
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
-        message = {"operation": "add_host", "data": {"insights_id": expected_insights_id, "account": "0000001"}}
+        timestamp_iso = datetime_mock.utcnow.return_value.replace(tzinfo=timezone.utc).isoformat()
+        message = {
+            "operation": "add_host",
+            "data": {
+                "insights_id": expected_insights_id,
+                "account": "0000001",
+                "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+                "reporter": "test",
+            },
+        }
         with self.app.app_context():
             with unittest.mock.patch("app.queue.ingress.host_repository.add_host") as m:
                 m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
@@ -198,7 +206,13 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
         metadata = {"request_id": request_id, "archive_url": "https://some.url"}
 
-        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+        }
 
         message = {"operation": "add_host", "platform_metadata": metadata, "data": host_data}
 
@@ -216,7 +230,13 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
     def test_handle_message_verify_metadata_is_not_required(self):
         expected_insights_id = str(uuid.uuid4())
 
-        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+        }
 
         message = {"operation": "add_host", "data": host_data}
 
@@ -226,9 +246,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
 
-        host_keys_to_check = ["display_name", "insights_id", "account"]
-
-        for key in host_keys_to_check:
+        for key in host_data.keys():
             self.assertEqual(
                 json.loads(mock_event_producer.get_write_event())["host"][key], expected_results["host"][key]
             )
@@ -241,9 +259,15 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         Tests adding a host with some simple data
         """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+        timestamp_iso = datetime_mock.utcnow.return_value.replace(tzinfo=timezone.utc).isoformat()
 
-        host_data = {"display_name": "test_host", "insights_id": expected_insights_id, "account": "0000001"}
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+        }
 
         expected_results = {
             "host": {**host_data},
@@ -257,18 +281,20 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_host_add_with_system_profile(self, datetime_mock):
+    def test_add_host_with_system_profile(self, datetime_mock):
         """
          Tests adding a host with message containing system profile
-         """
+        """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.utcnow.return_value.isoformat() + "+00:00"
+        timestamp_iso = datetime_mock.utcnow.return_value.replace(tzinfo=timezone.utc).isoformat()
 
         host_data = {
             "display_name": "test_host",
             "insights_id": expected_insights_id,
             "account": "0000001",
             "system_profile": valid_system_profile(),
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
         }
 
         expected_results = {
@@ -278,7 +304,40 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "type": "created",
         }
 
-        host_keys_to_check = ["display_name", "insights_id", "account"]
+        host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_with_tags(self, datetime_mock):
+        """
+         Tests adding a host with message containing tags
+        """
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.replace(tzinfo=timezone.utc).isoformat()
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+            "tags": [
+                {"namespace": "NS1", "key": "key3", "value": "val3"},
+                {"namespace": "NS3", "key": "key2", "value": "val2"},
+                {"namespace": "Sat", "key": "prod", "value": None},
+                {"namespace": None, "key": "key", "value": "val"},
+            ],
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
@@ -317,44 +376,55 @@ class MQCullingTests(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-    def _base_incomplete_staleness_data_test(self, additional_host_data):
-        expected_insights_id = str(uuid.uuid4())
-
-        host_data = {
-            "display_name": "test_host",
-            "insights_id": expected_insights_id,
-            "account": "0000001",
-            **additional_host_data,
-        }
-
-        message = {"operation": "add_host", "data": host_data}
+    def test_add_host_stale_timestamp_missing_culling_fields(self):
+        """
+        tests to check the API will reject a host if it doesn’t have both
+        culling fields. This should raise InventoryException.
+        """
         mock_event_producer = mockEventProducer()
 
-        with self.app.app_context():
-            with self.assertRaises(InventoryException):
-                handle_message(json.dumps(message), mock_event_producer)
+        additional_host_data = ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}, {})
+        for host_data in additional_host_data:
+            with self.subTest(host_data=host_data):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": str(uuid.uuid4()),
+                    "account": "0000001",
+                    **host_data,
+                }
+                message = {"operation": "add_host", "data": host_data}
 
-    def test_add_host_stale_timestamp_no_reporter(self):
+                with self.app.app_context():
+                    with self.assertRaises(InventoryException):
+                        handle_message(json.dumps(message), mock_event_producer)
+
+    def test_add_host_stale_timestamp_invalid_culling_fields(self):
         """
-        tests to check the API will reject a host if it has a stale_timestamp
-        without a reporter. This shoul raise an inventory exception
+        tests to check the API will reject a host if it doesn’t have both
+        culling fields. This should raise InventoryException.
         """
+        mock_event_producer = mockEventProducer()
 
-        stale_timestamp = datetime.now(timezone.utc)
+        additional_host_data = (
+            {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": ""},
+            {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": None},
+            {"stale_timestamp": "not a timestamp", "reporter": "puptoo"},
+            {"stale_timestamp": "", "reporter": "puptoo"},
+            {"stale_timestamp": None, "reporter": "puptoo"},
+        )
+        for host_data in additional_host_data:
+            with self.subTest(host_data=host_data):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": str(uuid.uuid4()),
+                    "account": "0000001",
+                    **host_data,
+                }
+                message = {"operation": "add_host", "data": host_data}
 
-        additional_host_data = {"stale_timestamp": stale_timestamp.isoformat()}
-
-        self._base_incomplete_staleness_data_test(additional_host_data)
-
-    def test_add_host_reporter_no_stale_timestamp(self):
-        """
-        tests to check the API will reject a host if it has a stale_timestamp
-        without a reporter. This shoul raise an inventory exception
-        """
-
-        additional_host_data = {"reporter": "puptoo"}
-
-        self._base_incomplete_staleness_data_test(additional_host_data)
+                with self.app.app_context():
+                    with self.assertRaises(InventoryException):
+                        handle_message(json.dumps(message), mock_event_producer)
 
 
 class MQValidateJsonObjectForUtf8TestCase(TestCase):
