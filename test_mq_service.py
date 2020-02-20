@@ -398,7 +398,7 @@ class MQCullingTests(MQAddHostBaseClass):
                     with self.assertRaises(InventoryException):
                         handle_message(json.dumps(message), mock_event_producer)
 
-    def test_add_host_stale_timestamp_invalud_culling_fields(self):
+    def test_add_host_stale_timestamp_invalid_culling_fields(self):
         """
         tests to check the API will reject a host if it doesn’t have both
         culling fields. This should raise InventoryException.
@@ -407,8 +407,10 @@ class MQCullingTests(MQAddHostBaseClass):
 
         additional_host_data = (
             {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": ""},
+            {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": None},
             {"stale_timestamp": "not a timestamp", "reporter": "puptoo"},
             {"stale_timestamp": "", "reporter": "puptoo"},
+            {"stale_timestamp": None, "reporter": "puptoo"},
         )
         for host_data in additional_host_data:
             with self.subTest(host_data=host_data):
