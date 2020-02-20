@@ -1,9 +1,9 @@
 from enum import Enum
 
+import connexion
 import flask
 from flask_api import status
 from marshmallow import ValidationError
-from sqlalchemy.orm.base import instance_state
 
 from api import api_operation
 from api import build_collection_response
@@ -15,7 +15,6 @@ from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
-from app import events
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
@@ -31,16 +30,16 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.serialization import deserialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
-from tasks import emit_event
-
-# from api.host_query_db import find_hosts_by_staleness
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
+XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
+REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
 
@@ -108,6 +107,18 @@ def _add_host(input_host):
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
+def get_bulk_query_source():
+    if XJOIN_HEADER in connexion.request.headers:
+        if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
+            return BulkQuerySource.xjoin
+        elif connexion.request.headers[XJOIN_HEADER].lower() == "db":
+            return BulkQuerySource.db
+    if REFERAL_HEADER in connexion.request.headers:
+        if "/beta" in connexion.request.headers[REFERAL_HEADER]:
+            return inventory_config().bulk_query_source_beta
+    return inventory_config().bulk_query_source
+
+
 @api_operation
 @metrics.api_request_time.time()
 def get_host_list(
@@ -125,8 +136,10 @@ def get_host_list(
     total = 0
     host_list = ()
 
-    config = inventory_config()
-    get_host_list = GET_HOST_LIST_FUNCTIONS[config.bulk_query_source]
+    bulk_query_source = get_bulk_query_source()
+
+    get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
+
     try:
         host_list, total = get_host_list(
             display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness
@@ -144,37 +157,23 @@ def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
-
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-        hosts_to_delete = query.all()
+        if not query.count():
+            flask.abort(status.HTTP_404_NOT_FOUND)
 
-        if not hosts_to_delete:
-            return flask.abort(status.HTTP_404_NOT_FOUND)
-
-        with metrics.delete_host_processing_time.time():
-            query.delete(synchronize_session="fetch")
-        db.session.commit()
-
-        metrics.delete_host_count.inc(len(hosts_to_delete))
-
-        # This process of checking for an already deleted host relies
-        # on checking the session after it has been updated by the commit()
-        # function and marked the deleted hosts as expired.  It is after this
-        # change that the host is called by a new query and, if deleted by a
-        # different process, triggers the ObjectDeletedError and is not emited.
-        for deleted_host in hosts_to_delete:
-            # Prevents ObjectDeletedError from being raised.
-            if instance_state(deleted_host).expired:
-                # Can’t log the Host ID. Accessing an attribute raises ObjectDeletedError.
-                logger.info("Host already deleted. Delete event not emitted.")
+        for host_id, deleted in delete_hosts(query):
+            if deleted:
+                logger.info("Deleted host: %s", host_id)
+                tracker_message = "deleted host"
             else:
-                with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message="deleted host"
-                ) as payload_tracker_processing_ctx:
-                    logger.debug("Deleted host: %s", deleted_host)
-                    emit_event(events.delete(deleted_host))
-                    payload_tracker_processing_ctx.inventory_id = deleted_host.id
+                logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+                tracker_message = "not deleted host"
+
+            with PayloadTrackerProcessingContext(
+                payload_tracker, processing_status_message=tracker_message
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = host_id
 
 
 @api_operation
