@@ -3106,13 +3106,11 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     def _assert_host_tags_results_equal(self, expected_filtered_results, given_results):
         self.assertEqual(len(expected_filtered_results), len(given_results))
 
-        # expectedValues = list(expected_filtered_results.values())
-        # givenValues = list(given_results.values())
+        expectedValues = list(expected_filtered_results.values())
+        givenValues = list(given_results.values())
 
-        # for i in range(len(givenValues)):
-        #     self.assertEqual(expectedValues[i], givenValues[i])
-
-        self.assertDictEqual(expected_filtered_results, given_results)
+        for i in range(len(givenValues)):
+            self.assertEqual(expectedValues[i], givenValues[i])
 
     def test_get_filtered_by_search_tags_of_multiple_hosts(self):
         """
@@ -3224,8 +3222,8 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        for i in range(len(searchTerms)):
-            test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={searchTerms[i]}"
+        for i, search_term in enumerate(searchTerms):
+            test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={search_term}"
             response = self.get(test_url, 200)
 
             self._assert_host_tags_results_equal(expected_filtered_results[i], response["results"])
