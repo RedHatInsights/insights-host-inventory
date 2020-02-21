@@ -214,15 +214,15 @@ class Tag:
         # + Quantifier — Matches between one and unlimited times, as many times as possible, giving back as needed
         # the list of special characters that are not percent encoded is -._~()*!\' from Appendix D of RFC3986
 
-        groups = re.match(r"([\w.\-()*%~_!\']+)\/([\w.\-()*%~_!\']+)=([\w.\-()*%~_~!\']+)", string_tag)
+        groups = re.match(r"([\w.\-()*%~_~!\']+)\/([\w.\-()*%~_~!\']+)=([\w.\-()*%~_~!\']+)", string_tag)
         if groups:  # NS/key=value
             namespace, key, value = groups.group(1), groups.group(2), groups.group(3)
         else:
-            groups = re.match(r"([\w.\-()*%~_!\']+)\/([\w.\-()*%~_!\']+)", string_tag)  # NS/key
+            groups = re.match(r"([\w.\-()*%~_~!\']+)\/([\w.\-()*%~_~!\']+)", string_tag)  # NS/key
             if groups:
                 namespace, key = groups.group(1), groups.group(2)
             else:
-                groups = re.match(r"([\w.\-()*%~_!\']+)=([\w.\-()*%~_!\']+)", string_tag)  # key=value
+                groups = re.match(r"([\w.\-()*%~_~!\']+)=([\w.\-()*%~_~!\']+)", string_tag)  # key=value
                 if groups:
                     key, value = re.split(r"=", string_tag)
                 else:  # key
