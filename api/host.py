@@ -367,6 +367,18 @@ def _build_serialized_tags(host_list, search=None):
     return response_tags
 
 
+# def _build_serialized_tags(host_list, search):
+#     search_filter = Tag.filter_tags(search)
+#     return {str(host.id): _build_serialized_tags_for_host(host, search_filter) for host in host_list}
+
+
+# def _build_serialized_tags_for_host(host, search_filter):
+#     tags = Tag.create_tags_from_nested(host.tags)
+#     if search_filter:
+#         tags = filter(search_filter, tags)
+#     return [tag.data() for tag in tags]
+
+
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = build_collection_response(tags_list, page, per_page, total)
     return flask_json_response(json_output)
