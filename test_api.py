@@ -2646,7 +2646,7 @@ class QueryStalenessBaseTestCase(DBAPITestCase):
         return response["results"]
 
 
-class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
+class QueryStalenessGetHostsBaseCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
         current_timestamp = now()
@@ -2672,10 +2672,8 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTest
     def _get_created_hosts_by_id_url(self, query):
         return self._get_hosts_by_id_url(query, self._created_hosts())
 
-    def _get_created_hosts_by_id(self, query):
-        hosts = self._get_hosts_by_id(query, self._created_hosts())
-        return tuple(host for host in hosts)
 
+class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseCase):
     def _sub_tests_for_get_operations(self):
         for method in (self._get_all_hosts,):
             with self.subTest(method=method):
@@ -2693,6 +2691,12 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTest
     def test_get_only_stale_warning(self):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale_warning")
         self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
+
+
+class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase):
+    def _get_created_hosts_by_id(self, query):
+        hosts = self._get_hosts_by_id(query, self._created_hosts())
+        return tuple(host for host in hosts)
 
     def test_dont_get_only_culled(self):
         for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
@@ -2712,7 +2716,7 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTest
 
     def test_get_system_profile_ignores_culled(self):
         results = self._get_created_hosts_by_id("/system_profile")
-        expected_hosts = (self.stale_host["id"], self.fresh_host["id"])
+        expected_hosts = (self.stale_warning_host["id"], self.stale_host["id"], self.fresh_host["id"])
 
         retrieved_host_ids = ()
         for result in results:
