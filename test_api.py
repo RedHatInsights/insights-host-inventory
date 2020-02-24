@@ -1126,16 +1126,21 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
             deleted_host = hosts_by_ids[event["id"]]
             self.assertEqual(deleted_host.insights_id, event["insights_id"])
 
+    def _get_hosts_from_db(self, host_ids):
+        retrieved_ids = []
+        with self.app.app_context():
+            for host_id in host_ids:
+                if Host.query.filter(Host.id == host_id).first():
+                    retrieved_ids.append(host_id)
+        return retrieved_ids
+
     def _check_hosts_are_present(self, host_ids):
-        response = self._get_hosts(host_ids)
-        self.assertEqual(response["total"], len(host_ids))
+        retrieved_ids = self._get_hosts_from_db(host_ids)
+        self.assertEqual(len(retrieved_ids), len(host_ids))
 
     def _check_hosts_are_deleted(self, host_ids):
-        response = self._get_hosts(host_ids)
-
-        self.assertEqual(response["count"], 0)
-        self.assertEqual(response["total"], 0)
-        self.assertEqual(response["results"], [])
+        retrieved_ids = self._get_hosts_from_db(host_ids)
+        self.assertEqual(retrieved_ids, [])
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -1214,8 +1219,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self._run_host_reaper()
 
-        response = self._get_hosts(added_host_ids)
-        self.assertEqual(response["count"], len(hosts_to_add))
+        self._check_hosts_are_present(added_host_ids)
 
     def test_unknown_host_is_not_removed(self, emit_event):
         added_hosts = self._add_hosts(({},))
