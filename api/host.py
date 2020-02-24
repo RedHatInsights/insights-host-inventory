@@ -41,7 +41,7 @@ TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
-DEFAULT_STALENESS_PARAM = ["fresh", "stale", "stale_warning"]
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
 
 logger = get_logger(__name__)
 
@@ -160,7 +160,8 @@ def delete_by_id(host_id_list):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-        query = find_hosts_by_staleness(DEFAULT_STALENESS_PARAM, query)
+        #  TODO: probably remove
+        # query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
@@ -183,11 +184,10 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-
-    if staleness:
-        query = find_hosts_by_staleness(staleness, query)
+    # TODO: probably remove
+    # query = find_hosts_by_staleness(["fresh", "stale"], query)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -204,7 +204,9 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
+    return find_hosts_by_staleness(
+        ALL_STALENESS_STATES, Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
+    )
 
 
 @api_operation
@@ -239,7 +241,7 @@ def patch_by_id(host_id_list, host_data):
 
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    query = find_hosts_by_staleness(DEFAULT_STALENESS_PARAM, query)
+    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
     hosts_to_update = query.all()
 
