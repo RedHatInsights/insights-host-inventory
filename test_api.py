@@ -2750,6 +2750,24 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
         self.put(url, {"ARCHITECTURE": "patched"}, 404)
 
 
+class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
+    def _check_query_fails(self, endpoint="", query=""):
+        url = self._get_hosts_by_id_url(self._created_hosts(), endpoint, query)
+        self.get(url, 400)
+
+    def test_get_host_by_id_doesnt_use_staleness_parameter(self):
+        self._check_query_fails(query="?staleness=fresh")
+
+    def test_tags_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/tags", "?staleness=fresh")
+
+    def test_tags_count_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/tags/count", "?staleness=fresh")
+
+    def test_sytem_profile_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/system_profile", "?staleness=fresh")
+
+
 class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
     def _create_and_get_host(self, stale_timestamp):
         host_to_create = self._create_host(stale_timestamp)
