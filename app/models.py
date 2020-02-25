@@ -289,7 +289,7 @@ class SystemProfileSchema(Schema):
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
     insights_client_version = fields.Str(validate=validate.Length(max=50))
     insights_egg_version = fields.Str(validate=validate.Length(max=50))
-    captured_date = fields.Str(validate=validate.Length(max=30))
+    captured_date = fields.Str(validate=validate.Length(max=32))
     installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
     installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
     enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
