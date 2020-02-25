@@ -186,8 +186,6 @@ def delete_by_id(host_id_list):
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-    # TODO: probably remove
-    # query = find_hosts_by_staleness(["fresh", "stale"], query)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -220,7 +218,6 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
         flask.abort(400, str(e))
     else:
         query = query.order_by(*order_by)
-
     query_results = query.paginate(page, per_page, True)
 
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
@@ -308,7 +305,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    query = find_hosts_by_staleness(["fresh", "stale"], query)
+    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -346,7 +343,7 @@ def _count_tags(host_list):
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
 
-    query = find_hosts_by_staleness(["fresh", "stale"], query)
+    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
