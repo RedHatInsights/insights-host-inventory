@@ -160,8 +160,6 @@ def delete_by_id(host_id_list):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-        #  TODO: probably remove
-        # query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)

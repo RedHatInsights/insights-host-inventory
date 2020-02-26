@@ -2729,18 +2729,25 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
 
         self.assertEqual(expected_host_ids, retrieved_host_ids)
 
-    def test_delete_ignores_culled(self):
-        url = HOST_URL + "/" + self.culled_host["id"]
-
-        self.delete(url, 404)
-
     def test_patch_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 404)
 
+    def test_patch_works_on_non_culled(self):
+        host_id_url_list = ",".join([self.fresh_host["id"]])
+        url = HOST_URL + "/" + host_id_url_list
+
+        self.patch(url, {"display_name": "patched"}, 200)
+
     def test_patch_facts_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"] + "/rhsm"
+
+        self.patch(url, {"ARCHITECTURE": "patched"}, 404)
+
+    def test_patch_facts_works_on_non_culled(self):
+        host_id_url_list = ",".join([self.fresh_host["id"]])
+        url = HOST_URL + "/" + host_id_url_list + "/rhsm"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 404)
 
@@ -2748,6 +2755,25 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
         url = HOST_URL + "/" + self.culled_host["id"] + "/otherNS"
 
         self.put(url, {"ARCHITECTURE": "patched"}, 404)
+
+    def test_put_facts_works_on_non_culled(self):
+        host_id_url_list = ",".join([self.fresh_host["id"]])
+        url = HOST_URL + "/" + host_id_url_list + "/otherNS"
+
+        self.put(url, {"ARCHITECTURE": "patched"}, 404)
+
+    def test_delete_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"]
+
+        self.delete(url, 404)
+
+    # TODO: Need to look at how the other delete tests work and mock whatever function is producing the Nonetype that
+    #       Causes this to 500
+    # def test_delete_works_on_non_culled(self):
+    #     host_id_url_list =  ",".join([self.fresh_host["id"]])
+    #     url = HOST_URL + "/" + self.stale_host["id"]
+    #     print(url)
+    #     self.delete(url, 200)
 
 
 class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
