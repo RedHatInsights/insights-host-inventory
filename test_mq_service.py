@@ -56,13 +56,18 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         Test to ensure that an exception in message handler method does not cause the
         event loop to stop processing messages
         """
-        # fake_consumer = [FakeKafkaMessage("blah"), FakeKafkaMessage("fred"), FakeKafkaMessage("ugh")]
-        fake_consumer = [Mock(), Mock(), Mock()]
+        fake_consumer = Mock()
+        fake_consumer.poll.return_value = {"poll1": [Mock(), Mock(), Mock()]}
+
         fake_event_producer = None
-
         handle_message_mock = Mock(side_effect=[None, KeyError("blah"), None])
-        event_loop(fake_consumer, self.app, fake_event_producer, handler=handle_message_mock)
-
+        event_loop(
+            fake_consumer,
+            self.app,
+            fake_event_producer,
+            handler=handle_message_mock,
+            shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        )
         self.assertEqual(handle_message_mock.call_count, 3)
 
     def test_handle_message_failure_invalid_json_message(self):
@@ -115,6 +120,22 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                         "type": "created",
                     },
                 )
+
+    def test_shutdown_handler(self):
+        fake_consumer = Mock()
+        fake_consumer.poll.return_value = {"poll1": [Mock(), Mock()]}
+
+        fake_event_producer = None
+        handle_message_mock = Mock(side_effect=[None, None])
+        event_loop(
+            fake_consumer,
+            self.app,
+            fake_event_producer,
+            handler=handle_message_mock,
+            shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        )
+        fake_consumer.poll.assert_called_once()
+        self.assertEqual(handle_message_mock.call_count, 2)
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
