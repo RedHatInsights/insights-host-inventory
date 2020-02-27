@@ -2693,7 +2693,7 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseCase):
         self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
 
 
-class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase):
+class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase, DeleteHostsBaseTestCase):
     def _get_created_hosts_by_id(self, endpoint="", query=""):
         hosts = self._get_hosts_by_id(self._created_hosts(), endpoint, query)
         if endpoint == "/tags" or endpoint == "/tags/count":
@@ -2767,13 +2767,11 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
 
         self.delete(url, 404)
 
-    # TODO: Need to look at how the other delete tests work and mock whatever function is producing the Nonetype that
-    #       Causes this to 500
-    # def test_delete_works_on_non_culled(self):
-    #     host_id_url_list =  ",".join([self.fresh_host["id"]])
-    #     url = HOST_URL + "/" + self.stale_host["id"]
-    #     print(url)
-    #     self.delete(url, 200)
+    def test_delete_works_on_non_culled(self):
+        with patch("lib.host_delete.emit_event", new_callable=MockEmitEvent):
+            host_id_url_list = ",".join([self.fresh_host["id"]])
+            url = HOST_URL + "/" + host_id_url_list
+            self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
