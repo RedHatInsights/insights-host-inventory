@@ -461,14 +461,12 @@ class TagUtilsTestCase(TestCase):
     structure to filtered structured test
     """
 
-    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_tags, searchTerm):
-        filtered_tags = Tag.filter_tags(structured_tags, searchTerm)
+    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_tags, search_term):
+        filtered_tags = Tag.filter_tags(structured_tags, search_term)
         self.assertEqual(len(filtered_tags), len(expected_filtered_tags))
 
         for i in range(len(filtered_tags)):
-            self.assertEqual(filtered_tags[i].namespace, expected_filtered_tags[i].namespace)
-            self.assertEqual(filtered_tags[i].key, expected_filtered_tags[i].key)
-            self.assertEqual(filtered_tags[i].value, expected_filtered_tags[i].value)
+            self.assertEqual(filtered_tags[i].to_string(), expected_filtered_tags[i].to_string())
 
     def test_simple_filter(self):
         structured_tags = [Tag("NS1", "key", "val"), Tag(None, "key", "something"), Tag("NS2", "key2")]
@@ -495,10 +493,15 @@ class TagUtilsTestCase(TestCase):
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "key1")
 
     def test_complex_filter(self):
-        structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
-        expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS3", "key3", "value3")]
+        structured_tags = [
+            Tag("NS1erTys", "kindLey1", "v!2#eyal"),
+            Tag(None),
+            Tag("yeNS2", "ke56ty2"),
+            Tag("NYES12E3", "keingRty3", "value3uiley"),
+        ]
+        expected_filtered_tags = [Tag("NS1erTys", "kindLey1", "v!2#eyal"), Tag("NYES12E3", "keingRty3", "value3uiley")]
 
-        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
+        self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "ey")
 
     def test_empty_filter(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
@@ -512,20 +515,19 @@ class TagUtilsTestCase(TestCase):
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, " ")
 
-    def test_search_prefix(self):
-        # namespace
+    def test_search_prefix_namespace(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
         expected_filtered_tags = [Tag("NS1", "key1", "val"), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "N")
 
-        # key
+    def test_search_prefix_key(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
         expected_filtered_tags = [Tag("NS2", "Key2")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "K")
 
-        # value
+    def test_search_prefix_value(self):
         structured_tags = [
             Tag("NS1", "key1", "val"),
             Tag(None),
@@ -536,20 +538,19 @@ class TagUtilsTestCase(TestCase):
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "val")
 
-    def test_search_suffix(self):
-        # namespace
+    def test_search_suffix_namespace(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "key2"), Tag("NS3", "key3", "value3")]
         expected_filtered_tags = [Tag("NS1", "key1", "val")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "S1")
 
-        # key
+    def test_search_suffix_key(self):
         structured_tags = [Tag("NS1", "key1", "val"), Tag(None), Tag("NS2", "Key2"), Tag("NS3", "key3", "value3")]
         expected_filtered_tags = [Tag("NS2", "Key2")]
 
         self._base_structured_to_filtered_test(structured_tags, expected_filtered_tags, "y2")
 
-        # value
+    def test_search_suffix_value(self):
         structured_tags = [
             Tag("NS1", "key1", "val"),
             Tag(None),
