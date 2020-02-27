@@ -1081,6 +1081,8 @@ components:
           type: string
         insights_egg_version:
           type: string
+        captured_date:
+          type: string
         installed_packages:
           type: array  # technically a set, ordering is not important
           items:
