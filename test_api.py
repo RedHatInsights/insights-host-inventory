@@ -52,7 +52,8 @@ ID = "whoabuddy"
 
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = ["aws/new_tag_1:new_value_1", "aws/k:v"]
-ACCOUNT = "000501"
+ACCOUNT1 = "000501"
+ACCOUNT2 = "000502"
 SHARED_SECRET = "SuperSecretStuff"
 MOCK_XJOIN_HOST_RESPONSE = {
     "hosts": {
@@ -116,7 +117,7 @@ def now():
 
 def test_data(**values):
     data = {
-        "account": ACCOUNT,
+        "account": ACCOUNT1,
         "display_name": "hi",
         # "insights_id": "1234-56-789",
         # "rhel_machine_id": "1234-56-789",
@@ -166,8 +167,8 @@ class APIBaseTestCase(TestCase):
             header.update(request_id_header)
         return header
 
-    def _get_valid_auth_header(self):
-        identity = Identity(account_number=ACCOUNT)
+    def _get_valid_auth_header(self, account=ACCOUNT1):
+        identity = Identity(account_number=account)
         dict_ = {"identity": identity._asdict()}
         json_doc = json.dumps(dict_)
         auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
@@ -180,21 +181,17 @@ class APIBaseTestCase(TestCase):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
 
-    def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
-        return self._response_check(
-            self.client().get(path, headers={**self._get_valid_auth_header(), **extra_headers}),
-            status,
-            return_response_as_json,
-        )
+    def get(self, path, status=200, return_response_as_json=True, extra_headers=None):
+        return self._make_http_call(self.client().get, path, status, return_response_as_json, extra_headers)
 
-    def post(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(self.client().post, path, data, status, return_response_as_json)
+    def post(self, path, data, status=200, return_response_as_json=True, extra_headers=None):
+        return self._make_http_call(self.client().post, path, status, return_response_as_json, extra_headers, data)
 
     def patch(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(self.client().patch, path, data, status, return_response_as_json)
+        return self._make_http_call(self.client().patch, path, status, return_response_as_json, None, data)
 
     def put(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
+        return self._make_http_call(self.client().put, path, status, return_response_as_json, None, data)
 
     def delete(self, path, status=200, header=None, return_response_as_json=True):
         headers = self._create_header(self._get_valid_auth_header(), header)
@@ -214,13 +211,10 @@ class APIBaseTestCase(TestCase):
         _verify_value("detail", expected_detail)
         _verify_value("type", expected_type)
 
-    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True):
-        json_data = json.dumps(data)
-        headers = self._get_valid_auth_header()
-        headers["content-type"] = "application/json"
-        return self._response_check(
-            http_method(path, data=json_data, headers=headers), status, return_response_as_json
-        )
+    def _make_http_call(self, http_method, path, status, return_response_as_json, extra_headers=None, data=None):
+        headers = {"Content-Type": "application/json", **self._get_valid_auth_header(), **(extra_headers or {})}
+        http_args = {"path": path, "headers": headers, "data": json.dumps(data)}
+        return self._response_check(http_method(**http_args), status, return_response_as_json)
 
     def _response_check(self, response, status, return_response_as_json):
         self.assertEqual(response.status_code, status)
@@ -518,7 +512,7 @@ class CreateHostsTestCase(DBAPITestCase):
 
     def test_create_host_with_mismatched_account_numbers(self):
         host_data = HostWrapper(test_data(facts=None))
-        host_data.account = ACCOUNT[::-1]
+        host_data.account = ACCOUNT1[::-1]
 
         response_data = self.post(HOST_URL, [host_data.data()], 207)
 
@@ -1695,7 +1689,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         for host in hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.id = generate_uuid()
-            host_wrapper.account = ACCOUNT
+            host_wrapper.account = ACCOUNT1
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = generate_uuid()
             host_wrapper.rhel_machine_id = generate_uuid()
@@ -1989,11 +1983,30 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         self._invalid_paging_parameters_test(test_url)
 
 
+class QueryAccountConditionTestCase(PreCreatedHostsBaseTestCase):
+    def _create_additional_host(self, **additional_values):
+        additional_host = HostWrapper(
+            {"account": ACCOUNT2, "stale_timestamp": now().isoformat(), "reporter": "puptoo", **additional_values}
+        )
+        identity_header = self._get_valid_auth_header(ACCOUNT2)
+        add_host_response = self.post(HOST_URL, [additional_host.data()], 207, extra_headers=identity_header)
+        self._verify_host_status(add_host_response, 0, 201)
+        return self._pluck_host_from_response(add_host_response, 0)
+
+    def test_query_by_fqdn(self):
+        fqdn = self.added_hosts[0].fqdn
+        added_host = self._create_additional_host(fqdn=fqdn, insights_id=generate_uuid())
+        response = self.get(f"{HOST_URL}?fqdn={fqdn}")
+
+        result_ids = tuple(result["id"] for result in response["results"])
+        self.assertNotIn(added_host["id"], result_ids)
+
+
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
-        host_wrapper.account = ACCOUNT
+        host_wrapper.account = ACCOUNT1
         host_wrapper.display_name = "host4"
         host_wrapper.insights_id = generate_uuid()
         host_wrapper.tags = []
@@ -2391,7 +2404,7 @@ class QueryOrderWithAdditionalHostsBaseTestCase(QueryOrderBaseTestCase):
     def setUp(self):
         super().setUp()
         host_wrapper = HostWrapper()
-        host_wrapper.account = ACCOUNT
+        host_wrapper.account = ACCOUNT1
         host_wrapper.display_name = "host1"  # Same as self.added_hosts[0]
         host_wrapper.insights_id = generate_uuid()
         host_wrapper.stale_timestamp = now().isoformat()
@@ -2599,7 +2612,12 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         reporter = "some reporter"
 
         host_to_create = HostWrapper(
-            {"account": ACCOUNT, "fqdn": "matching fqdn", "stale_timestamp": stale_timestamp_str, "reporter": reporter}
+            {
+                "account": ACCOUNT1,
+                "fqdn": "matching fqdn",
+                "stale_timestamp": stale_timestamp_str,
+                "reporter": reporter,
+            }
         )
 
         create_response = self.post(HOST_URL, [host_to_create.data()], 207)
@@ -2622,7 +2640,7 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
     def _create_host(self, stale_timestamp):
-        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        data = {"account": ACCOUNT1, "insights_id": str(generate_uuid())}
         if stale_timestamp:
             data["reporter"] = "some reporter"
             data["stale_timestamp"] = stale_timestamp.isoformat()
