@@ -64,6 +64,13 @@ pytest test_json_validators.py
 Depending on the environment, it might be necessary to set the DB related environment
 variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
+## Generate migration script
+
+Run this command to generate a new revision in `migrations/versions`
+```
+python manage.py db revision -m "Description of revision"
+```
+
 ## Running the server
 
 Prometheus was designed to run in a multi-threaded
