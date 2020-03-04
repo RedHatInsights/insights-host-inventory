@@ -352,10 +352,6 @@ class Tag:
                 filtered_tags.append(tag)
 
         return filtered_tags
-        # def _filter(tag):
-        #     values = tag.data().values()
-        #     return values is not None and search_term in values
-        # return _filter
 
     @staticmethod
     def create_tags_from_nested(nested_tags):
