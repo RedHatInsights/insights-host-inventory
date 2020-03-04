@@ -46,6 +46,7 @@ paths:
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/only'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -115,6 +116,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/only'
         # - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
@@ -470,6 +472,15 @@ components:
       description: Only include tags that match the given search string. The value is matched against namespace, key and value.
       schema:
         type: string
+    only:
+      in: query
+      name: only # TODO: rename this plx. Bad placeholder name
+      required: false
+      description: Boolean to filter out all non-insights enabled hosts
+      schema:
+        type: string
+        enum:
+          - insights
 
 
   schemas:
