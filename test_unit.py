@@ -390,7 +390,7 @@ class TagUtilsTestCase(TestCase):
     """
 
     def test_special_characters(self):
-        self._base_string_to_structured_test("-_NS*!/ke~y=v()alue", Tag("-_NS*!", "ke~y", "v()alue"))
+        self._base_string_to_structured_test("-_NS*!/k.e~y=v()a*lu!e", Tag("-_NS*!", "k.e~y", "v()a*lu!e"))
 
     """
     structured to string tests
