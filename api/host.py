@@ -354,7 +354,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     return _build_paginated_host_tags_response(query.total, page, per_page, tags)
 
 
-def _build_serialized_tags(host_list, search=None):
+def _build_serialized_tags(host_list, search):
     response_tags = {}
 
     for host in host_list:
@@ -365,22 +365,8 @@ def _build_serialized_tags(host_list, search=None):
         tag_dictionaries = []
         for tag in tags:
             tag_dictionaries.append(tag.data())
-
         response_tags[str(host.id)] = tag_dictionaries
-
     return response_tags
-
-
-# def _build_serialized_tags(host_list, search):
-#     search_filter = Tag.filter_tags(search)
-#     return {str(host.id): _build_serialized_tags_for_host(host, search_filter) for host in host_list}
-
-
-# def _build_serialized_tags_for_host(host, search_filter):
-#     tags = Tag.create_tags_from_nested(host.tags)
-#     if search_filter:
-#         tags = filter(search_filter, tags)
-#     return [tag.data() for tag in tags]
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
