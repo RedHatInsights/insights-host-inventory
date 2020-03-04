@@ -1676,7 +1676,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                 [
                     {"namespace": "NS1", "key": "key1", "value": "val1"},
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    {"namespace": "-_NS*!", "key": "k.e~y", "value": "v()a*lu!e"},
                 ],
             ),  # the same fqdn is intentional
             (
@@ -2199,7 +2199,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,-_NS*!/k.e~y=v()a*lu!e"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -2213,7 +2213,7 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,-_NS*!/k.e~y=v()a*lu!e"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -3045,7 +3045,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
     tags_list = [
         [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
-        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
+        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("-_NS*!", "k.e~y", "v()a*lu!e")],
         [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
     ]
@@ -3227,6 +3227,61 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
             response = self.get(test_url, 200)
 
             self._testing_apparatus_for_filtering(expected_filtered_results[i], response["results"])
+
+    # def test_regex_expansion_hosts_endpoint(self):
+    #     """
+    #     test to see if expanded regex characters can be rereived from hosts endpoint
+    #     """
+    #     host_list = self.added_hosts
+    #     #host_list = self.regex_hosts #TODO write this method!!!
+    #     url_host_id_list = self._build_host_id_list_for_url(host_list)
+
+    #     test_url = f"{HOST_URL}/{url_host_id_list}/tags"
+    #     response = self.get(test_url, 200)
+
+    #     print("!!!!!!!!!!!!!!!!!!!1")
+    #     print(response["results"])
+
+    # def regex_hosts(self):
+    #     """
+    #     host creation method to test mark characters: -._~()*!\'
+    #     """
+    #     hosts_to_create = [
+    #         (
+    #             "host1",
+    #             generate_uuid(),
+    #             "host1.domain.test",
+    #             [
+    #                 {"namespace": "-_NS*!", "key": "k.\e~y", "value": "v()a*lu!e"}
+    #             ]
+    #         )
+    #     ]
+
+    #     host_list = []
+
+    #     for host in hosts_to_create:
+    #         host_wrapper = HostWrapper()
+    #         host_wrapper.id = generate_uuid()
+    #         host_wrapper.account = ACCOUNT
+    #         host_wrapper.display_name = host[0]
+    #         host_wrapper.insights_id = generate_uuid()
+    #         host_wrapper.rhel_machine_id = generate_uuid()
+    #         host_wrapper.subscription_manager_id = generate_uuid()
+    #         host_wrapper.satellite_id = generate_uuid()
+    #         host_wrapper.bios_uuid = generate_uuid()
+    #         host_wrapper.ip_addresses = ["10.0.0.2"]
+    #         host_wrapper.fqdn = host[2]
+    #         host_wrapper.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+    #         host_wrapper.external_id = generate_uuid()
+    #         host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+    #         host_wrapper.tags = host[3]
+    #         host_wrapper.stale_timestamp = now().isoformat()
+    #         host_wrapper.reporter = "test"
+
+    #         response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
+    #         host_list.append(HostWrapper(response_data["data"][0]["host"]))
+
+    #     return host_list
 
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):
         """
