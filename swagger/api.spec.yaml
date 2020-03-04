@@ -46,6 +46,7 @@ paths:
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -469,6 +470,15 @@ components:
       description: Only include tags that match the given search string. The value is matched against namespace, key and value.
       schema:
         type: string
+    registered_with:
+      in: query
+      name: registered_with
+      required: false
+      description: Filters out any host not registered with the specified service
+      schema:
+        type: string
+        enum:
+          - insights
 
 
   schemas:

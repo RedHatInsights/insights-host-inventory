@@ -52,7 +52,17 @@ ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
 def get_host_list(
-    display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, param_order_by, param_order_how, staleness
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    tags,
+    page,
+    per_page,
+    param_order_by,
+    param_order_how,
+    staleness,
+    registered_with,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -62,7 +72,7 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness),
+        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -84,7 +94,7 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness):
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
     if fqdn:
         query_filters = ({"fqdn": fqdn},)
     elif display_name:
@@ -111,5 +121,4 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
-
     return query_filters

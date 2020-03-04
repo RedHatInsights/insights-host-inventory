@@ -21,7 +21,17 @@ logger = get_logger(__name__)
 
 
 def get_host_list(
-    display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    tags,
+    page,
+    per_page,
+    order_by,
+    order_how,
+    staleness,
+    registered_with,
 ):
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
@@ -41,6 +51,9 @@ def get_host_list(
     if staleness:
         query = find_hosts_by_staleness(staleness, query)
 
+    if registered_with:
+        query = find_hosts_with_insights_enabled(query)
+
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
@@ -48,6 +61,10 @@ def get_host_list(
     logger.debug("Found hosts: %s", query_results.items)
 
     return query_results.items, query_results.total
+
+
+def find_hosts_with_insights_enabled(query):
+    return query.filter(Host.canonical_facts["insights_id"].isnot(NULL))
 
 
 def find_hosts_by_staleness(staleness, query):
