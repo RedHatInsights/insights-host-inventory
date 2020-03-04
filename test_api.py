@@ -1793,6 +1793,28 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
+class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
+    # remove the insights ID from some hosts in setUp
+    def setUp(self):
+        super().setUp()
+        # add a host with no insights id
+        host_wrapper = HostWrapper()
+        host_wrapper.account = ACCOUNT
+        host_wrapper.id = generate_uuid()
+        host_wrapper.satellite_id = generate_uuid()
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
+        self.post(HOST_URL, [host_wrapper.data()], 207)
+
+    # get host list, check only ones with insight-id is returned
+    def test_get_hosts_only_insights(self):
+        result = self.get(HOST_URL + "?registered_with=insights")
+        result_ids = [host["id"] for host in result["results"]]
+        self.assertEqual(len(result_ids), 3)
+        expected_ids = [self.added_hosts[2].id, self.added_hosts[1].id, self.added_hosts[0].id]
+        self.assertEqual(result_ids, expected_ids)
+
+
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_update_fields(self):
         original_id = self.added_hosts[0].id

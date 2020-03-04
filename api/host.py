@@ -134,6 +134,7 @@ def get_host_list(
     order_by=None,
     order_how=None,
     staleness=None,
+    registered_with=None,
 ):
     total = 0
     host_list = ()
@@ -144,7 +145,17 @@ def get_host_list(
 
     try:
         host_list, total = get_host_list(
-            display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            tags,
+            page,
+            per_page,
+            order_by,
+            order_how,
+            staleness,
+            registered_with,
         )
     except ValueError as e:
         flask.abort(400, str(e))
