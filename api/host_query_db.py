@@ -38,16 +38,9 @@ def get_host_list(
         query = _find_hosts_by_tag(tags, query)
 
     if staleness:
-        # TODO: REMOVE
-        logger.info("in staleness")
         query = find_hosts_by_staleness(staleness, query)
 
-    # TODO: Remove
-    logger.info("0nly: %s", only)
-
     if only:
-        # TODO: Remove log statement
-        logger.info("QUERYING INSIGHTS ONLY")
         query = find_hosts_with_insights_enabled(query)
 
     order_by = params_to_order_by(order_by, order_how)
@@ -60,8 +53,6 @@ def get_host_list(
 
 
 def find_hosts_with_insights_enabled(query):
-    # TODO: lower the logging level
-    logger.info(Host.canonical_facts["insights_id"])
     return query.filter(Host.canonical_facts["insights_id"].isnot(NULL))
 
 
