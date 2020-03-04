@@ -15,6 +15,13 @@ branch_labels = None
 depends_on = None
 
 
+# Can be verified by:
+#
+#   SELECT "relreplident" FROM "pg_class" WHERE "oid" = 'hosts'::regclass;
+#
+# 'd' means DEFAULT, 'f' means FULL.
+
+
 def upgrade():
     op.execute('ALTER TABLE "hosts" REPLICA IDENTITY FULL')
 
