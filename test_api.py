@@ -2,6 +2,7 @@
 import copy
 import json
 import tempfile
+import urllib
 import uuid
 from base64 import b64encode
 from contextlib import contextmanager
@@ -1676,7 +1677,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                 [
                     {"namespace": "NS1", "key": "key1", "value": "val1"},
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "-_NS*!", "key": "k.e~y", "value": "v()a*lu!e"},
+                    {"namespace": "-_NS*!", "key": r"k.\e~y", "value": "v()a*lu!e"},
                 ],
             ),  # the same fqdn is intentional
             (
@@ -2199,7 +2200,13 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,-_NS*!/k.e~y=v()a*lu!e"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,_NS1/key=value"
+        response_list = self.get(test_url, 200)
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,!NS1/key=value"
+        response_list = self.get(test_url, 200)
+
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS2/key2=val2,*NS1/key=value"
         response_list = self.get(test_url, 200)
 
         self._compare_responses(expected_response_list, response_list, test_url)
@@ -2213,9 +2220,12 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        test_url = f"{HOST_URL}?tags=NS1/key1=val1,-_NS*!/k.e~y=v()a*lu!e"
+        # test_url = f"{HOST_URL}?tags=NS1/key1=val1,-_NS*!/k.\e~y=v()a*lu!e"
+        test_url = f"{HOST_URL}?tags=NS1/key1=val1"
+        test_url = urllib.parse.urlparse(test_url)
         response_list = self.get(test_url, 200)
-
+        print("!!!!!!!!!!!!!!!!")
+        print(response_list)
         self._compare_responses(expected_response_list, response_list, test_url)
 
     def test_get_host_with_different_tags_same_namespace(self):
@@ -3045,7 +3055,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
     tags_list = [
         [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
-        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("-_NS*!", "k.e~y", "v()a*lu!e")],
+        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("-_NS*!", r"k.\e~y", "v()a*lu!e")],
         [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
     ]
