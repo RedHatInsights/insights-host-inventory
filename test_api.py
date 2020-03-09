@@ -3723,6 +3723,24 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
                 self.get(f"{HOST_URL}?staleness={staleness}", 200)
                 self._assert_graph_query_single_call_with_staleness(graphql_query, (expected,))
 
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_multiple_staleness(self, datetime_mock, graphql_query):
+        staleness = "fresh,stale_warning"
+        graphql_query.reset_mock()
+        self.get(f"{HOST_URL}?staleness={staleness}", 200)
+        self._assert_graph_query_single_call_with_staleness(
+            graphql_query,
+            (
+                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {
+                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                },  # stale warning
+            ),
+        )
+
     def test_query_variables_staleness_with_search(self, graphql_query):
         for field, value in (
             ("fqdn", generate_uuid()),
@@ -3940,6 +3958,36 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                             "hostFilter": {"OR": [{"stale_timestamp": expected}]},
                         },
                     )
+
+    @patch("app.culling.datetime")
+    def test_multiple_query_variables_staleness(self, datetime_mock, xjoin_enabled):
+        now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+        datetime_mock.now = mock.Mock(return_value=now)
+
+        staleness = "fresh,stale_warning"
+        with self.patch_with_empty_response() as graphql_query:
+            self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": "tag",
+                    "order_how": "ASC",
+                    "limit": 50,
+                    "offset": 0,
+                    "hostFilter": {
+                        "OR": [
+                            {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                            {
+                                "stale_timestamp": {
+                                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                }
+                            },
+                        ]
+                    },
+                },
+            )
 
     @patch_with_empty_response()
     def test_query_variables_tags_simple(self, graphql_query, xjoin_enabled):
