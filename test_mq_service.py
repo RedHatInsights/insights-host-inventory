@@ -15,6 +15,7 @@ import marshmallow
 from app import create_app
 from app import db
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.queue.ingress import _validate_json_object_for_utf8
 from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
@@ -340,6 +341,52 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_empty_keys_system_profile(self, datetime_mock):
+        insights_id = str(uuid.uuid4())
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": insights_id,
+            "account": "0000001",
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test",
+            "system_profile": {"disk_devices": [{"options": {"": "invalid"}}]},
+        }
+        message = {"operation": "add_host", "data": host_data}
+
+        mock_event_producer = mockEventProducer()
+        with self.app.app_context():
+            with self.assertRaises(ValidationException):
+                handle_message(json.dumps(message), mock_event_producer)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_empty_keys_facts(self, datetime_mock):
+        insights_id = str(uuid.uuid4())
+
+        samples = (
+            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
+        )
+
+        mock_event_producer = mockEventProducer()
+
+        for facts in samples:
+            with self.subTest(facts=facts):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": insights_id,
+                    "account": "0000001",
+                    "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+                    "reporter": "test",
+                    "facts": facts,
+                }
+                message = {"operation": "add_host", "data": host_data}
+
+                with self.app.app_context():
+                    with self.assertRaises(ValidationException):
+                        handle_message(json.dumps(message), mock_event_producer)
 
 
 class MQCullingTests(MQAddHostBaseClass):

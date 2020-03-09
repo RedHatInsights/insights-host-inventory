@@ -15,6 +15,7 @@ from unittest import main
 from unittest import mock
 from unittest import TestCase
 from unittest.mock import ANY
+from unittest.mock import call
 from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
@@ -36,6 +37,8 @@ from app.utils import HostWrapper
 from app.utils import Tag
 from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
+from lib.host_repository import canonical_fact_host_query
+from lib.host_repository import canonical_facts_host_query
 from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
@@ -409,6 +412,33 @@ class CreateHostsTestCase(DBAPITestCase):
         data = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(data["results"][0], host_data, expected_id=original_id)
+
+    @patch("lib.host_repository.canonical_fact_host_query", wraps=canonical_fact_host_query)
+    @patch("lib.host_repository.canonical_facts_host_query", wraps=canonical_facts_host_query)
+    def test_match_host_by_elevated_id_performance(self, canonical_facts_host_query, canonical_fact_host_query):
+        subscription_manager_id = generate_uuid()
+        host_data = HostWrapper(test_data(subscription_manager_id=subscription_manager_id))
+        create_response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+
+        # Create a host with Subscription Manager ID
+        insights_id = generate_uuid()
+        host_data = HostWrapper(test_data(insights_id=insights_id, subscription_manager_id=subscription_manager_id))
+
+        canonical_fact_host_query.reset_mock()
+        canonical_facts_host_query.reset_mock()
+
+        # Update a host with Insights ID and Subscription Manager ID
+        update_response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(update_response, 0, 200)
+
+        expected_calls = (
+            call(ACCOUNT, "insights_id", insights_id),
+            call(ACCOUNT, "subscription_manager_id", subscription_manager_id),
+        )
+        canonical_fact_host_query.assert_has_calls(expected_calls)
+        self.assertEqual(canonical_fact_host_query.call_count, len(expected_calls))
+        canonical_facts_host_query.assert_not_called()
 
     def test_create_host_with_empty_facts_display_name_then_update(self):
         # Create a host with empty facts, and display_name
@@ -976,6 +1006,34 @@ class CreateHostsTestCase(DBAPITestCase):
         response = self.post(HOST_URL, [host_data.data()], 207)
 
         self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_system_profile(self):
+        samples = (
+            {"disk_devices": [{"options": {"": "invalid"}}]},
+            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
+            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
+            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
+        )
+
+        for sample in samples:
+            with self.subTest(system_profile=sample):
+                host_data = HostWrapper(test_data(system_profile=sample))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_facts(self):
+        samples = (
+            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
+        )
+
+        for facts in samples:
+            with self.subTest(facts=facts):
+                host_data = HostWrapper(test_data(facts=facts))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
@@ -2154,6 +2212,22 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         test_url = HOST_URL + "?insights_id=" + valid_insights_id + "&branch_id=123"
 
         self.get(test_url, 200)
+
+
+@patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
+@patch("api.host_query_db.canonical_facts_host_query", wraps=canonical_facts_host_query)
+class QueryByCanonicalFactPerformanceTestCase(DBAPITestCase):
+    def test_query_using_fqdn_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+        fqdn = "some fqdn"
+        self.get(f"{HOST_URL}?fqdn={fqdn}")
+        canonical_facts_host_query.assert_not_called()
+        canonical_fact_host_query.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
+
+    def test_query_using_insights_id_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+        insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
+        self.get(f"{HOST_URL}?insights_id={insights_id}")
+        canonical_facts_host_query.assert_not_called()
+        canonical_fact_host_query.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
 
 
 class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):

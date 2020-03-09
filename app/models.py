@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.validators import check_empty_keys
 from app.validators import verify_uuid_format
 
 
@@ -226,7 +227,7 @@ class Host(db.Model):
 class DiskDeviceSchema(Schema):
     device = fields.Str(validate=validate.Length(max=2048))
     label = fields.Str(validate=validate.Length(max=1024))
-    options = fields.Dict()
+    options = fields.Dict(validate=check_empty_keys)
     mount_point = fields.Str(validate=validate.Length(max=2048))
     type = fields.Str(validate=validate.Length(max=256))
 
@@ -297,7 +298,7 @@ class SystemProfileSchema(Schema):
 
 class FactsSchema(Schema):
     namespace = fields.Str()
-    facts = fields.Dict()
+    facts = fields.Dict(validate=check_empty_keys)
 
 
 class TagsSchema(Schema):
