@@ -234,8 +234,6 @@ def patch_by_id(host_id_list, host_data):
 
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
-    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
-
     hosts_to_update = query.all()
 
     if not hosts_to_update:
@@ -301,9 +299,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
-
-    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -339,9 +335,7 @@ def _count_tags(host_list):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
-
-    query = find_hosts_by_staleness(ALL_STALENESS_STATES, query)
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)

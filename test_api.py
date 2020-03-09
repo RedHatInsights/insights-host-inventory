@@ -1127,20 +1127,16 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
             self.assertEqual(deleted_host.insights_id, event["insights_id"])
 
     def _get_hosts_from_db(self, host_ids):
-        retrieved_ids = []
         with self.app.app_context():
-            for host_id in host_ids:
-                if Host.query.filter(Host.id == host_id).first():
-                    retrieved_ids.append(host_id)
-        return retrieved_ids
+            return tuple(str(host.id) for host in Host.query.filter(Host.id.in_(host_ids)))
 
     def _check_hosts_are_present(self, host_ids):
         retrieved_ids = self._get_hosts_from_db(host_ids)
-        self.assertEqual(len(retrieved_ids), len(host_ids))
+        self.assertEqual(retrieved_ids, host_ids)
 
     def _check_hosts_are_deleted(self, host_ids):
         retrieved_ids = self._get_hosts_from_db(host_ids)
-        self.assertEqual(retrieved_ids, [])
+        self.assertEqual(retrieved_ids, ())
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -2646,7 +2642,7 @@ class QueryStalenessBaseTestCase(DBAPITestCase):
         return response["results"]
 
 
-class QueryStalenessGetHostsBaseCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
+class QueryStalenessGetHostsBaseTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
         current_timestamp = now()
@@ -2673,16 +2669,20 @@ class QueryStalenessGetHostsBaseCase(QueryStalenessBaseTestCase, CullingBaseTest
         return self._get_hosts_by_id_url(self._created_hosts(), query=query)
 
 
-class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseCase):
-    def _sub_tests_for_get_operations(self):
-        for method in (self._get_all_hosts,):
-            with self.subTest(method=method):
-                yield method
+class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
+    def _get_endpoint_query_results(self, endpoint="", query=""):
+        hosts = self._get_hosts_by_id(self._created_hosts(), endpoint, query)
+        if endpoint == "/tags" or endpoint == "/tags/count":
+            return tuple(hosts.keys())
+        else:
+            return tuple(host["id"] for host in hosts)
+
+    def test_dont_get_only_culled(self):
+        self.get(self._get_all_hosts_url(query="?staleness=culled"), 400)
 
     def test_get_only_fresh(self):
-        for get_method in self._sub_tests_for_get_operations():
-            retrieved_host_ids = get_method("?staleness=fresh")
-            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+        retrieved_host_ids = self._get_all_hosts("?staleness=fresh")
+        self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
 
     def test_get_only_stale(self):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale")
@@ -2692,51 +2692,43 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseCase):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale_warning")
         self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
 
+    def test_get_only_unknown(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=unknown")
+        self.assertEqual((self.unknown_host["id"],), retrieved_host_ids)
 
-class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase, DeleteHostsBaseTestCase):
-    def _get_created_hosts_by_id(self, endpoint="", query=""):
-        hosts = self._get_hosts_by_id(self._created_hosts(), endpoint, query)
-        if endpoint == "/tags" or endpoint == "/tags/count":
-            print(hosts)
-            return tuple(hosts.keys())
-        else:
-            return tuple(host["id"] for host in hosts)
+    def test_get_multiple_states(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=fresh,stale")
+        self.assertEqual((self.stale_host["id"], self.fresh_host["id"]), retrieved_host_ids)
 
-    def test_dont_get_only_culled(self):
-        for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
-            with self.subTest(get_hosts_url_method=get_hosts_url_method):
-                url = get_hosts_url_method(query="?staleness=culled")
-                self.get(url, 400)
+    def test_get_hosts_list_default_ignores_culled(self):
+        retrieved_host_ids = self._get_all_hosts("")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
     def test_get_hosts_by_id_default_ignores_culled(self):
-        retrieved_host_ids = self._get_created_hosts_by_id("")
-        expected_host_ids = (self.stale_warning_host["id"], self.stale_host["id"], self.fresh_host["id"])
-        self.assertEqual(expected_host_ids, retrieved_host_ids)
+        retrieved_host_ids = self._get_endpoint_query_results("")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
     def test_tags_default_ignores_culled(self):
-        retrieved_host_ids = self._get_created_hosts_by_id("/tags")
-        expected_host_ids = (self.stale_warning_host["id"], self.stale_host["id"], self.fresh_host["id"])
-        self.assertEqual(expected_host_ids, retrieved_host_ids)
+        retrieved_host_ids = self._get_endpoint_query_results("/tags")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
     def test_tags_count_default_ignores_culled(self):
-        retrieved_host_ids = self._get_created_hosts_by_id("/tags/count")
-        expected_host_ids = (self.stale_warning_host["id"], self.stale_host["id"], self.fresh_host["id"])
-        self.assertEqual(expected_host_ids, retrieved_host_ids)
+        retrieved_host_ids = self._get_endpoint_query_results("/tags/count")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
     def test_get_system_profile_ignores_culled(self):
-        retrieved_host_ids = self._get_created_hosts_by_id("/system_profile")
-        expected_host_ids = (self.stale_warning_host["id"], self.stale_host["id"], self.fresh_host["id"])
+        retrieved_host_ids = self._get_endpoint_query_results("/system_profile")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
-        self.assertEqual(expected_host_ids, retrieved_host_ids)
 
+class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase, DeleteHostsBaseTestCase):
     def test_patch_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 404)
 
     def test_patch_works_on_non_culled(self):
-        host_id_url_list = ",".join([self.fresh_host["id"]])
-        url = HOST_URL + "/" + host_id_url_list
+        url = HOST_URL + "/" + self.fresh_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 200)
 
@@ -2746,8 +2738,7 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
         self.patch(url, {"ARCHITECTURE": "patched"}, 404)
 
     def test_patch_facts_works_on_non_culled(self):
-        host_id_url_list = ",".join([self.fresh_host["id"]])
-        url = HOST_URL + "/" + host_id_url_list + "/rhsm"
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/rhsm"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 404)
 
@@ -2757,8 +2748,7 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
         self.put(url, {"ARCHITECTURE": "patched"}, 404)
 
     def test_put_facts_works_on_non_culled(self):
-        host_id_url_list = ",".join([self.fresh_host["id"]])
-        url = HOST_URL + "/" + host_id_url_list + "/otherNS"
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/otherNS"
 
         self.put(url, {"ARCHITECTURE": "patched"}, 404)
 
@@ -2767,11 +2757,10 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseCase
 
         self.delete(url, 404)
 
-    def test_delete_works_on_non_culled(self):
-        with patch("lib.host_delete.emit_event", new_callable=MockEmitEvent):
-            host_id_url_list = ",".join([self.fresh_host["id"]])
-            url = HOST_URL + "/" + host_id_url_list
-            self.delete(url, 200, return_response_as_json=False)
+    @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
+    def test_delete_works_on_non_culled(self, emit_event):
+        url = HOST_URL + "/" + self.fresh_host["id"]
+        self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
