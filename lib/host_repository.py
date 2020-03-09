@@ -64,11 +64,15 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
-            existing_host = find_host_by_canonical_facts(account_number, {elevated_cf_name: cf_value})
+            existing_host = find_host_by_canonical_fact(account_number, elevated_cf_name, cf_value)
             if existing_host:
                 return existing_host
 
     return None
+
+
+def canonical_fact_host_query(account_number, canonical_fact, value):
+    return Host.query.filter((Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value))
 
 
 def canonical_facts_host_query(account_number, canonical_facts):
@@ -79,6 +83,20 @@ def canonical_facts_host_query(account_number, canonical_facts):
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
+
+
+def find_host_by_canonical_fact(account_number, canonical_fact, value):
+    """
+    Returns first match for a host containing given canonical facts
+    """
+    logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
+
+    host = canonical_fact_host_query(account_number, canonical_fact, value).first()
+
+    if host:
+        logger.debug("Found existing host using canonical_fact match: %s", host)
+
+    return host
 
 
 def find_host_by_canonical_facts(account_number, canonical_facts):
