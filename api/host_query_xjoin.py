@@ -52,7 +52,17 @@ ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
 def get_host_list(
-    display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, param_order_by, param_order_how, staleness
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    tags,
+    page,
+    per_page,
+    param_order_by,
+    param_order_how,
+    staleness,
+    only,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -63,6 +73,7 @@ def get_host_list(
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
         "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness),
+        # I think I need to add the ony filter into this. Filter on state of insights-id in ES
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
