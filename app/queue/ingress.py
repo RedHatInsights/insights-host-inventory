@@ -106,7 +106,7 @@ def add_host(host_data):
             logger.info(
                 "Host %s: %s",
                 add_results.name,
-                {i: host_data[i] for i in host_data if i not in ("facts", "system_profile")},
+                {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")},
             )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
