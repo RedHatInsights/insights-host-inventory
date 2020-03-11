@@ -154,6 +154,7 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
         for message in messages:
             with self.subTest(message=message):
                 add_host.reset_mock()
+                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResults.updated)
                 handle_message(message, Mock())
                 add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 

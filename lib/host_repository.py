@@ -20,7 +20,7 @@ __all__ = (
     "update_existing_host",
 )
 
-# FIXME:  rename this
+# FIXME:  rename this, but more importantly why use Enum over a str constant?
 AddHostResults = Enum("AddHostResults", ["created", "updated"])
 
 # These are the "elevated" canonical facts that are
