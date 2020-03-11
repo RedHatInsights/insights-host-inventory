@@ -273,6 +273,9 @@ will look like the following:
   - insights_id: the insights_id of the host that was deleted
   - request_id: the request_id from the DELETE REST invocation that triggered the delete message
 
+### Patch Event
+Add something about the patch events on the event topic
+
 #### Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
