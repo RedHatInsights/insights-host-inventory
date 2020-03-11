@@ -102,7 +102,8 @@ def add_host(host_data):
             metrics.add_host_success.labels(
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated
-            logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
+            # log all the incoming host data except facts and system_profile b/c they can be quite large
+            logger.info("Host %s: %s", add_results.name, {i: host_data[i] for i in host_data if i not in ('facts', 'system_profile')})
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
@@ -124,17 +125,8 @@ def handle_message(message, event_producer):
     payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
-
-        # FIXME: verify operation type
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-
-        if add_results == host_repository.AddHostResults.created:
-            event_type = "created"
-        else:
-            event_type = "updated"
-
-        event = build_event(event_type, output_host, metadata)
-
+        event = build_event(add_results.name, output_host, metadata)
         event_producer.write_event(event, output_host["id"])
 
 
