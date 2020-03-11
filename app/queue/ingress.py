@@ -103,7 +103,11 @@ def add_host(host_data):
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated
             # log all the incoming host data except facts and system_profile b/c they can be quite large
-            logger.info("Host %s: %s", add_results.name, {i: host_data[i] for i in host_data if i not in ('facts', 'system_profile')})
+            logger.info(
+                "Host %s: %s",
+                add_results.name,
+                {i: host_data[i] for i in host_data if i not in ("facts", "system_profile")},
+            )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
