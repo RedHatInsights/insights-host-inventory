@@ -7,6 +7,7 @@ from datetime import timezone
 from unittest import main
 from unittest import TestCase
 from unittest.mock import call
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -31,15 +32,14 @@ class FakeKafkaMessage:
         self.value = message
 
 
-class mockEventProducer:
+class MockEventProducer:
     def __init__(self):
-        self.__data = {}
+        self.event = None
+        self.key = None
 
-    def write_event(self, val):
-        self.__data["write_event"] = val
-
-    def get_write_event(self):
-        return self.__data["write_event"]
+    def write_event(self, event, key):
+        self.event = event
+        self.key = key
 
 
 class MQServiceBaseTestCase(TestCase):
@@ -126,7 +126,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
 
 
 @patch("app.queue.ingress.build_event")
-@patch("app.queue.ingress.add_host", return_value=(None, None))
+@patch("app.queue.ingress.add_host", return_value=(MagicMock(), None))
 class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
     def _message(self, display_name):
         return f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
@@ -190,67 +190,53 @@ class MQAddHostBaseClass(MQServiceBaseTestCase):
     def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
         message = {"operation": "add_host", "data": host_data}
 
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
 
+        self.assertEqual(json.loads(mock_event_producer.event)["host"]["id"], mock_event_producer.key)
+
         for key in host_keys_to_check:
-            self.assertEqual(
-                json.loads(mock_event_producer.get_write_event())["host"][key], expected_results["host"][key]
-            )
+            self.assertEqual(json.loads(mock_event_producer.event)["host"][key], expected_results["host"][key])
 
 
 class MQhandleMessageTestCase(MQAddHostBaseClass):
-    def test_handle_message_verify_metadata_pass_through(self):
-        request_id = str(uuid.uuid4())
-        expected_insights_id = str(uuid.uuid4())
-
-        metadata = {"request_id": request_id, "archive_url": "https://some.url"}
-
-        host_data = {
+    def _host_data(self):
+        return {
             "display_name": "test_host",
-            "insights_id": expected_insights_id,
+            "id": str(uuid.uuid4()),
+            "insights_id": str(uuid.uuid4()),
             "account": "0000001",
             "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
             "reporter": "test",
         }
 
-        message = {"operation": "add_host", "platform_metadata": metadata, "data": host_data}
+    def test_handle_message_verify_metadata_pass_through(self):
+        metadata = {"request_id": str(uuid.uuid4()), "archive_url": "https://some.url"}
 
-        expected_results = {"platform_metadata": {**metadata}}
+        message = {"operation": "add_host", "platform_metadata": metadata, "data": self._host_data()}
 
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
 
-        self.assertEqual(
-            json.loads(mock_event_producer.get_write_event())["platform_metadata"],
-            expected_results["platform_metadata"],
-        )
+        event = json.loads(mock_event_producer.event)
+        self.assertEqual(event["platform_metadata"], metadata)
 
-    def test_handle_message_verify_metadata_is_not_required(self):
-        expected_insights_id = str(uuid.uuid4())
-
-        host_data = {
-            "display_name": "test_host",
-            "insights_id": expected_insights_id,
-            "account": "0000001",
-            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
-            "reporter": "test",
-        }
+    @patch("app.queue.ingress.host_repository.add_host")
+    def test_handle_message_verify_message_key_and_metadata_not_required(self, add_host):
+        host_data = self._host_data()
+        add_host.return_value = (host_data, AddHostResults.created)
 
         message = {"operation": "add_host", "data": host_data}
 
-        expected_results = {"host": {**host_data}}
-
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
+            self.assertEqual(mock_event_producer.key, host_data["id"])
 
-        for key in host_data.keys():
-            self.assertEqual(
-                json.loads(mock_event_producer.get_write_event())["host"][key], expected_results["host"][key]
-            )
+        event = json.loads(mock_event_producer.event)
+        self.assertEqual(event["host"], host_data)
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
@@ -356,7 +342,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         }
         message = {"operation": "add_host", "data": host_data}
 
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
         with self.app.app_context():
             with self.assertRaises(ValidationException):
                 handle_message(json.dumps(message), mock_event_producer)
@@ -370,7 +356,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
         )
 
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
 
         for facts in samples:
             with self.subTest(facts=facts):
@@ -428,7 +414,7 @@ class MQCullingTests(MQAddHostBaseClass):
         tests to check the API will reject a host if it doesn’t have both
         culling fields. This should raise InventoryException.
         """
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
 
         additional_host_data = ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}, {})
         for host_data in additional_host_data:
@@ -450,7 +436,7 @@ class MQCullingTests(MQAddHostBaseClass):
         tests to check the API will reject a host if it doesn’t have both
         culling fields. This should raise InventoryException.
         """
-        mock_event_producer = mockEventProducer()
+        mock_event_producer = MockEventProducer()
 
         additional_host_data = (
             {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": ""},
