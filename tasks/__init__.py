@@ -16,8 +16,8 @@ logger = get_logger(__name__)
 
 
 class NullProducer:
-    def send(self, topic, value=None):
-        logger.debug("NullProducer - logging message:  topic (%s) - message: %s", topic, value)
+    def send(self, topic, value=None, key=None):
+        logger.debug("NullProducer - logging message:  topic (%s) - message: %s - message_id: %s", topic, value, key)
 
     def flush(self):
         logger.debug("NullProducer – flushing")
@@ -47,8 +47,8 @@ def _init_event_producer(config):
         return NullProducer()
 
 
-def emit_event(e):
-    producer.send(cfg.event_topic, value=e.encode("utf-8"))
+def emit_event(e, key):
+    producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=e.encode("utf-8"))
 
 
 def flush():
