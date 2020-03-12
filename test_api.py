@@ -2691,7 +2691,11 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
     def _create_host(self, stale_timestamp):
-        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        data = {
+            "account": ACCOUNT,
+            "insights_id": str(generate_uuid()),
+            "facts": [{"facts": {"fact1": "value1"}, "namespace": "ns1"}],
+        }
         if stale_timestamp:
             data["reporter"] = "some reporter"
             data["stale_timestamp"] = stale_timestamp.isoformat()
@@ -3059,7 +3063,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
     def test_replace_and_merge_ignore_culled_hosts(self):
         # Try to replace the facts on a host that has been marked as culled
-        target_namespace = self.added_hosts[0].facts[0]["namespace"]
+        print(self.culled_host["facts"])
+        target_namespace = self.culled_host["facts"][0]["namespace"]
 
         facts_to_add = self._valid_fact_doc()
         test_url = self._build_facts_url(self.culled_host["id"], target_namespace)
