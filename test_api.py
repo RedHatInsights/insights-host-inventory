@@ -1793,7 +1793,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
-@patch("api.host.emit_event")
+@patch("app.events.emit_event")
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_update_fields(self, emit_event):
         original_id = self.added_hosts[0].id
