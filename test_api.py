@@ -1141,6 +1141,27 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
         self.assertEqual(new_reporter, new_retrieved_host.reporter)
 
+    def test_update_stale_host_timestamp_from_next_reporter(self):
+        current_timestamp = now()
+
+        old_stale_timestamp = current_timestamp - timedelta(days=1)  # stale host
+        old_reporter = "old reporter"
+
+        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
+        old_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+
+        new_stale_timestamp = current_timestamp + timedelta(days=1)
+        new_reporter = "new reporter"
+        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
+
+        new_retrieved_host = self._retrieve_host(created_host_id)
+
+        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+        self.assertEqual(new_reporter, new_retrieved_host.reporter)
+
     def test_dont_update_stale_timestamp_from_different_reporter(self):
         current_timestamp = now()
 
