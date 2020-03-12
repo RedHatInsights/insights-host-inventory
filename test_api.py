@@ -1881,11 +1881,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             with self.subTest(host_id_list=host_id_list):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
-    # TODO: Add a test to check that a message is posted to the events topic
-    # when a host is patched
-    # PRILIMINARY: Figure out how to check kafka topic (I don't think I can)
-    # Instead mock a funtion to check it's being called with the right values?
-    # Mock emit_event
     def test_patch_produces_update_event(self, emit_event):
         patch_doc = {"display_name": "patch_event_test"}
         host_to_patch = self.added_hosts[0].id
