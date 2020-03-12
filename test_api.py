@@ -3056,6 +3056,20 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
                     operation(url, fact_doc, 400)
 
 
+class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
+    def test_replace_and_merge_ignore_culled_hosts(self):
+        # Try to replace the facts on a host that has been marked as culled
+        target_namespace = self.added_hosts[0].facts[0]["namespace"]
+
+        facts_to_add = self._valid_fact_doc()
+        test_url = self._build_facts_url(self.culled_host["id"], target_namespace)
+        # Test replace
+        self.put(test_url, facts_to_add, 400)
+
+        # Test add/merge
+        self.patch(test_url, facts_to_add, 400)
+
+
 class HeaderAuthTestCase(DBAPITestCase):
     @staticmethod
     def _valid_identity():
