@@ -509,7 +509,7 @@ def build_host_chunk():
     fqdn = "fred.flintstone.com"
     payload = {
         "account": "0000001",
-        # "insights_id": random_uuid(),
+        "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         "display_name": fqdn,
