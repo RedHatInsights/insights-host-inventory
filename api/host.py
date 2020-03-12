@@ -18,6 +18,7 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
+from app.events import patch as patch_event
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -33,6 +34,7 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
+from tasks import emit_event
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -224,6 +226,12 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
+def _emit_patch_event(host):
+    event = patch_event(host)  # change to patch event & import
+    key = str(host.id)
+    emit_event(event, key)
+
+
 @api_operation
 @metrics.api_request_time.time()
 def patch_by_id(host_id_list, host_data):
@@ -243,6 +251,7 @@ def patch_by_id(host_id_list, host_data):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
+        _emit_patch_event(host)
 
     db.session.commit()
 

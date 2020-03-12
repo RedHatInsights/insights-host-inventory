@@ -1793,8 +1793,9 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
+@patch("api.host.emit_event")
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
-    def test_update_fields(self):
+    def test_update_fields(self, emit_event):
         original_id = self.added_hosts[0].id
 
         patch_docs = [
@@ -1815,7 +1816,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 for key in patch_doc:
                     self.assertEqual(host[key], patch_doc[key])
 
-    def test_patch_with_branch_id_parameter(self):
+    def test_patch_with_branch_id_parameter(self, emit_event):
         self.added_hosts[0].id
 
         patch_doc = {"display_name": "branch_id_test"}
@@ -1826,7 +1827,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         self.patch(test_url, patch_doc, 200)
 
-    def test_update_fields_on_multiple_hosts(self):
+    def test_update_fields_on_multiple_hosts(self, emit_event):
         patch_doc = {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"}
 
         url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
@@ -1841,14 +1842,14 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             for key in patch_doc:
                 self.assertEqual(host[key], patch_doc[key])
 
-    def test_patch_on_non_existent_host(self):
+    def test_patch_on_non_existent_host(self, emit_event):
         non_existent_id = generate_uuid()
 
         patch_doc = {"ansible_host": "NEW_ansible_host"}
 
         self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
-    def test_patch_on_multiple_hosts_with_some_non_existent(self):
+    def test_patch_on_multiple_hosts_with_some_non_existent(self, emit_event):
         non_existent_id = generate_uuid()
         original_id = self.added_hosts[0].id
 
@@ -1856,7 +1857,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         self.patch(f"{HOST_URL}/{non_existent_id},{original_id}", patch_doc)
 
-    def test_invalid_data(self):
+    def test_invalid_data(self, emit_event):
         original_id = self.added_hosts[0].id
 
         invalid_data_list = [
@@ -1873,12 +1874,26 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
                 self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
-    def test_invalid_host_id(self):
+    def test_invalid_host_id(self, emit_event):
         patch_doc = {"display_name": "branch_id_test"}
         host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
         for host_id_list in host_id_lists:
             with self.subTest(host_id_list=host_id_list):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
+
+    # TODO: Add a test to check that a message is posted to the events topic
+    # when a host is patched
+    # PRILIMINARY: Figure out how to check kafka topic (I don't think I can)
+    # Instead mock a funtion to check it's being called with the right values?
+    # Mock emit_event
+    def test_patch_produces_update_event(self, emit_event):
+        patch_doc = {"display_name": "patch_event_test"}
+        host_to_patch = self.added_hosts[0].id
+        self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
+        print(emit_event.call_args)
+        event_message = json.loads(emit_event.call_args[0][0])
+        emit_event.assert_called_once()
+        self.assertEqual(event_message["type"], "updated")
 
 
 class DeleteHostsErrorTestCase(DBAPITestCase):

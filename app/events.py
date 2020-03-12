@@ -5,6 +5,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
+from app.queue.egress import build_event
 from app.serialization import serialize_canonical_facts
 
 logger = logging.getLogger(__name__)
@@ -34,3 +35,7 @@ def delete(host):
         )
         .data
     )
+
+
+def patch(host):
+    return build_event("updated", host, "metadata")  # TODO: make real metadata
