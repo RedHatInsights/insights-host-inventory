@@ -81,7 +81,7 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.labels("error").inc()
         raise
 
-    logger.info("parsed_message: %s", parsed_operation)
+    logger.debug("parsed_message: %s", parsed_operation)
     return parsed_operation
 
 
@@ -93,9 +93,9 @@ def add_host(host_data):
     ) as payload_tracker_processing_ctx:
 
         try:
-            logger.info("Attempting to add host...")
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
+            logger.info("Attempting to add host", extra={"canonical_facts": input_host.canonical_facts})
             (output_host, add_results) = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
@@ -104,9 +104,9 @@ def add_host(host_data):
             ).inc()  # created vs updated
             # log all the incoming host data except facts and system_profile b/c they can be quite large
             logger.info(
-                "Host %s: %s",
+                "Host %s",
                 add_results.name,
-                {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")},
+                extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
             )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
