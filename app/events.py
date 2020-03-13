@@ -40,5 +40,6 @@ def delete(host):
 
 def emit_patch_event(host, metadata=None):
     key = str(host.id)
-    event = build_event("updated", host, metadata)  # TODO: make real metadata
+    inventory_metadata = {"request_id": threadctx.request_id}
+    event = build_event("updated", host, None, inventory_metadata)
     emit_event(event, key)

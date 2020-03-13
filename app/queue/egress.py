@@ -48,11 +48,19 @@ class NullEventProducer:
 
 
 @metrics.egress_event_serialization_time.time()
-def build_event(event_type, host, metadata):
+def build_event(event_type, host, platform_metadata, inventory_metadata=None):
     if event_type in ("created", "updated"):
         return (
             HostEvent(strict=True)
-            .dumps({"type": event_type, "host": host, "platform_metadata": metadata, "timestamp": datetime.utcnow()})
+            .dumps(
+                {
+                    "type": event_type,
+                    "host": host,
+                    "platform_metadata": platform_metadata,
+                    "inventory_metadata": inventory_metadata,
+                    "timestamp": datetime.utcnow(),
+                }
+            )
             .data
         )
     else:
