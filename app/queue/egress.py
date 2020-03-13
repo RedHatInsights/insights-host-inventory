@@ -100,3 +100,4 @@ class HostEvent(Schema):
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
+    inventory_metadata = fields.Dict()
