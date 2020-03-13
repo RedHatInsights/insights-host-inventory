@@ -2827,24 +2827,24 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTest
         self.patch(url, {"display_name": "patched"}, 200)
 
     def test_patch_facts_ignores_culled(self):
-        url = HOST_URL + "/" + self.culled_host["id"] + "/rhsm"
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
-        self.patch(url, {"ARCHITECTURE": "patched"}, 404)
+        self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_patch_facts_works_on_non_culled(self):
-        url = HOST_URL + "/" + self.fresh_host["id"] + "/rhsm"
+    def test_patch_facts_works_on_non_culled(self):  # broken
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
 
-        self.patch(url, {"ARCHITECTURE": "patched"}, 404)
+        self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
     def test_put_facts_ignores_culled(self):
-        url = HOST_URL + "/" + self.culled_host["id"] + "/otherNS"
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
-        self.put(url, {"ARCHITECTURE": "patched"}, 404)
+        self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_put_facts_works_on_non_culled(self):
-        url = HOST_URL + "/" + self.fresh_host["id"] + "/otherNS"
-
-        self.put(url, {"ARCHITECTURE": "patched"}, 404)
+    def test_put_facts_works_on_non_culled(self):  # broken
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
+        print(url)
+        self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
     def test_delete_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
