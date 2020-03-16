@@ -1732,7 +1732,7 @@ class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
 
     # get host list, check only ones with insight-id is returned
     def test_get_hosts_only_insights(self):
-        result = self.get(HOST_URL + "?only=insights")
+        result = self.get(HOST_URL + "?registered_with=insights")
         print(result)
         result_ids = [host["id"] for host in result["results"]]
         self.assertEqual(len(result_ids), 3)

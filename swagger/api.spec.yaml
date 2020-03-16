@@ -46,7 +46,7 @@ paths:
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/only'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -116,7 +116,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
-        - $ref: '#/components/parameters/only'
+        - $ref: '#/components/parameters/registered_with'
         # - $ref: '#/components/parameters/stalenessParam'
       responses:
         '200':
@@ -472,9 +472,9 @@ components:
       description: Only include tags that match the given search string. The value is matched against namespace, key and value.
       schema:
         type: string
-    only:
+    registered_with:
       in: query
-      name: only # TODO: rename this plx. Bad placeholder name
+      name: registered_with
       required: false
       description: Boolean to filter out all non-insights enabled hosts
       schema:
