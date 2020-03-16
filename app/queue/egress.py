@@ -48,7 +48,7 @@ class NullEventProducer:
 
 
 @metrics.egress_event_serialization_time.time()
-def build_event(event_type, host, platform_metadata, inventory_metadata=None):
+def build_event(event_type, host, platform_metadata, metadata=None):
     if event_type in ("created", "updated"):
         return (
             HostEvent(strict=True)
@@ -57,7 +57,7 @@ def build_event(event_type, host, platform_metadata, inventory_metadata=None):
                     "type": event_type,
                     "host": host,
                     "platform_metadata": platform_metadata,
-                    "inventory_metadata": inventory_metadata,
+                    "metadata": metadata,
                     "timestamp": datetime.utcnow(),
                 }
             )
@@ -95,9 +95,13 @@ class HostSchema(Schema):
     system_profile = fields.Nested(SystemProfileSchema)
 
 
+class metadataSchema(Schema):
+    request_id = fields.Str()
+
+
 class HostEvent(Schema):
     type = fields.Str()
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
-    inventory_metadata = fields.Dict()
+    metadata = fields.Nested(metadataSchema())
