@@ -1201,16 +1201,17 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
 
         self.assertEqual(key, host.id)
 
+    def _get_hosts_from_db(self, host_ids):
+        with self.app.app_context():
+            return tuple(str(host.id) for host in Host.query.filter(Host.id.in_(host_ids)))
+
     def _check_hosts_are_present(self, host_ids):
-        response = self._get_hosts(host_ids)
-        self.assertEqual(response["total"], len(host_ids))
+        retrieved_ids = self._get_hosts_from_db(host_ids)
+        self.assertEqual(retrieved_ids, host_ids)
 
     def _check_hosts_are_deleted(self, host_ids):
-        response = self._get_hosts(host_ids)
-
-        self.assertEqual(response["count"], 0)
-        self.assertEqual(response["total"], 0)
-        self.assertEqual(response["results"], [])
+        retrieved_ids = self._get_hosts_from_db(host_ids)
+        self.assertEqual(retrieved_ids, ())
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -1290,8 +1291,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self._run_host_reaper()
 
-        response = self._get_hosts(added_host_ids)
-        self.assertEqual(response["count"], len(hosts_to_add))
+        self._check_hosts_are_present(added_host_ids)
 
     def test_unknown_host_is_not_removed(self, emit_event):
         added_hosts = self._add_hosts(({},))
@@ -2722,7 +2722,11 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
 
 class QueryStalenessBaseTestCase(DBAPITestCase):
     def _create_host(self, stale_timestamp):
-        data = {"account": ACCOUNT, "insights_id": str(generate_uuid())}
+        data = {
+            "account": ACCOUNT,
+            "insights_id": str(generate_uuid()),
+            "facts": [{"facts": {"fact1": "value1"}, "namespace": "ns1"}],
+        }
         if stale_timestamp:
             data["reporter"] = "some reporter"
             data["stale_timestamp"] = stale_timestamp.isoformat()
@@ -2732,17 +2736,17 @@ class QueryStalenessBaseTestCase(DBAPITestCase):
         self._verify_host_status(response, 0, 201)
         return self._pluck_host_from_response(response, 0)
 
-    def _get_hosts_by_id_url(self, query, host_id_list):
+    def _get_hosts_by_id_url(self, host_id_list, endpoint="", query=""):
         host_id_query = ",".join(host_id_list)
-        return f"{HOST_URL}/{host_id_query}{query}"
+        return f"{HOST_URL}/{host_id_query}{endpoint}{query}"
 
-    def _get_hosts_by_id(self, query, host_id_list):
-        url = self._get_hosts_by_id_url(query, host_id_list)
+    def _get_hosts_by_id(self, host_id_list, endpoint="", query=""):
+        url = self._get_hosts_by_id_url(host_id_list, endpoint, query)
         response = self.get(url, 200)
         return response["results"]
 
 
-class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
+class QueryStalenessGetHostsBaseTestCase(QueryStalenessBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
         current_timestamp = now()
@@ -2766,21 +2770,23 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTest
         return tuple(host["id"] for host in response["results"])
 
     def _get_created_hosts_by_id_url(self, query):
-        return self._get_hosts_by_id_url(query, self._created_hosts())
+        return self._get_hosts_by_id_url(self._created_hosts(), query=query)
 
-    def _get_created_hosts_by_id(self, query):
-        hosts = self._get_hosts_by_id(query, self._created_hosts())
-        return tuple(host["id"] for host in hosts)
 
-    def _sub_tests_for_get_operations(self):
-        for method in (self._get_all_hosts,):
-            with self.subTest(method=method):
-                yield method
+class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
+    def _get_endpoint_query_results(self, endpoint="", query=""):
+        hosts = self._get_hosts_by_id(self._created_hosts(), endpoint, query)
+        if endpoint == "/tags" or endpoint == "/tags/count":
+            return tuple(hosts.keys())
+        else:
+            return tuple(host["id"] for host in hosts)
+
+    def test_dont_get_only_culled(self):
+        self.get(self._get_all_hosts_url(query="?staleness=culled"), 400)
 
     def test_get_only_fresh(self):
-        for get_method in self._sub_tests_for_get_operations():
-            retrieved_host_ids = get_method("?staleness=fresh")
-            self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
+        retrieved_host_ids = self._get_all_hosts("?staleness=fresh")
+        self.assertEqual((self.fresh_host["id"],), retrieved_host_ids)
 
     def test_get_only_stale(self):
         retrieved_host_ids = self._get_all_hosts("?staleness=stale")
@@ -2790,82 +2796,125 @@ class QueryStalenessGetHostsTestCase(QueryStalenessBaseTestCase, CullingBaseTest
         retrieved_host_ids = self._get_all_hosts("?staleness=stale_warning")
         self.assertEqual((self.stale_warning_host["id"],), retrieved_host_ids)
 
-    def test_dont_get_only_culled(self):
-        for get_hosts_url_method in (self._get_all_hosts_url, self._get_created_hosts_by_id_url):
-            with self.subTest(get_hosts_url_method=get_hosts_url_method):
-                url = get_hosts_url_method("?staleness=culled")
-                self.get(url, 400)
+    def test_get_only_unknown(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=unknown")
+        self.assertEqual((self.unknown_host["id"],), retrieved_host_ids)
+
+    def test_get_multiple_states(self):
+        retrieved_host_ids = self._get_all_hosts("?staleness=fresh,stale")
+        self.assertEqual((self.stale_host["id"], self.fresh_host["id"]), retrieved_host_ids)
+
+    def test_get_hosts_list_default_ignores_culled(self):
+        retrieved_host_ids = self._get_all_hosts("")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+
+    def test_get_hosts_by_id_default_ignores_culled(self):
+        retrieved_host_ids = self._get_endpoint_query_results("")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+
+    def test_tags_default_ignores_culled(self):
+        retrieved_host_ids = self._get_endpoint_query_results("/tags")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+
+    def test_tags_count_default_ignores_culled(self):
+        retrieved_host_ids = self._get_endpoint_query_results("/tags/count")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+
+    def test_get_system_profile_ignores_culled(self):
+        retrieved_host_ids = self._get_endpoint_query_results("/system_profile")
+        self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
+
+
+class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase, DeleteHostsBaseTestCase):
+    def test_patch_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"]
+
+        self.patch(url, {"display_name": "patched"}, 404)
+
+    def test_patch_works_on_non_culled(self):
+        url = HOST_URL + "/" + self.fresh_host["id"]
+
+        self.patch(url, {"display_name": "patched"}, 200)
+
+    def test_patch_facts_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
+
+        self.patch(url, {"ARCHITECTURE": "patched"}, 400)
+
+    def test_patch_facts_works_on_non_culled(self):  # broken
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
+
+        self.patch(url, {"ARCHITECTURE": "patched"}, 200)
+
+    def test_put_facts_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
+
+        self.put(url, {"ARCHITECTURE": "patched"}, 400)
+
+    def test_put_facts_works_on_non_culled(self):  # broken
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
+        print(url)
+        self.put(url, {"ARCHITECTURE": "patched"}, 200)
+
+    def test_delete_ignores_culled(self):
+        url = HOST_URL + "/" + self.culled_host["id"]
+
+        self.delete(url, 404)
+
+    @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
+    def test_delete_works_on_non_culled(self, emit_event):
+        url = HOST_URL + "/" + self.fresh_host["id"]
+        self.delete(url, 200, return_response_as_json=False)
+
+
+class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
+    def _check_query_fails(self, endpoint="", query=""):
+        url = self._get_hosts_by_id_url(self._created_hosts(), endpoint, query)
+        self.get(url, 400)
+
+    def test_get_host_by_id_doesnt_use_staleness_parameter(self):
+        self._check_query_fails(query="?staleness=fresh")
+
+    def test_tags_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/tags", "?staleness=fresh")
+
+    def test_tags_count_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/tags/count", "?staleness=fresh")
+
+    def test_sytem_profile_doesnt_use_staleness_parameter(self):
+        self._check_query_fails("/system_profile", "?staleness=fresh")
 
 
 class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
     def _create_and_get_host(self, stale_timestamp):
         host_to_create = self._create_host(stale_timestamp)
-        query = "?staleness=fresh,stale,stale_warning,unknown"
-        retrieved_host = self._get_hosts_by_id(query, (host_to_create["id"],))[0]
+        retrieved_host = self._get_hosts_by_id((host_to_create["id"],))[0]
         self.assertEqual(stale_timestamp.isoformat(), retrieved_host["stale_timestamp"])
         return retrieved_host
 
+    def test_stale_warning_timestamp(self):
+        for culling_stale_warning_offset_days in (1, 7, 12):
+            with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
 
-#     def test_stale_warning_timestamp(self):
-#         for culling_stale_warning_offset_days in (1, 7, 12):
-#             with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
-#                 config = self.app.config["INVENTORY_CONFIG"]
-#                 config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+                host = self._create_and_get_host(stale_timestamp)
 
-#                 stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
-#                 host = self._create_and_get_host(stale_timestamp)
+                stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
+                self.assertEqual(stale_warning_timestamp.isoformat(), host["stale_warning_timestamp"])
 
-#                 stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
-#                 self.assertEqual(stale_warning_timestamp.isoformat(), host["stale_warning_timestamp"])
+    def test_culled_timestamp(self):
+        for culling_culled_offset_days in (8, 14, 20):
+            with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.culling_culled_offset_days = culling_culled_offset_days
 
-#     def test_culled_timestamp(self):
-#         for culling_culled_offset_days in (8, 14, 20):
-#             with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
-#                 config = self.app.config["INVENTORY_CONFIG"]
-#                 config.culling_culled_offset_days = culling_culled_offset_days
+                stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
+                host = self._create_and_get_host(stale_timestamp)
 
-#                 stale_timestamp = datetime.now(timezone.utc) + timedelta(hours=1)
-#                 host = self._create_and_get_host(stale_timestamp)
-
-#                 culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
-#                 self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
-
-
-# class QueryStalenessConfigFilterTestCase(QueryStalenessBaseTestCase):
-#     def _assert_host_state(self, host, state, assert_method):
-#         hosts = self._get_hosts_by_id(f"?staleness={state}", (host["id"],))
-#         assert_method(host["id"], tuple(host["id"] for host in hosts))
-
-#     def _assert_host_in_state(self, host, state):
-#         self._assert_host_state(host, state, self.assertIn)
-
-#     def _assert_host_not_in_state(self, host, state):
-#         self._assert_host_state(host, state, self.assertNotIn)
-
-#     def test_stale_warning_config_timestamp(self):
-#         for culling_stale_warning_offset_days in (1, 6, 7, 8, 12):
-#             with self.subTest(culling_stale_warning_offset_days=culling_stale_warning_offset_days):
-#                 host = self._create_host(
-#                     datetime.now(timezone.utc) - timedelta(days=culling_stale_warning_offset_days, hours=1)
-#                 )
-
-#                 config = self.app.config["INVENTORY_CONFIG"]
-#                 config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
-
-#                 self._assert_host_in_state(host, "stale_warning")
-#                 self._assert_host_not_in_state(host, "fresh,stale,unknown")
-
-#     def test_culled_config_timestamp(self):
-#         for culling_culled_offset_days in (8, 13, 14, 15, 20):
-#             with self.subTest(culling_culled_offset_days=culling_culled_offset_days):
-#                 host = self._create_host(
-#                     datetime.now(timezone.utc) - timedelta(days=culling_culled_offset_days, hours=1)
-#                 )
-
-#                 config = self.app.config["INVENTORY_CONFIG"]
-#                 config.culling_culled_offset_days = culling_culled_offset_days
-
-#                 self._assert_host_not_in_state(host, "fresh,stale,stale_warning,unknown")
+                culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
+                self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
@@ -3040,6 +3089,21 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
                 url = self._build_facts_url(host_id_list, "ns1")
                 with self.subTest(operation=operation, host_id_list=host_id_list):
                     operation(url, fact_doc, 400)
+
+
+class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
+    def test_replace_and_merge_ignore_culled_hosts(self):
+        # Try to replace the facts on a host that has been marked as culled
+        print(self.culled_host["facts"])
+        target_namespace = self.culled_host["facts"][0]["namespace"]
+
+        facts_to_add = self._valid_fact_doc()
+        test_url = self._build_facts_url(self.culled_host["id"], target_namespace)
+        # Test replace
+        self.put(test_url, facts_to_add, 400)
+
+        # Test add/merge
+        self.patch(test_url, facts_to_add, 400)
 
 
 class HeaderAuthTestCase(DBAPITestCase):
@@ -3778,6 +3842,24 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
                 self.get(f"{HOST_URL}?staleness={staleness}", 200)
                 self._assert_graph_query_single_call_with_staleness(graphql_query, (expected,))
 
+    @patch(
+        "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
+    )
+    def test_query_multiple_staleness(self, datetime_mock, graphql_query):
+        staleness = "fresh,stale_warning"
+        graphql_query.reset_mock()
+        self.get(f"{HOST_URL}?staleness={staleness}", 200)
+        self._assert_graph_query_single_call_with_staleness(
+            graphql_query,
+            (
+                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {
+                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                },  # stale warning
+            ),
+        )
+
     def test_query_variables_staleness_with_search(self, graphql_query):
         for field, value in (
             ("fqdn", generate_uuid()),
@@ -3995,6 +4077,36 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                             "hostFilter": {"OR": [{"stale_timestamp": expected}]},
                         },
                     )
+
+    @patch("app.culling.datetime")
+    def test_multiple_query_variables_staleness(self, datetime_mock, xjoin_enabled):
+        now = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+        datetime_mock.now = mock.Mock(return_value=now)
+
+        staleness = "fresh,stale_warning"
+        with self.patch_with_empty_response() as graphql_query:
+            self.get(f"{TAGS_URL}?staleness={staleness}", 200)
+
+            graphql_query.assert_called_once_with(
+                TAGS_QUERY,
+                {
+                    "order_by": "tag",
+                    "order_how": "ASC",
+                    "limit": 50,
+                    "offset": 0,
+                    "hostFilter": {
+                        "OR": [
+                            {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                            {
+                                "stale_timestamp": {
+                                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                                    "lte": "2019-12-09T10:10:06.754201+00:00",
+                                }
+                            },
+                        ]
+                    },
+                },
+            )
 
     @patch_with_empty_response()
     def test_query_variables_tags_simple(self, graphql_query, xjoin_enabled):
