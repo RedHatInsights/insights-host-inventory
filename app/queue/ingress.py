@@ -81,7 +81,7 @@ def parse_operation_message(message):
         metrics.ingress_message_parsing_failure.labels("error").inc()
         raise
 
-    logger.info("parsed_message: %s", parsed_operation)
+    logger.debug("parsed_message: %s", parsed_operation)
     return parsed_operation
 
 
@@ -93,16 +93,21 @@ def add_host(host_data):
     ) as payload_tracker_processing_ctx:
 
         try:
-            logger.info("Attempting to add host...")
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
+            logger.info("Attempting to add host", extra={"canonical_facts": input_host.canonical_facts})
             (output_host, add_results) = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
             metrics.add_host_success.labels(
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated
-            logger.info("Host added")  # This definitely needs to be more specific (added vs updated?)
+            # log all the incoming host data except facts and system_profile b/c they can be quite large
+            logger.info(
+                "Host %s",
+                add_results.name,
+                extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
+            )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
@@ -124,18 +129,9 @@ def handle_message(message, event_producer):
     payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
-
-        # FIXME: verify operation type
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-
-        if add_results == host_repository.AddHostResults.created:
-            event_type = "created"
-        else:
-            event_type = "updated"
-
-        event = build_event(event_type, output_host, metadata)
-
-        event_producer.write_event(event)
+        event = build_event(add_results.name, output_host, metadata)
+        event_producer.write_event(event, output_host["id"])
 
 
 def event_loop(consumer, flask_app, event_producer, handler=handle_message):

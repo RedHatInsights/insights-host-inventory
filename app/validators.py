@@ -30,3 +30,18 @@ def verify_mac_address_format(mac_address):
         return False
 
     return validators.mac_address(mac_address)
+
+
+def check_empty_keys(data):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key == "":
+                return False
+            if not check_empty_keys(value):
+                return False
+    elif isinstance(data, list):
+        for value in data:
+            if not check_empty_keys(value):
+                return False
+
+    return True

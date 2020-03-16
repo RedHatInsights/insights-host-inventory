@@ -11,6 +11,7 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
+from api.host_query_db import find_hosts_by_staleness as find_hosts_by_staleness
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
@@ -40,6 +41,7 @@ TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
 
 logger = get_logger(__name__)
 
@@ -180,13 +182,8 @@ def delete_by_id(host_id_list):
 
 @api_operation
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, staleness=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
-
-    # The staleness check is currently disabled when getting a single host by id
-    # to ease onboarding (RHCLOUD-3562)
-    # if staleness:
-    #     query = find_hosts_by_staleness(staleness, query)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -203,7 +200,9 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
-    return Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
+    return find_hosts_by_staleness(
+        ALL_STALENESS_STATES, Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
+    )
 
 
 @api_operation
@@ -267,10 +266,13 @@ def merge_facts(host_id_list, namespace, fact_dict):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-    hosts_to_update = Host.query.filter(
-        (Host.account == current_identity.account_number)
-        & Host.id.in_(host_id_list)
-        & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
+    hosts_to_update = find_hosts_by_staleness(
+        ALL_STALENESS_STATES,
+        Host.query.filter(
+            (Host.account == current_identity.account_number)
+            & Host.id.in_(host_id_list)
+            & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
+        ),
     ).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
@@ -300,7 +302,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -336,7 +338,7 @@ def _count_tags(host_list):
 @api_operation
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
