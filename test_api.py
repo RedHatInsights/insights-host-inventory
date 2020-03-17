@@ -2826,37 +2826,44 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
 
 
 class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase, DeleteHostsBaseTestCase):
-    def test_patch_ignores_culled(self):
+    @patch("app.events.emit_event")
+    def test_patch_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 404)
 
-    def test_patch_works_on_non_culled(self):
+    @patch("app.events.emit_event")
+    def test_patch_works_on_non_culled(self, emit_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 200)
 
-    def test_patch_facts_ignores_culled(self):
+    @patch("app.events.emit_event")
+    def test_patch_facts_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_patch_facts_works_on_non_culled(self):  # broken
+    @patch("app.events.emit_event")
+    def test_patch_facts_works_on_non_culled(self, emit_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
-    def test_put_facts_ignores_culled(self):
+    @patch("app.events.emit_event")
+    def test_put_facts_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
         self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_put_facts_works_on_non_culled(self):  # broken
+    @patch("app.events.emit_event")
+    def test_put_facts_works_on_non_culled(self, emit_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
         print(url)
         self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
-    def test_delete_ignores_culled(self):
+    @patch("app.events.emit_event")
+    def test_delete_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.delete(url, 404)
