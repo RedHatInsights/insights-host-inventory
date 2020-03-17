@@ -123,5 +123,5 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
-        query_filters += tuple({"NOT": {"insights_id": {"eq": None}}})
+        query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
     return query_filters
