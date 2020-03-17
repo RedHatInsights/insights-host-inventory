@@ -1753,7 +1753,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                 [
                     {"namespace": "NS1", "key": "key1", "value": "val1"},
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "-_NS*!", "key": r"k.\e~y", "value": "v()a*lu!e"},
+                    {"namespace": "-_NS*!", "key": "k.e~y", "value": "v()a*lu!e"},
                 ],
             ),  # the same fqdn is intentional
             (
@@ -2310,11 +2310,12 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         expected_response_list = [host_list[1]]
         # host with tags ["NS1/key1=val1", "NS2/key2=val2", "NS3/key3=val3"]
 
-        # test_url = f"{HOST_URL}?tags=NS1/key1=val1,-_NS*!/k.\e~y=v()a*lu!e"
+        # test_url = f"{HOST_URL}?tags=NS1/key1=val1,-_NS*!/k.e~y=v()a*lu!e"
+        test_url = f"{HOST_URL}?tags=-_NS*!/k.e~y=v()a*lu!e"
         # test_url = f"{HOST_URL}?tags=NS1/key1=val1,-NS/key=value"
         # test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS/key=value"
-        test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
-        test_url = urllib.parse.urlsplit(test_url)
+        # test_url = f"{HOST_URL}?tags=NS1/key1=val1,NS3/key3=val3"
+        test_url = urllib.parse.quote(test_url)
         response_list = self.get(test_url, 200)
         print("!!!!!!!!!!!!!!!!")
         print(response_list)
@@ -3211,7 +3212,7 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
     tags_list = [
         [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
-        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("-_NS*!", r"k.\e~y", "v()a*lu!e")],
+        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("-_NS*!", "k.e~y", "v()a*lu!e")],
         [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
         [],
     ]
