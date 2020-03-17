@@ -3599,6 +3599,30 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
 
 
 @HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
+class HostsXjoinRequestFilterRegisteredWithTestCase(HostsXjoinRequestBaseTestCase):
+    STALENESS_ANY = ANY
+
+    def _get_host_registered_with(self, service):
+        self.get(f"{HOST_URL}?registered_with={service}")
+
+    def test_query_variables_registered_with_insights(self, graphql_query):
+        graphql_query.reset_mock()
+
+        self._get_host_registered_with("insights")
+
+        graphql_query.assert_called_once_with(
+            HOST_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "filter": (self.STALENESS_ANY, {"NOT": {"insights_id": {"eq": None}}}),
+            },
+        )
+
+
+@HostsXjoinRequestBaseTestCase.patch_graphql_query_empty_response()
 class HostsXjoinRequestOrderingTestCase(HostsXjoinRequestBaseTestCase):
     def test_query_variables_ordering_dir(self, graphql_query):
         for direction in ("ASC", "DESC"):
