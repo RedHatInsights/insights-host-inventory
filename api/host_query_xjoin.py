@@ -62,7 +62,7 @@ def get_host_list(
     param_order_by,
     param_order_how,
     staleness,
-    only,
+    registered_with,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -72,7 +72,7 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness),
+        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
         # I think I need to add the ony filter into this. Filter on state of insights-id in ES
     }
     response = graphql_query(QUERY, variables)["hosts"]
@@ -95,7 +95,7 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness):
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
     if fqdn:
         query_filters = ({"fqdn": fqdn},)
     elif display_name:
@@ -122,5 +122,6 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
-
+    if registered_with:
+        query_filters += tuple({"NOT": {"insights_id": {"eq": None}}})
     return query_filters
