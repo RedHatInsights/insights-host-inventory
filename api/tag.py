@@ -75,7 +75,7 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
     if search:
         variables["filter"] = {
             # Escaped to prevent ReDoS
-            "name": {"match": f".*{re.escape(url_quote(search, safe=''))}.*"}
+            "search": {"regex": f".*{re.escape(url_quote(search, safe=''))}.*"}
         }
 
     if tags:
