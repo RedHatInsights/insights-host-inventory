@@ -49,7 +49,7 @@ def staleness_filter(staleness):
 
 
 def string_contains(string):
-    return f"*{string}*"
+    return {"matches": f"*{string}*"}
 
 
 def url():

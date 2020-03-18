@@ -8,9 +8,9 @@ from api import build_collection_response
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
+from api.host_query_xjoin import build_tag_query_dict
 from app.config import BulkQuerySource
 from app.logging import get_logger
-from app.utils import Tag
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
@@ -75,11 +75,11 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
     if search:
         variables["filter"] = {
             # Escaped to prevent ReDoS
-            "name": f".*{re.escape(url_quote(search, safe=''))}.*"
+            "name": {"match": f".*{re.escape(url_quote(search, safe=''))}.*"}
         }
 
     if tags:
-        variables["hostFilter"]["AND"] = [{"tag": Tag().from_string(tag).data()} for tag in tags]
+        variables["hostFilter"]["AND"] = build_tag_query_dict(tags)
 
     response = graphql_query(TAGS_QUERY, variables)
     data = response["hostTags"]
