@@ -1,11 +1,13 @@
-# Insights Inventory
+# Host Based Inventory
 
-This project is the home of the host-based inventory for the Insights Platform.
+You've arrived at the repo for the backend of the Host Based Inventory (HBI).If you're
+looking for API, integration or user documentation for HBI please see the [Inventory section
+in our Platform Docs site] (https://platform-docs.cloud.paas.psi.redhat.com/backend/inventory.html).
 
-## Getting Started
+# Getting Started
 
 This project uses pipenv to manage the development and deployment environments.
-To set the project up for development, we recommend using [pyenv|https://github.com/pyenv/pyenv] to install/manage the appropriate python (currently 3.6.x), pip and pipenv version. Once you have pipenv, do the following:
+To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.6.x), pip and pipenv version. Once you have pipenv, do the following:
 
 ```
 pipenv install --dev
@@ -24,7 +26,7 @@ useful for development.
 docker-compose -f dev.yml up
 ```
 
-#### Initialize/update the database tables
+## Initialize the database
 
 Run the following commands to run the db migration scripts which will
 maintain the db tables.
@@ -32,6 +34,7 @@ maintain the db tables.
 The database migration scripts determine the DB location, username,
 password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
+
 ```
 python manage.py db upgrade
 ```
@@ -64,14 +67,22 @@ pytest test_json_validators.py
 Depending on the environment, it might be necessary to set the DB related environment
 variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
-## Generate migration script
+## Contributing
 
-Run this command to generate a new revision in `migrations/versions`
-```
-python manage.py db revision -m "Description of revision"
+This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
+[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+afterwards. Other formats and text files are linted as well.
+
+Install pre-commit hooks to your local repository by running:
+
+```bash
+$ pre-commit install
 ```
 
-## Running the server
+After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
+make sure all checks pass before submitting a pull request. Thanks!
+
+# Running the server locally
 
 Prometheus was designed to run in a multi-threaded
 environment whereas gunicorn uses a multi-process
@@ -99,7 +110,7 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
-## Configuration environment variables
+## Config env vars
 
 ```
  prometheus_multiproc_dir=/path/to/prometheus_dir
@@ -119,161 +130,7 @@ python run_gunicorn.py
 To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
 and provide the path to the certificate you'd like to use.
 
-## Using the legacy api
-
-```
- export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
-```
-
-
-## Deployment
-
-The application provides some management information about itself. These
-endpoints are exposed at the root path _/_ and thus are accessible only
-from inside of the deployment cluster.
-
-* _/health_ responds with _200_ to any GET requests, point your liveness
-  or readiness probe here.
-* _/metrics_ offers metrics and monitoring intended to be pulled by
-  [Prometheus](https://prometheus.io).
-* _/version_ responds with a json doc that contains the build version info
-  (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
-
-Cron jobs push their metrics to a
-[Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
-running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
-
-## API Documentation
-
-The API is described by an OpenAPI specification file
-[_swagger/api.spec.yaml_](swagger/api.spec.yaml). The application exposes
-a browsable Swagger UI Console at
-[_/api/inventory/v1/ui/_](http://localhost:8080/api/inventory/v1/ui/).
-
-## Operation
-
-The Insights Inventory service is responsible for storing information
-about hosts and deduplicating hosts as they are reported.  The
-Inventory service uses the canonical facts to perform the deduplication.
-The canonical facts are:
-* insights_id
-* rhel_machine_id
-* subscription_manager_id
-* satellite_id
-* bios_uuid
-* ip_addresses
-* fqdn
-* mac_addresses
-* external_id
-
-Hosts are added and updated by sending a POST to the /hosts endpoint.
-(See the API Documentation for more details on the POST method).
-This method returns an *id* which should be used to reference the host
-by other services in the Insights platform.
-
-#### Overview of the deduplication process
-
-If the update request includes an insights_id, then the inventory service
-will lookup the host using the insights_id.  If the inventory service
-finds a host with a matching insights_id, then the host will be updated
-and the canonical facts from the update request will replace the existing
-canonical facts.
-
-If there was not a match on the insights_id, then the inventory service
-will lookup the host using the subscription_manager_id.  If the inventory service
-finds a host with a matching subscription_manager_id, then the host will be updated
-and the canonical facts from the update request will replace the existing
-canonical facts.
-
-If there was not a match on the insights_id or subscription_manager_id,
-then the canonical facts will be used to lookup the host.  If the canonical
-facts from the update request are a subset or a superset of the previously
-stored canonical facts, then the host will be updated and any new canonical
-facts from the request will be added to the existing host entry.
-
-If the canonical facts based lookup does not locate an existing host, then
-a new host entry is created.
-
-#### Bulk Insertion
-
-The REST api should _not_ be used for bulk insertion.  Instead, a batch of
-hosts should be added to the inventory system by sequentially writing the individual
-hosts to the kafka message queue.
-
-#### Message Queue Based Host Insertion
-
-A single host object (see HostSchema defined in
-[_app/models.py_](app/models.py)) should be wrapped in an _operation_
-json document (see OperationSchema defined in [_app/queue/ingress.py_](app/queue/ingress.py))
- and sent to the kafka message queue.
-
-```json
-  {"operation": "add_host",
-   "platform_metadata": json_doc,
-   "data": host_json_doc}
-```
-  - operation: name of the operation to perform ("add_host" is only supported currently)
-  - platform_metadata: an optional json doc that can be used to pass data associated with the host
-   from the ingress service to the backend applications (request_id, s3 bucket url, etc)
-  - data: a host json doc as defined by the HostSchema in [_app/models.py_](app/models.py)
-
-The kafka topic for adding hosts is _platform.inventory.host-ingress_.
-
-The _platform_metadata_ field will be passed from the incoming message to the outgoing
-event message.  The data within the _platform_metadata_ will not be persisted to the database.
-If the _platform_metadata_ contains a request_id field, the value of the request_id will be
-associated with all of the log messages produced by the service.
-
-The Inventory service will write an event to the _platform.inventory.host-egress_
-kafka topic as a result of adding or updating a host over the message queue.
-
-```json
-{
-    "type": "created",
-    "platform_metadata": metadata_json_doc,
-    "host": {
-        "id": ...,
-        "subscription_manager_id": ...,
-        "ansible_host": ...,
-        "display_name": ...,
-        "reporter": ...,
-        "stale_timestamp": ...,
-        "tags": ...,
-        "system_profile": ...,
-        ...
-    }
-}
-```
-  - type: result of the add host operation ("created" and "updated" are only supported currently)
-  - platform_metadata: a json doc that contains the metadata associated with the host (s3 url, request_id, etc)
-  - host: a host json doc as defined by the HostSchema in [_app/queue/egress.py_](app/queue/egress.py)
-
-#### Host deletion
-
-Hosts can be deleted by using the DELETE HTTP Method on the _/hosts/id_ endpoint.
-When a host is deleted, the inventory service will send an event message
-to the _platform.inventory.events_ message queue.  The delete event message
-will look like the following:
-
-```json
-{
-  "id": "<host id>",
-  "timestamp": "<delete timestamp>",
-  "type": "delete",
-  "account": "<account number>",
-  "insights_id": "<insights id>",
-  "request_id": "<request id>"
-}
-```
-
-  - type: type of host change (delete in this case)
-  - id: Inventory host id of the host that was deleted
-  - timestamp: the time at which the host was deleted
-  - account: the account number associated with the host that was deleted
-  - insights_id: the insights_id of the host that was deleted
-  - request_id: the request_id from the DELETE REST invocation that triggered the delete message
-
-#### Testing API Calls
+## Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
 service.  For testing purposes, it is possible to set the required identity
@@ -289,7 +146,15 @@ This is the Base64 encoding of the following JSON document:
 {"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
 ```
 
-#### Payload Tracker Integration
+## Using the legacy api
+
+In case one needs to do this:
+
+```
+ export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
+```
+
+## Payload Tracker Integration
 
 The inventory service has been integrated with the Payload Tracker service.  The payload
 tracker integration can be configured using the following environment variables:
@@ -322,17 +187,29 @@ The payload tracker status logging for the delete operation is similar. The over
 of the payload will only be logged as an "error" if the entire delete operation fails
 (a 404 due to the hosts not existing, db down, etc).
 
-## Contributing
 
-This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
-[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
-afterwards. Other formats and text files are linted as well.
+# Generating a migration script
 
-Install pre-commit hooks to your local repository by running:
+Run this command to generate a new revision in `migrations/versions`
 
-```bash
-$ pre-commit install
+```
+python manage.py db revision -m "Description of revision"
 ```
 
-After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
-make sure all checks pass before submitting a pull request. Thanks!
+
+# Deployment
+
+The application provides some management information about itself. These
+endpoints are exposed at the root path _/_ and thus are accessible only
+from inside of the deployment cluster.
+
+* _/health_ responds with _200_ to any GET requests, point your liveness
+  or readiness probe here.
+* _/metrics_ offers metrics and monitoring intended to be pulled by
+  [Prometheus](https://prometheus.io).
+* _/version_ responds with a json doc that contains the build version info
+  (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
+
+Cron jobs push their metrics to a
+[Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
+running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
