@@ -382,6 +382,13 @@ class TagFromStringTestCase(TestCase):
             Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al"),
         )
 
+    def test_special_characters_allowed(self):
+        special_characters = ";,?:@&+$-_.!~*'()#"
+        self.assertEqual(
+            Tag.from_string(f"{special_characters}/{special_characters}={special_characters}"),
+            Tag(special_characters, special_characters, special_characters),
+        )
+
     def test_delimiters(self):
         decoded = "a/b=c"
         encoded = "a%2Fb%3Dc"
