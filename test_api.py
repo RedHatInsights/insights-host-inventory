@@ -11,6 +11,7 @@ from datetime import timezone
 from functools import partial
 from itertools import chain
 from json import dumps
+from struct import unpack
 from unittest import main
 from unittest import mock
 from unittest import TestCase
@@ -107,6 +108,12 @@ MOCK_XJOIN_HOST_RESPONSE = {
 
 def quote(*args, **kwargs):
     return url_quote(str(args[0]), *args[1:], safe="", **kwargs)
+
+
+def quote_everything(string):
+    encoded = string.encode()
+    codes = unpack(f"{len(encoded)}B", encoded)
+    return "".join(f"%{code:02x}" for code in codes)
 
 
 def generate_uuid():
@@ -2421,62 +2428,64 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._compare_responses(expected_response_list, response_list, test_url)
 
-    def test_get_host_namespace_too_long(self):
+    def test_get_host_tag_part_too_long(self):
         """
         send a request to find hosts with a string tag where the length
         of the namespace excedes the 255 character limit
         """
+        too_long = "a" * 256
 
-        test_url = (
-            f"{HOST_URL}?tags=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAdedQU"
-            "TTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriFPjg"
-            "WrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLgcQq"
-            "WfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLFwUE"
-            "GCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPhViH"
-            "rcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs/key=val"
+        for tags_query, part_name in (
+            (f"{too_long}/key=val", "namespace"),
+            (f"namespace/{too_long}=val", "key"),
+            (f"namespace/key={too_long}", "value"),
+        ):
+            with self.subTest(part=part_name):
+                response = self.get(f"{HOST_URL}?tags={tags_query}", 400)
+                assert part_name in str(response)
+
+    def test_get_host_with_unescaped_special_characters(self):
+        host_wrapper = HostWrapper(
+            {
+                "account": ACCOUNT,
+                "insights_id": generate_uuid(),
+                "stale_timestamp": now().isoformat(),
+                "reporter": "test",
+                "tags": [{"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"}],
+            }
         )
+        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        created_host = self._pluck_host_from_response(create_response, 0)
 
-        response = self.get(test_url, 400)
+        tags_query = url_quote(";?:@&+$/-_.!~*'()'=#")
+        get_response = self.get(f"{HOST_URL}?tags={tags_query}", 200)
 
-        assert "namespace" in str(response)
+        self.assertEqual(get_response["count"], 1)
+        self.assertEqual(get_response["results"][0]["id"], created_host["id"])
 
-    def test_get_host_key_too_long(self):
-        """
-        send a request to find hosts with a string tag where the length
-        of the namespace excedes the 255 character limit
-        """
-
-        test_url = (
-            f"{HOST_URL}?tags=NS/JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLyIAde"
-            "dQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQXriF"
-            "PjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVzlNLg"
-            "cQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGAtwLF"
-            "wUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPhCfPh"
-            "ViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs=val"
+    def test_get_host_with_escaped_special_characters(self):
+        host_wrapper = HostWrapper(
+            {
+                "account": ACCOUNT,
+                "insights_id": generate_uuid(),
+                "stale_timestamp": now().isoformat(),
+                "reporter": "test",
+                "tags": [{"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"}],
+            }
         )
+        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        created_host = self._pluck_host_from_response(create_response, 0)
 
-        response = self.get(test_url, 400)
+        namespace = quote_everything(";,/?:@&=+$")
+        key = quote_everything("-_.!~*'()")
+        value = quote_everything("#")
+        tags_query = url_quote(f"{namespace}/{key}={value}")
+        get_response = self.get(f"{HOST_URL}?tags={tags_query}", 200)
 
-        assert "key" in str(response)
-
-    def test_get_host_value_too_long(self):
-        """
-        send a request to find hosts with a string tag where the length
-        of the namespace excedes the 255 character limit
-        """
-
-        test_url = (
-            f"{HOST_URL}?tags=NS/key=JBctjABIKUmEqOmjRnwPDCFskVoTsbbZLy"
-            "IAdedQUTTTJOOAGeaKBHDESrvuxwpDsFzDItsOlZPufuKDcaktqldVXWDTandhRCTBgrQ"
-            "XriFPjgWrlWBoawOdHxkPggFDbqRkmALBBEEeDUnEHYedydlvNWSWuEwIiExkRPzJxnVz"
-            "lNLgcQqWfKqmQBhJtKhNMPhmmyTBJaRqWriDMhIPNibsHalYyYbuNJUVUZRhLrhtbOTGA"
-            "twLFwUEGCfxMvnpLNzLHwIXhtSiehQupukwYRQbJRBUMMXkODyCCWCeHvDwoIthoKRYPh"
-            "CfPhViHrcRZvwKQJPtjKfCRHWKgneLGfwcENsMARiCUCxGZLs"
-        )
-
-        response = self.get(test_url, 400)
-
-        assert "value" in str(response)
+        self.assertEqual(get_response["count"], 1)
+        self.assertEqual(get_response["results"][0]["id"], created_host["id"])
 
 
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
