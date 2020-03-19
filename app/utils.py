@@ -201,96 +201,64 @@ class Tag:
     def value(self, value):
         self.__data["value"] = value
 
-    def _split_string_tag(self, string_tag):
-        namespace = None
-        key = None
-        value = None
-
-        groups = re.match(r"([\w.\-%~]+)\/([\w.\-%~]+)=([\w.\-%~]+)", string_tag)
-        if groups:  # NS/key=value
-            namespace, key, value = groups.group(1), groups.group(2), groups.group(3)
-        else:
-            groups = re.match(r"([\w.\-%~]+)\/([\w.\-%~]+)", string_tag)  # NS/key
-            if groups:
-                namespace, key = groups.group(1), groups.group(2)
-            else:
-                groups = re.match(r"([\w.\-%~]+)=([\w.\-%~]+)", string_tag)  # key=value
-                if groups:
-                    key, value = re.split(r"=", string_tag)
-                else:  # key
-                    key = string_tag
-
-        return (namespace, key, value)
-
     def _create_nested(self, namespace, key, value):
         return {namespace: {key: [value]}}
 
-    def from_string(self, string_tag):
-        namespace, key, value = self._split_string_tag(string_tag)
+    def __eq__(self, other):
+        return self.data() == other.data()
 
-        if namespace is not None:
-            namespace = urllib.parse.unquote(namespace)
-            if len(namespace) > 255:
-                raise ValidationException("namespace is longer than 255 characters")
-            self.namespace = namespace
-        key = urllib.parse.unquote(key)
-        if len(key) > 255:
-            raise ValidationException("key is longer than 255 characters")
-        self.key = key
-        if value is not None:
-            value = urllib.parse.unquote(value)
-            if len(value) > 255:
-                raise ValidationException("value is longer than 255 characters")
-            self.value = value
+    @staticmethod
+    def from_string(string_tag):
+        match = re.match(r"((?P<namespace>[\w.\-%~]+)\/)?(?P<key>[\w.\-%~]+)(=(?P<value>[\w.\-%~]+))?$", string_tag)
+        encoded_tag_data = match.groupdict()
+        decoded_tag_data = {}
+        for k, v in encoded_tag_data.items():
+            if v is None:
+                decoded_tag_data[k] = None
+            else:
+                decoded_tag_data[k] = urllib.parse.unquote(v)
+                if len(decoded_tag_data[k]) > 255:
+                    raise ValidationException(f"{k} is longer than 255 characters")
+        return Tag(**decoded_tag_data)
 
-        return self
-
-    def from_nested(self, nested_tag):
-        namespace, key, value = None, None, None
-
+    @staticmethod
+    def from_nested(nested_tag):
         if len(nested_tag.keys()) > 1:
             raise ValueError("too many namespaces. Expecting 1")
+
+        namespace = list(nested_tag.keys())[0]
+        if len(nested_tag[namespace].keys()) > 1:
+            raise ValueError("too many keys. Expecting 1")
+
+        key = list(nested_tag[namespace].keys())[0]
+        if len(nested_tag[namespace][key]) > 1:
+            raise ValueError("too many values. Expecting 1")
+
+        if len(nested_tag[namespace][key]) == 1:
+            value = nested_tag[namespace][key][0]
         else:
-            namespace = list(nested_tag.keys())[0]
-            if len(nested_tag[namespace].keys()) > 1:
-                raise ValueError("too many keys. Expecting 1")
-            else:
-                key = list(nested_tag[namespace].keys())[0]
-                if len(nested_tag[namespace][key]) > 1:
-                    raise ValueError("too many values. Expecting 1")
-                elif len(nested_tag[namespace][key]) == 1:
-                    value = nested_tag[namespace][key][0]
+            value = None
 
-        self.namespace = namespace
-        self.key = key
-        self.value = value
-
-        return self
-
-    def from_tag_data(self, tag_data):
-        self.namespace = tag_data["namespace"]
-        self.key = tag_data["key"]
-        self.value = tag_data["value"]
-
-        return self
+        return Tag(namespace, key, value)
 
     def to_string(self):
-        namespace_string = ""
-        key_string = ""
-        value_string = ""
-
-        if self.namespace is not None:
+        if self.namespace is None:
+            namespace_string = ""
+        else:
             namespace = urllib.parse.quote(self.namespace, safe="")
             namespace_string = f"{namespace}/"
+
         key_string = urllib.parse.quote(self.key, safe="")
-        if self.value is not None:
+
+        if self.value is None:
+            value_string = ""
+        else:
             value = urllib.parse.quote(self.value, safe="")
             value_string = f"={value}"
 
         return f"{namespace_string}{key_string}{value_string}"
 
     def to_nested(self):
-
         if self.namespace is None:
             raise ValueError("No namespace")
 

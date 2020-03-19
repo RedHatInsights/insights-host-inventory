@@ -55,7 +55,7 @@ def build_tag_query_dict_tuple(tags):
     query_tag_tuple = ()
     for string_tag in tags:
         query_tag_dict = {}
-        tag_dict = Tag().from_string(string_tag).data()
+        tag_dict = Tag.from_string(string_tag).data()
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
         query_tag_tuple += ({"tag": query_tag_dict},)
