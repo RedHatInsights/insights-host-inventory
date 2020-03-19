@@ -4189,11 +4189,49 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         )
 
     @patch_with_empty_response()
-    def test_query_variables_tags_complex(self, graphql_query, xjoin_enabled):
-        tag1 = Tag("Sat", "env", "prod")
-        tag2 = Tag("insights-client", "special/keyΔwithčhars", "special/valueΔwithčhars!")
+    def test_query_variables_tags_with_special_characters_unescaped(self, graphql_query, xjoin_enabled):
+        tags_query = quote(";?:@&+$/-_.!~*'()=#")
+        self.get(f"{TAGS_URL}?tags={tags_query}", 200)
 
-        self.get(f"{TAGS_URL}?tags={quote(tag1.to_string())}&tags={quote(tag2.to_string())}", 200)
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": [{"tag": {"namespace": ";?:@&+$", "key": "-_.!~*'()", "value": "#"}}],
+                    "OR": ANY,
+                },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_with_special_characters_escaped(self, graphql_query, xjoin_enabled):
+        namespace = quote_everything(";,/?:@&=+$")
+        key = quote_everything("-_.!~*'()")
+        value = quote_everything("#")
+        tags_query = quote(f"{namespace}/{key}={value}")
+        self.get(f"{TAGS_URL}?tags={tags_query}", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": [{"tag": {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"}}],
+                    "OR": ANY,
+                },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_collection_multi(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=Sat/env=prod&tags=insights-client/os=fedora", 200)
 
         graphql_query.assert_called_once_with(
             TAGS_QUERY,
@@ -4208,8 +4246,35 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                         {
                             "tag": {
                                 "namespace": {"eq": "insights-client"},
-                                "key": {"eq": "special/keyΔwithčhars"},
-                                "value": {"eq": "special/valueΔwithčhars!"},
+                                "key": {"eq": "os"},
+                                "value": {"eq": "fedora"}
+                            }
+                        },
+                    ),
+                    "OR": ANY,
+                },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_collection_csv(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=Sat/env=prod,insights-client/os=fedora", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {
+                    "AND": (
+                        {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
+                        {
+                            "tag": {
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "os"},
+                                "value": {"eq": "fedora"}
                             }
                         },
                     ),
