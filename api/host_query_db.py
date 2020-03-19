@@ -9,6 +9,7 @@ from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
+from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
 from lib.host_repository import stale_timestamp_filter
 
@@ -20,16 +21,26 @@ logger = get_logger(__name__)
 
 
 def get_host_list(
-    display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, order_by, order_how, staleness, only
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    tags,
+    page,
+    per_page,
+    order_by,
+    order_how,
+    staleness,
+    registered_with,
 ):
     if fqdn:
-        query = _find_hosts_by_canonical_facts({"fqdn": fqdn})
+        query = _find_hosts_by_canonical_fact("fqdn", fqdn)
     elif display_name:
         query = _find_hosts_by_display_name(display_name)
     elif hostname_or_id:
         query = _find_hosts_by_hostname_or_id(hostname_or_id)
     elif insights_id:
-        query = _find_hosts_by_canonical_facts({"insights_id": insights_id})
+        query = _find_hosts_by_canonical_fact("insights_id", insights_id)
     else:
         query = _find_all_hosts()
 
@@ -40,7 +51,7 @@ def get_host_list(
     if staleness:
         query = find_hosts_by_staleness(staleness, query)
 
-    if only:
+    if registered_with:
         query = find_hosts_with_insights_enabled(query)
 
     order_by = params_to_order_by(order_by, order_how)
@@ -100,6 +111,10 @@ def _order_how(column, order_how):
 
 def _find_all_hosts():
     return Host.query.filter(Host.account == current_identity.account_number)
+
+
+def _find_hosts_by_canonical_fact(canonical_fact, value):
+    return canonical_fact_host_query(current_identity.account_number, canonical_fact, value)
 
 
 def _find_hosts_by_canonical_facts(canonical_facts):

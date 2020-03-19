@@ -73,7 +73,6 @@ def get_host_list(
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
         "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
-        # I think I need to add the ony filter into this. Filter on state of insights-id in ES
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -124,4 +123,5 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+
     return query_filters
