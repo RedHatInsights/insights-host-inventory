@@ -1793,6 +1793,28 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
+class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
+    # remove the insights ID from some hosts in setUp
+    def setUp(self):
+        super().setUp()
+        # add a host with no insights id
+        host_wrapper = HostWrapper()
+        host_wrapper.account = ACCOUNT
+        host_wrapper.id = generate_uuid()
+        host_wrapper.satellite_id = generate_uuid()
+        host_wrapper.stale_timestamp = now().isoformat()
+        host_wrapper.reporter = "test"
+        self.post(HOST_URL, [host_wrapper.data()], 207)
+
+    # get host list, check only ones with insight-id is returned
+    def test_get_hosts_only_insights(self):
+        result = self.get(HOST_URL + "?registered_with=insights")
+        result_ids = [host["id"] for host in result["results"]]
+        self.assertEqual(len(result_ids), 3)
+        expected_ids = [self.added_hosts[2].id, self.added_hosts[1].id, self.added_hosts[0].id]
+        self.assertEqual(result_ids, expected_ids)
+
+
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_update_fields(self):
         original_id = self.added_hosts[0].id
@@ -3568,7 +3590,7 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                 "order_how": ANY,
                 "limit": ANY,
                 "offset": ANY,
-                "filter": ({"fqdn": fqdn}, self.STALENESS_ANY),
+                "filter": ({"fqdn": {"eq": fqdn}}, self.STALENESS_ANY),
             },
         )
 
@@ -3582,7 +3604,7 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                 "order_how": ANY,
                 "limit": ANY,
                 "offset": ANY,
-                "filter": ({"display_name": f"*{display_name}*"}, self.STALENESS_ANY),
+                "filter": ({"display_name": {"matches": f"*{display_name}*"}}, self.STALENESS_ANY),
             },
         )
 
@@ -3597,7 +3619,12 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                 "limit": ANY,
                 "offset": ANY,
                 "filter": (
-                    {"OR": ({"display_name": f"*{hostname_or_id}*"}, {"fqdn": f"*{hostname_or_id}*"})},
+                    {
+                        "OR": (
+                            {"display_name": {"matches": f"*{hostname_or_id}*"}},
+                            {"fqdn": {"matches": f"*{hostname_or_id}*"}},
+                        )
+                    },
                     self.STALENESS_ANY,
                 ),
             },
@@ -3616,8 +3643,8 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                 "filter": (
                     {
                         "OR": (
-                            {"display_name": f"*{hostname_or_id}*"},
-                            {"fqdn": f"*{hostname_or_id}*"},
+                            {"display_name": {"matches": f"*{hostname_or_id}*"}},
+                            {"fqdn": {"matches": f"*{hostname_or_id}*"}},
                             {"id": hostname_or_id},
                         )
                     },
@@ -3636,7 +3663,7 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                 "order_how": ANY,
                 "limit": ANY,
                 "offset": ANY,
-                "filter": ({"insights_id": insights_id}, self.STALENESS_ANY),
+                "filter": ({"insights_id": {"eq": insights_id}}, self.STALENESS_ANY),
             },
         )
 
@@ -3678,24 +3705,30 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
 
     def test_query_variables_tags(self, graphql_query):
         for tags, query_param in (
-            (({"namespace": "a", "key": "b", "value": "c"},), "a/b=c"),
-            (({"namespace": "a", "key": "b", "value": None},), "a/b"),
+            (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+            (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
             (
-                ({"namespace": "a", "key": "b", "value": "c"}, {"namespace": "d", "key": "e", "value": "f"}),
+                (
+                    {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                    {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+                ),
                 "a/b=c,d/e=f",
             ),
             (
-                ({"namespace": "a/a=a", "key": "b/b=b", "value": "c/c=c"},),
+                ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
                 quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
             ),
-            (({"namespace": "ɑ", "key": "β", "value": "ɣ"},), "ɑ/β=ɣ"),
+            (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
         ):
             with self.subTest(tags=tags, query_param=query_param):
                 graphql_query.reset_mock()
 
                 self.get(f"{HOST_URL}?tags={quote(query_param)}")
 
-                tag_filters = tuple({"tag": item} for item in tags)
+                tag_filters = []
+                for item in tags:
+                    tag_filters.append({"tag": item})
+
                 graphql_query.assert_called_once_with(
                     HOST_QUERY,
                     {
@@ -3703,7 +3736,7 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
                         "order_how": ANY,
                         "limit": ANY,
                         "offset": ANY,
-                        "filter": tag_filters + (self.STALENESS_ANY,),
+                        "filter": (tag_filters,) + (self.STALENESS_ANY,),
                     },
                 )
 
@@ -3716,7 +3749,7 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
                 self.get(f"{HOST_URL}?{field}={value}&tags=a/b=c")
 
                 search_any = ANY
-                tag_filter = {"tag": {"namespace": "a", "key": "b", "value": "c"}}
+                tag_filter = [{"tag": {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}}}]
                 graphql_query.assert_called_once_with(
                     HOST_QUERY,
                     {
@@ -4110,8 +4143,16 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "limit": 50,
                 "offset": 0,
                 "hostFilter": {
-                    "AND": [{"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}}],
                     "OR": ANY,
+                    "AND": [
+                        {
+                            "tag": {
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "os"},
+                                "value": {"eq": "fedora"},
+                            }
+                        }
+                    ],
                 },
             },
         )
@@ -4132,12 +4173,12 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "offset": 0,
                 "hostFilter": {
                     "AND": [
-                        {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}},
+                        {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
                         {
                             "tag": {
-                                "namespace": "insights-client",
-                                "key": "special/keyΔwithčhars",
-                                "value": "special/valueΔwithčhars!",
+                                "namespace": {"eq": "insights-client"},
+                                "key": {"eq": "special/keyΔwithčhars"},
+                                "value": {"eq": "special/valueΔwithčhars!"},
                             }
                         },
                     ],
@@ -4157,7 +4198,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "filter": {"name": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"},
+                "filter": {"search": {"regex": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"}},
                 "hostFilter": {"OR": ANY},
             },
         )

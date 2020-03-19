@@ -51,19 +51,30 @@ ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
-def build_tag_query_dict(tags):
-    tag_query_dict = ()
+def build_tag_query_dict_array(tags):
+    query_tag_array = []
     for string_tag in tags:
         query_tag_dict = {}
         tag_dict = Tag().from_string(string_tag).data()
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
-        tag_query_dict += ({"tag": query_tag_dict},)
-    return tag_query_dict
+        query_tag_array += ({"tag": query_tag_dict},)
+    logger.info("query_tag_array: %s", query_tag_array)
+    return query_tag_array
 
 
 def get_host_list(
-    display_name, fqdn, hostname_or_id, insights_id, tags, page, per_page, param_order_by, param_order_how, staleness
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    tags,
+    page,
+    per_page,
+    param_order_by,
+    param_order_how,
+    staleness,
+    registered_with,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -73,7 +84,7 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness),
+        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -95,7 +106,7 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness):
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -118,7 +129,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters = ()
 
     if tags:
-        query_filters += build_tag_query_dict(tags)
+        query_filters += (build_tag_query_dict_array(tags),)
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
