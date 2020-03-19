@@ -382,6 +382,23 @@ class TagFromStringTestCase(TestCase):
             Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al"),
         )
 
+    def test_delimiters(self):
+        decoded = "a/b=c"
+        encoded = "a%2Fb%3Dc"
+        self.assertEqual(Tag.from_string(f"{encoded}/{encoded}={encoded}"), Tag(decoded, decoded, decoded))
+
+    def test_encoded_too_long(self):
+        decoded = "!" * 86
+        encoded = "%21" * 86
+        self.assertEqual(Tag.from_string(f"{encoded}/{encoded}={encoded}"), Tag(decoded, decoded, decoded))
+
+    def test_decoded_too_long(self):
+        too_long = "a" * 256
+        for string_tag in (f"{too_long}/a=a", f"a/{too_long}=a", f"a/a={too_long}"):
+            with self.subTest(string_tag=string_tag):
+                with self.assertRaises(ValidationException):
+                    Tag.from_string(f"{too_long}/{too_long}={too_long}")
+
 
 class TagToStringTestCase(TestCase):
     def _base_structured_to_string_test(self, structured_tag, expected_string_tag):
