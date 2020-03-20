@@ -52,13 +52,14 @@ ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
 def build_tag_query_dict_array(tags):
-    query_tag_array = []
+    query_tag_array = ()
     for string_tag in tags:
         query_tag_dict = {}
         tag_dict = Tag().from_string(string_tag).data()
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
         query_tag_array += ({"tag": query_tag_dict},)
+    # TODO: REMOVE LOGGING
     logger.info("query_tag_array: %s", query_tag_array)
     return query_tag_array
 
@@ -121,7 +122,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
             logger.debug("The hostname (%s) could not be converted into a UUID", hostname_or_id, exc_info=True)
         else:
             logger.debug("Adding id (uuid) to the filter list")
-            hostname_or_id_filters += ({"id": str(id)},)
+            hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
     elif insights_id:
         query_filters = ({"insights_id": {"eq": insights_id}},)
@@ -129,7 +130,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters = ()
 
     if tags:
-        query_filters += (build_tag_query_dict_array(tags),)
+        query_filters += build_tag_query_dict_array(tags)
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)

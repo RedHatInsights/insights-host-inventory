@@ -3645,7 +3645,7 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
                         "OR": (
                             {"display_name": {"matches": f"*{hostname_or_id}*"}},
                             {"fqdn": {"matches": f"*{hostname_or_id}*"}},
-                            {"id": hostname_or_id},
+                            {"id": {"eq": hostname_or_id}},
                         )
                     },
                     self.STALENESS_ANY,
@@ -3725,9 +3725,7 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
 
                 self.get(f"{HOST_URL}?tags={quote(query_param)}")
 
-                tag_filters = []
-                for item in tags:
-                    tag_filters.append({"tag": item})
+                tag_filters = tuple({"tag": item} for item in tags)
 
                 graphql_query.assert_called_once_with(
                     HOST_QUERY,
@@ -3736,7 +3734,7 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
                         "order_how": ANY,
                         "limit": ANY,
                         "offset": ANY,
-                        "filter": (tag_filters,) + (self.STALENESS_ANY,),
+                        "filter": tag_filters + (self.STALENESS_ANY,),
                     },
                 )
 
@@ -3749,7 +3747,7 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
                 self.get(f"{HOST_URL}?{field}={value}&tags=a/b=c")
 
                 search_any = ANY
-                tag_filter = [{"tag": {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}}}]
+                tag_filter = {"tag": {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}}}
                 graphql_query.assert_called_once_with(
                     HOST_QUERY,
                     {
@@ -4144,15 +4142,15 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "offset": 0,
                 "hostFilter": {
                     "OR": ANY,
-                    "AND": [
+                    "AND": (
                         {
                             "tag": {
                                 "namespace": {"eq": "insights-client"},
                                 "key": {"eq": "os"},
                                 "value": {"eq": "fedora"},
                             }
-                        }
-                    ],
+                        },
+                    ),
                 },
             },
         )
@@ -4172,7 +4170,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "limit": 50,
                 "offset": 0,
                 "hostFilter": {
-                    "AND": [
+                    "AND": (
                         {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
                         {
                             "tag": {
@@ -4181,7 +4179,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                                 "value": {"eq": "special/valueΔwithčhars!"},
                             }
                         },
-                    ],
+                    ),
                     "OR": ANY,
                 },
             },
