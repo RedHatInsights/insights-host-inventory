@@ -1770,6 +1770,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                     {"namespace": "NS2", "key": "key2", "value": "val2"},
                     {"namespace": "NS3", "key": "key3", "value": "val3"},
                     {"namespace": "NS1", "key": "key3", "value": "val3"},
+                    {"namespace": None, "key": "key4", "value": "val4"},
+                    {"namespace": None, "key": "key5", "value": None},
                 ],
             ),
         ]
@@ -2374,19 +2376,55 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self._compare_responses(expected_response_list, response_list, test_url)
 
-    def test_get_host_with_tag_no_value(self):
+    def test_get_host_with_tag_no_value_at_all(self):
         """
-        Attempt to find host with a tag with no value
+        Attempt to find host with a tag with no stored value
         """
-        test_url = f"{HOST_URL}?tags=namespace/key"
-        self.get(test_url, 200)
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]  # host with tag "no/key"
+
+        test_url = f"{HOST_URL}?tags=no/key"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_with_tag_no_value_in_query(self):
+        """
+        Attempt to find host with a tag with a stored value by a value-less query
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[0]]  # host with tag "no/key"
+
+        test_url = f"{HOST_URL}?tags=NS1/key2"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
 
     def test_get_host_with_tag_no_namespace(self):
         """
         Attempt to find host with a tag with no namespace.
         """
-        test_url = f"{HOST_URL}?tags=key=value"
-        self.get(test_url, 400)
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[2]]  # host with tag "key4=val4"
+        test_url = f"{HOST_URL}?tags=key4=val4"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
+
+    def test_get_host_with_tag_only_key(self):
+        """
+        Attempt to find host with a tag with no namespace.
+        """
+        host_list = self.added_hosts.copy()
+
+        expected_response_list = [host_list[2]]  # host with tag "key5"
+        test_url = f"{HOST_URL}?tags=key5"
+        response_list = self.get(test_url, 200)
+
+        self._compare_responses(expected_response_list, response_list, test_url)
 
     def test_get_host_with_invalid_tag_no_key(self):
         """
@@ -4280,6 +4318,51 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     ),
                     "OR": ANY,
                 },
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_without_namespace(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=env=prod", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {"AND": [{"tag": {"namespace": None, "key": "env", "value": "prod"}}], "OR": ANY},
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_without_value(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=Sat/env", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {"AND": [{"tag": {"namespace": "Sat", "key": "env", "value": None}}], "OR": ANY},
+            },
+        )
+
+    @patch_with_empty_response()
+    def test_query_variables_tags_with_only_key(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?tags=env", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": "tag",
+                "order_how": "ASC",
+                "limit": 50,
+                "offset": 0,
+                "hostFilter": {"AND": [{"tag": {"namespace": None, "key": "env", "value": None}}], "OR": ANY},
             },
         )
 

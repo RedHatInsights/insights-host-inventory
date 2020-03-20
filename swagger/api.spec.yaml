@@ -441,7 +441,7 @@ components:
         type: array
         items:
           type: string
-          pattern: '^[^=/\s]+/[^=/\s]+(=[^=/\s]+)?$'
+          pattern: '^([^=/\s]+/)?[^=/\s]+(=[^=/\s]+)?$'
     tagsOrderBy:
       in: query
       name: order_by
