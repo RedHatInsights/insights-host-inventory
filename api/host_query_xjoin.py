@@ -134,5 +134,5 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
 
-    logger.info(query_filters)
+    logger.debug(query_filters)
     return query_filters
