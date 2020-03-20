@@ -116,6 +116,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully searched for hosts.
