@@ -59,7 +59,7 @@ def build_tag_query_dict_tuple(tags):
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
         query_tag_tuple += ({"tag": query_tag_dict},)
-    logger.info("query_tag_tuple: %s", query_tag_tuple)
+    logger.debug("query_tag_tuple: %s", query_tag_tuple)
     return query_tag_tuple
 
 
