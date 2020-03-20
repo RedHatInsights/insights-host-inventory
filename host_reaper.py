@@ -78,6 +78,7 @@ def main(config_name):
     except Exception as exception:
         logger = get_logger(LOGGER_NAME)
         logger.exception(exception)
+        exit(1)
     finally:
         flush()
 
