@@ -51,6 +51,18 @@ ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
+def build_tag_query_dict_tuple(tags):
+    query_tag_tuple = ()
+    for string_tag in tags:
+        query_tag_dict = {}
+        tag_dict = Tag().from_string(string_tag).data()
+        for key in tag_dict.keys():
+            query_tag_dict[key] = {"eq": tag_dict[key]}
+        query_tag_tuple += ({"tag": query_tag_dict},)
+    logger.debug("query_tag_tuple: %s", query_tag_tuple)
+    return query_tag_tuple
+
+
 def get_host_list(
     display_name,
     fqdn,
@@ -96,7 +108,7 @@ def _params_to_order(param_order_by=None, param_order_how=None):
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
     if fqdn:
-        query_filters = ({"fqdn": fqdn},)
+        query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
         query_filters = ({"display_name": string_contains(display_name)},)
     elif hostname_or_id:
@@ -109,19 +121,20 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
             logger.debug("The hostname (%s) could not be converted into a UUID", hostname_or_id, exc_info=True)
         else:
             logger.debug("Adding id (uuid) to the filter list")
-            hostname_or_id_filters += ({"id": str(id)},)
+            hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
     elif insights_id:
-        query_filters = ({"insights_id": insights_id},)
+        query_filters = ({"insights_id": {"eq": insights_id}},)
     else:
         query_filters = ()
 
     if tags:
-        query_filters += tuple({"tag": Tag().from_string(string_tag).data()} for string_tag in tags)
+        query_filters += build_tag_query_dict_tuple(tags)
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
 
+    logger.debug(query_filters)
     return query_filters
