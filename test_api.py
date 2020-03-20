@@ -834,51 +834,28 @@ class CreateHostsTestCase(DBAPITestCase):
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
     def test_create_host_with_invalid_tags(self):
+        too_long = "a" * 256
         tags = [
-            {
-                "namespace": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
-                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
-                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
-                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
-                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
-                    tyuiop""",
-                "key": "",
-                "value": "val",
-            },
-            {"namespace": "", "key": "", "value": "val"},
-            {"namespace": "              ", "key": "", "value": "val"},
-            {
-                "namespace": "SPECIAL",
-                "key": "something",
-                "value": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
-                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
-                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
-                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
-                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
-                    tyuiop""",
-            },
-            {"namespace": "val", "key": "", "value": ""},
-            {"namespace": "val", "key": "", "value": "              "},
-            {"namespace": "SPECIAL", "key": "", "value": "val"},
-            {"namespace": "NS3", "key": "         ", "value": "val3"},
-            {
-                "namespace": "NS1",
-                "key": """"qwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiop
-                    asdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyu
-                    iopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklz
-                    xcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwertyuiopqwertyu
-                    iopasdfghjklzxcvbnmqwertyuiopqwertyuiopasdfghjklzxcvbnmqwer
-                    tyuiop""",
-                "value": "val3",
-            },
+            {"namespace": too_long, "key": "key", "value": "val"},
+            {"namespace": "ns", "key": too_long, "value": "val"},
+            {"namespace": "ns", "key": "key", "value": too_long},
+            {"namespace": "", "key": "key", "value": "val"},
+            {"namespace": "ns", "key": "", "value": "val"},
+            {"namespace": "ns", "key": "key", "value": ""},
         ]
 
         for tag in tags:
-            host_data = HostWrapper(test_data(tags=[tag]))
+            with self.subTest(tag=tag):
+                host_data = HostWrapper(test_data(tags=[tag]))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
 
-            response = self.post(HOST_URL, [host_data.data()], 207)
+    def test_create_host_with_keyless_tag(self):
+        tag = {"namespace": "ns", "key": None, "value": "val"}
 
-            assert "'status': 400" in str(response)
+        host_data = HostWrapper(test_data(tags=[tag]))
+
+        self.post(HOST_URL, [host_data.data()], 400)
 
     def test_create_host_with_invalid_string_tag_format(self):
         tag = "string/tag=format"
@@ -929,9 +906,11 @@ class CreateHostsTestCase(DBAPITestCase):
             self.assertEqual(tag, expected_tag)
 
     def test_create_host_with_tags_special_characters(self):
-        host_data = HostWrapper(
-            test_data(tags=[{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}])
-        )
+        tags = [
+            {"namespace": "NS1;,/?:@&=+$-_.!~*'()#", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"},
+            {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        ]
+        host_data = HostWrapper(test_data(tags=tags))
 
         response = self.post(HOST_URL, [host_data.data()], 207)
 
@@ -946,17 +925,14 @@ class CreateHostsTestCase(DBAPITestCase):
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
         host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+        self.assertCountEqual(host_tags, tags)
 
-        expected_tags = [{"namespace": "NS1", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"}]
-
-        for tag, expected_tag in zip(host_tags, expected_tags):
-            self.assertEqual(tag, expected_tag)
-
-    def test_create_host_with_tag_without_namespace(self):
+    def test_create_host_with_tag_without_some_fields(self):
         tags = [
             {"namespace": None, "key": "key3", "value": "val3"},
             {"key": "key2", "value": "val2"},
             {"namespace": "Sat", "key": "prod", "value": None},
+            {"key": "some_key"},
         ]
 
         host_data = HostWrapper(test_data(tags=tags))
@@ -979,6 +955,7 @@ class CreateHostsTestCase(DBAPITestCase):
             {"namespace": "Sat", "key": "prod", "value": None},
             {"namespace": None, "key": "key2", "value": "val2"},
             {"namespace": None, "key": "key3", "value": "val3"},
+            {"namespace": None, "key": "some_key", "value": None},
         ]
 
         for tag, expected_tag in zip(host_tags, expected_tags):
@@ -2489,18 +2466,22 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 "insights_id": generate_uuid(),
                 "stale_timestamp": now().isoformat(),
                 "reporter": "test",
-                "tags": [{"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"}],
+                "tags": [
+                    {"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"},
+                    {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+                ],
             }
         )
         create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
         self._verify_host_status(create_response, 0, 201)
         created_host = self._pluck_host_from_response(create_response, 0)
 
-        tags_query = url_quote(";?:@&+$/-_.!~*'()'=#")
-        get_response = self.get(f"{HOST_URL}?tags={tags_query}", 200)
+        for tags_query in (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"):
+            with self.subTest(tags_query=tags_query):
+                get_response = self.get(f"{HOST_URL}?tags={url_quote(tags_query)}", 200)
 
-        self.assertEqual(get_response["count"], 1)
-        self.assertEqual(get_response["results"][0]["id"], created_host["id"])
+                self.assertEqual(get_response["count"], 1)
+                self.assertEqual(get_response["results"][0]["id"], created_host["id"])
 
     def test_get_host_with_escaped_special_characters(self):
         host_wrapper = HostWrapper(
@@ -2509,21 +2490,25 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 "insights_id": generate_uuid(),
                 "stale_timestamp": now().isoformat(),
                 "reporter": "test",
-                "tags": [{"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"}],
+                "tags": [
+                    {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"},
+                    {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+                ],
             }
         )
         create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
         self._verify_host_status(create_response, 0, 201)
         created_host = self._pluck_host_from_response(create_response, 0)
 
-        namespace = quote_everything(";,/?:@&=+$")
-        key = quote_everything("-_.!~*'()")
-        value = quote_everything("#")
-        tags_query = url_quote(f"{namespace}/{key}={value}")
-        get_response = self.get(f"{HOST_URL}?tags={tags_query}", 200)
+        for namespace, key, value in ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v")):
+            with self.subTest(namespace=namespace, key=key, value=value):
+                tags_query = url_quote(
+                    f"{quote_everything(namespace)}/{quote_everything(key)}={quote_everything(value)}"
+                )
+                get_response = self.get(f"{HOST_URL}?tags={tags_query}", 200)
 
-        self.assertEqual(get_response["count"], 1)
-        self.assertEqual(get_response["results"][0]["id"], created_host["id"])
+                self.assertEqual(get_response["count"], 1)
+                self.assertEqual(get_response["results"][0]["id"], created_host["id"])
 
 
 class QueryOrderBaseTestCase(PreCreatedHostsBaseTestCase):
