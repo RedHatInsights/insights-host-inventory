@@ -51,17 +51,16 @@ ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 
 
-def build_tag_query_dict_array(tags):
-    query_tag_array = ()
+def build_tag_query_dict_tuple(tags):
+    query_tag_tuple = ()
     for string_tag in tags:
         query_tag_dict = {}
         tag_dict = Tag().from_string(string_tag).data()
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
-        query_tag_array += ({"tag": query_tag_dict},)
-    # TODO: REMOVE LOGGING
-    logger.info("query_tag_array: %s", query_tag_array)
-    return query_tag_array
+        query_tag_tuple += ({"tag": query_tag_dict},)
+    logger.info("query_tag_tuple: %s", query_tag_tuple)
+    return query_tag_tuple
 
 
 def get_host_list(
@@ -130,7 +129,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters = ()
 
     if tags:
-        query_filters += build_tag_query_dict_array(tags)
+        query_filters += build_tag_query_dict_tuple(tags)
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
