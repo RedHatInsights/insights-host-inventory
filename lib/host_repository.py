@@ -1,7 +1,10 @@
 from enum import Enum
 
 from sqlalchemy import and_
+from sqlalchemy import or_
 
+from app import inventory_config
+from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -28,6 +31,9 @@ AddHostResults = Enum("AddHostResults", ["created", "updated"])
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
+
+STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
+NULL = None
 
 logger = get_logger(__name__)
 
@@ -71,18 +77,34 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     return None
 
 
-def canonical_fact_host_query(account_number, canonical_fact, value):
-    return Host.query.filter((Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value))
+def exclude_culled_hosts(query):
+    config = inventory_config()
+    staleness_conditions = tuple(staleness_to_conditions(config, STALENESS_STATES, stale_timestamp_filter))
+    if "unknown" in STALENESS_STATES:
+        staleness_conditions += (Host.stale_timestamp == NULL,)
+    return query.filter(or_(*staleness_conditions))
 
 
-def canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
+def canonical_fact_host_query(account_number, canonical_fact, value, include_culled=True):
+    query = Host.query.filter((Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value))
+    if include_culled == False:
+        logger.debug("Checking if include culled works %s!", str(include_culled))
+        return exclude_culled_hosts(query)
+    return query
+
+
+def canonical_facts_host_query(account_number, canonical_facts, include_culled = True):
+    query = Host.query.filter(
         (Host.account == account_number)
         & (
             Host.canonical_facts.comparator.contains(canonical_facts)
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
+    if include_culled == False:
+        logger.debug("Checking if include culled works %s!", str(include_culled))
+        return exclude_culled_hosts(query)
+    return query
 
 
 def find_host_by_canonical_fact(account_number, canonical_fact, value):
@@ -91,7 +113,7 @@ def find_host_by_canonical_fact(account_number, canonical_fact, value):
     """
     logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
 
-    host = canonical_fact_host_query(account_number, canonical_fact, value).first()
+    host = canonical_fact_host_query(account_number, canonical_fact, value, include_culled=False).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -105,7 +127,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
 
-    host = canonical_facts_host_query(account_number, canonical_facts).first()
+    host = canonical_facts_host_query(account_number, canonical_facts, include_culled=False).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
