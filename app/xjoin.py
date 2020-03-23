@@ -27,6 +27,12 @@ def graphql_query(query_string, variables):
     payload = {"query": query_string, "variables": variables}
 
     response = post(url_, json=payload, headers=_forwarded_headers())
+
+    error_message = response.json()["errors"][0]["message"]
+    if error_message == "search_phase_execution_exception":
+        logger.error("Elastic Search result window too large")
+        abort(404, "page excedes max")
+
     status = response.status_code
     if status != 200:
         logger.error("xjoin-search returned status: %s", status)
