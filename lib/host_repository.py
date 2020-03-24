@@ -85,15 +85,14 @@ def exclude_culled_hosts(query):
     return query.filter(or_(*staleness_conditions))
 
 
-def canonical_fact_host_query(account_number, canonical_fact, value, include_culled=True):
-    query = Host.query.filter((Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value))
-    if include_culled == False:
-        logger.debug("Checking if include culled works %s!", str(include_culled))
-        return exclude_culled_hosts(query)
-    return query
+def canonical_fact_host_query(account_number, canonical_fact, value):
+    query = Host.query.filter(
+        (Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value)
+    )
+    return exclude_culled_hosts(query)
 
 
-def canonical_facts_host_query(account_number, canonical_facts, include_culled = True):
+def canonical_facts_host_query(account_number, canonical_facts):
     query = Host.query.filter(
         (Host.account == account_number)
         & (
@@ -101,10 +100,7 @@ def canonical_facts_host_query(account_number, canonical_facts, include_culled =
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
-    if include_culled == False:
-        logger.debug("Checking if include culled works %s!", str(include_culled))
-        return exclude_culled_hosts(query)
-    return query
+    return exclude_culled_hosts(query)
 
 
 def find_host_by_canonical_fact(account_number, canonical_fact, value):
@@ -113,7 +109,7 @@ def find_host_by_canonical_fact(account_number, canonical_fact, value):
     """
     logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
 
-    host = canonical_fact_host_query(account_number, canonical_fact, value, include_culled=False).first()
+    host = canonical_fact_host_query(account_number, canonical_fact, value).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -127,7 +123,7 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
 
-    host = canonical_facts_host_query(account_number, canonical_facts, include_culled=False).first()
+    host = canonical_facts_host_query(account_number, canonical_facts).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
