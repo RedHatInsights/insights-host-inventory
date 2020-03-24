@@ -35,7 +35,6 @@ from app.culling import Timestamps
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
-from app.utils import Tag
 from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from lib.host_repository import canonical_fact_host_query
@@ -1752,9 +1751,15 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                 ],
             ),
         ]
+
+        if hasattr(self, "hosts_to_create"):
+            self.hosts_to_create = hosts_to_create + self.hosts_to_create
+        else:
+            self.hosts_to_create = hosts_to_create
+
         host_list = []
 
-        for host in hosts_to_create:
+        for host in self.hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.id = generate_uuid()
             host_wrapper.account = ACCOUNT
@@ -2073,17 +2078,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
+        self.hosts_to_create = [("host4", generate_uuid(), "host4", [])]
         super().setUp()
-        host_wrapper = HostWrapper()
-        host_wrapper.account = ACCOUNT
-        host_wrapper.display_name = "host4"
-        host_wrapper.insights_id = generate_uuid()
-        host_wrapper.tags = []
-        host_wrapper.stale_timestamp = now().isoformat()
-        host_wrapper.reporter = "test"
-
-        response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
-        self.added_hosts.append(HostWrapper(response_data["data"][0]["host"]))
 
     def _assert_host_ids_in_response(self, response, expected_hosts):
         response_ids = [host["id"] for host in response["results"]]
@@ -3251,53 +3247,38 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     Tests the tag endpoints
     """
 
-    tags_list = [
-        [Tag("no", "key"), Tag("NS1", "key1", "val1"), Tag("NS1", "key2", "val1"), Tag("SPECIAL", "tag", "ToFind")],
-        [Tag("NS1", "key1", "val1"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
-        [Tag("NS1", "key3", "val3"), Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3")],
-        [],
-    ]
-
-    def _compare_responses(self, expected_response, response, test_url):
-        self.assertEqual(len(expected_response), len(response["results"]))
-        self.assertEqual(expected_response, response["results"])
-
-        self._base_paging_test(test_url, len(expected_response))
-        self._invalid_paging_parameters_test(test_url)
-
     def test_get_tags_of_multiple_hosts(self):
         """
         Send a request for the tag count of 1 host and check
         that it is the correct number
         """
-        host_list = self.added_hosts
+        expected_response = {host.id: host.tags for host in self.added_hosts}
 
-        expected_response = {}
-
-        for host, tags in zip(host_list, self.tags_list):
-            expected_response[str(host.id)] = [tag.data() for tag in tags]
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
         response = self.get(test_url, 200)
 
-        self._compare_responses(expected_response, response, test_url)
+        self.assertCountEqual(expected_response, response["results"])
+
+        self._base_paging_test(test_url, len(expected_response))
+        self._invalid_paging_parameters_test(test_url)
 
     def test_get_tag_count_of_multiple_hosts(self):
-        host_list = self.added_hosts
+        expected_response = {
+            added_host.id: len(host_to_create[3])
+            for host_to_create, added_host in zip(self.hosts_to_create, self.added_hosts)
+        }
 
-        expected_response = {}
-
-        for host, tags in zip(host_list, self.tags_list):
-            expected_response[str(host.id)] = len(tags)
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
         response = self.get(test_url, 200)
 
-        self._compare_responses(expected_response, response, test_url)
+        self.assertCountEqual(expected_response, response["results"])
+
+        self._base_paging_test(test_url, len(expected_response))
+        self._invalid_paging_parameters_test(test_url)
 
     def test_get_tags_of_hosts_that_doesnt_exist(self):
         """
@@ -3311,130 +3292,117 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-    def _testing_apparatus_for_filtering(self, expected_filtered_results, given_results):
-        self.assertEqual(len(expected_filtered_results), len(given_results))
-
-        expectedValues = list(expected_filtered_results.values())
-        givenValues = list(given_results.values())
-
-        for i in range(len(givenValues)):
-            self.assertEqual(expectedValues[i], givenValues[i])
-
     def test_get_filtered_by_search_tags_of_multiple_hosts(self):
         """
         send a request for tags to one host with some searchTerm
         """
-        host_list = self.added_hosts
-
-        """
-        unfiltered_result = [
-            {
-                '5c322406-9ab2-467c-b968-1730e9b56cc3': [],
-        'a2aea312-d6c0-4bae-a820-fc46f7abd123': [
-                {'namespace': 'NS1', 'key': 'key3', 'value': 'val3'},
-                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
-                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
-            ],
-        '6582fdc7-4059-4a53-909b-f0691daff19b': [
-                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
-                {'namespace': 'NS2', 'key': 'key2', 'value': 'val2'},
-                {'namespace': 'NS3', 'key': 'key3', 'value': 'val3'}
-            ],
-        '53327c6a-dcbd-45c8-b63a-a1f66bea10cf': [
-                {'namespace': 'no', 'key': 'key', 'value': None},
-                {'namespace': 'NS1', 'key': 'key1', 'value': 'val1'},
-                {'namespace': 'NS1', 'key': 'key2', 'value': 'val1'},
-                {'namespace': 'SPECIAL', 'key': 'tag', 'value': 'ToFind'}
-                ]
-            }
-        ]
-        """
-
-        expected_filtered_results = [
-            {
-                "d3118a7a-f256-4cdd-a262-3c1d41507119": [],
-                "d60da678-083a-4325-b79a-7b6c9c020ec6": [
-                    {"namespace": "NS1", "key": "key3", "value": "val3"},
-                    {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "NS3", "key": "key3", "value": "val3"},
-                ],
-                "34798f51-421c-47b2-99c3-b1a646c8fa32": [
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "NS3", "key": "key3", "value": "val3"},
-                ],
-                "82c67d19-5fb0-4898-a6bb-56e2c64760c5": [
-                    {"namespace": "no", "key": "key", "value": None},
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS1", "key": "key2", "value": "val1"},
-                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-                ],
-            },
-            {
-                "ef4b2967-ad89-4d70-9ea8-31d529644ef4": [],
-                "3ebe7bbd-f24a-4177-bb15-f7e8d118eedf": [],
-                "e2161dc9-a8d5-4df4-92e8-f55f993424a5": [],
-                "a85f87f7-6067-4319-869f-15153b6a1432": [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
-            },
-            {
-                "ac065b69-8f78-4f2d-b0e3-4a6191774c87": [],
-                "75264a41-7054-4a0e-84bf-5fcb68274977": [{"namespace": "NS1", "key": "key3", "value": "val3"}],
-                "10f04142-c628-43ef-b52d-8e0bfb1a6dde": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                "11f9a1e5-6cfa-4d5c-a275-035fbf1c0f83": [
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS1", "key": "key2", "value": "val1"},
-                ],
-            },
-            {
-                "1980a8b2-a9a9-4bf9-9e61-956307dad1ba": [],
-                "87afe4e6-9321-4d1e-b5ad-25d6797c29ce": [],
-                "83373e4f-36ae-48a0-b8f6-48a33db6e054": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                "959d8732-500c-4a03-8384-29723cb5f4c3": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-            },
-            {
-                "9c9a6c05-eb72-443e-9bca-90b32c32e865": [],
-                "1c22b9a5-256f-4ca4-9079-3bb8d596e6e0": [],
-                "a10c9158-cf64-443d-8df3-ef90492ec119": [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                "368cbd5d-6843-4fcf-91bf-d73e5b5a81b6": [
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS1", "key": "key2", "value": "val1"},
-                ],
-            },
-            {
-                "a23a6609-3a77-4ba8-ae1c-1786e6f8f888": [],
-                "fb1c5073-f323-4969-b019-d3ba306262b7": [
-                    {"namespace": "NS1", "key": "key3", "value": "val3"},
-                    {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "NS3", "key": "key3", "value": "val3"},
-                ],
-                "90e3235e-cc81-4c55-b28a-4720826b9d44": [
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS2", "key": "key2", "value": "val2"},
-                    {"namespace": "NS3", "key": "key3", "value": "val3"},
-                ],
-                "5cdd679f-ae70-4699-a593-f01eafaa0202": [
-                    {"namespace": "no", "key": "key", "value": None},
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS1", "key": "key2", "value": "val1"},
-                ],
-            },
-            {
-                "2bf91606-3430-4e12-8d50-0c11ab0f5aa4": [],
-                "29761ca4-f483-4325-8a6e-6088ad7a50bb": [],
-                "282dbf62-ea82-4a54-82c3-2e42a752d200": [],
-                "721e9ee9-931f-4833-8f75-7f30f217dc96": [],
-            },
-        ]
-
-        searchTerms = ["", "To", "NS1", "key1", "val1", "e", " "]
-
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
-
-        for i in range(len(searchTerms)):
-            test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={searchTerms[i]}"
-            response = self.get(test_url, 200)
-
-            self._testing_apparatus_for_filtering(expected_filtered_results[i], response["results"])
+        url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+        for search, results in (
+            (
+                "",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                        {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                        {"namespace": "no", "key": "key", "value": None},
+                    ],
+                    self.added_hosts[1].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    ],
+                    self.added_hosts[2].id: [
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                        {"namespace": "NS1", "key": "key3", "value": "val3"},
+                        {"namespace": None, "key": "key4", "value": "val4"},
+                        {"namespace": None, "key": "key5", "value": None},
+                    ],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "To",
+                {
+                    self.added_hosts[0].id: [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
+                    self.added_hosts[1].id: [],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "NS1",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    ],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [{"namespace": "NS1", "key": "key3", "value": "val3"}],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "key1",
+                {
+                    self.added_hosts[0].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "val1",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    ],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "e",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                        {"namespace": "no", "key": "key", "value": None},
+                    ],
+                    self.added_hosts[1].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    ],
+                    self.added_hosts[2].id: [
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                        {"namespace": "NS1", "key": "key3", "value": "val3"},
+                        {"namespace": None, "key": "key4", "value": "val4"},
+                        {"namespace": None, "key": "key5", "value": None},
+                    ],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                " ",
+                {
+                    self.added_hosts[0].id: [],
+                    self.added_hosts[1].id: [],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+        ):
+            with self.subTest(search=search):
+                test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={search}"
+                response = self.get(test_url, 200)
+                self.assertCountEqual(results.keys(), response["results"].keys())
+                for host_id, tags in results.items():
+                    self.assertCountEqual(tags, response["results"][host_id])
 
     def test_get_tags_count_of_hosts_that_doesnt_exist(self):
         """
@@ -3482,15 +3450,28 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
 
         self.assertEqual(expected_response, host_tag_results["results"])
 
-    def _per_page_test(self, per_page, total, range_end, test_url, expected_responses):
-        for i in range(1, range_end):
-            test_url = inject_qs(test_url, page=str(i), per_page=str(per_page))
-            response = self.get(test_url, 200)
-            with self.subTest(pagination_test_1_per_page=i):
-                self.assertEqual(response["results"], expected_responses[i - 1])
-                self.assertEqual(len(response["results"]), per_page)
-                self.assertEqual(response["count"], per_page)
-                self.assertEqual(response["total"], total)
+    def _per_page_test(self, url, per_page, num_pages):
+        for i in range(0, num_pages):
+            page = i + 1
+            with self.subTest(page=page):
+                url = inject_qs(url, page=str(page), per_page=str(per_page))
+                response = self.get(url, 200)
+                yield response
+
+    def _assert_paginated_response_counts(self, response, per_page, total):
+        self.assertEqual(len(response["results"]), per_page)
+        self.assertEqual(response["count"], per_page)
+        self.assertEqual(response["total"], total)
+
+    def _assert_response_tags(self, response, host_tags):
+        self.assertCountEqual(response["results"].keys(), host_tags.keys())
+        for host_id, tags in host_tags.items():
+            self.assertCountEqual(response["results"][host_id], tags)
+
+    def _assert_response_tag_counts(self, response, host_tag_counts):
+        self.assertCountEqual(response["results"].keys(), host_tag_counts.keys())
+        for host_id, tag_count in host_tag_counts.items():
+            self.assertEqual(response["results"][host_id], tag_count)
 
     def test_tags_pagination(self):
         """
@@ -3499,29 +3480,27 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         host_list = self.added_hosts
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        expected_responses_1_per_page = []
-
-        for host, tags in zip(host_list, self.tags_list):
-            expected_responses_1_per_page.append({str(host.id): [tag.data() for tag in tags]})
+        expected_responses_1_per_page = [
+            {added_host.id: host_to_create[3]}
+            for host_to_create, added_host in zip(self.hosts_to_create, self.added_hosts)
+        ]
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags?order_by=updated&order_how=ASC"
 
         # 1 per page test
-        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+        for response in self._per_page_test(test_url, 1, len(host_list)):
+            self._assert_paginated_response_counts(response, 1, len(self.added_hosts))
+            self._assert_response_tags(response, expected_responses_1_per_page[response["page"] - 1])
 
         expected_responses_2_per_page = [
-            {
-                str(host_list[0].id): [tag.data() for tag in self.tags_list[0]],
-                str(host_list[1].id): [tag.data() for tag in self.tags_list[1]],
-            },
-            {
-                str(host_list[2].id): [tag.data() for tag in self.tags_list[2]],
-                str(host_list[3].id): [tag.data() for tag in self.tags_list[3]],
-            },
+            {self.added_hosts[0].id: self.hosts_to_create[0][3], self.added_hosts[1].id: self.hosts_to_create[1][3]},
+            {self.added_hosts[2].id: self.hosts_to_create[2][3], self.added_hosts[3].id: self.hosts_to_create[3][3]},
         ]
 
         # 2 per page test
-        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+        for response in self._per_page_test(test_url, 2, 2):
+            self._assert_paginated_response_counts(response, 2, len(self.added_hosts))
+            self._assert_response_tags(response, expected_responses_2_per_page[response["page"] - 1])
 
     def test_tags_count_pagination(self):
         """
@@ -3530,23 +3509,33 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         host_list = self.added_hosts
         url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        expected_responses_1_per_page = []
-
-        for host, tags in zip(host_list, self.tags_list):
-            expected_responses_1_per_page.append({str(host.id): len(tags)})
+        expected_responses_1_per_page = [
+            {added_host.id: len(host_to_create[3])}
+            for host_to_create, added_host in zip(self.hosts_to_create, self.added_hosts)
+        ]
 
         test_url = f"{HOST_URL}/{url_host_id_list}/tags/count?order_by=updated&order_how=ASC"
 
         # 1 per page test
-        self._per_page_test(1, len(host_list), len(host_list), test_url, expected_responses_1_per_page)
+        for response in self._per_page_test(test_url, 1, len(host_list)):
+            self._assert_paginated_response_counts(response, 1, len(self.added_hosts))
+            self._assert_response_tag_counts(response, expected_responses_1_per_page[response["page"] - 1])
 
         expected_responses_2_per_page = [
-            {str(host_list[0].id): len(self.tags_list[0]), str(host_list[1].id): len(self.tags_list[1])},
-            {str(host_list[2].id): len(self.tags_list[2]), str(host_list[3].id): len(self.tags_list[3])},
+            {
+                self.added_hosts[0].id: len(self.hosts_to_create[0][3]),
+                self.added_hosts[1].id: len(self.hosts_to_create[1][3]),
+            },
+            {
+                self.added_hosts[2].id: len(self.hosts_to_create[2][3]),
+                self.added_hosts[3].id: len(self.hosts_to_create[3][3]),
+            },
         ]
 
         # 2 per page test
-        self._per_page_test(2, len(host_list), int((len(host_list) + 1) / 2), test_url, expected_responses_2_per_page)
+        for response in self._per_page_test(test_url, 2, 2):
+            self._assert_paginated_response_counts(response, 2, len(self.added_hosts))
+            self._assert_response_tag_counts(response, expected_responses_2_per_page[response["page"] - 1])
 
 
 class XjoinRequestBaseTestCase(APIBaseTestCase):
@@ -4224,7 +4213,9 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "limit": 50,
                 "offset": 0,
                 "hostFilter": {
-                    "AND": [{"tag": {"namespace": ";?:@&+$", "key": "-_.!~*'()", "value": "#"}}],
+                    "AND": (
+                        {"tag": {"namespace": {"eq": ";?:@&+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},
+                    ),
                     "OR": ANY,
                 },
             },
@@ -4246,7 +4237,9 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "limit": 50,
                 "offset": 0,
                 "hostFilter": {
-                    "AND": [{"tag": {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"}}],
+                    "AND": (
+                        {"tag": {"namespace": {"eq": ";,/?:@&=+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},
+                    ),
                     "OR": ANY,
                 },
             },
@@ -4270,7 +4263,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                             "tag": {
                                 "namespace": {"eq": "insights-client"},
                                 "key": {"eq": "os"},
-                                "value": {"eq": "fedora"}
+                                "value": {"eq": "fedora"},
                             }
                         },
                     ),
@@ -4297,7 +4290,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                             "tag": {
                                 "namespace": {"eq": "insights-client"},
                                 "key": {"eq": "os"},
-                                "value": {"eq": "fedora"}
+                                "value": {"eq": "fedora"},
                             }
                         },
                     ),
@@ -4317,7 +4310,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "hostFilter": {"AND": [{"tag": {"namespace": None, "key": "env", "value": "prod"}}], "OR": ANY},
+                "hostFilter": {
+                    "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},),
+                    "OR": ANY,
+                },
             },
         )
 
@@ -4332,7 +4328,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "hostFilter": {"AND": [{"tag": {"namespace": "Sat", "key": "env", "value": None}}], "OR": ANY},
+                "hostFilter": {
+                    "AND": ({"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+                    "OR": ANY,
+                },
             },
         )
 
@@ -4347,7 +4346,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "hostFilter": {"AND": [{"tag": {"namespace": None, "key": "env", "value": None}}], "OR": ANY},
+                "hostFilter": {
+                    "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+                    "OR": ANY,
+                },
             },
         )
 
