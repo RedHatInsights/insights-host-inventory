@@ -809,6 +809,28 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
+    def test_ignore_culled_host_on_update(self):
+        host_data = HostWrapper(test_data(facts=None))
+        host_data.stale_timestamp = (now() - timedelta(weeks=3)).isoformat()  # culled host
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        # Update the host
+        host_data.subscription_manager_id = generate_uuid()
+
+        new_response = self.post(HOST_URL, [host_data.data()], 207)
+
+        updated_host = self._pluck_host_from_response(new_response, 0)
+
+        self.assertNotEqual(original_id, updated_host["id"])
+
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
