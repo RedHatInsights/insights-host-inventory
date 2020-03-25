@@ -441,7 +441,7 @@ components:
         type: array
         items:
           type: string
-          pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
+          pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
     tagsOrderBy:
       in: query
       name: order_by
