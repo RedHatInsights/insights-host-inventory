@@ -134,10 +134,10 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     return serialize_host(existing_host, staleness_offset, fields), AddHostResults.updated
 
 
-def stale_timestamp_filter(gte=None, lte=None):
+def stale_timestamp_filter(gt=None, lte=None):
     filter_ = ()
-    if gte:
-        filter_ += (Host.stale_timestamp >= gte,)
+    if gt:
+        filter_ += (Host.stale_timestamp > gt,)
     if lte:
         filter_ += (Host.stale_timestamp <= lte,)
     return and_(*filter_)
