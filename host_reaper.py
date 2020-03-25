@@ -1,3 +1,5 @@
+import sys
+from functools import partial
 from os import getenv
 
 from prometheus_client import CollectorRegistry
@@ -44,6 +46,10 @@ def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
+def _excepthook(logger, type, value, traceback):
+    logger.exception("Host reaper failed", exc_info=value)
+
+
 @host_reaper_fail_count.count_exceptions()
 def run(config, session):
     logger = get_logger(LOGGER_NAME)
@@ -75,10 +81,6 @@ def main(config_name):
     try:
         with session_guard(session):
             run(config, session)
-    except Exception as exception:
-        logger = get_logger(LOGGER_NAME)
-        logger.exception(exception)
-        exit(1)
     finally:
         flush()
 
@@ -89,5 +91,9 @@ def main(config_name):
 if __name__ == "__main__":
     config_name = getenv("APP_SETTINGS", "development")
     configure_logging(config_name)
+
+    logger = get_logger(LOGGER_NAME)
+    sys.excepthook = partial(_excepthook, logger)
+
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     main(config_name)
