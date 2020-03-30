@@ -293,16 +293,6 @@ def test_host_model_timestamp_timezones(flask_app_fixture):
     assert host.stale_timestamp.tzinfo
 
 
-def test_host_model_timestamp_timezones_enforced(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now())
-    db.session.add(host)
-    db.session.commit()
-
-    assert host.created_on.tzinfo
-    assert host.modified_on.tzinfo
-    assert host.stale_timestamp.tzinfo
-
-
 @mark.parametrize(
     ("field", "value"),
     (("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)),
