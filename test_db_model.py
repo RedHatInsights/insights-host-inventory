@@ -150,6 +150,20 @@ def test_host_schema_invalid_tags(tags):
     assert "Missing data for required field" in str(excinfo.value)
 
 
+def test_host_schema_timezone_enforced():
+    host = {
+        "fqdn": "scooby.doo.com",
+        "display_name": "display_name",
+        "account": "00102",
+        "stale_timestamp": "2020-03-31T10:10:06.754201",
+        "reporter": "test",
+    }
+    with pytest.raises(ValidationError) as excinfo:
+        _ = HostSchema(strict=True).load(host)
+
+    assert "Timestamp must contain timezone info" in str(excinfo.value)
+
+
 def test_tag_deserialization():
     tags = [
         {"namespace": "Sat", "key": "env", "value": "prod"},
@@ -271,6 +285,16 @@ def test_host_model_updated_timestamp(flask_app_fixture):
 
 def test_host_model_timestamp_timezones(flask_app_fixture):
     host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
+    db.session.add(host)
+    db.session.commit()
+
+    assert host.created_on.tzinfo
+    assert host.modified_on.tzinfo
+    assert host.stale_timestamp.tzinfo
+
+
+def test_host_model_timestamp_timezones_enforced(flask_app_fixture):
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now())
     db.session.add(host)
     db.session.commit()
 

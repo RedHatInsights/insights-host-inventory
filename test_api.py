@@ -1211,7 +1211,7 @@ class CullingBaseTestCase(APIBaseTestCase):
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.now_timestamp = datetime.utcnow()
+        self.now_timestamp = datetime.now(timezone.utc)
         self.staleness_timestamps = {
             "fresh": self.now_timestamp + timedelta(hours=1),
             "stale": self.now_timestamp,

@@ -337,6 +337,11 @@ class HostSchema(Schema):
         if len(mac_address_list) < 1:
             raise ValidationError("Array must contain at least one item")
 
+    @validates("stale_timestamp")
+    def validate_stale_timestamp(self, timestamp):
+        if timestamp.tzinfo is None:
+            raise ValidationError("Timestamp must contain timezone info")
+
 
 class PatchHostSchema(Schema):
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
