@@ -11,7 +11,6 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
-from api.host_query_db import find_hosts_by_staleness as find_hosts_by_staleness
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
@@ -34,6 +33,8 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
+from lib.host_repository import ALL_STALENESS_STATES
+from lib.host_repository import find_hosts_by_staleness
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -41,7 +42,6 @@ TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
-ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
 
 logger = get_logger(__name__)
 
