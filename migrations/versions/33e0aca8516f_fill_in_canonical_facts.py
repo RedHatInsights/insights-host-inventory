@@ -39,5 +39,4 @@ def upgrade():
 
 
 def downgrade():
-    with session() as s:
-        s.query(Host).filter(Host.canonical_facts == {}).update({Host.canonical_facts: NULL})
+    pass  # This is a fix, not a data change. The records should never have had NULL/'null'. Not reverting.
