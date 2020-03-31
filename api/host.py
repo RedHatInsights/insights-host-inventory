@@ -33,8 +33,7 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
-from lib.host_repository import ALL_STALENESS_STATES
-from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import find_non_culled_hosts
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -211,9 +210,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
 
 def _get_host_list_by_id_list(account_number, host_id_list):
-    return find_hosts_by_staleness(
-        ALL_STALENESS_STATES, Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list))
-    )
+    return find_non_culled_hosts(Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list)))
 
 
 @api_operation
@@ -277,8 +274,7 @@ def merge_facts(host_id_list, namespace, fact_dict):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-    hosts_to_update = find_hosts_by_staleness(
-        ALL_STALENESS_STATES,
+    hosts_to_update = find_non_culled_hosts(
         Host.query.filter(
             (Host.account == current_identity.account_number)
             & Host.id.in_(host_id_list)

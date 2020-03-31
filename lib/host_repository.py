@@ -15,12 +15,12 @@ from lib.db import session_guard
 
 __all__ = (
     "add_host",
-    "ALL_STALENESS_STATES",
     "canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
     "find_host_by_canonical_facts",
     "find_hosts_by_staleness",
+    "find_non_culled_hosts",
     "stale_timestamp_filter",
     "update_existing_host",
 )
@@ -83,7 +83,7 @@ def canonical_fact_host_query(account_number, canonical_fact, value):
     query = Host.query.filter(
         (Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query)
+    return find_non_culled_hosts(query)
 
 
 def canonical_facts_host_query(account_number, canonical_facts):
@@ -94,7 +94,7 @@ def canonical_facts_host_query(account_number, canonical_facts):
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
-    return find_hosts_by_staleness(ALL_STALENESS_STATES, query)
+    return find_non_culled_hosts(query)
 
 
 def find_host_by_canonical_fact(account_number, canonical_fact, value):
@@ -133,6 +133,10 @@ def find_hosts_by_staleness(staleness, query):
         staleness_conditions += (Host.stale_timestamp == NULL,)
 
     return query.filter(or_(*staleness_conditions))
+
+
+def find_non_culled_hosts(query):
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
 
 @metrics.new_host_commit_processing_time.time()
