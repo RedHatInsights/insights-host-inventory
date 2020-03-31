@@ -46,6 +46,10 @@ def _fill_in_canonical_facts(host_query):
     )
 
 
+def _delete_invalid(host_query):
+    host_query.filter((Host.account == NULL) | (Host.created_on == NULL) | (Host.modified_on == NULL)).delete()
+
+
 def _alter_columns_null(nullable):
     for column in COLUMNS:
         op.alter_column("hosts", column, nullable=nullable)
@@ -55,6 +59,7 @@ def upgrade():
     with session() as s:
         host_query = s.query(Host)
         _fill_in_canonical_facts(host_query)
+        _delete_invalid(host_query)
 
     _alter_columns_null(False)
 
