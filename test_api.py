@@ -3889,8 +3889,8 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
         self._assert_graph_query_single_call_with_staleness(
             graphql_query,
             (
-                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-                {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+                {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
             ),
         )
 
@@ -3899,9 +3899,9 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
     )
     def test_query_variables_staleness(self, datetime_mock, graphql_query):
         for staleness, expected in (
-            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 graphql_query.reset_mock()
@@ -3912,17 +3912,15 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
         "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
     )
     def test_query_multiple_staleness(self, datetime_mock, graphql_query):
+
         staleness = "fresh,stale_warning"
         graphql_query.reset_mock()
         self.get(f"{HOST_URL}?staleness={staleness}", 200)
         self._assert_graph_query_single_call_with_staleness(
             graphql_query,
             (
-                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-                {
-                    "gte": "2019-12-02T10:10:06.754201+00:00",
-                    "lte": "2019-12-09T10:10:06.754201+00:00",
-                },  # stale warning
+                {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"},  # stale warning
             ),
         )
 
@@ -4107,10 +4105,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "offset": ANY,
                 "hostFilter": {
                     "OR": [
-                        {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                        {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
                         {
                             "stale_timestamp": {
-                                "gte": "2019-12-09T10:10:06.754201+00:00",
+                                "gt": "2019-12-09T10:10:06.754201+00:00",
                                 "lte": "2019-12-16T10:10:06.754201+00:00",
                             }
                         },
@@ -4125,9 +4123,9 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         datetime_mock.now = mock.Mock(return_value=now)
 
         for staleness, expected in (
-            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 with self.patch_with_empty_response() as graphql_query:
@@ -4162,10 +4160,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     "offset": 0,
                     "hostFilter": {
                         "OR": [
-                            {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                            {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
                             {
                                 "stale_timestamp": {
-                                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
                                     "lte": "2019-12-09T10:10:06.754201+00:00",
                                 }
                             },
