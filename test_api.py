@@ -1223,7 +1223,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
             with self.app.app_context():
                 config = self.app.config["INVENTORY_CONFIG"]
-                host_reaper_run(config, db.session)
+                host_reaper_run(config, mock.Mock(), db.session)
 
     def _add_hosts(self, data):
         post = []
