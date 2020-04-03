@@ -1206,6 +1206,9 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, new_retrieved_host.reporter)
 
+    def test_create_host_with_stale_timestamp_without_time_zone(self):
+        self._add_host(400, stale_timestamp=datetime.now().isoformat())
+
 
 class DeleteHostsBaseTestCase(DBAPITestCase):
     def _get_hosts(self, host_ids):
@@ -1251,7 +1254,7 @@ class CullingBaseTestCase(APIBaseTestCase):
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.now_timestamp = datetime.utcnow()
+        self.now_timestamp = datetime.now(timezone.utc)
         self.staleness_timestamps = {
             "fresh": self.now_timestamp + timedelta(hours=1),
             "stale": self.now_timestamp,
@@ -1263,7 +1266,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
             with self.app.app_context():
                 config = self.app.config["INVENTORY_CONFIG"]
-                host_reaper_run(config, db.session)
+                host_reaper_run(config, mock.Mock(), db.session)
 
     def _add_hosts(self, data):
         post = []
