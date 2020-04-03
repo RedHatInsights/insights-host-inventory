@@ -51,9 +51,7 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, session):
-    logger = get_logger(LOGGER_NAME)
-
+def run(config, logger_, session):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
@@ -62,12 +60,12 @@ def run(config, session):
     events = delete_hosts(query)
     for host_id, deleted in events:
         if deleted:
-            logger.info("Deleted host: %s", host_id)
+            logger_.info("Deleted host: %s", host_id)
         else:
-            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+            logger_.info("Host %s already deleted. Delete event not emitted.", host_id)
 
 
-def main(config_name):
+def main(config_name, logger):
     config = _init_config(config_name)
     init_tasks(config)
 
@@ -80,7 +78,7 @@ def main(config_name):
 
     try:
         with session_guard(session):
-            run(config, session)
+            run(config, logger, session)
     finally:
         flush()
 
@@ -96,4 +94,4 @@ if __name__ == "__main__":
     sys.excepthook = partial(_excepthook, logger)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    main(config_name)
+    main(config_name, logger)
