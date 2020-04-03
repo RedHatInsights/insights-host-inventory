@@ -318,8 +318,8 @@ class HostSchema(Schema):
     satellite_id = fields.Str(validate=verify_uuid_format)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)))
-    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)))
+    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)), validate=validate.Length(min=1))
+    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)), validate=validate.Length(min=1))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
     tags = fields.List(fields.Nested(TagsSchema))
@@ -327,15 +327,10 @@ class HostSchema(Schema):
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
 
-    @validates("ip_addresses")
-    def validate_ip_addresses(self, ip_address_list):
-        if len(ip_address_list) < 1:
-            raise ValidationError("Array must contain at least one item")
-
-    @validates("mac_addresses")
-    def validate_mac_addresses(self, mac_address_list):
-        if len(mac_address_list) < 1:
-            raise ValidationError("Array must contain at least one item")
+    @validates("stale_timestamp")
+    def has_timezone_info(self, timestamp):
+        if timestamp.tzinfo is None:
+            raise ValidationError("Timestamp must contain timezone info")
 
 
 class PatchHostSchema(Schema):

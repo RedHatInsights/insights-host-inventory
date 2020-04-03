@@ -150,6 +150,20 @@ def test_host_schema_invalid_tags(tags):
     assert "Missing data for required field" in str(excinfo.value)
 
 
+def test_host_schema_timezone_enforced():
+    host = {
+        "fqdn": "scooby.doo.com",
+        "display_name": "display_name",
+        "account": "00102",
+        "stale_timestamp": "2020-03-31T10:10:06.754201",
+        "reporter": "test",
+    }
+    with pytest.raises(ValidationError) as excinfo:
+        _ = HostSchema(strict=True).load(host)
+
+    assert "Timestamp must contain timezone info" in str(excinfo.value)
+
+
 def test_tag_deserialization():
     tags = [
         {"namespace": "Sat", "key": "env", "value": "prod"},

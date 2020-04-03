@@ -429,6 +429,25 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                     with self.assertRaises(ValidationException):
                         handle_message(json.dumps(message), mock_event_producer)
 
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_with_invalid_stale_timestmap(self, datetime_mock):
+        mock_event_producer = MockEventProducer()
+
+        for stale_timestamp in ("invalid", datetime.now().isoformat()):
+            with self.subTest(stale_timestamp=stale_timestamp):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": str(uuid.uuid4()),
+                    "account": "0000001",
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "test",
+                }
+                message = {"operation": "add_host", "data": host_data}
+
+                with self.app.app_context():
+                    with self.assertRaises(ValidationException):
+                        handle_message(json.dumps(message), mock_event_producer)
+
 
 class MQCullingTests(MQAddHostBaseClass):
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
