@@ -815,29 +815,45 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
-    def test_ignore_culled_host_on_update(self):
-        host_data = HostWrapper(test_data(facts=None))
-        host_data.stale_timestamp = (now() - timedelta(weeks=3)).isoformat()  # culled host
+    def test_ignore_culled_host_on_update_by_canonical_facts(self):
+        # Culled host
+        host_data = test_data(
+            fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
 
         # Create the host
-        response = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [host_data], 207)
 
         self._verify_host_status(response, 0, 201)
 
         created_host = self._pluck_host_from_response(response, 0)
 
-        original_id = created_host["id"]
-
         # Update the host
-        host_data.subscription_manager_id = generate_uuid()
-
-        new_response = self.post(HOST_URL, [host_data.data()], 207)
+        new_response = self.post(HOST_URL, [host_data], 207)
 
         self._verify_host_status(new_response, 0, 201)
 
         updated_host = self._pluck_host_from_response(new_response, 0)
 
-        self.assertNotEqual(original_id, updated_host["id"])
+        self.assertNotEqual(created_host["id"], updated_host["id"])
+
+    def test_ignore_culled_host_on_update_by_elevated_id(self):
+        # Culled host
+        host_to_create_data = test_data(
+            insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
+
+        # Create the host
+        response = self.post(HOST_URL, [host_to_create_data], 207)
+        self._verify_host_status(response, 0, 201)
+        created_host = self._pluck_host_from_response(response, 0)
+
+        # Update the host
+        host_to_update_data = {**host_to_create_data, "ip_addresses": ["10.10.0.2"]}
+        new_response = self.post(HOST_URL, [host_to_update_data], 207)
+        self._verify_host_status(new_response, 0, 201)
+        updated_host = self._pluck_host_from_response(new_response, 0)
+        self.assertNotEqual(created_host["id"], updated_host["id"])
 
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
