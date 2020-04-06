@@ -110,7 +110,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                     json.loads(mock_event_producer.write_event.call_args[0][0]),
                     {
                         "host": {"id": str(host_id), "insights_id": None},
-                        "metadata": None,
+                        "metadata": {},
                         "platform_metadata": {},
                         "timestamp": timestamp_iso,
                         "type": "created",
@@ -126,7 +126,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
     #     pass
 
 
-@patch("app.queue.ingress.build_event")
+@patch("app.queue.ingress.build_egress_topic_event")
 @patch("app.queue.ingress.add_host", return_value=(MagicMock(), None))
 class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
     def _message(self, display_name):

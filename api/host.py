@@ -19,7 +19,6 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
-from app.events import emit_patch_event
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -29,12 +28,15 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.queue.egress import build_event_topic_event
 from app.serialization import deserialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
+from tasks import emit_event
+
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -221,6 +223,13 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     response_list = [serialize_host_system_profile(host) for host in query_results.items]
     json_output = build_collection_response(response_list, page, per_page, query_results.total)
     return flask_json_response(json_output)
+
+
+def emit_patch_event(host):
+    key = str(host.id)
+    metadata = {"request_id": threadctx.request_id}
+    event = build_event_topic_event("updated", host, metadata=metadata)
+    emit_event(event, key)
 
 
 @api_operation

@@ -1793,7 +1793,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
-@patch("app.events.emit_event")
+@patch("api.host.emit_event")
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def test_update_fields(self, emit_event):
         original_id = self.added_hosts[0].id
@@ -1885,7 +1885,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         patch_doc = {"display_name": "patch_event_test"}
         host_to_patch = self.added_hosts[0].id
         self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
-        print(emit_event.call_args)
+        # print(emit_event.call_args)
         event_message = json.loads(emit_event.call_args[0][0])
         emit_event.assert_called_once()
         self.assertEqual(event_message["type"], "updated")
@@ -2826,50 +2826,50 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
 
 
 class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase, DeleteHostsBaseTestCase):
-    @patch("app.events.emit_event")
+    @patch("api.host.emit_patch_event")
     def test_patch_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 404)
 
-    @patch("app.events.emit_event")
-    def test_patch_works_on_non_culled(self, emit_event):
+    @patch("api.host.emit_patch_event")
+    def test_patch_works_on_non_culled(self, emit_patch_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
 
         self.patch(url, {"display_name": "patched"}, 200)
 
-    @patch("app.events.emit_event")
-    def test_patch_facts_ignores_culled(self, emit_event):
+    @patch("api.host.emit_patch_event")
+    def test_patch_facts_ignores_culled(self, emit_patch_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
-    @patch("app.events.emit_event")
-    def test_patch_facts_works_on_non_culled(self, emit_event):  # broken
+    @patch("api.host.emit_patch_event")
+    def test_patch_facts_works_on_non_culled(self, emit_patch_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
 
         self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
-    @patch("app.events.emit_event")
-    def test_put_facts_ignores_culled(self, emit_event):
+    @patch("api.host.emit_patch_event")
+    def test_put_facts_ignores_culled(self, emit_patch_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
 
         self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
-    @patch("app.events.emit_event")
-    def test_put_facts_works_on_non_culled(self, emit_event):  # broken
+    @patch("api.host.emit_patch_event")
+    def test_put_facts_works_on_non_culled(self, emit_patch_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
         print(url)
         self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
-    @patch("app.events.emit_event")
-    def test_delete_ignores_culled(self, emit_event):
+    @patch("api.host.emit_patch_event")
+    def test_delete_ignores_culled(self, emit_patch_event):
         url = HOST_URL + "/" + self.culled_host["id"]
 
         self.delete(url, 404)
 
     @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
-    def test_delete_works_on_non_culled(self, emit_event):
+    def test_delete_works_on_non_culled(self, emit_patch_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
         self.delete(url, 200, return_response_as_json=False)
 

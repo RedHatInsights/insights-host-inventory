@@ -47,8 +47,7 @@ class NullEventProducer:
         logger.debug("NullEventProducer - logging key: %s, event: %s", key, event)
 
 
-@metrics.egress_event_serialization_time.time()
-def build_event(event_type, host, platform_metadata, metadata=None):
+def _build_event(event_type, host, platform_metadata, metadata):
     if event_type in ("created", "updated"):
         return (
             HostEvent(strict=True)
@@ -65,6 +64,15 @@ def build_event(event_type, host, platform_metadata, metadata=None):
         )
     else:
         raise ValueError(f"Invalid event type ({event_type})")
+
+
+@metrics.egress_event_serialization_time.time()
+def build_egress_topic_event(event_type, host, *, platform_metadata={}, metadata={}):
+    return _build_event(event_type, host, platform_metadata, metadata)
+
+
+def build_event_topic_event(event_type, host, *, platform_metadata={}, metadata={}):
+    return _build_event(event_type, host, platform_metadata, metadata)
 
 
 class HostSchema(Schema):
@@ -95,7 +103,7 @@ class HostSchema(Schema):
     system_profile = fields.Nested(SystemProfileSchema)
 
 
-class metadataSchema(Schema):
+class HostEventMetadataSchema(Schema):
     request_id = fields.Str()
 
 
@@ -104,4 +112,4 @@ class HostEvent(Schema):
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
-    metadata = fields.Nested(metadataSchema())
+    metadata = fields.Nested(HostEventMetadataSchema())

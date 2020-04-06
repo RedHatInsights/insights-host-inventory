@@ -5,9 +5,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
-from app.queue.egress import build_event
 from app.serialization import serialize_canonical_facts
-from tasks import emit_event
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +34,3 @@ def delete(host):
         )
         .data
     )
-
-
-def emit_patch_event(host, metadata=None):
-    key = str(host.id)
-    metadata = {"request_id": threadctx.request_id}
-    event = build_event("updated", host, None, metadata)
-    emit_event(event, key)

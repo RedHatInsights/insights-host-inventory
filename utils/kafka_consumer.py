@@ -8,7 +8,7 @@ from kafka import KafkaConsumer
 # from app.models import SystemProfileSchema
 
 
-HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
+HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.events")
 HOST_INGRESS_GROUP = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
@@ -34,6 +34,7 @@ def main():
     print("BOOTSTRAP_SERVERS:", BOOTSTRAP_SERVERS)
 
     for msg in consumer:
+        print(msg)
         print("calling msg_handler()")
         msg_handler(json.loads(msg.value))
 
