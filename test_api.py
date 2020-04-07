@@ -1886,7 +1886,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
     def test_patch_produces_update_event(self, emit_event):
-        with patch("app.queue.egress.datetime", **{"utcnow.return_value": self.now_timestamp}):
+        with patch("app.queue.egress.datetime", **{"now.return_value": self.now_timestamp}):
             patch_doc = {"display_name": "patch_event_test"}
             host_to_patch = self.added_hosts[0].id
             self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)

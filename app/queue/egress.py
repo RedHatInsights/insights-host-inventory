@@ -1,5 +1,5 @@
 from datetime import datetime
-from time import timezone
+from datetime import timezone
 
 from kafka import KafkaProducer
 from marshmallow import fields
