@@ -1,4 +1,5 @@
 import json
+import signal
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -21,6 +22,7 @@ from lib import host_repository
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
+CONSUMER_POLL_TIMEOUT_MS = 1000
 
 
 class OperationSchema(Schema):
@@ -95,7 +97,18 @@ def add_host(host_data):
         try:
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            logger.info("Attempting to add host", extra={"canonical_facts": input_host.canonical_facts})
+            logger.info(
+                "Attempting to add host",
+                extra={
+                    "input_host": {
+                        "account": input_host.account,
+                        "display_name": input_host.display_name,
+                        "canonical_facts": input_host.canonical_facts,
+                        "reporter": input_host.reporter,
+                        "stale_timestamp": input_host.stale_timestamp.isoformat(),
+                    }
+                },
+            )
             (output_host, add_results) = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
@@ -134,17 +147,22 @@ def handle_message(message, event_producer):
         event_producer.write_event(event, output_host["id"])
 
 
-def event_loop(consumer, flask_app, event_producer, handler=handle_message):
+def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
     with flask_app.app_context():
-        logger.debug("Waiting for message")
-        for msg in consumer:
-            logger.debug("Message received")
-            try:
-                handler(msg.value, event_producer)
-                metrics.ingress_message_handler_success.inc()
-            except Exception:
-                metrics.ingress_message_handler_failure.inc()
-                logger.exception("Unable to process message")
+
+        signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
+        signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
+        while not shutdown_handler.shut_down():
+            msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
+            for topic_partition, messages in msgs.items():
+                for message in messages:
+                    logger.debug("Message received")
+                    try:
+                        handler(message.value, event_producer)
+                        metrics.ingress_message_handler_success.inc()
+                    except Exception:
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception("Unable to process message")
 
 
 def initialize_thread_local_storage(metadata):

@@ -46,6 +46,7 @@ paths:
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -115,6 +116,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -439,7 +441,7 @@ components:
         type: array
         items:
           type: string
-          pattern: '^[\w.\-%~]+\/[\w.\-%~]+=[\w.\-%~]+$|^[\w.\-%~]+\/[[\w.\-%~]+$'
+          pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
     tagsOrderBy:
       in: query
       name: order_by
@@ -469,6 +471,15 @@ components:
       description: Only include tags that match the given search string. The value is matched against namespace, key and value.
       schema:
         type: string
+    registered_with:
+      in: query
+      name: registered_with
+      required: false
+      description: Filters out any host not registered with the specified service
+      schema:
+        type: string
+        enum:
+          - insights
 
 
   schemas:

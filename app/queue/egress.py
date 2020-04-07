@@ -39,6 +39,10 @@ class KafkaEventProducer:
             logger.exception("Failed to send event")
             metrics.egress_message_handler_failure.inc()
 
+    def close(self):
+        self._kafka_producer.flush()
+        self._kafka_producer.close()
+
 
 class NullEventProducer:
     def __init__(self):

@@ -56,13 +56,18 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         Test to ensure that an exception in message handler method does not cause the
         event loop to stop processing messages
         """
-        # fake_consumer = [FakeKafkaMessage("blah"), FakeKafkaMessage("fred"), FakeKafkaMessage("ugh")]
-        fake_consumer = [Mock(), Mock(), Mock()]
+        fake_consumer = Mock()
+        fake_consumer.poll.return_value = {"poll1": [Mock(), Mock(), Mock()]}
+
         fake_event_producer = None
-
         handle_message_mock = Mock(side_effect=[None, KeyError("blah"), None])
-        event_loop(fake_consumer, self.app, fake_event_producer, handler=handle_message_mock)
-
+        event_loop(
+            fake_consumer,
+            self.app,
+            fake_event_producer,
+            handler=handle_message_mock,
+            shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        )
         self.assertEqual(handle_message_mock.call_count, 3)
 
     def test_handle_message_failure_invalid_json_message(self):
@@ -116,6 +121,22 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                         "type": "created",
                     },
                 )
+
+    def test_shutdown_handler(self):
+        fake_consumer = Mock()
+        fake_consumer.poll.return_value = {"poll1": [Mock(), Mock()]}
+
+        fake_event_producer = None
+        handle_message_mock = Mock(side_effect=[None, None])
+        event_loop(
+            fake_consumer,
+            self.app,
+            fake_event_producer,
+            handler=handle_message_mock,
+            shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        )
+        fake_consumer.poll.assert_called_once()
+        self.assertEqual(handle_message_mock.call_count, 2)
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
@@ -189,12 +210,17 @@ class MQAddHostBaseClass(MQServiceBaseTestCase):
             db.session.remove()
             db.drop_all()
 
-    def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
+    def _handle_message(self, host_data):
         message = {"operation": "add_host", "data": host_data}
 
         mock_event_producer = MockEventProducer()
         with self.app.app_context():
             handle_message(json.dumps(message), mock_event_producer)
+
+        return mock_event_producer
+
+    def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
+        mock_event_producer = self._handle_message(host_data)
 
         self.assertEqual(json.loads(mock_event_producer.event)["host"]["id"], mock_event_producer.key)
 
@@ -316,6 +342,8 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                 {"namespace": "NS3", "key": "key2", "value": "val2"},
                 {"namespace": "Sat", "key": "prod", "value": None},
                 {"namespace": None, "key": "key", "value": "val"},
+                {"namespace": None, "key": "only_key", "value": None},
+                {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
             ],
         }
 
@@ -329,6 +357,32 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+    def test_add_host_with_invalid_tags(self):
+        """
+         Tests adding a host with message containing invalid tags
+        """
+        too_long = "a" * 256
+        for tag in (
+            {"namespace": "", "key": "key", "value": "val"},
+            {"namespace": "NS", "key": "", "value": "val"},
+            {"namespace": "NS", "key": "key", "value": ""},
+            {"namespace": too_long, "key": "key", "value": "val"},
+            {"namespace": "NS", "key": too_long, "value": "val"},
+            {"namespace": "NS", "key": "key", "value": too_long},
+            {"namespace": "NS", "key": None, "value": too_long},
+        ):
+            with self.subTest(tag=tag):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": str(uuid.uuid4()),
+                    "account": "0000001",
+                    "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+                    "reporter": "test",
+                    "tags": [tag],
+                }
+                with self.assertRaises(ValidationException):
+                    self._handle_message(host_data)
 
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_empty_keys_system_profile(self, datetime_mock):
@@ -369,6 +423,25 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                     "stale_timestamp": datetime.now(timezone.utc).isoformat(),
                     "reporter": "test",
                     "facts": facts,
+                }
+                message = {"operation": "add_host", "data": host_data}
+
+                with self.app.app_context():
+                    with self.assertRaises(ValidationException):
+                        handle_message(json.dumps(message), mock_event_producer)
+
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_with_invalid_stale_timestmap(self, datetime_mock):
+        mock_event_producer = MockEventProducer()
+
+        for stale_timestamp in ("invalid", datetime.now().isoformat()):
+            with self.subTest(stale_timestamp=stale_timestamp):
+                host_data = {
+                    "display_name": "test_host",
+                    "insights_id": str(uuid.uuid4()),
+                    "account": "0000001",
+                    "stale_timestamp": stale_timestamp,
+                    "reporter": "test",
                 }
                 message = {"operation": "add_host", "data": host_data}
 
