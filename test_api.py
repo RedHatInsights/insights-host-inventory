@@ -1795,6 +1795,10 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
 @patch("api.host.emit_event")
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.now_timestamp = datetime.utcnow()
+
     def test_update_fields(self, emit_event):
         original_id = self.added_hosts[0].id
 
@@ -1882,13 +1886,29 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
     def test_patch_produces_update_event(self, emit_event):
-        patch_doc = {"display_name": "patch_event_test"}
-        host_to_patch = self.added_hosts[0].id
-        self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
-        # print(emit_event.call_args)
-        event_message = json.loads(emit_event.call_args[0][0])
-        emit_event.assert_called_once()
-        self.assertEqual(event_message["type"], "updated")
+        with patch("app.queue.egress.datetime", **{"utcnow.return_value": self.now_timestamp}):
+            patch_doc = {"display_name": "patch_event_test"}
+            host_to_patch = self.added_hosts[0].id
+            self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
+            event_message = json.loads(emit_event.call_args[0][0])
+            emit_event.assert_called_once()
+            expected_event_message = {
+                "type": "updated",
+                "host": {
+                    "stale_timestamp": self.added_hosts[0].stale_timestamp.replace("T", " "),
+                    "display_name": "patch_event_test",
+                    "reporter": "test",
+                    "id": self.added_hosts[0].id,
+                    "account": "000501",
+                    "ansible_host": None,
+                    "tags": [{}],
+                },
+                "platform_metadata": {},
+                "metadata": {"request_id": "-1"},
+                "timestamp": self.now_timestamp.replace(tzinfo=timezone.utc).isoformat(),
+            }
+
+            self.assertEqual(event_message, expected_event_message)
 
 
 class DeleteHostsErrorTestCase(DBAPITestCase):

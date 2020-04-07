@@ -2,6 +2,7 @@ from enum import Enum
 
 import connexion
 import flask
+import pytz
 from flask_api import status
 from marshmallow import ValidationError
 
@@ -36,7 +37,6 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
 from tasks import emit_event
-
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -226,6 +226,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 
 def emit_patch_event(host):
+    # Convert the host timestamp to UTC before outputting the event
+    host.stale_timestamp = host.stale_timestamp.astimezone(pytz.utc)
     key = str(host.id)
     metadata = {"request_id": threadctx.request_id}
     event = build_event_topic_event("updated", host, metadata=metadata)
