@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 
+from migrations.helpers import logger
 from migrations.helpers import session
 
 
@@ -40,14 +41,16 @@ class Host(Base):
 COLUMNS = ("created_on", "modified_on", "account", "canonical_facts")
 
 
-def _fill_in_canonical_facts(host_query):
-    host_query.filter((Host.canonical_facts == NULL) | (Host.canonical_facts == JSONB.NULL)).update(
-        {Host.canonical_facts: {}}
-    )
+def _fill_in_canonical_facts(logger_, host_query):
+    filtered_query = host_query.filter((Host.canonical_facts == NULL) | (Host.canonical_facts == JSONB.NULL))
+    matched_rows = filtered_query.update({Host.canonical_facts: {}})
+    logger_.info("Matched rows for UPDATE: %d", matched_rows)
 
 
-def _delete_invalid(host_query):
-    host_query.filter((Host.account == NULL) | (Host.created_on == NULL) | (Host.modified_on == NULL)).delete()
+def _delete_invalid(logger_, host_query):
+    filtered_query = host_query.filter((Host.account == NULL) | (Host.created_on == NULL) | (Host.modified_on == NULL))
+    matched_rows = filtered_query.delete()
+    logger_.info("Matched rows for DELETE: %d", matched_rows)
 
 
 def _alter_columns_null(nullable):
@@ -56,10 +59,11 @@ def _alter_columns_null(nullable):
 
 
 def upgrade():
+    logger_ = logger(__name__)
     with session() as s:
         host_query = s.query(Host)
-        _fill_in_canonical_facts(host_query)
-        _delete_invalid(host_query)
+        _fill_in_canonical_facts(logger_, host_query)
+        _delete_invalid(logger_, host_query)
 
     _alter_columns_null(False)
 
