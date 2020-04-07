@@ -314,14 +314,11 @@ class Tag:
         return nested_tags
 
     @classmethod
-    def _if_null(cls, value):
+    def deserialize_namespace(cls, value):
         """
         replaces the null string used in the database with None
         """
-        if value == "null":
-            return None
-        else:
-            return value
+        return None if value in [None, "", "null"] else value
 
     @staticmethod
     def filter_tags(tags, searchTerm):
@@ -352,28 +349,8 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
-                    tags.append(Tag(Tag._if_null(namespace), key))
+                    tags.append(Tag(Tag.deserialize_namespace(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
-                        tags.append(Tag(Tag._if_null(namespace), key, value))
+                        tags.append(Tag(Tag.deserialize_namespace(namespace), key, value))
         return tags
-
-    @staticmethod
-    def create_structered_tags_from_tag_data_list(tag_data_list):
-        """
-        takes an array of structured tag data and
-        returns an array of tag class objects
-        """
-        tag_list = []
-
-        if tag_data_list is None:
-            return tag_list
-
-        for tag_data in tag_data_list:
-            namespace = Tag._if_null(tag_data.get("namespace", None))
-
-            value = tag_data.get("value", None)
-
-            tag_list.append(Tag(namespace, tag_data["key"], value))
-
-        return tag_list

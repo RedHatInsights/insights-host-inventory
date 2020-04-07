@@ -879,6 +879,66 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
+    def test_create_host_with_20_byte_MAC_address(self):
+        system_profile = {
+            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
+
+        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+
+    def test_create_host_with_too_long_MAC_address(self):
+        system_profile = {
+            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
+        }
+
+        host_data = HostWrapper(test_data(system_profile=system_profile))
+
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_system_profile(self):
+        samples = (
+            {"disk_devices": [{"options": {"": "invalid"}}]},
+            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
+            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
+            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
+        )
+
+        for sample in samples:
+            with self.subTest(system_profile=sample):
+                host_data = HostWrapper(test_data(system_profile=sample))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
+
+    def test_create_host_with_empty_json_key_in_facts(self):
+        samples = (
+            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
+            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
+        )
+
+        for facts in samples:
+            with self.subTest(facts=facts):
+                host_data = HostWrapper(test_data(facts=facts))
+                response = self.post(HOST_URL, [host_data.data()], 207)
+                self._verify_host_status(response, 0, 400)
+
+
+class CreateHostsWithTagsTestCase(DBAPITestCase):
     def test_create_host_with_invalid_tags(self):
         too_long = "a" * 256
         tags = [
@@ -1007,63 +1067,79 @@ class CreateHostsTestCase(DBAPITestCase):
         for tag, expected_tag in zip(host_tags, expected_tags):
             self.assertEqual(tag, expected_tag)
 
-    def test_create_host_with_20_byte_MAC_address(self):
-        system_profile = {
-            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
+    def test_update_host_replaces_tags(self):
+        insights_id = generate_uuid()
+
+        create_tags = [
+            {"namespace": "namespace1", "key": "key1", "value": "value1"},
+            {"namespace": "namespace1", "key": "key2", "value": "value2"},
+        ]
+        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
+        create_response = self.post(HOST_URL, [create_host_data], 207)
+
+        self._verify_host_status(create_response, 0, 201)
+        host_id = self._pluck_host_from_response(create_response, 0)["id"]
+
+        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(created_tags, create_tags)
+
+        update_tags = [
+            {"namespace": "namespace1", "key": "key2", "value": "value3"},
+            {"namespace": "namespace1", "key": "key3", "value": "value4"},
+        ]
+        update_host_data = test_data(insights_id=insights_id, tags=update_tags)
+        update_response = self.post(HOST_URL, [update_host_data], 207)
+
+        self._verify_host_status(update_response, 0, 200)
+        updated_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(updated_tags, update_tags)
+
+    def test_update_host_does_not_remove_namespace(self):
+        insights_id = generate_uuid()
+
+        create_tags = [{"namespace": "namespace1", "key": "key1", "value": "value1"}]
+        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
+        create_response = self.post(HOST_URL, [create_host_data], 207)
+
+        self._verify_host_status(create_response, 0, 201)
+        host_id = self._pluck_host_from_response(create_response, 0)["id"]
+
+        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(created_tags, create_tags)
+
+        update_tags = [{"namespace": "namespace2", "key": "key2", "value": "value3"}]
+        update_host_data = test_data(insights_id=insights_id, tags=update_tags)
+        update_response = self.post(HOST_URL, [update_host_data], 207)
+
+        self._verify_host_status(update_response, 0, 200)
+        updated_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(updated_tags, create_tags + update_tags)
+
+    def test_create_host_with_nested_tags(self):
+        insights_id = generate_uuid()
+
+        create_tags = {
+            "namespace1": {"key1": ["value1", "value2"], "key2": ["value3", "value3"]},
+            "namespace2": {"key3": [None, "value4"], "key4": [None], "key5": []},
+            "": {"key5": ["value5"]},
         }
+        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
+        create_response = self.post(HOST_URL, [create_host_data], 207)
 
-        host_data = HostWrapper(test_data(system_profile=system_profile))
+        self._verify_host_status(create_response, 0, 201)
+        host_id = self._pluck_host_from_response(create_response, 0)["id"]
 
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    def test_create_host_with_too_long_MAC_address(self):
-        system_profile = {
-            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
-        }
-
-        host_data = HostWrapper(test_data(system_profile=system_profile))
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_system_profile(self):
-        samples = (
-            {"disk_devices": [{"options": {"": "invalid"}}]},
-            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
-            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
-            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
-        )
-
-        for sample in samples:
-            with self.subTest(system_profile=sample):
-                host_data = HostWrapper(test_data(system_profile=sample))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_facts(self):
-        samples = (
-            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
-        )
-
-        for facts in samples:
-            with self.subTest(facts=facts):
-                host_data = HostWrapper(test_data(facts=facts))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
+        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        expected_tags = [
+            {"namespace": "namespace1", "key": "key1", "value": "value1"},
+            {"namespace": "namespace1", "key": "key1", "value": "value2"},
+            {"namespace": "namespace1", "key": "key2", "value": "value3"},
+            {"namespace": "namespace2", "key": "key3", "value": "value4"},
+            {"namespace": "namespace2", "key": "key4", "value": None},
+            {"namespace": "namespace2", "key": "key5", "value": None},
+            {"namespace": None, "key": "key5", "value": "value5"},
+        ]
+        self.assertCountEqual(expected_tags, created_tags)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):

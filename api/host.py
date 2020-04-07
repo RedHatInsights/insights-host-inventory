@@ -343,7 +343,7 @@ def _count_tags(host_list):
 
     for host in host_list:
         host_tag_count = 0
-        if host.tags is not None:
+        if host.tags is not None:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
             for namespace in host.tags:
                 for tag in host.tags[namespace]:
                     if len(host.tags[namespace][tag]) == 0:

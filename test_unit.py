@@ -31,9 +31,13 @@ from app.models import Host
 from app.models import HostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
+from app.serialization import _deserialize_tags
+from app.serialization import _deserialize_tags_dict
+from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
 from app.serialization import _serialize_facts
 from app.serialization import _serialize_uuid
+from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
@@ -577,31 +581,6 @@ class TagCreateNestedFromTagsTestCase(TestCase):
         self.assertEqual(nested_tags, expected_nested_tags)
 
 
-class TagCreateStructeredTagsFromTagDataListTestCase(TestCase):
-    def test_create_structered_tags_from_tag_data_list(self):
-        tag_data_list = [
-            {"value": "val2", "key": "key2", "namespace": "NS2"},
-            {"value": "val3", "key": "key3", "namespace": "NS3"},
-            {"value": "val3", "key": "key3", "namespace": "NS1"},
-        ]
-        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
-
-        expected_tag_list = [Tag("NS2", "key2", "val2"), Tag("NS3", "key3", "val3"), Tag("NS1", "key3", "val3")]
-
-        self.assertEqual(len(tag_list), len(expected_tag_list))
-        for tag, expected_tag in zip(tag_list, expected_tag_list):
-            self.assertEqual(tag.data(), expected_tag.data())
-
-    def test_create_structered_tags_from_tag_data_list_no_data(self):
-        tag_data_list = None
-        tag_list = Tag.create_structered_tags_from_tag_data_list(tag_data_list)
-
-        expected_tag_list = []
-
-        self.assertEqual(len(tag_list), len(expected_tag_list))
-        self.assertEqual(tag_list, expected_tag_list)
-
-
 class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
         canonical_facts = {
@@ -619,10 +598,14 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
             "reporter": "puptoo",
         }
         stale_timestamp = datetime.now(timezone.utc)
-        input = {
+        full_input = {
             **canonical_facts,
             **unchanged_input,
             "stale_timestamp": stale_timestamp.isoformat(),
@@ -638,13 +621,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        actual = deserialize_host(input)
+        actual = deserialize_host(full_input)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
             "stale_timestamp": stale_timestamp,
-            "facts": {item["namespace"]: item["facts"] for item in input["facts"]},
-            "system_profile_facts": input["system_profile"],
+            "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
+            "system_profile_facts": full_input["system_profile"],
         }
 
         self.assertIs(Host, type(actual))
@@ -673,6 +656,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         self.assertEqual(stale_timestamp, host.stale_timestamp)
         self.assertEqual(reporter, host.reporter)
         self.assertEqual({}, host.facts)
+        self.assertEqual({}, host.tags)
         self.assertEqual({}, host.system_profile_facts)
 
     def test_with_invalid_input(self):
@@ -687,16 +671,20 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             {
                 "account": "someacct",
                 "fqdn": "some fqdn",
-                "facts": {"some ns": {"some key": "some value"}},
                 "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
             },
+            {
+                "account": "someacct",
+                "fqdn": "some fqdn",
+                "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
+            },
         )
-        for input in inputs:
-            with self.subTest(input=input):
+        for inp in inputs:
+            with self.subTest(input=inp):
                 with self.assertRaises(ValidationException) as context:
-                    deserialize_host(input)
+                    deserialize_host(inp)
 
-                expected_errors = HostSchema().load(input).errors
+                expected_errors = HostSchema().load(inp).errors
                 self.assertEqual(str(expected_errors), str(context.exception))
 
 
@@ -724,7 +712,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
     def test_with_all_fields(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
     ):
-        input = {
+        host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
@@ -741,10 +729,10 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -754,35 +742,35 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_input
 
-        result = deserialize_host(input)
+        result = deserialize_host(host_input)
         self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(input)
-        deserialize_facts.assert_called_once_with(input["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
-            input["system_profile"],
-            input["stale_timestamp"],
-            input["reporter"],
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
         )
 
     def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        input = {
+        host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
-            "tags": [
-                {"namespace": "NS1", "key": "key1", "value": "value1"},
-                {"namespace": "NS2", "key": "key2", "value": "value2"},
-            ],
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
             "system_profile": {
                 "number_of_cpus": 1,
                 "number_of_sockets": 2,
@@ -792,30 +780,68 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_input
 
         result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(input)
+        deserialize_canonical_facts.assert_called_once_with(host_input)
         deserialize_facts.assert_called_once_with(None)
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
-            input["system_profile"],
-            input["stale_timestamp"],
-            input["reporter"],
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
+        )
+
+    def test_without_tags(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+        host_input = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some account",
+            "facts": {
+                "some namespace": {"some key": "some value"},
+                "another namespace": {"another key": "another value"},
+            },
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            },
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "some reporter",
+        }
+        host_schema.return_value.load.return_value.data = host_input
+
+        result = deserialize_host({})
+        self.assertEqual(host.return_value, result)
+
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(None)
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
         )
 
     def test_without_display_name(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
     ):
-        input = {
+        host_input = {
             "ansible_host": "some ansible host",
             "account": "some account",
             "facts": {
@@ -835,24 +861,24 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema.return_value.load.return_value.data = host_input
 
         result = deserialize_host({})
         self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(input)
-        deserialize_facts.assert_called_once_with(input["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
             None,
-            input["ansible_host"],
-            input["account"],
+            host_input["ansible_host"],
+            host_input["account"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
-            input["system_profile"],
-            input["stale_timestamp"],
-            input["reporter"],
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
         )
 
     def test_without_system_profile(
@@ -934,12 +960,12 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
     def test_host_validation(
         self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
     ):
-        input = {"ansible_host": "some ansible host", "account": "some acct"}
+        host_input = {"ansible_host": "some ansible host", "account": "some acct"}
 
-        deserialize_host(input)
+        deserialize_host(host_input)
 
         host_schema.assert_called_once_with(strict=True)
-        host_schema.return_value.load.assert_called_with(input)
+        host_schema.return_value.load.assert_called_with(host_input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
     def test_invalid_host_error(
@@ -959,6 +985,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         deserialize_canonical_facts.assert_not_called()
         deserialize_facts.assert_not_called()
+        deserialize_tags.assert_not_called()
         host.assert_not_called()
 
         host_schema.return_value.load.return_value.data.get.assert_not_called()
@@ -1000,6 +1027,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 "another namespace": {"another key": "another value"},
             },
             "stale_timestamp": datetime.now(timezone.utc),
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
         }
         host = Host(**host_init_data)
 
@@ -1008,12 +1039,18 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
-        actual = serialize_host(host, Timestamps(config))
+        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
         expected = {
             **canonical_facts,
             **unchanged_data,
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
+            ],
+            "tags": [
+                {"namespace": namespace, "key": key, "value": value}
+                for namespace, ns_tags in host_init_data["tags"].items()
+                for key, values in ns_tags.items()
+                for value in values
             ],
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
@@ -1038,7 +1075,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
-        actual = serialize_host(host, Timestamps(config))
+        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -1052,6 +1089,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "ansible_host": None,
             **unchanged_data,
             "facts": [],
+            "tags": [],
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
@@ -1085,10 +1123,11 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 )
 
 
+@patch("app.serialization._serialize_tags")
 @patch("app.serialization._serialize_facts")
 @patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
-    def test_with_all_fields(self, serialize_canonical_facts, serialize_facts):
+    def test_with_all_fields(self, serialize_canonical_facts, serialize_facts, serialize_tags):
         canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
         serialize_canonical_facts.return_value = canonical_facts
         facts = [
@@ -1096,6 +1135,12 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             {"namespace": "another namespace", "facts": {"another key": "another value"}},
         ]
         serialize_facts.return_value = facts
+        serialize_tags.return_value = [
+            {"namespace": "some namespace", "key": "some key", "value": "some value"},
+            {"namespace": "some namespace", "key": "some key", "value": "another value"},
+            {"namespace": "some namespace", "key": "another key", "value": "value"},
+            {"namespace": "another namespace", "key": "key", "value": "value"},
+        ]
         stale_timestamp = datetime.now(timezone.utc)
 
         unchanged_data = {
@@ -1109,6 +1154,10 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             **unchanged_data,
             "facts": facts,
             "stale_timestamp": stale_timestamp,
+            "tags": {
+                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "another namespace": {"key": ["value"]},
+            },
         }
         host = Host(**host_init_data)
 
@@ -1123,11 +1172,12 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 "stale_timestamp.culled_timestamp": datetime.now(timezone.utc) + timedelta(hours=2),
             }
         )
-        actual = serialize_host(host, staleness_offset)
+        actual = serialize_host(host, staleness_offset, DEFAULT_FIELDS + ("tags",))
         expected = {
             **canonical_facts,
             **unchanged_data,
             "facts": serialize_facts.return_value,
+            "tags": serialize_tags.return_value,
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
@@ -1139,6 +1189,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
 
         serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"])
         serialize_facts.assert_called_once_with(host_init_data["facts"])
+        serialize_tags.assert_called_once_with(host_init_data["tags"])
 
 
 class SerializationSerializeHostSystemProfileTestCase(TestCase):
@@ -1408,6 +1459,95 @@ class HostUpdateStaleTimestamp(TestCase):
 
         self.assertEqual(old_stale_timestamp, host.stale_timestamp)
         self.assertEqual(old_reporter, host.reporter)
+
+
+class SerializationDeserializeTags(TestCase):
+    def test_deserialize_structured(self):
+        for function in (_deserialize_tags, _deserialize_tags_list):
+            with self.subTest(function=function):
+                structured_tags = [
+                    {"namespace": "namespace1", "key": "key1", "value": "value1"},
+                    {"namespace": "namespace1", "key": "key1", "value": "value2"},
+                    {"namespace": "namespace1", "key": "key2", "value": "value3"},
+                    {"namespace": "namespace1", "key": "key2", "value": "value3"},
+                    {"namespace": "namespace2", "key": "key3", "value": None},
+                    {"namespace": "namespace2", "key": "key3", "value": ""},
+                    {"namespace": "namespace2", "key": "key3"},
+                    {"namespace": "namespace3", "key": "key4", "value": None},
+                    {"namespace": "namespace3", "key": "key4", "value": "value4"},
+                    {"namespace": None, "key": "key5", "value": "value5"},
+                    {"namespace": "", "key": "key5", "value": "value6"},
+                    {"namespace": "null", "key": "key5", "value": "value7"},
+                    {"key": "key5", "value": "value7"},
+                ]
+                nested_tags = function(structured_tags)
+
+                self.assertCountEqual(["namespace1", "namespace2", "namespace3", None], nested_tags.keys())
+                self.assertCountEqual(["key1", "key2"], nested_tags["namespace1"].keys())
+                self.assertCountEqual(["value1", "value2"], nested_tags["namespace1"]["key1"])
+                self.assertCountEqual(["value3"], nested_tags["namespace1"]["key2"])
+                self.assertCountEqual(["key3"], nested_tags["namespace2"].keys())
+                self.assertEqual([], nested_tags["namespace2"]["key3"])
+                self.assertCountEqual(["key4"], nested_tags["namespace3"].keys())
+                self.assertCountEqual(["value4"], nested_tags["namespace3"]["key4"])
+                self.assertCountEqual(["key5"], nested_tags[None].keys())
+                self.assertCountEqual(["value5", "value6", "value7"], nested_tags[None]["key5"])
+
+    def test_deserialize_nested(self):
+        for function in (_deserialize_tags, _deserialize_tags_dict):
+            with self.subTest(function=function):
+                input_tags = {
+                    "namespace1": {"key1": ["value1", "value2"], "key2": ["value3", "value3"]},
+                    "namespace2": {"key3": []},
+                    "namespace3": {"key4": [None, ""]},
+                    "namespace4": {},
+                    "": {"key5": ["value4"]},
+                    "null": {"key5": ["value5"]},
+                }
+                deserialized_tags = function(input_tags)
+                print(deserialized_tags)
+
+                self.assertCountEqual(
+                    ["namespace1", "namespace2", "namespace3", "namespace4", None], deserialized_tags.keys()
+                )
+                self.assertCountEqual(["key1", "key2"], deserialized_tags["namespace1"].keys())
+                self.assertCountEqual(["value1", "value2"], deserialized_tags["namespace1"]["key1"])
+                self.assertCountEqual(["value3"], deserialized_tags["namespace1"]["key2"])
+                self.assertCountEqual(["key3"], deserialized_tags["namespace2"].keys())
+                self.assertEqual([], deserialized_tags["namespace2"]["key3"])
+                self.assertCountEqual(["key4"], deserialized_tags["namespace3"].keys())
+                self.assertEqual([], deserialized_tags["namespace3"]["key4"])
+                self.assertEqual({}, deserialized_tags["namespace4"])
+                self.assertCountEqual(["key5"], deserialized_tags[None].keys())
+                self.assertCountEqual(["value4", "value5"], deserialized_tags[None]["key5"])
+
+    def test_deserialize_structured_empty_list(self):
+        for function in (_deserialize_tags, _deserialize_tags_list):
+            with self.subTest(function=function):
+                deserialized_tags = function([])
+                self.assertEqual(deserialized_tags, {})
+
+    def test_deserialize_structured_no_key_error(self):
+        for function in (_deserialize_tags, _deserialize_tags_list):
+            for key in (None, ""):
+                with self.subTest(function=function, key=key):
+                    with self.assertRaises(ValueError):
+                        structured_tags = [{"namespace": "namespace", "key": key, "value": "value"}]
+                        function(structured_tags)
+
+    def test_deserialize_nested_empty_dict(self):
+        for function in (_deserialize_tags, _deserialize_tags_dict):
+            with self.subTest(function=function):
+                deserialized_tags = function({})
+                self.assertEqual(deserialized_tags, {})
+
+    def test_deserialize_nested_no_key_error(self):
+        for function in (_deserialize_tags, _deserialize_tags_dict):
+            for key in (None, ""):
+                with self.subTest(function=function, key=key):
+                    with self.assertRaises(ValueError):
+                        nested_tags = {"namespace": {key: ["value"]}}
+                        function(nested_tags)
 
 
 if __name__ == "__main__":

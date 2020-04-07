@@ -203,7 +203,7 @@ def test_tag_deserialization():
         {"namespace": "AWS", "key": "env"},
     ]
     expected_tags = {"Sat": {"env": ["prod", "test"], "geo": ["somewhere"]}, "AWS": {"env": ["ci"]}}
-    deserialized_tags = Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))
+    deserialized_tags = Tag.create_nested_from_tags(Tag.create_structured_tags_from_tag_data_list(tags))
 
     assert sorted(deserialized_tags["Sat"]["env"]) == sorted(expected_tags["Sat"]["env"])
     assert sorted(deserialized_tags["Sat"]["geo"]) == sorted(expected_tags["Sat"]["geo"])
