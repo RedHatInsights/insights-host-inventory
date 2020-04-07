@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import timezone
 
 from kafka import KafkaProducer
 from marshmallow import fields
@@ -57,7 +58,7 @@ def _build_event(event_type, host, platform_metadata, metadata):
                     "host": host,
                     "platform_metadata": platform_metadata,
                     "metadata": metadata,
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc),
                 }
             )
             .data
