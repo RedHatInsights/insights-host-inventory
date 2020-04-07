@@ -1809,6 +1809,7 @@ class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(result_ids, expected_ids)
 
 
+@patch("api.host.emit_event")
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
         super().setUp()
