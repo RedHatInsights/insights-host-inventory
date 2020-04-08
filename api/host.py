@@ -237,6 +237,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 
 def _emit_patch_event(host):
+    # TODO: this solution is undesirable. We should do this when we pull the host from the
+    #       database. Remove this when the proper fix is in place
     # Convert the host timestamp to UTC before outputting the event
     host.stale_timestamp = host.stale_timestamp.astimezone(timezone.utc).isoformat()
     key = str(host.id)
