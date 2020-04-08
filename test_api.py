@@ -199,8 +199,10 @@ class APIBaseTestCase(TestCase):
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(self.client().post, path, data, status, return_response_as_json)
 
-    def patch(self, path, data, status=200, return_response_as_json=True):
-        return self._make_http_call(self.client().patch, path, data, status, return_response_as_json)
+    def patch(self, path, data, status=200, return_response_as_json=True, extra_headers={}):
+        return self._make_http_call(
+            self.client().patch, path, data, status, return_response_as_json, extra_headers={**extra_headers}
+        )
 
     def put(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
@@ -223,12 +225,12 @@ class APIBaseTestCase(TestCase):
         _verify_value("detail", expected_detail)
         _verify_value("type", expected_type)
 
-    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True):
+    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True, extra_headers={}):
         json_data = json.dumps(data)
         headers = self._get_valid_auth_header()
         headers["content-type"] = "application/json"
         return self._response_check(
-            http_method(path, data=json_data, headers=headers), status, return_response_as_json
+            http_method(path, data=json_data, headers={**headers, **extra_headers}), status, return_response_as_json
         )
 
     def _response_check(self, response, status, return_response_as_json):
@@ -1813,7 +1815,7 @@ class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.now_timestamp = datetime.utcnow()
+        self.now_timestamp = datetime.now(timezone.utc)
 
     def test_update_fields(self, emit_event):
         original_id = self.added_hosts[0].id
@@ -1901,17 +1903,23 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             with self.subTest(host_id_list=host_id_list):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
-    def test_patch_produces_update_event(self, emit_event):
+    def _base_patch_produces_update_event_test(self, emit_event, request_id):
         with patch("app.queue.egress.datetime", **{"now.return_value": self.now_timestamp}):
             patch_doc = {"display_name": "patch_event_test"}
             host_to_patch = self.added_hosts[0].id
-            self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
-            event_message = json.loads(emit_event.call_args[0][0])
-            emit_event.assert_called_once()
+            headers = {"x-rh-insights-request-id": request_id}
+
+            if request_id:
+                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
+            else:
+                # We expect a -1 if the request_id header is not sent
+                request_id = "-1"
+                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
+
             expected_event_message = {
                 "type": "updated",
                 "host": {
-                    "stale_timestamp": self.added_hosts[0].stale_timestamp.replace("T", " "),
+                    "stale_timestamp": self.added_hosts[0].stale_timestamp,
                     "display_name": "patch_event_test",
                     "reporter": "test",
                     "id": self.added_hosts[0].id,
@@ -1919,12 +1927,22 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                     "ansible_host": None,
                     "tags": [{}],
                 },
-                "platform_metadata": {},
-                "metadata": {"request_id": "-1"},
-                "timestamp": self.now_timestamp.replace(tzinfo=timezone.utc).isoformat(),
+                "platform_metadata": None,
+                "metadata": {"request_id": request_id},
+                "timestamp": self.now_timestamp.isoformat(),
             }
 
+            event_message = json.loads(emit_event.call_args[0][0])
+            emit_event.assert_called_once()
+
             self.assertEqual(event_message, expected_event_message)
+
+    def test_patch_produces_update_event_no_request_id(self, emit_event):
+        self._base_patch_produces_update_event_test(emit_event, None)
+
+    def test_patch_produces_update_event_with_request_id(self, emit_event):
+        request_id = generate_uuid()
+        self._base_patch_produces_update_event_test(emit_event, request_id)
 
 
 class DeleteHostsErrorTestCase(DBAPITestCase):
@@ -2898,51 +2916,40 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
         self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
 
-class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase, DeleteHostsBaseTestCase):
-    @patch("api.host.emit_patch_event")
+@patch("api.host.emit_event")
+class QueryStalenessPatchIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
     def test_patch_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"]
-
         self.patch(url, {"display_name": "patched"}, 404)
 
-    @patch("api.host.emit_patch_event")
-    def test_patch_works_on_non_culled(self, emit_patch_event):
+    def test_patch_works_on_non_culled(self, emit_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
-
         self.patch(url, {"display_name": "patched"}, 200)
 
-    @patch("api.host.emit_patch_event")
-    def test_patch_facts_ignores_culled(self, emit_patch_event):
+    def test_patch_facts_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
-
         self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
-    @patch("api.host.emit_patch_event")
-    def test_patch_facts_works_on_non_culled(self, emit_patch_event):  # broken
+    def test_patch_facts_works_on_non_culled(self, emit_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
-
         self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
-    @patch("api.host.emit_patch_event")
-    def test_put_facts_ignores_culled(self, emit_patch_event):
+    def test_put_facts_ignores_culled(self, emit_event):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
-
         self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
-    @patch("api.host.emit_patch_event")
-    def test_put_facts_works_on_non_culled(self, emit_patch_event):  # broken
+    def test_put_facts_works_on_non_culled(self, emit_event):  # broken
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
-        print(url)
         self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
-    @patch("api.host.emit_patch_event")
-    def test_delete_ignores_culled(self, emit_patch_event):
-        url = HOST_URL + "/" + self.culled_host["id"]
 
+@patch("lib.host_delete.emit_event")
+class QueryStalenessDeleteIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
+    def test_delete_ignores_culled(self, emit_event):
+        url = HOST_URL + "/" + self.culled_host["id"]
         self.delete(url, 404)
 
-    @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
-    def test_delete_works_on_non_culled(self, emit_patch_event):
+    def test_delete_works_on_non_culled(self, emit_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
         self.delete(url, 200, return_response_as_json=False)
 
@@ -3174,7 +3181,6 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
 class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
     def test_replace_and_merge_ignore_culled_hosts(self):
         # Try to replace the facts on a host that has been marked as culled
-        print(self.culled_host["facts"])
         target_namespace = self.culled_host["facts"][0]["namespace"]
 
         facts_to_add = self._valid_fact_doc()

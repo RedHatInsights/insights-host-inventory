@@ -52,7 +52,7 @@ class NullEventProducer:
         logger.debug("NullEventProducer - logging key: %s, event: %s", key, event)
 
 
-def _build_event(event_type, host, platform_metadata, metadata):
+def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
     if event_type in ("created", "updated"):
         return (
             HostEvent(strict=True)
@@ -61,7 +61,7 @@ def _build_event(event_type, host, platform_metadata, metadata):
                     "type": event_type,
                     "host": host,
                     "platform_metadata": platform_metadata,
-                    "metadata": metadata,
+                    "metadata": {"request_id": request_id},
                     "timestamp": datetime.now(timezone.utc),
                 }
             )
@@ -72,12 +72,12 @@ def _build_event(event_type, host, platform_metadata, metadata):
 
 
 @metrics.egress_event_serialization_time.time()
-def build_egress_topic_event(event_type, host, *, platform_metadata={}, metadata={}):
-    return _build_event(event_type, host, platform_metadata, metadata)
+def build_egress_topic_event(event_type, host, platform_metadata=None):
+    return _build_event(event_type, host, platform_metadata=platform_metadata)
 
 
-def build_event_topic_event(event_type, host, *, platform_metadata={}, metadata={}):
-    return _build_event(event_type, host, platform_metadata, metadata)
+def build_event_topic_event(event_type, host, request_id=None):
+    return _build_event(event_type, host, request_id=request_id)
 
 
 class HostSchema(Schema):
@@ -109,7 +109,7 @@ class HostSchema(Schema):
 
 
 class HostEventMetadataSchema(Schema):
-    request_id = fields.Str()
+    request_id = fields.Str(required=True)
 
 
 class HostEvent(Schema):

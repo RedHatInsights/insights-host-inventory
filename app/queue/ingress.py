@@ -136,14 +136,14 @@ def add_host(host_data):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
-    metadata = validated_operation_msg.get("platform_metadata") or {}
-    initialize_thread_local_storage(metadata)
+    platform_metadata = validated_operation_msg.get("platform_metadata") or {}
+    initialize_thread_local_storage(platform_metadata)
 
     payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_egress_topic_event(add_results.name, output_host, platform_metadata=metadata)
+        event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
         event_producer.write_event(event, output_host["id"])
 
 

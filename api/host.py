@@ -1,8 +1,8 @@
+from datetime import timezone
 from enum import Enum
 
 import connexion
 import flask
-import pytz
 from flask_api import status
 from marshmallow import ValidationError
 
@@ -236,12 +236,11 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
-def emit_patch_event(host):
+def _emit_patch_event(host):
     # Convert the host timestamp to UTC before outputting the event
-    host.stale_timestamp = host.stale_timestamp.astimezone(pytz.utc)
+    host.stale_timestamp = host.stale_timestamp.astimezone(timezone.utc).isoformat()
     key = str(host.id)
-    metadata = {"request_id": threadctx.request_id}
-    event = build_event_topic_event("updated", host, metadata=metadata)
+    event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
     emit_event(event, key)
 
 
@@ -264,7 +263,7 @@ def patch_by_id(host_id_list, host_data):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        emit_patch_event(host)
+        _emit_patch_event(host)
 
     db.session.commit()
 

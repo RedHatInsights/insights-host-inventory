@@ -8,7 +8,7 @@ import requests
 URL = "http://localhost:8080/api/inventory/v1/hosts"
 NUM_HOSTS = 1
 
-account_number = "test"
+account_number = "0000001"
 
 bulk_insert = False
 
