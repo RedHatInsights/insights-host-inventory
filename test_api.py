@@ -4402,7 +4402,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "order_how": "ASC",
                 "limit": 50,
                 "offset": 0,
-                "filter": {"search": {"regex": ".*\\%CE\\%94with\\%C4\\%8Dhar\\%21\\%2F\\%7E\\%7C\\%2B\\+.*"}},
+                "filter": {"search": {"regex": ".*\\Δwith\\čhar\\!\\/\\~\\|\\+\\ .*"}},
                 "hostFilter": {"OR": ANY},
             },
         )

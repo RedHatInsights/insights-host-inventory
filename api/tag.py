@@ -1,5 +1,4 @@
 import re
-from urllib.parse import quote_plus as url_quote
 
 import flask
 
@@ -74,8 +73,8 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
 
     if search:
         variables["filter"] = {
-            # Escaped to prevent ReDoS
-            "search": {"regex": f".*{re.escape(url_quote(search, safe=''))}.*"}
+            # Escaped so that the string literals are not interpretted as regex
+            "search": {"regex": f".*{re.escape(search)}.*"}
         }
 
     if tags:
