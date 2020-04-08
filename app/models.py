@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import check_empty_keys
+from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
 
@@ -315,7 +316,7 @@ class HostSchema(Schema):
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
-    satellite_id = fields.Str(validate=verify_uuid_format)
+    satellite_id = fields.Str(validate=verify_satellite_id)
     fqdn = fields.Str(validate=validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)), validate=validate.Length(min=1))
