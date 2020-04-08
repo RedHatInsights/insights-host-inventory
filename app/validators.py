@@ -48,15 +48,10 @@ def check_empty_keys(data):
     return True
 
 
-"""
-satellite_id can either be a 10 digit number or a UUID depending on Satellite version
-"""
-
-
 def verify_satellite_id(id_str):
-    if not id_str:
-        return False
-
-    if re.match(r"\d{10}", id_str):
+    # satellite_id can either be a UUID or a 10 digit number depending on Sat version
+    if verify_uuid_format(id_str):
         return True
-    return verify_uuid_format(id_str)
+    elif id_str and re.match(r"\d{10}", id_str):
+        return True
+    return False
