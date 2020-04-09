@@ -9,7 +9,7 @@ if (env.CHANGE_ID) {
     execSmokeTest (
         ocDeployerBuilderPath: "inventory/insights-inventory",
         ocDeployerComponentPath: "inventory/insights-inventory",
-        ocDeployerServiceSets: "advisor,ingress,inventory,platform-mq",
+        ocDeployerServiceSets: "advisor,engine,ingress,inventory,platform-mq",
         iqePlugins: ["iqe-advisor-plugin", "iqe-upload-plugin", "iqe-host-inventory-plugin"],
         pytestMarker: "smoke",
     )
