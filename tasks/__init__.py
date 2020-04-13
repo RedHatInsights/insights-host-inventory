@@ -27,7 +27,6 @@ def emit_event(event, key):
     logger.info("Event message produced: topic %s, key %s", cfg.event_topic, key)
     logger.debug("Event message body: %s", event)
 
-
 def flush():
     producer.flush()
     logger.info("Event messages flushed")

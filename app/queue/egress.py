@@ -19,13 +19,13 @@ class KafkaEventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
         self._topic = config.host_egress_topic
 
-    def write_event(self, event, key):
-        logger.debug("Topic: %s, key: %s, event: %s", self._topic, key, event)
+    def write_event(self, event, key, headers):
+        logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self._topic, key, event, headers)
 
         try:
             k = key.encode("utf-8") if key else None
             v = event.encode("utf-8")
-            self._kafka_producer.send(self._topic, key=k, value=v)
+            self._kafka_producer.send(self._topic, key=k, value=v, headers=headers)
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")

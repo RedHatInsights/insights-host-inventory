@@ -37,10 +37,12 @@ class MockEventProducer:
     def __init__(self):
         self.event = None
         self.key = None
+        self.headers = None
 
-    def write_event(self, event, key):
+    def write_event(self, event, key, headers):
         self.event = event
         self.key = key
+        self.headers = headers
 
 
 class MQServiceBaseTestCase(TestCase):
@@ -265,6 +267,25 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
         event = json.loads(mock_event_producer.event)
         self.assertEqual(event["host"], host_data)
+
+    @patch("app.queue.ingress.host_repository.add_host")
+    def test_handle_message_verify_message_headers(self, add_host):
+        host_data = self._host_data()
+        add_host.return_value = (host_data, AddHostResults.created)
+
+        message = {"operation": "add_host", "data": host_data}
+
+        mock_event_producer = MockEventProducer()
+        with self.app.app_context():
+            handle_message(json.dumps(message), mock_event_producer)
+            self.assertEqual(mock_event_producer.headers[0][1], b"created")  # event_type
+
+            add_host.reset_mock()
+            host_data.update(display_name="updated_test_host")
+            print(host_data)
+            add_host.return_value = (host_data, AddHostResults.updated)
+            handle_message(json.dumps(message), mock_event_producer)
+            self.assertEqual(mock_event_producer.headers[0][1], b"updated")  # event_type
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):

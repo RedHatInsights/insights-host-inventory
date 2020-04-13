@@ -163,8 +163,8 @@ class MockEmitEvent:
     def __init__(self):
         self.events = []
 
-    def __call__(self, e, key=None):
-        self.events.append((e, key))
+    def __call__(self, e, key=None, headers=None):
+        self.events.append((e, key, headers))
 
 
 class APIBaseTestCase(TestCase):
@@ -1214,7 +1214,7 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}", 200)
 
-    def _assert_event_is_valid(self, event, key, host, timestamp):
+    def _assert_event_is_valid(self, event, key, headers, host, timestamp):
         self.assertIsInstance(event, dict)
         expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
         self.assertEqual(set(event.keys()), expected_keys)
@@ -1225,6 +1225,8 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         self.assertEqual(host.insights_id, event["insights_id"])
 
         self.assertEqual(key, host.id)
+
+        self.assertEqual(headers[0][1], b"deleted")
 
     def _get_hosts_from_db(self, host_ids):
         with self.app.app_context():
@@ -1298,8 +1300,8 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self.assertEqual(len(emit_event.events), 1)
 
-        event, key = emit_event.events[0]
-        self._assert_event_is_valid(json.loads(event), key, added_host, self.now_timestamp)
+        event, key, headers = emit_event.events[0]
+        self._assert_event_is_valid(json.loads(event), key, headers, added_host, self.now_timestamp)
 
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
@@ -1912,32 +1914,32 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
-                event, key = m.events[0]
-                return json.loads(event), key
+                event, key, headers = m.events[0]
+                return json.loads(event), key, headers
 
     def test_create_then_delete(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key = self._delete()
-        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
+        event, key, headers = self._delete()
+        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_branch_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key = self._delete(url_query="?branch_id=1234")
-        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
+        event, key, headers = self._delete(url_query="?branch_id=1234")
+        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_request_id(self):
         request_id = generate_uuid()
         header = {"x-rh-insights-request-id": request_id}
-        event, key = self._delete(header=header)
-        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
+        event, key, headers = self._delete(header=header)
+        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
         self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key = self._delete(header=None)
-        self._assert_event_is_valid(event, key, self.host_to_delete, self.timestamp)
+        event, key, headers = self._delete(header=None)
+        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
         self.assertEqual("-1", event["request_id"])
 
 
