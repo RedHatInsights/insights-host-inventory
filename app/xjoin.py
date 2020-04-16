@@ -63,10 +63,10 @@ def _forwarded_headers():
     }
 
 
-def _stale_timestamp_filter(gte=None, lte=None):
+def _stale_timestamp_filter(gt=None, lte=None):
     filter_ = {}
-    if gte:
-        filter_["gte"] = gte.isoformat()
+    if gt:
+        filter_["gt"] = gt.isoformat()
     if lte:
         filter_["lte"] = lte.isoformat()
     return {"stale_timestamp": filter_}
