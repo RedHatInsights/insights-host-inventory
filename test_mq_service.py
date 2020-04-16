@@ -89,11 +89,11 @@ class MQServiceTestCase(MQServiceBaseTestCase):
 
         mock_event_producer.assert_not_called()
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now()})
+    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_handle_message_happy_path(self, datetime_mock):
         expected_insights_id = str(uuid.uuid4())
         host_id = uuid.uuid4()
-        timestamp_iso = datetime_mock.now.return_value.replace(tzinfo=timezone.utc).isoformat()
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
         message = {
             "operation": "add_host",
             "data": {
@@ -268,13 +268,13 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now()})
+    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_simple(self, datetime_mock):
         """
         Tests adding a host with some simple data
         """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.now.return_value.replace(tzinfo=timezone.utc).isoformat()
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
 
         host_data = {
             "display_name": "test_host",
@@ -295,13 +295,13 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now()})
+    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_with_system_profile(self, datetime_mock):
         """
          Tests adding a host with message containing system profile
         """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.now.return_value.replace(tzinfo=timezone.utc).isoformat()
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
 
         host_data = {
             "display_name": "test_host",
@@ -323,13 +323,13 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now()})
+    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_with_tags(self, datetime_mock):
         """
          Tests adding a host with message containing tags
         """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.now.return_value.replace(tzinfo=timezone.utc).isoformat()
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
 
         host_data = {
             "display_name": "test_host",
@@ -451,14 +451,14 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
 
 class MQCullingTests(MQAddHostBaseClass):
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now()})
+    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_stale_timestamp(self, datetime_mock):
         """
         Tests to see if the host is succesfully created with both reporter
         and stale_timestamp set.
         """
         expected_insights_id = str(uuid.uuid4())
-        timestamp_iso = datetime_mock.now.return_value.isoformat() + "+00:00"
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
         stale_timestamp = datetime.now(timezone.utc)
 
         host_data = {

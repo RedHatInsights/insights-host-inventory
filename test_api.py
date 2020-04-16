@@ -199,9 +199,12 @@ class APIBaseTestCase(TestCase):
     def post(self, path, data, status=200, return_response_as_json=True):
         return self._make_http_call(self.client().post, path, data, status, return_response_as_json)
 
-    def patch(self, path, data, status=200, return_response_as_json=True, extra_headers={}):
+    def patch(self, path, data, status=200, return_response_as_json=True, extra_headers=None):
+        if extra_headers is None:
+            extra_headers = {}
+
         return self._make_http_call(
-            self.client().patch, path, data, status, return_response_as_json, extra_headers={**extra_headers}
+            self.client().patch, path, data, status, return_response_as_json, extra_headers=extra_headers
         )
 
     def put(self, path, data, status=200, return_response_as_json=True):
@@ -1903,46 +1906,56 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             with self.subTest(host_id_list=host_id_list):
                 self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
-    def _base_patch_produces_update_event_test(self, emit_event, request_id):
+    def _base_patch_produces_update_event_test(self, emit_event, headers, expected_request_id):
+        patch_doc = {"display_name": "patch_event_test"}
+        host_to_patch = self.added_hosts[0].id
+
         with patch("app.queue.egress.datetime", **{"now.return_value": self.now_timestamp}):
-            patch_doc = {"display_name": "patch_event_test"}
-            host_to_patch = self.added_hosts[0].id
-            headers = {"x-rh-insights-request-id": request_id}
+            self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
 
-            if request_id:
-                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
-            else:
-                # We expect a -1 if the request_id header is not sent
-                request_id = "-1"
-                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
+        host = self.added_hosts[0]
 
-            expected_event_message = {
-                "type": "updated",
-                "host": {
-                    "stale_timestamp": self.added_hosts[0].stale_timestamp,
-                    "display_name": "patch_event_test",
-                    "reporter": "test",
-                    "id": self.added_hosts[0].id,
-                    "account": "000501",
-                    "ansible_host": None,
-                    "tags": [{}],
-                },
-                "platform_metadata": None,
-                "metadata": {"request_id": request_id},
-                "timestamp": self.now_timestamp.isoformat(),
-            }
+        expected_event_message = {
+            "type": "updated",
+            "host": {
+                "account": host.account,
+                "ansible_host": host.ansible_host,
+                "bios_uuid": host.bios_uuid,
+                "created": host.created,
+                "culled_timestamp": (dateutil.parser.parse(host.stale_timestamp) + timedelta(weeks=2)).isoformat(),
+                "display_name": "patch_event_test",
+                "external_id": host.external_id,
+                "fqdn": host.fqdn,
+                "id": host.id,
+                "insights_id": host.insights_id,
+                "ip_addresses": host.ip_addresses,
+                "mac_addresses": host.mac_addresses,
+                "reporter": host.reporter,
+                "rhel_machine_id": host.rhel_machine_id,
+                "satellite_id": host.satellite_id,
+                "stale_timestamp": host.stale_timestamp,
+                "stale_warning_timestamp": (
+                    dateutil.parser.parse(host.stale_timestamp) + timedelta(weeks=1)
+                ).isoformat(),
+                "subscription_manager_id": host.subscription_manager_id,
+                "updated": host.updated,
+            },
+            "platform_metadata": None,
+            "metadata": {"request_id": expected_request_id},
+            "timestamp": self.now_timestamp.isoformat(),
+        }
 
-            event_message = json.loads(emit_event.call_args[0][0])
-            emit_event.assert_called_once()
+        event_message = json.loads(emit_event.call_args[0][0])
 
-            self.assertEqual(event_message, expected_event_message)
+        self.assertEqual(event_message, expected_event_message)
 
     def test_patch_produces_update_event_no_request_id(self, emit_event):
-        self._base_patch_produces_update_event_test(emit_event, None)
+        self._base_patch_produces_update_event_test(emit_event, {}, "-1")
 
     def test_patch_produces_update_event_with_request_id(self, emit_event):
         request_id = generate_uuid()
-        self._base_patch_produces_update_event_test(emit_event, request_id)
+        headers = {"x-rh-insights-request-id": request_id}
+        self._base_patch_produces_update_event_test(emit_event, headers, request_id)
 
 
 class DeleteHostsErrorTestCase(DBAPITestCase):

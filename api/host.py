@@ -1,4 +1,3 @@
-from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -31,6 +30,7 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue.egress import build_event_topic_event
 from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
@@ -237,11 +237,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 
 def _emit_patch_event(host):
-    # TODO: this solution is undesirable. We should do this when we pull the host from the
-    #       database. Remove this when the proper fix is in place
-    # Convert the host timestamp to UTC before outputting the event
-    host.stale_timestamp = host.stale_timestamp.astimezone(timezone.utc).isoformat()
-    key = str(host.id)
+    key = str(host["id"])
     event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
     emit_event(event, key)
 
@@ -265,7 +261,7 @@ def patch_by_id(host_id_list, host_data):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        _emit_patch_event(host)
+        _emit_patch_event(serialize_host(host, staleness_timestamps()))
 
     db.session.commit()
 
