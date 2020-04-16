@@ -2,6 +2,7 @@ import pytest
 
 from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
+from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
 
@@ -16,6 +17,25 @@ def test_valid_uuid(uuid):
 )
 def test_invalid_uuid(uuid):
     assert not verify_uuid_format(uuid)
+
+
+@pytest.mark.parametrize("satellite_id", ["4a8fb994-57fe-4dbb-ad2a-9e922560b6c1", "1000056432"])
+def test_valid_satellite_id(satellite_id):
+    assert verify_satellite_id(satellite_id) is True
+
+
+@pytest.mark.parametrize(
+    "satellite_id",
+    [
+        "123456789",
+        "",
+        "4a8fb994-57fe-4dbb-ad2a-9e922560b6c1DEADBEEF",
+        "4a8fb99457fe4dbbad2a9e922560b6c1DEADBEEF",
+        None,
+    ],
+)
+def test_invalid_satellite_id(satellite_id):
+    assert not verify_satellite_id(satellite_id)
 
 
 @pytest.mark.parametrize("ip", ["192.168.1.1", "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "0:0:0:0:0:0:0:1"])

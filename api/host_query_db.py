@@ -3,17 +3,14 @@ from uuid import UUID
 from sqlalchemy import and_
 from sqlalchemy import or_
 
-from app import inventory_config
 from app.auth import current_identity
-from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
 from lib.host_repository import canonical_fact_host_query
-from lib.host_repository import canonical_facts_host_query
-from lib.host_repository import stale_timestamp_filter
+from lib.host_repository import find_hosts_by_staleness
 
-__all__ = ("get_host_list", "find_hosts_by_staleness", "params_to_order_by")
+__all__ = ("get_host_list", "params_to_order_by")
 
 NULL = None
 
@@ -67,16 +64,6 @@ def find_hosts_with_insights_enabled(query):
     return query.filter(Host.canonical_facts["insights_id"].isnot(NULL))
 
 
-def find_hosts_by_staleness(staleness, query):
-    logger.debug("find_hosts_by_staleness(%s)", staleness)
-    config = inventory_config()
-    staleness_conditions = tuple(staleness_to_conditions(config, staleness, stale_timestamp_filter))
-    if "unknown" in staleness:
-        staleness_conditions += (Host.stale_timestamp == NULL,)
-
-    return query.filter(or_(*staleness_conditions))
-
-
 def params_to_order_by(order_by=None, order_how=None):
     modified_on_ordering = (Host.modified_on.desc(),)
     ordering = ()
@@ -115,10 +102,6 @@ def _find_all_hosts():
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
     return canonical_fact_host_query(current_identity.account_number, canonical_fact, value)
-
-
-def _find_hosts_by_canonical_facts(canonical_facts):
-    return canonical_facts_host_query(current_identity.account_number, canonical_facts)
 
 
 def _find_hosts_by_tag(string_tags, query):
