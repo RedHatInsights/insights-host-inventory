@@ -1,7 +1,10 @@
 from enum import Enum
 
 from sqlalchemy import and_
+from sqlalchemy import or_
 
+from app import inventory_config
+from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -16,6 +19,8 @@ __all__ = (
     "create_new_host",
     "find_existing_host",
     "find_host_by_canonical_facts",
+    "find_hosts_by_staleness",
+    "find_non_culled_hosts",
     "stale_timestamp_filter",
     "update_existing_host",
 )
@@ -28,6 +33,9 @@ AddHostResults = Enum("AddHostResults", ["created", "updated"])
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
 ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
+
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
+NULL = None
 
 logger = get_logger(__name__)
 
@@ -72,17 +80,21 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
 
 
 def canonical_fact_host_query(account_number, canonical_fact, value):
-    return Host.query.filter((Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value))
+    query = Host.query.filter(
+        (Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value)
+    )
+    return find_non_culled_hosts(query)
 
 
 def canonical_facts_host_query(account_number, canonical_facts):
-    return Host.query.filter(
+    query = Host.query.filter(
         (Host.account == account_number)
         & (
             Host.canonical_facts.comparator.contains(canonical_facts)
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
+    return find_non_culled_hosts(query)
 
 
 def find_host_by_canonical_fact(account_number, canonical_fact, value):
@@ -111,6 +123,20 @@ def find_host_by_canonical_facts(account_number, canonical_facts):
         logger.debug("Found existing host using canonical_fact match: %s", host)
 
     return host
+
+
+def find_hosts_by_staleness(staleness, query):
+    logger.debug("find_hosts_by_staleness(%s)", staleness)
+    config = inventory_config()
+    staleness_conditions = tuple(staleness_to_conditions(config, staleness, stale_timestamp_filter))
+    if "unknown" in staleness:
+        staleness_conditions += (Host.stale_timestamp == NULL,)
+
+    return query.filter(or_(*staleness_conditions))
+
+
+def find_non_culled_hosts(query):
+    return find_hosts_by_staleness(ALL_STALENESS_STATES, query)
 
 
 @metrics.new_host_commit_processing_time.time()

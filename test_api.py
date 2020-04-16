@@ -815,6 +815,46 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
+    def test_ignore_culled_host_on_update_by_canonical_facts(self):
+        # Culled host
+        host_data = test_data(
+            fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        # Update the host
+        new_response = self.post(HOST_URL, [host_data], 207)
+
+        self._verify_host_status(new_response, 0, 201)
+
+        updated_host = self._pluck_host_from_response(new_response, 0)
+
+        self.assertNotEqual(created_host["id"], updated_host["id"])
+
+    def test_ignore_culled_host_on_update_by_elevated_id(self):
+        # Culled host
+        host_to_create_data = test_data(
+            insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
+
+        # Create the host
+        response = self.post(HOST_URL, [host_to_create_data], 207)
+        self._verify_host_status(response, 0, 201)
+        created_host = self._pluck_host_from_response(response, 0)
+
+        # Update the host
+        host_to_update_data = {**host_to_create_data, "ip_addresses": ["10.10.0.2"]}
+        new_response = self.post(HOST_URL, [host_to_update_data], 207)
+        self._verify_host_status(new_response, 0, 201)
+        updated_host = self._pluck_host_from_response(new_response, 0)
+        self.assertNotEqual(created_host["id"], updated_host["id"])
+
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -2238,18 +2278,15 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 @patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
-@patch("api.host_query_db.canonical_facts_host_query", wraps=canonical_facts_host_query)
 class QueryByCanonicalFactPerformanceTestCase(DBAPITestCase):
-    def test_query_using_fqdn_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+    def test_query_using_fqdn_not_subset_match(self, canonical_fact_host_query):
         fqdn = "some fqdn"
         self.get(f"{HOST_URL}?fqdn={fqdn}")
-        canonical_facts_host_query.assert_not_called()
         canonical_fact_host_query.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
 
-    def test_query_using_insights_id_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+    def test_query_using_insights_id_not_subset_match(self, canonical_fact_host_query):
         insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
         self.get(f"{HOST_URL}?insights_id={insights_id}")
-        canonical_facts_host_query.assert_not_called()
         canonical_fact_host_query.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
 
 
