@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import validators
@@ -45,3 +46,12 @@ def check_empty_keys(data):
                 return False
 
     return True
+
+
+def verify_satellite_id(id_str):
+    # satellite_id can either be a UUID or a 10 digit number depending on Sat version
+    if verify_uuid_format(id_str):
+        return True
+    elif id_str and re.match(r"^\d{10}$", id_str):
+        return True
+    return False

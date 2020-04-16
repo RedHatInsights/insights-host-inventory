@@ -3,8 +3,14 @@ from contextlib import contextmanager
 from alembic import op
 from sqlalchemy.orm.session import Session
 
+from app.logging import get_logger
 
-__all__ = ("session",)
+
+__all__ = ("logger", "session")
+
+
+def logger(name):
+    return get_logger(f"migrations.{name}")
 
 
 @contextmanager
