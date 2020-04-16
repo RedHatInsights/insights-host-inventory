@@ -450,7 +450,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
 
 class MQUpdateHostBaseClass(MQAddHostBaseClass):
-    # Only for Satellite 6.7 hotfix
+    # Only for Satellite-6.7 hotfix
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_update_host_display_name_not_puptoo(self, datetime_mock):
         """
