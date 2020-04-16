@@ -97,7 +97,18 @@ def add_host(host_data):
         try:
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            logger.info("Attempting to add host", extra={"canonical_facts": input_host.canonical_facts})
+            logger.info(
+                "Attempting to add host",
+                extra={
+                    "input_host": {
+                        "account": input_host.account,
+                        "display_name": input_host.display_name,
+                        "canonical_facts": input_host.canonical_facts,
+                        "reporter": input_host.reporter,
+                        "stale_timestamp": input_host.stale_timestamp.isoformat(),
+                    }
+                },
+            )
             (output_host, add_results) = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )

@@ -815,6 +815,46 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
+    def test_ignore_culled_host_on_update_by_canonical_facts(self):
+        # Culled host
+        host_data = test_data(
+            fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        # Update the host
+        new_response = self.post(HOST_URL, [host_data], 207)
+
+        self._verify_host_status(new_response, 0, 201)
+
+        updated_host = self._pluck_host_from_response(new_response, 0)
+
+        self.assertNotEqual(created_host["id"], updated_host["id"])
+
+    def test_ignore_culled_host_on_update_by_elevated_id(self):
+        # Culled host
+        host_to_create_data = test_data(
+            insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
+        )
+
+        # Create the host
+        response = self.post(HOST_URL, [host_to_create_data], 207)
+        self._verify_host_status(response, 0, 201)
+        created_host = self._pluck_host_from_response(response, 0)
+
+        # Update the host
+        host_to_update_data = {**host_to_create_data, "ip_addresses": ["10.10.0.2"]}
+        new_response = self.post(HOST_URL, [host_to_update_data], 207)
+        self._verify_host_status(new_response, 0, 201)
+        updated_host = self._pluck_host_from_response(new_response, 0)
+        self.assertNotEqual(created_host["id"], updated_host["id"])
+
     def test_create_host_with_invalid_ansible_host(self):
         host_data = HostWrapper(test_data(facts=None))
 
@@ -1166,6 +1206,9 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(old_stale_timestamp, new_retrieved_host.stale_timestamp)
         self.assertEqual(old_reporter, new_retrieved_host.reporter)
 
+    def test_create_host_with_stale_timestamp_without_time_zone(self):
+        self._add_host(400, stale_timestamp=datetime.now().isoformat())
+
 
 class DeleteHostsBaseTestCase(DBAPITestCase):
     def _get_hosts(self, host_ids):
@@ -1211,7 +1254,7 @@ class CullingBaseTestCase(APIBaseTestCase):
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.now_timestamp = datetime.utcnow()
+        self.now_timestamp = datetime.now(timezone.utc)
         self.staleness_timestamps = {
             "fresh": self.now_timestamp + timedelta(hours=1),
             "stale": self.now_timestamp,
@@ -1223,7 +1266,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
             with self.app.app_context():
                 config = self.app.config["INVENTORY_CONFIG"]
-                host_reaper_run(config, db.session)
+                host_reaper_run(config, mock.Mock(), db.session)
 
     def _add_hosts(self, data):
         post = []
@@ -2235,18 +2278,15 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 @patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
-@patch("api.host_query_db.canonical_facts_host_query", wraps=canonical_facts_host_query)
 class QueryByCanonicalFactPerformanceTestCase(DBAPITestCase):
-    def test_query_using_fqdn_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+    def test_query_using_fqdn_not_subset_match(self, canonical_fact_host_query):
         fqdn = "some fqdn"
         self.get(f"{HOST_URL}?fqdn={fqdn}")
-        canonical_facts_host_query.assert_not_called()
         canonical_fact_host_query.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
 
-    def test_query_using_insights_id_not_subset_match(self, canonical_facts_host_query, canonical_fact_host_query):
+    def test_query_using_insights_id_not_subset_match(self, canonical_fact_host_query):
         insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
         self.get(f"{HOST_URL}?insights_id={insights_id}")
-        canonical_facts_host_query.assert_not_called()
         canonical_fact_host_query.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
 
 
@@ -3889,8 +3929,8 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
         self._assert_graph_query_single_call_with_staleness(
             graphql_query,
             (
-                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-                {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+                {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
             ),
         )
 
@@ -3899,9 +3939,9 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
     )
     def test_query_variables_staleness(self, datetime_mock, graphql_query):
         for staleness, expected in (
-            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 graphql_query.reset_mock()
@@ -3912,17 +3952,15 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
         "app.culling.datetime", **{"now.return_value": datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)}
     )
     def test_query_multiple_staleness(self, datetime_mock, graphql_query):
+
         staleness = "fresh,stale_warning"
         graphql_query.reset_mock()
         self.get(f"{HOST_URL}?staleness={staleness}", 200)
         self._assert_graph_query_single_call_with_staleness(
             graphql_query,
             (
-                {"gte": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-                {
-                    "gte": "2019-12-02T10:10:06.754201+00:00",
-                    "lte": "2019-12-09T10:10:06.754201+00:00",
-                },  # stale warning
+                {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
+                {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"},  # stale warning
             ),
         )
 
@@ -4107,10 +4145,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 "offset": ANY,
                 "hostFilter": {
                     "OR": [
-                        {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                        {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
                         {
                             "stale_timestamp": {
-                                "gte": "2019-12-09T10:10:06.754201+00:00",
+                                "gt": "2019-12-09T10:10:06.754201+00:00",
                                 "lte": "2019-12-16T10:10:06.754201+00:00",
                             }
                         },
@@ -4125,9 +4163,9 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         datetime_mock.now = mock.Mock(return_value=now)
 
         for staleness, expected in (
-            ("fresh", {"gte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale", {"gte": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-            ("stale_warning", {"gte": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 with self.patch_with_empty_response() as graphql_query:
@@ -4162,10 +4200,10 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                     "offset": 0,
                     "hostFilter": {
                         "OR": [
-                            {"stale_timestamp": {"gte": "2019-12-16T10:10:06.754201+00:00"}},
+                            {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
                             {
                                 "stale_timestamp": {
-                                    "gte": "2019-12-02T10:10:06.754201+00:00",
+                                    "gt": "2019-12-02T10:10:06.754201+00:00",
                                     "lte": "2019-12-09T10:10:06.754201+00:00",
                                 }
                             },
