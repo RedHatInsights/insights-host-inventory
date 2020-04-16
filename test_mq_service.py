@@ -430,6 +430,46 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                         handle_message(json.dumps(message), mock_event_producer)
 
 
+class MQUpdateHostBaseClass(MQAddHostBaseClass):
+    # Only for Satellite 6.7 hotfix
+    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_update_host_display_name_not_puptoo(self, datetime_mock):
+        """
+        Tests adding a host with some simple data
+        """
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.utcnow.return_value.replace(tzinfo=timezone.utc).isoformat()
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
+        updated_host_data = {
+            "display_name": "update_display_name",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "new_reporter",
+        }
+
+        self._base_add_host_test(updated_host_data, expected_results, host_keys_to_check)
+
+
 class MQCullingTests(MQAddHostBaseClass):
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_stale_timestamp(self, datetime_mock):
