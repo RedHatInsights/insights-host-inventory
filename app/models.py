@@ -109,7 +109,7 @@ class Host(db.Model):
     def update(self, input_host, update_system_profile=False, from_REST_API=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        # TODO: Address this. Hotfix satellite 6.7 issue wher display name is set to fqdn when it
+        # TODO: Remove this eventually when Sat 6.7 stops sending fqdns as display_names (See RHCLOUD-5954)
         if from_REST_API or (input_host.reporter and input_host.reporter == "puptoo"):
             self.update_display_name(input_host.display_name)
 

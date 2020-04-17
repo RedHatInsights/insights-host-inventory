@@ -105,7 +105,7 @@ def _add_host(input_host):
             "host",
         )
 
-    # from_REST_API is part of a hotfix related to a satelite 6.7 bug. More info in models.py
+    # from_REST_API is part of a hotfix related to a satelite 6.7 bug (see See RHCLOUD-5954)
     return add_host(input_host, staleness_timestamps(), update_system_profile=False, from_REST_API=True)
 
 

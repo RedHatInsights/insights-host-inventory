@@ -40,7 +40,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-# from_REST_API is part of a hotfix related to a satelite 6.7 bug. More info in models.py
+# from_REST_API is part of a hotfix related to a satelite 6.7 bug (See RHCLOUD-5954)
 def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS, from_REST_API=False):
     """
     Add or update a host
@@ -153,7 +153,7 @@ def create_new_host(input_host, staleness_offset, fields):
 
 
 @metrics.update_host_commit_processing_time.time()
-# from_REST_API is part of a hotfix related to a satelite 6.7 bug. More info in models.py
+# from_REST_API is part of a hotfix related to a satelite 6.7 bug (See RHCLOUD-5954)
 def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields, from_REST_API):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
