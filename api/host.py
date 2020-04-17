@@ -107,7 +107,8 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, staleness_timestamps(), update_system_profile=False)
+    # from_REST_API is part of a hotfix related to a satelite 6.7 bug. More info in models.py
+    return add_host(input_host, staleness_timestamps(), update_system_profile=False, from_REST_API=True)
 
 
 def get_bulk_query_source():
