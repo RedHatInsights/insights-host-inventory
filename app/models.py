@@ -106,11 +106,12 @@ class Host(db.Model):
     def save(self):
         db.session.add(self)
 
-    def update(self, input_host, update_system_profile=False, from_REST_API=False):
+    def update(self, input_host, update_system_profile=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        # TODO: Address this. Hotfix satellite 6.7 issue wher display name is set to fqdn when it
-        if from_REST_API or (input_host.reporter and input_host.reporter == "puptoo"):
+        # TODO: Remove this eventually when Sat 6.7 stops sending fqdns as display_names (See RHCLOUD-5954)
+        # NOTE: For this particular issue, display_name changes from "puptoo" and "yupana" are ignored
+        if input_host.reporter != "yupana" and input_host.reporter != "rhsm-conduit":
             self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)

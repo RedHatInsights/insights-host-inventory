@@ -87,7 +87,6 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixtur
     assert existing_host.display_name == expected_fqdn
 
 
-# TODO: test for Sat 6.7 hotfix (remove, eventually) See RHCLOUD-5954
 def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
     # Create an "existing" host
     existing_host = _create_host(fqdn=None, display_name=None)
@@ -109,26 +108,25 @@ def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
     assert existing_host.display_name == existing_host.id
 
 
+# TODO: test for Sat 6.7 hotfix (remove, eventually) See RHCLOUD-5954
 def test_update_existing_host_dont_change_display_name(flask_app_fixture):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
-    existing_host = _create_host(fqdn=fqdn, display_name=None)
-
-    # Set the display
-    existing_host.display_name = "foo"
-    db.session.commit()
+    display_name = "foo"
+    existing_host = _create_host(fqdn=fqdn, display_name=display_name)
 
     # Attempt to update the display name from Satellite reporter (shouldn't change)
     expected_fqdn = "different.domain1.com"
     input_host = Host(
         {"fqdn": expected_fqdn},
         display_name="dont_change_me",
-        reporter="satellite",
+        reporter="yupana",
         stale_timestamp=datetime.now(timezone.utc),
     )
     existing_host.update(input_host)
 
-    assert existing_host.display_name != "dont_change_me"
+    # assert display name hasn't changed
+    assert existing_host.display_name == display_name
 
 
 def test_create_host_without_system_profile(flask_app_fixture):
