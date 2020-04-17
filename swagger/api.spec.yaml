@@ -116,7 +116,6 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
-        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -320,6 +319,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
             description: Tags
