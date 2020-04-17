@@ -110,8 +110,8 @@ class Host(db.Model):
         self.update_canonical_facts(input_host.canonical_facts)
 
         # TODO: Remove this eventually when Sat 6.7 stops sending fqdns as display_names (See RHCLOUD-5954)
-        # NOTE: For this particular issue, the reporter is set to "yupana"
-        if input_host.reporter != "yupana":
+        # NOTE: For this particular issue, display_name changes from "puptoo" and "yupana" are ignored
+        if input_host.reporter != "yupana" and input_host.reporter != "rhsm-conduit":
             self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)

@@ -479,33 +479,37 @@ class MQUpdateHostTestCase(MQAddHostBaseClass):
             self.assertEqual(record.display_name, "better_test_host")
 
     # tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
-    def test_yupana_display_name_ignored(self):
-        with self.app.app_context():
-            insights_id = "2000e149-922d-4c43-83c7-8f674ff1bbf6"
+    def test_display_name_ignored_for_blacklisted_reporters(self):
+        for reporter in ["yupana", "rhsm-conduit"]:
+            with self.subTest(reporter=reporter):
+                with self.app.app_context():
+                    insights_id = str(uuid.uuid4())
 
-            self._handle_message(
-                {
-                    "display_name": "test_host",
-                    "insights_id": insights_id,
-                    "account": "0000001",
-                    "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
-                    "reporter": "puptoo",
-                }
-            )
+                    self._handle_message(
+                        {
+                            "display_name": "test_host",
+                            "insights_id": insights_id,
+                            "account": "0000001",
+                            "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
+                            "reporter": "puptoo",
+                        }
+                    )
 
-            self._handle_message(
-                {
-                    "display_name": "yupana_test_host",
-                    "insights_id": insights_id,
-                    "account": "0000001",
-                    "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
-                    "reporter": "yupana",
-                }
-            )
+                    self._handle_message(
+                        {
+                            "display_name": "yupana_test_host",
+                            "insights_id": insights_id,
+                            "account": "0000001",
+                            "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+                            "reporter": reporter,
+                        }
+                    )
 
-            record = db.session.query(Host).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
-            self.assertEqual(record.display_name, "test_host")
-            self.assertEqual(record.reporter, "yupana")
+                    record = (
+                        db.session.query(Host).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
+                    )
+                    self.assertEqual(record.display_name, "test_host")
+                    self.assertEqual(record.reporter, reporter)
 
 
 class MQCullingTests(MQAddHostBaseClass):
