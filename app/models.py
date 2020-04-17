@@ -106,10 +106,12 @@ class Host(db.Model):
     def save(self):
         db.session.add(self)
 
-    def update(self, input_host, update_system_profile=False):
+    def update(self, input_host, update_system_profile=False, from_REST_API=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
-        self.update_display_name(input_host.display_name)
+        # TODO: Address this. Hotfix satellite 6.7 issue wher display name is set to fqdn when it
+        if from_REST_API or (input_host.reporter and input_host.reporter == "puptoo"):
+            self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)
 
