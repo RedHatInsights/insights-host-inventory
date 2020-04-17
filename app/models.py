@@ -106,11 +106,12 @@ class Host(db.Model):
     def save(self):
         db.session.add(self)
 
-    def update(self, input_host, update_system_profile=False, from_REST_API=False):
+    def update(self, input_host, update_system_profile=False):
         self.update_canonical_facts(input_host.canonical_facts)
 
         # TODO: Remove this eventually when Sat 6.7 stops sending fqdns as display_names (See RHCLOUD-5954)
-        if from_REST_API or (input_host.reporter and input_host.reporter == "puptoo"):
+        # NOTE: For this particular issue, the reporter is set to "yupana"
+        if input_host.reporter != "yupana":
             self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)

@@ -40,8 +40,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-# from_REST_API is part of a hotfix related to a satelite 6.7 bug (See RHCLOUD-5954)
-def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS, from_REST_API=False):
+def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
     """
     Add or update a host
 
@@ -53,9 +52,7 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
     with session_guard(db.session):
         existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
-            return update_existing_host(
-                existing_host, input_host, staleness_offset, update_system_profile, fields, from_REST_API
-            )
+            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
             return create_new_host(input_host, staleness_offset, fields)
 
@@ -153,11 +150,10 @@ def create_new_host(input_host, staleness_offset, fields):
 
 
 @metrics.update_host_commit_processing_time.time()
-# from_REST_API is part of a hotfix related to a satelite 6.7 bug (See RHCLOUD-5954)
-def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields, from_REST_API):
+def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
-    existing_host.update(input_host, update_system_profile, from_REST_API)
+    existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)

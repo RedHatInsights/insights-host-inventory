@@ -120,7 +120,7 @@ def test_update_existing_host_dont_change_display_name(flask_app_fixture):
     input_host = Host(
         {"fqdn": expected_fqdn},
         display_name="dont_change_me",
-        reporter="satellite",
+        reporter="yupana",
         stale_timestamp=datetime.now(timezone.utc),
     )
     existing_host.update(input_host)
