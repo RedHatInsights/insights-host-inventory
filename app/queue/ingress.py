@@ -7,6 +7,7 @@ from marshmallow import ValidationError
 
 from app import inventory_config
 from app.culling import Timestamps
+from app.events import message_headers
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
@@ -131,10 +132,6 @@ def add_host(host_data):
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
-
-
-def message_headers(event_type):
-    return [("event_type", str.encode(event_type))]
 
 
 @metrics.ingress_message_handler_time.time()

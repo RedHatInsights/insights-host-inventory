@@ -241,6 +241,11 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
             "reporter": "test",
         }
 
+    def _check_headers(self, message, event_producer, event_type):
+        handle_message(json.dumps(message), event_producer)
+        self.assertEqual(event_producer.headers[0][0], "event_type")
+        self.assertEqual(event_producer.headers[0][1], str.encode(event_type))
+
     def test_handle_message_verify_metadata_pass_through(self):
         metadata = {"request_id": str(uuid.uuid4()), "archive_url": "https://some.url"}
 
@@ -277,15 +282,14 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
         mock_event_producer = MockEventProducer()
         with self.app.app_context():
-            handle_message(json.dumps(message), mock_event_producer)
-            self.assertEqual(mock_event_producer.headers[0][1], b"created")  # event_type
+            # check created header
+            self._check_headers(message, mock_event_producer, event_type="created")
 
+            # check updated header
             add_host.reset_mock()
             host_data.update(display_name="updated_test_host")
-            print(host_data)
             add_host.return_value = (host_data, AddHostResults.updated)
-            handle_message(json.dumps(message), mock_event_producer)
-            self.assertEqual(mock_event_producer.headers[0][1], b"updated")  # event_type
+            self._check_headers(message, mock_event_producer, event_type="updated")
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):

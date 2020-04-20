@@ -1226,6 +1226,7 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
 
         self.assertEqual(key, host.id)
 
+        self.assertEqual(headers[0][0], "event_type")
         self.assertEqual(headers[0][1], b"deleted")
 
     def _get_hosts_from_db(self, host_ids):

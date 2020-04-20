@@ -34,3 +34,7 @@ def delete(host):
         )
         .data
     )
+
+
+def message_headers(event_type):
+    return [("event_type", str.encode(event_type))]
