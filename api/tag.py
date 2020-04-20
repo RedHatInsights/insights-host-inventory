@@ -54,7 +54,16 @@ def xjoin_enabled():
 
 @api_operation
 @metrics.api_request_time.time()
-def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, per_page=None, staleness=None):
+def get_tags(
+    search=None,
+    tags=None,
+    order_by=None,
+    order_how=None,
+    page=None,
+    per_page=None,
+    staleness=None,
+    registered_with=None,
+):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -79,6 +88,9 @@ def get_tags(search=None, tags=None, order_by=None, order_how=None, page=None, p
 
     if tags:
         variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
+
+    if registered_with:
+        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
     response = graphql_query(TAGS_QUERY, variables)
     data = response["hostTags"]

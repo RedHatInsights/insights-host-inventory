@@ -4514,6 +4514,24 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
                 with self.patch_with_empty_response():
                     self.get(f"{TAGS_URL}?per_page={per_page}&page={page}", 400)
 
+    @patch_with_empty_response()
+    def test_query_variables_registered_with(self, graphql_query, xjoin_enabled):
+        self.get(f"{TAGS_URL}?registered_with=insights", 200)
+
+        graphql_query.assert_called_once_with(
+            TAGS_QUERY,
+            {
+                "order_by": ANY,
+                "order_how": ANY,
+                "limit": ANY,
+                "offset": ANY,
+                "hostFilter": {"OR": ANY, "NOT": {"insights_id": {"eq": None}}},
+            },
+        )
+
+    def test_response_invalid_registered_with(self, xjoin_enabled):
+        self.get(f"{TAGS_URL}?registered_with=salad", 400)
+
 
 @patch("api.tag.xjoin_enabled", return_value=True)
 class TagsResponseTestCase(APIBaseTestCase):
