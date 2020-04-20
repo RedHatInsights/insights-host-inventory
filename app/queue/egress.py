@@ -21,7 +21,8 @@ class KafkaEventProducer:
         self._topic = config.host_egress_topic
 
     def write_event(self, event, key, headers):
-        logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self._topic, key, event, headers)
+        logger.info("Topic: " + self._topic, extra={"input_host": {"key": key, "headers": headers, "event": event}})
+        logger.debug("Event: %s", self._topic, key, event, headers)
 
         try:
             k = key.encode("utf-8") if key else None
