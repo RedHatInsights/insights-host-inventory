@@ -15,14 +15,6 @@ from lib.db import session_guard
 logger = get_logger(__name__)
 
 
-class NullProducer:
-    def send(self, topic, value=None, key=None):
-        logger.debug("NullProducer - logging message:  topic (%s) - message: %s - message_id: %s", topic, value, key)
-
-    def flush(self):
-        logger.debug("NullProducer – flushing")
-
-
 producer = None
 cfg = None
 
@@ -33,26 +25,28 @@ def init_tasks(config, flask_app=None):
 
     cfg = config
 
-    producer = _init_event_producer(config)
+    if config.kafka_enabled:
+        producer = _init_event_producer(config)
     if flask_app:
         _init_system_profile_consumer(config, flask_app)
 
 
 def _init_event_producer(config):
-    if config.kafka_enabled:
-        logger.info("Starting KafkaProducer()")
-        return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
-    else:
-        logger.info("Starting NullProducer()")
-        return NullProducer()
+    logger.info("Starting KafkaProducer()")
+    return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
 
 
 def emit_event(e, key):
-    producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=e.encode("utf-8"))
+    logger.info("Produced message to topic %s, key %s.", cfg.event_topic, key)
+    logger.debug("Message contents: %s", e)
+    if producer:
+        producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=e.encode("utf-8"))
 
 
 def flush():
-    producer.flush()
+    logger.info("Messages flushed.")
+    if producer:
+        producer.flush()
 
 
 @metrics.system_profile_commit_processing_time.time()
