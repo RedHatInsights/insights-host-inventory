@@ -228,13 +228,16 @@ class APIBaseTestCase(TestCase):
         _verify_value("detail", expected_detail)
         _verify_value("type", expected_type)
 
-    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True, extra_headers={}):
+    def _make_http_call(self, http_method, path, data, status, return_response_as_json=True, extra_headers=None):
         json_data = json.dumps(data)
         headers = self._get_valid_auth_header()
         headers["content-type"] = "application/json"
-        return self._response_check(
-            http_method(path, data=json_data, headers={**headers, **extra_headers}), status, return_response_as_json
-        )
+
+        if extra_headers:
+            headers = {**headers, **extra_headers}
+
+        response = http_method(path, data=json_data, headers=headers)
+        return self._response_check(response, status, return_response_as_json)
 
     def _response_check(self, response, status, return_response_as_json):
         self.assertEqual(response.status_code, status)
@@ -1882,8 +1885,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                     self.assertEqual(host[key], patch_doc[key])
 
     def test_patch_with_branch_id_parameter(self, emit_event):
-        self.added_hosts[0].id
-
         patch_doc = {"display_name": "branch_id_test"}
 
         url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
@@ -1985,8 +1986,8 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             "timestamp": self.now_timestamp.isoformat(),
         }
 
+        emit_event.assert_called_once()
         event_message = json.loads(emit_event.call_args[0][0])
-
         self.assertEqual(event_message, expected_event_message)
 
     def test_patch_produces_update_event_no_request_id(self, emit_event):
