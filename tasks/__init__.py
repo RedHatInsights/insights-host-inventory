@@ -14,26 +14,20 @@ def init_tasks(config):
     global producer
 
     cfg = config
-
-    if config.kafka_enabled:
-        producer = _init_event_producer(config)
+    producer = _init_event_producer()
 
 
-def _init_event_producer(config):
+def _init_event_producer():
     logger.info("Starting event KafkaProducer()")
-    return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
+    return KafkaProducer(bootstrap_servers=cfg.bootstrap_servers)
 
 
-def emit_event(e, key):
-    status = "produced" if producer else "not produced"
-    logger.info("Event message (%s): topic %s, key %s", status, cfg.event_topic, key)
-    logger.debug("Event message body: %s", e)
-    if producer:
-        producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=e.encode("utf-8"))
+def emit_event(event, key):
+    producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=event.encode("utf-8"))
+    logger.info("Event message produced: topic %s, key %s", cfg.event_topic, key)
+    logger.debug("Event message body: %s", event)
 
 
 def flush():
-    suffix = "" if producer else " (no producer)"
-    logger.info("Event messages flush%s", suffix)
-    if producer:
-        producer.flush()
+    producer.flush()
+    logger.info("Event messages flushed")
