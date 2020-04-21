@@ -32,19 +32,21 @@ def init_tasks(config, flask_app=None):
 
 
 def _init_event_producer(config):
-    logger.info("Starting KafkaProducer()")
+    logger.info("Starting event KafkaProducer()")
     return KafkaProducer(bootstrap_servers=config.bootstrap_servers)
 
 
 def emit_event(e, key):
-    logger.info("Produced message to topic %s, key %s.", cfg.event_topic, key)
-    logger.debug("Message contents: %s", e)
+    status = "produced" if producer else "not produced"
+    logger.info("Event message (%s): topic %s, key %s", status, cfg.event_topic, key)
+    logger.debug("Event message body: %s", e)
     if producer:
         producer.send(cfg.event_topic, key=key.encode("utf-8") if key else None, value=e.encode("utf-8"))
 
 
 def flush():
-    logger.info("Messages flushed.")
+    suffix = "" if producer else " (no producer)"
+    logger.info("Event messages flush%s", suffix)
     if producer:
         producer.flush()
 
