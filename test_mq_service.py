@@ -283,8 +283,8 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
                 with self.app.app_context():
                     handle_message(json.dumps(message), mock_event_producer)
 
-                    expected_headers = [("event_type", add_host_result.name.encode())]
-                    self.assertEqual(mock_event_producer.headers, expected_headers)
+                expected_headers = [("event_type", add_host_result.name.encode())]
+                self.assertEqual(mock_event_producer.headers, expected_headers)
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
