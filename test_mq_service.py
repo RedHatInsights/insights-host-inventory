@@ -42,7 +42,7 @@ class MockEventProducer:
     def write_event(self, event, key, headers):
         self.event = event
         self.key = key
-        self.headers = headers
+        self.headers = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
 
 
 class MQServiceBaseTestCase(TestCase):
@@ -283,7 +283,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
                 with self.app.app_context():
                     handle_message(json.dumps(message), mock_event_producer)
 
-                    expected_headers = [("event_type", add_host_result.name)]
+                    expected_headers = [("event_type", add_host_result.name.encode())]
                     self.assertEqual(mock_event_producer.headers, expected_headers)
 
 

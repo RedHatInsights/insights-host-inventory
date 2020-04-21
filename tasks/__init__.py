@@ -21,7 +21,6 @@ def _init_event_producer():
     logger.info("Starting event KafkaProducer()")
     return KafkaProducer(bootstrap_servers=cfg.bootstrap_servers)
 
-    
 
 def emit_event(event, key, headers):
     k = key.encode("utf-8") if key else None
@@ -30,6 +29,7 @@ def emit_event(event, key, headers):
     producer.send(cfg.event_topic, key=k, value=v, headers=h)
     logger.info("Event message produced: topic %s, key %s", cfg.event_topic, key)
     logger.debug("Event message body: %s", event)
+
 
 def flush():
     producer.flush()
