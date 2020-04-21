@@ -86,12 +86,11 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     if start_tasks:
-        init_tasks(app_config, flask_app)
+        init_tasks(app_config)
     else:
         logger.warning(
-            'WARNING: The "tasks" subsystem has been disabled.  '
-            "The message queue based system_profile consumer "
-            "and message queue based event notifications have been disabled."
+            "WARNING: The tasks subsystem has been disabled.  "
+            "The message queue based event notifications have been disabled."
         )
 
     payload_tracker_producer = None
