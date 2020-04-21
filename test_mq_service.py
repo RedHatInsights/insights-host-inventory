@@ -241,11 +241,6 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
             "reporter": "test",
         }
 
-    def _check_headers(self, message, event_producer, event_type):
-        handle_message(json.dumps(message), event_producer)
-        self.assertEqual(event_producer.headers[0][0], "event_type")
-        self.assertEqual(event_producer.headers[0][1], str.encode(event_type))
-
     def test_handle_message_verify_metadata_pass_through(self):
         metadata = {"request_id": str(uuid.uuid4()), "archive_url": "https://some.url"}
 
@@ -276,20 +271,20 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
     @patch("app.queue.ingress.host_repository.add_host")
     def test_handle_message_verify_message_headers(self, add_host):
         host_data = self._host_data()
-        add_host.return_value = (host_data, AddHostResults.created)
 
         message = {"operation": "add_host", "data": host_data}
 
-        mock_event_producer = MockEventProducer()
-        with self.app.app_context():
-            # check created header
-            self._check_headers(message, mock_event_producer, event_type="created")
+        for add_host_result in AddHostResults:
+            with self.subTest(add_host_result=add_host_result):
+                add_host.reset_mock()
+                add_host.return_value = (host_data, add_host_result)
 
-            # check updated header
-            add_host.reset_mock()
-            host_data.update(display_name="updated_test_host")
-            add_host.return_value = (host_data, AddHostResults.updated)
-            self._check_headers(message, mock_event_producer, event_type="updated")
+                mock_event_producer = MockEventProducer()
+                with self.app.app_context():
+                    handle_message(json.dumps(message), mock_event_producer)
+
+                    expected_headers = [("event_type", add_host_result.name)]
+                    self.assertEqual(mock_event_producer.headers, expected_headers)
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):

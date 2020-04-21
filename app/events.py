@@ -36,5 +36,8 @@ def delete(host):
     )
 
 
+delete_event_name = "delete"
+
+
 def message_headers(event_type):
-    return [("event_type", str.encode(event_type))]
+    return {"event_type": event_type}

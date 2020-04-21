@@ -25,7 +25,8 @@ class KafkaEventProducer:
         try:
             k = key.encode("utf-8") if key else None
             v = event.encode("utf-8")
-            self._kafka_producer.send(self._topic, key=k, value=v, headers=headers)
+            h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
+            self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")

@@ -4,6 +4,7 @@ import json
 import tempfile
 import uuid
 from base64 import b64encode
+from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
@@ -103,6 +104,8 @@ MOCK_XJOIN_HOST_RESPONSE = {
     }
 }
 
+Message = namedtuple("Message", ("value", "key", "headers"))
+
 
 def quote(*args, **kwargs):
     return url_quote(str(args[0]), *args[1:], safe="", **kwargs)
@@ -164,7 +167,11 @@ class MockEmitEvent:
         self.events = []
 
     def __call__(self, e, key=None, headers=None):
-        self.events.append((e, key, headers))
+        value = json.loads(e)
+        if headers:
+            headers = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
+        message = Message(value, key, headers)
+        self.events.append(message)
 
 
 class APIBaseTestCase(TestCase):
@@ -1214,20 +1221,20 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}", 200)
 
-    def _assert_event_is_valid(self, event, key, headers, host, timestamp):
-        self.assertIsInstance(event, dict)
+    def _assert_event_is_valid(self, message, host, timestamp):
+        self.assertIsInstance(message.value, dict)
         expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
-        self.assertEqual(set(event.keys()), expected_keys)
+        self.assertEqual(set(message.value.keys()), expected_keys)
 
-        self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), event["timestamp"])
-        self.assertEqual("delete", event["type"])
+        self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), message.value["timestamp"])
+        self.assertEqual("delete", message.value["type"])
 
-        self.assertEqual(host.insights_id, event["insights_id"])
+        self.assertEqual(host.insights_id, message.value["insights_id"])
 
-        self.assertEqual(key, host.id)
+        self.assertEqual(message.key, host.id)
 
-        self.assertEqual(headers[0][0], "event_type")
-        self.assertEqual(headers[0][1], b"deleted")
+        self.assertEqual(message.headers[0][0], "event_type")
+        self.assertEqual(message.headers[0][1], b"delete")
 
     def _get_hosts_from_db(self, host_ids):
         with self.app.app_context():
@@ -1301,8 +1308,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self.assertEqual(len(emit_event.events), 1)
 
-        event, key, headers = emit_event.events[0]
-        self._assert_event_is_valid(json.loads(event), key, headers, added_host, self.now_timestamp)
+        self._assert_event_is_valid(emit_event.events[0], added_host, self.now_timestamp)
 
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
@@ -1915,33 +1921,32 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
             with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
                 url = f"{self.delete_url}{url_query}"
                 self.delete(url, 200, header, return_response_as_json=False)
-                event, key, headers = m.events[0]
-                return json.loads(event), key, headers
+                return m.events[0]
 
     def test_create_then_delete(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key, headers = self._delete()
-        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
+        event = self._delete()
+        self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_branch_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key, headers = self._delete(url_query="?branch_id=1234")
-        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
+        event = self._delete(url_query="?branch_id=1234")
+        self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_request_id(self):
         request_id = generate_uuid()
         header = {"x-rh-insights-request-id": request_id}
-        event, key, headers = self._delete(header=header)
-        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
-        self.assertEqual(request_id, event["request_id"])
+        event = self._delete(header=header)
+        self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+        self.assertEqual(request_id, event.value["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event, key, headers = self._delete(header=None)
-        self._assert_event_is_valid(event, key, headers, self.host_to_delete, self.timestamp)
-        self.assertEqual("-1", event["request_id"])
+        event = self._delete(header=None)
+        self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+        self.assertEqual("-1", event.value["request_id"])
 
 
 @patch("lib.host_delete.emit_event")
