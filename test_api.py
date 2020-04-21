@@ -1954,32 +1954,39 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         with patch("app.queue.egress.datetime", **{"now.return_value": self.now_timestamp}):
             self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
 
-        host = self.added_hosts[0]
-
         expected_event_message = {
             "type": "updated",
             "host": {
-                "account": host.account,
-                "ansible_host": host.ansible_host,
-                "bios_uuid": host.bios_uuid,
-                "created": host.created,
-                "culled_timestamp": (dateutil.parser.parse(host.stale_timestamp) + timedelta(weeks=2)).isoformat(),
-                "display_name": "patch_event_test",
-                "external_id": host.external_id,
-                "fqdn": host.fqdn,
-                "id": host.id,
-                "insights_id": host.insights_id,
-                "ip_addresses": host.ip_addresses,
-                "mac_addresses": host.mac_addresses,
-                "reporter": host.reporter,
-                "rhel_machine_id": host.rhel_machine_id,
-                "satellite_id": host.satellite_id,
-                "stale_timestamp": host.stale_timestamp,
-                "stale_warning_timestamp": (
-                    dateutil.parser.parse(host.stale_timestamp) + timedelta(weeks=1)
+                "account": self.added_hosts[0].account,
+                "ansible_host": self.added_hosts[0].ansible_host,
+                "bios_uuid": self.added_hosts[0].bios_uuid,
+                "created": self.added_hosts[0].created,
+                "culled_timestamp": (
+                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
                 ).isoformat(),
-                "subscription_manager_id": host.subscription_manager_id,
-                "updated": host.updated,
+                "display_name": "patch_event_test",
+                "external_id": self.added_hosts[0].external_id,
+                "fqdn": self.added_hosts[0].fqdn,
+                "id": self.added_hosts[0].id,
+                "insights_id": self.added_hosts[0].insights_id,
+                "ip_addresses": self.added_hosts[0].ip_addresses,
+                "mac_addresses": self.added_hosts[0].mac_addresses,
+                "reporter": self.added_hosts[0].reporter,
+                "rhel_machine_id": self.added_hosts[0].rhel_machine_id,
+                "satellite_id": self.added_hosts[0].satellite_id,
+                "stale_timestamp": self.added_hosts[0].stale_timestamp,
+                "stale_warning_timestamp": (
+                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
+                ).isoformat(),
+                "subscription_manager_id": self.added_hosts[0].subscription_manager_id,
+                "system_profile": {},
+                "tags": [
+                    {"namespace": "no", "key": "key", "value": None},
+                    {"namespace": "NS1", "key": "key1", "value": "val1"},
+                    {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                ],
+                "updated": self.added_hosts[0].updated,
             },
             "platform_metadata": None,
             "metadata": {"request_id": expected_request_id},
