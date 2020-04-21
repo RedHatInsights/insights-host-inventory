@@ -39,7 +39,6 @@ from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
-from tasks import msg_handler
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
 from test_utils import valid_system_profile
@@ -1533,54 +1532,6 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
         self.assertEqual(original_id, actual_host["id"])
 
         self.assertEqual(actual_host["system_profile"], host["system_profile"])
-
-    def test_create_host_without_system_profile_then_update_with_system_profile(self):
-        facts = None
-
-        host = test_data(display_name="host1", facts=facts)
-        host["ip_addresses"] = ["10.0.0.1"]
-        host["rhel_machine_id"] = generate_uuid()
-
-        # Create the host without a system profile
-        response = self.post(HOST_URL, [host], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        # List of tuples (system profile change, expected system profile)
-        system_profiles = [({}, {})]
-
-        # Only set the enabled_services to start out with
-        enabled_services_only_system_profile = {"enabled_services": ["firewalld"]}
-        system_profiles.append((enabled_services_only_system_profile, enabled_services_only_system_profile))
-
-        # Set the entire system profile...overwriting the enabled_service
-        # set from before
-        full_system_profile = valid_system_profile()
-        system_profiles.append((full_system_profile, full_system_profile))
-
-        # Change the enabled_services
-        full_system_profile = {**full_system_profile, **enabled_services_only_system_profile}
-        system_profiles.append((enabled_services_only_system_profile, full_system_profile))
-
-        # Make sure an empty system profile doesn't overwrite the data
-        system_profiles.append(({}, full_system_profile))
-
-        for i, (system_profile, expected_system_profile) in enumerate(system_profiles):
-            with self.subTest(system_profile=i):
-                mq_message = {"id": original_id, "request_id": None, "system_profile": system_profile}
-                with self.app.app_context():
-                    msg_handler(mq_message)
-
-                host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
-                actual_host = host_lookup_results["results"][0]
-
-                self.assertEqual(original_id, actual_host["id"])
-
-                self.assertEqual(actual_host["system_profile"], expected_system_profile)
 
     def test_create_host_with_null_system_profile(self):
         facts = None

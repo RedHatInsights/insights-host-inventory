@@ -13,13 +13,6 @@ from app.queue import metrics
 logger = get_logger(__name__)
 
 
-def create_event_producer(config, producer_type):
-    if producer_type == "kafka":
-        return KafkaEventProducer(config)
-    else:
-        return NullEventProducer()
-
-
 class KafkaEventProducer:
     def __init__(self, config):
         logger.info("Starting KafkaEventProducer()")
@@ -41,14 +34,6 @@ class KafkaEventProducer:
     def close(self):
         self._kafka_producer.flush()
         self._kafka_producer.close()
-
-
-class NullEventProducer:
-    def __init__(self):
-        logger.info("Starting NullEventProducer()")
-
-    def write_event(self, event, key=None):
-        logger.debug("NullEventProducer - logging key: %s, event: %s", key, event)
 
 
 @metrics.egress_event_serialization_time.time()
