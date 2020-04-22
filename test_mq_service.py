@@ -26,13 +26,6 @@ from test_utils import rename_host_table_and_indexes
 from test_utils import valid_system_profile
 
 
-class FakeKafkaMessage:
-    value = None
-
-    def __init__(self, message):
-        self.value = message
-
-
 class MockEventProducer:
     def __init__(self):
         self.event = None
@@ -42,7 +35,7 @@ class MockEventProducer:
     def write_event(self, event, key, headers):
         self.event = event
         self.key = key
-        self.headers = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
+        self.headers = headers
 
 
 class MQServiceBaseTestCase(TestCase):
@@ -283,8 +276,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
                 with self.app.app_context():
                     handle_message(json.dumps(message), mock_event_producer)
 
-                expected_headers = [("event_type", add_host_result.name.encode())]
-                self.assertEqual(mock_event_producer.headers, expected_headers)
+                self.assertEqual(mock_event_producer.headers, {"event_type": add_host_result.name})
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):

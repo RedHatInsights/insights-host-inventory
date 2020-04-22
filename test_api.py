@@ -162,16 +162,9 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-class MockEmitEvent:
-    def __init__(self):
-        self.events = []
-
-    def __call__(self, e, key=None, headers=None):
-        value = json.loads(e)
-        if headers:
-            headers = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
-        message = Message(value, key, headers)
-        self.events.append(message)
+def emitted_event(emit_event_call):
+    args = emit_event_call[1]
+    return Message(json.loads(args[0]), args[1], args[2])
 
 
 class APIBaseTestCase(TestCase):
@@ -1233,8 +1226,7 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
 
         self.assertEqual(message.key, host.id)
 
-        self.assertEqual(message.headers[0][0], "event_type")
-        self.assertEqual(message.headers[0][1], b"delete")
+        self.assertEqual(message.headers, {"event_type": "delete"})
 
     def _get_hosts_from_db(self, host_ids):
         with self.app.app_context():
@@ -1259,7 +1251,7 @@ class CullingBaseTestCase(APIBaseTestCase):
             db.session.commit()
 
 
-@patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
+@patch("lib.host_delete.emit_event")
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1306,9 +1298,10 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         self._run_host_reaper()
         self._check_hosts_are_deleted((added_host.id,))
 
-        self.assertEqual(len(emit_event.events), 1)
+        emit_event.assert_called_once()
 
-        self._assert_event_is_valid(emit_event.events[0], added_host, self.now_timestamp)
+        event = emitted_event(emit_event.mock_calls[0])
+        self._assert_event_is_valid(event, added_host, self.now_timestamp)
 
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
@@ -1909,6 +1902,7 @@ class DeleteHostsErrorTestCase(DBAPITestCase):
         self.delete(url, 400)
 
 
+@patch("lib.host_delete.emit_event")
 class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1917,34 +1911,44 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with patch("lib.host_delete.emit_event", new_callable=MockEmitEvent) as m:
-            with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
-                url = f"{self.delete_url}{url_query}"
-                self.delete(url, 200, header, return_response_as_json=False)
-                return m.events[0]
+        with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
+            url = f"{self.delete_url}{url_query}"
+            self.delete(url, 200, header, return_response_as_json=False)
 
-    def test_create_then_delete(self):
+    def test_create_then_delete(self, emit_event):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete()
+        self._delete()
+
+        emit_event.assert_called_once()
+        event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
-    def test_create_then_delete_with_branch_id(self):
+    def test_create_then_delete_with_branch_id(self, emit_event):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete(url_query="?branch_id=1234")
+        self._delete(url_query="?branch_id=1234")
+
+        emit_event.assert_called_once()
+        event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self._check_hosts_are_deleted((self.host_to_delete.id,))
 
-    def test_create_then_delete_with_request_id(self):
+    def test_create_then_delete_with_request_id(self, emit_event):
         request_id = generate_uuid()
         header = {"x-rh-insights-request-id": request_id}
-        event = self._delete(header=header)
+        self._delete(header=header)
+
+        emit_event.assert_called_once()
+        event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self.assertEqual(request_id, event.value["request_id"])
 
-    def test_create_then_delete_without_request_id(self):
+    def test_create_then_delete_without_request_id(self, emit_event):
         self._check_hosts_are_present((self.host_to_delete.id,))
-        event = self._delete(header=None)
+        self._delete(header=None)
+
+        emit_event.assert_called_once()
+        event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self.assertEqual("-1", event.value["request_id"])
 
@@ -2900,7 +2904,7 @@ class QueryStalenessGetHostsIgnoresCulledTestCase(QueryStalenessGetHostsBaseTest
 
         self.delete(url, 404)
 
-    @patch("lib.host_delete.emit_event", new_callable=MockEmitEvent)
+    @patch("lib.host_delete.emit_event")
     def test_delete_works_on_non_culled(self, emit_event):
         url = HOST_URL + "/" + self.fresh_host["id"]
         self.delete(url, 200, return_response_as_json=False)
