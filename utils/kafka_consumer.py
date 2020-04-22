@@ -35,6 +35,7 @@ def main():
 
     for msg in consumer:
         print("calling msg_handler()")
+        print("Message Headers:", msg.headers)
         msg_handler(json.loads(msg.value))
 
 

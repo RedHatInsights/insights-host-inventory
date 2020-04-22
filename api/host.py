@@ -18,6 +18,8 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
+from app.events import message_headers
+from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -29,7 +31,6 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue.egress import build_event_topic_event
 from app.queue.ingress import EGRESS_HOST_FIELDS
-from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
@@ -238,7 +239,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 def _emit_patch_event(host):
     key = host["id"]
     event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
-    emit_event(event, key)
+    headers = message_headers(UPDATE_EVENT_NAME)
+    emit_event(event, key, headers)
 
 
 @api_operation

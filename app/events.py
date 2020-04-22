@@ -9,6 +9,9 @@ from app.serialization import serialize_canonical_facts
 
 logger = logging.getLogger(__name__)
 
+DELETE_EVENT_NAME = "delete"
+UPDATE_EVENT_NAME = "updated"
+
 
 class HostEvent(Schema):
     id = fields.UUID()
@@ -34,3 +37,7 @@ def delete(host):
         )
         .data
     )
+
+
+def message_headers(event_type):
+    return {"event_type": event_type}
