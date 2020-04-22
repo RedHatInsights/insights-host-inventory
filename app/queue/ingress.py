@@ -7,6 +7,7 @@ from marshmallow import ValidationError
 
 from app import inventory_config
 from app.culling import Timestamps
+from app.events import message_headers
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.logging import threadctx
@@ -144,7 +145,7 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event = build_event(add_results.name, output_host, metadata)
-        event_producer.write_event(event, output_host["id"])
+        event_producer.write_event(event, output_host["id"], message_headers(add_results.name))
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
