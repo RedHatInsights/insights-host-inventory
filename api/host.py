@@ -28,6 +28,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue.egress import build_event_topic_event
+from app.queue.ingress import EGRESS_HOST_FIELDS
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
@@ -259,7 +260,7 @@ def patch_by_id(host_id_list, host_data):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        _emit_patch_event(serialize_host(host, staleness_timestamps(), DEFAULT_FIELDS + ("tags", "system_profile")))
+        _emit_patch_event(serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS))
 
     db.session.commit()
 
