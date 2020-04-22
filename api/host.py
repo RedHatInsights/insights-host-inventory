@@ -51,7 +51,7 @@ def add_host_list(host_list):
     response_host_list = []
     number_of_errors = 0
 
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
 
@@ -166,7 +166,7 @@ def get_host_list(
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
