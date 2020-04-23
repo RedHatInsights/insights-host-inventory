@@ -89,7 +89,7 @@ def parse_operation_message(message):
 
 
 def add_host(host_data):
-    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
         payload_tracker, processing_status_message="adding/updating host"
@@ -140,7 +140,7 @@ def handle_message(message, event_producer):
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
     initialize_thread_local_storage(platform_metadata)
 
-    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
