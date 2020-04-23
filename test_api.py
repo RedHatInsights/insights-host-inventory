@@ -1337,7 +1337,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self._run_host_reaper()
         self._check_hosts_are_present((added_host_id,))
-        self.assertEqual(len(emit_event.events), 0)
+        emit_event.assert_not_called()
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
