@@ -235,13 +235,13 @@ Currently [@Glutexo](https://github.com/Glutexo) and [@jharting](https://github.
 ## 2. Latest image and smoke tests
 
 When a pull request is merged to master a new container image is built and tagged as [insights-inventory:latest](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/latest?tab=body).
-The latest image is deployed to the [CI environment](https://console.insights-dev.openshift.com/console/project/platform-ci/overview) automatically. This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as `Inventory release pipeline (step 1)`
+The latest image is deployed to the [CI environment](https://console.insights-dev.openshift.com/console/project/platform-ci/overview) automatically. This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 1)_
 
-Afterwards, the smoke tests are started automatically. These consist of a subset of [iqe tests](https://gitlab.cee.redhat.com/insights-qe) that cover inventory, advisor, engine and the ingress service.
+Afterwards, the smoke tests are started automatically. These consist of a subset of [IQE tests](https://gitlab.cee.redhat.com/insights-qe) that cover inventory, advisor, engine and the ingress service.
 
-Once the smoke test run finishes the results are reported in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as `Inventory release pipeline (step 2)`
+Once the smoke test run finishes the results are reported in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 2)_
 
-If the smoke tests pass the container image is re-tagged as [insights-inventory:stable](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/stable?tab=body)
+If the smoke tests pass, the container image is re-tagged as [insights-inventory:stable](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/stable?tab=body)
 
 ### Suppressing automatic propagation to stable
 
@@ -255,20 +255,22 @@ This change needs to be made **before the given commit is merged to master**.
 [Vortex](https://github.com/RedHatInsights/e2e-deploy/blob/master/docs/pipeline.md#overview) is a process that picks stable images of platform components and tests them together. The process is automated and runs periodically.
 By default the [vortex job](https://jenkins-insights-qe-ci.cloud.paas.psi.redhat.com/blue/organizations/jenkins/vortex-test-suite/activity) runs around every two hours.
 
-Once the vortex tests are finished the stable inventory image is tagged as [insights-inventory:qa](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/qa?tab=body) and deployed to the [QA environment](https://console.insights-dev.openshift.com/console/project/platform-qa/overview). This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as `Inventory release pipeline (step 3)`.
+Once the vortex tests are finished the stable inventory image is tagged as [insights-inventory:qa](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/qa?tab=body) and deployed to the [QA environment](https://console.insights-dev.openshift.com/console/project/platform-qa/overview).
+This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 3)_.
 
 ## 4. QE testing
 
-Once the stable image lands in the QA environment the QE testing can begin.
+Once the stable image lands in the QA environment, the QE testing can begin.
 
-[@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) handles this part. They triggers the QE testing jobs \[[1](https://jenkins-jenkins.5a9f.insights-dev.openshiftapps.com/view/QE/job/qe/job/iqe-inventory-plugin-kafka-qa/)\]\[[2](https://insights-stg-jenkins.rhev-ci-vms.eng.rdu2.redhat.com/view/Inventory/job/iqe-host-inventory-qa-basic/)\]. Optionally, manual testing may be performed to validate certain features / bug fixes.
+People in [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) Slack group handle this part.
+They trigger the QE testing jobs \[[1](https://jenkins-jenkins.5a9f.insights-dev.openshiftapps.com/view/QE/job/qe/job/iqe-inventory-plugin-kafka-qa/)\]\[[2](https://insights-stg-jenkins.rhev-ci-vms.eng.rdu2.redhat.com/view/Inventory/job/iqe-host-inventory-qa-basic/)\]. Optionally, manual testing may be performed to validate certain features / bug fixes.
 
-Once all of this is finished [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) reports the results back in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
+Once all of this is finished, a [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) representative (manually) reports the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
 
 ## 5. Promoting the image to production
 
-Once the image has passed testing it can be promoted to production.
+Once the image has passed QE testing, it can be promoted to production.
 This is done using a [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
-The sha of the HEAD commit should be used as `PROMO_CODE`.
+The SHA of the HEAD commit should be used as `PROMO_CODE`.
 
-A new deployment is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as `Inventory release pipeline (step 4)`
+A new deployment is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 4)_
