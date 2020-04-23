@@ -1951,7 +1951,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         event_message = json.loads(emitted_event[0])
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
-        self.assertEqual(emitted_event[2]["event_type"], "updated")
+        self.assertEqual(emitted_event[2], {"event_type": "updated"})
 
     def test_patch_produces_update_event_no_request_id(self, emit_event):
         self._base_patch_produces_update_event_test(emit_event, {}, "-1")
