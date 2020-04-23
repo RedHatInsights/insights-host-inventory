@@ -10,6 +10,7 @@ from app.serialization import serialize_canonical_facts
 logger = logging.getLogger(__name__)
 
 DELETE_EVENT_NAME = "delete"
+UPDATE_EVENT_NAME = "updated"
 
 
 class HostEvent(Schema):
