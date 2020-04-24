@@ -533,6 +533,31 @@ class MQAddHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             },
         )
 
+    def test_add_host_with_invalid_tags(self):
+        for tags in (
+            "string",
+            123,
+            123.4,
+            [["namespace", "key", "value"]],
+            [{"namespace": {"key": ["value"]}}],
+            {"namespace": ["key", ["value"]]},
+            {"namespace": [["key", "value"]]},
+            {"namespace": ["key", "value"]},
+            {"namespace": "key"},
+            {"namespace": {"key": "value"}},
+            {"namespace": {"key": {"value": "eulav"}}},
+            {"namespace": {"key": [["value"]]}},
+            {"namespace": {"key": [{"value": "eulav"}]}},
+            {"namespace": {"key": [123]}},
+            {"namespace": {"key": [123.4]}},
+            {"namespace": {"": ["value"]}},
+        ):
+            with self.subTest(tags=tags):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id, tags=tags)
+                with self.assertRaises(ValidationException):
+                    self._handle_message(message)
+
 
 class MQUpdateHostTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
     def test_update_display_name(self):
