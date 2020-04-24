@@ -198,11 +198,16 @@ class Host(db.Model):
         if not self.tags:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
             self.tags = {}
 
+        namespaces_to_delete = []
         for input_namespace, input_tags in tags_dict.items():
             if input_tags:
                 self.tags[input_namespace] = input_tags
             elif input_namespace in self.tags:
-                del self.tags[input_namespace]
+                namespaces_to_delete.append(input_namespace)
+
+        for namespace in namespaces_to_delete:
+            del self.tags[namespace]
+
         orm.attributes.flag_modified(self, "tags")
 
     def _cleanup_tags(self):
@@ -332,8 +337,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)), validate=validate.Length(min=1))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    # tags = [fields.Dict(), fields.List(fields.Nested(StructuredTagsSchema))]
-    tags = fields.Raw()
+    tags = fields.Raw(allow_none=True)
     system_profile = fields.Nested(SystemProfileSchema)
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
@@ -349,8 +353,10 @@ class HostSchema(Schema):
             return self._validate_tags_list(tags)
         elif isinstance(tags, dict):
             return self._validate_tags_dict(tags)
+        elif tags is None:
+            return True
         else:
-            raise ValidationError("Tags must be either an object or an array.")
+            raise ValidationError("Tags must be either an object, an array or null.")
 
     @staticmethod
     def _validate_tags_list(tags):
@@ -361,16 +367,22 @@ class HostSchema(Schema):
     def _validate_tags_dict(tags):
         for namespace, ns_tags in tags.items():
             TAG_NAMESPACE_VALIDATION(namespace)
-            if ns_tags is not None and not isinstance(ns_tags, dict):
+            if ns_tags is None:
+                continue
+            if not isinstance(ns_tags, dict):
                 raise ValidationError("Tags in a namespace must be an object or null.")
 
             for key, values in ns_tags.items():
                 TAG_KEY_VALIDATION(key)
-                if values is not None and not isinstance(values, list):
+                if values is None:
+                    continue
+                if not isinstance(values, list):
                     raise ValidationError("Tag values must be an array or null.")
 
                 for value in values:
-                    if value is not None and not isinstance(value, str):
+                    if value is None:
+                        continue
+                    if not isinstance(value, str):
                         raise ValidationError("Tag value must be a string or null.")
                     TAG_VALUE_VALIDATION(value)
 
