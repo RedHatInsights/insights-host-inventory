@@ -522,8 +522,6 @@ def build_host_chunk():
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
-        # "satellite_id": random_uuid(),
-        "satellite_id": "1234567891",
         "subscription_manager_id": random_uuid(),
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
