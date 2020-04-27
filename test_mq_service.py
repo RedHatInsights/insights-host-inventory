@@ -218,10 +218,13 @@ class MQAddHostBaseClass(MQServiceBaseTestCase):
     def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
         mock_event_producer = self._handle_message(host_data)
 
-        self.assertEqual(json.loads(mock_event_producer.event)["host"]["id"], mock_event_producer.key)
+        event = json.loads(mock_event_producer.event)
+        self.assertEqual(event["host"]["id"], mock_event_producer.key)
 
         for key in host_keys_to_check:
-            self.assertEqual(json.loads(mock_event_producer.event)["host"][key], expected_results["host"][key])
+            self.assertEqual(event["host"][key], expected_results["host"][key])
+
+        return event
 
 
 class MQhandleMessageTestCase(MQAddHostBaseClass):
@@ -354,8 +357,13 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                 {"namespace": "NS1", "key": "key3", "value": "val3"},
                 {"namespace": "NS3", "key": "key2", "value": "val2"},
                 {"namespace": "Sat", "key": "prod", "value": None},
-                {"namespace": None, "key": "key", "value": "val"},
+                {"namespace": "Sat", "key": "dev", "value": ""},
+                {"namespace": "Sat", "key": "test"},
+                {"namespace": None, "key": "key", "value": "val1"},
+                {"namespace": "", "key": "key", "value": "val4"},
+                {"namespace": "null", "key": "key", "value": "val5"},
                 {"namespace": None, "key": "only_key", "value": None},
+                {"key": "just_key"},
                 {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
             ],
         }
@@ -366,10 +374,23 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "timestamp": timestamp_iso,
             "type": "created",
         }
+        host_keys_to_check = ["display_name", "insights_id", "account"]
+        event = self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-        host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
-
-        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+        expected_tags = [
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "NS3", "key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "dev", "value": None},
+            {"namespace": "Sat", "key": "test", "value": None},
+            {"namespace": None, "key": "key", "value": "val1"},
+            {"namespace": None, "key": "key", "value": "val4"},
+            {"namespace": None, "key": "key", "value": "val5"},
+            {"namespace": None, "key": "only_key", "value": None},
+            {"namespace": None, "key": "just_key", "value": None},
+            {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        ]
+        self.assertCountEqual(event["host"]["tags"], expected_tags)
 
     def test_add_host_with_invalid_tags(self):
         """
@@ -377,13 +398,12 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         """
         too_long = "a" * 256
         for tag in (
-            {"namespace": "", "key": "key", "value": "val"},
             {"namespace": "NS", "key": "", "value": "val"},
-            {"namespace": "NS", "key": "key", "value": ""},
             {"namespace": too_long, "key": "key", "value": "val"},
             {"namespace": "NS", "key": too_long, "value": "val"},
             {"namespace": "NS", "key": "key", "value": too_long},
             {"namespace": "NS", "key": None, "value": too_long},
+            {"namespace": "NS", "value": too_long},
         ):
             with self.subTest(tag=tag):
                 host_data = {
