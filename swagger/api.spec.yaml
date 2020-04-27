@@ -322,13 +322,13 @@ paths:
         - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
-          description: Tags
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ActiveTags'
+            description: Tags
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ActiveTags'
         '400':
-          description: Invalid request.
+            description: Invalid request.
         '404':
           $ref: '#/components/responses/PageOutOfBounds'
 
