@@ -939,6 +939,10 @@ class CreateHostsTestCase(DBAPITestCase):
 
 
 class CreateHostsWithTagsTestCase(DBAPITestCase):
+    def test_create_host_with_null_tags(self):
+        host_data = HostWrapper(test_data(tags=None))
+        self.post(HOST_URL, [host_data.data()], 400)
+
     def test_create_host_with_null_tag_key(self):
         tag = ({"namespace": "ns", "key": None, "value": "val"},)
         host_data = HostWrapper(test_data(tags=[tag]))
