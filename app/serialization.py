@@ -177,7 +177,7 @@ def _deserialize_tags(tags):
     elif isinstance(tags, dict):
         return _deserialize_tags_dict(tags)
     elif tags is None:
-        return []
+        return {}
     else:
         raise ValueError("Tags must be dict, list or None.")
 
