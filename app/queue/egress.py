@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 
 from kafka import KafkaProducer
 from marshmallow import fields
@@ -37,16 +38,31 @@ class KafkaEventProducer:
         self._kafka_producer.close()
 
 
-@metrics.egress_event_serialization_time.time()
-def build_event(event_type, host, metadata):
+def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
     if event_type in ("created", "updated"):
         return (
             HostEvent(strict=True)
-            .dumps({"type": event_type, "host": host, "platform_metadata": metadata, "timestamp": datetime.utcnow()})
+            .dumps(
+                {
+                    "type": event_type,
+                    "host": host,
+                    "platform_metadata": platform_metadata,
+                    "timestamp": datetime.now(timezone.utc),
+                }
+            )
             .data
         )
     else:
         raise ValueError(f"Invalid event type ({event_type})")
+
+
+@metrics.egress_event_serialization_time.time()
+def build_egress_topic_event(event_type, host, platform_metadata=None):
+    return _build_event(event_type, host, platform_metadata=platform_metadata)
+
+
+def build_event_topic_event(event_type, host, request_id=None):
+    return _build_event(event_type, host, request_id=request_id)
 
 
 class HostSchema(Schema):
@@ -75,6 +91,10 @@ class HostSchema(Schema):
     reporter = fields.Str()
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
+
+
+class HostEventMetadataSchema(Schema):
+    request_id = fields.Str(required=True)
 
 
 class HostEvent(Schema):

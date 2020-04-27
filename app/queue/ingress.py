@@ -15,7 +15,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.egress import build_event
+from app.queue.egress import build_egress_topic_event
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -89,7 +89,7 @@ def parse_operation_message(message):
 
 
 def add_host(host_data):
-    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
         payload_tracker, processing_status_message="adding/updating host"
@@ -137,14 +137,14 @@ def add_host(host_data):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
-    metadata = validated_operation_msg.get("platform_metadata") or {}
-    initialize_thread_local_storage(metadata)
+    platform_metadata = validated_operation_msg.get("platform_metadata") or {}
+    initialize_thread_local_storage(platform_metadata)
 
-    payload_tracker = get_payload_tracker(payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_event(add_results.name, output_host, metadata)
+        event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
         event_producer.write_event(event, output_host["id"], message_headers(add_results.name))
 
 

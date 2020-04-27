@@ -18,6 +18,8 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
+from app.events import message_headers
+from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -27,14 +29,17 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.queue.egress import build_event_topic_event
+from app.queue.ingress import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
 from lib.host_repository import find_non_culled_hosts
-
+from tasks import emit_event
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -51,7 +56,7 @@ def add_host_list(host_list):
     response_host_list = []
     number_of_errors = 0
 
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
 
@@ -169,7 +174,7 @@ def get_host_list(
 @api_operation
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, payload_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
@@ -234,6 +239,13 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
+def _emit_patch_event(host):
+    key = host["id"]
+    event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
+    headers = message_headers(UPDATE_EVENT_NAME)
+    emit_event(event, key, headers)
+
+
 @api_operation
 @metrics.api_request_time.time()
 def patch_by_id(host_id_list, host_data):
@@ -253,6 +265,7 @@ def patch_by_id(host_id_list, host_data):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
+        _emit_patch_event(serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS))
 
     db.session.commit()
 

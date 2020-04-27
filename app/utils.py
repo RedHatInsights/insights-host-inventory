@@ -157,6 +157,22 @@ class HostWrapper:
     def reporter(self, reporter):
         self.__data["reporter"] = reporter
 
+    @property
+    def created(self):
+        return self.__data.get("created", None)
+
+    @created.setter
+    def created(self, created):
+        self.__data["created"] = created
+
+    @property
+    def updated(self):
+        return self.__data.get("updated", None)
+
+    @updated.setter
+    def updated(self, updated):
+        self.__data["updated"] = updated
+
     def to_json(self):
         return json.dumps(self.__data)
 

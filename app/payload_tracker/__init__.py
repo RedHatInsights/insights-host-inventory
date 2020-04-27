@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 _CFG = None
 _PRODUCER = None
-_UNKNOWN_PAYLOAD_ID = "-1"
+_UNKNOWN_REQUEST_ID = "-1"
 
 
 def init_payload_tracker(config, producer=None):
@@ -28,13 +28,13 @@ def init_payload_tracker(config, producer=None):
         _PRODUCER = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
 
 
-def get_payload_tracker(account=None, payload_id=None):
+def get_payload_tracker(account=None, request_id=None):
 
-    if _CFG.payload_tracker_enabled is False or payload_id is None or payload_id == _UNKNOWN_PAYLOAD_ID:
+    if _CFG.payload_tracker_enabled is False or request_id is None or request_id == _UNKNOWN_REQUEST_ID:
         return NullPayloadTracker()
 
     payload_tracker = KafkaPayloadTracker(
-        _PRODUCER, _CFG.payload_tracker_kafka_topic, _CFG.payload_tracker_service_name, account, payload_id
+        _PRODUCER, _CFG.payload_tracker_kafka_topic, _CFG.payload_tracker_service_name, account, request_id
     )
 
     return payload_tracker
@@ -103,12 +103,12 @@ class NullPayloadTracker(PayloadTracker):
 
 
 class KafkaPayloadTracker(PayloadTracker):
-    def __init__(self, producer, topic, service_name, account, payload_id):
+    def __init__(self, producer, topic, service_name, account, request_id):
         self._producer = producer
         self._topic = topic
         self._service_name = service_name
         self._account = account
-        self._payload_id = payload_id
+        self._request_id = request_id
         self._inventory_id = None
 
     def payload_received(self, status_message=None):
@@ -146,8 +146,8 @@ class KafkaPayloadTracker(PayloadTracker):
     def _construct_message(self, status, status_message=None):
         try:
 
-            if self._payload_id is None:
-                logger.debug("payload_id is None...ignoring payload_tracker data")
+            if self._request_id is None:
+                logger.debug("request_id is None...ignoring payload_tracker data")
                 return None
 
             if status not in ["received", "success", "error", "processing", "processing_success", "processing_error"]:
@@ -156,7 +156,7 @@ class KafkaPayloadTracker(PayloadTracker):
 
             message = {
                 "service": self._service_name,
-                "payload_id": self._payload_id,
+                "request_id": self._request_id,
                 "status": status,
                 "date": datetime.utcnow().isoformat(),
             }

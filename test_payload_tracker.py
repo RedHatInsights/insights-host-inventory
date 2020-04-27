@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from app.config import Config
 from app.config import RuntimeEnvironment
-from app.payload_tracker import _UNKNOWN_PAYLOAD_ID
+from app.payload_tracker import _UNKNOWN_REQUEST_ID
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import init_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
@@ -29,30 +29,30 @@ class PayloadTrackerTestCase(TestCase):
     def test_payload_tracker_is_disabled_using_env_var(self, kafka_producer, null_producer, datetime_mock):
         with patch.dict("os.environ", {"PAYLOAD_TRACKER_ENABLED": "False"}):
 
-            tracker = self._get_tracker(payload_id="123456")
+            tracker = self._get_tracker(request_id="123456")
 
             self._verify_payload_tracker_is_disabled(tracker, kafka_producer, null_producer)
 
     @patch("app.payload_tracker.NullProducer")
     @patch("app.payload_tracker.KafkaProducer")
-    def test_payload_tracker_is_disabled_by_invalid_payload_id(self, kafka_producer, null_producer, datetime_mock):
-        for invalid_payload_id in [None, _UNKNOWN_PAYLOAD_ID]:
-            with self.subTest(invalid_payload_id=invalid_payload_id):
-                tracker = self._get_tracker(payload_id=invalid_payload_id)
+    def test_payload_tracker_is_disabled_by_invalid_request_id(self, kafka_producer, null_producer, datetime_mock):
+        for invalid_request_id in [None, _UNKNOWN_REQUEST_ID]:
+            with self.subTest(invalid_request_id=invalid_request_id):
+                tracker = self._get_tracker(request_id=invalid_request_id)
 
                 self._verify_payload_tracker_is_disabled(tracker, kafka_producer, null_producer)
 
     def test_payload_tracker_configure_topic(self, datetime_mock):
         expected_topic = "ima.kafka.topic"
-        expected_payload_id = "13579"
+        expected_request_id = "13579"
 
         expected_msg = self._build_expected_message(
-            status="received", payload_id=expected_payload_id, datetime_mock=datetime_mock
+            status="received", request_id=expected_request_id, datetime_mock=datetime_mock
         )
 
         with patch.dict("os.environ", {"PAYLOAD_TRACKER_KAFKA_TOPIC": expected_topic}):
             producer = Mock()
-            tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+            tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
             # FIXME: test other methods
             tracker.payload_received()
@@ -64,7 +64,7 @@ class PayloadTrackerTestCase(TestCase):
         producer_mock = Mock()
         producer_mock.send.side_effect = Exception("Producer send exception!")
 
-        tracker = self._get_tracker(payload_id="expected_payload_id", producer=producer_mock)
+        tracker = self._get_tracker(request_id="expected_request_id", producer=producer_mock)
 
         methods_to_test = self._get_payload_tracker_methods_to_test(tracker)
 
@@ -79,7 +79,7 @@ class PayloadTrackerTestCase(TestCase):
         # Test that an exception in the creation of the message does not get propagated
         json_dumps_mock.side_effect = Exception("json.dumps exception!")
 
-        tracker = self._get_tracker(payload_id="expected_payload_id", producer=Mock())
+        tracker = self._get_tracker(request_id="expected_request_id", producer=Mock())
 
         methods_to_test = self._get_payload_tracker_methods_to_test(tracker)
 
@@ -90,10 +90,10 @@ class PayloadTrackerTestCase(TestCase):
                 method_to_test()
 
     def test_payload_tracker_account_is_None(self, datetime_mock):
-        expected_payload_id = "1234567890"
+        expected_request_id = "1234567890"
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         methods_to_test = self._get_payload_tracker_methods_to_test(tracker)
 
@@ -102,7 +102,7 @@ class PayloadTrackerTestCase(TestCase):
                 method_to_test()
 
                 expected_msg = self._build_expected_message(
-                    status=expected_status, payload_id=expected_payload_id, datetime_mock=datetime_mock
+                    status=expected_status, request_id=expected_request_id, datetime_mock=datetime_mock
                 )
 
                 self._verify_mock_send_call(producer, self.DEFAULT_TOPIC, expected_msg)
@@ -111,10 +111,10 @@ class PayloadTrackerTestCase(TestCase):
 
     def test_payload_tracker_pass_status_message(self, datetime_mock):
         expected_status_msg = "ima status message!"
-        expected_payload_id = "1234567890"
+        expected_request_id = "1234567890"
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         methods_to_test = self._get_payload_tracker_methods_to_test(tracker)
 
@@ -125,7 +125,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     status=expected_status,
                     status_msg=expected_status_msg,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -133,12 +133,12 @@ class PayloadTrackerTestCase(TestCase):
 
                 producer.reset_mock()
 
-    def test_payload_tracker_set_account_and_payload_id(self, datetime_mock):
+    def test_payload_tracker_set_account_and_request_id(self, datetime_mock):
         expected_account = "789"
-        expected_payload_id = "1234567890"
+        expected_request_id = "1234567890"
         producer = Mock()
 
-        tracker = self._get_tracker(account=expected_account, payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(account=expected_account, request_id=expected_request_id, producer=producer)
 
         methods_to_test = self._get_payload_tracker_methods_to_test(tracker)
 
@@ -149,7 +149,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     account=expected_account,
                     status=expected_status,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -158,12 +158,12 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def test_payload_tracker_context_error(self, datetime_mock):
-        expected_payload_id = "REQUEST_ID"
+        expected_request_id = "REQUEST_ID"
         expected_received_status_msg = "ima received msg"
 
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         error_status_msgs = [None, "ima error status msg"]
 
@@ -180,7 +180,7 @@ class PayloadTrackerTestCase(TestCase):
                         expected_msg = self._build_expected_message(
                             status="received",
                             status_msg=expected_received_status_msg,
-                            payload_id=expected_payload_id,
+                            request_id=expected_request_id,
                             datetime_mock=datetime_mock,
                         )
 
@@ -191,7 +191,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     status="error",
                     status_msg=error_status_msg,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -200,12 +200,12 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def test_payload_tracker_context_success(self, datetime_mock):
-        expected_payload_id = "REQUEST_ID"
+        expected_request_id = "REQUEST_ID"
         expected_received_status_msg = "ima received msg"
 
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         success_status_msgs = [None, "ima success status msg"]
 
@@ -221,7 +221,7 @@ class PayloadTrackerTestCase(TestCase):
                     expected_msg = self._build_expected_message(
                         status="received",
                         status_msg=expected_received_status_msg,
-                        payload_id=expected_payload_id,
+                        request_id=expected_request_id,
                         datetime_mock=datetime_mock,
                     )
 
@@ -232,7 +232,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     status="success",
                     status_msg=success_status_msg,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -241,14 +241,14 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def test_payload_tracker_processing_context_error(self, datetime_mock):
-        expected_payload_id = "REQUEST_ID"
+        expected_request_id = "REQUEST_ID"
         expected_processing_status = "processing"
         expected_processing_status_msg = "ima processing msg"
         expected_inventory_id = uuid.uuid4()
 
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         error_status_msgs = [None, "ima error status msg"]
 
@@ -265,7 +265,7 @@ class PayloadTrackerTestCase(TestCase):
                         expected_msg = self._build_expected_message(
                             status=expected_processing_status,
                             status_msg=expected_processing_status_msg,
-                            payload_id=expected_payload_id,
+                            request_id=expected_request_id,
                             datetime_mock=datetime_mock,
                         )
 
@@ -277,7 +277,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     status="processing_error",
                     status_msg=error_status_msg,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -290,14 +290,14 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def test_payload_tracker_processing_context_success(self, datetime_mock):
-        expected_payload_id = "REQUEST_ID"
+        expected_request_id = "REQUEST_ID"
         expected_processing_status = "processing"
         expected_processing_status_msg = "ima processing msg"
         expected_inventory_id = uuid.uuid4()
 
         producer = Mock()
 
-        tracker = self._get_tracker(payload_id=expected_payload_id, producer=producer)
+        tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
         success_status_msgs = [None, "ima success status msg"]
 
@@ -313,7 +313,7 @@ class PayloadTrackerTestCase(TestCase):
                     expected_msg = self._build_expected_message(
                         status=expected_processing_status,
                         status_msg=expected_processing_status_msg,
-                        payload_id=expected_payload_id,
+                        request_id=expected_request_id,
                         datetime_mock=datetime_mock,
                     )
 
@@ -326,7 +326,7 @@ class PayloadTrackerTestCase(TestCase):
                 expected_msg = self._build_expected_message(
                     status="processing_success",
                     status_msg=success_status_msg,
-                    payload_id=expected_payload_id,
+                    request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
 
@@ -338,10 +338,10 @@ class PayloadTrackerTestCase(TestCase):
 
                 producer.reset_mock()
 
-    def _get_tracker(self, account=None, payload_id=None, producer=None):
+    def _get_tracker(self, account=None, request_id=None, producer=None):
         config = Config(RuntimeEnvironment.server)
         init_payload_tracker(config, producer=producer)
-        return get_payload_tracker(account=account, payload_id=payload_id)
+        return get_payload_tracker(account=account, request_id=request_id)
 
     def _verify_mock_send_call(self, mock_producer, expected_topic, expected_msg):
         mock_producer.send.assert_called()
@@ -374,11 +374,11 @@ class PayloadTrackerTestCase(TestCase):
                 null_producer.reset_mock()
 
     def _build_expected_message(
-        self, status="received", status_msg=None, payload_id="1357924680", account=None, datetime_mock=None
+        self, status="received", status_msg=None, request_id="1357924680", account=None, datetime_mock=None
     ):
         expected_msg = {
             "service": "inventory",
-            "payload_id": payload_id,
+            "request_id": request_id,
             "status": status,
             "date": datetime_mock.utcnow.return_value.isoformat(),
         }
