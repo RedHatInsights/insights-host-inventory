@@ -509,7 +509,7 @@ def build_host_chunk():
     fqdn = "fred.flintstone.com"
     payload = {
         "account": "0000001",
-        "insights_id": random_uuid(),
+        "insights_id": "a1fed066-88f5-4334-b058-f5465acd0280",
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         "display_name": fqdn,
@@ -519,6 +519,9 @@ def build_host_chunk():
             {"namespace": "NS1", "key": "key3", "value": "val3"},
             {"namespace": "Sat", "key": "prod", "value": None},
         ],
+        # "tags": {
+        #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},
+        # },
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
