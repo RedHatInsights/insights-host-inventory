@@ -194,22 +194,6 @@ def test_host_schema_timezone_enforced():
     assert "Timestamp must contain timezone info" in str(excinfo.value)
 
 
-def test_tag_deserialization():
-    tags = [
-        {"namespace": "Sat", "key": "env", "value": "prod"},
-        {"namespace": "Sat", "key": "env", "value": "test"},
-        {"namespace": "Sat", "key": "geo", "value": "somewhere"},
-        {"namespace": "AWS", "key": "env", "value": "ci"},
-        {"namespace": "AWS", "key": "env"},
-    ]
-    expected_tags = {"Sat": {"env": ["prod", "test"], "geo": ["somewhere"]}, "AWS": {"env": ["ci"]}}
-    deserialized_tags = Tag.create_nested_from_tags(Tag.create_structured_tags_from_tag_data_list(tags))
-
-    assert sorted(deserialized_tags["Sat"]["env"]) == sorted(expected_tags["Sat"]["env"])
-    assert sorted(deserialized_tags["Sat"]["geo"]) == sorted(expected_tags["Sat"]["geo"])
-    assert sorted(deserialized_tags["AWS"]["env"]) == sorted(expected_tags["AWS"]["env"])
-
-
 @pytest.mark.parametrize(
     "tags",
     [
