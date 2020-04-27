@@ -1116,30 +1116,9 @@ class CreateHostsWithTagsTestCase(DBAPITestCase):
         self.assertCountEqual(updated_tags, create_tags + update_tags)
 
     def test_create_host_with_nested_tags(self):
-        insights_id = generate_uuid()
-
-        create_tags = {
-            "namespace1": {"key1": ["value1", "value2"], "key2": ["value3", "value3"]},
-            "namespace2": {"key3": [None, "value4"], "key4": [None], "key5": []},
-            "": {"key5": ["value5"]},
-        }
-        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
-        create_response = self.post(HOST_URL, [create_host_data], 207)
-
-        self._verify_host_status(create_response, 0, 201)
-        host_id = self._pluck_host_from_response(create_response, 0)["id"]
-
-        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-        expected_tags = [
-            {"namespace": "namespace1", "key": "key1", "value": "value1"},
-            {"namespace": "namespace1", "key": "key1", "value": "value2"},
-            {"namespace": "namespace1", "key": "key2", "value": "value3"},
-            {"namespace": "namespace2", "key": "key3", "value": "value4"},
-            {"namespace": "namespace2", "key": "key4", "value": None},
-            {"namespace": "namespace2", "key": "key5", "value": None},
-            {"namespace": None, "key": "key5", "value": "value5"},
-        ]
-        self.assertCountEqual(expected_tags, created_tags)
+        create_tags = {"namespace": {"key": ["value"]}}
+        create_host_data = test_data(tags=create_tags)
+        self.post(HOST_URL, [create_host_data], 400)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):

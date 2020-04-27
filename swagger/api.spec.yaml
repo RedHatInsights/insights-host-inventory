@@ -322,13 +322,13 @@ paths:
         - $ref: '#/components/parameters/registered_with'
       responses:
         '200':
-            description: Tags
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/ActiveTags'
+          description: Tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveTags'
         '400':
-            description: Invalid request.
+          description: Invalid request.
         '404':
           $ref: '#/components/responses/PageOutOfBounds'
 
@@ -505,27 +505,6 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/StructuredTag'
-    Tags:
-      description: The tags on a host
-      oneOf:
-        - type: "array"
-          description: A list of structured tag objects
-          items:
-            $ref: '#/components/schemas/StructuredTag'
-        - type: "object"
-          description: A nested dictionary of tags sorted by namespace
-          additionalProperties:
-            type: "object"
-            description: A dictionary of tag values sorted by key
-            nullable: true
-            additionalProperties:
-              type: "array"
-              description: A list of tag values
-              nullable: true
-              items:
-                description: A single tag value
-                type: "string"
-                nullable: true
     StructuredTag:
       type: object
       properties:
@@ -702,7 +681,10 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         tags:
-          $ref: '#/components/schemas/Tags'
+          description: The tags on a host
+          type: array
+          items:
+            $ref: '#/components/schemas/StructuredTag'
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
         stale_timestamp:
@@ -828,7 +810,10 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         tags:
-          $ref: '#/components/schemas/Tags'
+          description: An array of the tags on the host
+          type: array
+          items:
+            $ref: '#/components/schemas/StructuredTag'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
