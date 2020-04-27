@@ -6,8 +6,8 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import get_logger
-from app.models import StructuredTagsSchema
 from app.models import SystemProfileSchema
+from app.models import TagsSchema
 from app.queue import metrics
 
 
@@ -90,7 +90,7 @@ class HostSchema(Schema):
     stale_warning_timestamp = fields.Str()
     culled_timestamp = fields.Str()
     reporter = fields.Str()
-    tags = fields.List(fields.Nested(StructuredTagsSchema))
+    tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
 
 

@@ -317,7 +317,7 @@ class FactsSchema(Schema):
     facts = fields.Dict(validate=check_empty_keys)
 
 
-class StructuredTagsSchema(Schema):
+class TagsSchema(Schema):
     namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
@@ -360,7 +360,7 @@ class HostSchema(Schema):
 
     @staticmethod
     def _validate_tags_list(tags):
-        StructuredTagsSchema(many=True, strict=True).validate(tags)
+        TagsSchema(many=True, strict=True).validate(tags)
         return True
 
     @staticmethod
