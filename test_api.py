@@ -239,7 +239,7 @@ class APIBaseTestCase(TestCase):
         return self._response_check(response, status, return_response_as_json)
 
     def _response_check(self, response, status, return_response_as_json):
-        self.assertEqual(response.status_code, status)
+        self.assertEqual(status, response.status_code)
         if return_response_as_json:
             return json.loads(response.data)
         else:
@@ -281,7 +281,7 @@ class DBAPITestCase(APIBaseTestCase):
         return ",".join(host_id_list)
 
     def _verify_host_status(self, response, host_index, expected_status):
-        self.assertEqual(response["data"][host_index]["status"], expected_status)
+        self.assertEqual(expected_status, response["data"][host_index]["status"])
 
     def _pluck_host_from_response(self, response, host_index):
         return response["data"][host_index]["host"]
@@ -939,15 +939,19 @@ class CreateHostsTestCase(DBAPITestCase):
 
 
 class CreateHostsWithTagsTestCase(DBAPITestCase):
+    def test_create_host_with_null_tag_key(self):
+        tag = ({"namespace": "ns", "key": None, "value": "val"},)
+        host_data = HostWrapper(test_data(tags=[tag]))
+        self.post(HOST_URL, [host_data.data()], 400)
+
     def test_create_host_with_invalid_tags(self):
         too_long = "a" * 256
         tags = [
             {"namespace": too_long, "key": "key", "value": "val"},
             {"namespace": "ns", "key": too_long, "value": "val"},
             {"namespace": "ns", "key": "key", "value": too_long},
-            {"namespace": "", "key": "key", "value": "val"},
             {"namespace": "ns", "key": "", "value": "val"},
-            {"namespace": "ns", "key": "key", "value": ""},
+            {"namespace": "ns", "value": "val"},
         ]
 
         for tag in tags:
@@ -984,6 +988,7 @@ class CreateHostsWithTagsTestCase(DBAPITestCase):
                     {"namespace": "NS3", "key": "key2", "value": "val2"},
                     {"namespace": "NS1", "key": "key3", "value": "val3"},
                     {"namespace": "Sat", "key": "prod", "value": None},
+                    {"namespace": "NS2", "key": "key1", "value": ""},
                 ]
             )
         )
@@ -1006,10 +1011,10 @@ class CreateHostsWithTagsTestCase(DBAPITestCase):
             {"namespace": "NS1", "key": "key3", "value": "val3"},
             {"namespace": "NS3", "key": "key2", "value": "val2"},
             {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "NS2", "key": "key1", "value": None},
         ]
 
-        for tag, expected_tag in zip(host_tags, expected_tags):
-            self.assertEqual(tag, expected_tag)
+        self.assertCountEqual(host_tags, expected_tags)
 
     def test_create_host_with_tags_special_characters(self):
         tags = [
@@ -1036,8 +1041,11 @@ class CreateHostsWithTagsTestCase(DBAPITestCase):
     def test_create_host_with_tag_without_some_fields(self):
         tags = [
             {"namespace": None, "key": "key3", "value": "val3"},
+            {"namespace": "", "key": "key1", "value": "val1"},
+            {"namespace": "null", "key": "key4", "value": "val4"},
             {"key": "key2", "value": "val2"},
             {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "dev", "value": ""},
             {"key": "some_key"},
         ]
 
@@ -1059,13 +1067,14 @@ class CreateHostsWithTagsTestCase(DBAPITestCase):
 
         expected_tags = [
             {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "dev", "value": None},
+            {"namespace": None, "key": "key1", "value": "val1"},
             {"namespace": None, "key": "key2", "value": "val2"},
             {"namespace": None, "key": "key3", "value": "val3"},
+            {"namespace": None, "key": "key4", "value": "val4"},
             {"namespace": None, "key": "some_key", "value": None},
         ]
-
-        for tag, expected_tag in zip(host_tags, expected_tags):
-            self.assertEqual(tag, expected_tag)
+        self.assertCountEqual(expected_tags, host_tags)
 
     def test_update_host_replaces_tags(self):
         insights_id = generate_uuid()
