@@ -727,6 +727,28 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
 
+    def test_keep_host_tags_by_none(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ({"namespace 1": {"key 1": ["value 1"]}}, {"namespace 1": {"key 1": ["value 1"]}}),
+            (None, {"namespace 1": {"key 1": ["value 1"]}}),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id, message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(host.tags, expected_tags)
+
+    def test_keep_host_default_empty_dict(self):
+        for tags in (None, [], {}):
+            with self.subTest(tags=tags):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id, tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(host.tags, {})
+
     def test_delete_host_tags(self):
         insights_id = str(uuid.uuid4())
 
