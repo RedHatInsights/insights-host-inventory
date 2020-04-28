@@ -111,6 +111,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                     json.loads(mock_event_producer.write_event.call_args[0][0]),
                     {
                         "host": {"id": str(host_id), "insights_id": None},
+                        "metadata": {"request_id": None},
                         "platform_metadata": {},
                         "timestamp": timestamp_iso,
                         "type": "created",
