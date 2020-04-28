@@ -881,6 +881,53 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
+    def test_create_host_with_tags_doesnt_work(self):
+        host_data = HostWrapper(test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}]))
+        create_response = self.post(HOST_URL, [host_data.data()], 207)
+
+        host_id = create_response["data"][0]["host"]["id"]
+        print(f"Host_id: {host_id}")
+        response = self.get(f"{HOST_URL}/{host_id}/tags")
+
+        print(response)
+
+        self.maxDiff = None
+        self.assertEqual(response["results"][host_id], [])
+
+    def test_update_host_with_tags_doesnt_change_tags(self):
+        host_data = HostWrapper(
+            test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn", id=generate_uuid())
+        )
+
+        message = {
+            "operation": "add_host",
+            "data": {
+                "id": host_data.id,
+                "account": host_data.account,
+                "display_name": host_data.display_name,
+                "tags": host_data.tags,
+                "reporter": host_data.reporter,
+                "stale_timestamp": host_data.stale_timestamp,
+                "facts": host_data.facts,
+                "fqdn": host_data.fqdn,
+            },
+        }
+
+        with self.app.app_context():
+            mock_event_producer = Mock()
+            handle_message(json.dumps(message), mock_event_producer)
+            json.loads(mock_event_producer.write_event.call_args[0][0])
+
+        print(f"Host_id: {host_data.id}")
+
+        # attempt to update
+        self.post(HOST_URL, [host_data.data()], 207)
+
+        tags_after_update = self.get(f"{HOST_URL}/{host_data.id}/tags")
+
+        # check the tags haven't updated
+        self.assertNotEqual(host_data.tags, tags_after_update)
+
     ####################################################################################
     # TODO: Remove after making test that insures tags may not be created through REST #
     ####################################################################################
@@ -1795,9 +1842,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             with self.app.app_context():
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
-
-                mock_event_producer.write_event.assert_called_once()
-
                 response_data = json.loads(mock_event_producer.write_event.call_args[0][0])
 
                 # add facts object since it's not returned by message :shrug:
@@ -1970,6 +2014,10 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         emit_event.assert_called_once()
         emitted_event = emit_event.call_args[0]
         event_message = json.loads(emitted_event[0])
+
+        # TODO: Remove
+        self.maxDiff = None
+
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
         self.assertEqual(emitted_event[2], {"event_type": "updated"})
@@ -2116,6 +2164,11 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         host_list.reverse()
 
         expected_host_list = [h.data() for h in host_list]
+        # Remove fields that are not returned by the REST endpoint
+        for host in expected_host_list:
+            host.pop("tags", None)
+            host.pop("system_profile", None)
+
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
@@ -2169,6 +2222,11 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url)
 
         expected_host_list = [h.data() for h in host_list]
+        # Remove fields that are not returned by the REST endpoint
+        for host in expected_host_list:
+            host.pop("tags", None)
+            host.pop("system_profile", None)
+
         self.maxDiff = None
         self.assertEqual(response["results"], expected_host_list)
 
@@ -2196,6 +2254,7 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self.assertEqual(len(response["results"]), len(expected_host_list))
 
         # TODO: Figure out how to fix these dang tests and what the heck is going on with the API
+        # ANSWER: API never responded with tags. Remove the tags from the internla host data before comparison
         print("HEY! Are the tags on this host????? Why are they not being returned by the GET??")
         print(f"Host id: {host_id_list}")
         print(self.get(f"{url}/tags"))
@@ -2204,6 +2263,9 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
 
         host_data = [host.data() for host in expected_host_list]
         for host in host_data:
+            # Remove fields that are not returned by the /hosts endpoint
+            host.pop("tags", None)
+            host.pop("system_profile", None)
             self.assertIn(host, response["results"])
         for host in response["results"]:
             self.assertIn(host, host_data)
