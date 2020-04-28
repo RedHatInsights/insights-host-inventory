@@ -109,8 +109,9 @@ def _add_host(input_host):
             detail="The account number associated with the user does not match the account number associated with the "
             "host",
         )
-    # #Remove tags from host object here
-    # Will this cause updates to remove all of the tags from an existing host with tags???????!
+
+    # RHCLOUD-5593
+    # Remove tags from host object here to keep from creating/updating tags from REST
     input_host.tags = {}
 
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)

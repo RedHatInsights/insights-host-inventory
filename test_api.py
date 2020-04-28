@@ -886,10 +886,7 @@ class CreateHostsTestCase(DBAPITestCase):
         create_response = self.post(HOST_URL, [host_data.data()], 207)
 
         host_id = create_response["data"][0]["host"]["id"]
-        print(f"Host_id: {host_id}")
         response = self.get(f"{HOST_URL}/{host_id}/tags")
-
-        print(response)
 
         self.maxDiff = None
         self.assertEqual(response["results"][host_id], [])
@@ -918,8 +915,6 @@ class CreateHostsTestCase(DBAPITestCase):
             handle_message(json.dumps(message), mock_event_producer)
             json.loads(mock_event_producer.write_event.call_args[0][0])
 
-        print(f"Host_id: {host_data.id}")
-
         # attempt to update
         self.post(HOST_URL, [host_data.data()], 207)
 
@@ -927,138 +922,6 @@ class CreateHostsTestCase(DBAPITestCase):
 
         # check the tags haven't updated
         self.assertNotEqual(host_data.tags, tags_after_update)
-
-    ####################################################################################
-    # TODO: Remove after making test that insures tags may not be created through REST #
-    ####################################################################################
-
-    # def test_create_host_with_invalid_tags(self):
-    #     too_long = "a" * 256
-    #     tags = [
-    #         {"namespace": too_long, "key": "key", "value": "val"},
-    #         {"namespace": "ns", "key": too_long, "value": "val"},
-    #         {"namespace": "ns", "key": "key", "value": too_long},
-    #         {"namespace": "", "key": "key", "value": "val"},
-    #         {"namespace": "ns", "key": "", "value": "val"},
-    #         {"namespace": "ns", "key": "key", "value": ""},
-    #     ]
-
-    #     for tag in tags:
-    #         with self.subTest(tag=tag):
-    #             host_data = HostWrapper(test_data(tags=[tag]))
-    #             response = self.post(HOST_URL, [host_data.data()], 207)
-    #             self._verify_host_status(response, 0, 400)
-
-    # def test_create_host_with_keyless_tag(self):
-    #     tag = {"namespace": "ns", "key": None, "value": "val"}
-
-    #     host_data = HostWrapper(test_data(tags=[tag]))
-
-    #     self.post(HOST_URL, [host_data.data()], 400)
-
-    # def test_create_host_with_invalid_string_tag_format(self):
-    #     tag = "string/tag=format"
-
-    #     host_data = HostWrapper(test_data(tags=[tag]))
-
-    #     self.post(HOST_URL, [host_data.data()], 400)
-
-    # def test_create_host_with_invalid_tag_format(self):
-    #     tag = {"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}
-
-    #     host_data = HostWrapper(test_data(tags=[tag]))
-
-    #     self.post(HOST_URL, [host_data.data()], 400)
-
-    # def test_create_host_with_tags(self):
-    #     host_data = HostWrapper(
-    #         test_data(
-    #             tags=[
-    #                 {"namespace": "NS3", "key": "key2", "value": "val2"},
-    #                 {"namespace": "NS1", "key": "key3", "value": "val3"},
-    #                 {"namespace": "Sat", "key": "prod", "value": None},
-    #             ]
-    #         )
-    #     )
-
-    #     response = self.post(HOST_URL, [host_data.data()], 207)
-
-    #     self._verify_host_status(response, 0, 201)
-
-    #     created_host = self._pluck_host_from_response(response, 0)
-
-    #     original_id = created_host["id"]
-
-    #     host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-    #     self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    #     host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-
-    #     expected_tags = [
-    #         {"namespace": "NS1", "key": "key3", "value": "val3"},
-    #         {"namespace": "NS3", "key": "key2", "value": "val2"},
-    #         {"namespace": "Sat", "key": "prod", "value": None},
-    #     ]
-
-    #     for tag, expected_tag in zip(host_tags, expected_tags):
-    #         self.assertEqual(tag, expected_tag)
-
-    # def test_create_host_with_tags_special_characters(self):
-    #     tags = [
-    #         {"namespace": "NS1;,/?:@&=+$-_.!~*'()#", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"},
-    #         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
-    #     ]
-    #     host_data = HostWrapper(test_data(tags=tags))
-
-    #     response = self.post(HOST_URL, [host_data.data()], 207)
-
-    #     self._verify_host_status(response, 0, 201)
-
-    #     created_host = self._pluck_host_from_response(response, 0)
-
-    #     original_id = created_host["id"]
-
-    #     host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-    #     self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    #     host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-    #     self.assertCountEqual(host_tags, tags)
-
-    # def test_create_host_with_tag_without_some_fields(self):
-    #     tags = [
-    #         {"namespace": None, "key": "key3", "value": "val3"},
-    #         {"key": "key2", "value": "val2"},
-    #         {"namespace": "Sat", "key": "prod", "value": None},
-    #         {"key": "some_key"},
-    #     ]
-
-    #     host_data = HostWrapper(test_data(tags=tags))
-
-    #     response = self.post(HOST_URL, [host_data.data()], 207)
-
-    #     self._verify_host_status(response, 0, 201)
-
-    #     created_host = self._pluck_host_from_response(response, 0)
-
-    #     original_id = created_host["id"]
-
-    #     host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-    #     self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    #     host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-
-    #     expected_tags = [
-    #         {"namespace": "Sat", "key": "prod", "value": None},
-    #         {"namespace": None, "key": "key2", "value": "val2"},
-    #         {"namespace": None, "key": "key3", "value": "val3"},
-    #         {"namespace": None, "key": "some_key", "value": None},
-    #     ]
-
-    #     for tag, expected_tag in zip(host_tags, expected_tags):
-    #         self.assertEqual(tag, expected_tag)
 
     def test_create_host_with_20_byte_MAC_address(self):
         system_profile = {
@@ -1844,10 +1707,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
                 handle_message(json.dumps(message), mock_event_producer)
                 response_data = json.loads(mock_event_producer.write_event.call_args[0][0])
 
-                # add facts object since it's not returned by message :shrug:
+                # add facts object since it's not returned by message
                 response_data["host"]["facts"] = message["data"]["facts"]
-
-                # print("response data: %s", response_data)
 
                 host_list.append(HostWrapper(response_data["host"]))
 
@@ -2252,14 +2113,6 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
 
         self.assertEqual(response["count"], len(expected_host_list))
         self.assertEqual(len(response["results"]), len(expected_host_list))
-
-        # TODO: Figure out how to fix these dang tests and what the heck is going on with the API
-        # ANSWER: API never responded with tags. Remove the tags from the internla host data before comparison
-        print("HEY! Are the tags on this host????? Why are they not being returned by the GET??")
-        print(f"Host id: {host_id_list}")
-        print(self.get(f"{url}/tags"))
-        print("why not in full host get response??")
-        print(self.get(url))
 
         host_data = [host.data() for host in expected_host_list]
         for host in host_data:
