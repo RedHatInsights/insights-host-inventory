@@ -146,9 +146,6 @@ def handle_message(message, event_producer):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
         event_producer.write_event(event, output_host["id"], message_headers(add_results.name))
-        logger.info(
-            "Writing event", extra={"input_host": {"host_id": str(output_host["id"]), "event_type": add_results.name}}
-        )
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

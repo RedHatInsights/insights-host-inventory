@@ -6,6 +6,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import get_logger
+from app.logging import log_produced_message
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.queue import metrics
@@ -21,14 +22,12 @@ class KafkaEventProducer:
         self._topic = config.host_egress_topic
 
     def write_event(self, event, key, headers):
-        logger.info("Topic: " + self._topic, extra={"input_host": {"key": key, "headers": headers, "event": event}})
-        logger.debug("Event: %s", self._topic, key, event, headers)
-
         try:
             k = key.encode("utf-8") if key else None
             v = event.encode("utf-8")
             h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
             self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
+            log_produced_message(self._topic, event, key, headers)
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")
