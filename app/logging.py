@@ -129,8 +129,8 @@ def get_logger(name):
 def log_produced_message(logger, topic, value, key, headers):
     extra_message = {"key": key, "headers": headers}
 
-    info_extra = {"topic": topic, "message": extra_message}
+    info_extra = {"topic": topic, "produced_message": extra_message}
     logger.info("Produced message on topic %s, key %s, headers %s", topic, key, headers, extra=info_extra)
 
-    debug_extra = {**info_extra, "message": {**extra_message, "value": value}}
+    debug_extra = {**info_extra, "produced_message": {**extra_message, "value": value}}
     logger.debug("Produced message body: %s", value, extra=debug_extra)
