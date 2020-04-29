@@ -5,8 +5,8 @@ from kafka import KafkaProducer
 from marshmallow import fields
 from marshmallow import Schema
 
+from app.instrumentation import message_produced
 from app.logging import get_logger
-from app.logging import log_produced_message
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.queue import metrics
@@ -27,7 +27,7 @@ class KafkaEventProducer:
             v = event.encode("utf-8")
             h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
             self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
-            log_produced_message(logger, self._topic, event, key, headers)
+            message_produced(logger, self._topic, event, key, headers)
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")

@@ -1,7 +1,7 @@
 from kafka import KafkaProducer
 
+from app.instrumentation import message_produced
 from app.logging import get_logger
-from app.logging import log_produced_message
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,7 @@ def emit_event(event, key, headers):
     v = event.encode("utf-8")
     h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
     producer.send(cfg.event_topic, key=k, value=v, headers=h)
-    log_produced_message(logger, cfg.event_topic, event, key, headers)
+    message_produced(logger, cfg.event_topic, event, key, headers)
 
 
 def flush():
