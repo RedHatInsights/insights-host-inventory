@@ -58,7 +58,7 @@ def _configure_watchtower_logging_handler():
             boto3_session=boto3_session,
             log_group=log_group,
             stream_name=stream_name,
-            create_log_group=create_log_group
+            create_log_group=create_log_group,
         )
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
