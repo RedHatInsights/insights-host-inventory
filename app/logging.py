@@ -43,6 +43,7 @@ def _configure_watchtower_logging_handler():
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = os.getenv("AWS_LOG_GROUP", "platform")
     stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
+    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")) in ["True", "true"]
 
     if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
@@ -54,7 +55,10 @@ def _configure_watchtower_logging_handler():
 
         root = logging.getLogger()
         handler = watchtower.CloudWatchLogHandler(
-            boto3_session=boto3_session, log_group=log_group, stream_name=stream_name
+            boto3_session=boto3_session,
+            log_group=log_group,
+            stream_name=stream_name,
+            create_log_group=create_log_group
         )
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
         root.addHandler(handler)
