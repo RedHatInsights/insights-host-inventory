@@ -1115,7 +1115,7 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
     def test_always_update_stale_timestamp_from_next_reporter(self):
         current_timestamp = now()
 
-        old_stale_timestamp = current_timestamp + timedelta(days=1)  # stale host
+        old_stale_timestamp = current_timestamp + timedelta(days=1)
         old_reporter = "old reporter"
 
         created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
