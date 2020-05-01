@@ -1,5 +1,3 @@
-# Probably want to delete this whole file in the refactor
-# from kafka import KafkaProducer
 from app.logging import get_logger
 from app.queue.event_producer import KafkaEventProducer
 
