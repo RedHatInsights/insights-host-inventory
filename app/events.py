@@ -39,5 +39,10 @@ def delete(host):
     )
 
 
-def message_headers(event_type):
-    return {"event_type": event_type}
+def message_headers(event_type, request_id, producer, registered_with_insights):
+    return {
+        "event_type": event_type,
+        "request_id": request_id,
+        "producer": producer,
+        "registered_with_isights": registered_with_insights,
+    }

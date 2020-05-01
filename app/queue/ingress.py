@@ -1,4 +1,5 @@
 import json
+import os
 import signal
 
 from marshmallow import fields
@@ -145,7 +146,16 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
-        event_producer.write_event(event, output_host["id"], message_headers(add_results.name))
+        event_producer.write_event(
+            event,
+            output_host["id"],
+            message_headers(
+                event_type=add_results.name,
+                request_id=threadctx.request_id,
+                producer=os.uname()[1],
+                registered_with_insights="true" if output_host["insights_id"] is not None else "false",
+                )
+        )
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
