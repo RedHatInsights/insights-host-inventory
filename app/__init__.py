@@ -18,8 +18,6 @@ from app.models import db
 from app.validators import verify_uuid_format  # noqa: 401
 from tasks import init_tasks
 
-logger = get_logger(__name__)
-
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -41,6 +39,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging(config_name)
+    logger = get_logger(__name__)  # we need to call the logger after configuring it, not before
 
     app_config = Config(RuntimeEnvironment.server)
     app_config.log_configuration(config_name)

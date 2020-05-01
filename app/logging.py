@@ -13,6 +13,8 @@ LOGGER_PREFIX = "inventory."
 
 threadctx = local()
 
+session_boto3 = None
+
 
 def configure_logging(config_name):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
@@ -43,7 +45,6 @@ def _configure_watchtower_logging_handler():
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = os.getenv("AWS_LOG_GROUP", "platform")
     stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
-    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
 
     if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
         print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
@@ -53,17 +54,22 @@ def _configure_watchtower_logging_handler():
             region_name=aws_region_name,
         )
 
-        root = logging.getLogger()
-        handler = watchtower.CloudWatchLogHandler(
-            boto3_session=boto3_session,
-            log_group=log_group,
-            stream_name=stream_name,
-            create_log_group=create_log_group,
-        )
-        handler.setFormatter(logstash_formatter.LogstashFormatterV1())
-        root.addHandler(handler)
+        global session_boto3
+        session_boto3 = boto3_session
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
+
+
+def _get_cloudwatch_handler():
+    global session_boto3
+    group = os.getenv("AWS_LOG_GROUP", "platform")
+    stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
+    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+    handler = watchtower.CloudWatchLogHandler(
+        boto3_session=session_boto3, log_group=group, stream_name=stream, create_log_group=create_log_group
+    )
+    handler.setFormatter(logstash_formatter.LogstashFormatterV1())
+    return handler
 
 
 def _get_hostname():
@@ -122,5 +128,10 @@ def get_logger(name):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger = logging.getLogger(LOGGER_PREFIX + name)
     logger.addFilter(ContextualFilter())
+
+    global session_boto3
+    if session_boto3 is not None:
+        logger.addHandler(_get_cloudwatch_handler())
+
     logger.setLevel(log_level)
     return logger
