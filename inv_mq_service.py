@@ -8,9 +8,9 @@ from app import create_app
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.egress import KafkaEventProducer
-from app.queue.ingress import event_loop
-from app.queue.ingress import handle_message
+from app.queue.event_producer import KafkaEventProducer
+from app.queue.queue import event_loop
+from app.queue.queue import handle_message
 
 logger = get_logger("mq_service")
 

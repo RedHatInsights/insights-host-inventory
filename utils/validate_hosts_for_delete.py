@@ -1,10 +1,10 @@
 from app import create_app
-from app import events
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.events import HostEvent
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.queue import events
+from app.queue.events import HostEvent
 
 logger = get_logger("utils")
 

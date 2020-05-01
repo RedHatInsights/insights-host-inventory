@@ -1272,7 +1272,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         }
 
     def _run_host_reaper(self):
-        with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
+        with patch("app.queue.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
             with self.app.app_context():
                 config = self.app.config["INVENTORY_CONFIG"]
                 host_reaper_run(config, mock.Mock(), db.session)
@@ -1904,7 +1904,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         patch_doc = {"display_name": "patch_event_test"}
         host_to_patch = self.added_hosts[0].id
 
-        with patch("app.queue.egress.datetime", **{"now.return_value": self.now_timestamp}):
+        with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
             self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
 
         expected_event_message = {
@@ -1982,7 +1982,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
         self.timestamp = datetime.utcnow()
 
     def _delete(self, url_query="", header=None):
-        with patch("app.events.datetime", **{"utcnow.return_value": self.timestamp}):
+        with patch("app.queue.events.datetime", **{"utcnow.return_value": self.timestamp}):
             url = f"{self.delete_url}{url_query}"
             self.delete(url, 200, header, return_response_as_json=False)
 

@@ -18,8 +18,6 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
-from app.events import message_headers
-from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -29,8 +27,10 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.queue.egress import build_event_topic_event
-from app.queue.ingress import EGRESS_HOST_FIELDS
+from app.queue.events import build_event_topic_event
+from app.queue.events import message_headers
+from app.queue.events import UPDATE_EVENT_NAME
+from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_host
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile

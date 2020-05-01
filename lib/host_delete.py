@@ -1,9 +1,9 @@
 from sqlalchemy.orm.base import instance_state
 
-from app.events import delete as delete_event
-from app.events import DELETE_EVENT_NAME
-from app.events import message_headers
 from app.models import Host
+from app.queue.events import delete as delete_event
+from app.queue.events import DELETE_EVENT_NAME
+from app.queue.events import message_headers
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from tasks import emit_event
