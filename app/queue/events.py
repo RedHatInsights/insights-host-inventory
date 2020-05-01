@@ -88,7 +88,7 @@ def message_headers(event_type):
     return {"event_type": event_type}
 
 
-# Event building (should move to events.py?)
+# Event Constructors
 def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
     if event_type in ("created", "updated"):
         return (
@@ -107,7 +107,6 @@ def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
         raise ValueError(f"Invalid event type ({event_type})")
 
 
-# Event Constructors
 @metrics.egress_event_serialization_time.time()
 def build_egress_topic_event(event_type, host, platform_metadata=None):
     return _build_event(event_type, host, platform_metadata=platform_metadata)

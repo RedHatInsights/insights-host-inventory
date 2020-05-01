@@ -32,6 +32,9 @@ class KafkaEventProducer:
     def write_event_egress_topic(self, event, key, headers):
         self._write_event(event, key, headers, self._egress_topic)
 
+    def flush(self):
+        self._kafka_producer.flush()
+
     def close(self):
         self._kafka_producer.flush()
         self._kafka_producer.close()
