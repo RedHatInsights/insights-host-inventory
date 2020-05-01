@@ -1374,30 +1374,7 @@ class HostUpdateStaleTimestamp(TestCase):
         self.assertEqual(new_stale_timestamp, host.stale_timestamp)
         self.assertEqual(reporter, host.reporter)
 
-    def test_updated_with_different_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        old_reporter = "some old reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        new_reporter = "some new reporter"
-        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
-
-        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(new_reporter, host.reporter)
-
-    def test_not_updated_with_same_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        reporter = "some reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        host._update_stale_timestamp(new_stale_timestamp, reporter)
-
-        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-
-    def test_not_updated_with_different_reporter(self):
+    def test_always_updated_with_different_reporter(self):
         old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
         old_reporter = "some old reporter"
         host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
@@ -1406,8 +1383,8 @@ class HostUpdateStaleTimestamp(TestCase):
         new_reporter = "some new reporter"
         host._update_stale_timestamp(new_stale_timestamp, new_reporter)
 
-        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(old_reporter, host.reporter)
+        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+        self.assertEqual(new_reporter, host.reporter)
 
 
 if __name__ == "__main__":

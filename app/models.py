@@ -172,16 +172,7 @@ class Host(db.Model):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
-        if (
-            stale_timestamp
-            and reporter
-            and (
-                (not self.reporter and not self.stale_timestamp)
-                or (reporter == self.reporter and stale_timestamp >= self.stale_timestamp)
-                or (reporter != self.reporter and stale_timestamp <= self.stale_timestamp)
-                or (self.stale_timestamp < _time_now())
-            )
-        ):
+        if stale_timestamp and reporter:
             self.stale_timestamp = stale_timestamp
             self.reporter = reporter
 
