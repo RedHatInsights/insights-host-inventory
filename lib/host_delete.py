@@ -2,7 +2,9 @@ from sqlalchemy.orm.base import instance_state
 
 from app.events import delete as delete_event
 from app.events import DELETE_EVENT_NAME
+from app.events import HOSTNAME
 from app.events import message_headers
+from app.logging import threadctx
 from app.models import Host
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
@@ -45,5 +47,10 @@ def _deleted_by_this_query(host):
 def _emit_event(host):
     event = delete_event(host)
     key = str(host.id)
-    headers = message_headers(DELETE_EVENT_NAME)
+    headers = message_headers(
+        event_type=DELETE_EVENT_NAME,
+        request_id=threadctx.request_id,
+        producer=HOSTNAME,
+        registered_with_insights="true" if "insights_id" in host.canonical_facts else "false",
+    )
     emit_event(event, key, headers)

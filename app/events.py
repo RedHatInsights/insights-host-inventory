@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 
 from marshmallow import fields
@@ -11,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 DELETE_EVENT_NAME = "delete"
 UPDATE_EVENT_NAME = "updated"
+
+HOSTNAME = os.uname()[1]
 
 
 class HostEvent(Schema):

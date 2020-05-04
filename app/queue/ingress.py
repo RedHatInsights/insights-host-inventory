@@ -1,5 +1,4 @@
 import json
-import os
 import signal
 
 from marshmallow import fields
@@ -8,6 +7,7 @@ from marshmallow import ValidationError
 
 from app import inventory_config
 from app.culling import Timestamps
+from app.events import HOSTNAME
 from app.events import message_headers
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -152,9 +152,9 @@ def handle_message(message, event_producer):
             message_headers(
                 event_type=add_results.name,
                 request_id=threadctx.request_id,
-                producer=os.uname()[1],
+                producer=HOSTNAME,
                 registered_with_insights="true" if output_host["insights_id"] is not None else "false",
-                )
+            ),
         )
 
 
