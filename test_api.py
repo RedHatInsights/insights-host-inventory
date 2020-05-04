@@ -1942,6 +1942,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 "updated": self.added_hosts[0].updated,
             },
             "platform_metadata": None,
+            "metadata": {"request_id": expected_request_id},
             "timestamp": self.now_timestamp.isoformat(),
         }
 

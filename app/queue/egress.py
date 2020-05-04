@@ -48,6 +48,7 @@ def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
                     "type": event_type,
                     "host": host,
                     "platform_metadata": platform_metadata,
+                    "metadata": {"request_id": request_id},
                     "timestamp": datetime.now(timezone.utc),
                 }
             )
@@ -103,3 +104,4 @@ class HostEvent(Schema):
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
+    metadata = fields.Nested(HostEventMetadataSchema())
