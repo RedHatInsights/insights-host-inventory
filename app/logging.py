@@ -18,7 +18,7 @@ session_boto3 = None
 
 def configure_logging(config_name):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
-    log_config_file = os.getenv(env_var_name)
+    log_config_file = os.getenv(env_var_name, "logconfig.ini")
     if log_config_file is not None:
         # The logging module throws an odd error (KeyError) if the
         # config file is not found.  Hopefully, this makes it more clear.
