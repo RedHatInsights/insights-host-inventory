@@ -694,6 +694,20 @@ components:
         reporter:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
+    CreateHostOut:
+      title: Create Host Out
+      description: >-
+        Data of a single host belonging to an account. Represents the hosts
+        without its Inventory metadata.
+      allOf:
+        - $ref: '#/components/schemas/GetHostOut'
+        - type: object
+          properties:
+            tags:
+              description: An array of the tags on the host
+              type: array
+              items:
+                $ref: '#/components/schemas/StructuredTag'
     GetHostOut:
       title: Get Host Out
       description: >-
@@ -831,20 +845,6 @@ components:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
           nullable: true
-    CreateHostOut:
-      title: Create Host Out
-      description: >-
-        Data of a single host belonging to an account. Represents the hosts
-        without its Inventory metadata.
-      allOf:
-        - $ref: '#/components/schemas/GetHostOut'
-        - type: object
-          properties:
-            tags:
-              description: An array of the tags on the host
-              type: array
-              items:
-                $ref: '#/components/schemas/StructuredTag'
     CreateHostOutWithMetadata:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.
