@@ -513,7 +513,12 @@ def build_host_chunk():
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         "display_name": fqdn,
-        "tags": None,
+        "tags": [
+            {"namespace": "SPECIAL", "key": "key", "value": "val"},
+            {"namespace": "NS3", "key": "key3", "value": "val3"},
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ],
         # "tags": {
         #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},
         # },
