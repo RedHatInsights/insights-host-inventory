@@ -694,11 +694,12 @@ components:
         reporter:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
-    CreateHostOut:
-      title: Create Host Out
+    GetHostOut:
+      title: Get Host Out
       description: >-
-        Data of a single host belonging to an account. Represents the hosts
-        without its Inventory metadata.
+          Data of a single host that is returned on a get request to /hosts
+          or /hosts/{id_list}. Does not include all of the data about the
+          host present in the database
       type: object
       required:
         - account
@@ -809,11 +810,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
-        tags:
-          description: An array of the tags on the host
-          type: array
-          items:
-            $ref: '#/components/schemas/StructuredTag'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
@@ -835,7 +831,21 @@ components:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
           nullable: true
-    HostOut:
+    CreateHostOut:
+      title: Create Host Out
+      description: >-
+        Data of a single host belonging to an account. Represents the hosts
+        without its Inventory metadata.
+      allOf:
+        - $ref: '#/components/schemas/GetHostOut'
+        - type: object
+          properties:
+            tags:
+              description: An array of the tags on the host
+              type: array
+              items:
+                $ref: '#/components/schemas/StructuredTag'
+    CreateHostOutWithMetadata:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.
       allOf:
@@ -876,7 +886,7 @@ components:
           description: Actual host search query result entries.
           type: array
           items:
-            $ref: '#/components/schemas/HostOut'
+            $ref: '#/components/schemas/GetHostOut'
     SystemProfileByHostOut:
       title: A host system profile query result
       description: Structure of the output of the host system profile query
@@ -1193,8 +1203,6 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
-
-
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
