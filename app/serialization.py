@@ -189,18 +189,17 @@ def _deserialize_tags_list(tags):
         namespace = Tag.deserialize_namespace(tag_data.get("namespace"))
         if namespace not in deserialized:
             deserialized[namespace] = {}
-        deserialized_ns = deserialized[namespace]
 
-        if not tag_data.get("key"):
+        key = tag_data.get("key")
+        if not key:
             raise ValueError("Key cannot be empty.")
 
-        if tag_data["key"] not in deserialized_ns:
-            deserialized_ns[tag_data["key"]] = []
-        deserialized_key = deserialized_ns[tag_data["key"]]
+        if key not in deserialized[namespace]:
+            deserialized[namespace][key] = []
 
         value = tag_data.get("value")
-        if value and value not in deserialized_key:
-            deserialized_key.append(value)
+        if value and value not in deserialized[namespace][key]:
+            deserialized[namespace][key].append(value)
 
     return deserialized
 
