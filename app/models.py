@@ -198,20 +198,28 @@ class Host(db.Model):
         if not self.tags:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
             self.tags = {}
 
-        namespaces_to_delete = []
-        for input_namespace, input_tags in tags_dict.items():
-            if input_tags:
-                self.tags[input_namespace] = input_tags
-            elif input_namespace in self.tags:
-                namespaces_to_delete.append(input_namespace)
+        for namespace, ns_tags in tags_dict.items():
+            if ns_tags:
+                self._replace_tags_in_namespace(namespace, ns_tags)
+            else:
+                self._delete_tags_namespace(namespace)
 
-        for namespace in namespaces_to_delete:
+    def _replace_tags_in_namespace(self, namespace, tags):
+        self.tags[namespace] = tags
+        orm.attributes.flag_modified(self, "tags")
+
+    def _delete_tags_namespace(self, namespace):
+        try:
             del self.tags[namespace]
+        except KeyError:
+            pass
 
         orm.attributes.flag_modified(self, "tags")
 
     def _cleanup_tags(self):
-        self._update_tags(self.tags)
+        namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
+        for namespace in namespaces_to_delete:
+            self._delete_tags_namespace(namespace)
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
         if not facts_dict:
