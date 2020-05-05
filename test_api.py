@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
+from sqlalchemy import null
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
@@ -3565,6 +3566,38 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_from_host_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                host_id = self.added_hosts[0].id
+
+                with self.app.app_context():
+                    host = Host.query.get(host_id)
+                    host.tags = empty
+                    db.session.add(host)
+                    db.session.commit()
+
+                host_tag_results = self.get(f"{HOST_URL}/{host_id}/tags", 200)
+
+                self.assertEqual({host_id: []}, host_tag_results["results"])
+
+    def test_get_tags_count_from_host_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                host_id = self.added_hosts[0].id
+
+                with self.app.app_context():
+                    host = Host.query.get(host_id)
+                    host.tags = empty
+                    db.session.add(host)
+                    db.session.commit()
+
+                host_tag_results = self.get(f"{HOST_URL}/{host_id}/tags/count", 200)
+
+                self.assertEqual({host_id: 0}, host_tag_results["results"])
 
     def test_get_tags_count_from_host_with_no_tags(self):
         """

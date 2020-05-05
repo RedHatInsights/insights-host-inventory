@@ -12,6 +12,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import marshmallow
+from sqlalchemy import null
 
 from app import create_app
 from app import db
@@ -638,13 +639,12 @@ class MQUpdateHostTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
 
 
 class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
-    def _message(self, insights_id, tags):
+    def _message(self, **fields):
         return {
             "account": "0000001",
-            "insights_id": insights_id,
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "test",
-            "tags": tags,
+            **fields,
         }
 
     def test_add_tags_to_host_by_list(self):
@@ -662,7 +662,7 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             ),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
@@ -679,10 +679,32 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             ),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
+
+    def test_add_tags_to_hosts_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id)
+                self._handle_message(message)
+
+                created_host = self._get_host_by_insights_id(insights_id)
+                created_host.tags = empty
+
+                with self.app.app_context():
+                    db.session.add(created_host)
+                    db.session.commit()
+
+                mock_event_producer = self._handle_message(message)
+                event = json.loads(mock_event_producer.event)
+                self.assertEqual([], event["host"]["tags"])
+
+                updated_host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual({}, updated_host.tags)
 
     def test_replace_tags_of_host_by_list(self):
         insights_id = str(uuid.uuid4())
@@ -702,7 +724,7 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             ),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
@@ -722,20 +744,22 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             ),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
 
-    def test_keep_host_tags_by_none(self):
+    def test_keep_host_tags_by_empty(self):
         insights_id = str(uuid.uuid4())
 
         for message_tags, expected_tags in (
             ({"namespace 1": {"key 1": ["value 1"]}}, {"namespace 1": {"key 1": ["value 1"]}}),
             (None, {"namespace 1": {"key 1": ["value 1"]}}),
+            ([], {"namespace 1": {"key 1": ["value 1"]}}),
+            ({}, {"namespace 1": {"key 1": ["value 1"]}}),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
@@ -744,7 +768,7 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
         for tags in (None, [], {}):
             with self.subTest(tags=tags):
                 insights_id = str(uuid.uuid4())
-                message = self._message(insights_id, tags)
+                message = self._message(insights_id=insights_id, tags=tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, {})
@@ -769,7 +793,7 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
             ({"namespace 2": None, "namespace 3": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
         ):
             with self.subTest(tags=message_tags):
-                message = self._message(insights_id, message_tags)
+                message = self._message(insights_id=insights_id, tags=message_tags)
                 self._handle_message(message)
                 host = self._get_host_by_insights_id(insights_id)
                 self.assertEqual(host.tags, expected_tags)
