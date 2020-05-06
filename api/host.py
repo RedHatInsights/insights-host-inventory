@@ -29,6 +29,7 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.probes import countTagsIgnored
 from app.queue.egress import build_event_topic_event
 from app.queue.ingress import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_host
@@ -40,6 +41,7 @@ from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
 from lib.host_repository import find_non_culled_hosts
 from tasks import emit_event
+
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -112,7 +114,10 @@ def _add_host(input_host):
 
     # RHCLOUD-5593
     # Remove tags from host object here to keep from creating/updating tags from REST
-    input_host.tags = {}
+    if input_host.tags:
+        input_host.tags = {}
+        countTagsIgnored()
+        logger.info("tags were ignored")
 
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
