@@ -17,7 +17,7 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
 from app.queue.egress import build_egress_topic_event
 from app.serialization import DEFAULT_FIELDS
-from app.serialization import deserialize_host
+from app.serialization import deserialize_host_MQ
 from lib import host_repository
 
 logger = get_logger(__name__)
@@ -96,7 +96,7 @@ def add_host(host_data):
     ) as payload_tracker_processing_ctx:
 
         try:
-            input_host = deserialize_host(host_data)
+            input_host = deserialize_host_MQ(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             logger.info(
                 "Attempting to add host",

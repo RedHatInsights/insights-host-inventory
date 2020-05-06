@@ -32,7 +32,7 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.probes import countTagsIgnored
 from app.queue.egress import build_event_topic_event
 from app.queue.ingress import EGRESS_HOST_FIELDS
-from app.serialization import deserialize_host
+from app.serialization import deserialize_host_REST
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -67,7 +67,7 @@ def add_host_list(host_list):
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
-                    input_host = deserialize_host(host)
+                    input_host = deserialize_host_REST(host)
                     (output_host, add_result) = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": output_host})

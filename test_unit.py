@@ -27,8 +27,8 @@ from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
+from app.models import BaseHostSchema
 from app.models import Host
-from app.models import HostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _serialize_datetime
@@ -696,7 +696,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 with self.assertRaises(ValidationException) as context:
                     deserialize_host(input)
 
-                expected_errors = HostSchema().load(input).errors
+                expected_errors = BaseHostSchema().load(input).errors
                 self.assertEqual(str(expected_errors), str(context.exception))
 
 
@@ -704,7 +704,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
-@patch("app.serialization.HostSchema")
+@patch("app.serialization.BaseHostSchema")
 class SerializationDeserializeHostMockedTestCase(TestCase):
     class ValidationError(Exception):
         """
