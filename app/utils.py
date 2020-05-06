@@ -187,6 +187,8 @@ Tagging: functions for converting tags between valid representations
 
 
 class Tag:
+    NULL_NAMESPACES = (None, "", "null")
+
     def __init__(self, namespace=None, key=None, value=None):
         self.__data = {"namespace": namespace, "key": key, "value": value}
 
@@ -314,11 +316,18 @@ class Tag:
         return nested_tags
 
     @classmethod
+    def serialize_namespace(cls, value):
+        """
+        replaces the null string used in the database with None
+        """
+        return None if value in cls.NULL_NAMESPACES else value
+
+    @classmethod
     def deserialize_namespace(cls, value):
         """
         replaces the null string used in the database with None
         """
-        return None if value in [None, "", "null"] else value
+        return "null" if value in cls.NULL_NAMESPACES else value
 
     @staticmethod
     def filter_tags(tags, searchTerm):
@@ -349,8 +358,8 @@ class Tag:
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
                 if len(nested_tags[namespace][key]) == 0:
-                    tags.append(Tag(Tag.deserialize_namespace(namespace), key))
+                    tags.append(Tag(Tag.serialize_namespace(namespace), key))
                 else:
                     for value in nested_tags[namespace][key]:
-                        tags.append(Tag(Tag.deserialize_namespace(namespace), key, value))
+                        tags.append(Tag(Tag.serialize_namespace(namespace), key, value))
         return tags
