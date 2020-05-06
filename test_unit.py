@@ -1482,7 +1482,7 @@ class SerializationDeserializeTags(TestCase):
                 ]
                 nested_tags = function(structured_tags)
 
-                self.assertCountEqual(["namespace1", "namespace2", "namespace3", None], nested_tags.keys())
+                self.assertCountEqual(["namespace1", "namespace2", "namespace3", "null"], nested_tags.keys())
                 self.assertCountEqual(["key1", "key2"], nested_tags["namespace1"].keys())
                 self.assertCountEqual(["value1", "value2"], nested_tags["namespace1"]["key1"])
                 self.assertCountEqual(["value3"], nested_tags["namespace1"]["key2"])
@@ -1490,8 +1490,8 @@ class SerializationDeserializeTags(TestCase):
                 self.assertEqual([], nested_tags["namespace2"]["key3"])
                 self.assertCountEqual(["key4"], nested_tags["namespace3"].keys())
                 self.assertCountEqual(["value4"], nested_tags["namespace3"]["key4"])
-                self.assertCountEqual(["key5"], nested_tags[None].keys())
-                self.assertCountEqual(["value5", "value6", "value7"], nested_tags[None]["key5"])
+                self.assertCountEqual(["key5"], nested_tags["null"].keys())
+                self.assertCountEqual(["value5", "value6", "value7"], nested_tags["null"]["key5"])
 
     def test_deserialize_nested(self):
         for function in (_deserialize_tags, _deserialize_tags_dict):
@@ -1508,7 +1508,7 @@ class SerializationDeserializeTags(TestCase):
                 print(deserialized_tags)
 
                 self.assertCountEqual(
-                    ["namespace1", "namespace2", "namespace3", "namespace4", None], deserialized_tags.keys()
+                    ["namespace1", "namespace2", "namespace3", "namespace4", "null"], deserialized_tags.keys()
                 )
                 self.assertCountEqual(["key1", "key2"], deserialized_tags["namespace1"].keys())
                 self.assertCountEqual(["value1", "value2"], deserialized_tags["namespace1"]["key1"])
@@ -1518,8 +1518,8 @@ class SerializationDeserializeTags(TestCase):
                 self.assertCountEqual(["key4"], deserialized_tags["namespace3"].keys())
                 self.assertEqual([], deserialized_tags["namespace3"]["key4"])
                 self.assertEqual({}, deserialized_tags["namespace4"])
-                self.assertCountEqual(["key5"], deserialized_tags[None].keys())
-                self.assertCountEqual(["value4", "value5"], deserialized_tags[None]["key5"])
+                self.assertCountEqual(["key5"], deserialized_tags["null"].keys())
+                self.assertCountEqual(["value4", "value5"], deserialized_tags["null"]["key5"])
 
     def test_deserialize_structured_empty_list(self):
         for function in (_deserialize_tags, _deserialize_tags_list):
