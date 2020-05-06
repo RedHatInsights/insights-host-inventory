@@ -18,6 +18,7 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
+from app.events import HOSTNAME
 from app.events import message_headers
 from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
@@ -238,8 +239,14 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 def _emit_patch_event(host):
     key = host["id"]
-    event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
-    headers = message_headers(UPDATE_EVENT_NAME)
+    request_id = threadctx.request_id
+    event = build_event_topic_event("updated", host, request_id=request_id)
+    headers = message_headers(
+        event_type=UPDATE_EVENT_NAME,
+        request_id=request_id,
+        producer=HOSTNAME,
+        registered_with_insights="true" if "insights_id" in host else "false",
+    )
     emit_event(event, key, headers)
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import copy
 import json
+import os
 import tempfile
 import uuid
 from base64 import b64encode
@@ -103,6 +104,8 @@ MOCK_XJOIN_HOST_RESPONSE = {
         ],
     }
 }
+
+HOSTNAME = os.uname()[1]
 
 Message = namedtuple("Message", ("value", "key", "headers"))
 
@@ -1233,8 +1236,15 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         self.assertEqual(host.insights_id, message.value["insights_id"])
 
         self.assertEqual(message.key, host.id)
-
-        self.assertEqual(message.headers, {"event_type": "delete"})
+        self.assertEqual(
+            message.headers,
+            {
+                "event_type": "delete",
+                "request_id": message.value["request_id"],
+                "producer": HOSTNAME,
+                "registered_with_insights": "true" if message.value["insights_id"] is not None else "false",
+            },
+        )
 
     def _get_hosts_from_db(self, host_ids):
         with self.app.app_context():
@@ -1950,7 +1960,15 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         event_message = json.loads(emitted_event[0])
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
-        self.assertEqual(emitted_event[2], {"event_type": "updated"})
+        self.assertEqual(
+            emitted_event[2],
+            {
+                "event_type": "updated",
+                "request_id": expected_request_id,
+                "producer": HOSTNAME,
+                "registered_with_insights": "true" if event_message["host"]["insights_id"] is not None else "false",
+            },
+        )
 
     def test_patch_produces_update_event_no_request_id(self, emit_event):
         self._base_patch_produces_update_event_test(emit_event, {}, "-1")

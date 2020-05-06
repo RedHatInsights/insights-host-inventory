@@ -47,5 +47,5 @@ def message_headers(event_type, request_id, producer, registered_with_insights):
         "event_type": event_type,
         "request_id": request_id,
         "producer": producer,
-        "registered_with_isights": registered_with_insights,
+        "registered_with_insights": registered_with_insights,
     }

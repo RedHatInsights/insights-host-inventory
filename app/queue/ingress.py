@@ -153,7 +153,7 @@ def handle_message(message, event_producer):
                 event_type=add_results.name,
                 request_id=threadctx.request_id,
                 producer=HOSTNAME,
-                registered_with_insights="true" if output_host["insights_id"] is not None else "false",
+                registered_with_insights="true" if "insights_id" in output_host else "false",
             ),
         )
 

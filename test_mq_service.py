@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 import uuid
 from datetime import datetime
@@ -275,8 +276,15 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
                 mock_event_producer = MockEventProducer()
                 with self.app.app_context():
                     handle_message(json.dumps(message), mock_event_producer)
-
-                self.assertEqual(mock_event_producer.headers, {"event_type": add_host_result.name})
+                self.assertEqual(
+                    mock_event_producer.headers,
+                    {
+                        "event_type": add_host_result.name,
+                        "producer": os.uname()[1],
+                        "registered_with_insights": "true" if "insights_id" in host_data else "false",
+                        "request_id": "-1",
+                    },
+                )
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
