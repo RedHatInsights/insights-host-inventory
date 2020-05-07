@@ -181,8 +181,66 @@ def _serialize_uuid(u):
 
 
 def _deserialize_tags(tags):
-    # TODO: Move the deserialization logic to this method.
-    return Tag.create_nested_from_tags(Tag.create_structered_tags_from_tag_data_list(tags))
+    if isinstance(tags, list):
+        return _deserialize_tags_list(tags)
+    elif isinstance(tags, dict):
+        return _deserialize_tags_dict(tags)
+    elif tags is None:
+        return {}
+    else:
+        raise ValueError("Tags must be dict, list or None.")
+
+
+def _deserialize_tags_list(tags):
+    deserialized = {}
+
+    for tag_data in tags:
+        namespace = Tag.deserialize_namespace(tag_data.get("namespace"))
+        if namespace not in deserialized:
+            deserialized[namespace] = {}
+
+        key = tag_data.get("key")
+        if not key:
+            raise ValueError("Key cannot be empty.")
+
+        if key not in deserialized[namespace]:
+            deserialized[namespace][key] = []
+
+        value = tag_data.get("value")
+        if value and value not in deserialized[namespace][key]:
+            deserialized[namespace][key].append(value)
+
+    return deserialized
+
+
+def _deserialize_tags_dict(tags):
+    deserialized_tags = {}
+
+    for namespace, tags_ns in tags.items():
+        deserialized_namespace = Tag.deserialize_namespace(namespace)
+        if deserialized_namespace not in deserialized_tags:
+            deserialized_tags[deserialized_namespace] = {}
+        deserialized_tags_ns = deserialized_tags[deserialized_namespace]
+
+        if not tags_ns:
+            continue
+
+        for key, values in tags_ns.items():
+            if not key:
+                raise ValueError("Key cannot be empty.")
+
+            if key not in deserialized_tags_ns:
+                deserialized_tags_ns[key] = []
+            deserialized_tags_key = deserialized_tags_ns[key]
+
+            if not values:
+                continue
+
+            for value in values:
+                if value and value not in deserialized_tags_key:
+                    deserialized_tags_key.append(value)
+
+    return deserialized_tags
 
 
 def _serialize_tags(tags):

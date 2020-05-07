@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
+from sqlalchemy import null
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
@@ -241,7 +242,7 @@ class APIBaseTestCase(TestCase):
         return self._response_check(response, status, return_response_as_json)
 
     def _response_check(self, response, status, return_response_as_json):
-        self.assertEqual(response.status_code, status)
+        self.assertEqual(status, response.status_code)
         if return_response_as_json:
             return json.loads(response.data)
         else:
@@ -283,7 +284,7 @@ class DBAPITestCase(APIBaseTestCase):
         return ",".join(host_id_list)
 
     def _verify_host_status(self, response, host_index, expected_status):
-        self.assertEqual(response["data"][host_index]["status"], expected_status)
+        self.assertEqual(expected_status, response["data"][host_index]["status"])
 
     def _pluck_host_from_response(self, response, host_index):
         return response["data"][host_index]["host"]
@@ -884,7 +885,6 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_with_tags_doesnt_work(self):
         host_data = HostWrapper(test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}]))
         create_response = self.post(HOST_URL, [host_data.data()], 207)
-
         host_id = create_response["data"][0]["host"]["id"]
         response = self.get(f"{HOST_URL}/{host_id}/tags")
 
@@ -942,44 +942,31 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
-    def test_create_host_with_too_long_MAC_address(self):
-        system_profile = {
-            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
-        }
+    def test_update_host_does_not_remove_namespace(self):
+        insights_id = generate_uuid()
 
-        host_data = HostWrapper(test_data(system_profile=system_profile))
+        create_tags = [{"namespace": "namespace1", "key": "key1", "value": "value1"}]
+        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
+        create_response = self.post(HOST_URL, [create_host_data], 207)
 
-        response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        host_id = self._pluck_host_from_response(create_response, 0)["id"]
 
-        self._verify_host_status(response, 0, 400)
+        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(created_tags, create_tags)
 
-    def test_create_host_with_empty_json_key_in_system_profile(self):
-        samples = (
-            {"disk_devices": [{"options": {"": "invalid"}}]},
-            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
-            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
-            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
-        )
+        update_tags = [{"namespace": "namespace2", "key": "key2", "value": "value3"}]
+        update_host_data = test_data(insights_id=insights_id, tags=update_tags)
+        update_response = self.post(HOST_URL, [update_host_data], 207)
 
-        for sample in samples:
-            with self.subTest(system_profile=sample):
-                host_data = HostWrapper(test_data(system_profile=sample))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
+        self._verify_host_status(update_response, 0, 200)
+        updated_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
+        self.assertCountEqual(updated_tags, create_tags + update_tags)
 
-    def test_create_host_with_empty_json_key_in_facts(self):
-        samples = (
-            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
-        )
-
-        for facts in samples:
-            with self.subTest(facts=facts):
-                host_data = HostWrapper(test_data(facts=facts))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
+    def test_create_host_with_nested_tags(self):
+        create_tags = {"namespace": {"key": ["value"]}}
+        create_host_data = test_data(tags=create_tags)
+        self.post(HOST_URL, [create_host_data], 400)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
@@ -3450,6 +3437,38 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         host_tag_results = self.get(test_url, 200)
 
         self.assertEqual(expected_response, host_tag_results["results"])
+
+    def test_get_tags_from_host_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                host_id = self.added_hosts[0].id
+
+                with self.app.app_context():
+                    host = Host.query.get(host_id)
+                    host.tags = empty
+                    db.session.add(host)
+                    db.session.commit()
+
+                host_tag_results = self.get(f"{HOST_URL}/{host_id}/tags", 200)
+
+                self.assertEqual({host_id: []}, host_tag_results["results"])
+
+    def test_get_tags_count_from_host_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                host_id = self.added_hosts[0].id
+
+                with self.app.app_context():
+                    host = Host.query.get(host_id)
+                    host.tags = empty
+                    db.session.add(host)
+                    db.session.commit()
+
+                host_tag_results = self.get(f"{HOST_URL}/{host_id}/tags/count", 200)
+
+                self.assertEqual({host_id: 0}, host_tag_results["results"])
 
     def test_get_tags_count_from_host_with_no_tags(self):
         """
