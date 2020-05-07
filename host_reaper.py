@@ -51,7 +51,7 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, logger_, session):
+def run(config, logger, session):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
@@ -60,9 +60,9 @@ def run(config, logger_, session):
     events = delete_hosts(query)
     for host_id, deleted in events:
         if deleted:
-            logger_.info("Deleted host: %s", host_id)
+            logger.info("Deleted host: %s", host_id)
         else:
-            logger_.info("Host %s already deleted. Delete event not emitted.", host_id)
+            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
 
 
 def main(config_name, logger):
