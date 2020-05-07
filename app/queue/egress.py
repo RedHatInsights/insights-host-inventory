@@ -5,6 +5,8 @@ from kafka import KafkaProducer
 from marshmallow import fields
 from marshmallow import Schema
 
+from app.instrumentation import message_not_produced
+from app.instrumentation import message_produced
 from app.logging import get_logger
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
@@ -21,14 +23,13 @@ class KafkaEventProducer:
         self._topic = config.host_egress_topic
 
     def write_event(self, event, key, headers):
-        logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self._topic, key, event, headers)
-
         try:
             k = key.encode("utf-8") if key else None
             v = event.encode("utf-8")
             h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
-            self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
-            metrics.egress_message_handler_success.inc()
+            send_future = self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
+            send_future.add_callback(message_produced, logger, event, key, headers)
+            send_future.add_errback(message_not_produced, logger, self._topic, event, key, headers)
         except Exception:
             logger.exception("Failed to send event")
             metrics.egress_message_handler_failure.inc()
@@ -47,6 +48,7 @@ def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
                     "type": event_type,
                     "host": host,
                     "platform_metadata": platform_metadata,
+                    "metadata": {"request_id": request_id},
                     "timestamp": datetime.now(timezone.utc),
                 }
             )
@@ -102,3 +104,4 @@ class HostEvent(Schema):
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
+    metadata = fields.Nested(HostEventMetadataSchema())
