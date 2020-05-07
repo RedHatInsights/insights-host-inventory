@@ -354,6 +354,10 @@ class BaseHostSchema(Schema):
         if timestamp.tzinfo is None:
             raise ValidationError("Timestamp must contain timezone info")
 
+
+class MqHostSchema(BaseHostSchema):
+    tags = fields.Raw(allow_none=True)
+
     @validates("tags")
     def validate_tags(self, tags):
         if isinstance(tags, list):
@@ -394,10 +398,6 @@ class BaseHostSchema(Schema):
                     TAG_VALUE_VALIDATION(value)
 
         return True
-
-
-class MqHostSchema(BaseHostSchema):
-    tags = fields.Raw(allow_none=True)
 
 
 class HttpHostSchema(BaseHostSchema):

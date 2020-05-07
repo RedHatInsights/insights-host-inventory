@@ -11,6 +11,7 @@ from sqlalchemy.exc import DataError
 from app import db
 from app.models import Host
 from app.models import HttpHostSchema
+from app.models import MqHostSchema
 from app.utils import Tag
 
 """
@@ -166,7 +167,7 @@ def test_host_schema_valid_tags(tags):
         "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
         "reporter": "test",
     }
-    validated_host = HttpHostSchema(strict=True).load(host)
+    validated_host = MqHostSchema(strict=True).load(host)
 
     assert validated_host.data["tags"] == tags
 
