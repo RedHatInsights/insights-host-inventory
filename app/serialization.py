@@ -7,7 +7,7 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import BaseHostSchema
 from app.models import Host as Host
-from app.models import MQHostSchema
+from app.models import MqHostSchema
 from app.utils import Tag
 
 
