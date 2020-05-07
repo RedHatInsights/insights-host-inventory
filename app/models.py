@@ -336,8 +336,12 @@ class BaseHostSchema(Schema):
             raise ValidationError("Timestamp must contain timezone info")
 
 
-class MQHostSchema(BaseHostSchema):
+class MqHostSchema(BaseHostSchema):
     tags = fields.List(fields.Nested(TagsSchema))
+
+
+class HttpHostSchema(BaseHostSchema):
+    pass
 
 
 class PatchHostSchema(Schema):

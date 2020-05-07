@@ -27,8 +27,8 @@ from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
-from app.models import BaseHostSchema
 from app.models import Host
+from app.models import HttpHostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _serialize_datetime
@@ -638,7 +638,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        actual = deserialize_host(input)
+        actual = deserialize_host(input, HttpHostSchema)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
@@ -662,7 +662,8 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "stale_timestamp": stale_timestamp.isoformat(),
                 "reporter": reporter,
                 **canonical_facts,
-            }
+            },
+            HttpHostSchema,
         )
 
         self.assertIs(Host, type(host))
@@ -694,9 +695,9 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         for input in inputs:
             with self.subTest(input=input):
                 with self.assertRaises(ValidationException) as context:
-                    deserialize_host(input)
+                    deserialize_host(input, HttpHostSchema)
 
-                expected_errors = BaseHostSchema().load(input).errors
+                expected_errors = HttpHostSchema().load(input).errors
                 self.assertEqual(str(expected_errors), str(context.exception))
 
 
@@ -704,7 +705,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
-@patch("app.serialization.BaseHostSchema")
+@patch("app.serialization.HttpHostSchema")
 class SerializationDeserializeHostMockedTestCase(TestCase):
     class ValidationError(Exception):
         """
@@ -756,7 +757,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host(input)
+        result = deserialize_host(input, HttpHostSchema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -794,7 +795,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host({})
+        result = deserialize_host({}, HttpHostSchema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -837,7 +838,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host({})
+        result = deserialize_host({}, HttpHostSchema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -875,7 +876,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         host_schema.return_value.load.return_value.data = input
 
-        result = deserialize_host({})
+        result = deserialize_host({}, HttpHostSchema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(input)
@@ -924,7 +925,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 host_schema.return_value.load.return_value.data = all_data
 
                 with self.assertRaises(KeyError):
-                    deserialize_host({})
+                    deserialize_host({}, HttpHostSchema)
 
                 deserialize_canonical_facts.assert_called_once_with(all_data)
                 deserialize_facts.assert_called_once_with(common_data["facts"])
@@ -936,7 +937,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
     ):
         input = {"ansible_host": "some ansible host", "account": "some acct"}
 
-        deserialize_host(input)
+        deserialize_host(input, HttpHostSchema)
 
         host_schema.assert_called_once_with(strict=True)
         host_schema.return_value.load.assert_called_with(input)
@@ -949,7 +950,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema.return_value.load.side_effect = caught_exception
 
         with self.assertRaises(ValidationException) as raises_context:
-            deserialize_host({})
+            deserialize_host({}, HttpHostSchema)
 
         raised_exception = raises_context.exception
 

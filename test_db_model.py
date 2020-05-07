@@ -9,8 +9,8 @@ from pytest import raises
 from sqlalchemy.exc import DataError
 
 from app import db
-from app.models import BaseHostSchema
 from app.models import Host
+from app.models import HttpHostSchema
 from app.utils import Tag
 
 """
@@ -166,7 +166,7 @@ def test_host_schema_valid_tags(tags):
         "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
         "reporter": "test",
     }
-    validated_host = BaseHostSchema(strict=True).load(host)
+    validated_host = HttpHostSchema(strict=True).load(host)
 
     assert validated_host.data["tags"] == tags
 
@@ -175,7 +175,7 @@ def test_host_schema_valid_tags(tags):
 def test_host_schema_invalid_tags(tags):
     host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
     with pytest.raises(ValidationError) as excinfo:
-        _ = BaseHostSchema(strict=True).load(host)
+        _ = HttpHostSchema(strict=True).load(host)
 
     assert "Missing data for required field" in str(excinfo.value)
 
@@ -189,7 +189,7 @@ def test_host_schema_timezone_enforced():
         "reporter": "test",
     }
     with pytest.raises(ValidationError) as excinfo:
-        _ = BaseHostSchema(strict=True).load(host)
+        _ = HttpHostSchema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(excinfo.value)
 

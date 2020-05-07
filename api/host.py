@@ -14,6 +14,7 @@ from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
+from api.metrics import ignored_tags_from_http_request_count
 from app import db
 from app import inventory_config
 from app.auth import current_identity
@@ -29,10 +30,9 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.probes import countTagsIgnored
 from app.queue.egress import build_event_topic_event
 from app.queue.ingress import EGRESS_HOST_FIELDS
-from app.serialization import deserialize_host_REST
+from app.serialization import deserialize_host_http
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -67,7 +67,13 @@ def add_host_list(host_list):
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
-                    input_host = deserialize_host_REST(host)
+                    # RHCLOUD-5593
+                    # Remove tags from host object here to keep from creating/updating tags from REST
+                    if host.get("tags"):
+                        ignored_tags_from_http_request_count.inc()
+                        logger.info("tags from an HTTP request were ignored")
+
+                    input_host = deserialize_host_http(host)
                     (output_host, add_result) = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": output_host})
@@ -111,13 +117,6 @@ def _add_host(input_host):
             detail="The account number associated with the user does not match the account number associated with the "
             "host",
         )
-
-    # RHCLOUD-5593
-    # Remove tags from host object here to keep from creating/updating tags from REST
-    if input_host.tags:
-        input_host.tags = {}
-        countTagsIgnored()
-        logger.info("tags were ignored")
 
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
