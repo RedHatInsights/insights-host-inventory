@@ -20,10 +20,10 @@ def database_fixture():
 @pytest.fixture(scope='function')
 def flask_app_fixture(database_fixture):
     app = create_app(config_name="testing")
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_fixture
 
     # binds the app to the current context
     with app.app_context() as ctx:
-        app.config["SQLALCHEMY_DATABASE_URI"] = database_fixture
         db.create_all()
         ctx.push()
 
