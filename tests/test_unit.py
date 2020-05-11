@@ -43,7 +43,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
-from test_utils import set_environment
+from .test_utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):

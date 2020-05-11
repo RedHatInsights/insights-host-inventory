@@ -2,7 +2,7 @@ from pytest import fixture
 
 from app import create_app
 from app import db
-from test_utils import rename_host_table_and_indexes
+from .test_utils import rename_host_table_and_indexes
 
 
 @fixture

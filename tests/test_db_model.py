@@ -18,7 +18,7 @@ These tests are for testing the db model classes outside of the api.
 """
 
 
-class TestHost(Host):
+class HostTest(Host):
     def __init__(self, *args, **kwargs):
         super(Host, self).__init__(*args, **kwargs)
 
@@ -247,7 +247,7 @@ def test_host_model_assigned_values(flask_app_fixture):
         "reporter": "reporter",
     }
 
-    inserted_host = TestHost(**values)
+    inserted_host = HostTest(**values)
     db.session.add(inserted_host)
     db.session.commit()
 
@@ -257,7 +257,7 @@ def test_host_model_assigned_values(flask_app_fixture):
 
 
 def test_host_model_default_id(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
     db.session.commit()
 
@@ -265,7 +265,7 @@ def test_host_model_default_id(flask_app_fixture):
 
 
 def test_host_model_default_timestamps(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_commit = datetime.now(timezone.utc)
@@ -279,7 +279,7 @@ def test_host_model_default_timestamps(flask_app_fixture):
 
 
 def test_host_model_updated_timestamp(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_insert_commit = datetime.now(timezone.utc)
@@ -298,7 +298,7 @@ def test_host_model_updated_timestamp(flask_app_fixture):
 
 
 def test_host_model_timestamp_timezones(flask_app_fixture):
-    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
+    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
     db.session.add(host)
     db.session.commit()
 
@@ -313,7 +313,7 @@ def test_host_model_timestamp_timezones(flask_app_fixture):
 )
 def test_host_model_constraints(flask_app_fixture, field, value):
     values = {"account": "00102", "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
-    host = TestHost(**values)
+    host = HostTest(**values)
     db.session.add(host)
 
     with raises(DataError):

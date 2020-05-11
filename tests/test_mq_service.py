@@ -23,8 +23,8 @@ from app.queue.ingress import _validate_json_object_for_utf8
 from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
-from test_utils import rename_host_table_and_indexes
-from test_utils import valid_system_profile
+from .test_utils import rename_host_table_and_indexes
+from .test_utils import valid_system_profile
 
 
 class MockEventProducer:
