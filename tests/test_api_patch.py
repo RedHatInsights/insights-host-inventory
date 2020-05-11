@@ -8,7 +8,9 @@ from unittest.mock import patch
 
 import dateutil.parser
 
-from .test_api_utils import PreCreatedHostsBaseTestCase, HOST_URL, generate_uuid
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import PreCreatedHostsBaseTestCase
 
 
 @patch("api.host.emit_event")
@@ -116,7 +118,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 "bios_uuid": self.added_hosts[0].bios_uuid,
                 "created": self.added_hosts[0].created,
                 "culled_timestamp": (
-                        dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
+                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
                 ).isoformat(),
                 "display_name": "patch_event_test",
                 "external_id": self.added_hosts[0].external_id,
@@ -130,7 +132,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 "satellite_id": self.added_hosts[0].satellite_id,
                 "stale_timestamp": self.added_hosts[0].stale_timestamp,
                 "stale_warning_timestamp": (
-                        dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
+                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
                 ).isoformat(),
                 "subscription_manager_id": self.added_hosts[0].subscription_manager_id,
                 "system_profile": {},

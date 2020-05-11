@@ -2,16 +2,22 @@
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from unittest import mock, main
+from unittest import main
+from unittest import mock
 from unittest.mock import patch
 
+from .test_api_delete import DeleteHostsBaseTestCase
+from .test_api_utils import ACCOUNT
+from .test_api_utils import APIBaseTestCase
+from .test_api_utils import DBAPITestCase
+from .test_api_utils import emitted_event
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import now
+from .test_api_utils import test_data
 from app import db
 from app.models import Host
 from app.utils import HostWrapper
-from .test_api_delete import DeleteHostsBaseTestCase
-from .test_api_utils import now, ACCOUNT, HOST_URL, DBAPITestCase, emitted_event, test_data, generate_uuid, \
-    APIBaseTestCase
-
 from host_reaper import run as host_reaper_run
 
 
@@ -315,9 +321,9 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
         for stale_timestamp in (
-                self.staleness_timestamps["stale_warning"],
-                self.staleness_timestamps["stale"],
-                self.staleness_timestamps["fresh"],
+            self.staleness_timestamps["stale_warning"],
+            self.staleness_timestamps["stale"],
+            self.staleness_timestamps["fresh"],
         ):
             hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
 

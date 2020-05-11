@@ -6,14 +6,21 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
+from .test_api_utils import ACCOUNT
+from .test_api_utils import DBAPITestCase
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import inject_qs
+from .test_api_utils import now
+from .test_api_utils import PaginationBaseTestCase
+from .test_api_utils import PreCreatedHostsBaseTestCase
+from .test_api_utils import quote_everything
 from app import db
 from app.culling import Timestamps
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
-from .test_api_utils import PreCreatedHostsBaseTestCase, HOST_URL, PaginationBaseTestCase, generate_uuid, ACCOUNT, \
-    DBAPITestCase, now, quote_everything, inject_qs
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
@@ -440,9 +447,9 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         too_long = "a" * 256
 
         for tags_query, part_name in (
-                (f"{too_long}/key=val", "namespace"),
-                (f"namespace/{too_long}=val", "key"),
-                (f"namespace/key={too_long}", "value"),
+            (f"{too_long}/key=val", "namespace"),
+            (f"namespace/{too_long}=val", "key"),
+            (f"namespace/key={too_long}", "value"),
         ):
             with self.subTest(part=part_name):
                 response = self.get(f"{HOST_URL}?tags={tags_query}", 400)

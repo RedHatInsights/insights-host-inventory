@@ -3,9 +3,13 @@ from unittest import main
 
 from sqlalchemy import null
 
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import inject_qs
+from .test_api_utils import PaginationBaseTestCase
+from .test_api_utils import PreCreatedHostsBaseTestCase
 from app import db
 from app.models import Host
-from .test_api_utils import PaginationBaseTestCase, HOST_URL, inject_qs, PreCreatedHostsBaseTestCase, generate_uuid
 
 
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
@@ -75,104 +79,104 @@ class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
         """
         url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
         for search, results in (
-                (
-                        "",
-                        {
-                            self.added_hosts[0].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS1", "key": "key2", "value": "val1"},
-                                {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-                                {"namespace": "no", "key": "key", "value": None},
-                            ],
-                            self.added_hosts[1].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS2", "key": "key2", "value": "val2"},
-                                {"namespace": "NS3", "key": "key3", "value": "val3"},
-                            ],
-                            self.added_hosts[2].id: [
-                                {"namespace": "NS2", "key": "key2", "value": "val2"},
-                                {"namespace": "NS3", "key": "key3", "value": "val3"},
-                                {"namespace": "NS1", "key": "key3", "value": "val3"},
-                                {"namespace": None, "key": "key4", "value": "val4"},
-                                {"namespace": None, "key": "key5", "value": None},
-                            ],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        "To",
-                        {
-                            self.added_hosts[0].id: [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
-                            self.added_hosts[1].id: [],
-                            self.added_hosts[2].id: [],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        "NS1",
-                        {
-                            self.added_hosts[0].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS1", "key": "key2", "value": "val1"},
-                            ],
-                            self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                            self.added_hosts[2].id: [{"namespace": "NS1", "key": "key3", "value": "val3"}],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        "key1",
-                        {
-                            self.added_hosts[0].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                            self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                            self.added_hosts[2].id: [],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        "val1",
-                        {
-                            self.added_hosts[0].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS1", "key": "key2", "value": "val1"},
-                            ],
-                            self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-                            self.added_hosts[2].id: [],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        "e",
-                        {
-                            self.added_hosts[0].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS1", "key": "key2", "value": "val1"},
-                                {"namespace": "no", "key": "key", "value": None},
-                            ],
-                            self.added_hosts[1].id: [
-                                {"namespace": "NS1", "key": "key1", "value": "val1"},
-                                {"namespace": "NS2", "key": "key2", "value": "val2"},
-                                {"namespace": "NS3", "key": "key3", "value": "val3"},
-                            ],
-                            self.added_hosts[2].id: [
-                                {"namespace": "NS2", "key": "key2", "value": "val2"},
-                                {"namespace": "NS3", "key": "key3", "value": "val3"},
-                                {"namespace": "NS1", "key": "key3", "value": "val3"},
-                                {"namespace": None, "key": "key4", "value": "val4"},
-                                {"namespace": None, "key": "key5", "value": None},
-                            ],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
-                (
-                        " ",
-                        {
-                            self.added_hosts[0].id: [],
-                            self.added_hosts[1].id: [],
-                            self.added_hosts[2].id: [],
-                            self.added_hosts[3].id: [],
-                        },
-                ),
+            (
+                "",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                        {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                        {"namespace": "no", "key": "key", "value": None},
+                    ],
+                    self.added_hosts[1].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    ],
+                    self.added_hosts[2].id: [
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                        {"namespace": "NS1", "key": "key3", "value": "val3"},
+                        {"namespace": None, "key": "key4", "value": "val4"},
+                        {"namespace": None, "key": "key5", "value": None},
+                    ],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "To",
+                {
+                    self.added_hosts[0].id: [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
+                    self.added_hosts[1].id: [],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "NS1",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    ],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [{"namespace": "NS1", "key": "key3", "value": "val3"}],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "key1",
+                {
+                    self.added_hosts[0].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "val1",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                    ],
+                    self.added_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                "e",
+                {
+                    self.added_hosts[0].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                        {"namespace": "no", "key": "key", "value": None},
+                    ],
+                    self.added_hosts[1].id: [
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                    ],
+                    self.added_hosts[2].id: [
+                        {"namespace": "NS2", "key": "key2", "value": "val2"},
+                        {"namespace": "NS3", "key": "key3", "value": "val3"},
+                        {"namespace": "NS1", "key": "key3", "value": "val3"},
+                        {"namespace": None, "key": "key4", "value": "val4"},
+                        {"namespace": None, "key": "key5", "value": None},
+                    ],
+                    self.added_hosts[3].id: [],
+                },
+            ),
+            (
+                " ",
+                {
+                    self.added_hosts[0].id: [],
+                    self.added_hosts[1].id: [],
+                    self.added_hosts[2].id: [],
+                    self.added_hosts[3].id: [],
+                },
+            ),
         ):
             with self.subTest(search=search):
                 test_url = f"{HOST_URL}/{url_host_id_list}/tags?search={search}"

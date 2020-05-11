@@ -4,9 +4,13 @@ from datetime import timezone
 from unittest import main
 from unittest.mock import patch
 
+from .test_api_utils import DBAPITestCase
+from .test_api_utils import emitted_event
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import PreCreatedHostsBaseTestCase
 from app.models import Host
 from lib.host_delete import delete_hosts
-from .test_api_utils import HOST_URL, DBAPITestCase, generate_uuid, emitted_event, PreCreatedHostsBaseTestCase
 
 
 class DeleteHostsBaseTestCase(DBAPITestCase):

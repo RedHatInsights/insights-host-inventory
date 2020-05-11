@@ -15,12 +15,12 @@ from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
+from .test_utils import rename_host_table_and_indexes
+from .test_utils import set_environment
 from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.utils import HostWrapper
-
-from .test_utils import rename_host_table_and_indexes, set_environment
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -146,7 +146,7 @@ class APIBaseTestCase(TestCase):
         return self._response_check(response, status, return_response_as_json)
 
     def verify_error_response(
-            self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
+        self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
     ):
         def _verify_value(field_name, expected_value):
             assert field_name in response

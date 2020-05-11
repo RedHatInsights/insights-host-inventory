@@ -12,9 +12,18 @@ from app.models import Host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
-from tests.test_api_utils import DBAPITestCase, test_data, HOST_URL, now, FACTS, generate_uuid, ACCOUNT, \
-    build_valid_auth_header, SHARED_SECRET, PaginationBaseTestCase
-from tests.test_utils import set_environment, valid_system_profile
+from tests.test_api_utils import ACCOUNT
+from tests.test_api_utils import build_valid_auth_header
+from tests.test_api_utils import DBAPITestCase
+from tests.test_api_utils import FACTS
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import now
+from tests.test_api_utils import PaginationBaseTestCase
+from tests.test_api_utils import SHARED_SECRET
+from tests.test_api_utils import test_data
+from tests.test_utils import set_environment
+from tests.test_utils import valid_system_profile
 
 
 class CreateHostsTestCase(DBAPITestCase):
@@ -285,7 +294,7 @@ class CreateHostsTestCase(DBAPITestCase):
             response_data,
             expected_title="Invalid request",
             expected_detail="The account number associated with the user does not match the account number associated "
-                            "with the host",
+            "with the host",
         )
 
     def test_create_host_with_invalid_facts(self):

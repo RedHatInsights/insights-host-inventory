@@ -14,6 +14,8 @@ from unittest.mock import patch
 import marshmallow
 from sqlalchemy import null
 
+from .test_utils import rename_host_table_and_indexes
+from .test_utils import valid_system_profile
 from app import create_app
 from app import db
 from app.exceptions import InventoryException
@@ -23,8 +25,6 @@ from app.queue.ingress import _validate_json_object_for_utf8
 from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
-from .test_utils import rename_host_table_and_indexes
-from .test_utils import valid_system_profile
 
 
 class MockEventProducer:

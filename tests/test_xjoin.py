@@ -4,15 +4,21 @@ from contextlib import contextmanager
 from datetime import datetime
 from datetime import timezone
 from functools import partial
-from unittest import mock, main
+from unittest import main
+from unittest import mock
 from unittest.mock import ANY
 from unittest.mock import patch
 
+from .test_api_utils import APIBaseTestCase
+from .test_api_utils import DBAPITestCase
+from .test_api_utils import generate_uuid
+from .test_api_utils import HOST_URL
+from .test_api_utils import quote
+from .test_api_utils import quote_everything
+from .test_api_utils import TAGS_URL
+from .test_utils import set_environment
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
-from .test_api_utils import APIBaseTestCase, DBAPITestCase, generate_uuid, HOST_URL, TAGS_URL, \
-    quote, quote_everything
-from .test_utils import set_environment
 
 MOCK_XJOIN_HOST_RESPONSE = {
     "hosts": {
@@ -66,12 +72,12 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
     @contextmanager
     def _patch_xjoin_post(self, response, status=200):
         with patch(
-                "app.xjoin.post",
-                **{
-                    "return_value.text": json.dumps(response),
-                    "return_value.json.return_value": response,
-                    "return_value.status_code": status,
-                },
+            "app.xjoin.post",
+            **{
+                "return_value.text": json.dumps(response),
+                "return_value.json.return_value": response,
+                "return_value.status_code": status,
+            },
         ) as post:
             yield post
 
@@ -222,12 +228,12 @@ class HostsXjoinRequestFilterSearchTestCase(HostsXjoinRequestBaseTestCase):
     def test_query_variables_priority(self, graphql_query):
         param = quote(generate_uuid())
         for filter_, query in (
-                ("fqdn", f"fqdn={param}&display_name={param}"),
-                ("fqdn", f"fqdn={param}&hostname_or_id={param}"),
-                ("fqdn", f"fqdn={param}&insights_id={param}"),
-                ("display_name", f"display_name={param}&hostname_or_id={param}"),
-                ("display_name", f"display_name={param}&insights_id={param}"),
-                ("OR", f"hostname_or_id={param}&insights_id={param}"),
+            ("fqdn", f"fqdn={param}&display_name={param}"),
+            ("fqdn", f"fqdn={param}&hostname_or_id={param}"),
+            ("fqdn", f"fqdn={param}&insights_id={param}"),
+            ("display_name", f"display_name={param}&hostname_or_id={param}"),
+            ("display_name", f"display_name={param}&insights_id={param}"),
+            ("OR", f"hostname_or_id={param}&insights_id={param}"),
         ):
             with self.subTest(filter=filter_, query=query):
                 graphql_query.reset_mock()
@@ -250,20 +256,20 @@ class HostsXjoinRequestFilterTagsTestCase(HostsXjoinRequestBaseTestCase):
 
     def test_query_variables_tags(self, graphql_query):
         for tags, query_param in (
-                (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
-                (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+            (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+            (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+            (
                 (
-                        (
-                                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
-                                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
-                        ),
-                        "a/b=c,d/e=f",
+                    {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                    {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
                 ),
-                (
-                        ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
-                        quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
-                ),
-                (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+                "a/b=c,d/e=f",
+            ),
+            (
+                ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+                quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            ),
+            (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
         ):
             with self.subTest(tags=tags, query_param=query_param):
                 graphql_query.reset_mock()
@@ -342,8 +348,8 @@ class HostsXjoinRequestOrderingTestCase(HostsXjoinRequestBaseTestCase):
 
     def test_query_variables_ordering_by(self, graphql_query):
         for params_order_by, xjoin_order_by, default_xjoin_order_how in (
-                ("updated", "modified_on", "DESC"),
-                ("display_name", "display_name", "ASC"),
+            ("updated", "modified_on", "DESC"),
+            ("display_name", "display_name", "ASC"),
         ):
             with self.subTest(ordering=params_order_by):
                 graphql_query.reset_mock()
@@ -423,11 +429,9 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
     )
     def test_query_variables_staleness(self, datetime_mock, graphql_query):
         for staleness, expected in (
-                ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
-                ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-                (
-                        "stale_warning",
-                        {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 graphql_query.reset_mock()
@@ -452,11 +456,11 @@ class HostsXjoinRequestFilterStalenessTestCase(HostsXjoinRequestBaseTestCase):
 
     def test_query_variables_staleness_with_search(self, graphql_query):
         for field, value in (
-                ("fqdn", generate_uuid()),
-                ("display_name", "some display name"),
-                ("hostname_or_id", "some hostname"),
-                ("insights_id", generate_uuid()),
-                ("tags", "some/tag"),
+            ("fqdn", generate_uuid()),
+            ("display_name", "some display name"),
+            ("hostname_or_id", "some hostname"),
+            ("insights_id", generate_uuid()),
+            ("tags", "some/tag"),
         ):
             with self.subTest(field=field):
                 graphql_query.reset_mock()
@@ -649,11 +653,9 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
         datetime_mock.now = mock.Mock(return_value=now)
 
         for staleness, expected in (
-                ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
-                ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
-                (
-                        "stale_warning",
-                        {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+            ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
+            ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
         ):
             with self.subTest(staleness=staleness):
                 with self.patch_with_empty_response() as graphql_query:
