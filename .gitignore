@@ -8,3 +8,4 @@ pyvenv.cfg
 tags
 .coverage
 .pytest_cache/
+.idea/

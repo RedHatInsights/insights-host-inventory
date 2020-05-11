@@ -120,3 +120,10 @@ class Config:
             elif self._environment == RuntimeEnvironment.job:
                 self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
                 self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)
+
+
+class TestConfig(Config):
+    def __init__(self, environment):
+        super().__init__(environment)
+        self._db_name = os.getenv("INVENTORY_TEST_DB_NAME", "insights-test")
+        self.db_uri = self._build_db_uri(self._db_ssl_mode)
