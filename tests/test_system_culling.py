@@ -6,6 +6,8 @@ from unittest import main
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
+
 from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import ACCOUNT
 from .test_api_utils import APIBaseTestCase
@@ -304,6 +306,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}")
 
+    @pytest.mark.host_reaper
     def test_culled_host_is_removed(self, emit_event):
         added_host = self._add_hosts(
             ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
@@ -318,6 +321,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, added_host, self.now_timestamp)
 
+    @pytest.mark.host_reaper
     def test_non_culled_host_is_not_removed(self, emit_event):
         hosts_to_add = []
         for stale_timestamp in (
@@ -335,6 +339,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self._check_hosts_are_present(added_host_ids)
 
+    @pytest.mark.host_reaper
     def test_unknown_host_is_not_removed(self, emit_event):
         added_hosts = self._add_hosts(({},))
         added_host_id = added_hosts[0].id
