@@ -18,11 +18,6 @@ These tests are for testing the db model classes outside of the api.
 """
 
 
-class HostTest(Host):
-    def __init__(self, *args, **kwargs):
-        super(Host, self).__init__(*args, **kwargs)
-
-
 def _create_host(insights_id=None, fqdn=None, display_name=None, tags=None):
     if not insights_id:
         insights_id = str(uuid.uuid4())
@@ -247,7 +242,7 @@ def test_host_model_assigned_values(flask_app):
         "reporter": "reporter",
     }
 
-    inserted_host = HostTest(**values)
+    inserted_host = Host(**values)
     db.session.add(inserted_host)
     db.session.commit()
 
@@ -257,7 +252,7 @@ def test_host_model_assigned_values(flask_app):
 
 
 def test_host_model_default_id(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = Host(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
     db.session.commit()
 
@@ -265,7 +260,7 @@ def test_host_model_default_id(flask_app):
 
 
 def test_host_model_default_timestamps(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = Host(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_commit = datetime.now(timezone.utc)
@@ -279,7 +274,7 @@ def test_host_model_default_timestamps(flask_app):
 
 
 def test_host_model_updated_timestamp(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+    host = Host(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_insert_commit = datetime.now(timezone.utc)
@@ -298,7 +293,12 @@ def test_host_model_updated_timestamp(flask_app):
 
 
 def test_host_model_timestamp_timezones(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
+    host = Host(
+        account="00102",
+        canonical_facts={"fqdn": "fqdn"},
+        stale_timestamp=datetime.now(timezone.utc),
+        reporter="ingress",
+    )
     db.session.add(host)
     db.session.commit()
 
@@ -308,12 +308,14 @@ def test_host_model_timestamp_timezones(flask_app):
 
 
 @mark.parametrize(
-    ("field", "value"),
-    (("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)),
+    "field,value",
+    [("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)],
 )
 def test_host_model_constraints(flask_app, field, value):
     values = {"account": "00102", "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
-    host = HostTest(**values)
+    if field == "reporter":
+        values["stale_timestamp"] = datetime.now(timezone.utc)
+    host = Host(**values)
     db.session.add(host)
 
     with raises(DataError):
