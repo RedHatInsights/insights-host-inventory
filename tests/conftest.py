@@ -10,7 +10,7 @@ from app.config import TestConfig
 
 
 @pytest.fixture(scope="session")
-def database_fixture():
+def database():
     config = TestConfig(RuntimeEnvironment.server)
     if not database_exists(config.db_uri):
         create_database(config.db_uri)
@@ -21,9 +21,9 @@ def database_fixture():
 
 
 @pytest.fixture(scope="function")
-def flask_app_fixture(database_fixture):
+def flask_app(database):
     app = create_app(config_name="testing")
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_fixture
+    app.config["SQLALCHEMY_DATABASE_URI"] = database
 
     # binds the app to the current context
     with app.app_context() as ctx:
@@ -35,3 +35,9 @@ def flask_app_fixture(database_fixture):
         ctx.pop()
         db.session.remove()
         db.drop_all()
+
+
+@pytest.fixture(scope="function")
+def flask_client(flask_app):
+    flask_app.testing = True
+    return flask_app.test_client()
