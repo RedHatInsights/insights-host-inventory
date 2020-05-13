@@ -11,12 +11,13 @@ from unittest.mock import patch
 
 from .test_api_utils import APIBaseTestCase
 from .test_api_utils import DBAPITestCase
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import quote
-from .test_api_utils import quote_everything
-from .test_api_utils import TAGS_URL
+from .test_utils import generate_uuid
+from .test_utils import get_valid_auth_header
+from .test_utils import HOST_URL
+from .test_utils import quote
+from .test_utils import quote_everything
 from .test_utils import set_environment
+from .test_utils import TAGS_URL
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
 
@@ -85,7 +86,7 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
         return self.get(url, status, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"})
 
     def _assert_called_with_headers(self, post, request_id):
-        identity = self._get_valid_auth_header()["x-rh-identity"].decode()
+        identity = get_valid_auth_header()["x-rh-identity"].decode()
         post.assert_called_once_with(
             ANY, json=ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}
         )

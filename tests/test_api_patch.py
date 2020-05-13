@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import dateutil.parser
 
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
 from .test_api_utils import PreCreatedHostsBaseTestCase
+from .test_utils import generate_uuid
+from .test_utils import HOST_URL
 
 
 @patch("api.host.emit_event")

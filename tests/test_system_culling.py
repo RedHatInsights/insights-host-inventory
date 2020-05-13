@@ -9,14 +9,14 @@ from unittest.mock import patch
 import pytest
 
 from .test_api_delete import DeleteHostsBaseTestCase
-from .test_api_utils import ACCOUNT
 from .test_api_utils import APIBaseTestCase
 from .test_api_utils import DBAPITestCase
-from .test_api_utils import emitted_event
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import now
-from .test_api_utils import test_data
+from .test_utils import ACCOUNT
+from .test_utils import emitted_event
+from .test_utils import generate_uuid
+from .test_utils import HOST_URL
+from .test_utils import now
+from .test_utils import test_data
 from app import db
 from app.models import Host
 from app.utils import HostWrapper

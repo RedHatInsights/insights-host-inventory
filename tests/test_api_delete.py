@@ -5,10 +5,10 @@ from unittest import main
 from unittest.mock import patch
 
 from .test_api_utils import DBAPITestCase
-from .test_api_utils import emitted_event
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
 from .test_api_utils import PreCreatedHostsBaseTestCase
+from .test_utils import emitted_event
+from .test_utils import generate_uuid
+from .test_utils import HOST_URL
 from app.models import Host
 from lib.host_delete import delete_hosts
 

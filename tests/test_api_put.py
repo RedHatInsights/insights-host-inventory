@@ -3,10 +3,10 @@ from itertools import chain
 from unittest import main
 
 from app.utils import HostWrapper
-from tests.test_api_utils import generate_uuid
-from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
 from tests.test_system_culling import QueryStalenessGetHostsBaseTestCase
+from tests.test_utils import generate_uuid
+from tests.test_utils import HOST_URL
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
