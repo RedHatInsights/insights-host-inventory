@@ -3,12 +3,14 @@ from typing import List
 from typing import Union
 
 import pytest
-from sqlalchemy_utils import database_exists, create_database, drop_database
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
+from sqlalchemy_utils import drop_database
 
 from app import create_app
 from app import db
-from app.config import RuntimeEnvironment
 from app.config import Config
+from app.config import RuntimeEnvironment
 from app.models import Host
 from app.utils import HostWrapper
 from tests.test_utils import get_required_headers
