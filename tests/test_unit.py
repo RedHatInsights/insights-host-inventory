@@ -219,7 +219,7 @@ class TrustedIdentityTestCase(TestCase):
 class ConfigTestCase(TestCase):
     @staticmethod
     def _config():
-        return Config(RuntimeEnvironment.server)
+        return Config(RuntimeEnvironment.server, "testing")
 
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
@@ -264,7 +264,7 @@ class ConfigTestCase(TestCase):
 
             conf = self._config()
 
-            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
+            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights_test")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)

@@ -339,7 +339,7 @@ class PayloadTrackerTestCase(TestCase):
                 producer.reset_mock()
 
     def _get_tracker(self, account=None, request_id=None, producer=None):
-        config = Config(RuntimeEnvironment.server)
+        config = Config(RuntimeEnvironment.server, "testing")
         init_payload_tracker(config, producer=producer)
         return get_payload_tracker(account=account, request_id=request_id)
 

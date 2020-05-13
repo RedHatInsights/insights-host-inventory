@@ -33,7 +33,7 @@ def main():
     application = create_app(config_name, start_tasks=False, start_payload_tracker=True)
     start_http_server(9126)
 
-    config = Config(RuntimeEnvironment.server)
+    config = Config(RuntimeEnvironment.server, config_name)
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,

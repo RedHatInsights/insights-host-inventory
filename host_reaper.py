@@ -32,7 +32,7 @@ COLLECTED_METRICS = (delete_host_count, delete_host_processing_time, host_reaper
 
 
 def _init_config(config_name):
-    config = Config(RuntimeEnvironment.job)
+    config = Config(RuntimeEnvironment.job, config_name)
     config.log_configuration(config_name)
     return config
 

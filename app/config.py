@@ -11,14 +11,15 @@ RuntimeEnvironment = Enum("RuntimeEnvironment", ("server", "job"))
 class Config:
     SSL_VERIFY_FULL = "verify-full"
 
-    def __init__(self, environment):
+    def __init__(self, environment, config_name):
         self._environment = environment
         self.logger = get_logger(__name__)
 
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
+        default_db_name = "insights_test" if config_name == "testing" else "insights"
+        self._db_name = os.getenv("INVENTORY_DB_NAME", default_db_name)
         self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
         self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
 
@@ -120,10 +121,3 @@ class Config:
             elif self._environment == RuntimeEnvironment.job:
                 self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
                 self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)
-
-
-class TestConfig(Config):
-    def __init__(self, environment):
-        super().__init__(environment)
-        self._db_name = os.getenv("INVENTORY_TEST_DB_NAME", "insights-test")
-        self.db_uri = self._build_db_uri(self._db_ssl_mode)

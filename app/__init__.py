@@ -42,7 +42,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     # needs to be setup before the flask app is initialized.
     configure_logging(config_name)
 
-    app_config = Config(RuntimeEnvironment.server)
+    app_config = Config(RuntimeEnvironment.server, config_name)
     app_config.log_configuration(config_name)
 
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
