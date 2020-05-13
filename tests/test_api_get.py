@@ -6,15 +6,15 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
-from .test_api_utils import ACCOUNT
 from .test_api_utils import DBAPITestCase
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import inject_qs
-from .test_api_utils import now
 from .test_api_utils import PaginationBaseTestCase
 from .test_api_utils import PreCreatedHostsBaseTestCase
-from .test_api_utils import quote_everything
+from .test_utils import ACCOUNT
+from .test_utils import generate_uuid
+from .test_utils import HOST_URL
+from .test_utils import inject_qs
+from .test_utils import now
+from .test_utils import quote_everything
 from app import db
 from app.culling import Timestamps
 from app.models import Host

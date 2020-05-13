@@ -1,101 +1,23 @@
 #!/usr/bin/env python
 import json
 import tempfile
-import uuid
-from base64 import b64encode
-from collections import namedtuple
-from datetime import datetime
-from datetime import timezone
-from struct import unpack
 from unittest import main
 from unittest import TestCase
-from urllib.parse import parse_qs
-from urllib.parse import quote_plus as url_quote
-from urllib.parse import urlencode
-from urllib.parse import urlsplit
-from urllib.parse import urlunsplit
 
+from .test_utils import ACCOUNT
+from .test_utils import generate_uuid
+from .test_utils import get_valid_auth_header
+from .test_utils import HEALTH_URL
+from .test_utils import HOST_URL
+from .test_utils import inject_qs
+from .test_utils import METRICS_URL
+from .test_utils import now
 from .test_utils import rename_host_table_and_indexes
 from .test_utils import set_environment
+from .test_utils import VERSION_URL
 from app import create_app
 from app import db
-from app.auth.identity import Identity
 from app.utils import HostWrapper
-
-HOST_URL = "/api/inventory/v1/hosts"
-TAGS_URL = "/api/inventory/v1/tags"
-HEALTH_URL = "/health"
-METRICS_URL = "/metrics"
-VERSION_URL = "/version"
-
-NS = "testns"
-ID = "whoabuddy"
-
-FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
-ACCOUNT = "000501"
-SHARED_SECRET = "SuperSecretStuff"
-
-Message = namedtuple("Message", ("value", "key", "headers"))
-
-
-def quote(*args, **kwargs):
-    return url_quote(str(args[0]), *args[1:], safe="", **kwargs)
-
-
-def quote_everything(string):
-    encoded = string.encode()
-    codes = unpack(f"{len(encoded)}B", encoded)
-    return "".join(f"%{code:02x}" for code in codes)
-
-
-def generate_uuid():
-    return str(uuid.uuid4())
-
-
-def now():
-    return datetime.now(timezone.utc)
-
-
-def test_data(**values):
-    data = {
-        "account": ACCOUNT,
-        "display_name": "hi",
-        # "insights_id": "1234-56-789",
-        # "rhel_machine_id": "1234-56-789",
-        # "ip_addresses": ["10.10.0.1", "10.0.0.2"],
-        "ip_addresses": ["10.10.0.1"],
-        # "mac_addresses": ["c2:00:d0:c8:61:01"],
-        # "external_id": "i-05d2313e6b9a42b16"
-        "facts": None,
-        "stale_timestamp": now().isoformat(),
-        "reporter": "test",
-        **values,
-    }
-    if not data["facts"]:
-        data["facts"] = FACTS
-    return data
-
-
-def build_auth_header(token):
-    auth_header = {"Authorization": f"Bearer {token}"}
-    return auth_header
-
-
-def build_valid_auth_header():
-    return build_auth_header(SHARED_SECRET)
-
-
-def inject_qs(url, **kwargs):
-    scheme, netloc, path, query, fragment = urlsplit(url)
-    params = parse_qs(query)
-    params.update(kwargs)
-    new_query = urlencode(params, doseq=True)
-    return urlunsplit((scheme, netloc, path, new_query, fragment))
-
-
-def emitted_event(emit_event_call):
-    args = emit_event_call[1]
-    return Message(json.loads(args[0]), args[1], args[2])
 
 
 class APIBaseTestCase(TestCase):
@@ -104,13 +26,6 @@ class APIBaseTestCase(TestCase):
         if request_id_header is not None:
             header.update(request_id_header)
         return header
-
-    def _get_valid_auth_header(self):
-        identity = Identity(account_number=ACCOUNT)
-        dict_ = {"identity": identity._asdict()}
-        json_doc = json.dumps(dict_)
-        auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
-        return auth_header
 
     def setUp(self):
         """
@@ -121,7 +36,7 @@ class APIBaseTestCase(TestCase):
 
     def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
         return self._response_check(
-            self.client().get(path, headers={**self._get_valid_auth_header(), **extra_headers}),
+            self.client().get(path, headers={**get_valid_auth_header(), **extra_headers}),
             status,
             return_response_as_json,
         )
@@ -141,7 +56,7 @@ class APIBaseTestCase(TestCase):
         return self._make_http_call(self.client().put, path, data, status, return_response_as_json)
 
     def delete(self, path, status=200, header=None, return_response_as_json=True):
-        headers = self._create_header(self._get_valid_auth_header(), header)
+        headers = self._create_header(get_valid_auth_header(), header)
         response = self.client().delete(path, headers=headers)
         return self._response_check(response, status, return_response_as_json)
 
@@ -160,7 +75,7 @@ class APIBaseTestCase(TestCase):
 
     def _make_http_call(self, http_method, path, data, status, return_response_as_json=True, extra_headers=None):
         json_data = json.dumps(data)
-        headers = self._get_valid_auth_header()
+        headers = get_valid_auth_header()
         headers["content-type"] = "application/json"
 
         if extra_headers:
