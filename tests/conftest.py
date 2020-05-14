@@ -12,8 +12,10 @@ from app.config import RuntimeEnvironment
 @pytest.fixture(scope="session")
 def database():
     config = Config(RuntimeEnvironment.server, "testing")
-    if not database_exists(config.db_uri):
-        create_database(config.db_uri)
+    if database_exists(config.db_uri):
+        drop_database(config.db_uri)
+
+    create_database(config.db_uri)
 
     yield
 
