@@ -16,6 +16,7 @@ from sqlalchemy import null
 
 from app import create_app
 from app import db
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -44,7 +45,7 @@ class MQServiceBaseTestCase(TestCase):
         """
         Creates the application and a test client to make requests.
         """
-        self.app = create_app(config_name="testing")
+        self.app = create_app(RuntimeEnvironment.TEST)
 
 
 class MQServiceTestCase(MQServiceBaseTestCase):
