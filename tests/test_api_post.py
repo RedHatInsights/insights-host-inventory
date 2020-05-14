@@ -412,7 +412,7 @@ def test_create_host_with_ansible_host(create_or_update_host, get_host):
     validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
 
-@pytest.mark.parametrize("ansible_host", ["ima_ansible_host_" + generate_uuid(), ""])
+@pytest.mark.parametrize("ansible_host", ["ima_ansible_host_23c211af-c8eb-4575-9e54-3d86771af7f8", ""])
 def test_create_host_without_ansible_host_then_update(create_or_update_host, get_host, ansible_host):
     # Create a host without ansible_host field
     # then update those fields
@@ -792,7 +792,7 @@ def test_get_system_profile_of_host_that_does_not_exist(get_host):
 
 
 @pytest.mark.system_profile
-@pytest.mark.parametrize("invalid_host_id", ["notauuid", f"{generate_uuid()},notuuid"])
+@pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(get_host, invalid_host_id):
     response = get_host(f"{HOST_URL}/{invalid_host_id}/system_profile", 400)
     verify_error_response(response, expected_title="Bad Request", expected_status=400)

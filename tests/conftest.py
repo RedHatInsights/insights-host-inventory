@@ -32,8 +32,9 @@ def database():
 
 
 @pytest.fixture(scope="function")
-def flask_app(database):
+def flask_app(database_xdist):
     app = create_app(config_name="testing")
+    app.config.update(SQLALCHEMY_DATABASE_URI=database_xdist)
 
     # binds the app to the current context
     with app.app_context() as ctx:
@@ -163,3 +164,16 @@ def invalid_paging_parameters_test(get_host, subtests):
 @pytest.fixture(scope="function")
 def mock_env_token(monkeypatch):
     monkeypatch.setenv("INVENTORY_SHARED_SECRET", SHARED_SECRET)
+
+
+@pytest.fixture(scope="session")
+def database_xdist(worker_id):
+    config = Config(RuntimeEnvironment.server, "testing")
+    config._db_name = f"insights_tests_{worker_id}"
+    config.db_uri = config._build_db_uri(False)
+    if not database_exists(config.db_uri):
+        create_database(config.db_uri)
+
+    yield config.db_uri
+
+    drop_database(config.db_uri)
