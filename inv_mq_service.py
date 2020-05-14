@@ -1,12 +1,10 @@
-import os
 from signal import Signals
 
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server
 
 from app import create_app
-from app.config import Config
-from app.config import RuntimeEnvironment
+from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.egress import KafkaEventProducer
 from app.queue.ingress import event_loop
@@ -29,11 +27,10 @@ class ShutdownHandler:
 
 
 def main():
-    config_name = os.getenv("APP_SETTINGS", "development")
-    application = create_app(config_name, start_tasks=False, start_payload_tracker=True)
+    application = create_app(RuntimeEnvironment.SERVICE)
     start_http_server(9126)
 
-    config = Config(RuntimeEnvironment.server)
+    config = application.config["INVENTORY_CONFIG"]
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,

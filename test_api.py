@@ -33,6 +33,7 @@ from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.culling import Timestamps
+from app.environment import RuntimeEnvironment
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
@@ -185,7 +186,7 @@ class APIBaseTestCase(TestCase):
         """
         Creates the application and a test client to make requests.
         """
-        self.app = create_app(config_name="testing")
+        self.app = create_app(RuntimeEnvironment.TEST)
         self.client = self.app.test_client
 
     def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
