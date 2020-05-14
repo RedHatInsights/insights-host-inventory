@@ -23,8 +23,8 @@ def main():
         threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
         ctx.push()
     query = Host.query
-    logger.info(f"Validating delete event for hosts.")
-    logger.info(f"Total number of hosts: %i", query.count())
+    logger.info("Validating delete event for hosts.")
+    logger.info("Total number of hosts: %i", query.count())
 
     number_of_errors = 0
     for host in query.yield_per(1000):
