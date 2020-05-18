@@ -882,13 +882,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
-    def test_create_host_with_tags_doesnt_work(self):
+    def test_create_host_ignores_tags(self):
         host_data = HostWrapper(test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}]))
         create_response = self.post(HOST_URL, [host_data.data()], 207)
         host_id = create_response["data"][0]["host"]["id"]
         response = self.get(f"{HOST_URL}/{host_id}/tags")
 
-        self.maxDiff = None
         self.assertEqual(response["results"][host_id], [])
 
     def test_update_host_with_tags_doesnt_change_tags(self):
@@ -923,7 +922,7 @@ class CreateHostsTestCase(DBAPITestCase):
         # check the tags haven't updated
         self.assertNotEqual(host_data.tags, tags_after_update)
 
-    def test_create_host_with_20_byte_MAC_address(self):
+    def test_create_host_with_20_byte_mac_address(self):
         system_profile = {
             "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
         }

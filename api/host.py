@@ -67,11 +67,9 @@ def add_host_list(host_list):
                 with PayloadTrackerProcessingContext(
                     payload_tracker, processing_status_message="adding/updating host"
                 ) as payload_tracker_processing_ctx:
-                    # RHCLOUD-5593
-                    # Remove tags from host object here to keep from creating/updating tags from REST
                     if host.get("tags"):
                         ignored_tags_from_http_request_count.inc()
-                        logger.info("tags from an HTTP request were ignored")
+                        logger.info("Tags from an HTTP request were ignored")
 
                     input_host = deserialize_host_http(host)
                     (output_host, add_result) = _add_host(input_host)
