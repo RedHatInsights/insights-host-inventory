@@ -885,42 +885,37 @@ class CreateHostsTestCase(DBAPITestCase):
     def test_create_host_ignores_tags(self):
         host_data = HostWrapper(test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}]))
         create_response = self.post(HOST_URL, [host_data.data()], 207)
-        host_id = create_response["data"][0]["host"]["id"]
-        response = self.get(f"{HOST_URL}/{host_id}/tags")
+        self._verify_host_status(create_response, 0, 201)
+        host = self._pluck_host_from_response(create_response, 0)
+        host_id = host["id"]
+        tags_response = self.get(f"{HOST_URL}/{host_id}/tags")
 
-        self.assertEqual(response["results"][host_id], [])
+        self.assertEqual(tags_response["results"][host_id], [])
 
     def test_update_host_with_tags_doesnt_change_tags(self):
-        host_data = HostWrapper(
-            test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn", id=generate_uuid())
+        create_host_data = HostWrapper(
+            test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn")
         )
 
-        message = {
-            "operation": "add_host",
-            "data": {
-                "id": host_data.id,
-                "account": host_data.account,
-                "display_name": host_data.display_name,
-                "tags": host_data.tags,
-                "reporter": host_data.reporter,
-                "stale_timestamp": host_data.stale_timestamp,
-                "facts": host_data.facts,
-                "fqdn": host_data.fqdn,
-            },
-        }
+        message = {"operation": "add_host", "data": create_host_data.data()}
 
         with self.app.app_context():
             mock_event_producer = Mock()
             handle_message(json.dumps(message), mock_event_producer)
-            json.loads(mock_event_producer.write_event.call_args[0][0])
+            event = json.loads(mock_event_producer.write_event.call_args[0][0])
+            host_id = event["host"]["id"]
 
         # attempt to update
-        self.post(HOST_URL, [host_data.data()], 207)
+        update_host_data = HostWrapper(
+            test_data(tags=[{"namespace": "other_ns", "key": "other_key", "value": "other_val"}], fqdn="fqdn")
+        )
+        update_response = self.post(HOST_URL, [update_host_data.data()], 207)
+        self._verify_host_status(update_response, 0, 200)
 
-        tags_after_update = self.get(f"{HOST_URL}/{host_data.id}/tags")
+        tags_response = self.get(f"{HOST_URL}/{host_id}/tags")
 
         # check the tags haven't updated
-        self.assertNotEqual(host_data.tags, tags_after_update)
+        self.assertEqual(create_host_data.tags, tags_response["results"][host_id])
 
     def test_create_host_with_20_byte_mac_address(self):
         system_profile = {
