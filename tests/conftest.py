@@ -88,10 +88,10 @@ def api_get_host(flask_client):
 
 @pytest.fixture(scope="function")
 def get_host_from_db(flask_app):
-    def _get(host_id):
+    def _get_host_from_db(host_id):
         return Host.query.get(host_id)
 
-    return _get
+    return _get_host_from_db
 
 
 @pytest.fixture(scope="function")
