@@ -6,6 +6,7 @@ import uuid
 from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from struct import unpack
 from urllib.parse import parse_qs
@@ -14,8 +15,11 @@ from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
+import dateutil.parser
+
 from app.auth.identity import Identity
 from app.models import Host
+from app.utils import HostWrapper
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -148,7 +152,15 @@ def valid_system_profile():
     }
 
 
-def test_data(**values):
+def get_host_from_response(response, index=0):
+    return response["results"][index]
+
+
+def get_host_from_multi_response(response, host_index=0):
+    return response["data"][host_index]
+
+
+def minimal_host(**values):
     data = {
         "account": ACCOUNT,
         "display_name": "hi",
@@ -160,38 +172,64 @@ def test_data(**values):
     }
     if not data["facts"]:
         data["facts"] = FACTS
-    return data
+
+    return HostWrapper(data)
 
 
-def validate_host(received_host, expected_host, expected_id=""):
-    assert received_host["id"] is not None
+def assert_host_was_updated(original_host, updated_host):
+    assert updated_host["status"] == 200
+    assert updated_host["host"]["id"] == original_host["host"]["id"]
+    assert updated_host["host"]["updated"] is not None
+    created_time = dateutil.parser.parse(original_host["host"]["created"])
+    modified_time = dateutil.parser.parse(updated_host["host"]["updated"])
+    assert modified_time > created_time
+
+
+def assert_host_was_created(create_host_response):
+    assert create_host_response["status"] == 201
+    created_time = dateutil.parser.parse(create_host_response["host"]["created"])
+    current_timestamp = datetime.now(timezone.utc)
+    assert current_timestamp > created_time
+    assert (current_timestamp - timedelta(minutes=15)) < created_time
+
+
+def assert_host_response_status(response, expected_status=201, host_index=None):
+    host = response
+    if host_index is not None:
+        host = response["data"][host_index]
+
+    assert host["status"] == expected_status
+
+
+def assert_host_data(actual_host, expected_host, expected_id=None):
+    assert actual_host["id"] is not None
     if expected_id:
-        assert received_host["id"] == expected_id
-    assert received_host["account"] == expected_host.account
-    assert received_host["insights_id"] == expected_host.insights_id
-    assert received_host["rhel_machine_id"] == expected_host.rhel_machine_id
-    assert received_host["subscription_manager_id"] == expected_host.subscription_manager_id
-    assert received_host["satellite_id"] == expected_host.satellite_id
-    assert received_host["bios_uuid"] == expected_host.bios_uuid
-    assert received_host["fqdn"] == expected_host.fqdn
-    assert received_host["mac_addresses"] == expected_host.mac_addresses
-    assert received_host["ip_addresses"] == expected_host.ip_addresses
-    assert received_host["ansible_host"] == expected_host.ansible_host
-    assert received_host["created"] is not None
-    assert received_host["updated"] is not None
+        assert actual_host["id"] == expected_id
+    assert actual_host["account"] == expected_host.account
+    assert actual_host["insights_id"] == expected_host.insights_id
+    assert actual_host["rhel_machine_id"] == expected_host.rhel_machine_id
+    assert actual_host["subscription_manager_id"] == expected_host.subscription_manager_id
+    assert actual_host["satellite_id"] == expected_host.satellite_id
+    assert actual_host["bios_uuid"] == expected_host.bios_uuid
+    assert actual_host["fqdn"] == expected_host.fqdn
+    assert actual_host["mac_addresses"] == expected_host.mac_addresses
+    assert actual_host["ip_addresses"] == expected_host.ip_addresses
+    assert actual_host["ansible_host"] == expected_host.ansible_host
+    assert actual_host["created"] is not None
+    assert actual_host["updated"] is not None
     if expected_host.facts:
-        assert received_host["facts"] == expected_host.facts
+        assert actual_host["facts"] == expected_host.facts
     else:
-        assert received_host["facts"] == []
+        assert actual_host["facts"] == []
     if expected_host.display_name:
-        assert received_host["display_name"] == expected_host.display_name
+        assert actual_host["display_name"] == expected_host.display_name
     elif expected_host.fqdn:
-        assert received_host["display_name"] == expected_host.fqdn
+        assert actual_host["display_name"] == expected_host.fqdn
     else:
-        assert received_host["display_name"] == received_host["id"]
+        assert actual_host["display_name"] == actual_host["id"]
 
 
-def verify_error_response(
+def assert_error_response(
     response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
 ):
     def _verify_value(field_name, expected_value):

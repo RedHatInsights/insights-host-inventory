@@ -2,113 +2,119 @@
 import copy
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 
-import dateutil.parser
 import pytest
 
-from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
 from tests.test_utils import ACCOUNT
+from tests.test_utils import assert_error_response
+from tests.test_utils import assert_host_data
+from tests.test_utils import assert_host_response_status
+from tests.test_utils import assert_host_was_created
+from tests.test_utils import assert_host_was_updated
 from tests.test_utils import FACTS
 from tests.test_utils import generate_uuid
+from tests.test_utils import get_host_from_multi_response
+from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
+from tests.test_utils import minimal_host
 from tests.test_utils import now
-from tests.test_utils import test_data
 from tests.test_utils import valid_system_profile
-from tests.test_utils import validate_host
-from tests.test_utils import verify_error_response
 
 
-def test_create_and_update(create_or_update_host, get_host):
-    facts = None
-    host_data = HostWrapper(test_data(facts=facts))
-    created_host = create_or_update_host(host_data)
+def test_create_and_update(api_create_or_update_host, api_get_host):
+    host = minimal_host()
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    original_id = created_host["id"]
+    assert_host_was_created(create_host_response)
+    assert_host_data(actual_host=create_host_response["host"], expected_host=host)
 
-    created_time = dateutil.parser.parse(created_host["created"])
-    current_timestamp = datetime.now(timezone.utc)
-    assert current_timestamp > created_time
-    assert (current_timestamp - timedelta(minutes=15)) < created_time
+    created_host_id = create_host_response["host"]["id"]
 
-    host_data.facts = copy.deepcopy(FACTS)
-
+    host.facts = copy.deepcopy(FACTS)
     # Replace facts under the first namespace
-    host_data.facts[0]["facts"] = {"newkey1": "newvalue1"}
-
+    host.facts[0]["facts"] = {"newkey1": "newvalue1"}
     # Add a new set of facts under a new namespace
-    host_data.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
+    host.facts.append({"namespace": "ns2", "facts": {"key2": "value2"}})
 
     # Add a new canonical fact
-    host_data.rhel_machine_id = generate_uuid()
-    host_data.ip_addresses = ["10.10.0.1", "10.0.0.2", "fe80::d46b:2807:f258:c319"]
-    host_data.mac_addresses = ["c2:00:d0:c8:61:01"]
-    host_data.external_id = "i-05d2313e6b9a42b16"
-    host_data.insights_id = generate_uuid()
+    host.rhel_machine_id = generate_uuid()
+    host.ip_addresses = ["10.10.0.1", "10.0.0.2", "fe80::d46b:2807:f258:c319"]
+    host.mac_addresses = ["c2:00:d0:c8:61:01"]
+    host.external_id = "i-05d2313e6b9a42b16"
+    host.insights_id = generate_uuid()
 
-    updated_host = create_or_update_host(host_data, host_status=200)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
 
-    assert updated_host["id"] == original_id
-    assert updated_host["updated"] is not None
-    modified_time = dateutil.parser.parse(updated_host["updated"])
-    assert modified_time > created_time
+    assert_host_was_updated(create_host_response, update_host_response)
+    assert_host_data(actual_host=update_host_response["host"], expected_host=host)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}")
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
 
-    validate_host(host_lookup_results["results"][0], host_data, original_id)
-
-
-def test_create_with_branch_id(create_or_update_host):
-    facts = None
-    host_data = HostWrapper(test_data(facts=facts))
-
-    post_url = f"{HOST_URL}?branch_id=1234"
-    create_or_update_host(host_data, url=post_url)
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
-def test_create_host_update_with_same_insights_id_and_different_canonical_facts(create_or_update_host, get_host):
+def test_create_with_branch_id(api_create_or_update_host):
+    host = minimal_host()
+    multi_response = api_create_or_update_host([host], query_parameters={"branch_id": "1234"}, expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+
+def test_create_host_update_with_same_insights_id_and_different_canonical_facts(
+    api_create_or_update_host, api_get_host
+):
     original_insights_id = generate_uuid()
 
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.insights_id = original_insights_id
-    host_data.rhel_machine_id = generate_uuid()
-    host_data.subscription_manager_id = generate_uuid()
-    host_data.satellite_id = generate_uuid()
-    host_data.bios_uuid = generate_uuid()
-    host_data.fqdn = "original_fqdn"
-    host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
-    host_data.external_id = "abcdef"
+    host = minimal_host(
+        insights_id=original_insights_id,
+        rhel_machine_id=generate_uuid(),
+        subscription_manager_id=generate_uuid(),
+        satellite_id=generate_uuid(),
+        bios_uuid=generate_uuid(),
+        fqdn="original_fqdn",
+        mac_addresses=["aa:bb:cc:dd:ee:ff"],
+        external_id="abcdef",
+    )
 
     # Create the host
-    created_host = create_or_update_host(host_data)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
 
     # Change the canonical facts except for the insights_id
-    host_data.rhel_machine_id = generate_uuid()
-    host_data.ip_addresses = ["192.168.1.44", "10.0.0.2"]
-    host_data.subscription_manager_id = generate_uuid()
-    host_data.satellite_id = generate_uuid()
-    host_data.bios_uuid = generate_uuid()
-    host_data.fqdn = "expected_fqdn"
-    host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
-    host_data.external_id = "fedcba"
-    host_data.facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
+    host.rhel_machine_id = generate_uuid()
+    host.ip_addresses = ["192.168.1.44", "10.0.0.2"]
+    host.subscription_manager_id = generate_uuid()
+    host.satellite_id = generate_uuid()
+    host.bios_uuid = generate_uuid()
+    host.fqdn = "expected_fqdn"
+    host.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
+    host.external_id = "fedcba"
+    host.facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
 
     # Update the host
-    updated_host = create_or_update_host(host_data, host_status=200)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
 
-    # Verify that the id did not change on the update
-    assert updated_host["id"] == original_id
+    assert_host_was_updated(create_host_response, update_host_response)
 
     # Retrieve the host using the id that we first received
-    data = get_host(f"{HOST_URL}/{original_id}")
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
 
-    validate_host(data["results"][0], host_data, original_id)
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
-def test_match_host_by_elevated_id_performance(create_or_update_host, mocker):
+def test_match_host_by_elevated_id_performance(api_create_or_update_host, mocker):
     canonical_fact_query = mocker.patch(
         "lib.host_repository.canonical_fact_host_query", wraps=canonical_fact_host_query
     )
@@ -117,18 +123,24 @@ def test_match_host_by_elevated_id_performance(create_or_update_host, mocker):
     )
 
     subscription_manager_id = generate_uuid()
-    host_data = HostWrapper(test_data(subscription_manager_id=subscription_manager_id))
+    host = minimal_host(subscription_manager_id=subscription_manager_id)
 
-    create_or_update_host(host_data)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
 
     # Create a host with Subscription Manager ID
     insights_id = generate_uuid()
-    host_data = HostWrapper(test_data(insights_id=insights_id, subscription_manager_id=subscription_manager_id))
+    host = minimal_host(insights_id=insights_id, subscription_manager_id=subscription_manager_id)
 
     mocker.resetall()
 
     # Update a host with Insights ID and Subscription Manager ID
-    create_or_update_host(host_data, host_status=200)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
 
     expected_calls = (
         mocker.call(ACCOUNT, "insights_id", insights_id),
@@ -140,108 +152,113 @@ def test_match_host_by_elevated_id_performance(create_or_update_host, mocker):
     canonical_facts_query.assert_not_called()
 
 
-def test_create_host_with_empty_facts_display_name_then_update(create_or_update_host, get_host):
+def test_create_host_with_empty_facts_display_name_then_update(api_create_or_update_host, api_get_host):
     # Create a host with empty facts, and display_name
     # then update those fields
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.display_name
-    del host_data.facts
+    host = minimal_host()
+    del host.display_name
+    del host.facts
 
     # Create the host
-    created_host = create_or_update_host(host_data)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
 
     # Update the facts and display name
-    host_data.facts = copy.deepcopy(FACTS)
-    host_data.display_name = "expected_display_name"
+    host.facts = copy.deepcopy(FACTS)
+    host.display_name = "expected_display_name"
 
     # Update the hosts
-    create_or_update_host(host_data, host_status=200)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}")
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
-def test_create_and_update_multiple_hosts_with_account_mismatch(create_or_update_host):
+def test_create_and_update_multiple_hosts_with_account_mismatch(api_create_or_update_host):
     """
     Attempt to create multiple hosts, one host has the wrong account number.
     Verify this causes an error response to be returned.
     """
-    facts = None
-
-    host1 = HostWrapper(test_data(display_name="host1", facts=facts))
-    host1.ip_addresses = ["10.0.0.1"]
-    host1.rhel_machine_id = generate_uuid()
-
-    host2 = HostWrapper(test_data(display_name="host2", facts=facts))
-    # Set the account number to the wrong account for this request
-    host2.account = "222222"
-    host2.ip_addresses = ["10.0.0.2"]
-    host2.rhel_machine_id = generate_uuid()
-
+    host1 = minimal_host(display_name="host1", ip_addresses=["10.0.0.1"], rhel_machine_id=generate_uuid())
+    host2 = minimal_host(
+        display_name="host2", account="222222", ip_addresses=["10.0.0.2"], rhel_machine_id=generate_uuid()
+    )
     host_list = [host1, host2]
 
     # Create the host
-    response = create_or_update_host(host_list, skip_host_validation=True)
+    multi_response = api_create_or_update_host(host_list, expected_status=207)
 
-    assert len(host_list) == len(response["data"])
+    assert len(host_list) == len(multi_response["data"])
+    assert multi_response["errors"] == 1
 
-    assert response["errors"] == 1
-
-    assert response["data"][0]["status"] == 201
-    assert response["data"][1]["status"] == 400
-
-
-def test_create_host_without_canonical_facts(create_or_update_host):
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.insights_id
-    del host_data.rhel_machine_id
-    del host_data.subscription_manager_id
-    del host_data.satellite_id
-    del host_data.bios_uuid
-    del host_data.ip_addresses
-    del host_data.fqdn
-    del host_data.mac_addresses
-    del host_data.external_id
-
-    response = create_or_update_host(host_data, skip_host_validation=True)
-
-    verify_error_response(response["data"][0], expected_title="Invalid request", expected_status=400)
+    assert_host_response_status(multi_response, 201, 0)
+    assert_host_response_status(multi_response, 400, 1)
 
 
-def test_create_host_without_account(create_or_update_host):
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.account
+def test_create_host_without_canonical_facts(api_create_or_update_host):
+    host = minimal_host()
+    del host.insights_id
+    del host.rhel_machine_id
+    del host.subscription_manager_id
+    del host.satellite_id
+    del host.bios_uuid
+    del host.ip_addresses
+    del host.fqdn
+    del host.mac_addresses
+    del host.external_id
 
-    response = create_or_update_host(host_data, status=400)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(
-        response, expected_title="Bad Request", expected_detail="'account' is a required property - '0'"
+    assert_error_response(host_response, expected_title="Invalid request", expected_status=400)
+
+
+def test_create_host_without_account(api_create_or_update_host):
+    host = minimal_host()
+    del host.account
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(
+        multi_response,
+        expected_title="Bad Request",
+        expected_detail="'account' is a required property - '0'",
+        expected_status=400,
     )
 
 
 @pytest.mark.parametrize("account", ["", "someaccount"])
-def test_create_host_with_invalid_account(create_or_update_host, account):
-    host_data = HostWrapper(test_data(account=account, facts=None))
+def test_create_host_with_invalid_account(api_create_or_update_host, account):
+    host = minimal_host(account=account)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(
-        response["data"][0],
+    assert_error_response(
+        host_response,
         expected_title="Bad Request",
         expected_detail="{'account': ['Length must be between 1 and 10.']}",
         expected_status=400,
     )
 
 
-def test_create_host_with_mismatched_account_numbers(create_or_update_host):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.account = ACCOUNT[::-1]
+def test_create_host_with_mismatched_account_numbers(api_create_or_update_host):
+    host = minimal_host(account=ACCOUNT[::-1])
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(
-        response["data"][0],
+    assert_error_response(
+        host_response,
         expected_title="Invalid request",
         expected_detail="The account number associated with the user does not match the account number associated "
         "with the host",
@@ -263,24 +280,25 @@ def _invalid_facts(key, value=None):
 @pytest.mark.parametrize(
     "invalid_facts", [_invalid_facts("namespace"), _invalid_facts("facts"), _invalid_facts("namespace", "")]
 )
-def test_create_host_with_invalid_facts(create_or_update_host, invalid_facts):
-    host_data = HostWrapper(test_data(facts=invalid_facts))
+def test_create_host_with_invalid_facts(api_create_or_update_host, invalid_facts):
+    host = minimal_host(facts=invalid_facts)
 
-    response = create_or_update_host(host_data, status=400)
+    multi_response = api_create_or_update_host([host], expected_status=400)
 
-    verify_error_response(response, expected_title="Bad Request")
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize(
     "uuid_field", ["insights_id", "rhel_machine_id", "subscription_manager_id", "satellite_id", "bios_uuid"]
 )
-def test_create_host_with_invalid_uuid_field_values(create_or_update_host, uuid_field):
-    host_data = HostWrapper(test_data(facts=None))
-    setattr(host_data, uuid_field, "notauuid")
+def test_create_host_with_invalid_uuid_field_values(api_create_or_update_host, uuid_field):
+    host = minimal_host()
+    setattr(host, uuid_field, "notauuid")
 
-    response = create_or_update_host(host_data, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize(
@@ -302,203 +320,224 @@ def test_create_host_with_invalid_uuid_field_values(create_or_update_host, uuid_
         "reporter",
     ],
 )
-def test_create_host_with_non_nullable_fields_as_none(create_or_update_host, non_nullable_field):
-    host_data = HostWrapper(test_data(facts=None))
-
+def test_create_host_with_non_nullable_fields_as_none(api_create_or_update_host, non_nullable_field):
     # Have at least one good canonical fact set
-    host_data.insights_id = generate_uuid()
-    host_data.rhel_machine_id = generate_uuid()
+    host = minimal_host(insights_id=generate_uuid(), rhel_machine_id=generate_uuid())
+    # Set a null canonical fact
+    setattr(host, non_nullable_field, None)
 
-    setattr(host_data, non_nullable_field, None)
+    multi_response = api_create_or_update_host([host], expected_status=400)
 
-    response = create_or_update_host(host_data, status=400)
-
-    verify_error_response(response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("field", ["account", "stale_timestamp", "reporter"])
-def test_create_host_without_required_fields(create_or_update_host, field):
-    data = test_data()
-    del data[field]
+def test_create_host_without_required_fields(api_create_or_update_host, field):
+    host = minimal_host()
+    delattr(host, field)
 
-    host_data = HostWrapper(data)
+    multi_response = api_create_or_update_host([host], expected_status=400)
 
-    response = create_or_update_host(host_data, status=400)
-    verify_error_response(response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("valid_ip_array", [["blah"], ["1.1.1.1", "sigh"]])
-def test_create_host_with_valid_ip_address(create_or_update_host, valid_ip_array):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.insights_id = generate_uuid()
-    host_data.ip_addresses = valid_ip_array
+def test_create_host_with_valid_ip_address(api_create_or_update_host, valid_ip_array):
+    host = minimal_host(insights_id=generate_uuid(), ip_addresses=valid_ip_array)
 
-    create_or_update_host(host_data, status=207, host_status=201)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
 
 
 @pytest.mark.parametrize("invalid_ip_array", [[], [""], ["a" * 256]])
-def test_create_host_with_invalid_ip_address(create_or_update_host, invalid_ip_array):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.insights_id = generate_uuid()
-    host_data.ip_addresses = invalid_ip_array
+def test_create_host_with_invalid_ip_address(api_create_or_update_host, invalid_ip_array):
+    host = minimal_host(insights_id=generate_uuid(), ip_addresses=invalid_ip_array)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("valid_mac_array", [["blah"], ["11:22:33:44:55:66", "blah"]])
-def test_create_host_with_valid_mac_address(create_or_update_host, valid_mac_array):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.insights_id = generate_uuid()
-    host_data.mac_addresses = valid_mac_array
+def test_create_host_with_valid_mac_address(api_create_or_update_host, valid_mac_array):
+    host = minimal_host(insights_id=generate_uuid(), mac_addresses=valid_mac_array)
 
-    create_or_update_host(host_data, status=207, host_status=201)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
 
 
 @pytest.mark.parametrize("invalid_mac_array", [[], [""], ["11:22:33:44:55:66", "a" * 256]])
-def test_create_host_with_invalid_mac_address(create_or_update_host, invalid_mac_array):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.insights_id = generate_uuid()
-    host_data.mac_addresses = invalid_mac_array
+def test_create_host_with_invalid_mac_address(api_create_or_update_host, invalid_mac_array):
+    host = minimal_host(insights_id=generate_uuid(), mac_addresses=invalid_mac_array)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("invalid_display_name", ["", "a" * 201])
-def test_create_host_with_invalid_display_name(create_or_update_host, invalid_display_name):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.display_name = invalid_display_name
+def test_create_host_with_invalid_display_name(api_create_or_update_host, invalid_display_name):
+    host = minimal_host(display_name=invalid_display_name)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("invalid_fqdn", ["", "a" * 256])
-def test_create_host_with_invalid_fqdn(create_or_update_host, invalid_fqdn):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.fqdn = invalid_fqdn
+def test_create_host_with_invalid_fqdn(api_create_or_update_host, invalid_fqdn):
+    host = minimal_host(fqdn=invalid_fqdn)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("invalid_external_id", ["", "a" * 501])
-def test_create_host_with_invalid_external_id(create_or_update_host, invalid_external_id):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.external_id = invalid_external_id
+def test_create_host_with_invalid_external_id(api_create_or_update_host, invalid_external_id):
+    host = minimal_host(external_id=invalid_external_id)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
-def test_create_host_with_ansible_host(create_or_update_host, get_host):
+def test_create_host_with_ansible_host(api_create_or_update_host, api_get_host):
     # Create a host with ansible_host field
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.ansible_host = "ansible_host_" + generate_uuid()
+    host = minimal_host(ansible_host="ansible_host_" + generate_uuid())
 
-    # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    original_id = created_host["id"]
+    assert_host_was_created(create_host_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
+    created_host_id = create_host_response["host"]["id"]
 
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
 @pytest.mark.parametrize("ansible_host", ["ima_ansible_host_23c211af-c8eb-4575-9e54-3d86771af7f8", ""])
-def test_create_host_without_ansible_host_then_update(create_or_update_host, get_host, ansible_host):
+def test_create_host_without_ansible_host_then_update(api_create_or_update_host, api_get_host, ansible_host):
     # Create a host without ansible_host field
     # then update those fields
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.ansible_host
+    host = minimal_host()
+    del host.ansible_host
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    original_id = created_host["id"]
+    created_host_id = create_host_response["host"]["id"]
 
-    host_data.ansible_host = ansible_host
+    host.ansible_host = ansible_host
 
     # Update the hosts
-    create_or_update_host(host_data, status=207, host_status=200)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
+    assert_host_was_updated(create_host_response, update_host_response)
 
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
 @pytest.mark.parametrize("invalid_ansible_host", ["a" * 256])
-def test_create_host_with_invalid_ansible_host(create_or_update_host, invalid_ansible_host):
-    host_data = HostWrapper(test_data(facts=None))
-    host_data.ansible_host = invalid_ansible_host
+def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invalid_ansible_host):
+    host = minimal_host(ansible_host=invalid_ansible_host)
 
-    response = create_or_update_host(host_data, status=207, skip_host_validation=True)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
 
-    verify_error_response(response["data"][0], expected_title="Bad Request", expected_status=400)
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
-def test_ignore_culled_host_on_update_by_canonical_facts(create_or_update_host):
+def test_ignore_culled_host_on_update_by_canonical_facts(api_create_or_update_host):
     # Culled host
-    host_data = HostWrapper(
-        test_data(fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
+    host = minimal_host(fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
+
+    # Create the host
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    # Update the host
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(update_host_response)
+
+    assert create_host_response["host"]["id"] != update_host_response["host"]["id"]
+
+
+def test_ignore_culled_host_on_update_by_elevated_id(api_create_or_update_host):
+    # Culled host
+    host = minimal_host(
+        insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
     )
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
 
     # Update the host
-    updated_host = create_or_update_host(host_data, status=207, host_status=201)
+    host.ip_addresses = ["10.10.0.2"]
 
-    assert created_host["id"] != updated_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
 
+    assert_host_was_created(update_host_response)
 
-def test_ignore_culled_host_on_update_by_elevated_id(create_or_update_host):
-    # Culled host
-    host_to_create_data = HostWrapper(
-        test_data(insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
-    )
-
-    # Create the host
-    created_host = create_or_update_host(host_to_create_data, status=207, host_status=201)
-
-    # Update the host
-    host_to_update_data = host_to_create_data
-    host_to_update_data.ip_addresses = ["10.10.0.2"]
-    updated_host = create_or_update_host(host_to_update_data, status=207, host_status=201)
-
-    assert created_host["id"] != updated_host["id"]
+    assert create_host_response["host"]["id"] != update_host_response["host"]["id"]
 
 
-def test_create_host_with_20_byte_mac_address(create_or_update_host, get_host):
+def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get_host):
     system_profile = {
         "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
     }
 
-    host_data = HostWrapper(test_data(system_profile=system_profile))
+    host = minimal_host(system_profile=system_profile)
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
+    assert_host_was_created(create_host_response)
 
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    created_host_id = create_host_response["host"]["id"]
+
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
-def test_create_host_with_too_long_mac_address(create_or_update_host):
+def test_create_host_with_too_long_mac_address(api_create_or_update_host):
     system_profile = {
         "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
     }
 
-    host_data = HostWrapper(test_data(system_profile=system_profile))
+    host = minimal_host(system_profile=system_profile)
 
-    create_or_update_host(host_data, status=207, host_status=400)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize(
@@ -510,9 +549,13 @@ def test_create_host_with_too_long_mac_address(create_or_update_host):
         {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
     ],
 )
-def test_create_host_with_empty_json_key_in_system_profile(create_or_update_host, sample):
-    host_data = HostWrapper(test_data(system_profile=sample))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_empty_json_key_in_system_profile(api_create_or_update_host, sample):
+    host = minimal_host(system_profile=sample)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize(
@@ -524,144 +567,159 @@ def test_create_host_with_empty_json_key_in_system_profile(create_or_update_host
         [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
     ],
 )
-def test_create_host_with_empty_json_key_in_facts(create_or_update_host, facts):
-    host_data = HostWrapper(test_data(facts=facts))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_empty_json_key_in_facts(api_create_or_update_host, facts):
+    host = minimal_host(facts=facts)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
-def test_create_host_without_display_name_and_without_fqdn(create_or_update_host, get_host):
+def test_create_host_without_display_name_and_without_fqdn(api_create_or_update_host, api_get_host):
     """
     This test should verify that the display_name is set to the id
     when neither the display name or fqdn is set.
     """
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.display_name
-    del host_data.fqdn
+    host = minimal_host()
+    del host.display_name
+    del host.fqdn
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
+    assert_host_was_created(create_host_response)
 
-    # Explicitly set the display_name to the be id...this is expected here
-    host_data.display_name = created_host["id"]
+    created_host_id = create_host_response["host"]["id"]
 
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
-def test_create_host_without_display_name_and_with_fqdn(create_or_update_host, get_host):
+def test_create_host_without_display_name_and_with_fqdn(api_create_or_update_host, api_get_host):
     """
     This test should verify that the display_name is set to the
     fqdn when a display_name is not passed in but the fqdn is passed in.
     """
     expected_display_name = "fred.flintstone.bedrock.com"
 
-    host_data = HostWrapper(test_data(facts=None))
-    del host_data.display_name
-    host_data.fqdn = expected_display_name
+    host = minimal_host(fqdn=expected_display_name)
+    del host.display_name
 
-    # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
+    assert_host_was_created(create_host_response)
 
-    # Explicitly set the display_name ...this is expected here
-    host_data.display_name = expected_display_name
+    created_host_id = create_host_response["host"]["id"]
 
-    validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
+    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_results)
+
+    host.display_name = expected_display_name
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
 @pytest.mark.bulk_creation
-def test_create_and_update_multiple_hosts_with_different_accounts(create_or_update_host, mock_env_token):
-    facts = None
-
-    host1 = HostWrapper(test_data(display_name="host1", facts=facts))
-    host1.account = "111111"
-    host1.ip_addresses = ["10.0.0.1"]
-    host1.rhel_machine_id = generate_uuid()
-
-    host2 = HostWrapper(test_data(display_name="host2", facts=facts))
-    host2.account = "222222"
-    host2.ip_addresses = ["10.0.0.2"]
-    host2.rhel_machine_id = generate_uuid()
-
+def test_create_and_update_multiple_hosts_with_different_accounts(api_create_or_update_host, mock_env_token):
+    host1 = minimal_host(
+        display_name="host1", account="111111", ip_addresses=["10.0.0.1"], rhel_machine_id=generate_uuid()
+    )
+    host2 = minimal_host(
+        display_name="host2", account="222222", ip_addresses=["10.0.0.2"], rhel_machine_id=generate_uuid()
+    )
     host_list = [host1, host2]
 
     # Create the host
-    create_response = create_or_update_host(host_list, status=207, host_status=[201, 201], auth_type="token")
+    multi_response = api_create_or_update_host(host_list, expected_status=207, auth_type="token")
 
-    assert len(host_list) == len(create_response)
+    assert len(host_list) == len(multi_response["data"])
+    assert multi_response["total"] == len(multi_response["data"])
+    assert multi_response["errors"] == 0
 
-    host_list[0].id = create_response[0]["id"]
+    for i, host in enumerate(host_list):
+        create_host_response = get_host_from_multi_response(multi_response, host_index=i)
+
+        assert_host_was_created(create_host_response)
+
+        host_list[i].id = create_host_response["host"]["id"]
+
     host_list[0].bios_uuid = generate_uuid()
     host_list[0].display_name = "fred"
 
-    host_list[1].id = create_response[1]["id"]
     host_list[1].bios_uuid = generate_uuid()
     host_list[1].display_name = "barney"
 
     # Update the host
-    update_response = create_or_update_host(host_list, status=207, host_status=[200, 200], auth_type="token")
+    multi_response = api_create_or_update_host(host_list, expected_status=207, auth_type="token")
 
-    for i, host in enumerate(update_response):
-        validate_host(host, host_list[i], expected_id=host_list[i].id)
+    for i, host in enumerate(host_list):
+        update_host_response = get_host_from_multi_response(multi_response, host_index=i)
+
+        assert_host_response_status(update_host_response, expected_status=200)
+        assert_host_data(
+            actual_host=update_host_response["host"], expected_host=host_list[i], expected_id=host_list[i].id
+        )
 
 
 @pytest.mark.system_profile
-def test_create_host_with_system_profile(create_or_update_host, get_host):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["ip_addresses"] = ["10.0.0.1"]
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = valid_system_profile()
+def test_create_host_with_system_profile(api_create_or_update_host, api_get_host):
+    host = minimal_host(system_profile=valid_system_profile())
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host = create_host_response["host"]
 
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}/system_profile", 200)
-    actual_host = host_lookup_results["results"][0]
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
 
-    assert actual_host["id"] == original_id
-    assert actual_host["system_profile"] == host_data["system_profile"]
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == host.system_profile
 
 
 @pytest.mark.system_profile
-def test_create_host_with_system_profile_and_query_with_branch_id(create_or_update_host, get_host):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["ip_addresses"] = ["10.0.0.1"]
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = valid_system_profile()
+def test_create_host_with_system_profile_and_query_with_branch_id(api_create_or_update_host, api_get_host):
+    host = minimal_host(system_profile=valid_system_profile())
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host = create_host_response["host"]
 
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}/system_profile?branch_id=1234", 200)
-    actual_host = host_lookup_results["results"][0]
+    host_lookup_response = api_get_host(
+        f"{HOST_URL}/{created_host['id']}/system_profile", query_parameters={"branch_id": 1234}, expected_status=200
+    )
+    host_response = get_host_from_response(host_lookup_response)
 
-    assert actual_host["id"] == original_id
-    assert actual_host["system_profile"] == host_data["system_profile"]
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == host.system_profile
 
 
 @pytest.mark.system_profile
-def test_create_host_with_null_system_profile(create_or_update_host, get_host):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["ip_addresses"] = ["10.0.0.1"]
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = None
+def test_create_host_with_null_system_profile(api_create_or_update_host, api_get_host):
+    host = minimal_host(system_profile=None)
 
     # Create the host without a system profile
-    response = create_or_update_host(host_data, status=400)
+    multi_response = api_create_or_update_host([host], expected_status=400)
 
-    verify_error_response(response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_profile
@@ -669,14 +727,14 @@ def test_create_host_with_null_system_profile(create_or_update_host, get_host):
     "system_profile",
     [{"infrastructure_type": "i" * 101, "infrastructure_vendor": "i" * 101, "cloud_provider": "i" * 101}],
 )
-def test_create_host_with_system_profile_with_invalid_data(create_or_update_host, get_host, system_profile):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["ip_addresses"] = ["10.0.0.1"]
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = system_profile
+def test_create_host_with_system_profile_with_invalid_data(api_create_or_update_host, api_get_host, system_profile):
+    host = minimal_host(system_profile=system_profile)
 
     # Create the host
-    create_or_update_host(host_data, status=207, host_status=400)
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_profile
@@ -689,126 +747,145 @@ def test_create_host_with_system_profile_with_invalid_data(create_or_update_host
         "https://codecs.fedoraproject.org/openh264/$releasever/$basearch/debug/",
     ],
 )
-def test_create_host_with_system_profile_with_different_yum_urls(create_or_update_host, get_host, yum_url):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = {
-        "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": yum_url}]
-    }
+def test_create_host_with_system_profile_with_different_yum_urls(api_create_or_update_host, api_get_host, yum_url):
+    system_profile = {"yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": yum_url}]}
+    host = minimal_host(system_profile=system_profile)
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    # Verify that the system profile data is saved
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}/system_profile", 200)
-    actual_host = host_lookup_results["results"][0]
+    assert_host_was_created(create_host_response)
 
-    assert actual_host["id"] == original_id
-    assert actual_host["system_profile"] == host_data["system_profile"]
+    created_host = create_host_response["host"]
+
+    # verify system_profile is not included
+    assert "system_profile" not in created_host
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == host.system_profile
 
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize("cloud_provider", ["cumulonimbus", "cumulus", "c" * 100])
 def test_create_host_with_system_profile_with_different_cloud_providers(
-    create_or_update_host, get_host, cloud_provider
+    api_create_or_update_host, api_get_host, cloud_provider
 ):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["rhel_machine_id"] = generate_uuid()
-    host_data["system_profile"] = {"cloud_provider": cloud_provider}
+    host = minimal_host(system_profile={"cloud_provider": cloud_provider})
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    # Verify that the system profile data is saved
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}/system_profile", 200)
-    actual_host = host_lookup_results["results"][0]
+    assert_host_was_created(create_host_response)
 
-    assert actual_host["id"] == original_id
-    assert actual_host["system_profile"] == host_data["system_profile"]
+    created_host = create_host_response["host"]
+
+    # verify system_profile is not included
+    assert "system_profile" not in created_host
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == host.system_profile
 
 
 @pytest.mark.system_profile
-def test_get_system_profile_of_host_that_does_not_have_system_profile(create_or_update_host, get_host):
-    host_data = test_data(display_name="host1", facts=None)
-    host_data["ip_addresses"] = ["10.0.0.1"]
-    host_data["rhel_machine_id"] = generate_uuid()
+def test_get_system_profile_of_host_that_does_not_have_system_profile(api_create_or_update_host, api_get_host):
+    host = minimal_host()
 
     # Create the host
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    # Verify that the system profile data is saved
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}/system_profile", 200)
-    actual_host = host_lookup_results["results"][0]
+    assert_host_was_created(create_host_response)
 
-    assert actual_host["id"] == original_id
-    assert actual_host["system_profile"] == {}
+    created_host = create_host_response["host"]
+
+    # verify system_profile is not included
+    assert "system_profile" not in created_host
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == {}
 
 
 @pytest.mark.system_profile
-def test_get_system_profile_of_multiple_hosts(
-    create_or_update_host, get_host, paging_test, invalid_paging_parameters_test
-):
+def test_get_system_profile_of_multiple_hosts(api_create_or_update_host, api_get_host):
     host_id_list = []
     expected_system_profiles = []
 
     for i in range(2):
-        host_data = test_data(display_name="host1", facts=None)
-        host_data["ip_addresses"] = [f"10.0.0.{i}"]
-        host_data["rhel_machine_id"] = generate_uuid()
-        host_data["system_profile"] = valid_system_profile()
-        host_data["system_profile"]["number_of_cpus"] = i
+        system_profile = valid_system_profile()
+        system_profile["number_of_cpus"] = i
 
-        created_host = create_or_update_host(host_data, status=207, host_status=201)
-        original_id = created_host["id"]
+        host = minimal_host(ip_addresses=[f"10.0.0.{i}"], system_profile=system_profile)
 
-        host_id_list.append(original_id)
-        expected_system_profiles.append({"id": original_id, "system_profile": host_data["system_profile"]})
+        multi_response = api_create_or_update_host([host], expected_status=207)
+        create_host_response = get_host_from_multi_response(multi_response)
+
+        assert_host_was_created(create_host_response)
+
+        created_host_id = create_host_response["host"]["id"]
+
+        host_id_list.append(created_host_id)
+        expected_system_profiles.append({"id": created_host_id, "system_profile": host.system_profile})
 
     url_host_id_list = ",".join(host_id_list)
     test_url = f"{HOST_URL}/{url_host_id_list}/system_profile"
-    host_lookup_results = get_host(test_url, 200)
+    host_lookup_response = api_get_host(test_url, expected_status=200)
 
-    assert len(expected_system_profiles) == len(host_lookup_results["results"])
+    assert len(expected_system_profiles) == len(host_lookup_response["results"])
     for expected_system_profile in expected_system_profiles:
-        assert expected_system_profile in host_lookup_results["results"]
+        assert expected_system_profile in host_lookup_response["results"]
 
-    paging_test(test_url, len(expected_system_profiles))
-    invalid_paging_parameters_test(test_url)
+    # TODO: Move to a separate pagination test
+    # paging_test(test_url, len(expected_system_profiles))
+    # invalid_paging_parameters_test(test_url)
 
 
 @pytest.mark.system_profile
-def test_get_system_profile_of_host_that_does_not_exist(get_host):
+def test_get_system_profile_of_host_that_does_not_exist(api_get_host):
     expected_count = 0
     expected_total = 0
     host_id = generate_uuid()
 
-    results = get_host(f"{HOST_URL}/{host_id}/system_profile", 200)
+    host_lookup_response = api_get_host(f"{HOST_URL}/{host_id}/system_profile", expected_status=200)
 
-    assert results["count"] == expected_count
-    assert results["total"] == expected_total
+    assert host_lookup_response["count"] == expected_count
+    assert host_lookup_response["total"] == expected_total
 
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
-def test_get_system_profile_with_invalid_host_id(get_host, invalid_host_id):
-    response = get_host(f"{HOST_URL}/{invalid_host_id}/system_profile", 400)
-    verify_error_response(response, expected_title="Bad Request", expected_status=400)
+def test_get_system_profile_with_invalid_host_id(api_get_host, invalid_host_id):
+    host_lookup_response = api_get_host(f"{HOST_URL}/{invalid_host_id}/system_profile", expected_status=400)
+
+    assert_error_response(host_lookup_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_null_tags(create_or_update_host):
-    host_data = HostWrapper(test_data(tags=None))
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_null_tags(api_create_or_update_host):
+    host = minimal_host(tags=None)
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_null_tag_key(create_or_update_host):
-    tag = ({"namespace": "ns", "key": None, "value": "val"},)
-    host_data = HostWrapper(test_data(tags=[tag]))
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_null_tag_key(api_create_or_update_host):
+    host = minimal_host(tags=[({"namespace": "ns", "key": None, "value": "val"},)])
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
@@ -822,52 +899,67 @@ def test_create_host_with_null_tag_key(create_or_update_host):
         {"namespace": "ns", "value": "val"},
     ],
 )
-def test_create_host_with_invalid_tags(create_or_update_host, tag):
-    host_data = HostWrapper(test_data(tags=[tag]))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_invalid_tags(api_create_or_update_host, tag):
+    host = minimal_host(tags=[tag])
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_keyless_tag(create_or_update_host):
-    tag = {"namespace": "ns", "key": None, "value": "val"}
-    host_data = HostWrapper(test_data(tags=[tag]))
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_keyless_tag(api_create_or_update_host):
+    host = minimal_host(tags=[{"namespace": "ns", "key": None, "value": "val"}])
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_invalid_string_tag_format(create_or_update_host):
-    tag = "string/tag=format"
-    host_data = HostWrapper(test_data(tags=[tag]))
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_invalid_string_tag_format(api_create_or_update_host):
+    host = minimal_host(tags=["string/tag=format"])
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_invalid_tag_format(create_or_update_host):
-    tag = {"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}
-    host_data = HostWrapper(test_data(tags=[tag]))
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_invalid_tag_format(api_create_or_update_host):
+    host = minimal_host(tags=[{"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}])
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
-def test_create_host_with_tags(create_or_update_host, get_host):
-    host_data = HostWrapper(
-        test_data(
-            tags=[
-                {"namespace": "NS3", "key": "key2", "value": "val2"},
-                {"namespace": "NS1", "key": "key3", "value": "val3"},
-                {"namespace": "Sat", "key": "prod", "value": None},
-                {"namespace": "NS2", "key": "key1", "value": ""},
-            ]
-        )
+def test_create_host_with_tags(api_create_or_update_host, api_get_host):
+    host = minimal_host(
+        tags=[
+            {"namespace": "NS3", "key": "key2", "value": "val2"},
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "NS2", "key": "key1", "value": ""},
+        ]
     )
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
-    assert host_lookup_results["results"][0]["id"] == original_id
+    assert_host_was_created(create_host_response)
 
-    host_tags = get_host(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+    created_host_id = create_host_response["host"]["id"]
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    host_tags = host_tags_response["results"][created_host_id]
 
     expected_tags = [
         {"namespace": "NS1", "key": "key3", "value": "val3"},
@@ -880,25 +972,33 @@ def test_create_host_with_tags(create_or_update_host, get_host):
 
 
 @pytest.mark.tagging
-def test_create_host_with_tags_special_characters(create_or_update_host, get_host):
+def test_create_host_with_tags_special_characters(api_create_or_update_host, api_get_host):
     tags = [
         {"namespace": "NS1;,/?:@&=+$-_.!~*'()#", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"},
         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
-    host_data = HostWrapper(test_data(tags=tags))
+    host = minimal_host(tags=tags)
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
-    assert host_lookup_results["results"][0]["id"] == original_id
+    assert_host_was_created(create_host_response)
 
-    host_tags = get_host(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+    created_host_id = create_host_response["host"]["id"]
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    host_tags = host_tags_response["results"][created_host_id]
+
     assert len(host_tags) == len(tags)
 
 
 @pytest.mark.tagging
-def test_create_host_with_tag_without_some_fields(create_or_update_host, get_host):
+def test_create_host_with_tag_without_some_fields(api_create_or_update_host, api_get_host):
     tags = [
         {"namespace": None, "key": "key3", "value": "val3"},
         {"namespace": "", "key": "key1", "value": "val1"},
@@ -909,15 +1009,22 @@ def test_create_host_with_tag_without_some_fields(create_or_update_host, get_hos
         {"key": "some_key"},
     ]
 
-    host_data = HostWrapper(test_data(tags=tags))
+    host = minimal_host(tags=tags)
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    original_id = created_host["id"]
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
 
-    host_lookup_results = get_host(f"{HOST_URL}/{original_id}", 200)
-    assert host_lookup_results["results"][0]["id"] == original_id
+    assert_host_was_created(create_host_response)
 
-    host_tags = get_host(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
+    created_host_id = create_host_response["host"]["id"]
+
+    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
+    host_response = get_host_from_response(host_lookup_response)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    host_tags = host_tags_response["results"][created_host_id]
 
     expected_tags = [
         {"namespace": "Sat", "key": "prod", "value": None},
@@ -928,226 +1035,342 @@ def test_create_host_with_tag_without_some_fields(create_or_update_host, get_hos
         {"namespace": None, "key": "key4", "value": "val4"},
         {"namespace": None, "key": "some_key", "value": None},
     ]
+
     assert len(host_tags) == len(expected_tags)
 
 
 @pytest.mark.tagging
-def test_update_host_replaces_tags(create_or_update_host, get_host):
+def test_update_host_replaces_tags(api_create_or_update_host, api_get_host):
     insights_id = generate_uuid()
 
     create_tags = [
         {"namespace": "namespace1", "key": "key1", "value": "value1"},
         {"namespace": "namespace1", "key": "key2", "value": "value2"},
     ]
-    create_host_data = test_data(insights_id=insights_id, tags=create_tags)
-    created_host = create_or_update_host(create_host_data, status=207, host_status=201)
-    host_id = created_host["id"]
 
-    created_tags = get_host(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-    assert len(created_tags) == len(create_tags)
+    host = minimal_host(insights_id=insights_id, tags=create_tags)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    created_host_tags = host_tags_response["results"][created_host_id]
+
+    assert len(created_host_tags) == len(create_tags)
 
     update_tags = [
         {"namespace": "namespace1", "key": "key2", "value": "value3"},
         {"namespace": "namespace1", "key": "key3", "value": "value4"},
     ]
-    update_host_data = test_data(insights_id=insights_id, tags=update_tags)
-    create_or_update_host(update_host_data, status=207, host_status=200)
 
-    updated_tags = get_host(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-    assert len(updated_tags) == len(update_tags)
+    host = minimal_host(insights_id=insights_id, tags=update_tags)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    updated_host_tags = host_tags_response["results"][created_host_id]
+
+    assert len(updated_host_tags) == len(update_tags)
 
 
 @pytest.mark.tagging
-def test_update_host_does_not_remove_namespace(create_or_update_host, get_host):
+def test_update_host_does_not_remove_namespace(api_create_or_update_host, api_get_host):
     insights_id = generate_uuid()
-
     create_tags = [{"namespace": "namespace1", "key": "key1", "value": "value1"}]
-    create_host_data = test_data(insights_id=insights_id, tags=create_tags)
-    created_host = create_or_update_host(create_host_data, status=207, host_status=201)
-    host_id = created_host["id"]
 
-    created_tags = get_host(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-    assert len(created_tags) == len(create_tags)
+    host = minimal_host(insights_id=insights_id, tags=create_tags)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    created_host_tags = host_tags_response["results"][created_host_id]
+
+    assert len(created_host_tags) == len(create_tags)
 
     update_tags = [{"namespace": "namespace2", "key": "key2", "value": "value3"}]
-    update_host_data = test_data(insights_id=insights_id, tags=update_tags)
-    create_or_update_host(update_host_data, status=207, host_status=200)
 
-    updated_tags = get_host(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-    assert len(updated_tags) == len(create_tags) + len(update_tags)
+    host = minimal_host(insights_id=insights_id, tags=update_tags)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
+    updated_host_tags = host_tags_response["results"][created_host_id]
+
+    assert len(updated_host_tags) == len(create_tags) + len(update_tags)
 
 
 @pytest.mark.tagging
-def test_create_host_with_nested_tags(create_or_update_host):
-    create_tags = {"namespace": {"key": ["value"]}}
-    create_host_data = test_data(tags=create_tags)
-    create_or_update_host(create_host_data, status=400)
+def test_create_host_with_nested_tags(api_create_or_update_host):
+    host = minimal_host(tags={"namespace": {"key": ["value"]}})
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
 @pytest.mark.parametrize("fields_to_delete", [("stale_timestamp", "reporter"), ("stale_timestamp",), ("reporter",)])
-def test_create_host_without_culling_fields(create_or_update_host, fields_to_delete):
-    host_data = test_data(fqdn="match this host")
+def test_create_host_without_culling_fields(api_create_or_update_host, fields_to_delete):
+    host = minimal_host(fqdn="match this host")
     for field in fields_to_delete:
-        del host_data[field]
-    create_or_update_host(host_data, status=400)
+        delattr(host, field)
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
 @pytest.mark.parametrize("culling_fields", [("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter")])
-def test_create_host_with_null_culling_fields(create_or_update_host, culling_fields):
-    host_data = test_data(fqdn="match this host", **{field: None for field in culling_fields})
-    create_or_update_host(host_data, status=400)
+def test_create_host_with_null_culling_fields(api_create_or_update_host, culling_fields):
+    host = minimal_host(fqdn="match this host", **{field: None for field in culling_fields})
+
+    multi_response = api_create_or_update_host([host], expected_status=400)
+
+    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
 @pytest.mark.parametrize("culling_fields", [("stale_timestamp",), ("reporter",), ("stale_timestamp", "reporter")])
-def test_create_host_with_empty_culling_fields(create_or_update_host, culling_fields):
-    host_data = HostWrapper(test_data(**{field: "" for field in culling_fields}))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_empty_culling_fields(api_create_or_update_host, culling_fields):
+    host = minimal_host(**{field: "" for field in culling_fields})
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
-def test_create_host_with_invalid_stale_timestamp(create_or_update_host):
-    host_data = HostWrapper(test_data(stale_timestamp="not a timestamp"))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_invalid_stale_timestamp(api_create_or_update_host):
+    host = minimal_host(stale_timestamp="not a timestamp")
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
-def test_create_host_with_stale_timestamp_and_reporter(create_or_update_host, get_host_from_db):
+def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host, get_host_from_db):
     stale_timestamp = now()
     reporter = "some reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=stale_timestamp.isoformat(), reporter=reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
+    host = minimal_host(stale_timestamp=stale_timestamp.isoformat(), reporter=reporter)
 
-    retrieved_host = get_host_from_db(created_host["id"])
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    retrieved_host = get_host_from_db(created_host_id)
 
     assert stale_timestamp == retrieved_host.stale_timestamp
     assert reporter == retrieved_host.reporter
 
 
 @pytest.mark.system_culling
-def test_update_stale_timestamp_from_same_reporter(create_or_update_host, get_host_from_db):
+def test_update_stale_timestamp_from_same_reporter(api_create_or_update_host, get_host_from_db):
     current_timestamp = now()
 
     old_stale_timestamp = current_timestamp + timedelta(days=1)
     reporter = "some reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    old_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    old_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == old_retrieved_host.stale_timestamp
     assert reporter == old_retrieved_host.reporter
 
     new_stale_timestamp = current_timestamp + timedelta(days=2)
-    host_data = HostWrapper(test_data(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter))
 
-    create_or_update_host(host_data, status=207, host_status=200)
-    new_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    new_retrieved_host = get_host_from_db(created_host_id)
 
     assert new_stale_timestamp == new_retrieved_host.stale_timestamp
     assert reporter == new_retrieved_host.reporter
 
 
 @pytest.mark.system_culling
-def test_dont_update_stale_timestamp_from_same_reporter(create_or_update_host, get_host_from_db):
+def test_dont_update_stale_timestamp_from_same_reporter(api_create_or_update_host, get_host_from_db):
     current_timestamp = now()
 
     old_stale_timestamp = current_timestamp + timedelta(days=2)
     reporter = "some reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    old_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    old_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == old_retrieved_host.stale_timestamp
 
     new_stale_timestamp = current_timestamp + timedelta(days=1)
-    host_data = HostWrapper(test_data(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter))
 
-    create_or_update_host(host_data, status=207, host_status=200)
-    new_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    new_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == new_retrieved_host.stale_timestamp
 
 
 @pytest.mark.system_culling
-def test_update_stale_timestamp_from_different_reporter(create_or_update_host, get_host_from_db):
+def test_update_stale_timestamp_from_different_reporter(api_create_or_update_host, get_host_from_db):
     current_timestamp = now()
 
     old_stale_timestamp = current_timestamp + timedelta(days=2)
     old_reporter = "old reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    old_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    old_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == old_retrieved_host.stale_timestamp
     assert old_reporter == old_retrieved_host.reporter
 
     new_stale_timestamp = current_timestamp + timedelta(days=1)
     new_reporter = "new reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter))
 
-    create_or_update_host(host_data, status=207, host_status=200)
-    new_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    new_retrieved_host = get_host_from_db(created_host_id)
 
     assert new_stale_timestamp == new_retrieved_host.stale_timestamp
     assert new_reporter == new_retrieved_host.reporter
 
 
 @pytest.mark.system_culling
-def test_update_stale_host_timestamp_from_next_reporter(create_or_update_host, get_host_from_db):
+def test_update_stale_host_timestamp_from_next_reporter(api_create_or_update_host, get_host_from_db):
     current_timestamp = now()
 
     old_stale_timestamp = current_timestamp - timedelta(days=1)  # stale host
     old_reporter = "old reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    old_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    old_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == old_retrieved_host.stale_timestamp
     assert old_reporter == old_retrieved_host.reporter
 
     new_stale_timestamp = current_timestamp + timedelta(days=1)
     new_reporter = "new reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter))
 
-    create_or_update_host(host_data, status=207, host_status=200)
-    new_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    new_retrieved_host = get_host_from_db(created_host_id)
 
     assert new_stale_timestamp == new_retrieved_host.stale_timestamp
     assert new_reporter == new_retrieved_host.reporter
 
 
 @pytest.mark.system_culling
-def test_dont_update_stale_timestamp_from_different_reporter(create_or_update_host, get_host_from_db):
+def test_dont_update_stale_timestamp_from_different_reporter(api_create_or_update_host, get_host_from_db):
     current_timestamp = now()
 
     old_stale_timestamp = current_timestamp + timedelta(days=1)
     old_reporter = "old reporter"
-    host_data = HostWrapper(test_data(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter))
 
-    created_host = create_or_update_host(host_data, status=207, host_status=201)
-    old_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    create_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    old_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == old_retrieved_host.stale_timestamp
     assert old_reporter == old_retrieved_host.reporter
 
     new_stale_timestamp = current_timestamp + timedelta(days=2)
-    host_data = HostWrapper(test_data(stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter"))
 
-    create_or_update_host(host_data, status=207, host_status=200)
-    new_retrieved_host = get_host_from_db(created_host["id"])
+    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter")
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    update_host_response = get_host_from_multi_response(multi_response)
+
+    assert_host_was_updated(create_host_response, update_host_response)
+
+    new_retrieved_host = get_host_from_db(created_host_id)
 
     assert old_stale_timestamp == new_retrieved_host.stale_timestamp
     assert old_reporter == new_retrieved_host.reporter
 
 
 @pytest.mark.system_culling
-def test_create_host_with_stale_timestamp_without_time_zone(create_or_update_host):
-    host_data = HostWrapper(test_data(stale_timestamp=datetime.now().isoformat(), reporter="reporter"))
-    create_or_update_host(host_data, status=207, host_status=400)
+def test_create_host_with_stale_timestamp_without_time_zone(api_create_or_update_host):
+    host = minimal_host(stale_timestamp=datetime.now().isoformat(), reporter="reporter")
+
+    multi_response = api_create_or_update_host([host], expected_status=207)
+    host_response = get_host_from_multi_response(multi_response)
+
+    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)

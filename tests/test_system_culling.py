@@ -15,8 +15,8 @@ from .test_utils import ACCOUNT
 from .test_utils import emitted_event
 from .test_utils import generate_uuid
 from .test_utils import HOST_URL
+from .test_utils import minimal_host
 from .test_utils import now
-from .test_utils import test_data
 from app import db
 from app.models import Host
 from app.utils import HostWrapper
@@ -289,7 +289,7 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def _add_hosts(self, data):
         post = []
         for d in data:
-            host = HostWrapper(test_data(insights_id=generate_uuid(), **d))
+            host = minimal_host(insights_id=generate_uuid(), **d)
             post.append(host.data())
 
         response = self.post(HOST_URL, post, 207)

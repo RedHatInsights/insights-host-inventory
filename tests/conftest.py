@@ -1,6 +1,4 @@
 import json
-from typing import List
-from typing import Union
 
 import pytest
 from sqlalchemy_utils import create_database
@@ -12,19 +10,19 @@ from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
-from app.utils import HostWrapper
 from tests.test_utils import get_required_headers
 from tests.test_utils import HOST_URL
 from tests.test_utils import inject_qs
 from tests.test_utils import SHARED_SECRET
-from tests.test_utils import validate_host
 
 
 @pytest.fixture(scope="session")
 def database():
     config = Config(RuntimeEnvironment.server, "testing")
-    if not database_exists(config.db_uri):
-        create_database(config.db_uri)
+    if database_exists(config.db_uri):
+        drop_database(config.db_uri)
+
+    create_database(config.db_uri)
 
     yield
 
@@ -32,9 +30,8 @@ def database():
 
 
 @pytest.fixture(scope="function")
-def flask_app(database_xdist):
+def flask_app(database):
     app = create_app(config_name="testing")
-    app.config.update(SQLALCHEMY_DATABASE_URI=database_xdist)
 
     # binds the app to the current context
     with app.app_context() as ctx:
@@ -55,125 +52,48 @@ def flask_client(flask_app):
 
 
 @pytest.fixture(scope="function")
-def create_or_update_host(flask_client, subtests):
-    def _create(
-        host_data: Union[HostWrapper, List[HostWrapper]],
-        status=207,
-        host_status=None,
-        url=HOST_URL,
-        auth_type="account_number",
-        skip_host_validation=False,
-    ):
-        with subtests.test(msg="Creating or updating hosts"):
-            if not isinstance(host_data, List):
-                host_data = [host_data]
+def api_create_or_update_host(flask_client):
+    """
+    host_data: List[HostWrapper]
+    url: str
+    auth_type: str ("account_number", "token")
+    """
 
-            payload = [item.data() if isinstance(item, HostWrapper) else item for item in host_data]
+    def _api_create_or_update(host_data, expected_status=207, query_parameters=None, auth_type="account_number"):
+        payload = [item.data() for item in host_data]
 
-            response = flask_client.post(url, data=json.dumps(payload), headers=get_required_headers(auth_type))
-            assert response.status_code == status
+        url = inject_qs(HOST_URL, **query_parameters) if query_parameters else HOST_URL
 
-            host_response = json.loads(response.data)
+        response = flask_client.post(url, data=json.dumps(payload), headers=get_required_headers(auth_type))
 
-            if skip_host_validation or response.status_code > 299:
-                return host_response
+        assert response.status_code == expected_status
 
-            host_status = host_status or [201]
-            if not isinstance(host_status, List):
-                host_status = [host_status]
+        return json.loads(response.data)
 
-            for _key, _host in enumerate(host_data):
-                _host = _host if isinstance(_host, HostWrapper) else HostWrapper(_host)
-                assert host_response["data"][_key]["status"] == host_status[_key]
-                if host_response["data"][_key]["status"] < 299:
-                    validate_host(host_response["data"][_key]["host"], _host)
-
-            if len(payload) == 1:
-                return host_response["data"][0]["host"]
-            return [_host["host"] for _host in host_response["data"]]
-
-    return _create
+    return _api_create_or_update
 
 
 @pytest.fixture(scope="function")
-def get_host(flask_client, subtests):
-    def _get(url, status=200, **query_parameters):
-        with subtests.test(msg="Retrieving a host"):
-            url = inject_qs(url, **query_parameters)
-            response = flask_client.get(url, headers=get_required_headers())
-            assert response.status_code == status
+def api_get_host(flask_client):
+    def _api_get_host(url, query_parameters=None, expected_status=200):
+        url = inject_qs(url, **query_parameters) if query_parameters else url
+        response = flask_client.get(url, headers=get_required_headers())
 
-            return json.loads(response.data)
+        assert response.status_code == expected_status
 
-    return _get
+        return json.loads(response.data)
+
+    return _api_get_host
 
 
 @pytest.fixture(scope="function")
 def get_host_from_db(flask_app):
     def _get(host_id):
-        return Host.query.filter(Host.id == host_id).first()
+        return Host.query.get(host_id)
 
     return _get
 
 
 @pytest.fixture(scope="function")
-def paging_test(get_host, subtests):
-    def _base_paging_test(url, expected_number_of_hosts):
-        def _test_get_page(page, expected_count=1):
-            test_url = inject_qs(url, page=page, per_page="1")
-            response = get_host(test_url, 200)
-
-            assert len(response["results"]) == expected_count
-            assert response["count"] == expected_count
-            assert response["total"] == expected_number_of_hosts
-
-        if expected_number_of_hosts == 0:
-            _test_get_page(1, expected_count=0)
-            return
-
-        i = 0
-
-        # Iterate through the pages
-        for i in range(1, expected_number_of_hosts + 1):
-            with subtests.test(pagination_test=i):
-                _test_get_page(str(i))
-
-        # Go one page past the last page and look for an error
-        i = i + 1
-        with subtests.test(pagination_test=i):
-            test_url = inject_qs(url, page=str(i), per_page="1")
-            get_host(test_url, 404)
-
-    return _base_paging_test
-
-
-@pytest.fixture(scope="function")
-def invalid_paging_parameters_test(get_host, subtests):
-    def _invalid_paging_parameters_test(base_url):
-        paging_parameters = ["per_page", "page"]
-        invalid_values = ["-1", "0", "notanumber"]
-        for paging_parameter in paging_parameters:
-            for invalid_value in invalid_values:
-                with subtests.test(paging_parameter=paging_parameter, invalid_value=invalid_value):
-                    test_url = inject_qs(base_url, **{paging_parameter: invalid_value})
-                    get_host(test_url, 400)
-
-    return _invalid_paging_parameters_test
-
-
-@pytest.fixture(scope="function")
 def mock_env_token(monkeypatch):
     monkeypatch.setenv("INVENTORY_SHARED_SECRET", SHARED_SECRET)
-
-
-@pytest.fixture(scope="session")
-def database_xdist(worker_id):
-    config = Config(RuntimeEnvironment.server, "testing")
-    config._db_name = f"insights_tests_{worker_id}"
-    config.db_uri = config._build_db_uri(False)
-    if not database_exists(config.db_uri):
-        create_database(config.db_uri)
-
-    yield config.db_uri
-
-    drop_database(config.db_uri)
