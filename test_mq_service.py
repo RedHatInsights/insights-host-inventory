@@ -285,7 +285,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
                     mock_event_producer.headers,
                     {
                         "event_type": add_host_result.name,
-                        "producer": os.uname()[1],
+                        "producer": os.uname().nodename,
                         "registered_with_insights": "true" if "insights_id" in host_data else "false",
                         "request_id": "-1",
                     },

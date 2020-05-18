@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 DELETE_EVENT_NAME = "delete"
 UPDATE_EVENT_NAME = "updated"
 
-HOSTNAME = os.uname()[1]
+HOSTNAME = os.uname().nodename
 
 
 class HostEvent(Schema):

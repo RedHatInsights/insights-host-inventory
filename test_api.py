@@ -106,7 +106,7 @@ MOCK_XJOIN_HOST_RESPONSE = {
     }
 }
 
-HOSTNAME = os.uname()[1]
+HOSTNAME = os.uname().nodename
 
 Message = namedtuple("Message", ("value", "key", "headers"))
 
