@@ -193,6 +193,10 @@ def assert_host_was_created(create_host_response):
     assert (current_timestamp - timedelta(minutes=15)) < created_time
 
 
+def assert_response_status(response_status, expected_status=200):
+    assert response_status == expected_status
+
+
 def assert_host_response_status(response, expected_status=201, host_index=None):
     host = response
     if host_index is not None:

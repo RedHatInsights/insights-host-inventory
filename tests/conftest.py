@@ -13,7 +13,6 @@ from app.models import Host
 from tests.test_utils import get_required_headers
 from tests.test_utils import HOST_URL
 from tests.test_utils import inject_qs
-from tests.test_utils import SHARED_SECRET
 
 
 @pytest.fixture(scope="session")
@@ -53,35 +52,26 @@ def flask_client(flask_app):
 
 @pytest.fixture(scope="function")
 def api_create_or_update_host(flask_client):
-    """
-    host_data: List[HostWrapper]
-    url: str
-    auth_type: str ("account_number", "token")
-    """
-
-    def _api_create_or_update(host_data, expected_status=207, query_parameters=None, auth_type="account_number"):
+    def _api_create_or_update_host(host_data, query_parameters=None, auth_type="account_number"):
         payload = [item.data() for item in host_data]
 
         url = inject_qs(HOST_URL, **query_parameters) if query_parameters else HOST_URL
 
         response = flask_client.post(url, data=json.dumps(payload), headers=get_required_headers(auth_type))
 
-        assert response.status_code == expected_status
+        return response.status_code, json.loads(response.data)
 
-        return json.loads(response.data)
-
-    return _api_create_or_update
+    return _api_create_or_update_host
 
 
 @pytest.fixture(scope="function")
 def api_get_host(flask_client):
-    def _api_get_host(url, query_parameters=None, expected_status=200):
+    def _api_get_host(url, query_parameters=None):
         url = inject_qs(url, **query_parameters) if query_parameters else url
+
         response = flask_client.get(url, headers=get_required_headers())
 
-        assert response.status_code == expected_status
-
-        return json.loads(response.data)
+        return response.status_code, json.loads(response.data)
 
     return _api_get_host
 
@@ -92,8 +82,3 @@ def get_host_from_db(flask_app):
         return Host.query.get(host_id)
 
     return _get_host_from_db
-
-
-@pytest.fixture(scope="function")
-def mock_env_token(monkeypatch):
-    monkeypatch.setenv("INVENTORY_SHARED_SECRET", SHARED_SECRET)

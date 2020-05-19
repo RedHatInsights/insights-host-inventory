@@ -13,6 +13,7 @@ from tests.test_utils import assert_host_data
 from tests.test_utils import assert_host_response_status
 from tests.test_utils import assert_host_was_created
 from tests.test_utils import assert_host_was_updated
+from tests.test_utils import assert_response_status
 from tests.test_utils import FACTS
 from tests.test_utils import generate_uuid
 from tests.test_utils import get_host_from_multi_response
@@ -20,13 +21,18 @@ from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
 from tests.test_utils import minimal_host
 from tests.test_utils import now
+from tests.test_utils import SHARED_SECRET
 from tests.test_utils import valid_system_profile
 
 
 def test_create_and_update(api_create_or_update_host, api_get_host):
     host = minimal_host()
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
     assert_host_data(actual_host=create_host_response["host"], expected_host=host)
@@ -46,22 +52,34 @@ def test_create_and_update(api_create_or_update_host, api_get_host):
     host.external_id = "i-05d2313e6b9a42b16"
     host.insights_id = generate_uuid()
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
     assert_host_data(actual_host=update_host_response["host"], expected_host=host)
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
 def test_create_with_branch_id(api_create_or_update_host):
     host = minimal_host()
-    multi_response = api_create_or_update_host([host], query_parameters={"branch_id": "1234"}, expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+
+    multi_response_status, multi_response_data = api_create_or_update_host(
+        [host], query_parameters={"branch_id": "1234"}
+    )
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -83,8 +101,11 @@ def test_create_host_update_with_same_insights_id_and_different_canonical_facts(
     )
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -102,14 +123,20 @@ def test_create_host_update_with_same_insights_id_and_different_canonical_facts(
     host.facts = [{"namespace": "ns1", "facts": {"newkey": "newvalue"}}]
 
     # Update the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
     # Retrieve the host using the id that we first received
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -125,8 +152,11 @@ def test_match_host_by_elevated_id_performance(api_create_or_update_host, mocker
     subscription_manager_id = generate_uuid()
     host = minimal_host(subscription_manager_id=subscription_manager_id)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -137,8 +167,11 @@ def test_match_host_by_elevated_id_performance(api_create_or_update_host, mocker
     mocker.resetall()
 
     # Update a host with Insights ID and Subscription Manager ID
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -160,8 +193,11 @@ def test_create_host_with_empty_facts_display_name_then_update(api_create_or_upd
     del host.facts
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -172,13 +208,19 @@ def test_create_host_with_empty_facts_display_name_then_update(api_create_or_upd
     host.display_name = "expected_display_name"
 
     # Update the hosts
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -195,13 +237,15 @@ def test_create_and_update_multiple_hosts_with_account_mismatch(api_create_or_up
     host_list = [host1, host2]
 
     # Create the host
-    multi_response = api_create_or_update_host(host_list, expected_status=207)
+    multi_response_status, multi_response_data = api_create_or_update_host(host_list)
 
-    assert len(host_list) == len(multi_response["data"])
-    assert multi_response["errors"] == 1
+    assert_response_status(multi_response_status, 207)
 
-    assert_host_response_status(multi_response, 201, 0)
-    assert_host_response_status(multi_response, 400, 1)
+    assert len(host_list) == len(multi_response_data["data"])
+    assert multi_response_status, multi_response_data["errors"] == 1
+
+    assert_host_response_status(multi_response_data, 201, 0)
+    assert_host_response_status(multi_response_data, 400, 1)
 
 
 def test_create_host_without_canonical_facts(api_create_or_update_host):
@@ -216,8 +260,11 @@ def test_create_host_without_canonical_facts(api_create_or_update_host):
     del host.mac_addresses
     del host.external_id
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Invalid request", expected_status=400)
 
@@ -226,10 +273,10 @@ def test_create_host_without_account(api_create_or_update_host):
     host = minimal_host()
     del host.account
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
     assert_error_response(
-        multi_response,
+        multi_response_data,
         expected_title="Bad Request",
         expected_detail="'account' is a required property - '0'",
         expected_status=400,
@@ -240,8 +287,11 @@ def test_create_host_without_account(api_create_or_update_host):
 def test_create_host_with_invalid_account(api_create_or_update_host, account):
     host = minimal_host(account=account)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(
         host_response,
@@ -254,8 +304,11 @@ def test_create_host_with_invalid_account(api_create_or_update_host, account):
 def test_create_host_with_mismatched_account_numbers(api_create_or_update_host):
     host = minimal_host(account=ACCOUNT[::-1])
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(
         host_response,
@@ -283,9 +336,9 @@ def _invalid_facts(key, value=None):
 def test_create_host_with_invalid_facts(api_create_or_update_host, invalid_facts):
     host = minimal_host(facts=invalid_facts)
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize(
@@ -295,8 +348,11 @@ def test_create_host_with_invalid_uuid_field_values(api_create_or_update_host, u
     host = minimal_host()
     setattr(host, uuid_field, "notauuid")
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -326,9 +382,9 @@ def test_create_host_with_non_nullable_fields_as_none(api_create_or_update_host,
     # Set a null canonical fact
     setattr(host, non_nullable_field, None)
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("field", ["account", "stale_timestamp", "reporter"])
@@ -336,17 +392,20 @@ def test_create_host_without_required_fields(api_create_or_update_host, field):
     host = minimal_host()
     delattr(host, field)
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.parametrize("valid_ip_array", [["blah"], ["1.1.1.1", "sigh"]])
 def test_create_host_with_valid_ip_address(api_create_or_update_host, valid_ip_array):
     host = minimal_host(insights_id=generate_uuid(), ip_addresses=valid_ip_array)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -355,8 +414,11 @@ def test_create_host_with_valid_ip_address(api_create_or_update_host, valid_ip_a
 def test_create_host_with_invalid_ip_address(api_create_or_update_host, invalid_ip_array):
     host = minimal_host(insights_id=generate_uuid(), ip_addresses=invalid_ip_array)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -365,8 +427,11 @@ def test_create_host_with_invalid_ip_address(api_create_or_update_host, invalid_
 def test_create_host_with_valid_mac_address(api_create_or_update_host, valid_mac_array):
     host = minimal_host(insights_id=generate_uuid(), mac_addresses=valid_mac_array)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -375,8 +440,11 @@ def test_create_host_with_valid_mac_address(api_create_or_update_host, valid_mac
 def test_create_host_with_invalid_mac_address(api_create_or_update_host, invalid_mac_array):
     host = minimal_host(insights_id=generate_uuid(), mac_addresses=invalid_mac_array)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -385,8 +453,11 @@ def test_create_host_with_invalid_mac_address(api_create_or_update_host, invalid
 def test_create_host_with_invalid_display_name(api_create_or_update_host, invalid_display_name):
     host = minimal_host(display_name=invalid_display_name)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -395,8 +466,11 @@ def test_create_host_with_invalid_display_name(api_create_or_update_host, invali
 def test_create_host_with_invalid_fqdn(api_create_or_update_host, invalid_fqdn):
     host = minimal_host(fqdn=invalid_fqdn)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -405,8 +479,11 @@ def test_create_host_with_invalid_fqdn(api_create_or_update_host, invalid_fqdn):
 def test_create_host_with_invalid_external_id(api_create_or_update_host, invalid_external_id):
     host = minimal_host(external_id=invalid_external_id)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -415,15 +492,21 @@ def test_create_host_with_ansible_host(api_create_or_update_host, api_get_host):
     # Create a host with ansible_host field
     host = minimal_host(ansible_host="ansible_host_" + generate_uuid())
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -436,21 +519,30 @@ def test_create_host_without_ansible_host_then_update(api_create_or_update_host,
     del host.ansible_host
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     created_host_id = create_host_response["host"]["id"]
 
     host.ansible_host = ansible_host
 
     # Update the hosts
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -459,8 +551,11 @@ def test_create_host_without_ansible_host_then_update(api_create_or_update_host,
 def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invalid_ansible_host):
     host = minimal_host(ansible_host=invalid_ansible_host)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -470,14 +565,20 @@ def test_ignore_culled_host_on_update_by_canonical_facts(api_create_or_update_ho
     host = minimal_host(fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     # Update the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(update_host_response)
 
@@ -491,16 +592,22 @@ def test_ignore_culled_host_on_update_by_elevated_id(api_create_or_update_host):
     )
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     # Update the host
     host.ip_addresses = ["10.10.0.2"]
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(update_host_response)
 
@@ -514,15 +621,21 @@ def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get
 
     host = minimal_host(system_profile=system_profile)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -534,8 +647,11 @@ def test_create_host_with_too_long_mac_address(api_create_or_update_host):
 
     host = minimal_host(system_profile=system_profile)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -552,8 +668,11 @@ def test_create_host_with_too_long_mac_address(api_create_or_update_host):
 def test_create_host_with_empty_json_key_in_system_profile(api_create_or_update_host, sample):
     host = minimal_host(system_profile=sample)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -570,8 +689,11 @@ def test_create_host_with_empty_json_key_in_system_profile(api_create_or_update_
 def test_create_host_with_empty_json_key_in_facts(api_create_or_update_host, facts):
     host = minimal_host(facts=facts)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -586,15 +708,21 @@ def test_create_host_without_display_name_and_without_fqdn(api_create_or_update_
     del host.fqdn
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
@@ -609,15 +737,21 @@ def test_create_host_without_display_name_and_with_fqdn(api_create_or_update_hos
     host = minimal_host(fqdn=expected_display_name)
     del host.display_name
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_results = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_results)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     host.display_name = expected_display_name
 
@@ -625,7 +759,9 @@ def test_create_host_without_display_name_and_with_fqdn(api_create_or_update_hos
 
 
 @pytest.mark.bulk_creation
-def test_create_and_update_multiple_hosts_with_different_accounts(api_create_or_update_host, mock_env_token):
+def test_create_and_update_multiple_hosts_with_different_accounts(api_create_or_update_host, monkeypatch):
+    monkeypatch.setenv("INVENTORY_SHARED_SECRET", SHARED_SECRET)
+
     host1 = minimal_host(
         display_name="host1", account="111111", ip_addresses=["10.0.0.1"], rhel_machine_id=generate_uuid()
     )
@@ -635,14 +771,16 @@ def test_create_and_update_multiple_hosts_with_different_accounts(api_create_or_
     host_list = [host1, host2]
 
     # Create the host
-    multi_response = api_create_or_update_host(host_list, expected_status=207, auth_type="token")
+    multi_response_status, multi_response_data = api_create_or_update_host(host_list, auth_type="token")
 
-    assert len(host_list) == len(multi_response["data"])
-    assert multi_response["total"] == len(multi_response["data"])
-    assert multi_response["errors"] == 0
+    assert_response_status(multi_response_status, 207)
+
+    assert len(host_list) == len(multi_response_data["data"])
+    assert multi_response_data["total"] == len(multi_response_data["data"])
+    assert multi_response_status, multi_response_data["errors"] == 0
 
     for i, host in enumerate(host_list):
-        create_host_response = get_host_from_multi_response(multi_response, host_index=i)
+        create_host_response = get_host_from_multi_response(multi_response_data, host_index=i)
 
         assert_host_was_created(create_host_response)
 
@@ -655,10 +793,12 @@ def test_create_and_update_multiple_hosts_with_different_accounts(api_create_or_
     host_list[1].display_name = "barney"
 
     # Update the host
-    multi_response = api_create_or_update_host(host_list, expected_status=207, auth_type="token")
+    multi_response_status, multi_response_data = api_create_or_update_host(host_list, auth_type="token")
+
+    assert_response_status(multi_response_status, 207)
 
     for i, host in enumerate(host_list):
-        update_host_response = get_host_from_multi_response(multi_response, host_index=i)
+        update_host_response = get_host_from_multi_response(multi_response_data, host_index=i)
 
         assert_host_response_status(update_host_response, expected_status=200)
         assert_host_data(
@@ -671,8 +811,11 @@ def test_create_host_with_system_profile(api_create_or_update_host, api_get_host
     host = minimal_host(system_profile=valid_system_profile())
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -681,8 +824,11 @@ def test_create_host_with_system_profile(api_create_or_update_host, api_get_host
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == host.system_profile
@@ -693,8 +839,11 @@ def test_create_host_with_system_profile_and_query_with_branch_id(api_create_or_
     host = minimal_host(system_profile=valid_system_profile())
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -703,23 +852,26 @@ def test_create_host_with_system_profile_and_query_with_branch_id(api_create_or_
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_response = api_get_host(
-        f"{HOST_URL}/{created_host['id']}/system_profile", query_parameters={"branch_id": 1234}, expected_status=200
+    response_status, response_data = api_get_host(
+        f"{HOST_URL}/{created_host['id']}/system_profile", query_parameters={"branch_id": 1234}
     )
-    host_response = get_host_from_response(host_lookup_response)
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == host.system_profile
 
 
 @pytest.mark.system_profile
-def test_create_host_with_null_system_profile(api_create_or_update_host, api_get_host):
+def test_create_host_with_null_system_profile(api_create_or_update_host):
     host = minimal_host(system_profile=None)
 
     # Create the host without a system profile
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_profile
@@ -731,8 +883,11 @@ def test_create_host_with_system_profile_with_invalid_data(api_create_or_update_
     host = minimal_host(system_profile=system_profile)
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -752,8 +907,11 @@ def test_create_host_with_system_profile_with_different_yum_urls(api_create_or_u
     host = minimal_host(system_profile=system_profile)
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -762,8 +920,11 @@ def test_create_host_with_system_profile_with_different_yum_urls(api_create_or_u
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == host.system_profile
@@ -777,8 +938,11 @@ def test_create_host_with_system_profile_with_different_cloud_providers(
     host = minimal_host(system_profile={"cloud_provider": cloud_provider})
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -787,8 +951,11 @@ def test_create_host_with_system_profile_with_different_cloud_providers(
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == host.system_profile
@@ -799,8 +966,11 @@ def test_get_system_profile_of_host_that_does_not_have_system_profile(api_create
     host = minimal_host()
 
     # Create the host
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -809,8 +979,11 @@ def test_get_system_profile_of_host_that_does_not_have_system_profile(api_create
     # verify system_profile is not included
     assert "system_profile" not in created_host
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host['id']}/system_profile")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == {}
@@ -827,8 +1000,11 @@ def test_get_system_profile_of_multiple_hosts(api_create_or_update_host, api_get
 
         host = minimal_host(ip_addresses=[f"10.0.0.{i}"], system_profile=system_profile)
 
-        multi_response = api_create_or_update_host([host], expected_status=207)
-        create_host_response = get_host_from_multi_response(multi_response)
+        multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+        assert_response_status(multi_response_status, 207)
+
+        create_host_response = get_host_from_multi_response(multi_response_data)
 
         assert_host_was_created(create_host_response)
 
@@ -839,11 +1015,14 @@ def test_get_system_profile_of_multiple_hosts(api_create_or_update_host, api_get
 
     url_host_id_list = ",".join(host_id_list)
     test_url = f"{HOST_URL}/{url_host_id_list}/system_profile"
-    host_lookup_response = api_get_host(test_url, expected_status=200)
 
-    assert len(expected_system_profiles) == len(host_lookup_response["results"])
+    response_status, response_data = api_get_host(test_url)
+
+    assert_response_status(response_status, 200)
+
+    assert len(expected_system_profiles) == len(response_data["results"])
     for expected_system_profile in expected_system_profiles:
-        assert expected_system_profile in host_lookup_response["results"]
+        assert expected_system_profile in response_data["results"]
 
     # TODO: Move to a separate pagination test
     # paging_test(test_url, len(expected_system_profiles))
@@ -856,36 +1035,38 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get_host):
     expected_total = 0
     host_id = generate_uuid()
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{host_id}/system_profile", expected_status=200)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{host_id}/system_profile")
 
-    assert host_lookup_response["count"] == expected_count
-    assert host_lookup_response["total"] == expected_total
+    assert_response_status(response_status, 200)
+
+    assert response_data["count"] == expected_count
+    assert response_data["total"] == expected_total
 
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(api_get_host, invalid_host_id):
-    host_lookup_response = api_get_host(f"{HOST_URL}/{invalid_host_id}/system_profile", expected_status=400)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{invalid_host_id}/system_profile")
 
-    assert_error_response(host_lookup_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
 def test_create_host_with_null_tags(api_create_or_update_host):
     host = minimal_host(tags=None)
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
 def test_create_host_with_null_tag_key(api_create_or_update_host):
     host = minimal_host(tags=[({"namespace": "ns", "key": None, "value": "val"},)])
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
@@ -902,8 +1083,11 @@ def test_create_host_with_null_tag_key(api_create_or_update_host):
 def test_create_host_with_invalid_tags(api_create_or_update_host, tag):
     host = minimal_host(tags=[tag])
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -912,27 +1096,27 @@ def test_create_host_with_invalid_tags(api_create_or_update_host, tag):
 def test_create_host_with_keyless_tag(api_create_or_update_host):
     host = minimal_host(tags=[{"namespace": "ns", "key": None, "value": "val"}])
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
 def test_create_host_with_invalid_string_tag_format(api_create_or_update_host):
     host = minimal_host(tags=["string/tag=format"])
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
 def test_create_host_with_invalid_tag_format(api_create_or_update_host):
     host = minimal_host(tags=[{"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}])
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.tagging
@@ -946,20 +1130,29 @@ def test_create_host_with_tags(api_create_or_update_host, api_get_host):
         ]
     )
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    host_tags = host_tags_response_data["results"][created_host_id]
 
     expected_tags = [
         {"namespace": "NS1", "key": "key3", "value": "val3"},
@@ -979,20 +1172,29 @@ def test_create_host_with_tags_special_characters(api_create_or_update_host, api
     ]
     host = minimal_host(tags=tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    host_tags = host_tags_response_data["results"][created_host_id]
 
     assert len(host_tags) == len(tags)
 
@@ -1011,20 +1213,29 @@ def test_create_host_with_tag_without_some_fields(api_create_or_update_host, api
 
     host = minimal_host(tags=tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_lookup_response = api_get_host(f"{HOST_URL}/{created_host_id}", expected_status=200)
-    host_response = get_host_from_response(host_lookup_response)
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    host_tags = host_tags_response_data["results"][created_host_id]
 
     expected_tags = [
         {"namespace": "Sat", "key": "prod", "value": None},
@@ -1050,15 +1261,21 @@ def test_update_host_replaces_tags(api_create_or_update_host, api_get_host):
 
     host = minimal_host(insights_id=insights_id, tags=create_tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    created_host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    created_host_tags = host_tags_response_data["results"][created_host_id]
 
     assert len(created_host_tags) == len(create_tags)
 
@@ -1069,13 +1286,19 @@ def test_update_host_replaces_tags(api_create_or_update_host, api_get_host):
 
     host = minimal_host(insights_id=insights_id, tags=update_tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    updated_host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    updated_host_tags = host_tags_response_data["results"][created_host_id]
 
     assert len(updated_host_tags) == len(update_tags)
 
@@ -1087,15 +1310,21 @@ def test_update_host_does_not_remove_namespace(api_create_or_update_host, api_ge
 
     host = minimal_host(insights_id=insights_id, tags=create_tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
     created_host_id = create_host_response["host"]["id"]
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    created_host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    created_host_tags = host_tags_response_data["results"][created_host_id]
 
     assert len(created_host_tags) == len(create_tags)
 
@@ -1103,13 +1332,19 @@ def test_update_host_does_not_remove_namespace(api_create_or_update_host, api_ge
 
     host = minimal_host(insights_id=insights_id, tags=update_tags)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    host_tags_response = api_get_host(f"{HOST_URL}/{created_host_id}/tags", expected_status=200)
-    updated_host_tags = host_tags_response["results"][created_host_id]
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    updated_host_tags = host_tags_response_data["results"][created_host_id]
 
     assert len(updated_host_tags) == len(create_tags) + len(update_tags)
 
@@ -1118,9 +1353,9 @@ def test_update_host_does_not_remove_namespace(api_create_or_update_host, api_ge
 def test_create_host_with_nested_tags(api_create_or_update_host):
     host = minimal_host(tags={"namespace": {"key": ["value"]}})
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
@@ -1130,9 +1365,9 @@ def test_create_host_without_culling_fields(api_create_or_update_host, fields_to
     for field in fields_to_delete:
         delattr(host, field)
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
@@ -1140,9 +1375,9 @@ def test_create_host_without_culling_fields(api_create_or_update_host, fields_to
 def test_create_host_with_null_culling_fields(api_create_or_update_host, culling_fields):
     host = minimal_host(fqdn="match this host", **{field: None for field in culling_fields})
 
-    multi_response = api_create_or_update_host([host], expected_status=400)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
 
-    assert_error_response(multi_response, expected_title="Bad Request", expected_status=400)
+    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling
@@ -1150,8 +1385,11 @@ def test_create_host_with_null_culling_fields(api_create_or_update_host, culling
 def test_create_host_with_empty_culling_fields(api_create_or_update_host, culling_fields):
     host = minimal_host(**{field: "" for field in culling_fields})
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -1160,8 +1398,11 @@ def test_create_host_with_empty_culling_fields(api_create_or_update_host, cullin
 def test_create_host_with_invalid_stale_timestamp(api_create_or_update_host):
     host = minimal_host(stale_timestamp="not a timestamp")
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
 
@@ -1173,8 +1414,11 @@ def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host
 
     host = minimal_host(stale_timestamp=stale_timestamp.isoformat(), reporter=reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1195,8 +1439,11 @@ def test_update_stale_timestamp_from_same_reporter(api_create_or_update_host, ge
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1211,8 +1458,11 @@ def test_update_stale_timestamp_from_same_reporter(api_create_or_update_host, ge
 
     host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -1231,8 +1481,11 @@ def test_dont_update_stale_timestamp_from_same_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1246,8 +1499,11 @@ def test_dont_update_stale_timestamp_from_same_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -1265,8 +1521,11 @@ def test_update_stale_timestamp_from_different_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1282,8 +1541,11 @@ def test_update_stale_timestamp_from_different_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -1302,8 +1564,11 @@ def test_update_stale_host_timestamp_from_next_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1319,8 +1584,11 @@ def test_update_stale_host_timestamp_from_next_reporter(api_create_or_update_hos
 
     host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -1339,8 +1607,11 @@ def test_dont_update_stale_timestamp_from_different_reporter(api_create_or_updat
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    create_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_created(create_host_response)
 
@@ -1355,8 +1626,11 @@ def test_dont_update_stale_timestamp_from_different_reporter(api_create_or_updat
 
     host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter")
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    update_host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
 
     assert_host_was_updated(create_host_response, update_host_response)
 
@@ -1370,7 +1644,10 @@ def test_dont_update_stale_timestamp_from_different_reporter(api_create_or_updat
 def test_create_host_with_stale_timestamp_without_time_zone(api_create_or_update_host):
     host = minimal_host(stale_timestamp=datetime.now().isoformat(), reporter="reporter")
 
-    multi_response = api_create_or_update_host([host], expected_status=207)
-    host_response = get_host_from_multi_response(multi_response)
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    host_response = get_host_from_multi_response(multi_response_data)
 
     assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
