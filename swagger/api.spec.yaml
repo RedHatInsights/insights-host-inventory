@@ -53,6 +53,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/fieldsParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -486,8 +487,22 @@ components:
         type: string
         enum:
           - insights
-
-
+    fieldsParam:
+      in: query
+      name: fields
+      style: deepObject
+      allowReserved: true
+      description: "Include extra fields for each host. If the requested field does not exist, it will be omitted.
+      Request by passing a JSON object, or in the URL via `?fields[system_profile]=os_release, arch`.
+      **Currently only extra fields for system_profile can be queried.**
+      See [System profile fields]('#/components/schemas/SystemProfileIn' ) for a list of possible fields to include."
+      schema:
+        type: object
+        example:
+          system_profile: 'os_release, arch'
+        properties:
+          system_profile:
+            type: string
   schemas:
     TagsOut:
       type: object
@@ -846,6 +861,7 @@ components:
       description: A database entry representing a single host with its Inventory metadata.
       allOf:
         - $ref: '#/components/schemas/CreateHostOut'
+        - $ref: '#/components/schemas/SystemProfileIn'
         - type: object
           properties:
             facts:

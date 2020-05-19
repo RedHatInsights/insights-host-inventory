@@ -80,7 +80,7 @@ def deserialize_host_xjoin(data):
     return host
 
 
-def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
+def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, extra_fields=None):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
@@ -120,6 +120,21 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
+    if extra_fields:
+        if "system_profile" in extra_fields:
+            system_profile_attributes = extra_fields["system_profile"].replace(" ", "").split(",")
+            serialized_host["system_profile"] = {}
+            for system_profile_attribute in system_profile_attributes:
+                if system_profile_attribute not in host.system_profile_facts:
+                    continue
+                if host.system_profile_facts and system_profile_attribute in host.system_profile_facts:
+                    serialized_host["system_profile"][system_profile_attribute] = host.system_profile_facts[
+                        system_profile_attribute
+                    ]
+                elif host.system_profile_facts and system_profile_attribute == "*":
+                    serialized_host["system_profile"] = host.system_profile_facts
+                else:
+                    serialized_host["system_profile"][system_profile_attribute] = "not found"
 
     return serialized_host
 

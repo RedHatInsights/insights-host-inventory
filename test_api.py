@@ -2312,6 +2312,39 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
         self.get(test_url, 200)
 
 
+class QueryByOsMajorTestCase(DBAPITestCase):
+    def test_query_with_matching_os_major(self):
+        facts = None
+
+        for i in range(4):
+            host = test_data(display_name=f"host{i}", facts=facts)
+            host["rhel_machine_id"] = generate_uuid()
+            host["ip_addresses"] = ["10.0.0.1"]
+            host["system_profile"] = valid_system_profile()
+            host["system_profile"]["os_release"] = f"rhel{i}"
+
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+
+        os_major = str(6)
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release&os_major=" + os_major
+        host_lookup_results = self.get(test_url, 200)
+
+        for host in host_lookup_results["results"]:
+            self.assertEqual(f"rhel{os_major}", host["system_profile"]["os_release"])
+
+    def test_query_with_no_matching_os_major(self):
+        fake_os_major = str(583491920)
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release&os_major=" + fake_os_major
+        host_lookup_results = self.get(test_url, 200)
+        self.assertEqual(0, len(host_lookup_results["results"]))
+
+    def test_query_with_invalid_os_major(self):
+        fake_os_major = "wrongformat"
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release&os_major=" + fake_os_major
+        self.get(test_url, 400)
+
+
 @patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
 class QueryByCanonicalFactPerformanceTestCase(DBAPITestCase):
     def test_query_using_fqdn_not_subset_match(self, canonical_fact_host_query):
@@ -4643,6 +4676,54 @@ class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
     def test_no_header_env_var_db(self, graphql_query):
         self.get(f"{HOST_URL}", 200)
         graphql_query.assert_not_called()
+
+
+class SparseFieldsetTestCase(DBAPITestCase):
+    def test_system_profile_sparse_attributes(self):
+        facts = None
+        expected_os_releases = []
+        expected_archs = []
+
+        for i in range(4):
+            host = test_data(display_name=f"host{i}", facts=facts)
+            host["rhel_machine_id"] = generate_uuid()
+            host["ip_addresses"] = ["10.0.0.1"]
+            host["system_profile"] = valid_system_profile()
+            host["system_profile"]["os_release"] = f"rhel{i}"
+            host["system_profile"]["arch"] = f"x6{i}"
+
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+
+            expected_os_releases.append(host["system_profile"]["os_release"])
+            expected_archs.append(host["system_profile"]["arch"])
+
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release, arch"
+        host_lookup_results = self.get(test_url, 200)
+        returned_os_releases = []
+        returned_archs = []
+
+        for host in host_lookup_results["results"]:
+            returned_os_releases.append(host["system_profile"]["os_release"])
+            returned_archs.append(host["system_profile"]["arch"])
+
+        for expected_os_release in expected_os_releases:
+            self.assertIn(expected_os_release, returned_os_releases)
+        for expected_arch in expected_archs:
+            self.assertIn(expected_arch, returned_archs)
+
+    def test_request_unknown_sparse_attr(self):
+        facts = None
+        host = test_data(display_name="host", facts=facts)
+        host["rhel_machine_id"] = generate_uuid()
+        host["ip_addresses"] = ["10.0.0.1"]
+        response = self.post(HOST_URL, [host], 207)
+        self._verify_host_status(response, 0, 201)
+
+        test_url = f"{HOST_URL}?fields[wrongmethod]=wrongvalue, wrongvalue2"
+        host_lookup_results = self.get(test_url, 200)
+
+        self.assertNotIn("wrongmethod", host_lookup_results["results"][0])
 
 
 if __name__ == "__main__":
