@@ -8,6 +8,7 @@ from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
 from lib.host_repository import canonical_fact_host_query
+from lib.host_repository import system_profile_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
 
 __all__ = ("get_host_list", "params_to_order_by")
@@ -29,6 +30,7 @@ def get_host_list(
     order_how,
     staleness,
     registered_with,
+    os_release,
 ):
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
@@ -38,6 +40,8 @@ def get_host_list(
         query = _find_hosts_by_hostname_or_id(hostname_or_id)
     elif insights_id:
         query = _find_hosts_by_canonical_fact("insights_id", insights_id)
+    elif os_release:
+        query = _find_hosts_by_system_profile_fact("os_release", os_release)
     else:
         query = _find_all_hosts()
 
@@ -102,6 +106,10 @@ def _find_all_hosts():
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
     return canonical_fact_host_query(current_identity.account_number, canonical_fact, value)
+
+
+def _find_hosts_by_system_profile_fact(system_profile_fact, value):
+    return system_profile_fact_host_query(current_identity.account_number, system_profile_fact, value)
 
 
 def _find_hosts_by_tag(string_tags, query):

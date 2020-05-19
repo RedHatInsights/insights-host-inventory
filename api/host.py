@@ -139,6 +139,7 @@ def get_host_list(
     order_how=None,
     staleness=None,
     registered_with=None,
+    os_release=None,
 ):
     total = 0
     host_list = ()
@@ -160,6 +161,7 @@ def get_host_list(
             order_how,
             staleness,
             registered_with,
+            os_release
         )
     except ValueError as e:
         flask.abort(400, str(e))

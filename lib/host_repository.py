@@ -97,6 +97,13 @@ def canonical_facts_host_query(account_number, canonical_facts):
     return find_non_culled_hosts(query)
 
 
+def system_profile_fact_host_query(account_number, system_profile_fact, value):
+    query = Host.query.filter(
+        (Host.account == account_number) & (Host.system_profile_facts[system_profile_fact].astext == value)
+    )
+    return find_non_culled_hosts(query)
+
+
 def find_host_by_canonical_fact(account_number, canonical_fact, value):
     """
     Returns first match for a host containing given canonical facts

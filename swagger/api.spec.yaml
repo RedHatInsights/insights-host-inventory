@@ -39,6 +39,13 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - in: query
+          name: os_release
+          schema:
+            type: string
+            format: string
+          description: Search for a host by os_release
+          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
