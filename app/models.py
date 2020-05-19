@@ -66,6 +66,7 @@ class Host(db.Model):
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
+    system_profile = orm.synonym("system_profile_facts")
     stale_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
 

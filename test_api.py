@@ -4478,5 +4478,53 @@ class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
         graphql_query.assert_not_called()
 
 
+class SparseFieldsetTestCase(DBAPITestCase):
+    def test_system_profile_sparse_attributes(self):
+        facts = None
+        expected_os_releases = []
+        expected_archs = []
+
+        for i in range(4):
+            host = test_data(display_name=f"host{i}", facts=facts)
+            host["rhel_machine_id"] = generate_uuid()
+            host["ip_addresses"] = ["10.0.0.1"]
+            host["system_profile"] = valid_system_profile()
+            host["system_profile"]["os_release"] = f"rhel{i}"
+            host["system_profile"]["arch"] = f"x6{i}"
+
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+
+            expected_os_releases.append(host["system_profile"]["os_release"])
+            expected_archs.append(host["system_profile"]["arch"])
+
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release, arch"
+        host_lookup_results = self.get(test_url, 200)
+        returned_os_releases = []
+        returned_archs = []
+
+        for host in host_lookup_results["results"]:
+            returned_os_releases.append(host["system_profile"]["os_release"])
+            returned_archs.append(host["system_profile"]["arch"])
+
+        for expected_os_release in expected_os_releases:
+            self.assertIn(expected_os_release, returned_os_releases)
+        for expected_arch in expected_archs:
+            self.assertIn(expected_arch, returned_archs)
+
+    def test_request_unknown_sparse_attr(self):
+        facts = None
+        host = test_data(display_name="host", facts=facts)
+        host["rhel_machine_id"] = generate_uuid()
+        host["ip_addresses"] = ["10.0.0.1"]
+        response = self.post(HOST_URL, [host], 207)
+        self._verify_host_status(response, 0, 201)
+
+        test_url = f"{HOST_URL}?fields[wrongmethod]=wrongvalue, wrongvalue2"
+        host_lookup_results = self.get(test_url, 200)
+
+        self.assertNotIn("wrongmethod", host_lookup_results["results"][0])
+
+
 if __name__ == "__main__":
     main()

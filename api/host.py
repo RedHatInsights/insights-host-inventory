@@ -145,6 +145,7 @@ def get_host_list(
     order_how=None,
     staleness=None,
     registered_with=None,
+    fields=None,
 ):
     total = 0
     host_list = ()
@@ -170,7 +171,7 @@ def get_host_list(
     except ValueError as e:
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, fields)
     return flask_json_response(json_data)
 
 
