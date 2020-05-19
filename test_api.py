@@ -11,6 +11,7 @@ from datetime import timedelta
 from datetime import timezone
 from functools import partial
 from itertools import chain
+from itertools import product
 from json import dumps
 from struct import unpack
 from unittest import main
@@ -1182,28 +1183,37 @@ class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
         self.assertEqual(reporter, retrieved_host.reporter)
 
     def test_always_update_stale_timestamp_from_next_reporter(self):
-        current_timestamp = now()
-
-        old_stale_timestamp = current_timestamp + timedelta(days=1)
+        old_stale_timestamp = now() + timedelta(days=2)
         old_reporter = "old reporter"
 
-        created_host_id = self._add_host(201, stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
-        old_retrieved_host = self._retrieve_host(created_host_id)
+        timestamps = (old_stale_timestamp + timedelta(days=1), old_stale_timestamp - timedelta(days=1))
+        reporters = (old_reporter, "new reporter")
+        for new_stale_timestamp, new_reporter in product(timestamps, reporters):
+            with self.subTest(stale_timestamp=new_stale_timestamp, reporter=new_reporter):
+                print("DISTEST", new_stale_timestamp, new_reporter)
+                insights_id = generate_uuid()
+                created_host = self._add_host(
+                    201,
+                    insights_id=insights_id,
+                    stale_timestamp=old_stale_timestamp.isoformat(),
+                    reporter=old_reporter,
+                )
+                old_retrieved_host = self._retrieve_host(created_host)
 
-        self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
-        self.assertEqual(old_reporter, old_retrieved_host.reporter)
+                self.assertEqual(old_stale_timestamp, old_retrieved_host.stale_timestamp)
+                self.assertEqual(old_reporter, old_retrieved_host.reporter)
 
-        new_stale_timestamp = current_timestamp + timedelta(days=2)
-        new_reporter = "new reporter"
-        self._add_host(200, stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
+                self._add_host(
+                    200,
+                    insights_id=insights_id,
+                    stale_timestamp=new_stale_timestamp.isoformat(),
+                    reporter=new_reporter,
+                )
 
-        new_retrieved_host = self._retrieve_host(created_host_id)
+                new_retrieved_host = self._retrieve_host(created_host)
 
-        self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
-        self.assertEqual(new_reporter, new_retrieved_host.reporter)
-
-    def test_create_host_with_stale_timestamp_without_time_zone(self):
-        self._add_host(400, stale_timestamp=datetime.now().isoformat())
+                self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
+                self.assertEqual(new_reporter, new_retrieved_host.reporter)
 
 
 class DeleteHostsBaseTestCase(DBAPITestCase):

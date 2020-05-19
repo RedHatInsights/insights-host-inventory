@@ -3,6 +3,7 @@ from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from itertools import product
 from json import dumps
 from random import choice
 from unittest import main
@@ -1414,28 +1415,20 @@ class HostUpdateStaleTimestamp(TestCase):
         self.assertEqual(stale_timestamp, host.stale_timestamp)
         self.assertEqual(reporter, host.reporter)
 
-    def test_updated_with_same_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        reporter = "some reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
+    def test_always_updated(self):
+        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        old_reporter = "old reporter"
+        stale_timestamps = (old_stale_timestamp - timedelta(days=1), old_stale_timestamp - timedelta(days=2))
+        reporters = (old_reporter, "new reporter")
+        for new_stale_timestamp, new_reporter in product(stale_timestamps, reporters):
+            with self.subTest(stale_timestamps=new_stale_timestamp, reporter=new_reporter):
+                host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
 
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        host._update_stale_timestamp(new_stale_timestamp, reporter)
+                new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+                host._update_stale_timestamp(new_stale_timestamp, new_reporter)
 
-        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-
-    def test_always_updated_with_different_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        old_reporter = "some old reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        new_reporter = "some new reporter"
-        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
-
-        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(new_reporter, host.reporter)
+                self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+                self.assertEqual(new_reporter, host.reporter)
 
 
 class SerializationDeserializeTags(TestCase):

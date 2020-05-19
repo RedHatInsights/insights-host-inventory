@@ -177,9 +177,8 @@ class Host(db.Model):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
-        if stale_timestamp and reporter:
-            self.stale_timestamp = stale_timestamp
-            self.reporter = reporter
+        self.stale_timestamp = stale_timestamp
+        self.reporter = reporter
 
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
