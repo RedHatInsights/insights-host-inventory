@@ -40,11 +40,10 @@ paths:
           description: Search for a host by insights_id
           required: false
         - in: query
-          name: os_release
+          name: os_major
           schema:
             type: string
-            format: string
-          description: Search for a host by os_release
+          description: Search for a host by os_major
           required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'

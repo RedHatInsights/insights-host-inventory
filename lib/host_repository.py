@@ -13,6 +13,8 @@ from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
 
+import re
+
 __all__ = (
     "add_host",
     "canonical_facts_host_query",
@@ -97,10 +99,19 @@ def canonical_facts_host_query(account_number, canonical_facts):
     return find_non_culled_hosts(query)
 
 
-def system_profile_fact_host_query(account_number, system_profile_fact, value):
-    query = Host.query.filter(
-        (Host.account == account_number) & (Host.system_profile_facts[system_profile_fact].astext == value)
-    )
+def system_profile_fact_host_query(account_number, system_profile_fact, value,
+                                   regex=None):
+    if regex:
+        logger.info("FINDING OSMAJOR (%s, %s)", regex, value)
+        logger.info("SYSTEMPROFILEFACTS 2 (%s)", Host.system_profile_facts[system_profile_fact].astext)
+        query = Host.query.filter(
+            (Host.account == account_number) &
+            (re.match(regex, Host.system_profile_facts[system_profile_fact].astext).group(2) == value)
+        )
+    else:
+        query = Host.query.filter(
+            (Host.account == account_number) & (Host.system_profile_facts[system_profile_fact].astext == value)
+        )
     return find_non_culled_hosts(query)
 
 
