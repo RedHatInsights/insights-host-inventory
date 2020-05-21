@@ -6,7 +6,7 @@ def message_produced(logger, value, key, headers, record_metadata):
     extra = {"status": status, "offset": offset, "timestamp": timestamp, "topic": topic, "key": key}
 
     info_extra = {**extra, "headers": headers}
-    info_message = f"Message %s offset=%d timestamp=%d topic=%s, key=%s, headers=%s"
+    info_message = "Message %s offset=%d timestamp=%d topic=%s, key=%s, headers=%s"
     logger.info(info_message, status, offset, timestamp, topic, key, headers, extra=info_extra)
 
     debug_message = "Message offset=%d timestamp=%d topic=%s key=%s value=%s"
@@ -20,7 +20,7 @@ def message_not_produced(logger, topic, value, key, headers, error):
     extra = {"status": status, "topic": topic, "key": key}
 
     info_extra = {**extra, "headers": headers, "error": error_message}
-    info_message = f"Message %s topic=%s, key=%s, headers=%s, error=%s"
+    info_message = "Message %s topic=%s, key=%s, headers=%s, error=%s"
     logger.info(info_message, status, topic, key, headers, error, extra=info_extra)
 
     debug_message = "Message topic=%s key=%s value=%s"
