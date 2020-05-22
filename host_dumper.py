@@ -5,10 +5,11 @@ import pprint
 from app import create_app
 from app import inventory_config
 from app.culling import Timestamps
+from app.environment import RuntimeEnvironment
 from app.models import Host
 from app.serialization import serialize_host
 
-application = create_app("cli")
+application = create_app(RuntimeEnvironment.COMMAND)
 
 parser = argparse.ArgumentParser(
     description="Util that dumps a host from the hosts table.  The db configuration is read from the environment.  "

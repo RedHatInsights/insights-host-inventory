@@ -23,9 +23,9 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
-from app.config import RuntimeEnvironment
 from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
+from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -221,7 +221,7 @@ class TrustedIdentityTestCase(TestCase):
 class ConfigTestCase(TestCase):
     @staticmethod
     def _config():
-        return Config(RuntimeEnvironment.server)
+        return Config(RuntimeEnvironment.SERVER)
 
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
@@ -261,7 +261,7 @@ class ConfigTestCase(TestCase):
         expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
-        # Make sure the environment variables are not set
+        # Make sure the runtime_environment variables are not set
         with set_environment(None):
 
             conf = self._config()
@@ -285,7 +285,7 @@ class ConfigTestCase(TestCase):
 @patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config):
-        app = create_app("testing")
+        app = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", app.config)
         self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
 

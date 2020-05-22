@@ -2,6 +2,7 @@ from pytest import fixture
 
 from app import create_app
 from app import db
+from app.environment import RuntimeEnvironment
 from test_utils import rename_host_table_and_indexes
 
 
@@ -9,7 +10,7 @@ from test_utils import rename_host_table_and_indexes
 def flask_app_fixture():
     rename_host_table_and_indexes()
 
-    app = create_app(config_name="testing")
+    app = create_app(RuntimeEnvironment.TEST)
 
     # binds the app to the current context
     with app.app_context() as ctx:
