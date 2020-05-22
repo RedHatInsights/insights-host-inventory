@@ -21,8 +21,9 @@ from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import host_reaper_fail_count
-from tasks import flush
-from tasks import init_tasks
+
+# from tasks import flush
+# from tasks import init_tasks
 
 __all__ = ("main", "run")
 
@@ -67,7 +68,7 @@ def run(config, logger_, session):
 
 def main(config_name, logger):
     config = _init_config(config_name)
-    init_tasks(config)
+    # init_tasks(config)
 
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
@@ -80,7 +81,7 @@ def main(config_name, logger):
         with session_guard(session):
             run(config, logger, session)
     finally:
-        flush()
+        # flush()
 
         job = _prometheus_job(config.kubernetes_namespace)
         push_to_gateway(config.prometheus_pushgateway, job, registry)

@@ -14,7 +14,8 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.events import build_egress_topic_event
+from app.queue.events import build_event
+from app.queue.events import EventTypes
 from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
@@ -144,7 +145,7 @@ def handle_message(message, event_producer):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
+        event = build_event(EventTypes.updated, output_host, platform_metadata)
         event_producer.write_event_egress_topic(event, output_host["id"], message_headers(add_results.name))
 
 

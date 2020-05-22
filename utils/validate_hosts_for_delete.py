@@ -3,15 +3,17 @@ from app import UNKNOWN_REQUEST_ID_VALUE
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.queue import events
+from app.queue.events import build_event
 from app.queue.events import HostEvent
+
+# from app.queue.queue import events
 
 logger = get_logger("utils")
 
 
 def test_validations(host):
     schema = HostEvent()
-    event = events.delete(host)
+    event = build_event(host)
     deserialized = schema.loads(event)
     return deserialized.errors
 

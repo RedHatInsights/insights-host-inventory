@@ -1,18 +1,22 @@
+from flask import current_app
 from sqlalchemy.orm.base import instance_state
 
 from app.models import Host
-from app.queue.events import delete as delete_event
-from app.queue.events import DELETE_EVENT_NAME
+from app.queue.event_producer import Topics
+from app.queue.events import build_event
+from app.queue.events import EventTypes
 from app.queue.events import message_headers
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
-from tasks import emit_event
+
+# from app.logging import threadctx
+
 
 __all__ = ("delete_hosts",)
 CHUNK_SIZE = 1000
 
 
-def delete_hosts(select_query):
+def delete_hosts(select_query, request_id):
     while select_query.count():
         for host in select_query.limit(CHUNK_SIZE):
             host_id = host.id
@@ -22,7 +26,10 @@ def delete_hosts(select_query):
             host_deleted = _deleted_by_this_query(host)
             if host_deleted:
                 delete_host_count.inc()
-                _emit_event(host)
+                event = build_event(EventTypes.delete, host)
+                current_app.event_producer.write_event(
+                    event, str(host.id), message_headers(EventTypes.delete), Topics.event, request_id
+                )
 
             yield host_id, host_deleted
 
@@ -40,10 +47,3 @@ def _deleted_by_this_query(host):
     # change that the host is called by a new query and, if deleted by a
     # different process, triggers the ObjectDeletedError and is not emited.
     return not instance_state(host).expired
-
-
-def _emit_event(host):
-    event = delete_event(host)
-    key = str(host.id)
-    headers = message_headers(DELETE_EVENT_NAME)
-    emit_event(event, key, headers)

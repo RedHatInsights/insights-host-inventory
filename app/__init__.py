@@ -15,8 +15,8 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
+from app.queue.event_producer import EventProducer
 from app.validators import verify_uuid_format  # noqa: 401
-from tasks import init_tasks
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ def inventory_config():
     return current_app.config["INVENTORY_CONFIG"]
 
 
-def create_app(config_name, start_tasks=False, start_payload_tracker=False):
+def create_app(config_name, start_payload_tracker=False):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
@@ -85,13 +85,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
-    if start_tasks:
-        init_tasks(app_config)
-    else:
-        logger.warning(
-            "WARNING: The tasks subsystem has been disabled.  "
-            "The message queue based event notifications have been disabled."
-        )
+    flask_app.event_producer = EventProducer(app_config)
 
     payload_tracker_producer = None
     if start_payload_tracker is False:

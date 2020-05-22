@@ -1,20 +1,28 @@
 import logging
 from datetime import datetime
 from datetime import timezone
+from enum import Enum
 
 from marshmallow import fields
 from marshmallow import Schema
 
-from app.logging import threadctx
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
-from app.queue import metrics
 from app.serialization import serialize_canonical_facts
+
+# from app.logging import threadctx
+# from app.queue import metrics
 
 logger = logging.getLogger(__name__)
 
-DELETE_EVENT_NAME = "delete"
-UPDATE_EVENT_NAME = "updated"
+# DELETE_EVENT_NAME = "delete"
+# UPDATE_EVENT_NAME = "updated"
+
+
+class EventTypes(Enum):
+    create = "created"
+    update = "updated"
+    delete = "delete"
 
 
 # Schemas
@@ -50,6 +58,13 @@ class HostSchema(Schema):
     system_profile = fields.Nested(SystemProfileSchema)
 
 
+class HostCreateUpdateEvent(Schema):
+    type = fields.Str()
+    host = fields.Nested(HostSchema())
+    timestamp = fields.DateTime(format="iso8601")
+    platform_metadata = fields.Dict()
+
+
 class HostDeleteEvent(Schema):
     id = fields.UUID()
     timestamp = fields.DateTime(format="iso8601")
@@ -59,58 +74,48 @@ class HostDeleteEvent(Schema):
     request_id = fields.Str()
 
 
-class HostCreateUpdateEvent(Schema):
-    type = fields.Str()
-    host = fields.Nested(HostSchema())
-    timestamp = fields.DateTime(format="iso8601")
-    platform_metadata = fields.Dict()
+def message_headers(event_type):
+    return {"event_type": event_type.name}
 
 
-# Events
-def delete(host):
+def dumpHostCreateUpdateEvent(event_type, host, platform_metadata):
     return (
-        HostDeleteEvent()
+        HostCreateUpdateEvent(strict=True)
         .dumps(
             {
-                "timestamp": datetime.utcnow(),
-                "id": host.id,
-                **serialize_canonical_facts(host.canonical_facts),
-                "account": host.account,
-                "request_id": threadctx.request_id,
-                "type": "delete",
+                "timestamp": datetime.now(timezone.utc),
+                "type": event_type,
+                "host": host,
+                "platform_metadata": platform_metadata,
             }
         )
         .data
     )
 
 
-def message_headers(event_type):
-    return {"event_type": event_type}
+def dumpHostDeleteEvent(event_type, host, request_id):
+    return (
+        HostDeleteEvent()
+        .dumps(
+            {
+                "timestamp": datetime.utcnow(),
+                "type": "delete",
+                "id": host.id,
+                **serialize_canonical_facts(host.canonical_facts),
+                "account": host.account,
+                "request_id": request_id,
+            }
+        )
+        .data
+    )
 
 
 # Event Constructors
-def _build_event(event_type, host, *, platform_metadata=None, request_id=None):
-    if event_type in ("created", "updated"):
-        return (
-            HostCreateUpdateEvent(strict=True)
-            .dumps(
-                {
-                    "type": event_type,
-                    "host": host,
-                    "platform_metadata": platform_metadata,
-                    "timestamp": datetime.now(timezone.utc),
-                }
-            )
-            .data
-        )
+def build_event(event_type, host, *, platform_metadata=None, request_id=None):
+    # using enum now. Need to handle delete events too
+    if event_type == EventTypes.create or event_type == EventTypes.update:
+        return dumpHostCreateUpdateEvent(event_type, host, platform_metadata)
+    if event_type == EventTypes.delete:
+        return dumpHostDeleteEvent(event_type, host, request_id)
     else:
         raise ValueError(f"Invalid event type ({event_type})")
-
-
-@metrics.egress_event_serialization_time.time()
-def build_egress_topic_event(event_type, host, platform_metadata=None):
-    return _build_event(event_type, host, platform_metadata=platform_metadata)
-
-
-def build_event_topic_event(event_type, host, request_id=None):
-    return _build_event(event_type, host, request_id=request_id)

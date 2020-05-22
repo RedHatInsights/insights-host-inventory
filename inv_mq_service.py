@@ -8,7 +8,7 @@ from app import create_app
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.event_producer import KafkaEventProducer
+from app.queue.event_producer import EventProducer
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 
@@ -44,7 +44,7 @@ def main():
         **config.kafka_consumer,
     )
 
-    event_producer = KafkaEventProducer(config)
+    event_producer = EventProducer(config)
 
     try:
         event_loop(consumer, application, event_producer, handle_message, ShutdownHandler())
