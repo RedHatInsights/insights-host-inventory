@@ -25,6 +25,10 @@ logger = get_logger(__name__)
 
 db = SQLAlchemy()
 
+TAG_NAMESPACE_VALIDATION = validate.Length(max=255)
+TAG_KEY_VALIDATION = validate.Length(min=1, max=255)
+TAG_VALUE_VALIDATION = validate.Length(max=255)
+
 
 def _set_display_name_on_save(context):
     """
@@ -98,12 +102,13 @@ class Host(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts
-        self.tags = tags
+        self.tags = tags or {}
         self.system_profile_facts = system_profile_facts or {}
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
     def save(self):
+        self._cleanup_tags()
         db.session.add(self)
 
     def update(self, input_host, update_system_profile=False):
@@ -118,7 +123,7 @@ class Host(db.Model):
 
         self.update_facts(input_host.facts)
 
-        self.update_tags(input_host.tags)
+        self._update_tags(input_host.tags)
 
         if update_system_profile:
             self._update_system_profile(input_host.system_profile_facts)
@@ -189,18 +194,32 @@ class Host(db.Model):
         self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def update_tags(self, tags_dict):
-        if tags_dict:
-            if not self.tags:
-                self.tags = tags_dict
-                return
+    def _update_tags(self, tags_dict):
+        if not self.tags:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
+            self.tags = {}
 
-            for input_namespace, input_tags in tags_dict.items():
-                self.replace_tags_in_namespace(input_namespace, input_tags)
+        for namespace, ns_tags in tags_dict.items():
+            if ns_tags:
+                self._replace_tags_in_namespace(namespace, ns_tags)
+            else:
+                self._delete_tags_namespace(namespace)
 
-    def replace_tags_in_namespace(self, namespace, tags_dict):
-        self.tags[namespace] = tags_dict
+    def _replace_tags_in_namespace(self, namespace, tags):
+        self.tags[namespace] = tags
         orm.attributes.flag_modified(self, "tags")
+
+    def _delete_tags_namespace(self, namespace):
+        try:
+            del self.tags[namespace]
+        except KeyError:
+            pass
+
+        orm.attributes.flag_modified(self, "tags")
+
+    def _cleanup_tags(self):
+        namespaces_to_delete = tuple(namespace for namespace, items in self.tags.items() if not items)
+        for namespace in namespaces_to_delete:
+            self._delete_tags_namespace(namespace)
 
     def merge_facts_in_namespace(self, namespace, facts_dict):
         if not facts_dict:
@@ -307,9 +326,9 @@ class FactsSchema(Schema):
 
 
 class TagsSchema(Schema):
-    namespace = fields.Str(required=False, allow_none=True, validate=[validate.Length(min=1, max=255)])
-    key = fields.Str(required=True, allow_none=False, validate=[validate.Length(min=1, max=255)])
-    value = fields.Str(required=False, allow_none=True, validate=[validate.Length(min=1, max=255)])
+    namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
+    key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
+    value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
 class HostSchema(Schema):
@@ -326,7 +345,7 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)), validate=validate.Length(min=1))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    tags = fields.List(fields.Nested(TagsSchema))
+    tags = fields.Raw(allow_none=True)
     system_profile = fields.Nested(SystemProfileSchema)
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
@@ -335,6 +354,47 @@ class HostSchema(Schema):
     def has_timezone_info(self, timestamp):
         if timestamp.tzinfo is None:
             raise ValidationError("Timestamp must contain timezone info")
+
+    @validates("tags")
+    def validate_tags(self, tags):
+        if isinstance(tags, list):
+            return self._validate_tags_list(tags)
+        elif isinstance(tags, dict):
+            return self._validate_tags_dict(tags)
+        elif tags is None:
+            return True
+        else:
+            raise ValidationError("Tags must be either an object, an array or null.")
+
+    @staticmethod
+    def _validate_tags_list(tags):
+        TagsSchema(many=True, strict=True).validate(tags)
+        return True
+
+    @staticmethod
+    def _validate_tags_dict(tags):
+        for namespace, ns_tags in tags.items():
+            TAG_NAMESPACE_VALIDATION(namespace)
+            if ns_tags is None:
+                continue
+            if not isinstance(ns_tags, dict):
+                raise ValidationError("Tags in a namespace must be an object or null.")
+
+            for key, values in ns_tags.items():
+                TAG_KEY_VALIDATION(key)
+                if values is None:
+                    continue
+                if not isinstance(values, list):
+                    raise ValidationError("Tag values must be an array or null.")
+
+                for value in values:
+                    if value is None:
+                        continue
+                    if not isinstance(value, str):
+                        raise ValidationError("Tag value must be a string or null.")
+                    TAG_VALUE_VALIDATION(value)
+
+        return True
 
 
 class PatchHostSchema(Schema):
