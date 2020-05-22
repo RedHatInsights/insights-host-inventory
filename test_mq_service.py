@@ -12,6 +12,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import marshmallow
+from sqlalchemy import null
 
 from app import create_app
 from app import db
@@ -219,10 +220,13 @@ class MQAddHostBaseClass(MQServiceBaseTestCase):
     def _base_add_host_test(self, host_data, expected_results, host_keys_to_check):
         mock_event_producer = self._handle_message(host_data)
 
-        self.assertEqual(json.loads(mock_event_producer.event)["host"]["id"], mock_event_producer.key)
+        event = json.loads(mock_event_producer.event)
+        self.assertEqual(event["host"]["id"], mock_event_producer.key)
 
         for key in host_keys_to_check:
-            self.assertEqual(json.loads(mock_event_producer.event)["host"][key], expected_results["host"][key])
+            self.assertEqual(event["host"][key], expected_results["host"][key])
+
+        return event
 
 
 class MQhandleMessageTestCase(MQAddHostBaseClass):
@@ -355,8 +359,13 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                 {"namespace": "NS1", "key": "key3", "value": "val3"},
                 {"namespace": "NS3", "key": "key2", "value": "val2"},
                 {"namespace": "Sat", "key": "prod", "value": None},
-                {"namespace": None, "key": "key", "value": "val"},
+                {"namespace": "Sat", "key": "dev", "value": ""},
+                {"namespace": "Sat", "key": "test"},
+                {"namespace": None, "key": "key", "value": "val1"},
+                {"namespace": "", "key": "key", "value": "val4"},
+                {"namespace": "null", "key": "key", "value": "val5"},
                 {"namespace": None, "key": "only_key", "value": None},
+                {"key": "just_key"},
                 {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
             ],
         }
@@ -367,10 +376,23 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "timestamp": timestamp_iso,
             "type": "created",
         }
+        host_keys_to_check = ["display_name", "insights_id", "account"]
+        event = self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-        host_keys_to_check = ["display_name", "insights_id", "account", "tags"]
-
-        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+        expected_tags = [
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "NS3", "key": "key2", "value": "val2"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "dev", "value": None},
+            {"namespace": "Sat", "key": "test", "value": None},
+            {"namespace": None, "key": "key", "value": "val1"},
+            {"namespace": None, "key": "key", "value": "val4"},
+            {"namespace": None, "key": "key", "value": "val5"},
+            {"namespace": None, "key": "only_key", "value": None},
+            {"namespace": None, "key": "just_key", "value": None},
+            {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        ]
+        self.assertCountEqual(event["host"]["tags"], expected_tags)
 
     def test_add_host_with_invalid_tags(self):
         """
@@ -378,13 +400,12 @@ class MQAddHostTestCase(MQAddHostBaseClass):
         """
         too_long = "a" * 256
         for tag in (
-            {"namespace": "", "key": "key", "value": "val"},
             {"namespace": "NS", "key": "", "value": "val"},
-            {"namespace": "NS", "key": "key", "value": ""},
             {"namespace": too_long, "key": "key", "value": "val"},
             {"namespace": "NS", "key": too_long, "value": "val"},
             {"namespace": "NS", "key": "key", "value": too_long},
             {"namespace": "NS", "key": None, "value": too_long},
+            {"namespace": "NS", "value": too_long},
         ):
             with self.subTest(tag=tag):
                 host_data = {
@@ -445,7 +466,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                         handle_message(json.dumps(message), mock_event_producer)
 
     @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_add_host_with_invalid_stale_timestmap(self, datetime_mock):
+    def test_add_host_with_invalid_stale_timestamp(self, datetime_mock):
         mock_event_producer = MockEventProducer()
 
         for stale_timestamp in ("invalid", datetime.now().isoformat()):
@@ -464,66 +485,384 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                         handle_message(json.dumps(message), mock_event_producer)
 
 
-class MQUpdateHostTestCase(MQAddHostBaseClass):
-    def test_update_display_name(self):
+class MQGetFromDbBaseTestCase(MQServiceBaseTestCase):
+    def _get_host_by_insights_id(self, insights_id):
         with self.app.app_context():
-            insights_id = "6da26cbf-7084-4a4b-ba9a-a217b4ef9850"
+            return db.session.query(Host).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
-            self._handle_message(
-                {
-                    "display_name": "test_host",
-                    "insights_id": insights_id,
-                    "account": "0000001",
-                    "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
-                    "reporter": "puptoo",
-                }
-            )
 
-            self._handle_message(
-                {
-                    "display_name": "better_test_host",
-                    "insights_id": insights_id,
-                    "account": "0000001",
-                    "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
-                    "reporter": "puptoo",
-                }
-            )
+class MQAddHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
+    def _message(self, **additional_fields):
+        return {
+            "account": "0000001",
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test",
+            **additional_fields,
+        }
 
-            record = db.session.query(Host).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
-            self.assertEqual(record.display_name, "better_test_host")
+    def test_add_host_with_no_tags(self):
+        for additional_fields in ({}, {"tags": None}, {"tags": []}, {"tags": {}}):
+            with self.subTest(additional_fields=additional_fields):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id, **additional_fields)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(host.tags, {})
+
+    def test_add_host_with_tag_list(self):
+        insights_id = str(uuid.uuid4())
+        tags = [
+            {"namespace": "namespace 1", "key": "key 1", "value": "value 1"},
+            {"namespace": "namespace 1", "key": "key 2", "value": None},
+            {"namespace": "namespace 2", "key": "key 1", "value": None},
+            {"namespace": "namespace 2", "key": "key 1", "value": ""},
+            {"namespace": "namespace 2", "key": "key 1", "value": "value 2"},
+            {"namespace": "", "key": "key 3", "value": "value 3"},
+            {"namespace": None, "key": "key 3", "value": "value 4"},
+            {"namespace": "null", "key": "key 3", "value": "value 5"},
+        ]
+        message = self._message(insights_id=insights_id, tags=tags)
+        self._handle_message(message)
+        host = self._get_host_by_insights_id(insights_id)
+        self.assertEqual(
+            host.tags,
+            {
+                "namespace 1": {"key 1": ["value 1"], "key 2": []},
+                "namespace 2": {"key 1": ["value 2"]},
+                "null": {"key 3": ["value 3", "value 4", "value 5"]},
+            },
+        )
+
+    def test_add_host_with_tag_dict(self):
+        insights_id = str(uuid.uuid4())
+        tags = {
+            "namespace 1": {"key 1": ["value 1"], "key 2": [], "key 3": None},
+            "namespace 2": {"key 1": ["value 2", "", None]},
+            "namespace 3": None,
+            "namespace 4": {},
+            "null": {"key 4": ["value 3"]},
+            "": {"key 4": ["value 4"]},
+        }
+        message = self._message(insights_id=insights_id, tags=tags)
+        self._handle_message(message)
+        host = self._get_host_by_insights_id(insights_id)
+        self.assertEqual(
+            host.tags,
+            {
+                "namespace 1": {"key 1": ["value 1"], "key 2": [], "key 3": []},
+                "namespace 2": {"key 1": ["value 2"]},
+                "null": {"key 4": ["value 3", "value 4"]},
+            },
+        )
+
+    def test_add_host_with_invalid_tags(self):
+        for tags in (
+            "string",
+            123,
+            123.4,
+            [["namespace", "key", "value"]],
+            [{"namespace": {"key": ["value"]}}],
+            {"namespace": ["key", ["value"]]},
+            {"namespace": [["key", "value"]]},
+            {"namespace": ["key", "value"]},
+            {"namespace": "key"},
+            {"namespace": {"key": "value"}},
+            {"namespace": {"key": {"value": "eulav"}}},
+            {"namespace": {"key": [["value"]]}},
+            {"namespace": {"key": [{"value": "eulav"}]}},
+            {"namespace": {"key": [123]}},
+            {"namespace": {"key": [123.4]}},
+            {"namespace": {"": ["value"]}},
+        ):
+            with self.subTest(tags=tags):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id, tags=tags)
+                with self.assertRaises(ValidationException):
+                    self._handle_message(message)
+
+
+class MQUpdateHostTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
+    def test_update_display_name(self):
+        insights_id = "6da26cbf-7084-4a4b-ba9a-a217b4ef9850"
+
+        self._handle_message(
+            {
+                "display_name": "test_host",
+                "insights_id": insights_id,
+                "account": "0000001",
+                "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
+                "reporter": "puptoo",
+            }
+        )
+
+        self._handle_message(
+            {
+                "display_name": "better_test_host",
+                "insights_id": insights_id,
+                "account": "0000001",
+                "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
+                "reporter": "puptoo",
+            }
+        )
+
+        record = self._get_host_by_insights_id(insights_id)
+        self.assertEqual(record.display_name, "better_test_host")
 
     # tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
     def test_display_name_ignored_for_blacklisted_reporters(self):
         for reporter in ["yupana", "rhsm-conduit"]:
             with self.subTest(reporter=reporter):
+                insights_id = str(uuid.uuid4())
+
+                self._handle_message(
+                    {
+                        "display_name": "test_host",
+                        "insights_id": insights_id,
+                        "account": "0000001",
+                        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
+                        "reporter": "puptoo",
+                    }
+                )
+
+                self._handle_message(
+                    {
+                        "display_name": "yupana_test_host",
+                        "insights_id": insights_id,
+                        "account": "0000001",
+                        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+                        "reporter": reporter,
+                    }
+                )
+
+                record = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(record.display_name, "test_host")
+                self.assertEqual(record.reporter, reporter)
+
+
+class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
+    def _message(self, **fields):
+        return {
+            "account": "0000001",
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test",
+            **fields,
+        }
+
+    def test_add_tags_to_host_by_list(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ([], {}),
+            (
+                [{"namespace": "namespace 1", "key": "key 1", "value": "value 1"}],
+                {"namespace 1": {"key 1": ["value 1"]}},
+            ),
+            (
+                [{"namespace": "namespace 2", "key": "key 1", "value": "value 2"}],
+                {"namespace 1": {"key 1": ["value 1"]}, "namespace 2": {"key 1": ["value 2"]}},
+            ),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, tags=message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
+
+    def test_add_tags_to_host_by_dict(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ({}, {}),
+            ({"namespace 1": {"key 1": ["value 1"]}}, {"namespace 1": {"key 1": ["value 1"]}}),
+            (
+                {"namespace 2": {"key 1": ["value 2"]}},
+                {"namespace 1": {"key 1": ["value 1"]}, "namespace 2": {"key 1": ["value 2"]}},
+            ),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, tags=message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
+
+    def test_add_tags_to_hosts_with_null_tags(self):
+        # FIXME: Remove this test after migration to NOT NULL.
+        for empty in (None, null()):
+            with self.subTest(tags=empty):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id)
+                self._handle_message(message)
+
+                created_host = self._get_host_by_insights_id(insights_id)
+                created_host.tags = empty
+
                 with self.app.app_context():
-                    insights_id = str(uuid.uuid4())
+                    db.session.add(created_host)
+                    db.session.commit()
 
-                    self._handle_message(
-                        {
-                            "display_name": "test_host",
-                            "insights_id": insights_id,
-                            "account": "0000001",
-                            "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=26)).isoformat(),
-                            "reporter": "puptoo",
-                        }
-                    )
+                mock_event_producer = self._handle_message(message)
+                event = json.loads(mock_event_producer.event)
+                self.assertEqual([], event["host"]["tags"])
 
-                    self._handle_message(
-                        {
-                            "display_name": "yupana_test_host",
-                            "insights_id": insights_id,
-                            "account": "0000001",
-                            "stale_timestamp": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
-                            "reporter": reporter,
-                        }
-                    )
+                updated_host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual({}, updated_host.tags)
 
-                    record = (
-                        db.session.query(Host).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
-                    )
-                    self.assertEqual(record.display_name, "test_host")
-                    self.assertEqual(record.reporter, reporter)
+    def test_replace_tags_of_host_by_list(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ([], {}),
+            (
+                [
+                    {"namespace": "namespace 1", "key": "key 1", "value": "value 1"},
+                    {"namespace": "namespace 2", "key": "key 2", "value": "value 2"},
+                    {"namespace": "null", "key": "key 3", "value": "value 3"},
+                ],
+                {
+                    "namespace 1": {"key 1": ["value 1"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 3": ["value 3"]},
+                },
+            ),
+            (
+                [{"namespace": "namespace 1", "key": "key 4", "value": "value 4"}],
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 3": ["value 3"]},
+                },
+            ),
+            (
+                [{"key": "key 5", "value": "value 5"}],
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 5": ["value 5"]},
+                },
+            ),
+            (
+                [{"namespace": None, "key": "key 6", "value": "value 6"}],
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 6": ["value 6"]},
+                },
+            ),
+            (
+                [{"namespace": "", "key": "key 7", "value": "value 7"}],
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 7": ["value 7"]},
+                },
+            ),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, tags=message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
+
+    def test_replace_host_tags_by_dict(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ({}, {}),
+            (
+                {
+                    "namespace 1": {"key 1": ["value 1"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 3": ["value 3"]},
+                },
+                {
+                    "namespace 1": {"key 1": ["value 1"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 3": ["value 3"]},
+                },
+            ),
+            (
+                {"namespace 1": {"key 4": ["value 4"]}},
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 3": ["value 3"]},
+                },
+            ),
+            (
+                {"": {"key 5": ["value 5"]}},
+                {
+                    "namespace 1": {"key 4": ["value 4"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "null": {"key 5": ["value 5"]},
+                },
+            ),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, tags=message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
+
+    def test_keep_host_tags_by_empty(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ({"tags": {"namespace 1": {"key 1": ["value 1"]}}}, {"namespace 1": {"key 1": ["value 1"]}}),
+            ({}, {"namespace 1": {"key 1": ["value 1"]}}),
+            ({"tags": None}, {"namespace 1": {"key 1": ["value 1"]}}),
+            ({"tags": []}, {"namespace 1": {"key 1": ["value 1"]}}),
+            ({"tags": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, **message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
+
+    def test_add_host_default_empty_dict(self):
+        for tags in ({}, {"tags": None}, {"tags": []}, {"tags": {}}):
+            with self.subTest(tags=tags):
+                insights_id = str(uuid.uuid4())
+                message = self._message(insights_id=insights_id, **tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual({}, host.tags)
+
+    def test_delete_host_tags(self):
+        insights_id = str(uuid.uuid4())
+
+        for message_tags, expected_tags in (
+            ({}, {}),
+            (
+                {
+                    "namespace 1": {"key 1": ["value 1"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "namespace 3": {"key 3": ["value 3"]},
+                    "null": {"key 4": ["value 4"]},
+                },
+                {
+                    "namespace 1": {"key 1": ["value 1"]},
+                    "namespace 2": {"key 2": ["value 2"]},
+                    "namespace 3": {"key 3": ["value 3"]},
+                    "null": {"key 4": ["value 4"]},
+                },
+            ),
+            (
+                {"namespace 2": None, "namespace 3": {}},
+                {"namespace 1": {"key 1": ["value 1"]}, "null": {"key 4": ["value 4"]}},
+            ),
+            ({"null": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
+            (
+                {"null": {"key 5": ["value 5"]}},
+                {"namespace 1": {"key 1": ["value 1"]}, "null": {"key 5": ["value 5"]}},
+            ),
+            ({"": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
+        ):
+            with self.subTest(tags=message_tags):
+                message = self._message(insights_id=insights_id, tags=message_tags)
+                self._handle_message(message)
+                host = self._get_host_by_insights_id(insights_id)
+                self.assertEqual(expected_tags, host.tags)
 
 
 class MQCullingTests(MQAddHostBaseClass):
