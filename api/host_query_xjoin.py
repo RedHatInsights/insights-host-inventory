@@ -75,6 +75,7 @@ def get_host_list(
     param_order_how,
     staleness,
     registered_with,
+    os_major,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -84,7 +85,9 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
+        "filter": _query_filters(
+            fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, os_major
+        ),
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -106,7 +109,7 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, os_major):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -135,6 +138,8 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+    if os_major:
+        query_filters += ({"AND": {"spf_os_release": {"matches": ("*(%s)*", str(os_major))}}},)
 
     logger.debug(query_filters)
     return query_filters
