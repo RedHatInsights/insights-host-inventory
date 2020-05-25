@@ -42,8 +42,8 @@ paths:
         - in: query
           name: os_major
           schema:
-            type: string
-          description: Search for a host by os_major
+            type: integer
+          description: Search for a host by a major RHEL version
           required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
