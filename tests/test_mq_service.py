@@ -13,10 +13,12 @@ from unittest.mock import patch
 
 import marshmallow
 from sqlalchemy import null
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
 
 from .test_utils import valid_system_profile
-from app import create_app, Config
+from app import Config
+from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException

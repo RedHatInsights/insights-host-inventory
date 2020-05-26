@@ -15,13 +15,15 @@ from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
 
-from app.environment import RuntimeEnvironment
 from .test_utils import set_environment
-from app import create_app, Config
+from app import Config
+from app import create_app
 from app import db
 from app.auth.identity import Identity
+from app.environment import RuntimeEnvironment
 from app.utils import HostWrapper
 
 HOST_URL = "/api/inventory/v1/hosts"
@@ -148,7 +150,7 @@ class APIBaseTestCase(TestCase):
         return self._response_check(response, status, return_response_as_json)
 
     def verify_error_response(
-            self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
+        self, response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
     ):
         def _verify_value(field_name, expected_value):
             assert field_name in response

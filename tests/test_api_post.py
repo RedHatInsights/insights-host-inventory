@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 import copy
 from datetime import timedelta
+from itertools import product
 from unittest import main
 from unittest.mock import call
 from unittest.mock import patch
-
-from itertools import product
 
 import dateutil.parser
 

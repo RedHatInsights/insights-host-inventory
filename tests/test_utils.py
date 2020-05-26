@@ -2,8 +2,6 @@ import contextlib
 import os
 import unittest.mock
 
-from app.models import Host
-
 
 @contextlib.contextmanager
 def set_environment(new_env=None):
