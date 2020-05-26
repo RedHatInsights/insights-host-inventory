@@ -4,6 +4,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.queue.events import build_event
+from app.queue.events import EventTypes
 from app.queue.events import HostEvent
 
 # from app.queue.queue import events
@@ -13,7 +14,7 @@ logger = get_logger("utils")
 
 def test_validations(host):
     schema = HostEvent()
-    event = build_event(host)
+    event = build_event(EventTypes.delete, host)
     deserialized = schema.loads(event)
     return deserialized.errors
 

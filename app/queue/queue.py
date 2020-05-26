@@ -14,8 +14,8 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
+from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
-from app.queue.events import EventTypes
 from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
@@ -145,8 +145,10 @@ def handle_message(message, event_producer):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_event(EventTypes.updated, output_host, platform_metadata)
-        event_producer.write_event_egress_topic(event, output_host["id"], message_headers(add_results.name))
+        event = build_event(
+            add_host_results_to_event_type(add_results), output_host, platform_metadata=platform_metadata
+        )
+        event_producer.write_event_egress_topic(event, output_host["id"], message_headers(add_results))
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

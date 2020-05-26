@@ -58,7 +58,7 @@ def run(config, logger_, session):
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query)
+    events = delete_hosts(query, None)
     for host_id, deleted in events:
         if deleted:
             logger_.info("Deleted host: %s", host_id)

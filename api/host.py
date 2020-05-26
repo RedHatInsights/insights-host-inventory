@@ -241,8 +241,8 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 def _emit_patch_event(host):
     key = host["id"]
-    headers = message_headers(EventTypes.update)
-    event = build_event(EventTypes.update, host, request_id=threadctx.request_id)
+    headers = message_headers(EventTypes.updated)
+    event = build_event(EventTypes.updated, host, request_id=threadctx.request_id)
     current_app.event_producer.write_event(event, key, headers, Topics.event)
 
 

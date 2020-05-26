@@ -9,8 +9,8 @@ from marshmallow import Schema
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.serialization import serialize_canonical_facts
+from lib.host_repository import AddHostResults
 
-# from app.logging import threadctx
 # from app.queue import metrics
 
 logger = logging.getLogger(__name__)
@@ -19,10 +19,7 @@ logger = logging.getLogger(__name__)
 # UPDATE_EVENT_NAME = "updated"
 
 
-class EventTypes(Enum):
-    create = "created"
-    update = "updated"
-    delete = "delete"
+EventTypes = Enum("EventTypes", ("created", "updated", "delete"))
 
 
 # Schemas
@@ -84,7 +81,7 @@ def dumpHostCreateUpdateEvent(event_type, host, platform_metadata):
         .dumps(
             {
                 "timestamp": datetime.now(timezone.utc),
-                "type": event_type,
+                "type": event_type.name,
                 "host": host,
                 "platform_metadata": platform_metadata,
             }
@@ -99,7 +96,7 @@ def dumpHostDeleteEvent(event_type, host, request_id):
         .dumps(
             {
                 "timestamp": datetime.utcnow(),
-                "type": "delete",
+                "type": event_type.name,
                 "id": host.id,
                 **serialize_canonical_facts(host.canonical_facts),
                 "account": host.account,
@@ -113,9 +110,16 @@ def dumpHostDeleteEvent(event_type, host, request_id):
 # Event Constructors
 def build_event(event_type, host, *, platform_metadata=None, request_id=None):
     # using enum now. Need to handle delete events too
-    if event_type == EventTypes.create or event_type == EventTypes.update:
+    if event_type == EventTypes.created or event_type == EventTypes.updated:
         return dumpHostCreateUpdateEvent(event_type, host, platform_metadata)
     if event_type == EventTypes.delete:
         return dumpHostDeleteEvent(event_type, host, request_id)
     else:
         raise ValueError(f"Invalid event type ({event_type})")
+
+
+def add_host_results_to_event_type(results):
+    if results == AddHostResults.created:
+        return EventTypes.created
+    if results == AddHostResults.updated:
+        return EventTypes.updated

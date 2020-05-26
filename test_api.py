@@ -1259,7 +1259,6 @@ class CullingBaseTestCase(APIBaseTestCase):
             db.session.commit()
 
 
-@patch("lib.host_delete.emit_event")
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -1297,21 +1296,28 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}")
 
-    def test_culled_host_is_removed(self, emit_event):
-        added_host = self._add_hosts(
-            ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
-        )[0]
-        self._check_hosts_are_present((added_host.id,))
+    def test_culled_host_is_removed(self):
+        with self.app.app_context():
+            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
+                added_host = self._add_hosts(
+                    (
+                        {
+                            "stale_timestamp": self.staleness_timestamps["culled"].isoformat(),
+                            "reporter": "some reporter",
+                        },
+                    )
+                )[0]
+                self._check_hosts_are_present((added_host.id,))
 
-        self._run_host_reaper()
-        self._check_hosts_are_deleted((added_host.id,))
+                self._run_host_reaper()
+                self._check_hosts_are_deleted((added_host.id,))
 
-        emit_event.assert_called_once()
+                write_event.assert_called_once()
 
-        event = emitted_event(emit_event.mock_calls[0])
-        self._assert_event_is_valid(event, added_host, self.now_timestamp)
+                event = emitted_event(write_event.mock_calls[0])
+                self._assert_event_is_valid(event, added_host, self.now_timestamp)
 
-    def test_non_culled_host_is_not_removed(self, emit_event):
+    def test_non_culled_host_is_not_removed(self):
         hosts_to_add = []
         for stale_timestamp in (
             self.staleness_timestamps["stale_warning"],
@@ -1328,16 +1334,19 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
         self._check_hosts_are_present(added_host_ids)
 
-    def test_unknown_host_is_not_removed(self, emit_event):
-        added_hosts = self._add_hosts(({},))
-        added_host_id = added_hosts[0].id
-        self._check_hosts_are_present((added_host_id,))
+    def test_unknown_host_is_not_removed(self):
+        # #TODO, change mock to whatever makes the two abbove test work right
+        with self.app.app_context():
+            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
+                added_hosts = self._add_hosts(({},))
+                added_host_id = added_hosts[0].id
+                self._check_hosts_are_present((added_host_id,))
 
-        self._nullify_culling_fields(added_host_id)
+                self._nullify_culling_fields(added_host_id)
 
-        self._run_host_reaper()
-        self._check_hosts_are_present((added_host_id,))
-        emit_event.assert_not_called()
+                self._run_host_reaper()
+                self._check_hosts_are_present((added_host_id,))
+                write_event.assert_not_called()
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
@@ -2052,19 +2061,18 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
                 self.assertEqual("-1", event.value["request_id"])
 
 
-@patch("lib.host_delete.emit_event")
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class DeleteHostsMock:
         @classmethod
         def create_mock(cls, hosts_ids_to_delete):
-            def _constructor(select_query):
+            def _constructor(select_query, request_id):
                 return cls(hosts_ids_to_delete, select_query)
 
             return _constructor
 
         def __init__(self, host_ids_to_delete, original_query):
             self.host_ids_to_delete = host_ids_to_delete
-            self.original_query = delete_hosts(original_query)
+            self.original_query = delete_hosts(original_query, None)
 
         def __getattr__(self, item):
             """
@@ -2086,32 +2094,38 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return iterator
 
-    def test_delete_when_one_host_is_deleted(self, emit_event):
+    def test_delete_when_one_host_is_deleted(self):
         host_id = self.added_hosts[0].id
         url = HOST_URL + "/" + host_id
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock([host_id])):
-            # One host queried, but deleted by a different process. No event emitted yet returning
-            # 200 OK.
-            self.delete(url, 200, return_response_as_json=False)
-            emit_event.assert_not_called()
+            with self.app.app_context():
+                with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
+                    # One host queried, but deleted by a different process. No event emitted yet returning
+                    # 200 OK.
+                    self.delete(url, 200, return_response_as_json=False)
+                    write_event.assert_not_called()
 
-    def test_delete_when_all_hosts_are_deleted(self, emit_event):
+    def test_delete_when_all_hosts_are_deleted(self):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list)):
-            # Two hosts queried, but both deleted by a different process. No event emitted yet
-            # returning 200 OK.
-            self.delete(url, 200, return_response_as_json=False)
-            emit_event.assert_not_called()
+            with self.app.app_context():
+                with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
+                    # Two hosts queried, but both deleted by a different process. No event emitted yet
+                    # returning 200 OK.
+                    self.delete(url, 200, return_response_as_json=False)
+                    write_event.assert_not_called()
 
-    def test_delete_when_some_hosts_is_deleted(self, emit_event):
+    def test_delete_when_some_hosts_is_deleted(self):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list[0:1])):
-            # Two hosts queried, one of them deleted by a different process. Only one event emitted,
-            # returning 200 OK.
-            self.delete(url, 200, return_response_as_json=False)
-            emit_event.assert_called_once()
+            with self.app.app_context():
+                with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
+                    # Two hosts queried, one of them deleted by a different process. Only one event emitted,
+                    # returning 200 OK.
+                    self.delete(url, 200, return_response_as_json=False)
+                    write_event.assert_called_once()
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):

@@ -105,7 +105,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
             },
         }
         with self.app.app_context():
-            with unittest.mock.patch("app.queue.host_repository.add_host") as m:
+            with unittest.mock.patch("app.queue.queue.add_host") as m:
                 m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
@@ -251,7 +251,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
         event = json.loads(mock_event_producer.event)
         self.assertEqual(event["platform_metadata"], metadata)
 
-    @patch("app.queue.host_repository.add_host")
+    @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_key_and_metadata_not_required(self, add_host):
         host_data = self._host_data()
         add_host.return_value = (host_data, AddHostResults.created)
@@ -266,7 +266,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
         event = json.loads(mock_event_producer.event)
         self.assertEqual(event["host"], host_data)
 
-    @patch("app.queue.host_repository.add_host")
+    @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_headers(self, add_host):
         host_data = self._host_data()
 
@@ -623,12 +623,12 @@ class MQValidateJsonObjectForUtf8TestCase(TestCase):
         with self.assertRaises(UnicodeEncodeError):
             _validate_json_object_for_utf8("hello\udce2\udce2")
 
-    @patch("app.queue._validate_json_object_for_utf8")
+    @patch("app.queue.queue._validate_json_object_for_utf8")
     def test_dicts_are_traversed(self, mock):
         _validate_json_object_for_utf8({"first": "item", "second": "value"})
         mock.assert_has_calls((call("first"), call("item"), call("second"), call("value")), any_order=True)
 
-    @patch("app.queue._validate_json_object_for_utf8")
+    @patch("app.queue.queue._validate_json_object_for_utf8")
     def test_lists_are_traversed(self, mock):
         _validate_json_object_for_utf8(["first", "second"])
         mock.assert_has_calls((call("first"), call("second")), any_order=True)

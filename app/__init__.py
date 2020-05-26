@@ -85,8 +85,6 @@ def create_app(config_name, start_payload_tracker=False):
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
-    flask_app.event_producer = EventProducer(app_config)
-
     payload_tracker_producer = None
     if start_payload_tracker is False:
         # If we are running in "testing" mode, then inject the NullProducer.
@@ -109,4 +107,5 @@ def create_app(config_name, start_payload_tracker=False):
             excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
         )
 
+    flask_app.event_producer = EventProducer(app_config)
     return flask_app
