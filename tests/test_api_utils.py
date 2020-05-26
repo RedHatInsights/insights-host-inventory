@@ -4,6 +4,9 @@ import tempfile
 from unittest import main
 from unittest import TestCase
 
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
+
 from .test_utils import ACCOUNT
 from .test_utils import generate_uuid
 from .test_utils import get_valid_auth_header
@@ -12,12 +15,8 @@ from .test_utils import HOST_URL
 from .test_utils import inject_qs
 from .test_utils import METRICS_URL
 from .test_utils import now
-from .test_utils import VERSION_URL
 from .test_utils import set_environment
-
-from sqlalchemy_utils import create_database
-from sqlalchemy_utils import database_exists
-
+from .test_utils import VERSION_URL
 from app import Config
 from app import create_app
 from app import db

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import copy
 from datetime import timedelta
-from itertools import product
 
 import pytest
 
@@ -1431,13 +1430,18 @@ def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host
 
 
 @pytest.mark.system_culling
-@pytest.mark.parametrize("new_stale_timestamp,new_reporter", [
-    (now() + timedelta(days=3), "old reporter"),
-    (now() + timedelta(days=3), "new reporter"),
-    (now() + timedelta(days=1), "old reporter"),
-    (now() + timedelta(days=1), "new reporter"),
-])
-def test_always_update_stale_timestamp_from_next_reporter(api_create_or_update_host, get_host_from_db, new_stale_timestamp, new_reporter):
+@pytest.mark.parametrize(
+    "new_stale_timestamp,new_reporter",
+    [
+        (now() + timedelta(days=3), "old reporter"),
+        (now() + timedelta(days=3), "new reporter"),
+        (now() + timedelta(days=1), "old reporter"),
+        (now() + timedelta(days=1), "new reporter"),
+    ],
+)
+def test_always_update_stale_timestamp_from_next_reporter(
+    api_create_or_update_host, get_host_from_db, new_stale_timestamp, new_reporter
+):
     old_stale_timestamp = now() + timedelta(days=2)
     old_reporter = "old reporter"
 
