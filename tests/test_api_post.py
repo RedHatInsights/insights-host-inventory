@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import copy
-from datetime import datetime
 from datetime import timedelta
+from itertools import product
 
 import pytest
 
@@ -1431,92 +1431,14 @@ def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host
 
 
 @pytest.mark.system_culling
-def test_update_stale_timestamp_from_same_reporter(api_create_or_update_host, get_host_from_db):
-    current_timestamp = now()
-
-    old_stale_timestamp = current_timestamp + timedelta(days=1)
-    reporter = "some reporter"
-
-    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    old_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == old_retrieved_host.stale_timestamp
-    assert reporter == old_retrieved_host.reporter
-
-    new_stale_timestamp = current_timestamp + timedelta(days=2)
-
-    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    new_retrieved_host = get_host_from_db(created_host_id)
-
-    assert new_stale_timestamp == new_retrieved_host.stale_timestamp
-    assert reporter == new_retrieved_host.reporter
-
-
-@pytest.mark.system_culling
-def test_dont_update_stale_timestamp_from_same_reporter(api_create_or_update_host, get_host_from_db):
-    current_timestamp = now()
-
-    old_stale_timestamp = current_timestamp + timedelta(days=2)
-    reporter = "some reporter"
-
-    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    old_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == old_retrieved_host.stale_timestamp
-
-    new_stale_timestamp = current_timestamp + timedelta(days=1)
-
-    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    new_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == new_retrieved_host.stale_timestamp
-
-
-@pytest.mark.system_culling
-def test_update_stale_timestamp_from_different_reporter(api_create_or_update_host, get_host_from_db):
-    current_timestamp = now()
-
-    old_stale_timestamp = current_timestamp + timedelta(days=2)
+@pytest.mark.parametrize("new_stale_timestamp,new_reporter", [
+    (now() + timedelta(days=3), "old reporter"),
+    (now() + timedelta(days=3), "new reporter"),
+    (now() + timedelta(days=1), "old reporter"),
+    (now() + timedelta(days=1), "new reporter"),
+])
+def test_always_update_stale_timestamp_from_next_reporter(api_create_or_update_host, get_host_from_db, new_stale_timestamp, new_reporter):
+    old_stale_timestamp = now() + timedelta(days=2)
     old_reporter = "old reporter"
 
     host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
@@ -1531,15 +1453,13 @@ def test_update_stale_timestamp_from_different_reporter(api_create_or_update_hos
 
     created_host_id = create_host_response["host"]["id"]
 
-    old_retrieved_host = get_host_from_db(created_host_id)
+    retrieved_host = get_host_from_db(created_host_id)
 
-    assert old_stale_timestamp == old_retrieved_host.stale_timestamp
-    assert old_reporter == old_retrieved_host.reporter
+    assert old_stale_timestamp == retrieved_host.stale_timestamp
+    assert old_reporter == retrieved_host.reporter
 
-    new_stale_timestamp = current_timestamp + timedelta(days=1)
-    new_reporter = "new reporter"
-
-    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
+    host.stale_timestamp = new_stale_timestamp.isoformat()
+    host.reporter = new_reporter
 
     multi_response_status, multi_response_data = api_create_or_update_host([host])
 
@@ -1549,105 +1469,7 @@ def test_update_stale_timestamp_from_different_reporter(api_create_or_update_hos
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    new_retrieved_host = get_host_from_db(created_host_id)
+    retrieved_host = get_host_from_db(created_host_id)
 
-    assert new_stale_timestamp == new_retrieved_host.stale_timestamp
-    assert new_reporter == new_retrieved_host.reporter
-
-
-@pytest.mark.system_culling
-def test_update_stale_host_timestamp_from_next_reporter(api_create_or_update_host, get_host_from_db):
-    current_timestamp = now()
-
-    old_stale_timestamp = current_timestamp - timedelta(days=1)  # stale host
-    old_reporter = "old reporter"
-
-    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    old_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == old_retrieved_host.stale_timestamp
-    assert old_reporter == old_retrieved_host.reporter
-
-    new_stale_timestamp = current_timestamp + timedelta(days=1)
-    new_reporter = "new reporter"
-
-    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter=new_reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    new_retrieved_host = get_host_from_db(created_host_id)
-
-    assert new_stale_timestamp == new_retrieved_host.stale_timestamp
-    assert new_reporter == new_retrieved_host.reporter
-
-
-@pytest.mark.system_culling
-def test_dont_update_stale_timestamp_from_different_reporter(api_create_or_update_host, get_host_from_db):
-    current_timestamp = now()
-
-    old_stale_timestamp = current_timestamp + timedelta(days=1)
-    old_reporter = "old reporter"
-
-    host = minimal_host(stale_timestamp=old_stale_timestamp.isoformat(), reporter=old_reporter)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    old_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == old_retrieved_host.stale_timestamp
-    assert old_reporter == old_retrieved_host.reporter
-
-    new_stale_timestamp = current_timestamp + timedelta(days=2)
-
-    host = minimal_host(stale_timestamp=new_stale_timestamp.isoformat(), reporter="new_reporter")
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    new_retrieved_host = get_host_from_db(created_host_id)
-
-    assert old_stale_timestamp == new_retrieved_host.stale_timestamp
-    assert old_reporter == new_retrieved_host.reporter
-
-
-@pytest.mark.system_culling
-def test_create_host_with_stale_timestamp_without_time_zone(api_create_or_update_host):
-    host = minimal_host(stale_timestamp=datetime.now().isoformat(), reporter="reporter")
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
+    assert new_stale_timestamp == retrieved_host.stale_timestamp
+    assert new_reporter == retrieved_host.reporter

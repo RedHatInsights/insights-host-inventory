@@ -18,7 +18,6 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from app.models import Host
 from app.utils import HostWrapper
 
 HOST_URL = "/api/inventory/v1/hosts"
@@ -73,23 +72,6 @@ def set_environment(new_env=None):
     os.environ.update(new_env)
     yield
     patched_dict.stop()
-
-
-def rename_host_table_and_indexes():
-    """
-    Temporarily rename the host table while the tests run.  This is done
-    to make dropping the table at the end of the tests a bit safer.
-    """
-    temp_table_name_suffix = "__unit_tests__"
-    if temp_table_name_suffix not in Host.__table__.name:
-        Host.__table__.name = Host.__table__.name + temp_table_name_suffix
-    if temp_table_name_suffix not in Host.__table__.fullname:
-        Host.__table__.fullname = Host.__table__.fullname + temp_table_name_suffix
-
-    # Adjust the names of the indices
-    for index in Host.__table_args__:
-        if temp_table_name_suffix not in index.name:
-            index.name = index.name + temp_table_name_suffix
 
 
 def valid_system_profile():
@@ -234,7 +216,7 @@ def assert_host_data(actual_host, expected_host, expected_id=None):
 
 
 def assert_error_response(
-    response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
+        response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
 ):
     def _verify_value(field_name, expected_value):
         assert field_name in response

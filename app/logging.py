@@ -14,7 +14,7 @@ LOGGER_PREFIX = "inventory."
 threadctx = local()
 
 
-def configure_logging(config_name):
+def configure_logging(runtime_environment):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
     log_config_file = os.getenv(env_var_name)
     if log_config_file is not None:
@@ -32,7 +32,7 @@ def configure_logging(config_name):
 
         logging.config.fileConfig(fname=log_config_file)
 
-    if config_name != "testing":
+    if runtime_environment.logging_enabled:
         _configure_watchtower_logging_handler()
         _configure_contextual_logging_filter()
 

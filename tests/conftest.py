@@ -17,7 +17,7 @@ from tests.test_utils import inject_qs
 
 @pytest.fixture(scope="session")
 def database():
-    config = Config(RuntimeEnvironment.server, "testing")
+    config = Config(RuntimeEnvironment.TEST)
     if database_exists(config.db_uri):
         drop_database(config.db_uri)
 
@@ -30,7 +30,7 @@ def database():
 
 @pytest.fixture(scope="function")
 def flask_app(database):
-    app = create_app(config_name="testing")
+    app = create_app(RuntimeEnvironment.TEST)
 
     # binds the app to the current context
     with app.app_context() as ctx:

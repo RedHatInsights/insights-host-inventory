@@ -13,11 +13,14 @@ from unittest.mock import patch
 
 import marshmallow
 from sqlalchemy import null
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
 
-from .test_utils import rename_host_table_and_indexes
 from .test_utils import valid_system_profile
+from app import Config
 from app import create_app
 from app import db
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -44,7 +47,7 @@ class MQServiceBaseTestCase(TestCase):
         """
         Creates the application and a test client to make requests.
         """
-        self.app = create_app(config_name="testing")
+        self.app = create_app(RuntimeEnvironment.TEST)
 
 
 class MQServiceTestCase(MQServiceBaseTestCase):
@@ -181,11 +184,10 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
 class MQAddHostBaseClass(MQServiceBaseTestCase):
     @classmethod
     def setUpClass(cls):
-        """
-        Temporarily rename the host table while the tests run.  This is done
-        to make dropping the table at the end of the tests a bit safer.
-        """
-        rename_host_table_and_indexes()
+        # create test database
+        config = Config(RuntimeEnvironment.TEST)
+        if not database_exists(config.db_uri):
+            create_database(config.db_uri)
 
     def setUp(self):
         """

@@ -9,7 +9,6 @@ from prometheus_flask_exporter import PrometheusMetrics
 from api.mgmt import monitoring_blueprint
 from app import payload_tracker
 from app.config import Config
-from app.config import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -35,15 +34,15 @@ def inventory_config():
     return current_app.config["INVENTORY_CONFIG"]
 
 
-def create_app(config_name, start_tasks=False, start_payload_tracker=False):
+def create_app(runtime_environment):
     connexion_options = {"swagger_ui": True}
 
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
-    configure_logging(config_name)
+    configure_logging(runtime_environment)
 
-    app_config = Config(RuntimeEnvironment.server, config_name)
-    app_config.log_configuration(config_name)
+    app_config = Config(runtime_environment)
+    app_config.log_configuration()
 
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
@@ -85,7 +84,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     def set_request_id():
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
-    if start_tasks:
+    if runtime_environment.event_producer_enabled:
         init_tasks(app_config)
     else:
         logger.warning(
@@ -94,7 +93,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
         )
 
     payload_tracker_producer = None
-    if start_payload_tracker is False:
+    if not runtime_environment.payload_tracker_enabled:
         # If we are running in "testing" mode, then inject the NullProducer.
         payload_tracker_producer = payload_tracker.NullProducer()
 
@@ -106,7 +105,7 @@ def create_app(config_name, start_tasks=False, start_payload_tracker=False):
     payload_tracker.init_payload_tracker(app_config, producer=payload_tracker_producer)
 
     # HTTP request metrics
-    if config_name != "testing":
+    if runtime_environment.metrics_endpoint_enabled:
         PrometheusMetrics(
             flask_app,
             defaults_prefix="inventory",

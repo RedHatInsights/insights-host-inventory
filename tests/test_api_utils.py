@@ -12,11 +12,16 @@ from .test_utils import HOST_URL
 from .test_utils import inject_qs
 from .test_utils import METRICS_URL
 from .test_utils import now
-from .test_utils import rename_host_table_and_indexes
-from .test_utils import set_environment
 from .test_utils import VERSION_URL
+from .test_utils import set_environment
+
+from sqlalchemy_utils import create_database
+from sqlalchemy_utils import database_exists
+
+from app import Config
 from app import create_app
 from app import db
+from app.environment import RuntimeEnvironment
 from app.utils import HostWrapper
 
 
@@ -31,7 +36,7 @@ class APIBaseTestCase(TestCase):
         """
         Creates the application and a test client to make requests.
         """
-        self.app = create_app(config_name="testing")
+        self.app = create_app(RuntimeEnvironment.TEST)
         self.client = self.app.test_client
 
     def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
@@ -95,11 +100,10 @@ class APIBaseTestCase(TestCase):
 class DBAPITestCase(APIBaseTestCase):
     @classmethod
     def setUpClass(cls):
-        """
-        Temporarily rename the host table while the tests run.  This is done
-        to make dropping the table at the end of the tests a bit safer.
-        """
-        rename_host_table_and_indexes()
+        # create test database
+        config = Config(RuntimeEnvironment.TEST)
+        if not database_exists(config.db_uri):
+            create_database(config.db_uri)
 
     def setUp(self):
         """
