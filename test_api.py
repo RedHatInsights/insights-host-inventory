@@ -18,7 +18,6 @@ from unittest import mock
 from unittest import TestCase
 from unittest.mock import ANY
 from unittest.mock import call
-from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
@@ -43,6 +42,7 @@ from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
+from test_utils import MockEventProducer
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
 from test_utils import valid_system_profile
@@ -899,11 +899,12 @@ class CreateHostsTestCase(DBAPITestCase):
 
         message = {"operation": "add_host", "data": create_host_data.data()}
 
+        mock_event_producer = MockEventProducer()
         with self.app.app_context():
-            mock_event_producer = Mock()
             handle_message(json.dumps(message), mock_event_producer)
-            event = json.loads(mock_event_producer.write_event.call_args[0][0])
-            host_id = event["host"]["id"]
+
+        event = json.loads(mock_event_producer.event)
+        host_id = event["host"]["id"]
 
         # attempt to update
         update_host_data = HostWrapper(
@@ -1635,37 +1636,35 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         host_list = []
 
         for host in self.hosts_to_create:
-            message = {
-                "operation": "add_host",
-                "data": {
-                    "id": generate_uuid(),
-                    "account": ACCOUNT,
-                    "display_name": host[0],
-                    "insights_id": generate_uuid(),
-                    "rhel_machine_id": generate_uuid(),
-                    "subscription_manager_id": generate_uuid(),
-                    "satellite_id": generate_uuid(),
-                    "bios_uuid": generate_uuid(),
-                    "ip_addresses": ["10.0.0.2"],
-                    "fqdn": host[2],
-                    "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-                    "external_id": generate_uuid(),
-                    "facts": [{"namespace": "ns1", "facts": {"key1": "value1"}}],
-                    "tags": host[3],
-                    "stale_timestamp": now().isoformat(),
-                    "reporter": "test",
-                },
-            }
 
+            host_wrapper = HostWrapper()
+            host_wrapper.account = ACCOUNT
+            host_wrapper.display_name = host[0]
+            host_wrapper.insights_id = generate_uuid()
+            host_wrapper.rhel_machine_id = generate_uuid()
+            host_wrapper.subscription_manager_id = generate_uuid()
+            host_wrapper.satellite_id = generate_uuid()
+            host_wrapper.bios_uuid = generate_uuid()
+            host_wrapper.ip_addresses = ["10.0.0.2"]
+            host_wrapper.fqdn = host[2]
+            host_wrapper.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+            host_wrapper.external_id = generate_uuid()
+            host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+            host_wrapper.tags = host[3]
+            host_wrapper.stale_timestamp = now().isoformat()
+            host_wrapper.reporter = "test"
+            message = {"operation": "add_host", "data": host_wrapper.data()}
+
+            mock_event_producer = MockEventProducer()
             with self.app.app_context():
-                mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
-                response_data = json.loads(mock_event_producer.write_event.call_args[0][0])
 
-                # add facts object since it's not returned by message
-                response_data["host"]["facts"] = message["data"]["facts"]
+            response_data = json.loads(mock_event_producer.event)
 
-                host_list.append(HostWrapper(response_data["host"]))
+            # add facts object since it's not returned by message
+            response_data["host"]["facts"] = message["data"]["facts"]
+
+            host_list.append(HostWrapper(response_data["host"]))
 
         return host_list
 
@@ -1832,9 +1831,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         emitted_event = emit_event.call_args[0]
         event_message = json.loads(emitted_event[0])
 
-        # TODO: Remove
-        self.maxDiff = None
-
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
         self.assertEqual(emitted_event[2], {"event_type": "updated"})
@@ -1974,17 +1970,20 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
+    def _expected_host_list(self):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in self.added_hosts[::-1]
+        ]
+
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
         host_list = self.added_hosts.copy()
         host_list.reverse()
 
-        expected_host_list = [h.data() for h in host_list]
-        # Remove fields that are not returned by the REST endpoint
-        for host in expected_host_list:
-            host.pop("tags", None)
-            host.pop("system_profile", None)
+        expected_host_list = self._expected_host_list()
 
         self.assertEqual(response["results"], expected_host_list)
 
@@ -2038,13 +2037,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url)
 
-        expected_host_list = [h.data() for h in host_list]
-        # Remove fields that are not returned by the REST endpoint
-        for host in expected_host_list:
-            host.pop("tags", None)
-            host.pop("system_profile", None)
+        expected_host_list = self._expected_host_list()
 
-        self.maxDiff = None
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
@@ -2431,9 +2425,8 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 assert part_name in str(response)
 
     def test_get_host_with_unescaped_special_characters(self):
-        message = {
-            "operation": "add_host",
-            "data": {
+        host_wrapper = HostWrapper(
+            {
                 "account": ACCOUNT,
                 "insights_id": generate_uuid(),
                 "stale_timestamp": now().isoformat(),
@@ -2442,13 +2435,14 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                     {"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"},
                     {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
                 ],
-            },
-        }
+            }
+        )
+        message = {"operation": "add_host", "data": host_wrapper.data()}
 
         with self.app.app_context():
-            mock_event_producer = Mock()
+            mock_event_producer = MockEventProducer()
             handle_message(json.dumps(message), mock_event_producer)
-            response_data = json.loads(mock_event_producer.write_event.call_args[0][0])
+            response_data = json.loads(mock_event_producer.event)
             created_host = response_data["host"]
 
         for tags_query in (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"):
@@ -2459,9 +2453,8 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 self.assertEqual(get_response["results"][0]["id"], created_host["id"])
 
     def test_get_host_with_escaped_special_characters(self):
-        message = {
-            "operation": "add_host",
-            "data": {
+        host_wrapper = HostWrapper(
+            {
                 "account": ACCOUNT,
                 "insights_id": generate_uuid(),
                 "stale_timestamp": now().isoformat(),
@@ -2470,13 +2463,14 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                     {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"},
                     {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
                 ],
-            },
-        }
+            }
+        )
+        message = {"operation": "add_host", "data": host_wrapper.data()}
 
         with self.app.app_context():
-            mock_event_producer = Mock()
+            mock_event_producer = MockEventProducer()
             handle_message(json.dumps(message), mock_event_producer)
-            response_data = json.loads(mock_event_producer.write_event.call_args[0][0])
+            response_data = json.loads(mock_event_producer.event)
             created_host = response_data["host"]
 
         for namespace, key, value in ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v")):

@@ -4,6 +4,6 @@ from prometheus_client import Summary
 api_request_time = Summary("inventory_request_processing_seconds", "Time spent processing request")
 api_request_count = Counter("inventory_request_count", "The total amount of API requests")
 login_failure_count = Counter("inventory_login_failure_count", "The total amount of failed login attempts")
-ignored_tags_from_http_request_count = Counter(
-    "tags_ignored_from_http", "Number of times we have ignored tags sent through HTTP"
+tags_ignored_from_http_count = Counter(
+    "inventory_tags_ignored_from_http_count", "Number of times we have ignored tags sent through HTTP"
 )

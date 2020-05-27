@@ -172,13 +172,37 @@ def test_host_schema_valid_tags(tags):
     assert validated_host.data["tags"] == tags
 
 
+@pytest.mark.parametrize("tags", [[{"key": "good_tag"}], [{"value": "bad_tag"}]])
+def test_host_schema_ignored_tags(tags):
+    host = {
+        "fqdn": "fred.flintstone.com",
+        "display_name": "display_name",
+        "account": "00102",
+        "tags": tags,
+        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+        "reporter": "test",
+    }
+
+    validated_host = HttpHostSchema(strict=True).load(host)
+    assert "tags" not in validated_host.data
+
+
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
 def test_host_schema_invalid_tags(tags):
-    host = {"fqdn": "fred.flintstone.com", "display_name": "display_name", "account": "00102", "tags": tags}
+    host = {
+        "fqdn": "fred.flintstone.com",
+        "display_name": "display_name",
+        "account": "00102",
+        "tags": tags,
+        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+        "reporter": "test",
+    }
     with pytest.raises(ValidationError) as excinfo:
-        _ = HttpHostSchema(strict=True).load(host)
+        MqHostSchema(strict=True).load(host)
 
-    assert "Missing data for required field" in str(excinfo.value)
+    error_messages = excinfo.value.normalized_messages()
+    assert "tags" in error_messages
+    assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
 def test_host_schema_timezone_enforced():
@@ -190,7 +214,7 @@ def test_host_schema_timezone_enforced():
         "reporter": "test",
     }
     with pytest.raises(ValidationError) as excinfo:
-        _ = HttpHostSchema(strict=True).load(host)
+        _ = MqHostSchema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(excinfo.value)
 
