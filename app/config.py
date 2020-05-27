@@ -2,18 +2,18 @@ import os
 from enum import Enum
 
 from app.common import get_build_version
+from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
 BulkQuerySource = Enum("BulkQuerySource", ("db", "xjoin"))
-RuntimeEnvironment = Enum("RuntimeEnvironment", ("server", "job"))
 
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"
 
-    def __init__(self, environment):
-        self._environment = environment
+    def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
+        self._runtime_environment = runtime_environment
 
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
@@ -95,28 +95,41 @@ class Config:
             db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
         return db_uri
 
-    def log_configuration(self, config_name):
-        if config_name != "testing":
-            self.logger.info("Insights Host Inventory Configuration:")
-            self.logger.info("Build Version: %s", get_build_version())
-            self.logger.info("DB Host: %s", self._db_host)
-            self.logger.info("DB Name: %s", self._db_name)
-            self.logger.info("DB Connection URI: %s", self._build_db_uri(self._db_ssl_mode, hide_password=True))
-            if self._db_ssl_mode == self.SSL_VERIFY_FULL:
-                self.logger.info("Using SSL for DB connection:")
-                self.logger.info("Postgresql SSL verification type: %s", self._db_ssl_mode)
-                self.logger.info("Path to certificate: %s", self._db_ssl_cert)
-            if self._environment == RuntimeEnvironment.server:
-                self.logger.info("API URL Path: %s", self.api_url_path_prefix)
-                self.logger.info("Management URL Path Prefix: %s", self.mgmt_url_path_prefix)
+    def log_configuration(self):
+        if not self._runtime_environment.logging_enabled:
+            return
+
+        self.logger.info("Insights Host Inventory Configuration:")
+        self.logger.info("Build Version: %s", get_build_version())
+        self.logger.info("DB Host: %s", self._db_host)
+        self.logger.info("DB Name: %s", self._db_name)
+        self.logger.info("DB Connection URI: %s", self._build_db_uri(self._db_ssl_mode, hide_password=True))
+
+        if self._db_ssl_mode == self.SSL_VERIFY_FULL:
+            self.logger.info("Using SSL for DB connection:")
+            self.logger.info("Postgresql SSL verification type: %s", self._db_ssl_mode)
+            self.logger.info("Path to certificate: %s", self._db_ssl_cert)
+
+        if self._runtime_environment == RuntimeEnvironment.SERVER:
+            self.logger.info("API URL Path: %s", self.api_url_path_prefix)
+            self.logger.info("Management URL Path Prefix: %s", self.mgmt_url_path_prefix)
+
+        if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
+            self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
+
+            if self._runtime_environment == RuntimeEnvironment.SERVICE:
                 self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
                 self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
                 self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
+
+            if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s" % self.event_topic)
-                self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
-                self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
-                self.logger.info("Payload Tracker Service Name: %s", self.payload_tracker_service_name)
-                self.logger.info("Payload Tracker Enabled: %s", self.payload_tracker_enabled)
-            elif self._environment == RuntimeEnvironment.job:
-                self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
-                self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)
+
+        if self._runtime_environment.payload_tracker_enabled:
+            self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
+            self.logger.info("Payload Tracker Service Name: %s", self.payload_tracker_service_name)
+            self.logger.info("Payload Tracker Enabled: %s", self.payload_tracker_enabled)
+
+        if self._runtime_environment.metrics_pushgateway_enabled:
+            self.logger.info("Metrics Pushgateway: %s", self.prometheus_pushgateway)
+            self.logger.info("Kubernetes Namespace: %s", self.kubernetes_namespace)

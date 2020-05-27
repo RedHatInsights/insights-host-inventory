@@ -3,6 +3,7 @@ from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from itertools import product
 from json import dumps
 from random import choice
 from unittest import main
@@ -22,9 +23,9 @@ from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import validate
 from app.config import Config
-from app.config import RuntimeEnvironment
 from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
+from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
@@ -220,7 +221,7 @@ class TrustedIdentityTestCase(TestCase):
 class ConfigTestCase(TestCase):
     @staticmethod
     def _config():
-        return Config(RuntimeEnvironment.server)
+        return Config(RuntimeEnvironment.SERVER)
 
     def test_configuration_with_env_vars(self):
         app_name = "brontocrane"
@@ -260,7 +261,7 @@ class ConfigTestCase(TestCase):
         expected_api_path = "/api/inventory/v1"
         expected_mgmt_url_path_prefix = "/"
 
-        # Make sure the environment variables are not set
+        # Make sure the runtime_environment variables are not set
         with set_environment(None):
 
             conf = self._config()
@@ -284,7 +285,7 @@ class ConfigTestCase(TestCase):
 @patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config):
-        app = create_app("testing")
+        app = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", app.config)
         self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
 
@@ -1416,51 +1417,20 @@ class HostUpdateStaleTimestamp(TestCase):
         self.assertEqual(stale_timestamp, host.stale_timestamp)
         self.assertEqual(reporter, host.reporter)
 
-    def test_updated_with_same_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        reporter = "some reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        host._update_stale_timestamp(new_stale_timestamp, reporter)
-
-        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-
-    def test_updated_with_different_reporter(self):
+    def test_always_updated(self):
         old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        old_reporter = "some old reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
+        old_reporter = "old reporter"
+        stale_timestamps = (old_stale_timestamp - timedelta(days=1), old_stale_timestamp - timedelta(days=2))
+        reporters = (old_reporter, "new reporter")
+        for new_stale_timestamp, new_reporter in product(stale_timestamps, reporters):
+            with self.subTest(stale_timestamps=new_stale_timestamp, reporter=new_reporter):
+                host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
 
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        new_reporter = "some new reporter"
-        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
+                new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+                host._update_stale_timestamp(new_stale_timestamp, new_reporter)
 
-        self.assertEqual(new_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(new_reporter, host.reporter)
-
-    def test_not_updated_with_same_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        reporter = "some reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        host._update_stale_timestamp(new_stale_timestamp, reporter)
-
-        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-
-    def test_not_updated_with_different_reporter(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
-        old_reporter = "some old reporter"
-        host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
-
-        new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
-        new_reporter = "some new reporter"
-        host._update_stale_timestamp(new_stale_timestamp, new_reporter)
-
-        self.assertEqual(old_stale_timestamp, host.stale_timestamp)
-        self.assertEqual(old_reporter, host.reporter)
+                self.assertEqual(new_stale_timestamp, host.stale_timestamp)
+                self.assertEqual(new_reporter, host.reporter)
 
 
 class SerializationDeserializeTags(TestCase):
