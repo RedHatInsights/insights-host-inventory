@@ -9,14 +9,15 @@ from gunicorn import glogging
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
+LOGGER_NAME = "inventory"
 LOGGER_PREFIX = "inventory."
 
 threadctx = local()
 
-session_boto3 = None
+# cloudwatch_handler = None
 
 
-def configure_logging(runtime_environment):
+def configure_logging(config_name):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
     log_config_file = os.getenv(env_var_name, "logconfig.ini")
     if log_config_file is not None:
@@ -34,49 +35,76 @@ def configure_logging(runtime_environment):
 
         logging.config.fileConfig(fname=log_config_file)
 
-    if runtime_environment.logging_enabled:
-        _configure_watchtower_logging_handler()
-        _configure_contextual_logging_filter()
+    logger = logging.getLogger(LOGGER_NAME)
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
+    logger.setLevel(log_level)
+
+    if config_name != "testing":
+        _configure_watchtower_logging_handler(logger)
+        _configure_contextual_logging_filter(logger)
 
 
-def _configure_watchtower_logging_handler():
+def _configure_watchtower_logging_handler(logger):
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
-    log_group = os.getenv("AWS_LOG_GROUP", "platform")
-    stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
+    aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
+    aws_stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
+    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
 
-    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
-        print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
-        boto3_session = Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=aws_region_name,
+    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name]):
+        print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
+        global cloudwatch_handler
+        cloudwatch_handler = _get_cloudwatch_handler(
+            aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
         )
 
-        global session_boto3
-        session_boto3 = boto3_session
+        handler = _get_cloudwatch_handler(aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group)
+        # logger = logger.addHandler(handler)
+        logger.addHandler(handler)
+
+    # if all([aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name]):
+    #     print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
+    #     boto3_session = Session(
+    #         aws_access_key_id=aws_access_key_id,
+    #         aws_secret_access_key=aws_secret_access_key,
+    #         region_name=aws_region_name,
+    #     )
+        
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
 
 
-def _get_cloudwatch_handler():
-    global session_boto3
-    group = os.getenv("AWS_LOG_GROUP", "platform")
-    stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
-    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+def _get_cloudwatch_handler(aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group):
+    # global session_boto3
+    # group = os.getenv("AWS_LOG_GROUP", "platform")
+    # stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
+    # create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+    # handler = watchtower.CloudWatchLogHandler(
+    #     boto3_session=session_boto3, log_group=group, stream_name=stream, create_log_group=create_log_group
+    # )
+    # handler.setFormatter(logstash_formatter.LogstashFormatterV1())
+    # return handler
+    print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
+    boto3_session = Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=aws_region_name,
+    )
     handler = watchtower.CloudWatchLogHandler(
-        boto3_session=session_boto3, log_group=group, stream_name=stream, create_log_group=create_log_group
+        boto3_session=boto3_session,
+        log_group=aws_log_group,
+        stream_name=aws_stream_name,
+        create_log_group=create_log_group
     )
     handler.setFormatter(logstash_formatter.LogstashFormatterV1())
     return handler
-
 
 def _get_hostname():
     return os.uname()[1]
 
 
-def _configure_contextual_logging_filter():
+def _configure_contextual_logging_filter(logger):
     # Only enable the contextual filter if not in "testing" mode
     root = logging.getLogger()
     root.addFilter(ContextualFilter())
@@ -125,13 +153,16 @@ class InventoryGunicornLogger(glogging.Logger):
 
 
 def get_logger(name):
-    log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
-    logger = logging.getLogger(LOGGER_PREFIX + name)
-    logger.addFilter(ContextualFilter())
+    # log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
+    # logger = logging.getLogger(LOGGER_PREFIX + name)
+    # logger.addFilter(ContextualFilter())
 
-    global session_boto3
-    if session_boto3 is not None:
-        logger.addHandler(_get_cloudwatch_handler())
+    # global cloudwatch_handler
+    # if cloudwatch_handler:
+    #     logger.addHandler(cloudwatch_handler)
+    # # if session_boto3 is not None:
+    # #     logger.addHandler(_get_cloudwatch_handler())
 
-    logger.setLevel(log_level)
-    return logger
+    # logger.setLevel(log_level)
+    # return logger
+    return logging.getLogger(f"{LOGGER_NAME}.{name}")
