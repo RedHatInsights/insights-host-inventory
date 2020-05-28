@@ -105,7 +105,14 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, sparse_fie
 
 
 def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts, canonical_fields=BASIC_CANONICAL_FIELDS)}
+    serialized_host = {}
+
+    if "canonical_facts" in sparse_fieldset:
+        canonical_facts_attributes = sparse_fieldset["canonical_facts"].replace(" ", "").split(",")
+        serialized_host = {
+            **serialize_canonical_facts(host.canonical_facts, canonical_fields=canonical_facts_attributes)
+        }
+
     for field in BASIC_FIELDS:
         _serialize_host_field(host, field, staleness_timestamps, serialized_host)
 
