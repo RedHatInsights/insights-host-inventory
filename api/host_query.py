@@ -12,9 +12,9 @@ OrderHow = Enum("OrderHow", ("ASC", "DESC"))
 Order = namedtuple("Order", ("by", "how"))
 
 
-def build_paginated_host_list_response(total, page, per_page, host_list, extra_fields=None):
+def build_paginated_host_list_response(total, page, per_page, host_list, sparse_fieldset=None):
     timestamps = staleness_timestamps()
-    json_host_list = [serialize_host(host, timestamps, extra_fields=extra_fields) for host in host_list]
+    json_host_list = [serialize_host(host, timestamps, sparse_fieldset=sparse_fieldset) for host in host_list]
 
     return {
         "total": total,

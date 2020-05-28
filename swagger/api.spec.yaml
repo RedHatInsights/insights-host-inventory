@@ -486,10 +486,12 @@ components:
       name: fields
       style: deepObject
       allowReserved: true
-      description: "Include extra fields for each host. If the requested field does not exist, it will be omitted.
-      Request by passing a JSON object, or in the URL via `?fields[system_profile]=os_release, arch`.
-      **Currently only extra fields for system_profile can be queried.**
-      See [System profile fields]('#/components/schemas/SystemProfileIn' ) for a list of possible fields to include."
+      description: "Include extra fields for each host. If the requested field does not exist, it will return null.
+      Request by passing a JSON object, or in the URL via `?fields[system_profile]=os_release, arch`. Notice requesting
+      extra fields will only display the requested fields plus id, account, display_name, fqdn, insights_id and subscription_manager_id.
+      **Currently extra fields for system_profile or host can be queried.**
+      See [System profile fields]('#/components/schemas/SystemProfileIn') for a list of possible fields to include for system_profile.
+      See [Host fields]('#/components/schemas/CreateHostOut') for a list of possible fields to include for host."
       schema:
         type: object
         example:

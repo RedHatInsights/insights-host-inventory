@@ -40,6 +40,10 @@ DEFAULT_FIELDS = (
     "updated",
 )
 
+BASIC_FIELDS = ("id", "account", "display_name")
+
+BASIC_CANONICAL_FIELDS = ("insights_id", "fqdn", "subscription_manager_id")
+
 
 def deserialize_host(raw_data, schema):
     try:
@@ -89,7 +93,44 @@ def deserialize_host_xjoin(data):
     return host
 
 
-def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, extra_fields=None):
+def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, sparse_fieldset=None):
+    if sparse_fieldset:
+        serialized_host = _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset)
+    else:
+        serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+        for field in fields:
+            _serialize_host_field(host, field, staleness_timestamps, serialized_host)
+
+    return serialized_host
+
+
+def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
+    serialized_host = {**serialize_canonical_facts(host.canonical_facts, canonical_fields=BASIC_CANONICAL_FIELDS)}
+    for field in BASIC_FIELDS:
+        _serialize_host_field(host, field, staleness_timestamps, serialized_host)
+
+    if "system_profile" in sparse_fieldset:
+        system_profile_attributes = sparse_fieldset["system_profile"].replace(" ", "").split(",")
+        serialized_host["system_profile"] = {}
+        for system_profile_attribute in system_profile_attributes:
+            if system_profile_attribute not in host.system_profile_facts:
+                continue
+            if host.system_profile_facts and system_profile_attribute in host.system_profile_facts:
+                serialized_host["system_profile"][system_profile_attribute] = host.system_profile_facts[
+                    system_profile_attribute
+                ]
+            else:
+                serialized_host["system_profile"][system_profile_attribute] = None
+
+    if "host" in sparse_fieldset:
+        host_attributes = sparse_fieldset["host"].replace(" ", "").split(",")
+        for host_attribute in host_attributes:
+            _serialize_host_field(host, host_attribute, staleness_timestamps, serialized_host)
+
+    return serialized_host
+
+
+def _serialize_host_field(host, field, staleness_timestamps, serialized_host):
     if host.stale_timestamp:
         stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
         stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
@@ -99,51 +140,34 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, extra_fiel
         stale_warning_timestamp = None
         culled_timestamp = None
 
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
-
-    if "id" in fields:
+    if "id" == field:
         serialized_host["id"] = _serialize_uuid(host.id)
-    if "account" in fields:
+    if "account" == field:
         serialized_host["account"] = host.account
-    if "display_name" in fields:
+    if "display_name" == field:
         serialized_host["display_name"] = host.display_name
-    if "ansible_host" in fields:
+    if "ansible_host" == field:
         serialized_host["ansible_host"] = host.ansible_host
-    if "facts" in fields:
+    if "facts" == field:
         serialized_host["facts"] = _serialize_facts(host.facts)
-    if "reporter" in fields:
+    if "reporter" == field:
         serialized_host["reporter"] = host.reporter
-    if "stale_timestamp" in fields:
+    if "stale_timestamp" == field:
         serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
-    if "stale_warning_timestamp" in fields:
+    if "stale_warning_timestamp" == field:
         serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
-    if "culled_timestamp" in fields:
+    if "culled_timestamp" == field:
         serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
         # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
         # requires it
-    if "created" in fields:
+    if "created" == field:
         serialized_host["created"] = _serialize_datetime(host.created_on)
-    if "updated" in fields:
+    if "updated" == field:
         serialized_host["updated"] = _serialize_datetime(host.modified_on)
-    if "tags" in fields:
+    if "tags" == field:
         serialized_host["tags"] = _serialize_tags(host.tags)
-    if "system_profile" in fields:
+    if "system_profile" == field:
         serialized_host["system_profile"] = host.system_profile_facts or {}
-    if extra_fields:
-        if "system_profile" in extra_fields:
-            system_profile_attributes = extra_fields["system_profile"].replace(" ", "").split(",")
-            serialized_host["system_profile"] = {}
-            for system_profile_attribute in system_profile_attributes:
-                if system_profile_attribute not in host.system_profile_facts:
-                    continue
-                if host.system_profile_facts and system_profile_attribute in host.system_profile_facts:
-                    serialized_host["system_profile"][system_profile_attribute] = host.system_profile_facts[
-                        system_profile_attribute
-                    ]
-                elif host.system_profile_facts and system_profile_attribute == "*":
-                    serialized_host["system_profile"] = host.system_profile_facts
-                else:
-                    serialized_host["system_profile"][system_profile_attribute] = "not found"
 
     return serialized_host
 
@@ -156,8 +180,8 @@ def _deserialize_canonical_facts(data):
     return {field: data[field] for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
-def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+def serialize_canonical_facts(canonical_facts, canonical_fields=_CANONICAL_FACTS_FIELDS):
+    return {field: canonical_facts.get(field) for field in canonical_fields}
 
 
 def _deserialize_facts(data):
