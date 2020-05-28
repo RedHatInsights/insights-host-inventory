@@ -1987,6 +1987,13 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    def _expected_host_list(self, hosts):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in hosts[::-1]
+        ]
+
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -1994,11 +2001,8 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self.assertEqual(response["count"], len(expected_host_list))
         self.assertEqual(len(response["results"]), len(expected_host_list))
 
-        host_data = [host.data() for host in expected_host_list]
+        host_data = [host for host in self._expected_host_list(expected_host_list)]
         for host in host_data:
-            # Remove fields that are not returned by the /hosts endpoint
-            host.pop("tags", None)
-            host.pop("system_profile", None)
             self.assertIn(host, response["results"])
         for host in response["results"]:
             self.assertIn(host, host_data)

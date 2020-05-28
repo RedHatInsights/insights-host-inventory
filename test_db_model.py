@@ -205,7 +205,8 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-def test_host_schema_timezone_enforced():
+@pytest.mark.parametrize("schema", [MqHostSchema, HttpHostSchema])
+def test_host_schema_timezone_enforced(schema):
     host = {
         "fqdn": "scooby.doo.com",
         "display_name": "display_name",
@@ -214,7 +215,7 @@ def test_host_schema_timezone_enforced():
         "reporter": "test",
     }
     with pytest.raises(ValidationError) as excinfo:
-        _ = MqHostSchema(strict=True).load(host)
+        schema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(excinfo.value)
 
