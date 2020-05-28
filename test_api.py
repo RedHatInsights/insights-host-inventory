@@ -1593,9 +1593,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             response_data = json.loads(mock_event_producer.event)
 
             # add facts object since it's not returned by message
-            response_data["host"]["facts"] = message["data"]["facts"]
-
-            host_list.append(HostWrapper(response_data["host"]))
+            host_data = {**response_data["host"], "facts": message["data"]["facts"]}
+            host_list.append(HostWrapper(host_data))
 
         return host_list
 
