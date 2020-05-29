@@ -494,10 +494,6 @@ components:
       See [Host fields]('#/components/schemas/CreateHostOut') for a list of possible fields to include for host."
       schema:
         type: object
-        enum:
-          - system_profile
-          - host
-          - canonical_facts
         example:
           system_profile: 'os_release, arch'
         properties:

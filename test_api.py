@@ -4480,12 +4480,11 @@ class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
 
 class SparseFieldsetTestCase(DBAPITestCase):
     def test_system_profile_sparse_attributes(self):
-        facts = None
         expected_os_releases = []
         expected_archs = []
 
         for i in range(4):
-            host = test_data(display_name=f"host{i}", facts=facts)
+            host = test_data(display_name=f"host{i}", facts=None)
             host["rhel_machine_id"] = generate_uuid()
             host["ip_addresses"] = ["10.0.0.1"]
             host["system_profile"] = valid_system_profile()
@@ -4498,7 +4497,7 @@ class SparseFieldsetTestCase(DBAPITestCase):
             expected_os_releases.append(host["system_profile"]["os_release"])
             expected_archs.append(host["system_profile"]["arch"])
 
-        test_url = f"{HOST_URL}?fields[system_profile]=os_release, arch"
+        test_url = f"{HOST_URL}?fields[system_profile]=os_release,arch"
         host_lookup_results = self.get(test_url, 200)
         returned_os_releases = []
         returned_archs = []
@@ -4512,18 +4511,59 @@ class SparseFieldsetTestCase(DBAPITestCase):
         for expected_arch in expected_archs:
             self.assertIn(expected_arch, returned_archs)
 
+    def test_canonical_facts_sparse_attributes(self):
+        insights_ids = []
+        fqdns = []
+        for i in range(4):
+            insights_id = generate_uuid()
+            fqdn = f"fqdn{i}"
+            host = test_data(fqdn=fqdn, insights_id=insights_id, display_name=f"host{i}", facts=None)
+            host["rhel_machine_id"] = generate_uuid()
+            host["ip_addresses"] = ["10.0.0.1"]
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+            insights_ids.append(insights_id)
+            fqdns.append(fqdn)
+
+        test_url = f"{HOST_URL}?fields[canonical_facts]=fqdn,insights_id"
+        host_lookup_results = self.get(test_url, 200)
+
+        for i, host in enumerate(host_lookup_results["results"]):
+            self.assertIn(host["fqdn"], fqdns)
+            self.assertIn(host["insights_id"], insights_ids)
+
+    def test_hosts_sparse_attributes(self):
+        createds = []
+        updateds = []
+        for i in range(4):
+            host = test_data(display_name=f"host{i}", facts=None)
+            host["rhel_machine_id"] = generate_uuid()
+            host["ip_addresses"] = ["10.0.0.1"]
+            response = self.post(HOST_URL, [host], 207)
+            self._verify_host_status(response, 0, 201)
+            createds.append(response["data"][0]["host"]["created"])
+            updateds.append(response["data"][0]["host"]["updated"])
+
+        test_url = f"{HOST_URL}?fields[host]=created,updated"
+        host_lookup_results = self.get(test_url, 200)
+
+        for index, host in enumerate(host_lookup_results["results"]):
+            self.assertIn(host["created"], createds)
+            self.assertIn(host["updated"], updateds)
+
     def test_request_unknown_sparse_attr(self):
-        facts = None
-        host = test_data(display_name="host", facts=facts)
+        test_url = f"{HOST_URL}?fields[wrongmethod]=wrongvalue, wrongvalue2"
+        self.get(test_url, 400)
+
+    def test_request_empty_fields(self):
+        host = test_data(display_name="host", facts=None)
         host["rhel_machine_id"] = generate_uuid()
         host["ip_addresses"] = ["10.0.0.1"]
         response = self.post(HOST_URL, [host], 207)
         self._verify_host_status(response, 0, 201)
 
-        test_url = f"{HOST_URL}?fields[wrongmethod]=wrongvalue, wrongvalue2"
-        host_lookup_results = self.get(test_url, 200)
-
-        self.assertNotIn("wrongmethod", host_lookup_results["results"][0])
+        test_url = f"{HOST_URL}?fields"
+        self.get(test_url, 200)
 
 
 if __name__ == "__main__":

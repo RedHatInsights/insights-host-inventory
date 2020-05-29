@@ -48,6 +48,7 @@ TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
+SUPPORTED_FIELDS = ("system_profile", "host", "canonical_facts")
 
 logger = get_logger(__name__)
 
@@ -170,6 +171,10 @@ def get_host_list(
         )
     except ValueError as e:
         flask.abort(400, str(e))
+
+    for field in fields:
+        if field not in SUPPORTED_FIELDS:
+            flask.abort(400, "Supported fields include %s", SUPPORTED_FIELDS)
 
     json_data = build_paginated_host_list_response(total, page, per_page, host_list, fields)
     return flask_json_response(json_data)
