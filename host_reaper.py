@@ -1,6 +1,5 @@
 import sys
 from functools import partial
-from os import getenv
 
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
@@ -9,8 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
-from app.config import RuntimeEnvironment
 from app.culling import Conditions
+from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
@@ -30,11 +29,12 @@ __all__ = ("main", "run")
 PROMETHEUS_JOB = "inventory-reaper"
 LOGGER_NAME = "host_reaper"
 COLLECTED_METRICS = (delete_host_count, delete_host_processing_time, host_reaper_fail_count)
+RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
-def _init_config(config_name):
-    config = Config(RuntimeEnvironment.job)
-    config.log_configuration(config_name)
+def _init_config():
+    config = Config(RUNTIME_ENVIRONMENT)
+    config.log_configuration()
     return config
 
 
@@ -52,7 +52,7 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, logger_, session):
+def run(config, logger, session):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
@@ -61,14 +61,13 @@ def run(config, logger_, session):
     events = delete_hosts(query, None)
     for host_id, deleted in events:
         if deleted:
-            logger_.info("Deleted host: %s", host_id)
+            logger.info("Deleted host: %s", host_id)
         else:
-            logger_.info("Host %s already deleted. Delete event not emitted.", host_id)
+            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
 
 
 def main(config_name, logger):
     config = _init_config(config_name)
-    # init_tasks(config)
 
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
@@ -88,11 +87,10 @@ def main(config_name, logger):
 
 
 if __name__ == "__main__":
-    config_name = getenv("APP_SETTINGS", "development")
-    configure_logging(config_name)
+    configure_logging(RUNTIME_ENVIRONMENT)
 
     logger = get_logger(LOGGER_NAME)
     sys.excepthook = partial(_excepthook, logger)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    main(config_name, logger)
+    main(logger)

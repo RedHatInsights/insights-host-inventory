@@ -1,5 +1,6 @@
 from app import create_app
 from app import UNKNOWN_REQUEST_ID_VALUE
+from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -20,13 +21,13 @@ def test_validations(host):
 
 
 def main():
-    flask_app = create_app(config_name="validation_script")
+    flask_app = create_app(RuntimeEnvironment.COMMAND)
     with flask_app.app_context() as ctx:
         threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
         ctx.push()
     query = Host.query
-    logger.info(f"Validating delete event for hosts.")
-    logger.info(f"Total number of hosts: %i", query.count())
+    logger.info("Validating delete event for hosts.")
+    logger.info("Total number of hosts: %i", query.count())
 
     number_of_errors = 0
     for host in query.yield_per(1000):

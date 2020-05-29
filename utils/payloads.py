@@ -519,6 +519,9 @@ def build_host_chunk():
             {"namespace": "NS1", "key": "key3", "value": "val3"},
             {"namespace": "Sat", "key": "prod", "value": None},
         ],
+        # "tags": {
+        #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},
+        # },
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
