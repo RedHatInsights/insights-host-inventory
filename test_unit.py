@@ -8,6 +8,7 @@ from json import dumps
 from random import choice
 from unittest import main
 from unittest import TestCase
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import UUID
@@ -717,7 +718,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                     expected_errors = MqHostSchema().load(inp).errors
                     self.assertEqual(str(expected_errors), str(context.exception))
 
-    # test that both of the host schamas will pass all of these fields
+    # Test that both of the host schemas will pass all of these fields
     # needed because HTTP schema does not accept tags anymore (RHCLOUD - 5593)
     def test_with_all_common_fields(self):
         canonical_facts = {
@@ -1065,8 +1066,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
     def test_host_validation(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {"ansible_host": "some ansible host", "account": "some acct"}
-
-        from unittest.mock import MagicMock
 
         host_schema = MagicMock()
         deserialize_host(host_input, host_schema)

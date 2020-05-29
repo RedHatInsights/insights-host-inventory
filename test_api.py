@@ -2001,11 +2001,8 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self.assertEqual(response["count"], len(expected_host_list))
         self.assertEqual(len(response["results"]), len(expected_host_list))
 
-        host_data = [host for host in self._expected_host_list(expected_host_list)]
-        for host in host_data:
-            self.assertIn(host, response["results"])
-        for host in response["results"]:
-            self.assertIn(host, host_data)
+        host_data = self._expected_host_list(expected_host_list)
+        self.assertCountEqual(host_data, response["results"])
 
         self._base_paging_test(url, len(expected_host_list))
         self._invalid_paging_parameters_test(url)
