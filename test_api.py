@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
 
 import dateutil.parser
+from flask import current_app
 from sqlalchemy import null
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
@@ -1269,6 +1270,9 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
             "stale_warning": self.now_timestamp - timedelta(weeks=1),
             "culled": self.now_timestamp - timedelta(weeks=2),
         }
+        with self.app.app_context():
+            self.event_producer = mock.Mock()
+            current_app.event_producer = self.event_producer
 
     def _run_host_reaper(self):
         with patch("app.queue.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
@@ -1298,24 +1302,18 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
 
     def test_culled_host_is_removed(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                added_host = self._add_hosts(
-                    (
-                        {
-                            "stale_timestamp": self.staleness_timestamps["culled"].isoformat(),
-                            "reporter": "some reporter",
-                        },
-                    )
-                )[0]
-                self._check_hosts_are_present((added_host.id,))
+            added_host = self._add_hosts(
+                ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
+            )[0]
+            self._check_hosts_are_present((added_host.id,))
 
-                self._run_host_reaper()
-                self._check_hosts_are_deleted((added_host.id,))
+            self._run_host_reaper()
+            self._check_hosts_are_deleted((added_host.id,))
 
-                write_event.assert_called_once()
+            current_app.event_producer.write_event.assert_called_once()
 
-                event = emitted_event(write_event.mock_calls[0])
-                self._assert_event_is_valid(event, added_host, self.now_timestamp)
+            event = emitted_event(current_app.event_producer.write_event.mock_calls[0])
+            self._assert_event_is_valid(event, added_host, self.now_timestamp)
 
     def test_non_culled_host_is_not_removed(self):
         hosts_to_add = []
@@ -1335,18 +1333,16 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         self._check_hosts_are_present(added_host_ids)
 
     def test_unknown_host_is_not_removed(self):
-        # #TODO, change mock to whatever makes the two abbove test work right
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                added_hosts = self._add_hosts(({},))
-                added_host_id = added_hosts[0].id
-                self._check_hosts_are_present((added_host_id,))
+            added_hosts = self._add_hosts(({},))
+            added_host_id = added_hosts[0].id
+            self._check_hosts_are_present((added_host_id,))
 
-                self._nullify_culling_fields(added_host_id)
+            self._nullify_culling_fields(added_host_id)
 
-                self._run_host_reaper()
-                self._check_hosts_are_present((added_host_id,))
-                write_event.assert_not_called()
+            self._run_host_reaper()
+            self._check_hosts_are_present((added_host_id,))
+            current_app.event_producer.write_event.assert_not_called()
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
@@ -1819,175 +1815,168 @@ class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(result_ids, expected_ids)
 
 
-# @patch("api.host.emit_event")
+# @patch('api.host.current_app')
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
     def setUp(self):
         super().setUp()
         self.now_timestamp = datetime.now(timezone.utc)
+        with self.app.app_context():
+            self.event_producer = mock.Mock()
+            current_app.event_producer = self.event_producer
 
     def test_update_fields(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                original_id = self.added_hosts[0].id
+            original_id = self.added_hosts[0].id
 
-                patch_docs = [
-                    {"ansible_host": "NEW_ansible_host"},
-                    {"ansible_host": ""},
-                    {"display_name": "fred_flintstone"},
-                    {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"},
-                ]
+            patch_docs = [
+                {"ansible_host": "NEW_ansible_host"},
+                {"ansible_host": ""},
+                {"display_name": "fred_flintstone"},
+                {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"},
+            ]
 
-                for patch_doc in patch_docs:
-                    with self.subTest(valid_patch_doc=patch_doc):
-                        response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
+            for patch_doc in patch_docs:
+                with self.subTest(valid_patch_doc=patch_doc):
+                    response_data = self.patch(f"{HOST_URL}/{original_id}", patch_doc, 200)
 
-                        response_data = self.get(f"{HOST_URL}/{original_id}", 200)
+                    response_data = self.get(f"{HOST_URL}/{original_id}", 200)
 
-                        host = response_data["results"][0]
+                    host = response_data["results"][0]
 
-                        for key in patch_doc:
-                            self.assertEqual(host[key], patch_doc[key])
-
-    def test_patch_with_branch_id_parameter(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                patch_doc = {"display_name": "branch_id_test"}
-
-                url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
-
-                test_url = f"{HOST_URL}/{url_host_id_list}?branch_id=123"
-
-                self.patch(test_url, patch_doc, 200)
-
-    def test_update_fields_on_multiple_hosts(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                patch_doc = {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"}
-
-                url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
-
-                test_url = f"{HOST_URL}/{url_host_id_list}"
-
-                self.patch(test_url, patch_doc, 200)
-
-                response_data = self.get(test_url, 200)
-
-                for host in response_data["results"]:
                     for key in patch_doc:
                         self.assertEqual(host[key], patch_doc[key])
 
+    def test_patch_with_branch_id_parameter(self):
+        with self.app.app_context():
+            patch_doc = {"display_name": "branch_id_test"}
+
+            url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+
+            test_url = f"{HOST_URL}/{url_host_id_list}?branch_id=123"
+
+            self.patch(test_url, patch_doc, 200)
+
+    def test_update_fields_on_multiple_hosts(self):
+        with self.app.app_context():
+            patch_doc = {"display_name": "fred_flintstone", "ansible_host": "barney_rubble"}
+
+            url_host_id_list = self._build_host_id_list_for_url(self.added_hosts)
+
+            test_url = f"{HOST_URL}/{url_host_id_list}"
+
+            self.patch(test_url, patch_doc, 200)
+
+            response_data = self.get(test_url, 200)
+
+            for host in response_data["results"]:
+                for key in patch_doc:
+                    self.assertEqual(host[key], patch_doc[key])
+
     def test_patch_on_non_existent_host(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                non_existent_id = generate_uuid()
+            non_existent_id = generate_uuid()
 
-                patch_doc = {"ansible_host": "NEW_ansible_host"}
+            patch_doc = {"ansible_host": "NEW_ansible_host"}
 
-                self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
+            self.patch(f"{HOST_URL}/{non_existent_id}", patch_doc, status=404)
 
     def test_patch_on_multiple_hosts_with_some_non_existent(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                non_existent_id = generate_uuid()
-                original_id = self.added_hosts[0].id
+            non_existent_id = generate_uuid()
+            original_id = self.added_hosts[0].id
 
-                patch_doc = {"ansible_host": "NEW_ansible_host"}
+            patch_doc = {"ansible_host": "NEW_ansible_host"}
 
-                self.patch(f"{HOST_URL}/{non_existent_id},{original_id}", patch_doc)
+            self.patch(f"{HOST_URL}/{non_existent_id},{original_id}", patch_doc)
 
     def test_invalid_data(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                original_id = self.added_hosts[0].id
+            original_id = self.added_hosts[0].id
 
-                invalid_data_list = [
-                    {"ansible_host": "a" * 256},
-                    {"ansible_host": None},
-                    {},
-                    {"display_name": None},
-                    {"display_name": ""},
-                ]
+            invalid_data_list = [
+                {"ansible_host": "a" * 256},
+                {"ansible_host": None},
+                {},
+                {"display_name": None},
+                {"display_name": ""},
+            ]
 
-                for patch_doc in invalid_data_list:
-                    with self.subTest(invalid_patch_doc=patch_doc):
-                        response = self.patch(f"{HOST_URL}/{original_id}", patch_doc, status=400)
+            for patch_doc in invalid_data_list:
+                with self.subTest(invalid_patch_doc=patch_doc):
+                    response = self.patch(f"{HOST_URL}/{original_id}", patch_doc, status=400)
 
-                        self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
+                    self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
     def test_invalid_host_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                patch_doc = {"display_name": "branch_id_test"}
-                host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
-                for host_id_list in host_id_lists:
-                    with self.subTest(host_id_list=host_id_list):
-                        self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
+            patch_doc = {"display_name": "branch_id_test"}
+            host_id_lists = ["notauuid", f"{self.added_hosts[0].id},notauuid"]
+            for host_id_list in host_id_lists:
+                with self.subTest(host_id_list=host_id_list):
+                    self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
     def _base_patch_produces_update_event_test(self, write_event, headers, expected_request_id):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                patch_doc = {"display_name": "patch_event_test"}
-                host_to_patch = self.added_hosts[0].id
+            patch_doc = {"display_name": "patch_event_test"}
+            host_to_patch = self.added_hosts[0].id
 
-                with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
-                    self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
+            with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
+                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
 
-                expected_event_message = {
-                    "type": "updated",
-                    "host": {
-                        "account": self.added_hosts[0].account,
-                        "ansible_host": self.added_hosts[0].ansible_host,
-                        "bios_uuid": self.added_hosts[0].bios_uuid,
-                        "created": self.added_hosts[0].created,
-                        "culled_timestamp": (
-                            dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
-                        ).isoformat(),
-                        "display_name": "patch_event_test",
-                        "external_id": self.added_hosts[0].external_id,
-                        "fqdn": self.added_hosts[0].fqdn,
-                        "id": self.added_hosts[0].id,
-                        "insights_id": self.added_hosts[0].insights_id,
-                        "ip_addresses": self.added_hosts[0].ip_addresses,
-                        "mac_addresses": self.added_hosts[0].mac_addresses,
-                        "reporter": self.added_hosts[0].reporter,
-                        "rhel_machine_id": self.added_hosts[0].rhel_machine_id,
-                        "satellite_id": self.added_hosts[0].satellite_id,
-                        "stale_timestamp": self.added_hosts[0].stale_timestamp,
-                        "stale_warning_timestamp": (
-                            dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
-                        ).isoformat(),
-                        "subscription_manager_id": self.added_hosts[0].subscription_manager_id,
-                        "system_profile": {},
-                        "tags": [
-                            {"namespace": "no", "key": "key", "value": None},
-                            {"namespace": "NS1", "key": "key1", "value": "val1"},
-                            {"namespace": "NS1", "key": "key2", "value": "val1"},
-                            {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-                        ],
-                        "updated": self.added_hosts[0].updated,
-                    },
-                    "platform_metadata": None,
-                    "timestamp": self.now_timestamp.isoformat(),
-                }
+            expected_event_message = {
+                "type": "updated",
+                "host": {
+                    "account": self.added_hosts[0].account,
+                    "ansible_host": self.added_hosts[0].ansible_host,
+                    "bios_uuid": self.added_hosts[0].bios_uuid,
+                    "created": self.added_hosts[0].created,
+                    "culled_timestamp": (
+                        dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
+                    ).isoformat(),
+                    "display_name": "patch_event_test",
+                    "external_id": self.added_hosts[0].external_id,
+                    "fqdn": self.added_hosts[0].fqdn,
+                    "id": self.added_hosts[0].id,
+                    "insights_id": self.added_hosts[0].insights_id,
+                    "ip_addresses": self.added_hosts[0].ip_addresses,
+                    "mac_addresses": self.added_hosts[0].mac_addresses,
+                    "reporter": self.added_hosts[0].reporter,
+                    "rhel_machine_id": self.added_hosts[0].rhel_machine_id,
+                    "satellite_id": self.added_hosts[0].satellite_id,
+                    "stale_timestamp": self.added_hosts[0].stale_timestamp,
+                    "stale_warning_timestamp": (
+                        dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
+                    ).isoformat(),
+                    "subscription_manager_id": self.added_hosts[0].subscription_manager_id,
+                    "system_profile": {},
+                    "tags": [
+                        {"namespace": "no", "key": "key", "value": None},
+                        {"namespace": "NS1", "key": "key1", "value": "val1"},
+                        {"namespace": "NS1", "key": "key2", "value": "val1"},
+                        {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+                    ],
+                    "updated": self.added_hosts[0].updated,
+                },
+                "platform_metadata": None,
+                "timestamp": self.now_timestamp.isoformat(),
+            }
 
-                write_event.assert_called_once()
-                emitted_event = write_event.call_args[0]
-                event_message = json.loads(emitted_event[0])
-                self.assertEqual(event_message, expected_event_message)
-                self.assertEqual(emitted_event[1], self.added_hosts[0].id)
-                self.assertEqual(emitted_event[2], {"event_type": "updated"})
+            current_app.event_producer.write_event.assert_called_once()
+            emitted_event = current_app.event_producer.write_event.call_args[0]
+            event_message = json.loads(emitted_event[0])
+            self.assertEqual(event_message, expected_event_message)
+            self.assertEqual(emitted_event[1], self.added_hosts[0].id)
+            self.assertEqual(emitted_event[2], {"event_type": "updated"})
 
     def test_patch_produces_update_event_no_request_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                self._base_patch_produces_update_event_test(write_event, {}, "-1")
+            self._base_patch_produces_update_event_test(current_app.event_producer.write_event, {}, "-1")
 
     def test_patch_produces_update_event_with_request_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                request_id = generate_uuid()
-                headers = {"x-rh-insights-request-id": request_id}
-                self._base_patch_produces_update_event_test(write_event, headers, request_id)
+            request_id = generate_uuid()
+            headers = {"x-rh-insights-request-id": request_id}
+            self._base_patch_produces_update_event_test(current_app.event_producer.write_event, headers, request_id)
 
 
 class DeleteHostsErrorTestCase(DBAPITestCase):
@@ -2002,13 +1991,16 @@ class DeleteHostsErrorTestCase(DBAPITestCase):
         self.delete(url, 400)
 
 
-# @patch("lib.host_delete.emit_event")
+# @patch('lib.host_delete.current_app')
 class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestCase):
     def setUp(self):
         super().setUp()
         self.host_to_delete = self.added_hosts[0]
         self.delete_url = HOST_URL + "/" + self.host_to_delete.id
         self.timestamp = datetime.utcnow()
+        with self.app.app_context():
+            self.event_producer = mock.Mock()
+            current_app.event_producer = self.event_producer
 
     def _delete(self, url_query="", header=None):
         with patch("app.queue.events.datetime", **{"utcnow.return_value": self.timestamp}):
@@ -2017,50 +2009,47 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
 
     def test_create_then_delete(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                self._check_hosts_are_present((self.host_to_delete.id,))
-                self._delete()
+            self._check_hosts_are_present((self.host_to_delete.id,))
+            self._delete()
 
-                write_event.assert_called_once()
-                event = emitted_event(write_event.mock_calls[0])
-                self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
-                self._check_hosts_are_deleted((self.host_to_delete.id,))
+            current_app.event_producer.write_event.assert_called_once()
+            event = emitted_event(current_app.event_producer.write_event.mock_calls[0])
+            self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+            self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_branch_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                self._check_hosts_are_present((self.host_to_delete.id,))
-                self._delete(url_query="?branch_id=1234")
+            self._check_hosts_are_present((self.host_to_delete.id,))
+            self._delete(url_query="?branch_id=1234")
 
-                write_event.assert_called_once()
-                event = emitted_event(write_event.mock_calls[0])
-                self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
-                self._check_hosts_are_deleted((self.host_to_delete.id,))
+            current_app.event_producer.write_event.assert_called_once()
+            event = emitted_event(current_app.event_producer.write_event.mock_calls[0])
+            self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+            self._check_hosts_are_deleted((self.host_to_delete.id,))
 
     def test_create_then_delete_with_request_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                request_id = generate_uuid()
-                header = {"x-rh-insights-request-id": request_id}
-                self._delete(header=header)
+            request_id = generate_uuid()
+            header = {"x-rh-insights-request-id": request_id}
+            self._delete(header=header)
 
-                write_event.assert_called_once()
-                event = emitted_event(write_event.mock_calls[0])
-                self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
-                self.assertEqual(request_id, event.value["request_id"])
+            current_app.event_producer.write_event.assert_called_once()
+            event = emitted_event(current_app.event_producer.write_event.mock_calls[0])
+            self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+            self.assertEqual(request_id, event.value["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                self._check_hosts_are_present((self.host_to_delete.id,))
-                self._delete(header=None)
+            self._check_hosts_are_present((self.host_to_delete.id,))
+            self._delete(header=None)
 
-                write_event.assert_called_once()
-                event = emitted_event(write_event.mock_calls[0])
-                self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
-                self.assertEqual("-1", event.value["request_id"])
+            current_app.event_producer.write_event.assert_called_once()
+            event = emitted_event(current_app.event_producer.write_event.mock_calls[0])
+            self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+            self.assertEqual("-1", event.value["request_id"])
 
 
+@patch("lib.host_delete.current_app")
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class DeleteHostsMock:
         @classmethod
@@ -2094,18 +2083,17 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
             self._delete_hosts()
             return iterator
 
-    def test_delete_when_one_host_is_deleted(self):
+    def test_delete_when_one_host_is_deleted(self, current_app_mock):
         host_id = self.added_hosts[0].id
         url = HOST_URL + "/" + host_id
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock([host_id])):
+            # One host queried, but deleted by a different process. No event emitted yet returning
+            # 200 OK.
             with self.app.app_context():
-                with patch("lib.host_delete.current_app.event_producer.write_event") as write_event:
-                    # One host queried, but deleted by a different process. No event emitted yet returning
-                    # 200 OK.
-                    self.delete(url, 200, return_response_as_json=False)
-                    write_event.assert_not_called()
+                self.delete(url, 200, return_response_as_json=False)
+                current_app_mock.write_event.assert_not_called()
 
-    def test_delete_when_all_hosts_are_deleted(self):
+    def test_delete_when_all_hosts_are_deleted(self, current_app_mock):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list)):
@@ -2116,7 +2104,7 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
                     self.delete(url, 200, return_response_as_json=False)
                     write_event.assert_not_called()
 
-    def test_delete_when_some_hosts_is_deleted(self):
+    def test_delete_when_some_hosts_is_deleted(self, current_app_mock):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
         url = HOST_URL + "/" + ",".join(host_id_list)
         with patch("api.host.delete_hosts", self.DeleteHostsMock.create_mock(host_id_list[0:1])):
@@ -2983,55 +2971,42 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
 
 class QueryStalenessPatchIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
     def test_patch_ignores_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.culled_host["id"]
-                self.patch(url, {"display_name": "patched"}, 404)
+        url = HOST_URL + "/" + self.culled_host["id"]
+        self.patch(url, {"display_name": "patched"}, 404)
 
-    def test_patch_works_on_non_culled(self):
+    @patch("api.host.current_app")
+    def test_patch_works_on_non_culled(self, current_app_mock):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.fresh_host["id"]
-                self.patch(url, {"display_name": "patched"}, 200)
+            url = HOST_URL + "/" + self.fresh_host["id"]
+            self.patch(url, {"display_name": "patched"}, 200)
 
     def test_patch_facts_ignores_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
-                self.patch(url, {"ARCHITECTURE": "patched"}, 400)
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
+        self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
     def test_patch_facts_works_on_non_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
-                self.patch(url, {"ARCHITECTURE": "patched"}, 200)
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
+        self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
     def test_put_facts_ignores_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
-                self.put(url, {"ARCHITECTURE": "patched"}, 400)
+        url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
+        self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
     def test_put_facts_works_on_non_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
-                self.put(url, {"ARCHITECTURE": "patched"}, 200)
+        url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
+        self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
 
-# @patch("lib.host_delete.current_app.event_producer.write_event")
 class QueryStalenessDeleteIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
     def test_delete_ignores_culled(self):
-        with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.culled_host["id"]
-                self.delete(url, 404)
+        url = HOST_URL + "/" + self.culled_host["id"]
+        self.delete(url, 404)
 
-    def test_delete_works_on_non_culled(self):
+    @patch("lib.host_delete.current_app")
+    def test_delete_works_on_non_culled(self, current_app_mock):
         with self.app.app_context():
-            with patch("lib.host_delete.current_app.event_producer.write_event"):
-                url = HOST_URL + "/" + self.fresh_host["id"]
-                self.delete(url, 200, return_response_as_json=False)
+            url = HOST_URL + "/" + self.fresh_host["id"]
+            self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
