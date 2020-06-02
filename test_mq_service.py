@@ -112,16 +112,16 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
-                mock_event_producer.write_event_egress_topic.assert_called_once()
+                mock_event_producer.write_event.assert_called_once()
 
-                self.assertEquals(
-                    json.loads(mock_event_producer.write_event_egress_topic.call_args[0][0]),
+                self.assertEqual(
+                    json.loads(mock_event_producer.write_event.call_args[0][0]),
                     {
-                        "host": {"id": str(host_id), "insights_id": None},
-                        "metadata": {"request_id": None},
-                        "platform_metadata": {},
                         "timestamp": timestamp_iso,
                         "type": "created",
+                        "host": {"id": str(host_id), "insights_id": None},
+                        "platform_metadata": {},
+                        "metadata": {"request_id": "-1"},
                     },
                 )
 

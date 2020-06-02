@@ -147,9 +147,12 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event = build_event(
-            add_host_results_to_event_type(add_results), output_host, platform_metadata=platform_metadata
+            add_host_results_to_event_type(add_results),
+            output_host,
+            platform_metadata=platform_metadata,
+            request_id=threadctx.request_id,
         )
-        event_producer.write_event_egress_topic(event, output_host["id"], message_headers(add_results))
+        event_producer.write_event(event, output_host["id"], message_headers(add_results))
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

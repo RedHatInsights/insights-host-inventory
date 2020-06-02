@@ -23,8 +23,6 @@ EventTypes = Enum("EventTypes", ("created", "updated", "delete"))
 
 
 # Schemas
-class HostEventMetadataSchema(Schema):
-    request_id = fields.Str(required=True)
 
 
 class HostSchema(Schema):
@@ -55,11 +53,16 @@ class HostSchema(Schema):
     system_profile = fields.Nested(SystemProfileSchema)
 
 
+class HostEventMetadataSchema(Schema):
+    request_id = fields.Str(required=True)
+
+
 class HostCreateUpdateEvent(Schema):
     type = fields.Str()
     host = fields.Nested(HostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
+    metadata = fields.Nested(HostEventMetadataSchema())
 
 
 class HostDeleteEvent(Schema):
@@ -75,7 +78,7 @@ def message_headers(event_type):
     return {"event_type": event_type.name}
 
 
-def dumpHostCreateUpdateEvent(event_type, host, platform_metadata):
+def dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata):
     return (
         HostCreateUpdateEvent(strict=True)
         .dumps(
@@ -84,6 +87,7 @@ def dumpHostCreateUpdateEvent(event_type, host, platform_metadata):
                 "type": event_type.name,
                 "host": host,
                 "platform_metadata": platform_metadata,
+                "metadata": {"request_id": request_id},
             }
         )
         .data
@@ -111,7 +115,7 @@ def dumpHostDeleteEvent(event_type, host, request_id):
 def build_event(event_type, host, *, platform_metadata=None, request_id=None):
     # using enum now. Need to handle delete events too
     if event_type == EventTypes.created or event_type == EventTypes.updated:
-        return dumpHostCreateUpdateEvent(event_type, host, platform_metadata)
+        return dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata)
     if event_type == EventTypes.delete:
         return dumpHostDeleteEvent(event_type, host, request_id)
     else:
