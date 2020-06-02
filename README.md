@@ -196,6 +196,25 @@ Run this command to generate a new revision in `migrations/versions`
 python manage.py db revision -m "Description of revision"
 ```
 
+# Building a container image
+
+Inventory uses [Source-To-Image (S2I)](https://github.com/openshift/source-to-image) for building of container images.
+The container image is built by running
+
+```
+s2i build . centos/python-36-centos7 inventory -e ENABLE_PIPENV=true
+```
+
+## Building with docker
+
+In addition, a [Dockerfile](./dev.dockerfile) is provided.
+The container image built this way is only intended for development purposes (e.g. orchestrating the container using docker-compose) and must not be used for production deployment.
+
+```
+docker build . -f dev.dockerfile -t inventory:dev
+```
+
+By default, the container runs the database migrations and then starts the inventory-mq service.
 
 # Deployment
 
