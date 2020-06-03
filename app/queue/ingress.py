@@ -7,7 +7,7 @@ from marshmallow import ValidationError
 
 from app import inventory_config
 from app.culling import Timestamps
-from app.events import HOSTNAME
+from app.events import hostname
 from app.events import message_headers
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -153,8 +153,8 @@ def handle_message(message, event_producer):
             message_headers(
                 event_type=add_results.name,
                 request_id=threadctx.request_id,
-                producer=HOSTNAME,
-                registered_with_insights="true" if "insights_id" in output_host else "false",
+                producer=hostname(),
+                registered_with_insights="true" if output_host["insights_id"] else "false",
             ),
         )
 

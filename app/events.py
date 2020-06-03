@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 DELETE_EVENT_NAME = "delete"
 UPDATE_EVENT_NAME = "updated"
 
-HOSTNAME = os.uname().nodename
+def hostname():
+    return os.uname().nodename
 
 
 class HostEvent(Schema):
@@ -42,10 +43,10 @@ def delete(host):
     )
 
 
-def message_headers(event_type, request_id, producer, registered_with_insights):
+def message_headers(event_type, registered_with_insights):
     return {
         "event_type": event_type,
-        "request_id": request_id,
-        "producer": producer,
+        "request_id": threadctx.request_id,
+        "producer": os.uname().nodename,
         "registered_with_insights": registered_with_insights,
     }

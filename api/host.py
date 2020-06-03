@@ -18,7 +18,6 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
-from app.events import HOSTNAME
 from app.events import message_headers
 from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
@@ -243,8 +242,6 @@ def _emit_patch_event(host):
     event = build_event_topic_event("updated", host, request_id=request_id)
     headers = message_headers(
         event_type=UPDATE_EVENT_NAME,
-        request_id=request_id,
-        producer=HOSTNAME,
         registered_with_insights="true" if "insights_id" in host else "false",
     )
     emit_event(event, key, headers)
