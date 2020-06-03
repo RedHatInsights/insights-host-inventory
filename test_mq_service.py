@@ -34,15 +34,11 @@ class MockEventProducer:
         self.key = None
         self.headers = None
 
-    def write_event_egress_topic(self, event, key, headers):
+    def write_event(self, event, key, headers, topic):
         self.event = event
         self.key = key
         self.headers = headers
-
-    def write_event_events_topic(self, event, key, headers):
-        self.event = event
-        self.key = key
-        self.headers = headers
+        self.topic = topic
 
 
 class MQServiceBaseTestCase(TestCase):

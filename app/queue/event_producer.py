@@ -14,8 +14,6 @@ class EventProducer:
     def __init__(self, config):
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
-        self._egress_topic = config.host_egress_topic
-        self._event_topic = config.event_topic
         self.topics = {"egress": config.host_egress_topic, "event": config.event_topic}
 
     def write_event(self, event, key, headers, topic):

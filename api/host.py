@@ -42,8 +42,6 @@ from lib.host_repository import add_host
 from lib.host_repository import AddHostResults
 from lib.host_repository import find_non_culled_hosts
 
-# from tasks import emit_event
-
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}

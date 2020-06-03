@@ -1958,8 +1958,12 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                     "updated": self.added_hosts[0].updated,
                 },
                 "platform_metadata": None,
+                "metadata": {"request_id": expected_request_id},
                 "timestamp": self.now_timestamp.isoformat(),
             }
+
+            # TODO: remove
+            self.maxDiff = None
 
             current_app.event_producer.write_event.assert_called_once()
             emitted_event = current_app.event_producer.write_event.call_args[0]
