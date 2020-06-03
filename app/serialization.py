@@ -40,9 +40,7 @@ DEFAULT_FIELDS = (
     "updated",
 )
 
-BASIC_FIELDS = ("id", "account", "display_name")
-
-BASIC_CANONICAL_FIELDS = ("insights_id", "fqdn", "subscription_manager_id")
+BASIC_FIELDS = ("id", "account")
 
 
 def deserialize_host(raw_data, schema):
@@ -107,11 +105,15 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, sparse_fie
 def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
     serialized_host = {}
 
-    if "canonical_facts" in sparse_fieldset:
-        canonical_facts_attributes = sparse_fieldset["canonical_facts"].replace(" ", "").split(",")
+    if "host" in sparse_fieldset:
+        host_attributes = sparse_fieldset["host"].replace(" ", "").split(",")
+        canonical_facts_attributes = list(set(host_attributes) & set(_CANONICAL_FACTS_FIELDS))
+        host_attributes = list(set(host_attributes) - set(canonical_facts_attributes))
         serialized_host = {
             **serialize_canonical_facts(host.canonical_facts, canonical_fields=canonical_facts_attributes)
         }
+        for host_attribute in host_attributes:
+            _serialize_host_field(host, host_attribute, staleness_timestamps, serialized_host)
 
     for field in BASIC_FIELDS:
         _serialize_host_field(host, field, staleness_timestamps, serialized_host)
@@ -128,11 +130,6 @@ def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
                 ]
             else:
                 serialized_host["system_profile"][system_profile_attribute] = None
-
-    if "host" in sparse_fieldset:
-        host_attributes = sparse_fieldset["host"].replace(" ", "").split(",")
-        for host_attribute in host_attributes:
-            _serialize_host_field(host, host_attribute, staleness_timestamps, serialized_host)
 
     return serialized_host
 

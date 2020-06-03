@@ -48,7 +48,7 @@ TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
-SUPPORTED_FIELDS = ("system_profile", "host", "canonical_facts")
+SUPPORTED_FIELDS = ("system_profile", "host")
 
 logger = get_logger(__name__)
 

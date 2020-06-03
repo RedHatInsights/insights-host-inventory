@@ -4514,23 +4514,27 @@ class SparseFieldsetTestCase(DBAPITestCase):
     def test_canonical_facts_sparse_attributes(self):
         insights_ids = []
         fqdns = []
+        display_names = []
         for i in range(4):
             insights_id = generate_uuid()
             fqdn = f"fqdn{i}"
-            host = test_data(fqdn=fqdn, insights_id=insights_id, display_name=f"host{i}", facts=None)
+            display_name = f"host{i}"
+            host = test_data(fqdn=fqdn, insights_id=insights_id, display_name=display_name, facts=None)
             host["rhel_machine_id"] = generate_uuid()
             host["ip_addresses"] = ["10.0.0.1"]
             response = self.post(HOST_URL, [host], 207)
             self._verify_host_status(response, 0, 201)
             insights_ids.append(insights_id)
             fqdns.append(fqdn)
+            display_names.append(display_name)
 
-        test_url = f"{HOST_URL}?fields[canonical_facts]=fqdn,insights_id"
+        test_url = f"{HOST_URL}?fields[host]=fqdn,insights_id,display_name"
         host_lookup_results = self.get(test_url, 200)
 
         for i, host in enumerate(host_lookup_results["results"]):
             self.assertIn(host["fqdn"], fqdns)
             self.assertIn(host["insights_id"], insights_ids)
+            self.assertIn(host["display_name"], display_names)
 
     def test_hosts_sparse_attributes(self):
         createds = []
