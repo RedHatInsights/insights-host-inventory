@@ -804,11 +804,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
-        tags:
-          description: An array of the tags on the host
-          type: array
-          items:
-            $ref: '#/components/schemas/StructuredTag'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
@@ -1188,8 +1183,6 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
-
-
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
