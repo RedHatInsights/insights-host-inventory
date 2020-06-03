@@ -40,8 +40,6 @@ DEFAULT_FIELDS = (
     "updated",
 )
 
-BASIC_FIELDS = ("id", "account")
-
 
 def deserialize_host(raw_data, schema):
     try:
@@ -115,8 +113,7 @@ def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
         for host_attribute in host_attributes:
             _serialize_host_field(host, host_attribute, staleness_timestamps, serialized_host)
 
-    for field in BASIC_FIELDS:
-        _serialize_host_field(host, field, staleness_timestamps, serialized_host)
+    _serialize_host_field(host, "id", staleness_timestamps, serialized_host)
 
     if "system_profile" in sparse_fieldset:
         system_profile_attributes = sparse_fieldset["system_profile"].replace(" ", "").split(",")

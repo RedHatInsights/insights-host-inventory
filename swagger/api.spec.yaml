@@ -712,8 +712,6 @@ components:
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
       type: object
-      required:
-        - account
       properties:
         display_name:
           description: >-
