@@ -8,6 +8,7 @@ from json import dumps
 from random import choice
 from unittest import main
 from unittest import TestCase
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import UUID
@@ -29,7 +30,8 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import Host
-from app.models import HostSchema
+from app.models import HttpHostSchema
+from app.models import MqHostSchema
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -622,7 +624,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        actual = deserialize_host(full_input)
+        actual = deserialize_host(full_input, MqHostSchema)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
@@ -640,60 +642,173 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         stale_timestamp = datetime.now(timezone.utc)
         reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
-        host = deserialize_host(
-            {
-                "account": account,
-                "stale_timestamp": stale_timestamp.isoformat(),
-                "reporter": reporter,
-                **canonical_facts,
-            }
-        )
 
-        self.assertIs(Host, type(host))
-        self.assertEqual(canonical_facts, host.canonical_facts)
-        self.assertIsNone(host.display_name)
-        self.assertIsNone(host.ansible_host)
-        self.assertEqual(account, host.account)
-        self.assertEqual(stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-        self.assertEqual({}, host.facts)
-        self.assertEqual({}, host.tags)
-        self.assertEqual({}, host.system_profile_facts)
+        for schema in (MqHostSchema, HttpHostSchema):
+            with self.subTest(schema=schema):
+                host = deserialize_host(
+                    {
+                        "account": account,
+                        "stale_timestamp": stale_timestamp.isoformat(),
+                        "reporter": reporter,
+                        **canonical_facts,
+                    },
+                    schema,
+                )
+
+                self.assertIs(Host, type(host))
+                self.assertEqual(canonical_facts, host.canonical_facts)
+                self.assertIsNone(host.display_name)
+                self.assertIsNone(host.ansible_host)
+                self.assertEqual(account, host.account)
+                self.assertEqual(stale_timestamp, host.stale_timestamp)
+                self.assertEqual(reporter, host.reporter)
+                self.assertEqual({}, host.facts)
+                self.assertEqual({}, host.tags)
+                self.assertEqual({}, host.system_profile_facts)
 
     def test_with_invalid_input(self):
+        stale_timestamp = datetime.now(timezone.utc).isoformat()
         inputs = (
             {},
-            {"account": ""},
-            {"account": "some account", "fqdn": "some fqdn"},
-            {"account": "someacct", "fqdn": None},
-            {"account": "someacct", "fqdn": ""},
-            {"account": "someacct", "fqdn": "x" * 256},
-            {"account": "someacct", "fqdn": "some fqdn", "facts": {"some ns": {"some key": "some value"}}},
+            {"account": "someacct", "stale_timestamp": stale_timestamp},
+            {"account": "someacct", "reporter": "some reporter"},
+            {"stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {"account": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {
+                "account": "some account",
+                "fqdn": "some fqdn",
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {"account": "someacct", "fqdn": None, "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {"account": "someacct", "fqdn": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
             {
                 "account": "someacct",
-                "fqdn": "some fqdn",
-                "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
+                "fqdn": "x" * 256,
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
             },
             {
                 "account": "someacct",
                 "fqdn": "some fqdn",
-                "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
+                "facts": {"some ns": {"some key": "some value"}},
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
+                "fqdn": "some fqdn",
+                "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
+                "fqdn": "some fqdn",
+                "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
             },
         )
         for inp in inputs:
             with self.subTest(input=inp):
                 with self.assertRaises(ValidationException) as context:
-                    deserialize_host(inp)
+                    deserialize_host(inp, MqHostSchema)
 
-                expected_errors = HostSchema().load(inp).errors
-                self.assertEqual(str(expected_errors), str(context.exception))
+                    expected_errors = MqHostSchema().load(inp).errors
+                    self.assertEqual(str(expected_errors), str(context.exception))
+
+    # Test that both of the host schemas will pass all of these fields
+    # needed because HTTP schema does not accept tags anymore (RHCLOUD - 5593)
+    def test_with_all_common_fields(self):
+        canonical_facts = {
+            "insights_id": str(uuid4()),
+            "rhel_machine_id": str(uuid4()),
+            "subscription_manager_id": str(uuid4()),
+            "satellite_id": str(uuid4()),
+            "bios_uuid": str(uuid4()),
+            "ip_addresses": ["10.10.0.1", "10.0.0.2"],
+            "fqdn": "some fqdn",
+            "mac_addresses": ["c2:00:d0:c8:61:01"],
+            "external_id": "i-05d2313e6b9a42b16",
+        }
+        unchanged_input = {
+            "display_name": "some display name",
+            "ansible_host": "some ansible host",
+            "account": "some acct",
+            "reporter": "puptoo",
+        }
+        stale_timestamp = datetime.now(timezone.utc)
+        full_input = {
+            **canonical_facts,
+            **unchanged_input,
+            "stale_timestamp": stale_timestamp.isoformat(),
+            "facts": [
+                {"namespace": "some namespace", "facts": {"some key": "some value"}},
+                {"namespace": "another namespace", "facts": {"another key": "another value"}},
+            ],
+            "system_profile": {
+                "number_of_cpus": 1,
+                "number_of_sockets": 2,
+                "cores_per_socket": 3,
+                "system_memory_bytes": 4,
+            },
+        }
+
+        for schema in (MqHostSchema, HttpHostSchema):
+            with self.subTest(schema=schema):
+                actual = deserialize_host(full_input, schema)
+                expected = {
+                    "canonical_facts": canonical_facts,
+                    **unchanged_input,
+                    "stale_timestamp": stale_timestamp,
+                    "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
+                    "system_profile_facts": full_input["system_profile"],
+                }
+
+                self.assertIs(Host, type(actual))
+                for key, value in expected.items():
+                    self.assertEqual(value, getattr(actual, key))
+
+    def test_with_tags(self):
+        tags = {
+            "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
+            "another namespace": {"key": ["value"]},
+        }
+        host = deserialize_host(
+            {
+                "account": "some acct",
+                "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+                "reporter": "puptoo",
+                "fqdn": "some fqdn",
+                "tags": tags,
+            },
+            MqHostSchema,
+        )
+
+        self.assertIs(Host, type(host))
+        self.assertEqual(tags, host.tags)
+
+    def test_without_tags(self):
+        host = deserialize_host(
+            {
+                "account": "some acct",
+                "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+                "reporter": "puptoo",
+                "fqdn": "some fqdn",
+                "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
+            },
+            HttpHostSchema,
+        )
+
+        self.assertIs(Host, type(host))
+        self.assertEqual({}, host.tags)
 
 
 @patch("app.serialization.Host")
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
-@patch("app.serialization.HostSchema")
 class SerializationDeserializeHostMockedTestCase(TestCase):
     class ValidationError(Exception):
         """
@@ -710,9 +825,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         self.assertTrue(exception.__suppress_context__)
         self.assertIsNone(exception.__cause__)
 
-    def test_with_all_fields(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
+    def test_with_all_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -743,9 +856,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = host_input
-
-        result = deserialize_host(host_input)
+        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
@@ -763,7 +875,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["reporter"],
         )
 
-    def test_without_facts(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -781,9 +893,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = host_input
+        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
 
-        result = deserialize_host({})
+        result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
@@ -801,7 +913,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["reporter"],
         )
 
-    def test_without_tags(self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+    def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -819,9 +931,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = host_input
+        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
 
-        result = deserialize_host({})
+        result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
@@ -839,9 +951,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["reporter"],
         )
 
-    def test_without_display_name(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
+    def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -862,9 +972,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = host_input
+        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
 
-        result = deserialize_host({})
+        result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
         deserialize_canonical_facts.assert_called_once_with(host_input)
@@ -882,10 +992,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["reporter"],
         )
 
-    def test_without_system_profile(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
-        input = {
+    def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
+        host_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
@@ -900,29 +1008,27 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema.return_value.load.return_value.data = input
+        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
 
-        result = deserialize_host({})
+        result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
-        deserialize_canonical_facts.assert_called_once_with(input)
-        deserialize_facts.assert_called_once_with(input["facts"])
-        deserialize_tags.assert_called_once_with(input["tags"])
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
             deserialize_canonical_facts.return_value,
-            input["display_name"],
-            input["ansible_host"],
-            input["account"],
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             {},
-            input["stale_timestamp"],
-            input["reporter"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
         )
 
-    def test_without_culling_fields(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
+    def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         common_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -948,35 +1054,32 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     mock.reset_mock()
 
                 all_data = {**common_data, **additional_data}
-                host_schema.return_value.load.return_value.data = all_data
+                host_schema = Mock(**{"return_value.load.return_value.data": all_data})
 
                 with self.assertRaises(KeyError):
-                    deserialize_host({})
+                    deserialize_host({}, host_schema)
 
                 deserialize_canonical_facts.assert_called_once_with(all_data)
                 deserialize_facts.assert_called_once_with(common_data["facts"])
                 deserialize_tags.assert_called_once_with(common_data["tags"])
                 host.assert_not_called()
 
-    def test_host_validation(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
+    def test_host_validation(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         host_input = {"ansible_host": "some ansible host", "account": "some acct"}
 
-        deserialize_host(host_input)
+        host_schema = MagicMock()
+        deserialize_host(host_input, host_schema)
 
         host_schema.assert_called_once_with(strict=True)
         host_schema.return_value.load.assert_called_with(host_input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
-    def test_invalid_host_error(
-        self, host_schema, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host
-    ):
+    def test_invalid_host_error(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
         caught_exception = self.ValidationError(["first message", "second message"])
-        host_schema.return_value.load.side_effect = caught_exception
+        host_schema = Mock(**{"return_value.load.side_effect": caught_exception})
 
         with self.assertRaises(ValidationException) as raises_context:
-            deserialize_host({})
+            deserialize_host({}, host_schema)
 
         raised_exception = raises_context.exception
 
