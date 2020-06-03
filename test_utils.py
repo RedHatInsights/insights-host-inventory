@@ -91,3 +91,15 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
+
+
+class MockEventProducer:
+    def __init__(self):
+        self.event = None
+        self.key = None
+        self.headers = None
+
+    def write_event(self, event, key, headers):
+        self.event = event
+        self.key = key
+        self.headers = headers

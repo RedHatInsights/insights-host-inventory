@@ -680,11 +680,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FactSet'
-        tags:
-          description: The tags on a host
-          type: array
-          items:
-            $ref: '#/components/schemas/StructuredTag'
         system_profile:
           $ref: '#/components/schemas/SystemProfileIn'
         stale_timestamp:
