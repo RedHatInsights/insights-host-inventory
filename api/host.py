@@ -14,6 +14,7 @@ from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
+from api.metrics import rest_post_request_count
 from api.metrics import tags_ignored_from_http_count
 from app import db
 from app import inventory_config
@@ -55,6 +56,8 @@ logger = get_logger(__name__)
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
+    rest_post_request_count.inc()
+
     response_host_list = []
     number_of_errors = 0
 
