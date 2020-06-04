@@ -321,7 +321,7 @@ class TagsSchema(Schema):
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
-class HostSchema(Schema):
+class BaseHostSchema(Schema):
     display_name = fields.Str(validate=validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=validate.Length(min=1, max=10))
@@ -335,7 +335,6 @@ class HostSchema(Schema):
     mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)), validate=validate.Length(min=1))
     external_id = fields.Str(validate=validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    tags = fields.Raw(allow_none=True)
     system_profile = fields.Nested(SystemProfileSchema)
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
@@ -344,6 +343,10 @@ class HostSchema(Schema):
     def has_timezone_info(self, timestamp):
         if timestamp.tzinfo is None:
             raise ValidationError("Timestamp must contain timezone info")
+
+
+class MqHostSchema(BaseHostSchema):
+    tags = fields.Raw(allow_none=True)
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -385,6 +388,10 @@ class HostSchema(Schema):
                     TAG_VALUE_VALIDATION(value)
 
         return True
+
+
+class HttpHostSchema(BaseHostSchema):
+    pass
 
 
 class PatchHostSchema(Schema):
