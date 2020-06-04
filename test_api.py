@@ -38,12 +38,14 @@ from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.models import Host
+from app.queue.queue import handle_message
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
+from test_utils import MockEventProducer
 from test_utils import rename_host_table_and_indexes
 from test_utils import set_environment
 from test_utils import valid_system_profile
@@ -883,7 +885,43 @@ class CreateHostsTestCase(DBAPITestCase):
 
                 self.verify_error_response(error_host, expected_title="Bad Request")
 
-    def test_create_host_with_20_byte_MAC_address(self):
+    def test_create_host_ignores_tags(self):
+        host_data = HostWrapper(test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}]))
+        create_response = self.post(HOST_URL, [host_data.data()], 207)
+        self._verify_host_status(create_response, 0, 201)
+        host = self._pluck_host_from_response(create_response, 0)
+        host_id = host["id"]
+        tags_response = self.get(f"{HOST_URL}/{host_id}/tags")
+
+        self.assertEqual(tags_response["results"][host_id], [])
+
+    def test_update_host_with_tags_doesnt_change_tags(self):
+        create_host_data = HostWrapper(
+            test_data(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn")
+        )
+
+        message = {"operation": "add_host", "data": create_host_data.data()}
+
+        mock_event_producer = MockEventProducer()
+        with self.app.app_context():
+            handle_message(json.dumps(message), mock_event_producer)
+
+        event = json.loads(mock_event_producer.event)
+        host_id = event["host"]["id"]
+
+        # attempt to update
+        update_host_data = HostWrapper(
+            test_data(tags=[{"namespace": "other_ns", "key": "other_key", "value": "other_val"}], fqdn="fqdn")
+        )
+        update_response = self.post(HOST_URL, [update_host_data.data()], 207)
+        self._verify_host_status(update_response, 0, 200)
+
+        tags_response = self.get(f"{HOST_URL}/{host_id}/tags")
+
+        # check the tags haven't updated
+        self.assertEqual(create_host_data.tags, tags_response["results"][host_id])
+
+    def test_create_host_with_20_byte_mac_address(self):
         system_profile = {
             "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
         }
@@ -901,241 +939,6 @@ class CreateHostsTestCase(DBAPITestCase):
         host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    def test_create_host_with_too_long_MAC_address(self):
-        system_profile = {
-            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
-        }
-
-        host_data = HostWrapper(test_data(system_profile=system_profile))
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_system_profile(self):
-        samples = (
-            {"disk_devices": [{"options": {"": "invalid"}}]},
-            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
-            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
-            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
-        )
-
-        for sample in samples:
-            with self.subTest(system_profile=sample):
-                host_data = HostWrapper(test_data(system_profile=sample))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_facts(self):
-        samples = (
-            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
-        )
-
-        for facts in samples:
-            with self.subTest(facts=facts):
-                host_data = HostWrapper(test_data(facts=facts))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
-
-
-class CreateHostsWithTagsTestCase(DBAPITestCase):
-    def test_create_host_with_null_tags(self):
-        host_data = HostWrapper(test_data(tags=None))
-        self.post(HOST_URL, [host_data.data()], 400)
-
-    def test_create_host_with_null_tag_key(self):
-        tag = ({"namespace": "ns", "key": None, "value": "val"},)
-        host_data = HostWrapper(test_data(tags=[tag]))
-        self.post(HOST_URL, [host_data.data()], 400)
-
-    def test_create_host_with_invalid_tags(self):
-        too_long = "a" * 256
-        tags = [
-            {"namespace": too_long, "key": "key", "value": "val"},
-            {"namespace": "ns", "key": too_long, "value": "val"},
-            {"namespace": "ns", "key": "key", "value": too_long},
-            {"namespace": "ns", "key": "", "value": "val"},
-            {"namespace": "ns", "value": "val"},
-        ]
-
-        for tag in tags:
-            with self.subTest(tag=tag):
-                host_data = HostWrapper(test_data(tags=[tag]))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_keyless_tag(self):
-        tag = {"namespace": "ns", "key": None, "value": "val"}
-
-        host_data = HostWrapper(test_data(tags=[tag]))
-
-        self.post(HOST_URL, [host_data.data()], 400)
-
-    def test_create_host_with_invalid_string_tag_format(self):
-        tag = "string/tag=format"
-
-        host_data = HostWrapper(test_data(tags=[tag]))
-
-        self.post(HOST_URL, [host_data.data()], 400)
-
-    def test_create_host_with_invalid_tag_format(self):
-        tag = {"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}
-
-        host_data = HostWrapper(test_data(tags=[tag]))
-
-        self.post(HOST_URL, [host_data.data()], 400)
-
-    def test_create_host_with_tags(self):
-        host_data = HostWrapper(
-            test_data(
-                tags=[
-                    {"namespace": "NS3", "key": "key2", "value": "val2"},
-                    {"namespace": "NS1", "key": "key3", "value": "val3"},
-                    {"namespace": "Sat", "key": "prod", "value": None},
-                    {"namespace": "NS2", "key": "key1", "value": ""},
-                ]
-            )
-        )
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-
-        expected_tags = [
-            {"namespace": "NS1", "key": "key3", "value": "val3"},
-            {"namespace": "NS3", "key": "key2", "value": "val2"},
-            {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "NS2", "key": "key1", "value": None},
-        ]
-
-        self.assertCountEqual(host_tags, expected_tags)
-
-    def test_create_host_with_tags_special_characters(self):
-        tags = [
-            {"namespace": "NS1;,/?:@&=+$-_.!~*'()#", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"},
-            {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
-        ]
-        host_data = HostWrapper(test_data(tags=tags))
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-        self.assertCountEqual(host_tags, tags)
-
-    def test_create_host_with_tag_without_some_fields(self):
-        tags = [
-            {"namespace": None, "key": "key3", "value": "val3"},
-            {"namespace": "", "key": "key1", "value": "val1"},
-            {"namespace": "null", "key": "key4", "value": "val4"},
-            {"key": "key2", "value": "val2"},
-            {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "Sat", "key": "dev", "value": ""},
-            {"key": "some_key"},
-        ]
-
-        host_data = HostWrapper(test_data(tags=tags))
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 201)
-
-        created_host = self._pluck_host_from_response(response, 0)
-
-        original_id = created_host["id"]
-
-        host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
-
-        self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-        host_tags = self.get(f"{HOST_URL}/{original_id}/tags", 200)["results"][original_id]
-
-        expected_tags = [
-            {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "Sat", "key": "dev", "value": None},
-            {"namespace": None, "key": "key1", "value": "val1"},
-            {"namespace": None, "key": "key2", "value": "val2"},
-            {"namespace": None, "key": "key3", "value": "val3"},
-            {"namespace": None, "key": "key4", "value": "val4"},
-            {"namespace": None, "key": "some_key", "value": None},
-        ]
-        self.assertCountEqual(expected_tags, host_tags)
-
-    def test_update_host_replaces_tags(self):
-        insights_id = generate_uuid()
-
-        create_tags = [
-            {"namespace": "namespace1", "key": "key1", "value": "value1"},
-            {"namespace": "namespace1", "key": "key2", "value": "value2"},
-        ]
-        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
-        create_response = self.post(HOST_URL, [create_host_data], 207)
-
-        self._verify_host_status(create_response, 0, 201)
-        host_id = self._pluck_host_from_response(create_response, 0)["id"]
-
-        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-        self.assertCountEqual(created_tags, create_tags)
-
-        update_tags = [
-            {"namespace": "namespace1", "key": "key2", "value": "value3"},
-            {"namespace": "namespace1", "key": "key3", "value": "value4"},
-        ]
-        update_host_data = test_data(insights_id=insights_id, tags=update_tags)
-        update_response = self.post(HOST_URL, [update_host_data], 207)
-
-        self._verify_host_status(update_response, 0, 200)
-        updated_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-        self.assertCountEqual(updated_tags, update_tags)
-
-    def test_update_host_does_not_remove_namespace(self):
-        insights_id = generate_uuid()
-
-        create_tags = [{"namespace": "namespace1", "key": "key1", "value": "value1"}]
-        create_host_data = test_data(insights_id=insights_id, tags=create_tags)
-        create_response = self.post(HOST_URL, [create_host_data], 207)
-
-        self._verify_host_status(create_response, 0, 201)
-        host_id = self._pluck_host_from_response(create_response, 0)["id"]
-
-        created_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-        self.assertCountEqual(created_tags, create_tags)
-
-        update_tags = [{"namespace": "namespace2", "key": "key2", "value": "value3"}]
-        update_host_data = test_data(insights_id=insights_id, tags=update_tags)
-        update_response = self.post(HOST_URL, [update_host_data], 207)
-
-        self._verify_host_status(update_response, 0, 200)
-        updated_tags = self.get(f"{HOST_URL}/{host_id}/tags", 200)["results"][host_id]
-        self.assertCountEqual(updated_tags, create_tags + update_tags)
-
-    def test_create_host_with_nested_tags(self):
-        create_tags = {"namespace": {"key": ["value"]}}
-        create_host_data = test_data(tags=create_tags)
-        self.post(HOST_URL, [create_host_data], 400)
 
 
 class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
@@ -1769,8 +1572,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         host_list = []
 
         for host in self.hosts_to_create:
+
             host_wrapper = HostWrapper()
-            host_wrapper.id = generate_uuid()
             host_wrapper.account = ACCOUNT
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = generate_uuid()
@@ -1786,9 +1589,17 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.tags = host[3]
             host_wrapper.stale_timestamp = now().isoformat()
             host_wrapper.reporter = "test"
+            message = {"operation": "add_host", "data": host_wrapper.data()}
 
-            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
-            host_list.append(HostWrapper(response_data["data"][0]["host"]))
+            mock_event_producer = MockEventProducer()
+            with self.app.app_context():
+                handle_message(json.dumps(message), mock_event_producer)
+
+            response_data = json.loads(mock_event_producer.event)
+
+            # add facts object since it's not returned by message
+            host_data = {**response_data["host"], "facts": message["data"]["facts"]}
+            host_list.append(HostWrapper(host_data))
 
         return host_list
 
@@ -1965,6 +1776,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         current_app.event_producer.write_event.assert_called_once()
         emitted_event = current_app.event_producer.write_event.call_args[0]
         event_message = json.loads(emitted_event[0])
+
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
         self.assertEqual(emitted_event[2], {"event_type": "updated"})
@@ -2117,13 +1929,21 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
+    def _expected_host_list(self):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in self.added_hosts[::-1]
+        ]
+
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
         host_list = self.added_hosts.copy()
         host_list.reverse()
 
-        expected_host_list = [h.data() for h in host_list]
+        expected_host_list = self._expected_host_list()
+
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
@@ -2176,7 +1996,8 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url)
 
-        expected_host_list = [h.data() for h in host_list]
+        expected_host_list = self._expected_host_list()
+
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
@@ -2195,6 +2016,13 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    def _expected_host_list(self, hosts):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in hosts[::-1]
+        ]
+
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -2202,11 +2030,8 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self.assertEqual(response["count"], len(expected_host_list))
         self.assertEqual(len(response["results"]), len(expected_host_list))
 
-        host_data = [host.data() for host in expected_host_list]
-        for host in host_data:
-            self.assertIn(host, response["results"])
-        for host in response["results"]:
-            self.assertIn(host, host_data)
+        host_data = self._expected_host_list(expected_host_list)
+        self.assertCountEqual(host_data, response["results"])
 
         self._base_paging_test(url, len(expected_host_list))
         self._invalid_paging_parameters_test(url)
@@ -2572,9 +2397,13 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 ],
             }
         )
-        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
-        self._verify_host_status(create_response, 0, 201)
-        created_host = self._pluck_host_from_response(create_response, 0)
+        message = {"operation": "add_host", "data": host_wrapper.data()}
+
+        with self.app.app_context():
+            mock_event_producer = MockEventProducer()
+            handle_message(json.dumps(message), mock_event_producer)
+            response_data = json.loads(mock_event_producer.event)
+            created_host = response_data["host"]
 
         for tags_query in (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"):
             with self.subTest(tags_query=tags_query):
@@ -2596,9 +2425,13 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 ],
             }
         )
-        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
-        self._verify_host_status(create_response, 0, 201)
-        created_host = self._pluck_host_from_response(create_response, 0)
+        message = {"operation": "add_host", "data": host_wrapper.data()}
+
+        with self.app.app_context():
+            mock_event_producer = MockEventProducer()
+            handle_message(json.dumps(message), mock_event_producer)
+            response_data = json.loads(mock_event_producer.event)
+            created_host = response_data["host"]
 
         for namespace, key, value in ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v")):
             with self.subTest(namespace=namespace, key=key, value=value):

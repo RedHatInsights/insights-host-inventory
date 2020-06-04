@@ -24,21 +24,9 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResults
+from test_utils import MockEventProducer
 from test_utils import rename_host_table_and_indexes
 from test_utils import valid_system_profile
-
-
-class MockEventProducer:
-    def __init__(self):
-        self.event = None
-        self.key = None
-        self.headers = None
-
-    def write_event(self, event, key, headers, topic):
-        self.event = event
-        self.key = key
-        self.headers = headers
-        self.topic = topic
 
 
 class MQServiceBaseTestCase(TestCase):
