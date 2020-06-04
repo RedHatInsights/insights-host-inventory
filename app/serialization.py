@@ -1,4 +1,5 @@
 from datetime import timezone
+from functools import partial
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -10,11 +11,10 @@ from app.models import HttpHostSchema
 from app.models import MqHostSchema
 from app.utils import Tag
 
-
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
 
 
-_CANONICAL_FACTS_FIELDS = (
+_CANONICAL_FACTS_FIELDS = {
     "insights_id",
     "rhel_machine_id",
     "subscription_manager_id",
@@ -24,7 +24,7 @@ _CANONICAL_FACTS_FIELDS = (
     "fqdn",
     "mac_addresses",
     "external_id",
-)
+}
 
 DEFAULT_FIELDS = (
     "id",
@@ -89,31 +89,27 @@ def deserialize_host_xjoin(data):
     return host
 
 
-def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, sparse_fieldset=None):
-    if sparse_fieldset:
-        serialized_host = _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset)
-    else:
-        serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
-        for field in fields:
-            _serialize_host_field(host, field, staleness_timestamps, serialized_host)
+def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
+    serialized_host = {
+        **serialize_canonical_facts(host.canonical_facts),
+        **_serialize_host_fields(host, fields, staleness_timestamps),
+    }
 
     return serialized_host
 
 
-def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
+def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
     serialized_host = {}
 
     if "host" in sparse_fieldset:
-        host_attributes = sparse_fieldset["host"].replace(" ", "").split(",")
-        canonical_facts_attributes = list(set(host_attributes) & set(_CANONICAL_FACTS_FIELDS))
-        host_attributes = list(set(host_attributes) - set(canonical_facts_attributes))
+        requested_host_attributes = set(sparse_fieldset["host"].replace(" ", "").split(","))
+        canonical_facts_attributes = requested_host_attributes & _CANONICAL_FACTS_FIELDS
+        other_host_attributes = requested_host_attributes - canonical_facts_attributes
+        other_host_attributes.add("id")
         serialized_host = {
-            **serialize_canonical_facts(host.canonical_facts, canonical_fields=canonical_facts_attributes)
+            **serialize_canonical_facts(host.canonical_facts, canonical_fields=canonical_facts_attributes),
+            **_serialize_host_fields(host, other_host_attributes, staleness_timestamps),
         }
-        for host_attribute in host_attributes:
-            _serialize_host_field(host, host_attribute, staleness_timestamps, serialized_host)
-
-    _serialize_host_field(host, "id", staleness_timestamps, serialized_host)
 
     if "system_profile" in sparse_fieldset:
         system_profile_attributes = sparse_fieldset["system_profile"].replace(" ", "").split(",")
@@ -131,46 +127,45 @@ def _sparse_fieldset_serialization(host, staleness_timestamps, sparse_fieldset):
     return serialized_host
 
 
-def _serialize_host_field(host, field, staleness_timestamps, serialized_host):
-    if host.stale_timestamp:
-        stale_timestamp = staleness_timestamps.stale_timestamp(host.stale_timestamp)
-        stale_warning_timestamp = staleness_timestamps.stale_warning_timestamp(host.stale_timestamp)
-        culled_timestamp = staleness_timestamps.culled_timestamp(host.stale_timestamp)
-    else:
-        stale_timestamp = None
-        stale_warning_timestamp = None
-        culled_timestamp = None
+def _serialize_host_fields(host, fields, staleness_timestamps):
+    def raw(field):
+        return getattr(host, field)
 
-    if "id" == field:
-        serialized_host["id"] = _serialize_uuid(host.id)
-    if "account" == field:
-        serialized_host["account"] = host.account
-    if "display_name" == field:
-        serialized_host["display_name"] = host.display_name
-    if "ansible_host" == field:
-        serialized_host["ansible_host"] = host.ansible_host
-    if "facts" == field:
-        serialized_host["facts"] = _serialize_facts(host.facts)
-    if "reporter" == field:
-        serialized_host["reporter"] = host.reporter
-    if "stale_timestamp" == field:
-        serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
-    if "stale_warning_timestamp" == field:
-        serialized_host["stale_warning_timestamp"] = stale_timestamp and _serialize_datetime(stale_warning_timestamp)
-    if "culled_timestamp" == field:
-        serialized_host["culled_timestamp"] = stale_timestamp and _serialize_datetime(culled_timestamp)
-        # without astimezone(timezone.utc) the isoformat() method does not include timezone offset even though iso-8601
-        # requires it
-    if "created" == field:
-        serialized_host["created"] = _serialize_datetime(host.created_on)
-    if "updated" == field:
-        serialized_host["updated"] = _serialize_datetime(host.modified_on)
-    if "tags" == field:
-        serialized_host["tags"] = _serialize_tags(host.tags)
-    if "system_profile" == field:
-        serialized_host["system_profile"] = host.system_profile_facts or {}
+    def function(field, serialize):
+        if field == "created":
+            field = "created_on"
+        elif field == "updated":
+            field = "modified_on"
 
-    return serialized_host
+        value = getattr(host, field)
+        return serialize(value)
+
+    def staleness_timestamp(field):
+        if not host.stale_timestamp:
+            return
+        compute = getattr(staleness_timestamps, field)
+        timestamp = compute(host.stale_timestamp)
+        return _serialize_datetime(timestamp)
+
+    def system_profile(field):
+        return host.system_profile_facts or {}
+
+    serialization_map = {
+        "account": raw,
+        "display_name": raw,
+        "ansible_host": raw,
+        "reporter": raw,
+        "id": partial(function, serialize=_serialize_uuid),
+        "facts": partial(function, serialize=_serialize_facts),
+        "created": partial(function, serialize=_serialize_datetime),
+        "updated": partial(function, serialize=_serialize_datetime),
+        "tags": partial(function, serialize=_serialize_tags),
+        "stale_timestamp": staleness_timestamp,
+        "stale_warning_timestamp": staleness_timestamp,
+        "culled_timestamp": staleness_timestamp,
+        "system_profile": system_profile,
+    }
+    return {field: serialization_map[field](field) for field in fields}
 
 
 def serialize_host_system_profile(host):
