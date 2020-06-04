@@ -9,9 +9,6 @@ from app.queue.events import message_headers
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 
-# from app.logging import threadctx
-
-
 __all__ = ("delete_hosts",)
 CHUNK_SIZE = 1000
 

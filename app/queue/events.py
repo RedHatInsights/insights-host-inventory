@@ -11,20 +11,13 @@ from app.models import TagsSchema
 from app.serialization import serialize_canonical_facts
 from lib.host_repository import AddHostResults
 
-# from app.queue import metrics
-
 logger = logging.getLogger(__name__)
-
-# DELETE_EVENT_NAME = "delete"
-# UPDATE_EVENT_NAME = "updated"
 
 
 EventTypes = Enum("EventTypes", ("created", "updated", "delete"))
 
 
 # Schemas
-
-
 class HostSchema(Schema):
     id = fields.UUID()
     display_name = fields.Str()
@@ -113,7 +106,6 @@ def dumpHostDeleteEvent(event_type, host, request_id):
 
 # Event Constructors
 def build_event(event_type, host, *, platform_metadata=None, request_id=None):
-    # using enum now. Need to handle delete events too
     if event_type == EventTypes.created or event_type == EventTypes.updated:
         return dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata)
     if event_type == EventTypes.delete:

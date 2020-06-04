@@ -1,6 +1,7 @@
 import sys
 from functools import partial
 
+from flask import current_app
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
@@ -20,9 +21,6 @@ from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import host_reaper_fail_count
-
-# from tasks import flush
-# from tasks import init_tasks
 
 __all__ = ("main", "run")
 
@@ -66,8 +64,8 @@ def run(config, logger, session):
             logger.info("Host %s already deleted. Delete event not emitted.", host_id)
 
 
-def main(config_name, logger):
-    config = _init_config(config_name)
+def main(logger):
+    config = _init_config()
 
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
@@ -80,7 +78,7 @@ def main(config_name, logger):
         with session_guard(session):
             run(config, logger, session)
     finally:
-        # flush()
+        current_app.event_producer.close()
 
         job = _prometheus_job(config.kubernetes_namespace)
         push_to_gateway(config.prometheus_pushgateway, job, registry)

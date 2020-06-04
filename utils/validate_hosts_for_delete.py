@@ -8,8 +8,6 @@ from app.queue.events import build_event
 from app.queue.events import EventTypes
 from app.queue.events import HostEvent
 
-# from app.queue.queue import events
-
 logger = get_logger("utils")
 
 
