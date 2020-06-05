@@ -56,7 +56,7 @@ logger = get_logger(__name__)
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
-    rest_post_request_count.inc()
+    reporter = None
 
     response_host_list = []
     number_of_errors = 0
@@ -79,6 +79,8 @@ def add_host_list(host_list):
                     status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": output_host})
                     payload_tracker_processing_ctx.inventory_id = output_host["id"]
+
+                    reporter = host.get("reporter")
             except ValidationException as e:
                 number_of_errors += 1
                 logger.exception("Input validation error while adding host", extra={"host": host})
@@ -99,6 +101,8 @@ def add_host_list(host_list):
                         "host": host,
                     }
                 )
+
+        rest_post_request_count.labels(reporter=reporter).inc()
 
         response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
         return flask_json_response(response, status=207)

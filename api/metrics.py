@@ -8,5 +8,5 @@ tags_ignored_from_http_count = Counter(
     "inventory_tags_ignored_from_http_count", "Number of times we have ignored tags sent through HTTP"
 )
 rest_post_request_count = Counter(
-    "rest_post_request_count", "The number of times a REST POST request has been recieved"
+    "rest_post_request_count", "The number of times a REST POST request has been recieved", ["reporter"]
 )
