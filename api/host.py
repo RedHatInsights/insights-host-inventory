@@ -174,9 +174,12 @@ def get_host_list(
 
     unsupported_fields = fields.keys() - SUPPORTED_FIELDS
     if unsupported_fields:
-        flask.abort(400, f"Supported fields include {SUPPORTED_FIELDS}")
+        flask.abort(400, f"Unsupported fields {unsupported_fields}. Supported fields include {SUPPORTED_FIELDS}.")
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, fields)
+    try:
+        json_data = build_paginated_host_list_response(total, page, per_page, host_list, fields)
+    except KeyError as error:
+        flask.abort(400, f"Unsupported field {error}. Supported fields include {SUPPORTED_FIELDS}.")
     return flask_json_response(json_data)
 
 

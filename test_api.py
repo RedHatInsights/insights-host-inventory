@@ -4569,6 +4569,29 @@ class SparseFieldsetTestCase(DBAPITestCase):
         test_url = f"{HOST_URL}?fields"
         self.get(test_url, 200)
 
+    def test_request_unsupported_host_attributes(self):
+        host = test_data(display_name="host", facts=None)
+        host["rhel_machine_id"] = generate_uuid()
+        host["ip_addresses"] = ["10.0.0.1"]
+        response = self.post(HOST_URL, [host], 207)
+        self._verify_host_status(response, 0, 201)
+
+        test_url = f"{HOST_URL}?fields[host]=unknown"
+        self.get(test_url, 400)
+
+    def test_host_cannot_contain_system_profile(self):
+        host = test_data(display_name="host", facts=None)
+        host["rhel_machine_id"] = generate_uuid()
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["system_profile"] = valid_system_profile()
+        response = self.post(HOST_URL, [host], 207)
+        self._verify_host_status(response, 0, 201)
+
+        test_url = f"{HOST_URL}?fields[host]=system_profile"
+        host_lookup_results = self.get(test_url, 200)
+
+        self.assertNotIn("system_profile", host_lookup_results["results"][0])
+
 
 if __name__ == "__main__":
     main()

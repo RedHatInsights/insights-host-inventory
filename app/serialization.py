@@ -89,30 +89,26 @@ def deserialize_host_xjoin(data):
     return host
 
 
-def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
-    serialized_host = {
-        **serialize_canonical_facts(host.canonical_facts),
+def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, canonical_fields=_CANONICAL_FACTS_FIELDS):
+    return {
+        **serialize_canonical_facts(host.canonical_facts, canonical_fields),
         **_serialize_host_fields(host, fields, staleness_timestamps),
     }
 
-    return serialized_host
-
 
 def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
-    serialized_host = {}
+    host_fields = {"id"}
+    canonical_fields = set()
 
     if "host" in sparse_fieldset:
-        requested_host_attributes = set(sparse_fieldset["host"].replace(" ", "").split(","))
-        canonical_facts_attributes = requested_host_attributes & _CANONICAL_FACTS_FIELDS
-        other_host_attributes = requested_host_attributes - canonical_facts_attributes
-        other_host_attributes.add("id")
-        serialized_host = {
-            **serialize_canonical_facts(host.canonical_facts, canonical_fields=canonical_facts_attributes),
-            **_serialize_host_fields(host, other_host_attributes, staleness_timestamps),
-        }
+        requested_host_fields = set(sparse_fieldset["host"].split(","))
+        canonical_fields |= requested_host_fields & _CANONICAL_FACTS_FIELDS
+        host_fields |= requested_host_fields - canonical_fields - {"system_profile"}
+
+    serialized_host = serialize_host(host, staleness_timestamps, host_fields, canonical_fields)
 
     if "system_profile" in sparse_fieldset:
-        system_profile_attributes = sparse_fieldset["system_profile"].replace(" ", "").split(",")
+        system_profile_attributes = sparse_fieldset["system_profile"].split(",")
         serialized_host["system_profile"] = {}
         for system_profile_attribute in system_profile_attributes:
             if system_profile_attribute not in host.system_profile_facts:
