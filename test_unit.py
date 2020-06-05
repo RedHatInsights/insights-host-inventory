@@ -32,6 +32,7 @@ from app.exceptions import ValidationException
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.serialization import _CANONICAL_FACTS_FIELDS
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -1291,7 +1292,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         }
         self.assertEqual(expected, actual)
 
-        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"])
+        serialize_canonical_facts.assert_called_once_with(host_init_data["canonical_facts"], _CANONICAL_FACTS_FIELDS)
         serialize_facts.assert_called_once_with(host_init_data["facts"])
         serialize_tags.assert_called_once_with(host_init_data["tags"])
 
