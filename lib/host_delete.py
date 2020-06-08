@@ -47,10 +47,5 @@ def _deleted_by_this_query(host):
 def _emit_event(host):
     event = delete_event(host)
     key = str(host.id)
-    headers = message_headers(
-        event_type=DELETE_EVENT_NAME,
-        request_id=threadctx.request_id,
-        producer=hostname(),
-        registered_with_insights="true" if "insights_id" in host.canonical_facts else "false",
-    )
+    headers = message_headers(DELETE_EVENT_NAME, host.registered_with_insights)
     emit_event(event, key, headers)

@@ -19,6 +19,7 @@ from app.queue import metrics
 from app.queue.egress import build_egress_topic_event
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from lib import host_repository
 
 logger = get_logger(__name__)
@@ -112,19 +113,19 @@ def add_host(host_data):
                     }
                 },
             )
-            (output_host, add_results) = host_repository.add_host(
-                input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
-            )
+            (output_host, add_results) = host_repository.add_host(input_host)
             metrics.add_host_success.labels(
                 add_results.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated
             # log all the incoming host data except facts and system_profile b/c they can be quite large
-            logger.info(
-                "Host %s",
-                add_results.name,
-                extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
-            )
-            payload_tracker_processing_ctx.inventory_id = output_host["id"]
+            # logger.info(
+            #     "Host %s",
+            #     add_results.name,
+            #     extra={
+            #         "host": {i: getattr(output_host, i) for i in serialize_host(output_host, staleness_timestamps) if i not in ("facts", "system_profile")}
+            #         },
+            # )
+            # payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_results)
         except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
@@ -146,17 +147,19 @@ def handle_message(message, event_producer):
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_egress_topic_event(add_results.name, output_host, platform_metadata)
-        event_producer.write_event(
-            event,
-            output_host["id"],
-            message_headers(
-                event_type=add_results.name,
-                request_id=threadctx.request_id,
-                producer=hostname(),
-                registered_with_insights="true" if output_host["insights_id"] else "false",
-            ),
+        staleness_timestamps = Timestamps.from_config(inventory_config())
+        serialized_host = serialize_host(output_host, staleness_timestamps, EGRESS_HOST_FIELDS)
+        logger.info(
+            "Host %s",
+            add_results.name,
+            extra={
+                "host": {i: getattr(output_host, i) for i in serialize_host if i not in ("facts", "system_profile")}
+                },
         )
+
+        event = build_egress_topic_event(add_results.name, serialized_host, platform_metadata)
+        headers = message_headers(add_results.name, output_host.registered_with_insigths)
+        event_producer.write_event(event, output_host.id, headers)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

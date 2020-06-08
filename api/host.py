@@ -68,8 +68,9 @@ def add_host_list(host_list):
                     input_host = deserialize_host(host)
                     (output_host, add_result) = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
-                    response_host_list.append({"status": status_code, "host": output_host})
-                    payload_tracker_processing_ctx.inventory_id = output_host["id"]
+                    serialized_host = serialize_host(output_host, staleness_timestamps())
+                    response_host_list.append({"status": status_code, "host": serialized_host})
+                    payload_tracker_processing_ctx.inventory_id = output_host.id
             except ValidationException as e:
                 number_of_errors += 1
                 logger.exception("Input validation error while adding host", extra={"host": host})
@@ -110,7 +111,7 @@ def _add_host(input_host):
             "host",
         )
 
-    return add_host(input_host, staleness_timestamps(), update_system_profile=False)
+    return add_host(input_host, update_system_profile=False)
 
 
 def get_bulk_query_source():
