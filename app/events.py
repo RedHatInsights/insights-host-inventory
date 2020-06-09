@@ -13,8 +13,13 @@ DELETE_EVENT_NAME = "delete"
 UPDATE_EVENT_NAME = "updated"
 
 
+class HostEventMetadataSchema(Schema):
+    request_id = fields.Str(required=True)
+
+
 class HostEvent(Schema):
     id = fields.UUID()
+    metadata = fields.Nested(HostEventMetadataSchema())
     timestamp = fields.DateTime(format="iso8601")
     type = fields.Str()
     account = fields.Str()
@@ -27,6 +32,7 @@ def delete(host):
         HostEvent()
         .dumps(
             {
+                "metadata": {"request_id": threadctx.request_id},
                 "timestamp": datetime.utcnow(),
                 "id": host.id,
                 **serialize_canonical_facts(host.canonical_facts),

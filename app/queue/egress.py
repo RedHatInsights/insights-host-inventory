@@ -5,6 +5,7 @@ from kafka import KafkaProducer
 from marshmallow import fields
 from marshmallow import Schema
 
+from app.events import HostEventMetadataSchema
 from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
 from app.logging import get_logger
@@ -93,10 +94,6 @@ class HostSchema(Schema):
     reporter = fields.Str()
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Nested(SystemProfileSchema)
-
-
-class HostEventMetadataSchema(Schema):
-    request_id = fields.Str(required=True)
 
 
 class HostEvent(Schema):
