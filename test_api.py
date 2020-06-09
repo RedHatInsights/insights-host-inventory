@@ -1027,7 +1027,7 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
 
     def _assert_event_is_valid(self, message, host, timestamp):
         self.assertIsInstance(message.value, dict)
-        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id"}
+        expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id", "metadata"}
         self.assertEqual(set(message.value.keys()), expected_keys)
 
         self.assertEqual(timestamp.replace(tzinfo=timezone.utc).isoformat(), message.value["timestamp"])
@@ -1799,6 +1799,9 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
             url = f"{self.delete_url}{url_query}"
             self.delete(url, 200, header, return_response_as_json=False)
 
+    def _expected_metadata(self, expected_request_id):
+        return {"request_id": expected_request_id}
+
     def test_create_then_delete(self, emit_event):
         self._check_hosts_are_present((self.host_to_delete.id,))
         self._delete()
@@ -1835,6 +1838,15 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
         event = emitted_event(emit_event.mock_calls[0])
         self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
         self.assertEqual("-1", event.value["request_id"])
+
+    def test_create_then_delete_check_metadata(self, emit_event):
+        self._check_hosts_are_present((self.host_to_delete.id,))
+        self._delete(header=None)
+
+        emit_event.assert_called_once()
+        event = emitted_event(emit_event.mock_calls[0])
+        self._assert_event_is_valid(event, self.host_to_delete, self.timestamp)
+        self.assertEqual(self._expected_metadata("-1"), event.value["metadata"])
 
 
 @patch("lib.host_delete.emit_event")
