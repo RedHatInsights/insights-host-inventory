@@ -4592,6 +4592,23 @@ class SparseFieldsetTestCase(DBAPITestCase):
 
         self.assertNotIn("system_profile", host_lookup_results["results"][0])
 
+    def test_system_profile_cannot_contain_unsupported_attrs(self):
+        host = test_data(display_name="host", facts=None)
+        host["rhel_machine_id"] = generate_uuid()
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["system_profile"] = valid_system_profile()
+        response = self.post(HOST_URL, [host], 207)
+        self._verify_host_status(response, 0, 201)
+
+        test_url = f"{HOST_URL}?fields[system_profile]=foounsupported"
+        host_lookup_results = self.get(test_url, 400)
+        self.assertIn(
+            "Unsupported field: 'Requested system profile attribute not present in schema. Valid attributes include:",
+            host_lookup_results["detail"],
+        )
+        self.assertIn("os_release", host_lookup_results["detail"])
+        self.assertIn("installed_packages", host_lookup_results["detail"])
+
 
 if __name__ == "__main__":
     main()

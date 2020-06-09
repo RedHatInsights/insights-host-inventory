@@ -9,6 +9,7 @@ from app.exceptions import ValidationException
 from app.models import Host as Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.models import SystemProfileSchema
 from app.utils import Tag
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
@@ -111,14 +112,15 @@ def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
         system_profile_attributes = sparse_fieldset["system_profile"].split(",")
         serialized_host["system_profile"] = {}
         for system_profile_attribute in system_profile_attributes:
-            if system_profile_attribute not in host.system_profile_facts:
-                continue
-            if host.system_profile_facts and system_profile_attribute in host.system_profile_facts:
+            if system_profile_attribute in host.system_profile_facts:
                 serialized_host["system_profile"][system_profile_attribute] = host.system_profile_facts[
                     system_profile_attribute
                 ]
-            else:
-                serialized_host["system_profile"][system_profile_attribute] = None
+            elif system_profile_attribute not in SystemProfileSchema(strict=True).fields:
+                raise KeyError(
+                    "Requested system profile attribute not present in schema. Valid attributes include: "
+                    f"{', '.join(list(SystemProfileSchema(strict=True).fields))}"
+                )
 
     return serialized_host
 
@@ -128,12 +130,9 @@ def _serialize_host_fields(host, fields, staleness_timestamps):
         return getattr(host, field)
 
     def function(field, serialize):
-        if field == "created":
-            field = "created_on"
-        elif field == "updated":
-            field = "modified_on"
-
-        value = getattr(host, field)
+        field_map = {"created": "created_on", "updated": "modified_on"}
+        attr = field_map.get(field, field)
+        value = getattr(host, attr)
         return serialize(value)
 
     def staleness_timestamp(field):
