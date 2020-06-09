@@ -104,7 +104,6 @@ def dumpHostDeleteEvent(event_type, host, request_id):
     )
 
 
-# Event Constructors
 def build_event(event_type, host, *, platform_metadata=None, request_id=None):
     if event_type == EventTypes.created or event_type == EventTypes.updated:
         return dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata)
