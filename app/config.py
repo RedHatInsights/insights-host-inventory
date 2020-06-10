@@ -40,6 +40,7 @@ class Config:
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+        self.secondary_topic_enabled = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "true")
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")

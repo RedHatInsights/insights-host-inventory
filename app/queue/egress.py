@@ -22,6 +22,10 @@ class KafkaEventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
         self._topic = config.host_egress_topic
 
+        # For the transition to platform.inventory.events
+        self._secondary_topic_enabled = config.secondary_topic_enabled
+        self._secondary_topic = config.event_topic
+
     def write_event(self, event, key, headers):
         try:
             k = key.encode("utf-8") if key else None
@@ -30,6 +34,14 @@ class KafkaEventProducer:
             send_future = self._kafka_producer.send(self._topic, key=k, value=v, headers=h)
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self._topic, event, key, headers)
+
+            # send create/update events to platform.inventory.events as well
+            if self._secondary_topic_enabled == "true":
+                send_future_duplicate = self._kafka_producer.send(self._secondary_topic, key=k, value=v, headers=h)
+                send_future_duplicate.add_callback(message_produced, logger, event, key, headers)
+                send_future_duplicate.add_errback(
+                    message_not_produced, logger, self._secondary_topic, event, key, headers
+                )
         except Exception:
             logger.exception("Failed to send event")
             metrics.egress_message_handler_failure.inc()
