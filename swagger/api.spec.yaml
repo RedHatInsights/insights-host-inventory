@@ -486,7 +486,7 @@ components:
       name: fields
       style: deepObject
       allowReserved: true
-      description: "Include extra fields for each host. If the requested field does not exist, it will return null.
+      description: "Include extra fields for each host. If a valid requested field cannot be found, it will return null.
       Request by passing a JSON object, or in the URL via `?fields[system_profile]=os_release,arch`. Notice requesting
       extra fields will only display the requested fields plus id.
       **Currently extra fields for system_profile or host can be queried.**
@@ -503,27 +503,16 @@ components:
             type: string
   schemas:
     TagsOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/StructuredTag'
+      allOf:
+        - $ref: '#/components/schemas/Paginated'
+        - properties:
+            results:
+              description: The list of tags on the systems
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StructuredTag'
     StructuredTag:
       type: object
       properties:
@@ -536,25 +525,14 @@ components:
           type: string
           nullable: true
     TagCountOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: object
-          additionalProperties:
-            type: integer
+      allOf:
+        - $ref: '#/components/schemas/Paginated'
+        - properties:
+            results:
+              description: The list of tags on the systems
+              type: object
+              additionalProperties:
+                type: integer
     BulkHostOut:
       type: object
       properties:
@@ -708,8 +686,8 @@ components:
         reporter:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
-    CreateHostOut:
-      title: Create Host Out
+    BaseHostOut:
+      title: Base Host Out
       description: >-
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
@@ -842,77 +820,44 @@ components:
           description: Reporting source of the host. Used when updating the stale_timestamp.
           type: string
           nullable: true
-    HostOut:
-      title: A Host Inventory entry
-      description: A database entry representing a single host with its Inventory metadata.
+    CreateHostOut:
+      title: Create Host Out
+      allOf:
+        - $ref: '#/components/schemas/BaseHostOut'
+    HostQueryHostOut:
+      title: Host query Host Out
       allOf:
         - $ref: '#/components/schemas/CreateHostOut'
-        - $ref: '#/components/schemas/SystemProfileIn'
-        - type: object
-          properties:
-            facts:
-              description: A set of facts belonging to the host.
-              type: array
-              items:
-                $ref: '#/components/schemas/FactSet'
+        - properties:
+            system_profile:
+              $ref: '#/components/schemas/SystemProfileIn'
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
         A paginated host search query result with host entries and their
         Inventory metadata.
-      type: object
-      required:
-        - count
-        - page
-        - per_page
-        - total
-        - results
-      properties:
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        total:
-          description: A total count of the found entries.
-          type: integer
-        results:
-          description: Actual host search query result entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/HostOut'
+      allOf:
+        - $ref: '#/components/schemas/Paginated'
+        - properties:
+            results:
+              anyOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/BaseHostOut'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/CreateHostOut'
     SystemProfileByHostOut:
       title: A host system profile query result
       description: Structure of the output of the host system profile query
-      type: object
-      required:
-        - count
-        - page
-        - per_page
-        - total
-        - results
-      properties:
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        total:
-          description: A total count of the found entries.
-          type: integer
-        results:
-          description: Actual host search query result entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/HostSystemProfileOut'
+      allOf:
+        - $ref: '#/components/schemas/Paginated'
+        - properties:
+            results:
+              description: Actual host search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostSystemProfileOut'
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
@@ -1136,38 +1081,25 @@ components:
 
     ActiveTags:
       title: Host data
-      type: object
-      required:
-        - total
-        - count
-        - page
-        - per_page
-        - results
-      properties:
-        total:
-          $ref: '#/components/schemas/Total'
-        count:
-          $ref: '#/components/schemas/Count'
-        page:
-          $ref: '#/components/schemas/Page'
-        per_page:
-          $ref: '#/components/schemas/PerPage'
-        results:
-          type: array
-          items:
-            title: ActiveTag
-            description: Information about a host tag
-            type: object
-            required:
-              - tag
-              - count
-            properties:
-              tag:
-                $ref: '#/components/schemas/StructuredTag'
-              count:
-                description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
-                type: integer
-                nullable: true
+      allOf:
+        - $ref: '#/components/schemas/Paginated'
+        - properties:
+            results:
+              type: array
+              items:
+                title: ActiveTag
+                description: Information about a host tag
+                type: object
+                required:
+                  - tag
+                  - count
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/StructuredTag'
+                  count:
+                    description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
+                    type: integer
+                    nullable: true
       example:
         total: 3
         count: 3
@@ -1189,6 +1121,33 @@ components:
               key: web
               value: null
             count: -1
+    Paginated:
+      type: object
+      required:
+        - total
+        - count
+        - page
+        - per_page
+        - results
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        page:
+          $ref: '#/components/schemas/Page'
+        per_page:
+          $ref: '#/components/schemas/PerPage'
+        results:
+          anyOf:
+            - type: array
+            - type: object
+      example:
+        total: 3
+        count: 3
+        page: 1
+        per_page: 50
+        results: []
     Total:
       type: integer
       description: Total number of items
