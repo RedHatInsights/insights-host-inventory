@@ -97,6 +97,19 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS, canonical_
     }
 
 
+def _valid_host_query_attributes():
+    valid_attributes = set(HttpHostSchema(strict=True).fields)
+    valid_attributes = valid_attributes.union({"created", "updated", "stale_warning_timestamp", "culled_timestamp"})
+    valid_attributes.remove("system_profile")
+    return valid_attributes
+
+
+def _error_invalid_attribute(valid_attributes):
+    raise KeyError(
+        "Requested attribute not present in schema. Valid attributes include: " f"{', '.join(valid_attributes)}"
+    )
+
+
 def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
     host_fields = {"id"}
     canonical_fields = set()
@@ -105,6 +118,8 @@ def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
         requested_host_fields = set(sparse_fieldset["host"].split(","))
         canonical_fields |= requested_host_fields & _CANONICAL_FACTS_FIELDS
         host_fields |= requested_host_fields - canonical_fields - {"system_profile"}
+        if (host_fields - _valid_host_query_attributes()) != {"id"}:
+            _error_invalid_attribute(_valid_host_query_attributes() - {"id"})
 
     serialized_host = serialize_host(host, staleness_timestamps, host_fields, canonical_fields)
 
@@ -117,10 +132,7 @@ def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
                     system_profile_attribute
                 ]
             elif system_profile_attribute not in SystemProfileSchema(strict=True).fields:
-                raise KeyError(
-                    "Requested system profile attribute not present in schema. Valid attributes include: "
-                    f"{', '.join(list(SystemProfileSchema(strict=True).fields))}"
-                )
+                _error_invalid_attribute(list(SystemProfileSchema(strict=True).fields))
 
     return serialized_host
 
