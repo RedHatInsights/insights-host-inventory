@@ -133,6 +133,8 @@ def serialize_host_sparse(host, staleness_timestamps, sparse_fieldset):
                 ]
             elif system_profile_attribute not in SystemProfileSchema(strict=True).fields:
                 _error_invalid_attribute(list(SystemProfileSchema(strict=True).fields))
+            else:
+                serialized_host["system_profile"][system_profile_attribute] = None
 
     return serialized_host
 

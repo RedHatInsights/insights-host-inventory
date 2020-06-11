@@ -4603,7 +4603,7 @@ class SparseFieldsetTestCase(DBAPITestCase):
         test_url = f"{HOST_URL}?fields[system_profile]=foounsupported"
         host_lookup_results = self.get(test_url, 400)
         self.assertIn(
-            "Unsupported field: 'Requested system profile attribute not present in schema. Valid attributes include:",
+            "Unsupported field: 'Requested attribute not present in schema. Valid attributes include:",
             host_lookup_results["detail"],
         )
         self.assertIn("os_release", host_lookup_results["detail"])
