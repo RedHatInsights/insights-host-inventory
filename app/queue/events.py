@@ -9,7 +9,6 @@ from marshmallow import Schema
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.serialization import serialize_canonical_facts
-from lib.host_repository import AddHostResults
 
 logger = logging.getLogger(__name__)
 
@@ -71,50 +70,46 @@ def message_headers(event_type):
     return {"event_type": event_type.name}
 
 
-def host_create_update_event(event_type, host, request_id, platform_metadata):
+def host_create_update_event(event_type, host, request_id, platform_metadata=None):
     return (
-        HostCreateUpdateEvent(strict=True)
-        .dumps(
-            {
-                "timestamp": datetime.now(timezone.utc),
-                "type": event_type.name,
-                "host": host,
-                "platform_metadata": platform_metadata,
-                "metadata": {"request_id": request_id},
-            }
-        )
-        .data
+        HostCreateUpdateEvent,
+        {
+            "timestamp": datetime.now(timezone.utc),
+            "type": event_type.name,
+            "host": host,
+            "platform_metadata": platform_metadata,
+            "metadata": {"request_id": request_id},
+        },
     )
 
 
 def host_delete_event(event_type, host, request_id):
     return (
-        HostDeleteEvent()
-        .dumps(
-            {
-                "timestamp": datetime.utcnow(),
-                "type": event_type.name,
-                "id": host.id,
-                **serialize_canonical_facts(host.canonical_facts),
-                "account": host.account,
-                "request_id": request_id,
-            }
-        )
-        .data
+        HostDeleteEvent,
+        {
+            "timestamp": datetime.utcnow(),
+            "type": event_type.name,
+            "id": host.id,
+            **serialize_canonical_facts(host.canonical_facts),
+            "account": host.account,
+            "request_id": request_id,
+        },
     )
 
 
-def build_event(event_type, host, *, platform_metadata=None, request_id=None):
-    if event_type == EventTypes.created or event_type == EventTypes.updated:
-        return dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata)
-    elif event_type == EventTypes.delete:
-        return dumpHostDeleteEvent(event_type, host, request_id)
-    else:
-        raise ValueError(f"Invalid event type ({event_type})")
+EVENT_TYPE_MAP = {
+    EventTypes.created: host_create_update_event,
+    EventTypes.updated: host_create_update_event,
+    EventTypes.delete: host_delete_event,
+}
+
+
+def build_event(event_type, host, **kwargs):
+    build = EVENT_TYPE_MAP[event_type]
+    schema, event = build(event_type, host, **kwargs)
+    result = schema(strict=True).dumps(event)
+    return result.data
 
 
 def add_host_results_to_event_type(results):
-    if results == AddHostResults.created:
-        return EventTypes.created
-    if results == AddHostResults.updated:
-        return EventTypes.updated
+    return EventTypes[results.name]
