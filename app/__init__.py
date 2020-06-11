@@ -88,7 +88,7 @@ def create_app(runtime_environment):
         flask_app.event_producer = EventProducer(app_config)
     else:
         logger.warning(
-            "WARNING: The tasks subsystem has been disabled.  "
+            "WARNING: The event producer has been disabled.  "
             "The message queue based event notifications have been disabled."
         )
 

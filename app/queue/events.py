@@ -71,7 +71,7 @@ def message_headers(event_type):
     return {"event_type": event_type.name}
 
 
-def dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata):
+def host_create_update_event(event_type, host, request_id, platform_metadata):
     return (
         HostCreateUpdateEvent(strict=True)
         .dumps(
@@ -87,7 +87,7 @@ def dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata):
     )
 
 
-def dumpHostDeleteEvent(event_type, host, request_id):
+def host_delete_event(event_type, host, request_id):
     return (
         HostDeleteEvent()
         .dumps(
@@ -107,7 +107,7 @@ def dumpHostDeleteEvent(event_type, host, request_id):
 def build_event(event_type, host, *, platform_metadata=None, request_id=None):
     if event_type == EventTypes.created or event_type == EventTypes.updated:
         return dumpHostCreateUpdateEvent(event_type, host, request_id, platform_metadata)
-    if event_type == EventTypes.delete:
+    elif event_type == EventTypes.delete:
         return dumpHostDeleteEvent(event_type, host, request_id)
     else:
         raise ValueError(f"Invalid event type ({event_type})")
