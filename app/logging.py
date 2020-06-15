@@ -10,14 +10,11 @@ from gunicorn import glogging
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 LOGGER_NAME = "inventory"
-LOGGER_PREFIX = "inventory."
 
 threadctx = local()
 
-cloudwatch_handler = None
 
-
-def configure_logging(config_name):
+def configure_logging(runtime_environment):
     env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
     log_config_file = os.getenv(env_var_name, "logconfig.ini")
     if log_config_file is not None:
@@ -39,12 +36,13 @@ def configure_logging(config_name):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger.setLevel(log_level)
 
-    if config_name != "testing":
-        _configure_watchtower_logging_handler(logger)
-        _configure_contextual_logging_filter(logger)
+    if runtime_environment.logging_enabled:
+        # Only enable the contextual filter if not in "testing" mode
+        _configure_watchtower_logging_handler()
+        _configure_contextual_logging_filter()
 
 
-def _configure_watchtower_logging_handler(logger):
+def _configure_watchtower_logging_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
@@ -52,12 +50,13 @@ def _configure_watchtower_logging_handler(logger):
     aws_stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
     create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
 
-    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name]):
+    if all([aws_access_key_id, aws_secret_access_key, aws_region_name]):
         print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
-        global cloudwatch_handler
         cloudwatch_handler = _get_cloudwatch_handler(
             aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
         )
+        logger = logging.getLogger(LOGGER_NAME)
+        logger.addHandler(cloudwatch_handler)
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
 
@@ -65,7 +64,6 @@ def _configure_watchtower_logging_handler(logger):
 def _get_cloudwatch_handler(
     aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
 ):
-    print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
     boto3_session = Session(
         aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=aws_region_name
     )
@@ -83,10 +81,9 @@ def _get_hostname():
     return os.uname().nodename
 
 
-def _configure_contextual_logging_filter(logger):
-    # Only enable the contextual filter if not in "testing" mode
-    root = logging.getLogger()
-    root.addFilter(ContextualFilter())
+def _configure_contextual_logging_filter():
+    logger = logging.getLogger(LOGGER_NAME)
+    logger.addFilter(ContextualFilter())
 
 
 class ContextualFilter(logging.Filter):
@@ -132,9 +129,4 @@ class InventoryGunicornLogger(glogging.Logger):
 
 
 def get_logger(name):
-    logger = logging.getLogger(f"{LOGGER_NAME}.{name}")
-
-    global cloudwatch_handler
-    if cloudwatch_handler:
-        logger.addHandler(cloudwatch_handler)
-    return logger
+    return logging.getLogger(f"{LOGGER_NAME}.{name}")
