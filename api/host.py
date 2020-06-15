@@ -247,7 +247,7 @@ def _emit_patch_event(host):
     key = host["id"]
     headers = message_headers(EventTypes.updated)
     event = build_event(EventTypes.updated, host, request_id=threadctx.request_id)
-    current_app.event_producer.write_event(event, key, headers, Topics.event)
+    current_app.event_producer.write_event(event, key, headers, Topics.events)
 
 
 @api_operation
