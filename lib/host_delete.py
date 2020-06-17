@@ -1,4 +1,3 @@
-from flask import current_app
 from sqlalchemy.orm.base import instance_state
 
 from app.models import Host
@@ -13,7 +12,7 @@ __all__ = ("delete_hosts",)
 CHUNK_SIZE = 1000
 
 
-def delete_hosts(select_query, request_id):
+def delete_hosts(select_query, request_id, event_producer):
     while select_query.count():
         for host in select_query.limit(CHUNK_SIZE):
             host_id = host.id
@@ -24,9 +23,7 @@ def delete_hosts(select_query, request_id):
             if host_deleted:
                 delete_host_count.inc()
                 event = build_event(EventType.delete, host, request_id=request_id)
-                current_app.event_producer.write_event(
-                    event, str(host.id), message_headers(EventType.delete), Topic.events
-                )
+                event_producer.write_event(event, str(host.id), message_headers(EventType.delete), Topic.events)
 
             yield host_id, host_deleted
 
