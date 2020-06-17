@@ -141,18 +141,16 @@ def add_host(host_data):
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
+
+    request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(platform_metadata)
 
-    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(request_id=request_id)
 
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
-        event = build_event(
-            add_host_results_to_event_type(add_results),
-            output_host,
-            platform_metadata=platform_metadata,
-            request_id=threadctx.request_id,
-        )
+        event_type = add_host_results_to_event_type(add_results)
+        event = build_event(event_type, output_host, platform_metadata=platform_metadata, request_id=request_id)
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
 
@@ -174,5 +172,5 @@ def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
                         logger.exception("Unable to process message")
 
 
-def initialize_thread_local_storage(metadata):
-    threadctx.request_id = metadata.get("request_id", "-1")
+def initialize_thread_local_storage(request_id):
+    threadctx.request_id = request_id
