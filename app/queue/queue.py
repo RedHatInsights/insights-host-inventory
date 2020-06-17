@@ -14,7 +14,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import Topics
+from app.queue.event_producer import Topic
 from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
 from app.queue.events import message_headers
@@ -113,20 +113,20 @@ def add_host(host_data):
                     }
                 },
             )
-            (output_host, add_results) = host_repository.add_host(
+            (output_host, add_result) = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
             metrics.add_host_success.labels(
-                add_results.name, host_data.get("reporter", "null")
+                add_result.name, host_data.get("reporter", "null")
             ).inc()  # created vs updated
             # log all the incoming host data except facts and system_profile b/c they can be quite large
             logger.info(
                 "Host %s",
-                add_results.name,
+                add_result.name,
                 extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
             )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return (output_host, add_results)
+            return (output_host, add_result)
         except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
             metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
@@ -153,7 +153,7 @@ def handle_message(message, event_producer):
             platform_metadata=platform_metadata,
             request_id=threadctx.request_id,
         )
-        event_producer.write_event(event, output_host["id"], message_headers(add_results), Topics.egress)
+        event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

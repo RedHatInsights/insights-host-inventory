@@ -7,14 +7,14 @@ from app.queue import metrics
 
 logger = get_logger(__name__)
 
-Topics = Enum("Topics", ("egress", "events"))
+Topic = Enum("Topic", ("egress", "events"))
 
 
 class EventProducer:
     def __init__(self, config):
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
-        self.topics = {Topics.egress: config.host_egress_topic, Topics.events: config.event_topic}
+        self.topics = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
 
     def write_event(self, event, key, headers, topic):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", topic, key, event, headers)

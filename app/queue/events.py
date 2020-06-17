@@ -13,7 +13,7 @@ from app.serialization import serialize_canonical_facts
 logger = logging.getLogger(__name__)
 
 
-EventTypes = Enum("EventTypes", ("created", "updated", "delete"))
+EventType = Enum("EventType", ("created", "updated", "delete"))
 
 
 # Schemas
@@ -98,9 +98,9 @@ def host_delete_event(event_type, host, request_id):
 
 
 EVENT_TYPE_MAP = {
-    EventTypes.created: host_create_update_event,
-    EventTypes.updated: host_create_update_event,
-    EventTypes.delete: host_delete_event,
+    EventType.created: host_create_update_event,
+    EventType.updated: host_create_update_event,
+    EventType.delete: host_delete_event,
 }
 
 
@@ -112,4 +112,4 @@ def build_event(event_type, host, **kwargs):
 
 
 def add_host_results_to_event_type(results):
-    return EventTypes[results.name]
+    return EventType[results.name]
