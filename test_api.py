@@ -2803,12 +2803,20 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
 
 
 class QueryStalenessPatchIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        """
+        Creates the application and a test client to make requests.
+        """
+        self.app = create_app(RuntimeEnvironment.TEST)
+        self.app.event_producer = MockEventProducer()
+        self.client = self.app.test_client
+
     def test_patch_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
         self.patch(url, {"display_name": "patched"}, 404)
 
-    @patch("api.host.current_app")
-    def test_patch_works_on_non_culled(self, current_app_mock):
+    def test_patch_works_on_non_culled(self):
         with self.app.app_context():
             url = HOST_URL + "/" + self.fresh_host["id"]
             self.patch(url, {"display_name": "patched"}, 200)
