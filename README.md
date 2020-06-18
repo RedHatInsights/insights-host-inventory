@@ -289,7 +289,26 @@ Once all of this is finished, a [@platform-inventory-qe](https://app.slack.com/c
 ## 5. Promoting the image to production
 
 Once the image has passed QE testing, it can be promoted to production.
+
+### Triggering the production deployment
+
 This is done using a [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
 The SHA of the HEAD commit should be used as `PROMO_CODE`.
 
 A new deployment is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 4)_
+
+### Monitoring of the production deployment
+
+It is essential to monitor the health of the service during and after the production deployment.
+A non-exhaustive list of things to watch includes:
+
+* Inventory deployments in [platform-prod OSD namespace](https://console.insights.openshift.com/console/project/platform-prod/overview)
+  * primarily ensure that the new pods are spinned up properly
+* [#platform-inventory-standup Slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) for any Prometheus alerts
+* [Inventory Dashboard](https://metrics.1b13.insights.openshiftapps.com/d/EiIhtC0Wa/inventory?orgId=1&var-namespace=prod) for any anomalies such as error rate or consumer lag
+
+### Production rollback
+
+Should unexpected problems occur after a production deployment it is possible to do a rollback.
+The process is the same as above (i.e. the same [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build)).
+What differs is that a SHA of a previous commit, to which the deployment should be rolled back, should be used as `PROMO_CODE`.
