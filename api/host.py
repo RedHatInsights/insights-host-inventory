@@ -30,9 +30,9 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.queue.event_producer import Topics
+from app.queue.event_producer import Topic
 from app.queue.events import build_event
-from app.queue.events import EventTypes
+from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_host_http
@@ -193,7 +193,7 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
-        for host_id, deleted in delete_hosts(query, threadctx.request_id):
+        for host_id, deleted in delete_hosts(query, threadctx.request_id, current_app.event_producer):
             if deleted:
                 logger.info("Deleted host: %s", host_id)
                 tracker_message = "deleted host"
@@ -252,9 +252,9 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 def _emit_patch_event(host):
     key = host["id"]
-    headers = message_headers(EventTypes.updated)
-    event = build_event(EventTypes.updated, host, request_id=threadctx.request_id)
-    current_app.event_producer.write_event(event, key, headers, Topics.events)
+    headers = message_headers(EventType.updated)
+    event = build_event(EventType.updated, host, request_id=threadctx.request_id)
+    current_app.event_producer.write_event(event, key, headers, Topic.events)
 
 
 @api_operation

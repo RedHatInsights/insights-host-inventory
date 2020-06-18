@@ -32,6 +32,11 @@ from app.exceptions import ValidationException
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.queue.event_producer import EventProducer
+from app.queue.event_producer import Topic
+from app.queue.events import build_event
+from app.queue.events import EventType
+from app.queue.events import message_headers
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -1621,6 +1626,49 @@ class SerializationDeserializeTags(TestCase):
                     with self.assertRaises(ValueError):
                         nested_tags = {"namespace": {key: ["value"]}}
                         function(nested_tags)
+
+
+class EventProducerTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.config = Config(RuntimeEnvironment.SERVER)
+        cls.event_producer = EventProducer(cls.config)
+        cls.topic_name = {Topic.events: cls.config.event_topic, Topic.egress: cls.config.host_egress_topic}
+        cls.event_types = {EventType.created: "created", EventType.updated: "updated", EventType.delete: "delete"}
+
+    def _make_host(self, **values):
+        return {"canonical_facts": {"fqdn": "some fqdn"}, **values}
+
+    @patch("app.queue.event_producer.KafkaProducer.send")
+    # Check that the event is always sent to the right topic
+    # Check that the key makes it through correct and encoded
+    # check that the headers make it through and are encoded
+    # check thet the event makes it through and is encoded
+    def test_happy_path(self, send_mock):
+        id = str(uuid4())
+        host = self._make_host(id=id)
+        event = build_event(EventType.created, host, request_id=None)
+        key = host["id"]
+
+        for event_type in EventType:
+            for topic in Topic:
+                with self.subTest(event_type=event_type, topic=topic):
+                    headers = message_headers(event_type)
+
+                    self.event_producer.write_event(event, key, headers, topic)
+
+                    send_mock_call_args = send_mock.call_args
+                    print(send_mock_call_args)
+                    print(send_mock_call_args[1])
+                    # Assert that KafkaProducerMock was called with expected parameters
+
+                    self.assertEqual(send_mock_call_args[0][0], self.topic_name[topic])
+                    self.assertEqual(send_mock.call_args[1]["key"], key.encode("utf-8"))
+                    self.assertEqual(send_mock.call_args[1]["value"], event.encode("utf-8"))
+                    self.assertEqual(
+                        send_mock.call_args[1]["headers"],
+                        [("event_type", self.event_types[event_type].encode("utf-8"))],
+                    )
 
 
 if __name__ == "__main__":

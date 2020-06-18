@@ -14,7 +14,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import Topics
+from app.queue.event_producer import Topic
 from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
 from app.queue.events import message_headers
@@ -153,7 +153,7 @@ def handle_message(message, event_producer):
             platform_metadata=platform_metadata,
             request_id=threadctx.request_id,
         )
-        event_producer.write_event(event, output_host["id"], message_headers(add_results), Topics.egress)
+        event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

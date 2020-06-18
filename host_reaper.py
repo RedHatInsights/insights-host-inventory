@@ -1,7 +1,6 @@
 import sys
 from functools import partial
 
-from flask import current_app
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
@@ -15,6 +14,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.queue.event_producer import EventProducer
 from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
@@ -50,13 +50,13 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, logger, session):
+def run(config, logger, session, event_producer):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query, None)
+    events = delete_hosts(query, None, event_producer)
     for host_id, deleted in events:
         if deleted:
             logger.info("Deleted host: %s", host_id)
@@ -74,11 +74,13 @@ def main(logger):
     Session = _init_db(config)
     session = Session()
 
+    event_producer = EventProducer(config)
+
     try:
         with session_guard(session):
-            run(config, logger, session)
+            run(config, logger, session, event_producer)
     finally:
-        current_app.event_producer.close()
+        event_producer.close()
 
         job = _prometheus_job(config.kubernetes_namespace)
         push_to_gateway(config.prometheus_pushgateway, job, registry)
