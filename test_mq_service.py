@@ -23,7 +23,7 @@ from app.models import Host
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
-from lib.host_repository import AddHostResults
+from lib.host_repository import AddHostResult
 from test_utils import MockEventProducer
 from test_utils import rename_host_table_and_indexes
 from test_utils import valid_system_profile
@@ -92,7 +92,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         }
         with self.app.app_context():
             with unittest.mock.patch("app.queue.queue.add_host") as m:
-                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
+                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
@@ -163,7 +163,7 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
         for message in messages:
             with self.subTest(message=message):
                 add_host.reset_mock()
-                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResults.updated)
+                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
                 handle_message(message, Mock())
                 add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
@@ -244,7 +244,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
     @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_key_and_metadata_not_required(self, add_host):
         host_data = self._host_data()
-        add_host.return_value = (host_data, AddHostResults.created)
+        add_host.return_value = (host_data, AddHostResult.created)
 
         message = {"operation": "add_host", "data": host_data}
 
@@ -262,7 +262,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
         message = {"operation": "add_host", "data": host_data}
 
-        for add_host_result in AddHostResults:
+        for add_host_result in AddHostResult:
             with self.subTest(add_host_result=add_host_result):
                 add_host.reset_mock()
                 add_host.return_value = (host_data, add_host_result)

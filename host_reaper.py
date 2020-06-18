@@ -56,7 +56,7 @@ def run(config, logger, session, event_producer):
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query, None, event_producer)
+    events = delete_hosts(query, UNKNOWN_REQUEST_ID_VALUE, event_producer)
     for host_id, deleted in events:
         if deleted:
             logger.info("Deleted host: %s", host_id)
@@ -80,10 +80,10 @@ def main(logger):
         with session_guard(session):
             run(config, logger, session, event_producer)
     finally:
-        event_producer.close()
-
         job = _prometheus_job(config.kubernetes_namespace)
         push_to_gateway(config.prometheus_pushgateway, job, registry)
+
+        event_producer.close()
 
 
 if __name__ == "__main__":

@@ -87,7 +87,7 @@ def host_delete_event(event_type, host, request_id):
     return (
         HostDeleteEvent,
         {
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "type": event_type.name,
             "id": host.id,
             **serialize_canonical_facts(host.canonical_facts),

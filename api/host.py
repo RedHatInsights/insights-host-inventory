@@ -41,7 +41,7 @@ from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
-from lib.host_repository import AddHostResults
+from lib.host_repository import AddHostResult
 from lib.host_repository import find_non_culled_hosts
 
 
@@ -110,7 +110,7 @@ def add_host_list(host_list):
 
 
 def _convert_host_results_to_http_status(result):
-    if result == AddHostResults.created:
+    if result == AddHostResult.created:
         return 201
     else:
         return 200
