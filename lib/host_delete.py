@@ -12,7 +12,7 @@ __all__ = ("delete_hosts",)
 CHUNK_SIZE = 1000
 
 
-def delete_hosts(select_query, request_id, event_producer):
+def delete_hosts(select_query, event_producer):
     while select_query.count():
         for host in select_query.limit(CHUNK_SIZE):
             host_id = host.id
@@ -22,7 +22,7 @@ def delete_hosts(select_query, request_id, event_producer):
             host_deleted = _deleted_by_this_query(host)
             if host_deleted:
                 delete_host_count.inc()
-                event = build_event(EventType.delete, host, request_id=request_id)
+                event = build_event(EventType.delete, host)
                 event_producer.write_event(event, str(host.id), message_headers(EventType.delete), Topic.events)
 
             yield host_id, host_deleted

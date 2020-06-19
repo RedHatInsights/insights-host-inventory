@@ -1840,14 +1840,14 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class DeleteHostsMock:
         @classmethod
         def create_mock(cls, hosts_ids_to_delete):
-            def _constructor(select_query, request_id, event_producer):
+            def _constructor(select_query, event_producer):
                 return cls(hosts_ids_to_delete, select_query, event_producer)
 
             return _constructor
 
         def __init__(self, host_ids_to_delete, original_query, event_producer):
             self.host_ids_to_delete = host_ids_to_delete
-            self.original_query = delete_hosts(original_query, "-1", event_producer)
+            self.original_query = delete_hosts(original_query, event_producer)
 
         def __getattr__(self, item):
             """
