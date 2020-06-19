@@ -143,7 +143,7 @@ def handle_message(message, event_producer):
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
     request_id = platform_metadata.get("request_id", "-1")
-    initialize_thread_local_storage(platform_metadata)
+    initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
 
