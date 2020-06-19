@@ -1664,7 +1664,7 @@ class EventProducerTests(TestCase):
 
                     self.assertEqual(send_mock_call_args[0][0], self.topic_name[topic])
                     self.assertEqual(send_mock.call_args[1]["key"], key.encode("utf-8"))
-                    self.assertEqual(send_mock.call_args[1]["value"], event.encode("utf-8"))
+                    self.assertEqual(send_mock.call_args[1]["value"], dumps(event).encode("utf-8"))
                     self.assertEqual(
                         send_mock.call_args[1]["headers"],
                         [("event_type", self.event_types[event_type].encode("utf-8"))],
