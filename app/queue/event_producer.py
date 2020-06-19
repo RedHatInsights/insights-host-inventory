@@ -1,4 +1,3 @@
-import json
 from enum import Enum
 
 from kafka import KafkaProducer
@@ -22,7 +21,7 @@ class EventProducer:
 
         try:
             k = key.encode("utf-8") if key else None
-            v = json.dumps(event).encode("utf-8")
+            v = event.encode("utf-8")
             h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
             self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
             metrics.egress_message_handler_success.inc()
