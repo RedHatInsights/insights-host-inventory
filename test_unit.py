@@ -1647,7 +1647,7 @@ class EventProducerTests(TestCase):
     def test_happy_path(self, send_mock):
         id = str(uuid4())
         host = self._make_host(id=id)
-        event = build_event(EventType.created, host, request_id=None)
+        event = build_event(EventType.created, host)
         key = host["id"]
 
         for event_type in EventType:

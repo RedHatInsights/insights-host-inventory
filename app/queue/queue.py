@@ -150,7 +150,7 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event_type = add_host_results_to_event_type(add_results)
-        event = build_event(event_type, output_host, platform_metadata=platform_metadata, request_id=request_id)
+        event = build_event(event_type, output_host, platform_metadata=platform_metadata)
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
 

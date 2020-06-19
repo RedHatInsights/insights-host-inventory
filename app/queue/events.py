@@ -6,6 +6,7 @@ from enum import Enum
 from marshmallow import fields
 from marshmallow import Schema
 
+from app.logging import threadctx
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.serialization import serialize_canonical_facts
@@ -70,7 +71,7 @@ def message_headers(event_type):
     return {"event_type": event_type.name}
 
 
-def host_create_update_event(event_type, host, request_id, platform_metadata=None):
+def host_create_update_event(event_type, host, platform_metadata=None):
     return (
         HostCreateUpdateEvent,
         {
@@ -78,21 +79,22 @@ def host_create_update_event(event_type, host, request_id, platform_metadata=Non
             "type": event_type.name,
             "host": host,
             "platform_metadata": platform_metadata,
-            "metadata": {"request_id": request_id},
+            "metadata": {"request_id": threadctx.request_id},
         },
     )
 
 
-def host_delete_event(event_type, host, request_id):
+def host_delete_event(event_type, host):
     return (
         HostDeleteEvent,
         {
+            # "timestamp": datetime.now(timezone.utc),
             "timestamp": datetime.now(timezone.utc),
             "type": event_type.name,
             "id": host.id,
             **serialize_canonical_facts(host.canonical_facts),
             "account": host.account,
-            "request_id": request_id,
+            "request_id": threadctx.request_id,
         },
     )
 
