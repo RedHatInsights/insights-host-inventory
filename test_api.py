@@ -1837,10 +1837,6 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
 
 
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.event_producer = mock.Mock()
-
     class DeleteHostsMock:
         @classmethod
         def create_mock(cls, hosts_ids_to_delete):
@@ -1851,14 +1847,13 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
 
         def __init__(self, host_ids_to_delete, original_query, event_producer):
             self.host_ids_to_delete = host_ids_to_delete
-            with self.app.app_context():
-                self.original_query = delete_hosts(original_query, "-1", self.app.event_producer)
+            self.original_query = delete_hosts(original_query, "-1", event_producer)
 
         def __getattr__(self, item):
             """
             Forwards all calls to the original query, only intercepting the actual SELECT.
             """
-            return self.__iter__ if item == "__iter__" else getattr(self.original_query, item)
+            return getattr(self.original_query, item)
 
         def _delete_hosts(self):
             delete_query = Host.query.filter(Host.id.in_(self.host_ids_to_delete))
@@ -1882,7 +1877,7 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
             # 200 OK.
             with self.app.app_context():
                 self.delete(url, 200, return_response_as_json=False)
-                self.event_producer.write_event.assert_not_called()
+                self.assertIsNone(self.app.event_producer.event)
 
     def test_delete_when_all_hosts_are_deleted(self):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
@@ -1892,7 +1887,7 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
                 # Two hosts queried, but both deleted by a different process. No event emitted yet
                 # returning 200 OK.
                 self.delete(url, 200, return_response_as_json=False)
-                self.app.event_producer.write_event.assert_not_called()
+                self.assertIsNone(self.app.event_producer.event)
 
     def test_delete_when_some_hosts_is_deleted(self):
         host_id_list = [self.added_hosts[0].id, self.added_hosts[1].id]
@@ -1902,7 +1897,7 @@ class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
                 # Two hosts queried, one of them deleted by a different process. Only one event emitted,
                 # returning 200 OK.
                 self.delete(url, 200, return_response_as_json=False)
-                self.app.write_event.assert_called_once()
+                self.assertEqual(host_id_list[1], self.app.event_producer.key)
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
