@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 DELETE_EVENT_NAME = "delete"
 UPDATE_EVENT_NAME = "updated"
 
+
 def hostname():
     return os.uname().nodename
 
@@ -47,6 +48,6 @@ def message_headers(event_type, registered_with_insights):
     return {
         "event_type": event_type,
         "request_id": threadctx.request_id,
-        "producer": os.uname().nodename,
-        "registered_with_insights": registered_with_insights,
+        "producer": hostname(),
+        "registered_with_insights": "true" if registered_with_insights else "false",
     }

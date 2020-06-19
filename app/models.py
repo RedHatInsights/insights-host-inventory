@@ -241,6 +241,9 @@ class Host(db.Model):
             self.system_profile_facts = {**self.system_profile_facts, **input_system_profile}
         orm.attributes.flag_modified(self, "system_profile_facts")
 
+    def registered_with_insights(self):
+        return "insights_id" in self.canonical_facts
+
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "

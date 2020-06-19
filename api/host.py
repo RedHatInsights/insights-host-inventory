@@ -242,8 +242,7 @@ def _emit_patch_event(host):
     request_id = threadctx.request_id
     event = build_event_topic_event("updated", host, request_id=request_id)
     headers = message_headers(
-        event_type=UPDATE_EVENT_NAME,
-        registered_with_insights="true" if "insights_id" in host else "false",
+        event_type=UPDATE_EVENT_NAME, registered_with_insights="true" if "insights_id" in host else "false"
     )
     emit_event(event, key, headers)
 
