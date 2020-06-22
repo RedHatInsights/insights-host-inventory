@@ -24,7 +24,8 @@ from tests.test_api_utils import now
 from tests.test_api_utils import PaginationBaseTestCase
 from tests.test_api_utils import SHARED_SECRET
 from tests.test_api_utils import test_data
-from tests.test_utils import set_environment, MockEventProducer
+from tests.test_utils import MockEventProducer
+from tests.test_utils import set_environment
 from tests.test_utils import valid_system_profile
 
 

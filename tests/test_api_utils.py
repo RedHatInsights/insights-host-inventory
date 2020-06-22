@@ -18,13 +18,14 @@ from urllib.parse import urlunsplit
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 
-from app.queue.ingress import handle_message
-from .test_utils import set_environment, MockEventProducer
+from .test_utils import MockEventProducer
+from .test_utils import set_environment
 from app import Config
 from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.environment import RuntimeEnvironment
+from app.queue.ingress import handle_message
 from app.utils import HostWrapper
 
 HOST_URL = "/api/inventory/v1/hosts"
