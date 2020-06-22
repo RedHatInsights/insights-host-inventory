@@ -80,10 +80,11 @@ def main(logger):
         with session_guard(session):
             run(config, logger, session, event_producer)
     finally:
-        job = _prometheus_job(config.kubernetes_namespace)
-        push_to_gateway(config.prometheus_pushgateway, job, registry)
-
-        event_producer.close()
+        try:
+            job = _prometheus_job(config.kubernetes_namespace)
+            push_to_gateway(config.prometheus_pushgateway, job, registry)
+        finally:
+            event_producer.close()
 
 
 if __name__ == "__main__":

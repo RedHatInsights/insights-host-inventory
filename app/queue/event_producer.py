@@ -2,6 +2,8 @@ from enum import Enum
 
 from kafka import KafkaProducer
 
+from app.instrumentation import message_not_produced
+from app.instrumentation import message_produced
 from app.logging import get_logger
 from app.queue import metrics
 
@@ -23,7 +25,9 @@ class EventProducer:
             k = key.encode("utf-8") if key else None
             v = event.encode("utf-8")
             h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
-            self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
+            send_future = self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
+            send_future.add_callback(message_produced, logger, event, key, headers)
+            send_future.add_errback(message_not_produced, logger, self._topic, event, key, headers)
             metrics.egress_message_handler_success.inc()
         except Exception:
             logger.exception("Failed to send event")

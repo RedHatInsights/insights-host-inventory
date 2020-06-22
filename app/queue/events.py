@@ -88,7 +88,6 @@ def host_delete_event(event_type, host):
     return (
         HostDeleteEvent,
         {
-            # "timestamp": datetime.now(timezone.utc),
             "timestamp": datetime.now(timezone.utc),
             "type": event_type.name,
             "id": host.id,
