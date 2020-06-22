@@ -11,12 +11,13 @@ from .test_utils import ACCOUNT
 from .test_utils import generate_uuid
 from .test_utils import get_valid_auth_header
 from .test_utils import HEALTH_URL
-from .test_utils import HOST_URL
 from .test_utils import inject_qs
 from .test_utils import METRICS_URL
 from .test_utils import now
 from .test_utils import set_environment
 from .test_utils import VERSION_URL
+from app.queue.ingress import handle_message
+from .test_utils import MockEventProducer
 from app import Config
 from app import create_app
 from app import db
@@ -242,7 +243,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         for host in self.hosts_to_create:
             host_wrapper = HostWrapper()
-            host_wrapper.id = generate_uuid()
             host_wrapper.account = ACCOUNT
             host_wrapper.display_name = host[0]
             host_wrapper.insights_id = generate_uuid()
@@ -258,9 +258,17 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.tags = host[3]
             host_wrapper.stale_timestamp = now().isoformat()
             host_wrapper.reporter = "test"
+            message = {"operation": "add_host", "data": host_wrapper.data()}
 
-            response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
-            host_list.append(HostWrapper(response_data["data"][0]["host"]))
+            mock_event_producer = MockEventProducer()
+            with self.app.app_context():
+                handle_message(json.dumps(message), mock_event_producer)
+
+            response_data = json.loads(mock_event_producer.event)
+
+            # add facts object since it's not returned by message
+            host_data = {**response_data["host"], "facts": message["data"]["facts"]}
+            host_list.append(HostWrapper(host_data))
 
         return host_list
 

@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 import copy
+import json
 from datetime import timedelta
 
 import pytest
 
-from lib.host_repository import canonical_fact_host_query
-from lib.host_repository import canonical_facts_host_query
-from tests.test_utils import ACCOUNT
 from tests.test_utils import assert_error_response
 from tests.test_utils import assert_host_data
 from tests.test_utils import assert_host_response_status
@@ -14,13 +12,20 @@ from tests.test_utils import assert_host_was_created
 from tests.test_utils import assert_host_was_updated
 from tests.test_utils import assert_response_status
 from tests.test_utils import FACTS
-from tests.test_utils import generate_uuid
 from tests.test_utils import get_host_from_multi_response
 from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
 from tests.test_utils import minimal_host
-from tests.test_utils import now
 from tests.test_utils import SHARED_SECRET
+
+from app.queue.ingress import handle_message
+from app.utils import HostWrapper
+from lib.host_repository import canonical_fact_host_query
+from lib.host_repository import canonical_facts_host_query
+from tests.test_api_utils import ACCOUNT
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import now
+from tests.test_utils import MockEventProducer
 from tests.test_utils import valid_system_profile
 
 
@@ -524,6 +529,8 @@ def test_create_host_without_ansible_host_then_update(api_create_or_update_host,
 
     create_host_response = get_host_from_multi_response(multi_response_data)
 
+    assert_host_was_created(create_host_response)
+
     created_host_id = create_host_response["host"]["id"]
 
     host.ansible_host = ansible_host
@@ -545,6 +552,80 @@ def test_create_host_without_ansible_host_then_update(api_create_or_update_host,
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
+
+def test_create_host_ignores_tags(api_create_or_update_host, api_get_host):
+    host = minimal_host(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}])
+
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    assert host_tags_response_data["results"][created_host_id] == []
+
+
+def test_update_host_with_tags_doesnt_change_tags(api_create_or_update_host, api_get_host, flask_app):
+    create_host_data = minimal_host(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn")
+
+    message = {"operation": "add_host", "data": create_host_data.data()}
+
+    mock_event_producer = MockEventProducer()
+    with flask_app.app_context():
+        handle_message(json.dumps(message), mock_event_producer)
+
+    event = json.loads(mock_event_producer.event)
+    host_id = event["host"]["id"]
+
+    # attempt to update
+    update_host_data = minimal_host(tags=[{"namespace": "other_ns", "key": "other_key", "value": "other_val"}], fqdn="fqdn")
+
+    multi_response_status, multi_response_data = api_create_or_update_host([update_host_data])
+
+    assert_response_status(multi_response_status, 207)
+
+    update_host_response = get_host_from_multi_response(multi_response_data)
+
+    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{host_id}/tags")
+
+    assert_response_status(host_tags_response_status, 200)
+
+    # check the tags haven't updated
+    assert create_host_data.tags == host_tags_response_data["results"][host_id]
+
+
+def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get_host):
+    system_profile = {
+        "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
+    }
+
+    host = minimal_host(system_profile=system_profile)
+
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
+
+    assert_host_was_created(create_host_response)
+
+    created_host_id = create_host_response["host"]["id"]
+
+    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
+
+    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 @pytest.mark.parametrize("invalid_ansible_host", ["a" * 256])
 def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invalid_ansible_host):
@@ -1048,313 +1129,6 @@ def test_get_system_profile_with_invalid_host_id(api_get_host, invalid_host_id):
     response_status, response_data = api_get_host(f"{HOST_URL}/{invalid_host_id}/system_profile")
 
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_null_tags(api_create_or_update_host):
-    host = minimal_host(tags=None)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_null_tag_key(api_create_or_update_host):
-    host = minimal_host(tags=[({"namespace": "ns", "key": None, "value": "val"},)])
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-@pytest.mark.parametrize(
-    "tag",
-    [
-        {"namespace": "a" * 256, "key": "key", "value": "val"},
-        {"namespace": "ns", "key": "a" * 256, "value": "val"},
-        {"namespace": "ns", "key": "key", "value": "a" * 256},
-        {"namespace": "ns", "key": "", "value": "val"},
-        {"namespace": "ns", "value": "val"},
-    ],
-)
-def test_create_host_with_invalid_tags(api_create_or_update_host, tag):
-    host = minimal_host(tags=[tag])
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_keyless_tag(api_create_or_update_host):
-    host = minimal_host(tags=[{"namespace": "ns", "key": None, "value": "val"}])
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_invalid_string_tag_format(api_create_or_update_host):
-    host = minimal_host(tags=["string/tag=format"])
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_invalid_tag_format(api_create_or_update_host):
-    host = minimal_host(tags=[{"namespace": "spam", "key": {"foo": "bar"}, "value": "eggs"}])
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
-
-
-@pytest.mark.tagging
-def test_create_host_with_tags(api_create_or_update_host, api_get_host):
-    host = minimal_host(
-        tags=[
-            {"namespace": "NS3", "key": "key2", "value": "val2"},
-            {"namespace": "NS1", "key": "key3", "value": "val3"},
-            {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "NS2", "key": "key1", "value": ""},
-        ]
-    )
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
-
-    assert_response_status(response_status, 200)
-
-    host_response = get_host_from_response(response_data)
-
-    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    host_tags = host_tags_response_data["results"][created_host_id]
-
-    expected_tags = [
-        {"namespace": "NS1", "key": "key3", "value": "val3"},
-        {"namespace": "NS3", "key": "key2", "value": "val2"},
-        {"namespace": "Sat", "key": "prod", "value": None},
-        {"namespace": "NS2", "key": "key1", "value": None},
-    ]
-
-    assert len(host_tags) == len(expected_tags)
-
-
-@pytest.mark.tagging
-def test_create_host_with_tags_special_characters(api_create_or_update_host, api_get_host):
-    tags = [
-        {"namespace": "NS1;,/?:@&=+$-_.!~*'()#", "key": "ŠtěpánΔ12!@#$%^&*()_+-=", "value": "ŠtěpánΔ:;'|,./?~`"},
-        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
-    ]
-    host = minimal_host(tags=tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
-
-    assert_response_status(response_status, 200)
-
-    host_response = get_host_from_response(response_data)
-
-    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    host_tags = host_tags_response_data["results"][created_host_id]
-
-    assert len(host_tags) == len(tags)
-
-
-@pytest.mark.tagging
-def test_create_host_with_tag_without_some_fields(api_create_or_update_host, api_get_host):
-    tags = [
-        {"namespace": None, "key": "key3", "value": "val3"},
-        {"namespace": "", "key": "key1", "value": "val1"},
-        {"namespace": "null", "key": "key4", "value": "val4"},
-        {"key": "key2", "value": "val2"},
-        {"namespace": "Sat", "key": "prod", "value": None},
-        {"namespace": "Sat", "key": "dev", "value": ""},
-        {"key": "some_key"},
-    ]
-
-    host = minimal_host(tags=tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
-
-    assert_response_status(response_status, 200)
-
-    host_response = get_host_from_response(response_data)
-
-    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    host_tags = host_tags_response_data["results"][created_host_id]
-
-    expected_tags = [
-        {"namespace": "Sat", "key": "prod", "value": None},
-        {"namespace": "Sat", "key": "dev", "value": None},
-        {"namespace": None, "key": "key1", "value": "val1"},
-        {"namespace": None, "key": "key2", "value": "val2"},
-        {"namespace": None, "key": "key3", "value": "val3"},
-        {"namespace": None, "key": "key4", "value": "val4"},
-        {"namespace": None, "key": "some_key", "value": None},
-    ]
-
-    assert len(host_tags) == len(expected_tags)
-
-
-@pytest.mark.tagging
-def test_update_host_replaces_tags(api_create_or_update_host, api_get_host):
-    insights_id = generate_uuid()
-
-    create_tags = [
-        {"namespace": "namespace1", "key": "key1", "value": "value1"},
-        {"namespace": "namespace1", "key": "key2", "value": "value2"},
-    ]
-
-    host = minimal_host(insights_id=insights_id, tags=create_tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    created_host_tags = host_tags_response_data["results"][created_host_id]
-
-    assert len(created_host_tags) == len(create_tags)
-
-    update_tags = [
-        {"namespace": "namespace1", "key": "key2", "value": "value3"},
-        {"namespace": "namespace1", "key": "key3", "value": "value4"},
-    ]
-
-    host = minimal_host(insights_id=insights_id, tags=update_tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    updated_host_tags = host_tags_response_data["results"][created_host_id]
-
-    assert len(updated_host_tags) == len(update_tags)
-
-
-@pytest.mark.tagging
-def test_update_host_does_not_remove_namespace(api_create_or_update_host, api_get_host):
-    insights_id = generate_uuid()
-    create_tags = [{"namespace": "namespace1", "key": "key1", "value": "value1"}]
-
-    host = minimal_host(insights_id=insights_id, tags=create_tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    created_host_tags = host_tags_response_data["results"][created_host_id]
-
-    assert len(created_host_tags) == len(create_tags)
-
-    update_tags = [{"namespace": "namespace2", "key": "key2", "value": "value3"}]
-
-    host = minimal_host(insights_id=insights_id, tags=update_tags)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    update_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_updated(create_host_response, update_host_response)
-
-    host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{created_host_id}/tags")
-
-    assert_response_status(host_tags_response_status, 200)
-
-    updated_host_tags = host_tags_response_data["results"][created_host_id]
-
-    assert len(updated_host_tags) == len(create_tags) + len(update_tags)
-
-
-@pytest.mark.tagging
-def test_create_host_with_nested_tags(api_create_or_update_host):
-    host = minimal_host(tags={"namespace": {"key": ["value"]}})
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_error_response(multi_response_data, expected_title="Bad Request", expected_status=400)
 
 
 @pytest.mark.system_culling

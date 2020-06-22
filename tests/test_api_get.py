@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 import copy
+import json
 import uuid
 from itertools import chain
 from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
+
+
+from app.queue.ingress import handle_message
+from tests.test_utils import MockEventProducer
 
 from .test_api_utils import DBAPITestCase
 from .test_api_utils import PaginationBaseTestCase
@@ -24,13 +29,20 @@ from lib.host_repository import canonical_fact_host_query
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):
+    def _expected_host_list(self):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in self.added_hosts[::-1]
+        ]
+
     def test_query_all(self):
         response = self.get(HOST_URL, 200)
 
         host_list = self.added_hosts.copy()
         host_list.reverse()
 
-        expected_host_list = [h.data() for h in host_list]
+        expected_host_list = self._expected_host_list()
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
@@ -83,7 +95,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
         response = self.get(test_url)
 
-        expected_host_list = [h.data() for h in host_list]
+        expected_host_list = self._expected_host_list()
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))
@@ -91,6 +103,13 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
 
 
 class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+    def _expected_host_list(self, hosts):
+        # Remove fields that are not returned by the REST endpoint
+        return [
+            {key: value for key, value in host.data().items() if key not in ("tags", "system_profile")}
+            for host in hosts[::-1]
+        ]
+
     def _base_query_test(self, host_id_list, expected_host_list):
         url = f"{HOST_URL}/{host_id_list}"
         response = self.get(url)
@@ -98,11 +117,8 @@ class QueryByHostIdTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase)
         self.assertEqual(response["count"], len(expected_host_list))
         self.assertEqual(len(response["results"]), len(expected_host_list))
 
-        host_data = [host.data() for host in expected_host_list]
-        for host in host_data:
-            self.assertIn(host, response["results"])
-        for host in response["results"]:
-            self.assertIn(host, host_data)
+        host_data = self._expected_host_list(expected_host_list)
+        self.assertCountEqual(host_data, response["results"])
 
         self._base_paging_test(url, len(expected_host_list))
         self._invalid_paging_parameters_test(url)
@@ -468,9 +484,13 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 ],
             }
         )
-        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
-        self._verify_host_status(create_response, 0, 201)
-        created_host = self._pluck_host_from_response(create_response, 0)
+        message = {"operation": "add_host", "data": host_wrapper.data()}
+
+        with self.app.app_context():
+            mock_event_producer = MockEventProducer()
+            handle_message(json.dumps(message), mock_event_producer)
+            response_data = json.loads(mock_event_producer.event)
+            created_host = response_data["host"]
 
         for tags_query in (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"):
             with self.subTest(tags_query=tags_query):
@@ -492,9 +512,13 @@ class QueryByTagTestCase(PreCreatedHostsBaseTestCase, PaginationBaseTestCase):
                 ],
             }
         )
-        create_response = self.post(HOST_URL, [host_wrapper.data()], 207)
-        self._verify_host_status(create_response, 0, 201)
-        created_host = self._pluck_host_from_response(create_response, 0)
+        message = {"operation": "add_host", "data": host_wrapper.data()}
+
+        with self.app.app_context():
+            mock_event_producer = MockEventProducer()
+            handle_message(json.dumps(message), mock_event_producer)
+            response_data = json.loads(mock_event_producer.event)
+            created_host = response_data["host"]
 
         for namespace, key, value in ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v")):
             with self.subTest(namespace=namespace, key=key, value=value):

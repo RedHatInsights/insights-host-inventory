@@ -134,6 +134,18 @@ def valid_system_profile():
     }
 
 
+class MockEventProducer:
+    def __init__(self):
+        self.event = None
+        self.key = None
+        self.headers = None
+
+    def write_event(self, event, key, headers):
+        self.event = event
+        self.key = key
+        self.headers = headers
+
+
 def get_host_from_response(response, index=0):
     return response["results"][index]
 
@@ -216,7 +228,7 @@ def assert_host_data(actual_host, expected_host, expected_id=None):
 
 
 def assert_error_response(
-    response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
+        response, expected_title=None, expected_status=None, expected_detail=None, expected_type=None
 ):
     def _verify_value(field_name, expected_value):
         assert field_name in response

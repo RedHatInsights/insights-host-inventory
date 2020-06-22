@@ -16,7 +16,6 @@ from sqlalchemy import null
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 
-from .test_utils import valid_system_profile
 from app import Config
 from app import create_app
 from app import db
@@ -29,17 +28,8 @@ from app.queue.ingress import event_loop
 from app.queue.ingress import handle_message
 from lib.host_repository import AddHostResults
 
-
-class MockEventProducer:
-    def __init__(self):
-        self.event = None
-        self.key = None
-        self.headers = None
-
-    def write_event(self, event, key, headers):
-        self.event = event
-        self.key = key
-        self.headers = headers
+from tests.test_utils import MockEventProducer
+from tests.test_utils import valid_system_profile
 
 
 class MQServiceBaseTestCase(TestCase):
