@@ -152,6 +152,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         emit_event.assert_called_once()
         emitted_event = emit_event.call_args[0]
         event_message = json.loads(emitted_event[0])
+
         self.assertEqual(event_message, expected_event_message)
         self.assertEqual(emitted_event[1], self.added_hosts[0].id)
         self.assertEqual(emitted_event[2], {"event_type": "updated"})
