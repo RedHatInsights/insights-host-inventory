@@ -2,8 +2,8 @@
 from base64 import b64encode
 from json import dumps
 
-from .test_utils import HOST_URL
 from .test_utils import build_token_auth_header
+from .test_utils import HOST_URL
 from .test_utils import set_environment
 from app.auth.identity import Identity
 

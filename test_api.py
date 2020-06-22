@@ -28,6 +28,10 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 from sqlalchemy import null
+from test_utils import MockEventProducer
+from test_utils import rename_host_table_and_indexes
+from test_utils import set_environment
+from test_utils import valid_system_profile
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
@@ -44,10 +48,6 @@ from host_reaper import run as host_reaper_run
 from lib.host_delete import delete_hosts
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
-from test_utils import MockEventProducer
-from test_utils import rename_host_table_and_indexes
-from test_utils import set_environment
-from test_utils import valid_system_profile
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"

@@ -13,15 +13,15 @@ from .test_utils import get_valid_auth_header
 from .test_utils import HEALTH_URL
 from .test_utils import inject_qs
 from .test_utils import METRICS_URL
+from .test_utils import MockEventProducer
 from .test_utils import now
 from .test_utils import set_environment
 from .test_utils import VERSION_URL
-from app.queue.ingress import handle_message
-from .test_utils import MockEventProducer
 from app import Config
 from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
+from app.queue.ingress import handle_message
 from app.utils import HostWrapper
 
 

@@ -5,6 +5,12 @@ from datetime import timedelta
 
 import pytest
 
+from app.queue.ingress import handle_message
+from lib.host_repository import canonical_fact_host_query
+from lib.host_repository import canonical_facts_host_query
+from tests.test_api_utils import ACCOUNT
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import now
 from tests.test_utils import assert_error_response
 from tests.test_utils import assert_host_data
 from tests.test_utils import assert_host_response_status
@@ -16,16 +22,8 @@ from tests.test_utils import get_host_from_multi_response
 from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
 from tests.test_utils import minimal_host
-from tests.test_utils import SHARED_SECRET
-
-from app.queue.ingress import handle_message
-from app.utils import HostWrapper
-from lib.host_repository import canonical_fact_host_query
-from lib.host_repository import canonical_facts_host_query
-from tests.test_api_utils import ACCOUNT
-from tests.test_api_utils import generate_uuid
-from tests.test_api_utils import now
 from tests.test_utils import MockEventProducer
+from tests.test_utils import SHARED_SECRET
 from tests.test_utils import valid_system_profile
 
 
@@ -586,13 +584,17 @@ def test_update_host_with_tags_doesnt_change_tags(api_create_or_update_host, api
     host_id = event["host"]["id"]
 
     # attempt to update
-    update_host_data = minimal_host(tags=[{"namespace": "other_ns", "key": "other_key", "value": "other_val"}], fqdn="fqdn")
+    update_host_data = minimal_host(
+        tags=[{"namespace": "other_ns", "key": "other_key", "value": "other_val"}], fqdn="fqdn"
+    )
 
     multi_response_status, multi_response_data = api_create_or_update_host([update_host_data])
 
     assert_response_status(multi_response_status, 207)
 
     update_host_response = get_host_from_multi_response(multi_response_data)
+
+    assert_host_response_status(update_host_response, expected_status=200)
 
     host_tags_response_status, host_tags_response_data = api_get_host(f"{HOST_URL}/{host_id}/tags")
 
@@ -626,6 +628,7 @@ def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get
     host_response = get_host_from_response(response_data)
 
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
+
 
 @pytest.mark.parametrize("invalid_ansible_host", ["a" * 256])
 def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invalid_ansible_host):
@@ -692,32 +695,6 @@ def test_ignore_culled_host_on_update_by_elevated_id(api_create_or_update_host):
     assert_host_was_created(update_host_response)
 
     assert create_host_response["host"]["id"] != update_host_response["host"]["id"]
-
-
-def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get_host):
-    system_profile = {
-        "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
-    }
-
-    host = minimal_host(system_profile=system_profile)
-
-    multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    create_host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_host_was_created(create_host_response)
-
-    created_host_id = create_host_response["host"]["id"]
-
-    response_status, response_data = api_get_host(f"{HOST_URL}/{created_host_id}")
-
-    assert_response_status(response_status, 200)
-
-    host_response = get_host_from_response(response_data)
-
-    assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
 def test_create_host_with_too_long_mac_address(api_create_or_update_host):
