@@ -5,7 +5,6 @@ from kafka import KafkaProducer
 from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
 from app.logging import get_logger
-from app.queue import metrics
 
 logger = get_logger(__name__)
 
@@ -28,10 +27,8 @@ class EventProducer:
             send_future = self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self.topics[topic], event, key, headers)
-            metrics.egress_message_handler_success.inc()
-        except Exception:
-            logger.exception("Failed to send event")
-            metrics.egress_message_handler_failure.inc()
+        except Exception as error:
+            message_not_produced(logger, self.topics[topic], event, key, headers, error)
 
     def close(self):
         self._kafka_producer.flush()
