@@ -1,4 +1,5 @@
 import json
+import os
 import signal
 
 from marshmallow import fields
@@ -152,6 +153,10 @@ def handle_message(message, event_producer):
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
+
+        #for transition to platform.inventory.events
+        if os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED") == "true":
+            event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
