@@ -372,11 +372,11 @@ def rpm_list():
 
 def create_system_profile():
     return {
-        "number_of_cpus": 1,
+        "number_of_cpus": "1",
         "number_of_sockets": 2,
         "cores_per_socket": 4,
         "system_memory_bytes": 1024,
-        "infrastructure_type": "jingleheimer junction cpu",
+        "infrastructure_type": "jingleheimer junction cpu" * 4,
         "infrastructure_vendor": "dell",
         "network_interfaces": [
             {
