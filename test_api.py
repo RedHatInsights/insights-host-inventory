@@ -1797,7 +1797,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
         with patch("app.queue.events.datetime", **{"now.return_value": self.timestamp}):
             url = f"{self.delete_url}{url_query}"
             self.delete(url, 200, header, return_response_as_json=False)
-    
+
     def _expected_metadata(self, expected_request_id):
         return {"request_id": expected_request_id}
 
@@ -1847,6 +1847,7 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
 
             event = json.loads(self.app.event_producer.event)
             self.assertEqual(self._expected_metadata("-1"), event["metadata"])
+
 
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
     class DeleteHostsMock:
