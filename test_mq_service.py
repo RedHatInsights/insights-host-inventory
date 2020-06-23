@@ -20,10 +20,10 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host
-from app.queue.ingress import _validate_json_object_for_utf8
-from app.queue.ingress import event_loop
-from app.queue.ingress import handle_message
-from lib.host_repository import AddHostResults
+from app.queue.queue import _validate_json_object_for_utf8
+from app.queue.queue import event_loop
+from app.queue.queue import handle_message
+from lib.host_repository import AddHostResult
 from test_utils import MockEventProducer
 from test_utils import rename_host_table_and_indexes
 from test_utils import valid_system_profile
@@ -76,7 +76,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
 
         mock_event_producer.assert_not_called()
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_handle_message_happy_path(self, datetime_mock):
         expected_insights_id = str(uuid.uuid4())
         host_id = uuid.uuid4()
@@ -91,21 +91,21 @@ class MQServiceTestCase(MQServiceBaseTestCase):
             },
         }
         with self.app.app_context():
-            with unittest.mock.patch("app.queue.ingress.host_repository.add_host") as m:
-                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResults.created)
+            with unittest.mock.patch("app.queue.queue.add_host") as m:
+                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
                 mock_event_producer.write_event.assert_called_once()
 
-                self.assertEquals(
+                self.assertEqual(
                     json.loads(mock_event_producer.write_event.call_args[0][0]),
                     {
-                        "host": {"id": str(host_id), "insights_id": None},
-                        "metadata": {"request_id": None},
-                        "platform_metadata": {},
                         "timestamp": timestamp_iso,
                         "type": "created",
+                        "host": {"id": str(host_id), "insights_id": None},
+                        "platform_metadata": {},
+                        "metadata": {"request_id": "-1"},
                     },
                 )
 
@@ -134,8 +134,8 @@ class MQServiceTestCase(MQServiceBaseTestCase):
     #     pass
 
 
-@patch("app.queue.ingress.build_egress_topic_event")
-@patch("app.queue.ingress.add_host", return_value=(MagicMock(), None))
+@patch("app.queue.queue.build_event")
+@patch("app.queue.queue.add_host", return_value=(MagicMock(), None))
 class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
     def _message(self, display_name):
         return f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
@@ -163,7 +163,7 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
         for message in messages:
             with self.subTest(message=message):
                 add_host.reset_mock()
-                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResults.updated)
+                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
                 handle_message(message, Mock())
                 add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
@@ -241,10 +241,10 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
         event = json.loads(mock_event_producer.event)
         self.assertEqual(event["platform_metadata"], metadata)
 
-    @patch("app.queue.ingress.host_repository.add_host")
+    @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_key_and_metadata_not_required(self, add_host):
         host_data = self._host_data()
-        add_host.return_value = (host_data, AddHostResults.created)
+        add_host.return_value = (host_data, AddHostResult.created)
 
         message = {"operation": "add_host", "data": host_data}
 
@@ -256,13 +256,13 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
         event = json.loads(mock_event_producer.event)
         self.assertEqual(event["host"], host_data)
 
-    @patch("app.queue.ingress.host_repository.add_host")
+    @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_headers(self, add_host):
         host_data = self._host_data()
 
         message = {"operation": "add_host", "data": host_data}
 
-        for add_host_result in AddHostResults:
+        for add_host_result in AddHostResult:
             with self.subTest(add_host_result=add_host_result):
                 add_host.reset_mock()
                 add_host.return_value = (host_data, add_host_result)
@@ -275,7 +275,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_simple(self, datetime_mock):
         """
         Tests adding a host with some simple data
@@ -302,7 +302,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_with_system_profile(self, datetime_mock):
         """
          Tests adding a host with message containing system profile
@@ -330,7 +330,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_with_tags(self, datetime_mock):
         """
          Tests adding a host with message containing tags
@@ -408,7 +408,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                 with self.assertRaises(ValidationException):
                     self._handle_message(host_data)
 
-    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    @patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_empty_keys_system_profile(self, datetime_mock):
         insights_id = str(uuid.uuid4())
 
@@ -427,7 +427,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             with self.assertRaises(ValidationException):
                 handle_message(json.dumps(message), mock_event_producer)
 
-    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    @patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
     def test_add_host_empty_keys_facts(self, datetime_mock):
         insights_id = str(uuid.uuid4())
 
@@ -454,8 +454,8 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                     with self.assertRaises(ValidationException):
                         handle_message(json.dumps(message), mock_event_producer)
 
-    @patch("app.queue.egress.datetime", **{"utcnow.return_value": datetime.utcnow()})
-    def test_add_host_with_invalid_stale_timestamp(self, datetime_mock):
+    @patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
+    def test_add_host_with_invalid_stale_timestmap(self, datetime_mock):
         mock_event_producer = MockEventProducer()
 
         for stale_timestamp in ("invalid", datetime.now().isoformat()):
@@ -855,7 +855,7 @@ class MQUpdateHostTagsTestCase(MQAddHostBaseClass, MQGetFromDbBaseTestCase):
 
 
 class MQCullingTests(MQAddHostBaseClass):
-    @patch("app.queue.egress.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_stale_timestamp(self, datetime_mock):
         """
         Tests to see if the host is succesfully created with both reporter
@@ -948,12 +948,12 @@ class MQValidateJsonObjectForUtf8TestCase(TestCase):
         with self.assertRaises(UnicodeEncodeError):
             _validate_json_object_for_utf8("hello\udce2\udce2")
 
-    @patch("app.queue.ingress._validate_json_object_for_utf8")
+    @patch("app.queue.queue._validate_json_object_for_utf8")
     def test_dicts_are_traversed(self, mock):
         _validate_json_object_for_utf8({"first": "item", "second": "value"})
         mock.assert_has_calls((call("first"), call("item"), call("second"), call("value")), any_order=True)
 
-    @patch("app.queue.ingress._validate_json_object_for_utf8")
+    @patch("app.queue.queue._validate_json_object_for_utf8")
     def test_lists_are_traversed(self, mock):
         _validate_json_object_for_utf8(["first", "second"])
         mock.assert_has_calls((call("first"), call("second")), any_order=True)

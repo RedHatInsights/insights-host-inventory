@@ -6,9 +6,9 @@ from prometheus_client import start_http_server
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
-from app.queue.egress import KafkaEventProducer
-from app.queue.ingress import event_loop
-from app.queue.ingress import handle_message
+from app.queue.event_producer import EventProducer
+from app.queue.queue import event_loop
+from app.queue.queue import handle_message
 
 logger = get_logger("mq_service")
 
@@ -41,7 +41,7 @@ def main():
         **config.kafka_consumer,
     )
 
-    event_producer = KafkaEventProducer(config)
+    event_producer = EventProducer(config)
 
     try:
         event_loop(consumer, application, event_producer, handle_message, ShutdownHandler())
