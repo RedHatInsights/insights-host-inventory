@@ -2,6 +2,7 @@ from enum import Enum
 
 import connexion
 import flask
+from flask import current_app
 from flask_api import status
 from marshmallow import ValidationError
 
@@ -20,8 +21,6 @@ from app import db
 from app import inventory_config
 from app.auth import current_identity
 from app.config import BulkQuerySource
-from app.events import message_headers
-from app.events import UPDATE_EVENT_NAME
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -31,17 +30,19 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.queue.egress import build_event_topic_event
-from app.queue.ingress import EGRESS_HOST_FIELDS
+from app.queue.event_producer import Topic
+from app.queue.events import build_event
+from app.queue.events import EventType
+from app.queue.events import message_headers
+from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_host_http
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
-from lib.host_repository import AddHostResults
+from lib.host_repository import AddHostResult
 from lib.host_repository import find_non_culled_hosts
-from tasks import emit_event
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -109,7 +110,7 @@ def add_host_list(host_list):
 
 
 def _convert_host_results_to_http_status(result):
-    if result == AddHostResults.created:
+    if result == AddHostResult.created:
         return 201
     else:
         return 200
@@ -192,7 +193,7 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
-        for host_id, deleted in delete_hosts(query):
+        for host_id, deleted in delete_hosts(query, current_app.event_producer):
             if deleted:
                 logger.info("Deleted host: %s", host_id)
                 tracker_message = "deleted host"
@@ -251,9 +252,9 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
 def _emit_patch_event(host):
     key = host["id"]
-    event = build_event_topic_event("updated", host, request_id=threadctx.request_id)
-    headers = message_headers(UPDATE_EVENT_NAME)
-    emit_event(event, key, headers)
+    headers = message_headers(EventType.updated)
+    event = build_event(EventType.updated, host)
+    current_app.event_producer.write_event(event, key, headers, Topic.events)
 
 
 @api_operation

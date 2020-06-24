@@ -14,8 +14,8 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
+from app.queue.event_producer import EventProducer
 from app.validators import verify_uuid_format  # noqa: 401
-from tasks import init_tasks
 
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
@@ -84,10 +84,10 @@ def create_app(runtime_environment):
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     if runtime_environment.event_producer_enabled:
-        init_tasks(app_config)
+        flask_app.event_producer = EventProducer(app_config)
     else:
         logger.warning(
-            "WARNING: The tasks subsystem has been disabled.  "
+            "WARNING: The event producer has been disabled.  "
             "The message queue based event notifications have been disabled."
         )
 
