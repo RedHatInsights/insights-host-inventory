@@ -1841,12 +1841,15 @@ class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestC
     def test_create_then_delete_check_metadata(self):
         with self.app.app_context():
             self._check_hosts_are_present((self.host_to_delete.id,))
-            self._delete(header=None)
+
+            request_id = generate_uuid()
+            header = {"x-rh-insights-request-id": request_id}
+            self._delete(header=header)
 
             self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
 
             event = json.loads(self.app.event_producer.event)
-            self.assertEqual(self._expected_metadata("-1"), event["metadata"])
+            self.assertEqual(self._expected_metadata(request_id), event["metadata"])
 
 
 class DeleteHostsRaceConditionTestCase(PreCreatedHostsBaseTestCase):
