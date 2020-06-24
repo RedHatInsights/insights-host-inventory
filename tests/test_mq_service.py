@@ -24,7 +24,8 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
-from tests.test_utils import MockEventProducer, valid_system_profile
+from tests.test_utils import MockEventProducer
+from tests.test_utils import valid_system_profile
 
 
 class MQServiceBaseTestCase(TestCase):

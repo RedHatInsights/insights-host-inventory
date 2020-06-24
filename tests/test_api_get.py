@@ -7,7 +7,6 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
-from app.queue.queue import handle_message
 from .test_api_utils import ACCOUNT
 from .test_api_utils import DBAPITestCase
 from .test_api_utils import generate_uuid
@@ -20,6 +19,7 @@ from .test_api_utils import quote_everything
 from app import db
 from app.culling import Timestamps
 from app.models import Host
+from app.queue.queue import handle_message
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query

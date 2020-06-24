@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.test_utils import MockEventProducer
 from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import ACCOUNT
 from .test_api_utils import APIBaseTestCase
@@ -21,6 +20,7 @@ from app import db
 from app.models import Host
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
+from tests.test_utils import MockEventProducer
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -323,9 +323,9 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def test_non_culled_host_is_not_removed(self):
         hosts_to_add = []
         for stale_timestamp in (
-                self.staleness_timestamps["stale_warning"],
-                self.staleness_timestamps["stale"],
-                self.staleness_timestamps["fresh"],
+            self.staleness_timestamps["stale_warning"],
+            self.staleness_timestamps["stale"],
+            self.staleness_timestamps["fresh"],
         ):
             hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
 
