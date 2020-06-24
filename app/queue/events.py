@@ -9,6 +9,7 @@ from marshmallow import Schema
 from app.logging import threadctx
 from app.models import SystemProfileSchema
 from app.models import TagsSchema
+from app.queue import metrics
 from app.serialization import serialize_canonical_facts
 
 logger = logging.getLogger(__name__)
@@ -106,10 +107,11 @@ EVENT_TYPE_MAP = {
 
 
 def build_event(event_type, host, **kwargs):
-    build = EVENT_TYPE_MAP[event_type]
-    schema, event = build(event_type, host, **kwargs)
-    result = schema(strict=True).dumps(event)
-    return result.data
+    with metrics.egress_event_serialization_time.labels(event_type.name).time():
+        build = EVENT_TYPE_MAP[event_type]
+        schema, event = build(event_type, host, **kwargs)
+        result = schema(strict=True).dumps(event)
+        return result.data
 
 
 def add_host_results_to_event_type(results):
