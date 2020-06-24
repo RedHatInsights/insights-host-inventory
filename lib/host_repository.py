@@ -26,8 +26,7 @@ __all__ = (
     "update_existing_host",
 )
 
-# FIXME:  rename this, but more importantly why use Enum over a str constant?
-AddHostResults = Enum("AddHostResults", ["created", "updated"])
+AddHostResult = Enum("AddHostResult", ("created", "updated"))
 
 # These are the "elevated" canonical facts that are
 # given priority in the host deduplication process.
@@ -147,7 +146,7 @@ def create_new_host(input_host, staleness_offset, fields):
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
-    return serialize_host(input_host, staleness_offset, fields), AddHostResults.created
+    return serialize_host(input_host, staleness_offset, fields), AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -158,7 +157,7 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    return serialize_host(existing_host, staleness_offset, fields), AddHostResults.updated
+    return serialize_host(existing_host, staleness_offset, fields), AddHostResult.updated
 
 
 def stale_timestamp_filter(gt=None, lte=None):

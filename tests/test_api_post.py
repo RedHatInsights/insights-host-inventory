@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.queue.ingress import handle_message
+from app.queue.queue import handle_message
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
 from tests.test_api_utils import ACCOUNT
@@ -22,8 +22,8 @@ from tests.test_utils import get_host_from_multi_response
 from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
 from tests.test_utils import minimal_host
-from tests.test_utils import MockEventProducer
 from tests.test_utils import SHARED_SECRET
+from tests.test_utils import MockEventProducer
 from tests.test_utils import valid_system_profile
 
 

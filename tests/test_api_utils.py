@@ -13,15 +13,15 @@ from .test_utils import get_valid_auth_header
 from .test_utils import HEALTH_URL
 from .test_utils import inject_qs
 from .test_utils import METRICS_URL
-from .test_utils import MockEventProducer
 from .test_utils import now
-from .test_utils import set_environment
 from .test_utils import VERSION_URL
+from .test_utils import MockEventProducer
+from .test_utils import set_environment
 from app import Config
 from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
-from app.queue.ingress import handle_message
+from app.queue.queue import handle_message
 from app.utils import HostWrapper
 
 
@@ -37,6 +37,7 @@ class APIBaseTestCase(TestCase):
         Creates the application and a test client to make requests.
         """
         self.app = create_app(RuntimeEnvironment.TEST)
+        self.app.event_producer = MockEventProducer()
         self.client = self.app.test_client
 
     def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
@@ -241,6 +242,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         host_list = []
 
+        mock_event_producer = MockEventProducer()
+
         for host in self.hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
@@ -260,7 +263,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.reporter = "test"
             message = {"operation": "add_host", "data": host_wrapper.data()}
 
-            mock_event_producer = MockEventProducer()
             with self.app.app_context():
                 handle_message(json.dumps(message), mock_event_producer)
 

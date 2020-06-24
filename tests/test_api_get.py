@@ -7,6 +7,7 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
+from .test_api_utils import ACCOUNT
 from .test_api_utils import DBAPITestCase
 from .test_api_utils import PaginationBaseTestCase
 from .test_api_utils import PreCreatedHostsBaseTestCase
@@ -19,7 +20,7 @@ from .test_utils import quote_everything
 from app import db
 from app.culling import Timestamps
 from app.models import Host
-from app.queue.ingress import handle_message
+from app.queue.queue import handle_message
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
@@ -41,6 +42,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         host_list.reverse()
 
         expected_host_list = self._expected_host_list()
+
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(HOST_URL, len(self.added_hosts))
@@ -94,6 +96,7 @@ class QueryTestCase(PreCreatedHostsBaseTestCase):
         response = self.get(test_url)
 
         expected_host_list = self._expected_host_list()
+
         self.assertEqual(response["results"], expected_host_list)
 
         self._base_paging_test(test_url, len(self.added_hosts))

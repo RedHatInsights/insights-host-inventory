@@ -139,11 +139,13 @@ class MockEventProducer:
         self.event = None
         self.key = None
         self.headers = None
+        self.topic = None
 
-    def write_event(self, event, key, headers):
+    def write_event(self, event, key, headers, topic):
         self.event = event
         self.key = key
         self.headers = headers
+        self.topic = topic
 
 
 def get_host_from_response(response, index=0):
