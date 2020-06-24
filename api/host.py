@@ -85,14 +85,19 @@ def add_host_list(host_list):
             except ValidationException as e:
                 number_of_errors += 1
                 logger.exception("Input validation error while adding host", extra={"host": host})
+                payload_tracker.payload_error(
+                    f"Input validation error: {e} \nEncountered validation error adding host: {host}"
+                )
                 response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
             except InventoryException as e:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
+                payload_tracker.payload_error(f"Inventory exception: {e} \nEncountered error adding host: {host}")
                 response_host_list.append({**e.to_json(), "host": host})
-            except Exception:
+            except Exception as e:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
+                payload_tracker.processing_error(f"Exception: {e} \nError adding host: {host}")
                 response_host_list.append(
                     {
                         "status": 500,
