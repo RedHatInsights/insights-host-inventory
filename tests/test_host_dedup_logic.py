@@ -30,7 +30,7 @@ def basic_host_dedup_test(initial_canonical_facts, search_canonical_facts):
     assert original_host.id == found_host.id
 
 
-def test_find_host_using_subset_canonical_fact_match(flask_app):
+def test_find_host_using_subset_canonical_fact_match(flask_app_fixture):
     fqdn = "fred.flintstone.com"
     canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid(), "rhel_machine_id": generate_uuid()}
 
@@ -40,7 +40,7 @@ def test_find_host_using_subset_canonical_fact_match(flask_app):
     basic_host_dedup_test(canonical_facts, subset_canonical_facts)
 
 
-def test_find_host_using_superset_canonical_fact_match(flask_app):
+def test_find_host_using_superset_canonical_fact_match(flask_app_fixture):
     canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
 
     # Create the superset of canonical facts to search by
@@ -51,7 +51,7 @@ def test_find_host_using_superset_canonical_fact_match(flask_app):
     basic_host_dedup_test(canonical_facts, superset_canonical_facts)
 
 
-def test_find_host_using_insights_id_match(flask_app):
+def test_find_host_using_insights_id_match(flask_app_fixture):
     canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
 
     # Change the canonical facts except the insights_id...match on insights_id
@@ -64,7 +64,7 @@ def test_find_host_using_insights_id_match(flask_app):
     basic_host_dedup_test(canonical_facts, search_canonical_facts)
 
 
-def test_find_host_using_subscription_manager_id_match(flask_app):
+def test_find_host_using_subscription_manager_id_match(flask_app_fixture):
     canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid(), "subscription_manager_id": generate_uuid()}
 
     # Change the bios_uuid so that falling back to subset match will fail
@@ -77,7 +77,7 @@ def test_find_host_using_subscription_manager_id_match(flask_app):
 
 
 @mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
-def test_find_host_using_elevated_ids_match(flask_app, host_create_order, expected_host):
+def test_find_host_using_elevated_ids_match(flask_app_fixture, host_create_order, expected_host):
     hosts_canonical_facts = ({"subscription_manager_id": generate_uuid()}, {"insights_id": generate_uuid()})
 
     created_hosts = []

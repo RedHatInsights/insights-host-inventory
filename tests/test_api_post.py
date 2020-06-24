@@ -10,7 +10,7 @@ from unittest.mock import patch
 import dateutil.parser
 
 from app.models import Host
-from app.queue.ingress import handle_message
+from app.queue.queue import handle_message
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
@@ -639,7 +639,7 @@ class CreateHostsTestCase(DBAPITestCase):
         # check the tags haven't updated
         self.assertEqual(create_host_data.tags, tags_response["results"][host_id])
 
-    def test_create_host_with_20_byte_MAC_address(self):
+    def test_create_host_with_20_byte_mac_address(self):
         system_profile = {
             "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33"}]
         }
@@ -657,45 +657,6 @@ class CreateHostsTestCase(DBAPITestCase):
         host_lookup_results = self.get(f"{HOST_URL}/{original_id}", 200)
 
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
-
-    def test_create_host_with_too_long_MAC_address(self):
-        system_profile = {
-            "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
-        }
-
-        host_data = HostWrapper(test_data(system_profile=system_profile))
-
-        response = self.post(HOST_URL, [host_data.data()], 207)
-
-        self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_system_profile(self):
-        samples = (
-            {"disk_devices": [{"options": {"": "invalid"}}]},
-            {"disk_devices": [{"options": {"ro": True, "uuid": "0", "": "invalid"}}]},
-            {"disk_devices": [{"options": {"nested": {"uuid": "0", "": "invalid"}}}]},
-            {"disk_devices": [{"options": {"ro": True}}, {"options": {"": "invalid"}}]},
-        )
-
-        for sample in samples:
-            with self.subTest(system_profile=sample):
-                host_data = HostWrapper(test_data(system_profile=sample))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
-
-    def test_create_host_with_empty_json_key_in_facts(self):
-        samples = (
-            [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar", "": "invalid"}, "namespace": "rhsm"}],
-            [{"facts": {"foo": "bar"}, "namespace": "valid"}, {"facts": {"": "invalid"}, "namespace": "rhsm"}],
-        )
-
-        for facts in samples:
-            with self.subTest(facts=facts):
-                host_data = HostWrapper(test_data(facts=facts))
-                response = self.post(HOST_URL, [host_data.data()], 207)
-                self._verify_host_status(response, 0, 400)
 
 
 class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):

@@ -8,11 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.test_utils import MockEventProducer
 from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import ACCOUNT
 from .test_api_utils import APIBaseTestCase
 from .test_api_utils import DBAPITestCase
-from .test_api_utils import emitted_event
 from .test_api_utils import generate_uuid
 from .test_api_utils import HOST_URL
 from .test_api_utils import now
@@ -180,42 +180,42 @@ class QueryStalenessGetHostsTestCase(QueryStalenessGetHostsBaseTestCase):
         self.assertNotIn(self.culled_host["id"], retrieved_host_ids)
 
 
-@patch("api.host.emit_event")
 class QueryStalenessPatchIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
-    def test_patch_ignores_culled(self, emit_event):
+    def test_patch_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
         self.patch(url, {"display_name": "patched"}, 404)
 
-    def test_patch_works_on_non_culled(self, emit_event):
-        url = HOST_URL + "/" + self.fresh_host["id"]
-        self.patch(url, {"display_name": "patched"}, 200)
+    def test_patch_works_on_non_culled(self):
+        with self.app.app_context():
+            url = HOST_URL + "/" + self.fresh_host["id"]
+            self.patch(url, {"display_name": "patched"}, 200)
 
-    def test_patch_facts_ignores_culled(self, emit_event):
+    def test_patch_facts_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
         self.patch(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_patch_facts_works_on_non_culled(self, emit_event):  # broken
+    def test_patch_facts_works_on_non_culled(self):
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
         self.patch(url, {"ARCHITECTURE": "patched"}, 200)
 
-    def test_put_facts_ignores_culled(self, emit_event):
+    def test_put_facts_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"] + "/facts/ns1"
         self.put(url, {"ARCHITECTURE": "patched"}, 400)
 
-    def test_put_facts_works_on_non_culled(self, emit_event):  # broken
+    def test_put_facts_works_on_non_culled(self):
         url = HOST_URL + "/" + self.fresh_host["id"] + "/facts/ns1"
         self.put(url, {"ARCHITECTURE": "patched"}, 200)
 
 
-@patch("lib.host_delete.emit_event")
 class QueryStalenessDeleteIgnoresCulledTestCase(QueryStalenessGetHostsBaseTestCase):
-    def test_delete_ignores_culled(self, emit_event):
+    def test_delete_ignores_culled(self):
         url = HOST_URL + "/" + self.culled_host["id"]
         self.delete(url, 404)
 
-    def test_delete_works_on_non_culled(self, emit_event):
-        url = HOST_URL + "/" + self.fresh_host["id"]
-        self.delete(url, 200, return_response_as_json=False)
+    def test_delete_works_on_non_culled(self):
+        with self.app.app_context():
+            url = HOST_URL + "/" + self.fresh_host["id"]
+            self.delete(url, 200, return_response_as_json=False)
 
 
 class QueryStalenessGetHostsIgnoresStalenessParameterTestCase(QueryStalenessGetHostsTestCase):
@@ -268,7 +268,6 @@ class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
                 self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
 
 
-@patch("lib.host_delete.emit_event")
 class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
     def setUp(self):
         super().setUp()
@@ -279,12 +278,13 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
             "stale_warning": self.now_timestamp - timedelta(weeks=1),
             "culled": self.now_timestamp - timedelta(weeks=2),
         }
+        self.event_producer = MockEventProducer()
 
     def _run_host_reaper(self):
-        with patch("app.events.datetime", **{"utcnow.return_value": self.now_timestamp}):
+        with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
             with self.app.app_context():
                 config = self.app.config["INVENTORY_CONFIG"]
-                host_reaper_run(config, mock.Mock(), db.session)
+                host_reaper_run(config, mock.Mock(), db.session, self.event_producer)
 
     def _add_hosts(self, data):
         post = []
@@ -307,27 +307,25 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         return self.get(f"{HOST_URL}/{url_part}")
 
     @pytest.mark.host_reaper
-    def test_culled_host_is_removed(self, emit_event):
-        added_host = self._add_hosts(
-            ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
-        )[0]
-        self._check_hosts_are_present((added_host.id,))
+    def test_culled_host_is_removed(self):
+        with self.app.app_context():
+            added_host = self._add_hosts(
+                ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
+            )[0]
+            self._check_hosts_are_present((added_host.id,))
 
-        self._run_host_reaper()
-        self._check_hosts_are_deleted((added_host.id,))
+            self._run_host_reaper()
+            self._check_hosts_are_deleted((added_host.id,))
 
-        emit_event.assert_called_once()
-
-        event = emitted_event(emit_event.mock_calls[0])
-        self._assert_event_is_valid(event, added_host, self.now_timestamp)
+            self._assert_event_is_valid(self.event_producer, added_host, self.now_timestamp)
 
     @pytest.mark.host_reaper
-    def test_non_culled_host_is_not_removed(self, emit_event):
+    def test_non_culled_host_is_not_removed(self):
         hosts_to_add = []
         for stale_timestamp in (
-            self.staleness_timestamps["stale_warning"],
-            self.staleness_timestamps["stale"],
-            self.staleness_timestamps["fresh"],
+                self.staleness_timestamps["stale_warning"],
+                self.staleness_timestamps["stale"],
+                self.staleness_timestamps["fresh"],
         ):
             hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
 
@@ -336,20 +334,21 @@ class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
         self._check_hosts_are_present(added_host_ids)
 
         self._run_host_reaper()
-
         self._check_hosts_are_present(added_host_ids)
+        self.assertIsNone(self.event_producer.event)
 
     @pytest.mark.host_reaper
-    def test_unknown_host_is_not_removed(self, emit_event):
-        added_hosts = self._add_hosts(({},))
-        added_host_id = added_hosts[0].id
-        self._check_hosts_are_present((added_host_id,))
+    def test_unknown_host_is_not_removed(self):
+        with self.app.app_context():
+            added_hosts = self._add_hosts(({},))
+            added_host_id = added_hosts[0].id
+            self._check_hosts_are_present((added_host_id,))
 
-        self._nullify_culling_fields(added_host_id)
+            self._nullify_culling_fields(added_host_id)
 
-        self._run_host_reaper()
-        self._check_hosts_are_present((added_host_id,))
-        emit_event.assert_not_called()
+            self._run_host_reaper()
+            self._check_hosts_are_present((added_host_id,))
+            self.assertIsNone(self.event_producer.event)
 
 
 if __name__ == "__main__":

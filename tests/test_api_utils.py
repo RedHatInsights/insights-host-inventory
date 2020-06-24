@@ -3,7 +3,6 @@ import json
 import tempfile
 import uuid
 from base64 import b64encode
-from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
 from struct import unpack
@@ -18,6 +17,7 @@ from urllib.parse import urlunsplit
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 
+from app.queue.queue import handle_message
 from .test_utils import MockEventProducer
 from .test_utils import set_environment
 from app import Config
@@ -25,7 +25,6 @@ from app import create_app
 from app import db
 from app.auth.identity import Identity
 from app.environment import RuntimeEnvironment
-from app.queue.ingress import handle_message
 from app.utils import HostWrapper
 
 HOST_URL = "/api/inventory/v1/hosts"
@@ -40,8 +39,6 @@ ID = "whoabuddy"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 ACCOUNT = "000501"
 SHARED_SECRET = "SuperSecretStuff"
-
-Message = namedtuple("Message", ("value", "key", "headers"))
 
 
 def quote(*args, **kwargs):
@@ -99,11 +96,6 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-def emitted_event(emit_event_call):
-    args = emit_event_call[1]
-    return Message(json.loads(args[0]), args[1], args[2])
-
-
 class APIBaseTestCase(TestCase):
     def _create_header(self, auth_header, request_id_header):
         header = auth_header.copy()
@@ -123,6 +115,7 @@ class APIBaseTestCase(TestCase):
         Creates the application and a test client to make requests.
         """
         self.app = create_app(RuntimeEnvironment.TEST)
+        self.app.event_producer = MockEventProducer()
         self.client = self.app.test_client
 
     def get(self, path, status=200, return_response_as_json=True, extra_headers={}):
@@ -327,6 +320,8 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
 
         host_list = []
 
+        mock_event_producer = MockEventProducer()
+
         for host in self.hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
@@ -346,7 +341,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_wrapper.reporter = "test"
             message = {"operation": "add_host", "data": host_wrapper.data()}
 
-            mock_event_producer = MockEventProducer()
             with self.app.app_context():
                 handle_message(json.dumps(message), mock_event_producer)
 

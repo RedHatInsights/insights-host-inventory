@@ -14,7 +14,6 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-from .test_utils import set_environment
 from api import api_operation
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
@@ -47,6 +46,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from tests.test_utils import set_environment
 
 
 class ApiOperationTestCase(TestCase):

@@ -19,7 +19,7 @@ These tests are for testing the db model classes outside of the api.
 """
 
 
-class HostTest(Host):
+class TestHost(Host):
     def __init__(self, *args, **kwargs):
         super(Host, self).__init__(*args, **kwargs)
 
@@ -36,20 +36,20 @@ def _create_host(insights_id=None, fqdn=None, display_name=None, tags=None):
     return host
 
 
-def test_create_host_with_fqdn_and_display_name_as_empty_str(flask_app):
+def test_create_host_with_fqdn_and_display_name_as_empty_str(flask_app_fixture):
     # Verify that the display_name is populated from the fqdn
     fqdn = "spacely_space_sprockets.orbitcity.com"
     created_host = _create_host(fqdn=fqdn, display_name="")
     assert created_host.display_name == fqdn
 
 
-def test_create_host_with_display_name_and_fqdn_as_empty_str(flask_app):
+def test_create_host_with_display_name_and_fqdn_as_empty_str(flask_app_fixture):
     # Verify that the display_name is populated from the id
     created_host = _create_host(fqdn="", display_name="")
     assert created_host.display_name == str(created_host.id)
 
 
-def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app):
+def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app_fixture):
     expected_fqdn = "host1.domain1.com"
     insights_id = str(uuid.uuid4())
     existing_host = _create_host(insights_id=insights_id, fqdn=expected_fqdn, display_name=None)
@@ -68,7 +68,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(flask_app):
     assert existing_host.display_name == expected_fqdn
 
 
-def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app):
+def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app_fixture):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
     existing_host = _create_host(fqdn=fqdn, display_name=None)
@@ -88,7 +88,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(flask_app):
     assert existing_host.display_name == expected_fqdn
 
 
-def test_update_existing_host_fix_display_name_using_id(flask_app):
+def test_update_existing_host_fix_display_name_using_id(flask_app_fixture):
     # Create an "existing" host
     existing_host = _create_host(fqdn=None, display_name=None)
 
@@ -110,7 +110,7 @@ def test_update_existing_host_fix_display_name_using_id(flask_app):
 
 
 # TODO: test for Sat 6.7 hotfix (remove, eventually) See RHCLOUD-5954
-def test_update_existing_host_dont_change_display_name(flask_app):
+def test_update_existing_host_dont_change_display_name(flask_app_fixture):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
     display_name = "foo"
@@ -130,14 +130,14 @@ def test_update_existing_host_dont_change_display_name(flask_app):
     assert existing_host.display_name == display_name
 
 
-def test_create_host_without_system_profile(flask_app):
+def test_create_host_without_system_profile(flask_app_fixture):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
     created_host = _create_host(fqdn="fred.flintstone.com", display_name="fred")
     assert created_host.system_profile_facts == {}
 
 
-def test_create_host_with_system_profile(flask_app):
+def test_create_host_with_system_profile(flask_app_fixture):
     system_profile_facts = {"number_of_cpus": 1}
     host = Host(
         {"fqdn": "fred.flintstone.com"},
@@ -227,13 +227,13 @@ def test_host_schema_timezone_enforced(schema):
         [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
     ],
 )
-def test_create_host_with_tags(flask_app, tags):
+def test_create_host_with_tags(flask_app_fixture, tags):
     host = _create_host(fqdn="fred.flintstone.com", display_name="display_name", tags=tags)
 
     assert host.tags == tags
 
 
-def test_update_host_with_tags(flask_app):
+def test_update_host_with_tags(flask_app_fixture):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
@@ -248,7 +248,7 @@ def test_update_host_with_tags(flask_app):
     assert existing_host.tags == new_tags
 
 
-def test_update_host_with_no_tags(flask_app):
+def test_update_host_with_no_tags(flask_app_fixture):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = _create_host(insights_id=insights_id, display_name="tagged", tags=old_tags)
@@ -260,7 +260,7 @@ def test_update_host_with_no_tags(flask_app):
     assert existing_host.tags == old_tags
 
 
-def test_host_model_assigned_values(flask_app):
+def test_host_model_assigned_values(flask_app_fixture):
     values = {
         "account": "00102",
         "display_name": "display_name",
@@ -273,7 +273,7 @@ def test_host_model_assigned_values(flask_app):
         "reporter": "reporter",
     }
 
-    inserted_host = HostTest(**values)
+    inserted_host = TestHost(**values)
     db.session.add(inserted_host)
     db.session.commit()
 
@@ -282,16 +282,16 @@ def test_host_model_assigned_values(flask_app):
         assert getattr(selected_host, key) == value
 
 
-def test_host_model_default_id(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+def test_host_model_default_id(flask_app_fixture):
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
     db.session.commit()
 
     assert isinstance(host.id, uuid.UUID)
 
 
-def test_host_model_default_timestamps(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+def test_host_model_default_timestamps(flask_app_fixture):
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_commit = datetime.now(timezone.utc)
@@ -304,8 +304,8 @@ def test_host_model_default_timestamps(flask_app):
     assert before_commit < host.modified_on < after_commit
 
 
-def test_host_model_updated_timestamp(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"})
+def test_host_model_updated_timestamp(flask_app_fixture):
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"})
     db.session.add(host)
 
     before_insert_commit = datetime.now(timezone.utc)
@@ -323,8 +323,8 @@ def test_host_model_updated_timestamp(flask_app):
     assert before_update_commit < host.modified_on < after_update_commit
 
 
-def test_host_model_timestamp_timezones(flask_app):
-    host = HostTest(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
+def test_host_model_timestamp_timezones(flask_app_fixture):
+    host = TestHost(account="00102", canonical_facts={"fqdn": "fqdn"}, stale_timestamp=datetime.now(timezone.utc))
     db.session.add(host)
     db.session.commit()
 
@@ -337,9 +337,9 @@ def test_host_model_timestamp_timezones(flask_app):
     ("field", "value"),
     (("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)),
 )
-def test_host_model_constraints(flask_app, field, value):
+def test_host_model_constraints(flask_app_fixture, field, value):
     values = {"account": "00102", "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
-    host = HostTest(**values)
+    host = TestHost(**values)
     db.session.add(host)
 
     with raises(DataError):
