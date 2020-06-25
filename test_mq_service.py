@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 import uuid
 from datetime import datetime
@@ -20,6 +21,7 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host
+from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -124,6 +126,34 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         )
         fake_consumer.poll.assert_called_once()
         self.assertEqual(handle_message_mock.call_count, 2)
+
+    def test_events_sent_to_correct_topic(self):
+        message = {
+            "operation": "add_host",
+            "data": {
+                "insights_id": str(uuid.uuid4()),
+                "account": "0000001",
+                "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+                "reporter": "test",
+            },
+        }
+
+        # setting envionment variable to enable the secondary topic
+        os.environ["KAFKA_SECONDARY_TOPIC_ENABLED"] = "true"
+
+        with self.app.app_context():
+            with unittest.mock.patch("app.queue.queue.add_host") as m:
+                m.return_value = ({"id": uuid.uuid4(), "insights_id": None}, AddHostResult.created)
+                mock_event_producer = Mock()
+                handle_message(json.dumps(message), mock_event_producer)
+
+                self.assertEqual(mock_event_producer.write_event.call_count, 2)
+
+                # checking events sent to both egress and events topic
+                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+
+        os.environ["KAFKA_SECONDARY_TOPIC_ENABLED"] = "false"
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
