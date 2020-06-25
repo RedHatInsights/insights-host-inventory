@@ -1,5 +1,4 @@
 import json
-import os
 import unittest
 import uuid
 from datetime import datetime
@@ -139,21 +138,18 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         }
 
         # setting envionment variable to enable the secondary topic
-        os.environ["KAFKA_SECONDARY_TOPIC_ENABLED"] = "true"
+        with patch.dict("os.environ", {"KAFKA_SECONDARY_TOPIC_ENABLED": "true"}):
+            with self.app.app_context():
+                with unittest.mock.patch("app.queue.queue.add_host") as m:
+                    m.return_value = ({"id": uuid.uuid4(), "insights_id": None}, AddHostResult.created)
+                    mock_event_producer = Mock()
+                    handle_message(json.dumps(message), mock_event_producer)
 
-        with self.app.app_context():
-            with unittest.mock.patch("app.queue.queue.add_host") as m:
-                m.return_value = ({"id": uuid.uuid4(), "insights_id": None}, AddHostResult.created)
-                mock_event_producer = Mock()
-                handle_message(json.dumps(message), mock_event_producer)
+                    self.assertEqual(mock_event_producer.write_event.call_count, 2)
 
-                self.assertEqual(mock_event_producer.write_event.call_count, 2)
-
-                # checking events sent to both egress and events topic
-                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
-                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
-
-        os.environ["KAFKA_SECONDARY_TOPIC_ENABLED"] = "false"
+                    # checking events sent to both egress and events topic
+                    self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                    self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
