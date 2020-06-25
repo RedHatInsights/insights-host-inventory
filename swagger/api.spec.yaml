@@ -65,8 +65,9 @@ paths:
         hosts. A host is updated if there is already one with the same
         canonicals facts and belonging to the same account.
         <br /><br />
-        NOTICE: This operation is deprecated. We suggest you create and update hosts
-        using the [message queue interface](https://platform-docs.cloud.paas.psi.redhat.com/backend/inventory.html#mq-host-insertion) instead.
+        NOTICE: This operation is deprecated. The explicit creation of hosts is
+        no longer supported. Hosts are created automatically based on uploads
+        processed by the [payload ingress service](/docs/api/ingress#operations-default-post_upload) instead.
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
