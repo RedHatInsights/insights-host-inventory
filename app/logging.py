@@ -6,31 +6,21 @@ import logstash_formatter
 import watchtower
 from boto3.session import Session
 from gunicorn import glogging
+from yaml import safe_load
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
+DEFAULT_LOGGING_CONFIG_FILE = "logconfig.yaml"
 LOGGER_NAME = "inventory"
 
 threadctx = local()
 
 
 def configure_logging(runtime_environment):
-    env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
-    log_config_file = os.getenv(env_var_name, "logconfig.ini")
-    if log_config_file is not None:
-        # The logging module throws an odd error (KeyError) if the
-        # config file is not found.  Hopefully, this makes it more clear.
-        try:
-            fh = open(log_config_file)
-            fh.close()
-        except FileNotFoundError:
-            print(
-                f"Error reading the logging configuration file.  Verify the {env_var_name} environment variable is "
-                "set correctly. Aborting..."
-            )
-            raise
-
-        logging.config.fileConfig(fname=log_config_file)
+    log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE", DEFAULT_LOGGING_CONFIG_FILE)
+    with open(log_config_file) as log_config_file:
+        logconfig_dict = safe_load(log_config_file)
+        logging.config.dictConfig(logconfig_dict)
 
     logger = logging.getLogger(LOGGER_NAME)
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
@@ -38,11 +28,11 @@ def configure_logging(runtime_environment):
 
     if runtime_environment.logging_enabled:
         # Only enable the contextual filter if not in "testing" mode
-        _configure_watchtower_logging_handler()
-        _configure_contextual_logging_filter()
+        _configure_contextual_logging_filter(logger)
+        _configure_watchtower_logging_handler(logger)
 
 
-def _configure_watchtower_logging_handler():
+def _configure_watchtower_logging_handler(logger):
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
@@ -55,7 +45,6 @@ def _configure_watchtower_logging_handler():
         cloudwatch_handler = _get_cloudwatch_handler(
             aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
         )
-        logger = logging.getLogger(LOGGER_NAME)
         logger.addHandler(cloudwatch_handler)
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
@@ -81,8 +70,7 @@ def _get_hostname():
     return os.uname().nodename
 
 
-def _configure_contextual_logging_filter():
-    logger = logging.getLogger(LOGGER_NAME)
+def _configure_contextual_logging_filter(logger):
     logger.addFilter(ContextualFilter())
 
 

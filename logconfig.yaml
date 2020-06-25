@@ -1,0 +1,43 @@
+---
+version: 1
+root:
+  level: INFO
+  handlers:
+  - logstash
+loggers:
+  gunicorn.error:
+    level: ERROR
+    handlers:
+    - logstash
+    propagate: true
+  gunicorn.access:
+    level: ERROR
+    handlers:
+    - logstash
+    propagate: true
+  sqlalchemy.engine:
+    level: WARNING
+    handlers:
+    - logstash
+    propagate: true
+  inventory:
+    level: DEBUG
+    handlers:
+    - logstash
+    propagate: false
+  inventory.xjoin:
+    level: WARNING
+    handlers:
+    - logstash
+    propagate: false
+handlers:
+  logstash:
+    class: logging.StreamHandler
+#    formatter: logstash
+    formatter: human_readable
+    stream: ext://sys.stdout
+formatters:
+  human_readable:
+    format: "[%(asctime)s] [%(process)d] [%(thread)d] [%(name)s] [%(levelname)s] %(message)s"
+  logstash:
+    class: logstash_formatter.LogstashFormatterV1
