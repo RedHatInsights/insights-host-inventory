@@ -1632,7 +1632,7 @@ class SerializationDeserializeTags(TestCase):
 class EventProducerTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.config = Config(RuntimeEnvironment.SERVER)
+        cls.config = Config(RuntimeEnvironment.TEST)
         cls.event_producer = EventProducer(cls.config)
         cls.topic_name = {Topic.events: cls.config.event_topic, Topic.egress: cls.config.host_egress_topic}
         cls.event_types = {EventType.created: "created", EventType.updated: "updated", EventType.delete: "delete"}
