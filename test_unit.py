@@ -29,6 +29,7 @@ from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
+from app.logging import threadctx
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
@@ -1635,6 +1636,7 @@ class EventProducerTests(TestCase):
         cls.event_producer = EventProducer(cls.config)
         cls.topic_name = {Topic.events: cls.config.event_topic, Topic.egress: cls.config.host_egress_topic}
         cls.event_types = {EventType.created: "created", EventType.updated: "updated", EventType.delete: "delete"}
+        threadctx.request_id = "-1"
 
     def _make_host(self, **values):
         return {"canonical_facts": {"fqdn": "some fqdn"}, **values}
@@ -1647,7 +1649,7 @@ class EventProducerTests(TestCase):
     def test_happy_path(self, send_mock):
         id = str(uuid4())
         host = self._make_host(id=id)
-        event = build_event(EventType.created, host, request_id=None)
+        event = build_event(EventType.created, host)
         key = host["id"]
 
         for event_type in EventType:
@@ -1664,7 +1666,7 @@ class EventProducerTests(TestCase):
 
                     self.assertEqual(send_mock_call_args[0][0], self.topic_name[topic])
                     self.assertEqual(send_mock.call_args[1]["key"], key.encode("utf-8"))
-                    self.assertEqual(send_mock.call_args[1]["value"], dumps(event).encode("utf-8"))
+                    self.assertEqual(send_mock.call_args[1]["value"], event.encode("utf-8"))
                     self.assertEqual(
                         send_mock.call_args[1]["headers"],
                         [("event_type", self.event_types[event_type].encode("utf-8"))],
