@@ -1,5 +1,4 @@
 import json
-import os
 import signal
 
 from marshmallow import fields
@@ -7,6 +6,7 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 
 from app import inventory_config
+from app.config import KAFKA_SECONDARY_TOPIC_ENABLED
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -155,7 +155,7 @@ def handle_message(message, event_producer):
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
         # for transition to platform.inventory.events
-        if os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED") == "true":
+        if KAFKA_SECONDARY_TOPIC_ENABLED == "true":
             event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
 
 

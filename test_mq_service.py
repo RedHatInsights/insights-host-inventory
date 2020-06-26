@@ -126,7 +126,9 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         fake_consumer.poll.assert_called_once()
         self.assertEqual(handle_message_mock.call_count, 2)
 
+    @patch("app.queue.queue.KAFKA_SECONDARY_TOPIC_ENABLED", "true")
     def test_events_sent_to_correct_topic(self):
+        host_id = uuid.uuid4()
         message = {
             "operation": "add_host",
             "data": {
@@ -138,18 +140,30 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         }
 
         # setting envionment variable to enable the secondary topic
-        with patch.dict("os.environ", {"KAFKA_SECONDARY_TOPIC_ENABLED": "true"}):
-            with self.app.app_context():
-                with unittest.mock.patch("app.queue.queue.add_host") as m:
-                    m.return_value = ({"id": uuid.uuid4(), "insights_id": None}, AddHostResult.created)
-                    mock_event_producer = Mock()
-                    handle_message(json.dumps(message), mock_event_producer)
+        with self.app.app_context():
+            with unittest.mock.patch("app.queue.queue.add_host") as m:
+                # for host add events
+                m.return_value = ({"id": host_id}, AddHostResult.created)
+                mock_event_producer = Mock()
+                handle_message(json.dumps(message), mock_event_producer)
 
-                    self.assertEqual(mock_event_producer.write_event.call_count, 2)
+                self.assertEqual(mock_event_producer.write_event.call_count, 2)
 
-                    # checking events sent to both egress and events topic
-                    self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
-                    self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+                # checking events sent to both egress and events topic
+                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+
+                # for host update events
+                message["data"].update(stale_timestamp=(datetime.now(timezone.utc) + timedelta(hours=26)).isoformat())
+                m.return_value = ({"id": host_id}, AddHostResult.updated)
+                mock_event_producer.reset_mock()
+                handle_message(json.dumps(message), mock_event_producer)
+
+                self.assertEqual(mock_event_producer.write_event.call_count, 2)
+
+                # checking events sent to both egress and events topic
+                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed

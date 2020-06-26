@@ -6,6 +6,7 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
 BulkQuerySource = Enum("BulkQuerySource", ("db", "xjoin"))
+KAFKA_SECONDARY_TOPIC_ENABLED = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "false")
 
 
 class Config:
