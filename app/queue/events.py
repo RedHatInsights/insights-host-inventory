@@ -66,6 +66,7 @@ class HostDeleteEvent(Schema):
     account = fields.Str()
     insights_id = fields.Str()
     request_id = fields.Str()
+    metadata = fields.Nested(HostEventMetadataSchema())
 
 
 def message_headers(event_type):
@@ -95,6 +96,7 @@ def host_delete_event(event_type, host):
             **serialize_canonical_facts(host.canonical_facts),
             "account": host.account,
             "request_id": threadctx.request_id,
+            "metadata": {"request_id": threadctx.request_id},
         },
     )
 
