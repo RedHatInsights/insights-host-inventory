@@ -34,6 +34,6 @@ egress_message_handler_success = Counter(
 egress_message_handler_failure = Counter(
     "inventory_egress_message_handler_failures", "Total amount of failures while writing messages to the egress queue"
 )
-egress_event_serialization_time = Summary(
-    "inventory_egress_event_serialization_seconds", "Time spent parsing a message from the egress queue"
+event_serialization_time = Summary(
+    "inventory_event_serialization_seconds", "Time spent parsing a message from the egress queue", ["event_type"]
 )
