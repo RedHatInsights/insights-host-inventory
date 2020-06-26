@@ -99,6 +99,7 @@ class MockEventProducer:
         self.key = None
         self.headers = None
         self.topic = None
+        self.secondary_topic_enabled = False
 
     def write_event(self, event, key, headers, topic):
         self.event = event

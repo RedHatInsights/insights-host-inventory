@@ -95,6 +95,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
             with unittest.mock.patch("app.queue.queue.add_host") as m:
                 m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
                 mock_event_producer = Mock()
+                mock_event_producer.secondary_topic_enabled = False
                 handle_message(json.dumps(message), mock_event_producer)
 
                 mock_event_producer.write_event.assert_called_once()
@@ -165,6 +166,8 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                 # checking events sent to both egress and events topic
                 self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
                 self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+
+                mock_event_producer.secondary_topic_enabled = False
 
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
