@@ -293,7 +293,7 @@ Once the image has passed QE testing, it can be promoted to production.
 ### Triggering the production deployment
 
 This is done using a [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
-The SHA of the HEAD commit should be used as `PROMO_CODE`.
+The SHA of the HEAD commit should be used as _PROMO_CODE_.
 
 A new deployment is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 4)_
 
@@ -309,6 +309,6 @@ A non-exhaustive list of things to watch includes:
 
 ### Production rollback
 
-Should unexpected problems occur after a production deployment it is possible to do a rollback.
-The process is the same as above (i.e. the same [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build)).
-What differs is that a SHA of a previous commit, to which the deployment should be rolled back, should be used as `PROMO_CODE`.
+Should unexpected problems occur after a production deployment, it is possible to do a rollback.
+The process is the same as above, i.e. the same [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
+What differs is that a SHA of a previous commit, to which the deployment should be rolled back, should be used as _PROMO_CODE_.
