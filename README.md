@@ -303,7 +303,7 @@ It is essential to monitor the health of the service during and after the produc
 A non-exhaustive list of things to watch includes:
 
 * Inventory deployments in [platform-prod OSD namespace](https://console.insights.openshift.com/console/project/platform-prod/overview)
-  * primarily ensure that the new pods are spinned up properly
+  * primarily ensure that the new pods are spun up properly
 * [#platform-inventory-standup Slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) for any Prometheus alerts
 * [Inventory Dashboard](https://metrics.1b13.insights.openshiftapps.com/d/EiIhtC0Wa/inventory?orgId=1&var-namespace=prod) for any anomalies such as error rate or consumer lag
 
