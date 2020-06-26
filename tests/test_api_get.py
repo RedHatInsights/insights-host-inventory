@@ -7,7 +7,6 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
-from .test_api_utils import ACCOUNT
 from .test_api_utils import DBAPITestCase
 from .test_api_utils import PaginationBaseTestCase
 from .test_api_utils import PreCreatedHostsBaseTestCase

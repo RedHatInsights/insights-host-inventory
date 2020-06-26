@@ -22,8 +22,8 @@ from tests.test_utils import get_host_from_multi_response
 from tests.test_utils import get_host_from_response
 from tests.test_utils import HOST_URL
 from tests.test_utils import minimal_host
-from tests.test_utils import SHARED_SECRET
 from tests.test_utils import MockEventProducer
+from tests.test_utils import SHARED_SECRET
 from tests.test_utils import valid_system_profile
 
 
@@ -645,7 +645,7 @@ def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invali
 
 def test_ignore_culled_host_on_update_by_canonical_facts(api_create_or_update_host):
     # Culled host
-    host = minimal_host(fqdn="my awesome fqdn", facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
+    host = minimal_host(fqdn="my awesome fqdn", stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
 
     # Create the host
     multi_response_status, multi_response_data = api_create_or_update_host([host])
@@ -670,9 +670,7 @@ def test_ignore_culled_host_on_update_by_canonical_facts(api_create_or_update_ho
 
 def test_ignore_culled_host_on_update_by_elevated_id(api_create_or_update_host):
     # Culled host
-    host = minimal_host(
-        insights_id=generate_uuid(), facts=None, stale_timestamp=(now() - timedelta(weeks=3)).isoformat()
-    )
+    host = minimal_host(insights_id=generate_uuid(), stale_timestamp=(now() - timedelta(weeks=3)).isoformat())
 
     # Create the host
     multi_response_status, multi_response_data = api_create_or_update_host([host])
@@ -1158,7 +1156,7 @@ def test_create_host_with_invalid_stale_timestamp(api_create_or_update_host):
 
 
 @pytest.mark.system_culling
-def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host, get_host_from_db):
+def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host, db_get_host):
     stale_timestamp = now()
     reporter = "some reporter"
 
@@ -1174,7 +1172,7 @@ def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host
 
     created_host_id = create_host_response["host"]["id"]
 
-    retrieved_host = get_host_from_db(created_host_id)
+    retrieved_host = db_get_host(created_host_id)
 
     assert stale_timestamp == retrieved_host.stale_timestamp
     assert reporter == retrieved_host.reporter
@@ -1191,7 +1189,7 @@ def test_create_host_with_stale_timestamp_and_reporter(api_create_or_update_host
     ],
 )
 def test_always_update_stale_timestamp_from_next_reporter(
-    api_create_or_update_host, get_host_from_db, new_stale_timestamp, new_reporter
+    api_create_or_update_host, db_get_host, new_stale_timestamp, new_reporter
 ):
     old_stale_timestamp = now() + timedelta(days=2)
     old_reporter = "old reporter"
@@ -1208,7 +1206,7 @@ def test_always_update_stale_timestamp_from_next_reporter(
 
     created_host_id = create_host_response["host"]["id"]
 
-    retrieved_host = get_host_from_db(created_host_id)
+    retrieved_host = db_get_host(created_host_id)
 
     assert old_stale_timestamp == retrieved_host.stale_timestamp
     assert old_reporter == retrieved_host.reporter
@@ -1224,7 +1222,7 @@ def test_always_update_stale_timestamp_from_next_reporter(
 
     assert_host_was_updated(create_host_response, update_host_response)
 
-    retrieved_host = get_host_from_db(created_host_id)
+    retrieved_host = db_get_host(created_host_id)
 
     assert new_stale_timestamp == retrieved_host.stale_timestamp
     assert new_reporter == retrieved_host.reporter

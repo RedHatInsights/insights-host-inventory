@@ -4,10 +4,10 @@ import os
 import unittest.mock
 import uuid
 from base64 import b64encode
-from collections import namedtuple
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from random import randint
 from struct import unpack
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
@@ -19,6 +19,7 @@ import dateutil.parser
 
 from app.auth.identity import Identity
 from app.utils import HostWrapper
+from lib.host_repository import find_existing_host
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -32,8 +33,6 @@ ID = "whoabuddy"
 ACCOUNT = "000501"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 SHARED_SECRET = "SuperSecretStuff"
-
-Message = namedtuple("Message", ("value", "key", "headers"))
 
 
 def get_valid_auth_header(auth_type="account_number"):
@@ -61,6 +60,15 @@ def build_account_auth_header(account=ACCOUNT):
 def build_token_auth_header(token=SHARED_SECRET):
     auth_header = {"Authorization": f"Bearer {token}"}
     return auth_header
+
+
+def wrap_message(host_data, operation="add_host", platform_metadata=None):
+    message = {"operation": operation, "data": host_data}
+
+    if platform_metadata:
+        message["platform_metadata"] = platform_metadata
+
+    return message
 
 
 @contextlib.contextmanager
@@ -161,13 +169,10 @@ def minimal_host(**values):
         "account": ACCOUNT,
         "display_name": "hi",
         "ip_addresses": ["10.10.0.1"],
-        "facts": None,
-        "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test",
         **values,
     }
-    if not data["facts"]:
-        data["facts"] = FACTS
 
     return HostWrapper(data)
 
@@ -243,9 +248,17 @@ def assert_error_response(
     _verify_value("type", expected_type)
 
 
-def emitted_event(emit_event_call):
-    args = emit_event_call[1]
-    return Message(json.loads(args[0]), args[1], args[2])
+def assert_host_exists(host_id, search_canonical_facts, account=ACCOUNT):
+    found_host = find_existing_host(account, search_canonical_facts)
+
+    assert host_id == found_host.id
+
+
+def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_check):
+    assert actual_event["host"]["id"] == actual_id
+
+    for key in host_keys_to_check:
+        assert actual_event["host"][key] == expected_results["host"][key]
 
 
 def inject_qs(url, **kwargs):

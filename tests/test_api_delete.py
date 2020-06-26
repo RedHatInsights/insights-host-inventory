@@ -5,7 +5,8 @@ from datetime import timezone
 from unittest import main
 from unittest.mock import patch
 
-from .test_api_utils import DBAPITestCase, PreCreatedHostsBaseTestCase
+from .test_api_utils import DBAPITestCase
+from .test_api_utils import PreCreatedHostsBaseTestCase
 from .test_utils import generate_uuid
 from .test_utils import HOST_URL
 from app.models import Host

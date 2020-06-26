@@ -11,11 +11,11 @@ import pytest
 from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import APIBaseTestCase
 from .test_api_utils import DBAPITestCase
+from .test_api_utils import generate_uuid
+from .test_api_utils import now
 from .test_utils import ACCOUNT
 from .test_utils import HOST_URL
 from .test_utils import minimal_host
-from .test_api_utils import generate_uuid
-from .test_api_utils import now
 from app import db
 from app.models import Host
 from app.utils import HostWrapper

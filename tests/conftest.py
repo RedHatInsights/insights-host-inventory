@@ -10,34 +10,41 @@ from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
+from app.queue.queue import handle_message
+from tests.test_utils import ACCOUNT
 from tests.test_utils import get_required_headers
 from tests.test_utils import HOST_URL
 from tests.test_utils import inject_qs
+from tests.test_utils import MockEventProducer
+from tests.test_utils import wrap_message
 
 
 @pytest.fixture(scope="session")
 def database():
     config = Config(RuntimeEnvironment.TEST)
-    if database_exists(config.db_uri):
-        drop_database(config.db_uri)
+    if not database_exists(config.db_uri):
+        create_database(config.db_uri)
 
-    create_database(config.db_uri)
-
-    yield
+    yield config.db_uri
 
     drop_database(config.db_uri)
 
 
-@pytest.fixture(scope="function")
-def flask_app(database):
+@pytest.fixture(scope="session")
+def new_flask_app(database):
     app = create_app(RuntimeEnvironment.TEST)
+    app.testing = True
 
-    # binds the app to the current context
-    with app.app_context() as ctx:
+    return app
+
+
+@pytest.fixture(scope="function")
+def flask_app(new_flask_app):
+    with new_flask_app.app_context() as ctx:
         db.create_all()
         ctx.push()
 
-        yield app
+        yield new_flask_app
 
         ctx.pop()
         db.session.remove()
@@ -46,7 +53,6 @@ def flask_app(database):
 
 @pytest.fixture(scope="function")
 def flask_client(flask_app):
-    flask_app.testing = True
     return flask_app.test_client()
 
 
@@ -77,8 +83,52 @@ def api_get_host(flask_client):
 
 
 @pytest.fixture(scope="function")
-def get_host_from_db(flask_app):
-    def _get_host_from_db(host_id):
+def db_get_host(flask_app):
+    def _db_get_host(host_id):
         return Host.query.get(host_id)
 
-    return _get_host_from_db
+    return _db_get_host
+
+
+@pytest.fixture(scope="function")
+def db_get_host_by_insights_id(flask_app):
+    def _db_get_host_by_insights_id(insights_id):
+        return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
+
+    return _db_get_host_by_insights_id
+
+
+@pytest.fixture(scope="function")
+def db_create_host(flask_app):
+    def _db_create_host(canonical_facts, display_name=None, account=ACCOUNT):
+        host = Host(canonical_facts, display_name=display_name, account=account)
+        db.session.add(host)
+        db.session.commit()
+        return host
+
+    return _db_create_host
+
+
+@pytest.fixture(scope="function")
+def handle_msg(flask_app):
+    def _handle_msg(message, producer):
+        with flask_app.app_context():
+            handle_message(json.dumps(message), producer)
+
+    return _handle_msg
+
+
+@pytest.fixture(scope="function")
+def mq_create_or_update_host(handle_msg, mock_event_producer):
+    def _mq_create_or_update_host(host_data, platform_metadata=None):
+        message = wrap_message(host_data=host_data, platform_metadata=platform_metadata)
+        handle_msg(message, mock_event_producer)
+
+        return mock_event_producer.key, json.loads(mock_event_producer.event), mock_event_producer.headers
+
+    return _mq_create_or_update_host
+
+
+@pytest.fixture(scope="function")
+def mock_event_producer():
+    return MockEventProducer()
