@@ -261,6 +261,30 @@ def assert_mq_host_data(actual_id, actual_event, expected_results, host_keys_to_
         assert actual_event["host"][key] == expected_results["host"][key]
 
 
+def assert_delete_event_is_valid(event_producer, host, timestamp, expected_request_id=None, expected_metadata=None):
+    event = json.loads(event_producer.event)
+
+    assert isinstance(event, dict)
+
+    expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id", "metadata"}
+    assert set(event.keys()) == expected_keys
+
+    assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
+
+    assert "delete" == event["type"]
+
+    assert host.canonical_facts.get("insights_id") == event["insights_id"]
+
+    assert event_producer.key == str(host.id)
+    assert event_producer.headers == {"event_type": "delete"}
+
+    if expected_request_id:
+        assert event["request_id"] == expected_request_id
+
+    if expected_metadata:
+        assert event["metadata"] == expected_metadata
+
+
 def inject_qs(url, **kwargs):
     scheme, netloc, path, query, fragment = urlsplit(url)
     params = parse_qs(query)

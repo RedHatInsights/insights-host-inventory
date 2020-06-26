@@ -84,6 +84,22 @@ def api_get_host(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_delete_host(flask_client):
+    def _api_delete_host(url, query_parameters=None, headers=None):
+        url = inject_qs(url, **query_parameters) if query_parameters else url
+        headers = headers or {}
+
+        response = flask_client.delete(url, headers={**get_required_headers(), **headers})
+
+        if response.status_code == 200:
+            return response.status_code, {}
+
+        return response.status_code, json.loads(response.data)
+
+    return _api_delete_host
+
+
+@pytest.fixture(scope="function")
 def db_get_host(flask_app):
     def _db_get_host(host_id):
         return Host.query.get(host_id)
@@ -131,8 +147,12 @@ def mq_create_or_update_host(handle_msg, event_producer_mock):
 
 
 @pytest.fixture(scope="function")
-def event_producer_mock():
-    return MockEventProducer()
+def event_producer_mock(flask_app):
+    flask_app.event_producer = MockEventProducer()
+
+    yield flask_app.event_producer
+
+    flask_app.event_producer = None
 
 
 @pytest.fixture(scope="function")

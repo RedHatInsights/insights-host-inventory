@@ -312,7 +312,7 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host_data=host.data())
 
 
-def test_add_host_empty_keys_system_profile(event_datetime_mock, mq_create_or_update_host):
+def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
     insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
     host = minimal_host(insights_id=insights_id, system_profile=system_profile)
@@ -328,7 +328,7 @@ def test_add_host_empty_keys_system_profile(event_datetime_mock, mq_create_or_up
         [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
     ),
 )
-def test_add_host_empty_keys_facts(event_datetime_mock, facts, mq_create_or_update_host):
+def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, facts=facts)
 
@@ -337,7 +337,7 @@ def test_add_host_empty_keys_facts(event_datetime_mock, facts, mq_create_or_upda
 
 
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
-def test_add_host_with_invalid_stale_timestamp(event_datetime_mock, stale_timestamp, mq_create_or_update_host):
+def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_update_host):
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, stale_timestamp=stale_timestamp)
 
