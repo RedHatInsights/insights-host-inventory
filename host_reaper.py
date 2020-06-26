@@ -14,14 +14,13 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.queue.event_producer import EventProducer
 from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import host_reaper_fail_count
-from tasks import flush
-from tasks import init_tasks
 
 __all__ = ("main", "run")
 
@@ -51,13 +50,13 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, logger, session):
+def run(config, logger, session, event_producer):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query)
+    events = delete_hosts(query, event_producer)
     for host_id, deleted in events:
         if deleted:
             logger.info("Deleted host: %s", host_id)
@@ -67,7 +66,6 @@ def run(config, logger, session):
 
 def main(logger):
     config = _init_config()
-    init_tasks(config)
 
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
@@ -76,14 +74,17 @@ def main(logger):
     Session = _init_db(config)
     session = Session()
 
+    event_producer = EventProducer(config)
+
     try:
         with session_guard(session):
-            run(config, logger, session)
+            run(config, logger, session, event_producer)
     finally:
-        flush()
-
-        job = _prometheus_job(config.kubernetes_namespace)
-        push_to_gateway(config.prometheus_pushgateway, job, registry)
+        try:
+            job = _prometheus_job(config.kubernetes_namespace)
+            push_to_gateway(config.prometheus_pushgateway, job, registry)
+        finally:
+            event_producer.close()
 
 
 if __name__ == "__main__":

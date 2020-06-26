@@ -1,20 +1,24 @@
+from marshmallow import ValidationError
+
 from app import create_app
-from app import events
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.environment import RuntimeEnvironment
-from app.events import HostEvent
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.queue.events import build_event
+from app.queue.events import EventType
 
 logger = get_logger("utils")
 
 
 def test_validations(host):
-    schema = HostEvent()
-    event = events.delete(host)
-    deserialized = schema.loads(event)
-    return deserialized.errors
+    try:
+        build_event(EventType.delete, host)
+    except ValidationError as error:
+        return error.messages
+    else:
+        return {}
 
 
 def main():
