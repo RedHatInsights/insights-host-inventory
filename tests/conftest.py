@@ -16,6 +16,7 @@ from tests.test_utils import get_required_headers
 from tests.test_utils import HOST_URL
 from tests.test_utils import inject_qs
 from tests.test_utils import MockEventProducer
+from tests.test_utils import now
 from tests.test_utils import wrap_message
 
 
@@ -119,16 +120,21 @@ def handle_msg(flask_app):
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(handle_msg, mock_event_producer):
+def mq_create_or_update_host(handle_msg, event_producer_mock):
     def _mq_create_or_update_host(host_data, platform_metadata=None):
         message = wrap_message(host_data=host_data, platform_metadata=platform_metadata)
-        handle_msg(message, mock_event_producer)
+        handle_msg(message, event_producer_mock)
 
-        return mock_event_producer.key, json.loads(mock_event_producer.event), mock_event_producer.headers
+        return event_producer_mock.key, json.loads(event_producer_mock.event), event_producer_mock.headers
 
     return _mq_create_or_update_host
 
 
 @pytest.fixture(scope="function")
-def mock_event_producer():
+def event_producer_mock():
     return MockEventProducer()
+
+
+@pytest.fixture(scope="function")
+def event_datetime_mock(mocker):
+    return mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})

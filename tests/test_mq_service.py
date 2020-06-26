@@ -1,12 +1,7 @@
 import json
-import unittest
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from unittest.mock import call
-from unittest.mock import MagicMock
-from unittest.mock import Mock
-from unittest.mock import patch
 
 import marshmallow
 import pytest
@@ -25,30 +20,30 @@ from tests.test_utils import minimal_host
 from tests.test_utils import valid_system_profile
 
 
-def test_event_loop_exception_handling(flask_app):
+def test_event_loop_exception_handling(mocker, flask_app):
     """
     Test to ensure that an exception in message handler method does not cause the
     event loop to stop processing messages
     """
-    fake_consumer = Mock()
-    fake_consumer.poll.return_value = {"poll1": [Mock(), Mock(), Mock()]}
+    fake_consumer = mocker.Mock()
+    fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock(), mocker.Mock()]}
 
     fake_event_producer = None
-    handle_message_mock = Mock(side_effect=[None, KeyError("blah"), None])
+    handle_message_mock = mocker.Mock(side_effect=[None, KeyError("blah"), None])
     event_loop(
         fake_consumer,
         flask_app,
         fake_event_producer,
         handler=handle_message_mock,
-        shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        shutdown_handler=mocker.Mock(**{"shut_down.side_effect": (False, True)}),
     )
     assert handle_message_mock.call_count == 3
 
 
-def test_handle_message_failure_invalid_json_message():
+def test_handle_message_failure_invalid_json_message(mocker):
     invalid_message = "failure {} "
 
-    mock_event_producer = Mock()
+    mock_event_producer = mocker.Mock()
 
     with pytest.raises(json.decoder.JSONDecodeError):
         handle_message(invalid_message, mock_event_producer)
@@ -56,10 +51,10 @@ def test_handle_message_failure_invalid_json_message():
     mock_event_producer.assert_not_called()
 
 
-def test_handle_message_failure_invalid_message_format():
+def test_handle_message_failure_invalid_message_format(mocker):
     invalid_message = json.dumps({"operation": "add_host", "NOTdata": {}})  # Missing data field
 
-    mock_event_producer = Mock()
+    mock_event_producer = mocker.Mock()
 
     with pytest.raises(marshmallow.exceptions.ValidationError):
         handle_message(invalid_message, mock_event_producer)
@@ -67,11 +62,10 @@ def test_handle_message_failure_invalid_message_format():
     mock_event_producer.assert_not_called()
 
 
-@patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
-def test_handle_message_happy_path(datetime_mock, handle_msg):
+def test_handle_message_happy_path(mocker, event_datetime_mock, handle_msg):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
-    timestamp_iso = datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
     message = {
         "operation": "add_host",
         "data": {
@@ -82,34 +76,35 @@ def test_handle_message_happy_path(datetime_mock, handle_msg):
         },
     }
 
-    with unittest.mock.patch("app.queue.queue.add_host") as m:
-        m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
-        mock_event_producer = Mock()
-        handle_msg(message, mock_event_producer)
+    mocker.patch(
+        "app.queue.queue.add_host", return_value=({"id": host_id, "insights_id": None}, AddHostResult.created)
+    )
+    mock_event_producer = mocker.Mock()
+    handle_msg(message, mock_event_producer)
 
-        mock_event_producer.write_event.assert_called_once()
+    mock_event_producer.write_event.assert_called_once()
 
-        assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-            "timestamp": timestamp_iso,
-            "type": "created",
-            "host": {"id": str(host_id), "insights_id": None},
-            "platform_metadata": {},
-            "metadata": {"request_id": "-1"},
-        }
+    assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
+        "timestamp": timestamp_iso,
+        "type": "created",
+        "host": {"id": str(host_id), "insights_id": None},
+        "platform_metadata": {},
+        "metadata": {"request_id": "-1"},
+    }
 
 
-def test_shutdown_handler(flask_app):
-    fake_consumer = Mock()
-    fake_consumer.poll.return_value = {"poll1": [Mock(), Mock()]}
+def test_shutdown_handler(mocker, flask_app):
+    fake_consumer = mocker.Mock()
+    fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock()]}
 
     fake_event_producer = None
-    handle_message_mock = Mock(side_effect=[None, None])
+    handle_message_mock = mocker.Mock(side_effect=[None, None])
     event_loop(
         fake_consumer,
         flask_app,
         fake_event_producer,
         handler=handle_message_mock,
-        shutdown_handler=Mock(**{"shut_down.side_effect": (False, True)}),
+        shutdown_handler=mocker.Mock(**{"shut_down.side_effect": (False, True)}),
     )
     fake_consumer.poll.assert_called_once()
 
@@ -125,21 +120,23 @@ def test_shutdown_handler(flask_app):
 #     pass
 
 
-@patch("app.queue.queue.build_event")
-@patch("app.queue.queue.add_host", return_value=(MagicMock(), None))
 @pytest.mark.parametrize("display_name", ("\udce2\udce2", "\\udce2\\udce2", "\udce2\udce2\\udce2\\udce2"))
-def test_handle_message_failure_invalid_surrogates(add_host, build_event, display_name):
+def test_handle_message_failure_invalid_surrogates(mocker, display_name):
+    mocker.patch("app.queue.queue.build_event")
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None))
+
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
 
     with pytest.raises(UnicodeError):
-        handle_message(invalid_message, Mock())
+        handle_message(invalid_message, mocker.Mock())
 
     add_host.assert_not_called()
 
 
-@patch("app.queue.queue.build_event")
-@patch("app.queue.queue.add_host", return_value=(MagicMock(), None))
-def test_handle_message_unicode_not_damaged(add_host, build_event, flask_app, subtests):
+def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
+    mocker.patch("app.queue.queue.build_event")
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None))
+
     operation_raw = "🧜🏿‍♂️"
     operation_escaped = json.dumps(operation_raw)[1:-1]
 
@@ -152,7 +149,7 @@ def test_handle_message_unicode_not_damaged(add_host, build_event, flask_app, su
         with subtests.test(message=message):
             add_host.reset_mock()
             add_host.return_value = ({"id": generate_uuid()}, AddHostResult.updated)
-            handle_message(message, Mock())
+            handle_message(message, mocker.Mock())
             add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
 
@@ -165,8 +162,9 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     assert event["platform_metadata"] == metadata
 
 
-@patch("app.queue.queue.add_host")
-def test_handle_message_verify_message_key_and_metadata_not_required(add_host, mq_create_or_update_host):
+def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_create_or_update_host):
+    add_host = mocker.patch("app.queue.queue.add_host")
+
     host = minimal_host(id=generate_uuid())
     host_data = host.data()
 
@@ -178,9 +176,10 @@ def test_handle_message_verify_message_key_and_metadata_not_required(add_host, m
     assert event["host"] == host_data
 
 
-@patch("app.queue.queue.add_host")
 @pytest.mark.parametrize("add_host_result", AddHostResult)
-def test_handle_message_verify_message_headers(add_host, add_host_result, mq_create_or_update_host):
+def test_handle_message_verify_message_headers(mocker, add_host_result, mq_create_or_update_host):
+    add_host = mocker.patch("app.queue.queue.add_host")
+
     host = minimal_host(id=generate_uuid())
 
     add_host.return_value = (host.data(), add_host_result)
@@ -190,13 +189,12 @@ def test_handle_message_verify_message_headers(add_host, add_host_result, mq_cre
     assert headers == {"event_type": add_host_result.name}
 
 
-@patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
-def test_add_host_simple(datetime_mock, mq_create_or_update_host):
+def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     """
     Tests adding a host with some simple data
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -215,13 +213,12 @@ def test_add_host_simple(datetime_mock, mq_create_or_update_host):
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
-def test_add_host_with_system_profile(datetime_mock, mq_create_or_update_host):
+def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_host):
     """
      Tests adding a host with message containing system profile
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -241,13 +238,12 @@ def test_add_host_with_system_profile(datetime_mock, mq_create_or_update_host):
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
-def test_add_host_with_tags(datetime_mock, mq_create_or_update_host):
+def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
     """
      Tests adding a host with message containing tags
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -316,8 +312,7 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host_data=host.data())
 
 
-@patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
-def test_add_host_empty_keys_system_profile(datetime_mock, mq_create_or_update_host):
+def test_add_host_empty_keys_system_profile(event_datetime_mock, mq_create_or_update_host):
     insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
     host = minimal_host(insights_id=insights_id, system_profile=system_profile)
@@ -326,7 +321,6 @@ def test_add_host_empty_keys_system_profile(datetime_mock, mq_create_or_update_h
         mq_create_or_update_host(host_data=host.data())
 
 
-@patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
 @pytest.mark.parametrize(
     "facts",
     (
@@ -334,7 +328,7 @@ def test_add_host_empty_keys_system_profile(datetime_mock, mq_create_or_update_h
         [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
     ),
 )
-def test_add_host_empty_keys_facts(datetime_mock, facts, mq_create_or_update_host):
+def test_add_host_empty_keys_facts(event_datetime_mock, facts, mq_create_or_update_host):
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, facts=facts)
 
@@ -342,9 +336,8 @@ def test_add_host_empty_keys_facts(datetime_mock, facts, mq_create_or_update_hos
         mq_create_or_update_host(host_data=host.data())
 
 
-@patch("app.queue.events.datetime", **{"utcnow.return_value": datetime.utcnow()})
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
-def test_add_host_with_invalid_stale_timestmap(datetime_mock, stale_timestamp, mq_create_or_update_host):
+def test_add_host_with_invalid_stale_timestamp(event_datetime_mock, stale_timestamp, mq_create_or_update_host):
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, stale_timestamp=stale_timestamp)
 
@@ -712,14 +705,13 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
             assert expected_tags == record.tags
 
 
-@patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
-def test_add_host_stale_timestamp(datetime_mock, mq_create_or_update_host):
+def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host):
     """
     Tests to see if the host is succesfully created with both reporter
     and stale_timestamp set.
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
     stale_timestamp = datetime.now(timezone.utc)
 
     host_data = {
@@ -792,16 +784,22 @@ def test_invalid_string_raises_exception():
         _validate_json_object_for_utf8("hello\udce2\udce2")
 
 
-@patch("app.queue.queue._validate_json_object_for_utf8")
-def test_dicts_are_traversed(mock):
+def test_dicts_are_traversed(mocker):
+    mock = mocker.patch("app.queue.queue._validate_json_object_for_utf8")
+
     _validate_json_object_for_utf8({"first": "item", "second": "value"})
-    mock.assert_has_calls((call("first"), call("item"), call("second"), call("value")), any_order=True)
+
+    mock.assert_has_calls(
+        (mocker.call("first"), mocker.call("item"), mocker.call("second"), mocker.call("value")), any_order=True
+    )
 
 
-@patch("app.queue.queue._validate_json_object_for_utf8")
-def test_lists_are_traversed(mock):
+def test_lists_are_traversed(mocker):
+    mock = mocker.patch("app.queue.queue._validate_json_object_for_utf8")
+
     _validate_json_object_for_utf8(["first", "second"])
-    mock.assert_has_calls((call("first"), call("second")), any_order=True)
+
+    mock.assert_has_calls((mocker.call("first"), mocker.call("second")), any_order=True)
 
 
 @pytest.mark.parametrize(

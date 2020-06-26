@@ -4,7 +4,6 @@ from datetime import timezone
 
 import pytest
 from marshmallow import ValidationError
-from pytest import mark
 from pytest import raises
 from sqlalchemy.exc import DataError
 
@@ -333,7 +332,7 @@ def test_host_model_timestamp_timezones(flask_app):
     assert host.stale_timestamp.tzinfo
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "field,value",
     [("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)],
 )
