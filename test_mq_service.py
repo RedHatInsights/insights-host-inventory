@@ -167,8 +167,6 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                 self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
                 self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
 
-                mock_event_producer.secondary_topic_enabled = False
-
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
     # https://projects.engineering.redhat.com/browse/RHCLOUD-3503
