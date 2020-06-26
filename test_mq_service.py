@@ -126,7 +126,6 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         fake_consumer.poll.assert_called_once()
         self.assertEqual(handle_message_mock.call_count, 2)
 
-    @patch("app.queue.queue.KAFKA_SECONDARY_TOPIC_ENABLED", "true")
     def test_events_sent_to_correct_topic(self):
         host_id = uuid.uuid4()
         message = {
@@ -142,9 +141,11 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         # setting envionment variable to enable the secondary topic
         with self.app.app_context():
             with unittest.mock.patch("app.queue.queue.add_host") as m:
+                mock_event_producer = Mock()
+                mock_event_producer.secondary_topic_enabled = True
+
                 # for host add events
                 m.return_value = ({"id": host_id}, AddHostResult.created)
-                mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
                 self.assertEqual(mock_event_producer.write_event.call_count, 2)

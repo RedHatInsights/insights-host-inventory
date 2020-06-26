@@ -6,7 +6,6 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 
 from app import inventory_config
-from app.config import KAFKA_SECONDARY_TOPIC_ENABLED
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -155,13 +154,12 @@ def handle_message(message, event_producer):
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
         # for transition to platform.inventory.events
-        if KAFKA_SECONDARY_TOPIC_ENABLED == "true":
+        if event_producer.secondary_topic_enabled:
             event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
     with flask_app.app_context():
-
         signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
         signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
         while not shutdown_handler.shut_down():

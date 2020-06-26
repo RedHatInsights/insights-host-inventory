@@ -18,6 +18,9 @@ class EventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
         self.topics = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
 
+        # for transition to platform.inventory.events
+        self.secondary_topic_enabled = config.secondary_topic_enabled
+
     def write_event(self, event, key, headers, topic):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", topic, key, event, headers)
 
