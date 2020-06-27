@@ -7,15 +7,6 @@ from unittest import main
 from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
-from .test_api_utils import DBAPITestCase
-from .test_api_utils import PaginationBaseTestCase
-from .test_api_utils import PreCreatedHostsBaseTestCase
-from .test_utils import ACCOUNT
-from .test_utils import generate_uuid
-from .test_utils import HOST_URL
-from .test_utils import inject_qs
-from .test_utils import now
-from .test_utils import quote_everything
 from app import db
 from app.culling import Timestamps
 from app.models import Host
@@ -23,7 +14,16 @@ from app.queue.queue import handle_message
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
-from tests.test_utils import MockEventProducer
+from tests.test_api_utils import DBAPITestCase
+from tests.test_api_utils import PaginationBaseTestCase
+from tests.test_api_utils import PreCreatedHostsBaseTestCase
+from tests.utils import ACCOUNT
+from tests.utils import generate_uuid
+from tests.utils import now
+from tests.utils.api_utils import HOST_URL
+from tests.utils.api_utils import inject_qs
+from tests.utils.api_utils import quote_everything
+from tests.utils.mq_utils import MockEventProducer
 
 
 class QueryTestCase(PreCreatedHostsBaseTestCase):

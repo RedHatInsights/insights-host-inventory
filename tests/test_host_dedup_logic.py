@@ -1,8 +1,8 @@
 from pytest import mark
 
-from tests.test_utils import assert_host_exists
-from tests.test_utils import generate_uuid
-from tests.test_utils import minimal_db_host
+from tests.utils import generate_uuid
+from tests.utils.db_utils import assert_host_exists_in_db
+from tests.utils.db_utils import minimal_db_host
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
@@ -15,7 +15,7 @@ def test_find_host_using_subset_canonical_fact_match(db_create_host):
     # Create the subset of canonical facts to search by
     subset_canonical_facts = {"fqdn": fqdn}
 
-    assert_host_exists(created_host.id, subset_canonical_facts)
+    assert_host_exists_in_db(created_host.id, subset_canonical_facts)
 
 
 def test_find_host_using_superset_canonical_fact_match(db_create_host):
@@ -29,7 +29,7 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host)
 
-    assert_host_exists(created_host.id, superset_canonical_facts)
+    assert_host_exists_in_db(created_host.id, superset_canonical_facts)
 
 
 def test_find_host_using_insights_id_match(db_create_host):
@@ -45,7 +45,7 @@ def test_find_host_using_insights_id_match(db_create_host):
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host)
 
-    assert_host_exists(created_host.id, search_canonical_facts)
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
 def test_find_host_using_subscription_manager_id_match(db_create_host):
@@ -60,7 +60,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host)
 
-    assert_host_exists(created_host.id, search_canonical_facts)
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
 @mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
@@ -77,4 +77,4 @@ def test_find_host_using_elevated_ids_match(db_create_host, host_create_order, e
         key: value for host_canonical_facts in hosts_canonical_facts for key, value in host_canonical_facts.items()
     }
 
-    assert_host_exists(created_hosts[expected_host].id, search_canonical_facts)
+    assert_host_exists_in_db(created_hosts[expected_host].id, search_canonical_facts)

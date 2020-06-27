@@ -11,14 +11,13 @@ from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
 from app.queue.queue import handle_message
-from tests.test_utils import ACCOUNT
-from tests.test_utils import generate_uuid
-from tests.test_utils import get_required_headers
-from tests.test_utils import HOST_URL
-from tests.test_utils import inject_qs
-from tests.test_utils import MockEventProducer
-from tests.test_utils import now
-from tests.test_utils import wrap_message
+from tests.utils import now
+from tests.utils.api_utils import get_required_headers
+from tests.utils.api_utils import HOST_URL
+from tests.utils.api_utils import inject_qs
+from tests.utils.db_utils import minimal_db_host
+from tests.utils.mq_utils import MockEventProducer
+from tests.utils.mq_utils import wrap_message
 
 
 @pytest.fixture(scope="session")
@@ -75,16 +74,28 @@ def api_create_or_update_host(flask_client):
 
 @pytest.fixture(scope="function")
 def api_patch_host(flask_client):
-    def _api_patch_host(host_id, host_data, query_parameters=None, headers=None):
-        url = f"{HOST_URL}/{host_id}"
+    def _api_patch_host(url, host_data, query_parameters=None, headers=None):
         url = inject_qs(url, **query_parameters) if query_parameters else url
         headers = headers or {}
 
         response = flask_client.patch(url, data=json.dumps(host_data), headers={**get_required_headers(), **headers})
 
-        return response.status_code
+        return response.status_code, json.loads(response.data)
 
     return _api_patch_host
+
+
+@pytest.fixture(scope="function")
+def api_put_host(flask_client):
+    def _api_put_host(url, host_data, query_parameters=None, headers=None):
+        url = inject_qs(url, **query_parameters) if query_parameters else url
+        headers = headers or {}
+
+        response = flask_client.put(url, data=json.dumps(host_data), headers={**get_required_headers(), **headers})
+
+        return response.status_code, json.loads(response.data)
+
+    return _api_put_host
 
 
 @pytest.fixture(scope="function")
@@ -142,8 +153,9 @@ def db_get_host_by_insights_id(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host(flask_app):
-    def _db_create_host(host=None):
-        host = host or Host({"insights_id": generate_uuid()}, account=ACCOUNT)
+    def _db_create_host(host=None, extra_data=None):
+        extra_data = extra_data or {}
+        host = host or minimal_db_host(**extra_data)
         db.session.add(host)
         db.session.commit()
         return host
@@ -153,16 +165,22 @@ def db_create_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app):
-    def _db_create_multiple_hosts(how_many=10):
-        hosts = []
-        for _ in range(how_many):
-            host = Host({"insights_id": generate_uuid()}, account=ACCOUNT)
-            hosts.append(host)
-            db.session.add(host)
+    def _db_create_multiple_hosts(hosts=None, how_many=10, extra_data=None):
+        extra_data = extra_data or {}
+        created_hosts = []
+        if type(hosts) == list:
+            for host in hosts:
+                db.session.add(host)
+                created_hosts.append(host)
+        else:
+            for _ in range(how_many):
+                host = minimal_db_host(**extra_data)
+                db.session.add(host)
+                created_hosts.append(host)
 
         db.session.commit()
 
-        return hosts
+        return created_hosts
 
     return _db_create_multiple_hosts
 

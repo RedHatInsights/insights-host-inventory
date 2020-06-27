@@ -6,21 +6,21 @@ from unittest import mock
 
 import pytest
 
-from .test_api_utils import APIBaseTestCase
-from .test_api_utils import DBAPITestCase
-from .test_api_utils import generate_uuid
-from .test_api_utils import now
-from .test_utils import ACCOUNT
-from .test_utils import assert_delete_event_is_valid
-from .test_utils import get_staleness_timestamps
-from .test_utils import HOST_URL
-from .test_utils import minimal_db_host
 from app import db
 from app import threadctx
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.models import Host
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
+from tests.test_api_utils import APIBaseTestCase
+from tests.test_api_utils import DBAPITestCase
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import now
+from tests.utils import ACCOUNT
+from tests.utils import get_staleness_timestamps
+from tests.utils.api_utils import HOST_URL
+from tests.utils.db_utils import minimal_db_host
+from tests.utils.mq_utils import assert_delete_event_is_valid
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -274,16 +274,13 @@ def test_culled_host_is_removed(event_producer_mock, event_datetime_mock, db_cre
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter")
     created_host = db_create_host(host)
-    retrieved_host = db_get_host(created_host.id)
 
-    assert retrieved_host
+    assert db_get_host(created_host.id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
 
-    retrieved_host = db_get_host(created_host.id)
-
-    assert not retrieved_host
+    assert not db_get_host(created_host.id)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
 
@@ -334,7 +331,5 @@ def test_unknown_host_is_not_removed(event_producer_mock, db_create_host, db_get
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
 
-    retrieved_host = db_get_host(created_host.id)
-
-    assert retrieved_host
+    assert db_get_host(created_host.id)
     assert event_producer_mock.event is None

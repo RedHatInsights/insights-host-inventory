@@ -1,30 +1,27 @@
 #!/usr/bin/env python
 import copy
-import json
 from datetime import timedelta
 
 import pytest
 
-from app.queue.queue import handle_message
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
-from tests.test_api_utils import ACCOUNT
-from tests.test_api_utils import generate_uuid
-from tests.test_api_utils import now
-from tests.test_utils import assert_error_response
-from tests.test_utils import assert_host_data
-from tests.test_utils import assert_host_response_status
-from tests.test_utils import assert_host_was_created
-from tests.test_utils import assert_host_was_updated
-from tests.test_utils import assert_response_status
-from tests.test_utils import FACTS
-from tests.test_utils import get_host_from_multi_response
-from tests.test_utils import get_host_from_response
-from tests.test_utils import HOST_URL
-from tests.test_utils import minimal_host
-from tests.test_utils import MockEventProducer
-from tests.test_utils import SHARED_SECRET
-from tests.test_utils import valid_system_profile
+from tests.utils import ACCOUNT
+from tests.utils import generate_uuid
+from tests.utils import now
+from tests.utils import valid_system_profile
+from tests.utils.api_utils import assert_error_response
+from tests.utils.api_utils import assert_host_data
+from tests.utils.api_utils import assert_host_response_status
+from tests.utils.api_utils import assert_host_was_created
+from tests.utils.api_utils import assert_host_was_updated
+from tests.utils.api_utils import assert_response_status
+from tests.utils.api_utils import FACTS
+from tests.utils.api_utils import get_host_from_multi_response
+from tests.utils.api_utils import get_host_from_response
+from tests.utils.api_utils import HOST_URL
+from tests.utils.api_utils import minimal_host
+from tests.utils.api_utils import SHARED_SECRET
 
 
 def test_create_and_update(api_create_or_update_host, api_get_host):
@@ -571,16 +568,10 @@ def test_create_host_ignores_tags(api_create_or_update_host, api_get_host):
     assert host_tags_response_data["results"][created_host_id] == []
 
 
-def test_update_host_with_tags_doesnt_change_tags(api_create_or_update_host, api_get_host, flask_app):
+def test_update_host_with_tags_doesnt_change_tags(mq_create_or_update_host, api_create_or_update_host, api_get_host):
     create_host_data = minimal_host(tags=[{"namespace": "ns", "key": "some_key", "value": "val"}], fqdn="fqdn")
 
-    message = {"operation": "add_host", "data": create_host_data.data()}
-
-    mock_event_producer = MockEventProducer()
-    with flask_app.app_context():
-        handle_message(json.dumps(message), mock_event_producer)
-
-    event = json.loads(mock_event_producer.event)
+    key, event, headers = mq_create_or_update_host(host_data=create_host_data.data())
     host_id = event["host"]["id"]
 
     # attempt to update

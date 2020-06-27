@@ -7,22 +7,22 @@ from unittest import TestCase
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 
-from .test_utils import ACCOUNT
-from .test_utils import generate_uuid
-from .test_utils import get_valid_auth_header
-from .test_utils import HEALTH_URL
-from .test_utils import inject_qs
-from .test_utils import METRICS_URL
-from .test_utils import MockEventProducer
-from .test_utils import now
-from .test_utils import set_environment
-from .test_utils import VERSION_URL
 from app import Config
 from app import create_app
 from app import db
 from app.environment import RuntimeEnvironment
 from app.queue.queue import handle_message
 from app.utils import HostWrapper
+from tests.utils import ACCOUNT
+from tests.utils import generate_uuid
+from tests.utils import now
+from tests.utils import set_environment
+from tests.utils.api_utils import get_valid_auth_header
+from tests.utils.api_utils import HEALTH_URL
+from tests.utils.api_utils import inject_qs
+from tests.utils.api_utils import METRICS_URL
+from tests.utils.api_utils import VERSION_URL
+from tests.utils.mq_utils import MockEventProducer
 
 
 class APIBaseTestCase(TestCase):

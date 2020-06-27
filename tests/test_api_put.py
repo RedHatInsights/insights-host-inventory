@@ -1,201 +1,150 @@
 #!/usr/bin/env python
-from itertools import chain
-from unittest import main
+import pytest
 
-from app.utils import HostWrapper
-from tests.test_api_utils import PreCreatedHostsBaseTestCase
-from tests.test_system_culling import QueryStalenessGetHostsBaseTestCase
-from tests.test_utils import generate_uuid
-from tests.test_utils import HOST_URL
+from tests.utils import generate_uuid
+from tests.utils import get_staleness_timestamps
+from tests.utils.api_utils import assert_error_response
+from tests.utils.api_utils import assert_response_status
+from tests.utils.api_utils import build_facts_url
+from tests.utils.api_utils import build_host_id_list_for_url
+from tests.utils.api_utils import get_id_list_from_hosts
+from tests.utils.api_utils import HOST_URL
 
 
-class FactsTestCase(PreCreatedHostsBaseTestCase):
-    def _valid_fact_doc(self):
-        return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db_get_hosts, api_put_host):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-    def _build_facts_url(self, host_list, namespace):
-        if type(host_list) == list:
-            url_host_id_list = self._build_host_id_list_for_url(host_list)
-        else:
-            url_host_id_list = str(host_list)
-        return HOST_URL + "/" + url_host_id_list + "/facts/" + namespace
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-    def _basic_fact_test(self, input_facts, expected_facts, replace_facts):
+    host_id_list = get_id_list_from_hosts(created_hosts)
+    facts_url = build_facts_url(created_hosts, facts_namespace) + "?" + "branch_id=1234"
 
-        host_list = self.added_hosts
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=200)
 
-        # This test assumes the set of facts are the same across
-        # the hosts in the host_list
+    facts[facts_namespace] = facts_to_update
 
-        target_namespace = host_list[0].facts[0]["namespace"]
+    assert all(host.facts == facts for host in db_get_hosts(host_id_list))
 
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        patch_url = self._build_facts_url(host_list, target_namespace)
+def test_replace_facts_to_multiple_hosts_including_nonexistent_host(
+    db_create_multiple_hosts, db_get_hosts, api_put_host
+):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-        if replace_facts:
-            response = self.put(patch_url, input_facts, 200)
-        else:
-            response = self.patch(patch_url, input_facts, 200)
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-        response = self.get(f"{HOST_URL}/{url_host_id_list}", 200)
+    url_host_id_list = f"{build_host_id_list_for_url(created_hosts)},{generate_uuid()},{generate_uuid()}"
+    facts_url = f"{HOST_URL}/{url_host_id_list}/facts/{facts_namespace}"
 
-        self.assertEqual(len(response["results"]), len(host_list))
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=400)
 
-        for response_host in response["results"]:
-            host_to_verify = HostWrapper(response_host)
 
-            self.assertEqual(host_to_verify.facts[0]["facts"], expected_facts)
+def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(
+    db_create_multiple_hosts, db_get_hosts, api_put_host
+):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {}
 
-            self.assertEqual(host_to_verify.facts[0]["namespace"], target_namespace)
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-    def test_add_facts_without_fact_dict(self):
-        patch_url = self._build_facts_url(1, "ns1")
-        response = self.patch(patch_url, None, 400)
-        self.assertEqual(response["detail"], "Request body is not valid JSON")
+    host_id_list = get_id_list_from_hosts(created_hosts)
+    facts_url = build_facts_url(created_hosts, facts_namespace)
 
-    def test_add_facts_to_multiple_hosts(self):
-        facts_to_add = self._valid_fact_doc()
+    # Set the value in the namespace to an empty fact set
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=200)
 
-        host_list = self.added_hosts
+    facts[facts_namespace] = facts_to_update
 
-        # This test assumes the set of facts are the same across
-        # the hosts in the host_list
+    assert all(host.facts == facts for host in db_get_hosts(host_id_list))
 
-        expected_facts = {**host_list[0].facts[0]["facts"], **facts_to_add}
 
-        self._basic_fact_test(facts_to_add, expected_facts, False)
+def test_replace_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, api_patch_host):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {}
 
-    def test_replace_and_add_facts_to_multiple_hosts_with_branch_id(self):
-        facts_to_add = self._valid_fact_doc()
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-        host_list = self.added_hosts
+    facts_url = build_facts_url(created_hosts, "imanonexistentnamespace")
 
-        target_namespace = host_list[0].facts[0]["namespace"]
+    response_status, response_data = api_patch_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=400)
 
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
 
-        patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace + "?" + "branch_id=1234"
+def test_replace_facts_without_fact_dict(api_put_host):
+    facts_url = build_facts_url(1, "ns1")
+    response_status, response_data = api_put_host(facts_url, None)
 
-        # Add facts
-        self.patch(patch_url, facts_to_add, 200)
+    assert_error_response(response_data, expected_status=400, expected_detail="Request body is not valid JSON")
 
-        # Replace facts
-        self.put(patch_url, facts_to_add, 200)
 
-    def test_replace_and_add_facts_to_multiple_hosts_including_nonexistent_host(self):
-        facts_to_add = self._valid_fact_doc()
+def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put_host):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-        host_list = self.added_hosts
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-        target_namespace = host_list[0].facts[0]["namespace"]
+    host_id_list = get_id_list_from_hosts(created_hosts)
+    facts_url = build_facts_url(created_hosts, facts_namespace)
 
-        url_host_id_list = self._build_host_id_list_for_url(host_list)
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=200)
 
-        # Add a couple of host ids that should not exist in the database
-        url_host_id_list = url_host_id_list + "," + generate_uuid() + "," + generate_uuid()
+    facts[facts_namespace] = facts_to_update
 
-        patch_url = HOST_URL + "/" + url_host_id_list + "/facts/" + target_namespace
+    assert all(host.facts == facts for host in db_get_hosts(host_id_list))
 
-        # Add facts
-        self.patch(patch_url, facts_to_add, 400)
 
-        # Replace facts
-        self.put(patch_url, facts_to_add, 400)
+def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put_host):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {}
 
-    def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(self):
-        new_facts = {}
-        expected_facts = new_facts
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-        # Set the value in the namespace to an empty fact set
-        self._basic_fact_test(new_facts, expected_facts, True)
+    host_id_list = get_id_list_from_hosts(created_hosts)
+    facts_url = build_facts_url(created_hosts, facts_namespace)
 
-        new_facts = self._valid_fact_doc()
-        expected_facts = new_facts
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=200)
 
-        # Overwrite the empty fact set
-        self._basic_fact_test(new_facts, expected_facts, False)
+    facts[facts_namespace] = facts_to_update
 
-    def test_add_facts_to_multiple_hosts_add_empty_fact_set(self):
-        new_facts = {}
-        target_namespace = self.added_hosts[0].facts[0]["namespace"]
-        valid_host_id = self.added_hosts[0].id
+    assert all(host.facts == facts for host in db_get_hosts(host_id_list))
 
-        test_url = self._build_facts_url(valid_host_id, target_namespace)
+    facts_to_update = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-        # Test merging empty facts set
-        self.patch(test_url, new_facts, 400)
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=200)
 
-    def test_replace_and_add_facts_to_namespace_that_does_not_exist(self):
-        valid_host_id = self.added_hosts[0].id
-        facts_to_add = self._valid_fact_doc()
-        test_url = self._build_facts_url(valid_host_id, "imanonexistentnamespace")
+    facts[facts_namespace] = facts_to_update
 
-        # Test replace
-        self.put(test_url, facts_to_add, 400)
+    assert all(host.facts == facts for host in db_get_hosts(host_id_list))
 
-        # Test add/merge
-        self.patch(test_url, facts_to_add, 400)
 
-    def test_replace_facts_without_fact_dict(self):
-        put_url = self._build_facts_url(1, "ns1")
-        response = self.put(put_url, None, 400)
-        self.assertEqual(response["detail"], "Request body is not valid JSON")
+@pytest.mark.system_culling
+def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get_hosts, api_put_host):
+    facts_namespace = "ns1"
+    facts = {facts_namespace: {"key1": "value1"}}
+    facts_to_update = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
-    def test_replace_facts_on_multiple_hosts(self):
-        new_facts = self._valid_fact_doc()
-        expected_facts = new_facts
+    staleness_timestamps = get_staleness_timestamps()
 
-        self._basic_fact_test(new_facts, expected_facts, True)
+    created_hosts = db_create_multiple_hosts(
+        how_many=2, extra_data={"facts": facts, "stale_timestamp": staleness_timestamps["culled"]}
+    )
 
-    def test_replace_facts_on_multiple_hosts_with_empty_fact_set(self):
-        new_facts = {}
-        expected_facts = new_facts
+    facts_url = build_facts_url(created_hosts, facts_namespace)
 
-        self._basic_fact_test(new_facts, expected_facts, True)
-
-    def test_replace_empty_facts_on_multiple_hosts(self):
-        new_facts = {}
-        expected_facts = new_facts
-
-        self._basic_fact_test(new_facts, expected_facts, True)
-
-        new_facts = self._valid_fact_doc()
-        expected_facts = new_facts
-
-        self._basic_fact_test(new_facts, expected_facts, True)
-
-    def test_invalid_host_id(self):
-        bad_id_list = ["notauuid", "1234blahblahinvalid"]
-        only_bad_id = bad_id_list.copy()
-
-        # Can’t have empty string as an only ID, that results in 404 Not Found.
-        more_bad_id_list = bad_id_list + [""]
-        valid_id = self.added_hosts[0].id
-        with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
-
-        operations = (self.patch, self.put)
-        fact_doc = self._valid_fact_doc()
-        for operation in operations:
-            for host_id_list in chain(only_bad_id, with_bad_id):
-                url = self._build_facts_url(host_id_list, "ns1")
-                with self.subTest(operation=operation, host_id_list=host_id_list):
-                    operation(url, fact_doc, 400)
-
-
-class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
-    def test_replace_and_merge_ignore_culled_hosts(self):
-        # Try to replace the facts on a host that has been marked as culled
-        target_namespace = self.culled_host["facts"][0]["namespace"]
-
-        facts_to_add = self._valid_fact_doc()
-        test_url = self._build_facts_url(self.culled_host["id"], target_namespace)
-        # Test replace
-        self.put(test_url, facts_to_add, 400)
-
-        # Test add/merge
-        self.patch(test_url, facts_to_add, 400)
-
-
-if __name__ == "__main__":
-    main()
+    # Try to replace the facts on a host that has been marked as culled
+    response_status, response_data = api_put_host(facts_url, facts_to_update)
+    assert_response_status(response_status, expected_status=400)
