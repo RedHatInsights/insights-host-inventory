@@ -12,6 +12,7 @@ from app.config import RuntimeEnvironment
 from app.models import Host
 from app.queue.queue import handle_message
 from tests.test_utils import ACCOUNT
+from tests.test_utils import generate_uuid
 from tests.test_utils import get_required_headers
 from tests.test_utils import HOST_URL
 from tests.test_utils import inject_qs
@@ -42,6 +43,7 @@ def new_flask_app(database):
 @pytest.fixture(scope="function")
 def flask_app(new_flask_app):
     with new_flask_app.app_context() as ctx:
+        new_flask_app.event_producer = MockEventProducer()
         db.create_all()
         ctx.push()
 
@@ -72,6 +74,20 @@ def api_create_or_update_host(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_patch_host(flask_client):
+    def _api_patch_host(host_id, host_data, query_parameters=None, headers=None):
+        url = f"{HOST_URL}/{host_id}"
+        url = inject_qs(url, **query_parameters) if query_parameters else url
+        headers = headers or {}
+
+        response = flask_client.patch(url, data=json.dumps(host_data), headers={**get_required_headers(), **headers})
+
+        return response.status_code
+
+    return _api_patch_host
+
+
+@pytest.fixture(scope="function")
 def api_get_host(flask_client):
     def _api_get_host(url, query_parameters=None):
         url = inject_qs(url, **query_parameters) if query_parameters else url
@@ -85,7 +101,8 @@ def api_get_host(flask_client):
 
 @pytest.fixture(scope="function")
 def api_delete_host(flask_client):
-    def _api_delete_host(url, query_parameters=None, headers=None):
+    def _api_delete_host(host_id, query_parameters=None, headers=None):
+        url = f"{HOST_URL}/{host_id}"
         url = inject_qs(url, **query_parameters) if query_parameters else url
         headers = headers or {}
 
@@ -108,6 +125,14 @@ def db_get_host(flask_app):
 
 
 @pytest.fixture(scope="function")
+def db_get_hosts(flask_app):
+    def _db_get_hosts(host_ids):
+        return Host.query.filter(Host.id.in_(host_ids))
+
+    return _db_get_hosts
+
+
+@pytest.fixture(scope="function")
 def db_get_host_by_insights_id(flask_app):
     def _db_get_host_by_insights_id(insights_id):
         return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
@@ -117,13 +142,29 @@ def db_get_host_by_insights_id(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host(flask_app):
-    def _db_create_host(canonical_facts, display_name=None, account=ACCOUNT):
-        host = Host(canonical_facts, display_name=display_name, account=account)
+    def _db_create_host(host=None):
+        host = host or Host({"insights_id": generate_uuid()}, account=ACCOUNT)
         db.session.add(host)
         db.session.commit()
         return host
 
     return _db_create_host
+
+
+@pytest.fixture(scope="function")
+def db_create_multiple_hosts(flask_app):
+    def _db_create_multiple_hosts(how_many=10):
+        hosts = []
+        for _ in range(how_many):
+            host = Host({"insights_id": generate_uuid()}, account=ACCOUNT)
+            hosts.append(host)
+            db.session.add(host)
+
+        db.session.commit()
+
+        return hosts
+
+    return _db_create_multiple_hosts
 
 
 @pytest.fixture(scope="function")
@@ -148,13 +189,10 @@ def mq_create_or_update_host(handle_msg, event_producer_mock):
 
 @pytest.fixture(scope="function")
 def event_producer_mock(flask_app):
-    flask_app.event_producer = MockEventProducer()
-
-    yield flask_app.event_producer
-
-    flask_app.event_producer = None
+    return flask_app.event_producer
 
 
 @pytest.fixture(scope="function")
 def event_datetime_mock(mocker):
-    return mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})
+    mock = mocker.patch("app.queue.events.datetime", **{"now.return_value": now()})
+    return mock.now.return_value

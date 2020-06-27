@@ -18,7 +18,9 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
+from app.models import Host
 from app.utils import HostWrapper
+from app.utils import Tag
 from lib.host_repository import find_existing_host
 
 HOST_URL = "/api/inventory/v1/hosts"
@@ -69,6 +71,15 @@ def wrap_message(host_data, operation="add_host", platform_metadata=None):
         message["platform_metadata"] = platform_metadata
 
     return message
+
+
+def get_staleness_timestamps():
+    return {
+        "fresh": now() + timedelta(hours=1),
+        "stale": now(),
+        "stale_warning": now() - timedelta(weeks=1),
+        "culled": now() - timedelta(weeks=2),
+    }
 
 
 @contextlib.contextmanager
@@ -177,6 +188,39 @@ def minimal_host(**values):
     return HostWrapper(data)
 
 
+def minimal_db_host(**values):
+    data = {
+        "account": ACCOUNT,
+        "canonical_facts": {"insights_id": generate_uuid()},
+        "stale_timestamp": now().isoformat(),
+        "reporter": "test-reporter",
+        **values,
+    }
+    return Host(**data)
+
+
+def db_host():
+    return Host(
+        account=ACCOUNT,
+        display_name="test-display-name",
+        ansible_host="test-ansible-host",
+        canonical_facts={
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
+            "bios_uuid": generate_uuid(),
+            "fqdn": "test-fqdn",
+            "satellite_id": generate_uuid(),
+            "rhel_machine_id": generate_uuid(),
+            "ip_addresses": ["10.0.0.1"],
+            "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
+        },
+        facts={"namespace": "ns1", "facts": {"key1": "value1"}},
+        tags={"NS1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
+        stale_timestamp=now().isoformat(),
+        reporter="test-reporter",
+    )
+
+
 def assert_host_was_updated(original_host, updated_host):
     assert updated_host["status"] == 200
     assert updated_host["host"]["id"] == original_host["host"]["id"]
@@ -283,6 +327,54 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
 
     if expected_metadata:
         assert event["metadata"] == expected_metadata
+
+
+def assert_patch_event_is_valid(host, event_producer, expected_request_id, expected_timestamp):
+    event = json.loads(event_producer.event)
+
+    assert isinstance(event, dict)
+
+    expected_event = {
+        "type": "updated",
+        "host": {
+            "id": str(host.id),
+            "account": host.account,
+            "display_name": "patch_event_test",
+            "ansible_host": host.ansible_host,
+            "fqdn": host.canonical_facts.get("fqdn"),
+            "insights_id": host.canonical_facts.get("insights_id"),
+            "bios_uuid": host.canonical_facts.get("bios_uuid"),
+            "ip_addresses": host.canonical_facts.get("ip_addresses"),
+            "mac_addresses": host.canonical_facts.get("mac_addresses"),
+            "rhel_machine_id": host.canonical_facts.get("rhel_machine_id"),
+            "satellite_id": host.canonical_facts.get("satellite_id"),
+            "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
+            "system_profile": host.system_profile_facts,
+            "external_id": None,
+            "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
+            "reporter": host.reporter,
+            "stale_timestamp": host.stale_timestamp.isoformat(),
+            "stale_warning_timestamp": (host.stale_timestamp + timedelta(weeks=1)).isoformat(),
+            "culled_timestamp": (host.stale_timestamp + timedelta(weeks=2)).isoformat(),
+            "created": host.created_on.isoformat(),
+        },
+        "platform_metadata": None,
+        "metadata": {"request_id": expected_request_id},
+        "timestamp": expected_timestamp.isoformat(),
+    }
+
+    # We don't have this information without retrieving the host after the patch request
+    del event["host"]["updated"]
+
+    assert event == expected_event
+    assert event_producer.key == str(host.id)
+    assert event_producer.headers == {"event_type": "updated"}
+
+
+def build_host_id_list_for_url(host_list):
+    host_id_list = [str(h.id) for h in host_list]
+
+    return ",".join(host_id_list)
 
 
 def inject_qs(url, **kwargs):

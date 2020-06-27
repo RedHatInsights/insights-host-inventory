@@ -2,18 +2,20 @@ from pytest import mark
 
 from tests.test_utils import assert_host_exists
 from tests.test_utils import generate_uuid
+from tests.test_utils import minimal_db_host
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
     fqdn = "fred.flintstone.com"
     canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid(), "rhel_machine_id": generate_uuid()}
 
-    host = db_create_host(canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host)
 
     # Create the subset of canonical facts to search by
     subset_canonical_facts = {"fqdn": fqdn}
 
-    assert_host_exists(host.id, subset_canonical_facts)
+    assert_host_exists(created_host.id, subset_canonical_facts)
 
 
 def test_find_host_using_superset_canonical_fact_match(db_create_host):
@@ -24,9 +26,10 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
     superset_canonical_facts["rhel_machine_id"] = generate_uuid()
     superset_canonical_facts["satellite_id"] = generate_uuid()
 
-    host = db_create_host(canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host)
 
-    assert_host_exists(host.id, superset_canonical_facts)
+    assert_host_exists(created_host.id, superset_canonical_facts)
 
 
 def test_find_host_using_insights_id_match(db_create_host):
@@ -39,9 +42,10 @@ def test_find_host_using_insights_id_match(db_create_host):
         "insights_id": canonical_facts["insights_id"],
     }
 
-    host = db_create_host(canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host)
 
-    assert_host_exists(host.id, search_canonical_facts)
+    assert_host_exists(created_host.id, search_canonical_facts)
 
 
 def test_find_host_using_subscription_manager_id_match(db_create_host):
@@ -53,9 +57,10 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
         "subscription_manager_id": canonical_facts["subscription_manager_id"],
     }
 
-    host = db_create_host(canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
+    created_host = db_create_host(host)
 
-    assert_host_exists(host.id, search_canonical_facts)
+    assert_host_exists(created_host.id, search_canonical_facts)
 
 
 @mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
@@ -64,7 +69,8 @@ def test_find_host_using_elevated_ids_match(db_create_host, host_create_order, e
 
     created_hosts = []
     for host_canonical_facts in host_create_order:
-        created_host = db_create_host(hosts_canonical_facts[host_canonical_facts])
+        host = minimal_db_host(canonical_facts=hosts_canonical_facts[host_canonical_facts])
+        created_host = db_create_host(host)
         created_hosts.append(created_host)
 
     search_canonical_facts = {

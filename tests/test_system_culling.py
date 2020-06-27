@@ -2,25 +2,25 @@
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from unittest import main
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 
-from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import APIBaseTestCase
 from .test_api_utils import DBAPITestCase
 from .test_api_utils import generate_uuid
 from .test_api_utils import now
 from .test_utils import ACCOUNT
+from .test_utils import assert_delete_event_is_valid
+from .test_utils import get_staleness_timestamps
 from .test_utils import HOST_URL
-from .test_utils import minimal_host
+from .test_utils import minimal_db_host
 from app import db
+from app import threadctx
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.models import Host
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
-from tests.test_utils import MockEventProducer
 
 
 class CullingBaseTestCase(APIBaseTestCase):
@@ -268,88 +268,73 @@ class QueryStalenessConfigTimestampsTestCase(QueryStalenessBaseTestCase):
                 self.assertEqual(culled_timestamp.isoformat(), host["culled_timestamp"])
 
 
-class HostReaperTestCase(DeleteHostsBaseTestCase, CullingBaseTestCase):
-    def setUp(self):
-        super().setUp()
-        self.now_timestamp = datetime.now(timezone.utc)
-        self.staleness_timestamps = {
-            "fresh": self.now_timestamp + timedelta(hours=1),
-            "stale": self.now_timestamp,
-            "stale_warning": self.now_timestamp - timedelta(weeks=1),
-            "culled": self.now_timestamp - timedelta(weeks=2),
-        }
-        self.event_producer = MockEventProducer()
+@pytest.mark.host_reaper
+def test_culled_host_is_removed(event_producer_mock, event_datetime_mock, db_create_host, db_get_host, flask_app):
+    staleness_timestamps = get_staleness_timestamps()
 
-    def _run_host_reaper(self):
-        with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
-            with self.app.app_context():
-                config = self.app.config["INVENTORY_CONFIG"]
-                host_reaper_run(config, mock.Mock(), db.session, self.event_producer)
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter")
+    created_host = db_create_host(host)
+    retrieved_host = db_get_host(created_host.id)
 
-    def _add_hosts(self, data):
-        post = []
-        for d in data:
-            host = minimal_host(insights_id=generate_uuid(), **d)
-            post.append(host.data())
+    assert retrieved_host
 
-        response = self.post(HOST_URL, post, 207)
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
 
-        hosts = []
-        for i in range(len(data)):
-            self._verify_host_status(response, i, 201)
-            added_host = self._pluck_host_from_response(response, i)
-            hosts.append(HostWrapper(added_host))
+    retrieved_host = db_get_host(created_host.id)
 
-        return hosts
+    assert not retrieved_host
 
-    def _get_hosts(self, host_ids):
-        url_part = ",".join(host_ids)
-        return self.get(f"{HOST_URL}/{url_part}")
-
-    @pytest.mark.host_reaper
-    def test_culled_host_is_removed(self):
-        with self.app.app_context():
-            added_host = self._add_hosts(
-                ({"stale_timestamp": self.staleness_timestamps["culled"].isoformat(), "reporter": "some reporter"},)
-            )[0]
-            self._check_hosts_are_present((added_host.id,))
-
-            self._run_host_reaper()
-            self._check_hosts_are_deleted((added_host.id,))
-
-            self._assert_event_is_valid(self.event_producer, added_host, self.now_timestamp)
-
-    @pytest.mark.host_reaper
-    def test_non_culled_host_is_not_removed(self):
-        hosts_to_add = []
-        for stale_timestamp in (
-            self.staleness_timestamps["stale_warning"],
-            self.staleness_timestamps["stale"],
-            self.staleness_timestamps["fresh"],
-        ):
-            hosts_to_add.append({"stale_timestamp": stale_timestamp.isoformat(), "reporter": "some reporter"})
-
-        added_hosts = self._add_hosts(hosts_to_add)
-        added_host_ids = tuple(host.id for host in added_hosts)
-        self._check_hosts_are_present(added_host_ids)
-
-        self._run_host_reaper()
-        self._check_hosts_are_present(added_host_ids)
-        self.assertIsNone(self.event_producer.event)
-
-    @pytest.mark.host_reaper
-    def test_unknown_host_is_not_removed(self):
-        with self.app.app_context():
-            added_hosts = self._add_hosts(({},))
-            added_host_id = added_hosts[0].id
-            self._check_hosts_are_present((added_host_id,))
-
-            self._nullify_culling_fields(added_host_id)
-
-            self._run_host_reaper()
-            self._check_hosts_are_present((added_host_id,))
-            self.assertIsNone(self.event_producer.event)
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
 
 
-if __name__ == "__main__":
-    main()
+@pytest.mark.host_reaper
+def test_non_culled_host_is_not_removed(
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, flask_app
+):
+    staleness_timestamps = get_staleness_timestamps()
+    created_hosts = []
+
+    for stale_timestamp in (
+        staleness_timestamps["stale_warning"],
+        staleness_timestamps["stale"],
+        staleness_timestamps["fresh"],
+    ):
+        host = minimal_db_host(stale_timestamp=stale_timestamp.isoformat(), reporter="some reporter")
+        created_host = db_create_host(host)
+        created_hosts.append(created_host)
+
+    created_host_ids = [host.id for host in created_hosts]
+    retrieved_hosts = db_get_hosts(created_host_ids)
+
+    assert created_host_ids == [host.id for host in retrieved_hosts]
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
+
+    retrieved_hosts = db_get_hosts(created_host_ids)
+
+    assert created_host_ids == [host.id for host in retrieved_hosts]
+    assert event_producer_mock.event is None
+
+
+@pytest.mark.host_reaper
+def test_unknown_host_is_not_removed(event_producer_mock, db_create_host, db_get_host, flask_app):
+    host = minimal_db_host()
+    host.stale_timestamp = None
+    host.reporter = None
+
+    created_host = db_create_host(host)
+    retrieved_host = db_get_host(created_host.id)
+
+    assert retrieved_host
+    assert retrieved_host.stale_timestamp is None
+    assert retrieved_host.reporter is None
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
+
+    retrieved_host = db_get_host(created_host.id)
+
+    assert retrieved_host
+    assert event_producer_mock.event is None

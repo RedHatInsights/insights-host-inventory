@@ -65,7 +65,7 @@ def test_handle_message_failure_invalid_message_format(mocker):
 def test_handle_message_happy_path(mocker, event_datetime_mock, handle_msg):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.isoformat()
     message = {
         "operation": "add_host",
         "data": {
@@ -194,7 +194,7 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     Tests adding a host with some simple data
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -218,7 +218,7 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
      Tests adding a host with message containing system profile
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -243,7 +243,7 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
      Tests adding a host with message containing tags
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.isoformat()
 
     host_data = {
         "display_name": "test_host",
@@ -711,7 +711,7 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
     and stale_timestamp set.
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.now.return_value.isoformat()
+    timestamp_iso = event_datetime_mock.isoformat()
     stale_timestamp = datetime.now(timezone.utc)
 
     host_data = {
