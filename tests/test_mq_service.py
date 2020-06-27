@@ -62,7 +62,7 @@ def test_handle_message_failure_invalid_message_format(mocker):
     mock_event_producer.assert_not_called()
 
 
-def test_handle_message_happy_path(mocker, event_datetime_mock, handle_msg):
+def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
@@ -80,8 +80,8 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, handle_msg):
         "app.queue.queue.add_host", return_value=({"id": host_id, "insights_id": None}, AddHostResult.created)
     )
     mock_event_producer = mocker.Mock()
-    handle_msg(message, mock_event_producer)
 
+    handle_message(json.dumps(message), mock_event_producer)
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {

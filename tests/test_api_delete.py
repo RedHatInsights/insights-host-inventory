@@ -54,7 +54,7 @@ def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -83,7 +83,7 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 

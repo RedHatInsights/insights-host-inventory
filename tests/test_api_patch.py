@@ -142,7 +142,7 @@ def test_patch_produces_update_event_with_request_id(
     host = db_host()
     created_host = db_create_host(host)
 
-    response_status, response_data = api_patch_host(f"{HOST_URL}/{created_host.id}", patch_doc, headers=headers)
+    response_status, response_data = api_patch_host(f"{HOST_URL}/{created_host.id}", patch_doc, extra_headers=headers)
     assert_response_status(response_status, expected_status=200)
 
     assert_patch_event_is_valid(

@@ -12,9 +12,8 @@ from app.config import RuntimeEnvironment
 from app.models import Host
 from app.queue.queue import handle_message
 from tests.utils import now
-from tests.utils.api_utils import get_required_headers
+from tests.utils.api_utils import do_request
 from tests.utils.api_utils import HOST_URL
-from tests.utils.api_utils import inject_qs
 from tests.utils.db_utils import minimal_db_host
 from tests.utils.mq_utils import MockEventProducer
 from tests.utils.mq_utils import wrap_message
@@ -60,69 +59,42 @@ def flask_client(flask_app):
 
 @pytest.fixture(scope="function")
 def api_create_or_update_host(flask_client):
-    def _api_create_or_update_host(host_data, query_parameters=None, auth_type="account_number"):
-        payload = [item.data() for item in host_data]
-
-        url = inject_qs(HOST_URL, **query_parameters) if query_parameters else HOST_URL
-
-        response = flask_client.post(url, data=json.dumps(payload), headers=get_required_headers(auth_type))
-
-        return response.status_code, json.loads(response.data)
+    def _api_create_or_update_host(host_data, query_parameters=None, extra_headers=None, auth_type="account_number"):
+        data = [item.data() for item in host_data]
+        return do_request(flask_client.post, HOST_URL, data, query_parameters, extra_headers, auth_type)
 
     return _api_create_or_update_host
 
 
 @pytest.fixture(scope="function")
 def api_patch_host(flask_client):
-    def _api_patch_host(url, host_data, query_parameters=None, headers=None):
-        url = inject_qs(url, **query_parameters) if query_parameters else url
-        headers = headers or {}
-
-        response = flask_client.patch(url, data=json.dumps(host_data), headers={**get_required_headers(), **headers})
-
-        return response.status_code, json.loads(response.data)
+    def _api_patch_host(url, host_data, query_parameters=None, extra_headers=None):
+        return do_request(flask_client.patch, url, host_data, query_parameters, extra_headers)
 
     return _api_patch_host
 
 
 @pytest.fixture(scope="function")
 def api_put_host(flask_client):
-    def _api_put_host(url, host_data, query_parameters=None, headers=None):
-        url = inject_qs(url, **query_parameters) if query_parameters else url
-        headers = headers or {}
-
-        response = flask_client.put(url, data=json.dumps(host_data), headers={**get_required_headers(), **headers})
-
-        return response.status_code, json.loads(response.data)
+    def _api_put_host(url, host_data, query_parameters=None, extra_headers=None):
+        return do_request(flask_client.put, url, host_data, query_parameters, extra_headers)
 
     return _api_put_host
 
 
 @pytest.fixture(scope="function")
 def api_get_host(flask_client):
-    def _api_get_host(url, query_parameters=None):
-        url = inject_qs(url, **query_parameters) if query_parameters else url
-
-        response = flask_client.get(url, headers=get_required_headers())
-
-        return response.status_code, json.loads(response.data)
+    def _api_get_host(url, query_parameters=None, extra_headers=None):
+        return do_request(flask_client.get, url, query_parameters=query_parameters, extra_headers=extra_headers)
 
     return _api_get_host
 
 
 @pytest.fixture(scope="function")
 def api_delete_host(flask_client):
-    def _api_delete_host(host_id, query_parameters=None, headers=None):
+    def _api_delete_host(host_id, query_parameters=None, extra_headers=None):
         url = f"{HOST_URL}/{host_id}"
-        url = inject_qs(url, **query_parameters) if query_parameters else url
-        headers = headers or {}
-
-        response = flask_client.delete(url, headers={**get_required_headers(), **headers})
-
-        if response.status_code == 200:
-            return response.status_code, {}
-
-        return response.status_code, json.loads(response.data)
+        return do_request(flask_client.delete, url, query_parameters=query_parameters, extra_headers=extra_headers)
 
     return _api_delete_host
 
@@ -186,21 +158,12 @@ def db_create_multiple_hosts(flask_app):
 
 
 @pytest.fixture(scope="function")
-def handle_msg(flask_app):
-    def _handle_msg(message, producer):
-        with flask_app.app_context():
-            handle_message(json.dumps(message), producer)
-
-    return _handle_msg
-
-
-@pytest.fixture(scope="function")
-def mq_create_or_update_host(handle_msg, event_producer_mock):
-    def _mq_create_or_update_host(host_data, platform_metadata=None):
+def mq_create_or_update_host(flask_app, event_producer_mock):
+    def _mq_create_or_update_host(host_data, platform_metadata=None, event_producer=event_producer_mock):
         message = wrap_message(host_data=host_data, platform_metadata=platform_metadata)
-        handle_msg(message, event_producer_mock)
+        handle_message(json.dumps(message), event_producer)
 
-        return event_producer_mock.key, json.loads(event_producer_mock.event), event_producer_mock.headers
+        return event_producer_mock.key, json.loads(event_producer.event), event_producer.headers
 
     return _mq_create_or_update_host
 

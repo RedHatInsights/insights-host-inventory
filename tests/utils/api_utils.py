@@ -28,6 +28,25 @@ FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 SHARED_SECRET = "SuperSecretStuff"
 
 
+def do_request(func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number"):
+    url = inject_qs(url, **query_parameters) if query_parameters else url
+    headers = get_required_headers(auth_type)
+    if extra_headers:
+        headers = {**headers, **extra_headers}
+
+    if func.__name__ in ("post", "patch", "put"):
+        response = func(url, data=json.dumps(data), headers=headers)
+    else:
+        response = func(url, headers=headers)
+
+    try:
+        response_data = json.loads(response.data)
+    except ValueError:
+        response_data = {}
+
+    return response.status_code, response_data
+
+
 def get_valid_auth_header(auth_type="account_number"):
     if auth_type == "account_number":
         return build_account_auth_header()
