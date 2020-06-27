@@ -7,6 +7,10 @@ from tests.utils import ACCOUNT
 from tests.utils import generate_uuid
 from tests.utils import now
 
+DB_FACTS_NAMESPACE = "ns1"
+DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
+DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+
 
 def minimal_db_host(**values):
     data = {
@@ -41,6 +45,15 @@ def db_host(**values):
         **values,
     }
     return Host(**data)
+
+
+def get_expected_facts_after_update(method, namespace, facts, new_facts):
+    if method == "add":
+        facts[namespace].update(new_facts)
+    elif method == "replace":
+        facts[namespace] = new_facts
+
+    return facts
 
 
 def assert_host_exists_in_db(host_id, search_canonical_facts, account=ACCOUNT):
