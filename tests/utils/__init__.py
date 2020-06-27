@@ -5,6 +5,9 @@ import uuid
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from random import randint
+
+from app.utils import HostWrapper
 
 NS = "testns"
 ID = "whoabuddy"
@@ -38,6 +41,19 @@ def set_environment(new_env=None):
     os.environ.update(new_env)
     yield
     patched_dict.stop()
+
+
+def minimal_host(**values):
+    data = {
+        "account": ACCOUNT,
+        "display_name": "hi",
+        "ip_addresses": ["10.10.0.1"],
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "reporter": "test",
+        **values,
+    }
+
+    return HostWrapper(data)
 
 
 def valid_system_profile():

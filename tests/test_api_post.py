@@ -8,6 +8,7 @@ from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
 from tests.utils import ACCOUNT
 from tests.utils import generate_uuid
+from tests.utils import minimal_host
 from tests.utils import now
 from tests.utils import valid_system_profile
 from tests.utils.api_utils import assert_error_response
@@ -20,7 +21,6 @@ from tests.utils.api_utils import FACTS
 from tests.utils.api_utils import get_host_from_multi_response
 from tests.utils.api_utils import get_host_from_response
 from tests.utils.api_utils import HOST_URL
-from tests.utils.api_utils import minimal_host
 from tests.utils.api_utils import SHARED_SECRET
 
 

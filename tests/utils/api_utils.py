@@ -3,7 +3,6 @@ from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from random import randint
 from struct import unpack
 from urllib.parse import parse_qs
 from urllib.parse import quote_plus as url_quote
@@ -14,9 +13,7 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from app.utils import HostWrapper
 from tests.utils import ACCOUNT
-from tests.utils import now
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -80,19 +77,6 @@ def get_host_from_response(response, index=0):
 
 def get_host_from_multi_response(response, host_index=0):
     return response["data"][host_index]
-
-
-def minimal_host(**values):
-    data = {
-        "account": ACCOUNT,
-        "display_name": "hi",
-        "ip_addresses": ["10.10.0.1"],
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
-        "reporter": "test",
-        **values,
-    }
-
-    return HostWrapper(data)
 
 
 def assert_host_was_updated(original_host, updated_host):

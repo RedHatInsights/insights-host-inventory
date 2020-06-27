@@ -15,8 +15,8 @@ from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
 from tests.utils import generate_uuid
+from tests.utils import minimal_host
 from tests.utils import valid_system_profile
-from tests.utils.api_utils import minimal_host
 from tests.utils.mq_utils import assert_mq_host_data
 
 
