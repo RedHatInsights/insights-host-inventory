@@ -3,9 +3,9 @@ from base64 import b64encode
 from json import dumps
 
 from app.auth.identity import Identity
-from tests.utils import set_environment
-from tests.utils.api_utils import build_token_auth_header
-from tests.utils.api_utils import HOST_URL
+from tests.helpers.api_utils import build_token_auth_header
+from tests.helpers.api_utils import HOST_URL
+from tests.helpers.test_utils import set_environment
 
 
 def valid_identity():

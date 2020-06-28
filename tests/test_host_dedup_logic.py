@@ -1,8 +1,8 @@
 from pytest import mark
 
-from tests.utils import generate_uuid
-from tests.utils.db_utils import assert_host_exists_in_db
-from tests.utils.db_utils import minimal_db_host
+from tests.helpers.db_utils import assert_host_exists_in_db
+from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):

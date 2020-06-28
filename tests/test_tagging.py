@@ -5,11 +5,11 @@ from sqlalchemy import null
 
 from app import db
 from app.models import Host
+from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import inject_qs
+from tests.helpers.test_utils import generate_uuid
 from tests.test_api_utils import PaginationBaseTestCase
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
-from tests.utils import generate_uuid
-from tests.utils.api_utils import HOST_URL
-from tests.utils.api_utils import inject_qs
 
 
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):

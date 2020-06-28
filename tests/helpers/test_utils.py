@@ -1,10 +1,12 @@
 import contextlib
 import os
+import string
 import unittest.mock
 import uuid
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from random import choice
 from random import randint
 
 from app.utils import HostWrapper
@@ -19,16 +21,21 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+def generate_random_string(size=10):
+    return "".join(choice(string.ascii_lowercase) for _ in range(size))
+
+
 def now():
     return datetime.now(timezone.utc)
 
 
 def get_staleness_timestamps():
+    current_timestamp = now()
     return {
-        "fresh": now() + timedelta(hours=1),
-        "stale": now(),
-        "stale_warning": now() - timedelta(weeks=1),
-        "culled": now() - timedelta(weeks=2),
+        "fresh": current_timestamp + timedelta(hours=1),
+        "stale": current_timestamp,
+        "stale_warning": current_timestamp - timedelta(weeks=1),
+        "culled": current_timestamp - timedelta(weeks=2),
     }
 
 
@@ -46,10 +53,10 @@ def set_environment(new_env=None):
 def minimal_host(**values):
     data = {
         "account": ACCOUNT,
-        "display_name": "hi",
+        "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
-        "reporter": "test",
+        "reporter": "test" + generate_random_string(),
         **values,
     }
 
@@ -114,3 +121,14 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
+
+
+def assert_system_culling_data(response_host, expected_stale_timestamp, expected_reporter):
+    assert "stale_timestamp" in response_host
+    assert "stale_warning_timestamp" in response_host
+    assert "culled_timestamp" in response_host
+    assert "reporter" in response_host
+    assert response_host["stale_timestamp"] == expected_stale_timestamp.isoformat()
+    assert response_host["stale_warning_timestamp"] == (expected_stale_timestamp + timedelta(weeks=1)).isoformat()
+    assert response_host["culled_timestamp"] == (expected_stale_timestamp + timedelta(weeks=2)).isoformat()
+    assert response_host["reporter"] == expected_reporter

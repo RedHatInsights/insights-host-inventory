@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 
 import marshmallow
 import pytest
@@ -14,10 +13,12 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
-from tests.utils import generate_uuid
-from tests.utils import minimal_host
-from tests.utils import valid_system_profile
-from tests.utils.mq_utils import assert_mq_host_data
+from tests.helpers.mq_utils import assert_mq_host_data
+from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import now
+from tests.helpers.test_utils import valid_system_profile
 
 
 def test_event_loop_exception_handling(mocker, flask_app):
@@ -66,22 +67,16 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
-    message = {
-        "operation": "add_host",
-        "data": {
-            "insights_id": expected_insights_id,
-            "account": "0000001",
-            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
-            "reporter": "test",
-        },
-    }
 
     mocker.patch(
         "app.queue.queue.add_host", return_value=({"id": host_id, "insights_id": None}, AddHostResult.created)
     )
     mock_event_producer = mocker.Mock()
 
+    host = minimal_host(insights_id=expected_insights_id)
+    message = wrap_message(host.data())
     handle_message(json.dumps(message), mock_event_producer)
+
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
@@ -157,20 +152,19 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host = minimal_host()
     metadata = {"request_id": generate_uuid(), "archive_url": "https://some.url"}
 
-    key, event, headers = mq_create_or_update_host(host_data=host.data(), platform_metadata=metadata)
+    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
 
     assert event["platform_metadata"] == metadata
 
 
 def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_create_or_update_host):
-    add_host = mocker.patch("app.queue.queue.add_host")
-
     host = minimal_host(id=generate_uuid())
     host_data = host.data()
 
+    add_host = mocker.patch("app.queue.queue.add_host")
     add_host.return_value = (host_data, AddHostResult.created)
 
-    key, event, headers = mq_create_or_update_host(host_data=host.data())
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert key == host_data["id"]
     assert event["host"] == host_data
@@ -178,13 +172,12 @@ def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_
 
 @pytest.mark.parametrize("add_host_result", AddHostResult)
 def test_handle_message_verify_message_headers(mocker, add_host_result, mq_create_or_update_host):
-    add_host = mocker.patch("app.queue.queue.add_host")
-
     host = minimal_host(id=generate_uuid())
 
+    add_host = mocker.patch("app.queue.queue.add_host")
     add_host.return_value = (host.data(), add_host_result)
 
-    key, event, headers = mq_create_or_update_host(host_data=host.data())
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert headers == {"event_type": add_host_result.name}
 
@@ -196,19 +189,18 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     expected_insights_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
 
-    host_data = {
-        "display_name": "test_host",
-        "insights_id": expected_insights_id,
-        "account": "0000001",
-        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
-        "reporter": "test",
-    }
+    host = minimal_host(insights_id=expected_insights_id)
 
-    expected_results = {"host": {**host_data}, "platform_metadata": {}, "timestamp": timestamp_iso, "type": "created"}
+    expected_results = {
+        "host": {**host.data()},
+        "platform_metadata": {},
+        "timestamp": timestamp_iso,
+        "type": "created",
+    }
 
     host_keys_to_check = ["display_name", "insights_id", "account"]
 
-    key, event, headers = mq_create_or_update_host(host_data)
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
@@ -218,22 +210,21 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
      Tests adding a host with message containing system profile
     """
     expected_insights_id = generate_uuid()
+    expected_system_profile = valid_system_profile()
     timestamp_iso = event_datetime_mock.isoformat()
 
-    host_data = {
-        "display_name": "test_host",
-        "insights_id": expected_insights_id,
-        "account": "0000001",
-        "system_profile": valid_system_profile(),
-        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
-        "reporter": "test",
-    }
+    host = minimal_host(insights_id=expected_insights_id, system_profile=expected_system_profile)
 
-    expected_results = {"host": {**host_data}, "platform_metadata": {}, "timestamp": timestamp_iso, "type": "created"}
+    expected_results = {
+        "host": {**host.data()},
+        "platform_metadata": {},
+        "timestamp": timestamp_iso,
+        "type": "created",
+    }
 
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
-    key, event, headers = mq_create_or_update_host(host_data)
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
@@ -243,49 +234,34 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
      Tests adding a host with message containing tags
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.isoformat()
-
-    host_data = {
-        "display_name": "test_host",
-        "insights_id": expected_insights_id,
-        "account": "0000001",
-        "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
-        "reporter": "test",
-        "tags": [
-            {"namespace": "NS1", "key": "key3", "value": "val3"},
-            {"namespace": "NS3", "key": "key2", "value": "val2"},
-            {"namespace": "Sat", "key": "prod", "value": None},
-            {"namespace": "Sat", "key": "dev", "value": ""},
-            {"namespace": "Sat", "key": "test"},
-            {"namespace": None, "key": "key", "value": "val1"},
-            {"namespace": "", "key": "key", "value": "val4"},
-            {"namespace": "null", "key": "key", "value": "val5"},
-            {"namespace": None, "key": "only_key", "value": None},
-            {"key": "just_key"},
-            {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
-        ],
-    }
-
-    expected_results = {"host": {**host_data}, "platform_metadata": {}, "timestamp": timestamp_iso, "type": "created"}
-    host_keys_to_check = ["display_name", "insights_id", "account"]
-
-    key, event, headers = mq_create_or_update_host(host_data)
-
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
     expected_tags = [
         {"namespace": "NS1", "key": "key3", "value": "val3"},
         {"namespace": "NS3", "key": "key2", "value": "val2"},
         {"namespace": "Sat", "key": "prod", "value": None},
-        {"namespace": "Sat", "key": "dev", "value": None},
-        {"namespace": "Sat", "key": "test", "value": None},
+        {"namespace": "Sat", "key": "dev", "value": ""},
+        {"namespace": "Sat", "key": "test"},
         {"namespace": None, "key": "key", "value": "val1"},
-        {"namespace": None, "key": "key", "value": "val4"},
-        {"namespace": None, "key": "key", "value": "val5"},
+        {"namespace": "", "key": "key", "value": "val4"},
+        {"namespace": "null", "key": "key", "value": "val5"},
         {"namespace": None, "key": "only_key", "value": None},
-        {"namespace": None, "key": "just_key", "value": None},
+        {"key": "just_key"},
         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
+    timestamp_iso = event_datetime_mock.isoformat()
+
+    host = minimal_host(insights_id=expected_insights_id, tags=expected_tags)
+
+    expected_results = {
+        "host": {**host.data()},
+        "platform_metadata": {},
+        "timestamp": timestamp_iso,
+        "type": "created",
+    }
+    host_keys_to_check = ["display_name", "insights_id", "account"]
+
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
     assert len(event["host"]["tags"]) == len(expected_tags)
 
@@ -309,7 +285,7 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
     host = minimal_host(insights_id=insights_id, tags=[tag])
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
@@ -318,7 +294,7 @@ def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
     host = minimal_host(insights_id=insights_id, system_profile=system_profile)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize(
@@ -333,7 +309,7 @@ def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
     host = minimal_host(insights_id=insights_id, facts=facts)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
@@ -342,7 +318,7 @@ def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_upd
     host = minimal_host(insights_id=insights_id, stale_timestamp=stale_timestamp)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))
@@ -350,7 +326,7 @@ def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_in
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, **tags)
 
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -372,7 +348,7 @@ def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insight
 
     host = minimal_host(insights_id=insights_id, tags=tags)
 
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -395,7 +371,7 @@ def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insight
     }
     host = minimal_host(insights_id=insights_id, tags=tags)
 
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -432,17 +408,17 @@ def test_add_host_with_invalid_tags_2(tags, mq_create_or_update_host):
     host = minimal_host(insights_id=insights_id, tags=tags)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
 
     host = minimal_host(display_name="test_host", insights_id=insights_id)
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     host = minimal_host(display_name="better_test_host", insights_id=insights_id)
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -458,10 +434,10 @@ def test_display_name_ignored_for_blacklisted_reporters(
     """
     insights_id = generate_uuid()
     host = minimal_host(display_name="test_host", insights_id=insights_id, reporter="puptoo")
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     host = minimal_host(display_name="yupana_test_host", insights_id=insights_id, reporter=reporter)
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -483,7 +459,7 @@ def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insig
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -504,7 +480,7 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -516,7 +492,7 @@ def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_ge
     # FIXME: Remove this test after migration to NOT NULL.
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id)
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     created_host = db_get_host_by_insights_id(insights_id)
     created_host.tags = empty
@@ -525,8 +501,8 @@ def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_ge
         db.session.add(created_host)
         db.session.commit()
 
-    key, event, headers = mq_create_or_update_host(host_data=host.data())
-    assert [] == event["host"]["tags"]
+    new_host = mq_create_or_update_host(host)
+    assert [] == new_host.tags
 
     updated_host = db_get_host_by_insights_id(insights_id)
     assert {} == updated_host.tags
@@ -585,7 +561,7 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -629,7 +605,7 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -649,7 +625,7 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, **message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -661,7 +637,7 @@ def test_add_host_default_empty_dict(tags, mq_create_or_update_host, db_get_host
     insights_id = generate_uuid()
     host = minimal_host(insights_id=insights_id, **tags)
 
-    mq_create_or_update_host(host_data=host.data())
+    mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
 
@@ -698,7 +674,7 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)
-            mq_create_or_update_host(host_data=host.data())
+            mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
 
@@ -707,24 +683,18 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host):
     """
-    Tests to see if the host is succesfully created with both reporter
+    Tests to see if the host is successfully created with both reporter
     and stale_timestamp set.
     """
     expected_insights_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
-    stale_timestamp = datetime.now(timezone.utc)
+    stale_timestamp = now()
 
-    host_data = {
-        "display_name": "test_host",
-        "insights_id": expected_insights_id,
-        "account": "0000001",
-        "stale_timestamp": stale_timestamp.isoformat(),
-        "reporter": "puptoo",
-    }
+    host = minimal_host(insights_id=expected_insights_id, stale_timestamp=stale_timestamp.isoformat())
 
     expected_results = {
         "host": {
-            **host_data,
+            **host.data(),
             "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
             "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
         },
@@ -735,7 +705,7 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
 
     host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
 
-    key, event, headers = mq_create_or_update_host(host_data)
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
@@ -750,7 +720,7 @@ def test_add_host_stale_timestamp_missing_culling_fields(field_to_remove, mq_cre
     delattr(host, field_to_remove)
 
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize(
@@ -771,7 +741,7 @@ def test_add_host_stale_timestamp_invalid_culling_fields(additional_data, mq_cre
     host = minimal_host(**additional_data)
 
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(host_data=host.data())
+        mq_create_or_update_host(host)
 
 
 def test_valid_string_is_ok():

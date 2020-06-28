@@ -3,7 +3,6 @@ from datetime import datetime
 
 import pytest
 from marshmallow import ValidationError
-from pytest import raises
 from sqlalchemy.exc import DataError
 
 from app import db
@@ -11,9 +10,9 @@ from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
 from app.utils import Tag
-from tests.utils import ACCOUNT
-from tests.utils import generate_uuid
-from tests.utils import now
+from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import now
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -323,5 +322,5 @@ def test_host_model_constraints(field, value, db_create_host):
 
     host = Host(**values)
 
-    with raises(DataError):
+    with pytest.raises(DataError):
         db_create_host(host)

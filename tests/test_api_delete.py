@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 from app.models import Host
 from lib.host_delete import delete_hosts
-from tests.utils import generate_uuid
-from tests.utils.api_utils import assert_response_status
-from tests.utils.mq_utils import assert_delete_event_is_valid
+from tests.helpers.api_utils import assert_response_status
+from tests.helpers.mq_utils import assert_delete_event_is_valid
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_delete_non_existent_host(api_delete_host):

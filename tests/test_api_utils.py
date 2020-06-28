@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import json
-import tempfile
 from unittest import main
 from unittest import TestCase
 
@@ -13,16 +12,12 @@ from app import db
 from app.environment import RuntimeEnvironment
 from app.queue.queue import handle_message
 from app.utils import HostWrapper
-from tests.utils import ACCOUNT
-from tests.utils import generate_uuid
-from tests.utils import now
-from tests.utils import set_environment
-from tests.utils.api_utils import get_valid_auth_header
-from tests.utils.api_utils import HEALTH_URL
-from tests.utils.api_utils import inject_qs
-from tests.utils.api_utils import METRICS_URL
-from tests.utils.api_utils import VERSION_URL
-from tests.utils.mq_utils import MockEventProducer
+from tests.helpers.api_utils import get_valid_auth_header
+from tests.helpers.api_utils import inject_qs
+from tests.helpers.mq_utils import MockEventProducer
+from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import now
 
 
 class APIBaseTestCase(TestCase):
@@ -273,33 +268,6 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
             host_list.append(HostWrapper(host_data))
 
         return host_list
-
-
-class HealthTestCase(APIBaseTestCase):
-    """
-    Tests the health check endpoint.
-    """
-
-    def test_health(self):
-        """
-        The health check simply returns 200 to any GET request. The response body is
-        irrelevant.
-        """
-        response = self.client().get(HEALTH_URL)  # No identity header.
-        self.assertEqual(200, response.status_code)
-
-    def test_metrics(self):
-        """
-        The metrics endpoint simply returns 200 to any GET request.
-        """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with set_environment({"prometheus_multiproc_dir": temp_dir}):
-                response = self.client().get(METRICS_URL)  # No identity header.
-                self.assertEqual(200, response.status_code)
-
-    def test_version(self):
-        response = self.get(VERSION_URL, 200)
-        assert response["version"] is not None
 
 
 if __name__ == "__main__":

@@ -1,15 +1,33 @@
 from datetime import timedelta
 from random import randint
 
+from sqlalchemy.exc import InvalidRequestError
+
+from app.models import db
 from app.models import Host
 from lib.host_repository import find_existing_host
-from tests.utils import ACCOUNT
-from tests.utils import generate_uuid
-from tests.utils import now
+from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import now
 
 DB_FACTS_NAMESPACE = "ns1"
 DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
 DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
+
+
+def clean_tables():
+    def _clean_tables():
+        try:
+            db.session.expire_all()
+            for table in reversed(db.metadata.sorted_tables):
+                db.session.execute(table.delete())
+            db.session.commit()
+        except InvalidRequestError:
+            # Ensures the tables are truncated even if the test expects a SQLException throw
+            db.session.rollback()
+            return _clean_tables()
+
+    _clean_tables()
 
 
 def minimal_db_host(**values):
