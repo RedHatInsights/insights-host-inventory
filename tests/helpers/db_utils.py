@@ -3,8 +3,11 @@ from random import randint
 
 from sqlalchemy.exc import InvalidRequestError
 
+from app.culling import Timestamps
 from app.models import db
 from app.models import Host
+from app.serialization import serialize_host
+from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
 from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
@@ -63,6 +66,25 @@ def db_host(**values):
         **values,
     }
     return Host(**data)
+
+
+def update_host_in_db(host_id, **data_to_update):
+    host = Host.query.get(host_id)
+
+    for attribute, new_value in data_to_update.items():
+        setattr(host, attribute, new_value)
+
+    db.session.add(host)
+    db.session.commit()
+
+    return host
+
+
+def serialize_db_host(host, inventory_config):
+    staleness_offset = Timestamps.from_config(inventory_config)
+    serialized_host = serialize_host(host, staleness_offset)
+
+    return HostWrapper(serialized_host)
 
 
 def get_expected_facts_after_update(method, namespace, facts, new_facts):

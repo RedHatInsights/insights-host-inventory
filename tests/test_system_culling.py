@@ -245,10 +245,11 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 
 
 @pytest.mark.parametrize("culling_stale_warning_offset_days", (1, 7, 12))
-def test_stale_warning_timestamp(culling_stale_warning_offset_days, flask_app, mq_create_or_update_host, api_get):
-    config = flask_app.config["INVENTORY_CONFIG"]
-    original_culling_stale_warning_offset_days = config.culling_stale_warning_offset_days
-    config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+def test_stale_warning_timestamp(
+    culling_stale_warning_offset_days, inventory_config, mq_create_or_update_host, api_get
+):
+    original_culling_stale_warning_offset_days = inventory_config.culling_stale_warning_offset_days
+    inventory_config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
 
     stale_timestamp = now() + timedelta(hours=1)
     host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
@@ -261,14 +262,13 @@ def test_stale_warning_timestamp(culling_stale_warning_offset_days, flask_app, m
     stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
     assert stale_warning_timestamp.isoformat() == response_data["results"][0]["stale_warning_timestamp"]
 
-    config.culling_stale_warning_offset_days = original_culling_stale_warning_offset_days
+    inventory_config.culling_stale_warning_offset_days = original_culling_stale_warning_offset_days
 
 
 @pytest.mark.parametrize("culling_culled_offset_days", (8, 14, 20))
-def test_culled_timestamp(culling_culled_offset_days, flask_app, mq_create_or_update_host, api_get):
-    config = flask_app.config["INVENTORY_CONFIG"]
-    original_culling_culled_offset_days = config.culling_culled_offset_days
-    config.culling_culled_offset_days = culling_culled_offset_days
+def test_culled_timestamp(culling_culled_offset_days, inventory_config, mq_create_or_update_host, api_get):
+    original_culling_culled_offset_days = inventory_config.culling_culled_offset_days
+    inventory_config.culling_culled_offset_days = culling_culled_offset_days
 
     stale_timestamp = now() + timedelta(hours=1)
     host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
@@ -281,11 +281,13 @@ def test_culled_timestamp(culling_culled_offset_days, flask_app, mq_create_or_up
     culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
     assert culled_timestamp.isoformat() == response_data["results"][0]["culled_timestamp"]
 
-    config.culling_culled_offset_days = original_culling_culled_offset_days
+    inventory_config.culling_culled_offset_days = original_culling_culled_offset_days
 
 
 @pytest.mark.host_reaper
-def test_culled_host_is_removed(event_producer_mock, event_datetime_mock, db_create_host, db_get_host, flask_app):
+def test_culled_host_is_removed(
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+):
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter")
@@ -294,7 +296,7 @@ def test_culled_host_is_removed(event_producer_mock, event_datetime_mock, db_cre
     assert db_get_host(created_host.id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
 
     assert not db_get_host(created_host.id)
 
@@ -303,7 +305,7 @@ def test_culled_host_is_removed(event_producer_mock, event_datetime_mock, db_cre
 
 @pytest.mark.host_reaper
 def test_non_culled_host_is_not_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, flask_app
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, inventory_config
 ):
     staleness_timestamps = get_staleness_timestamps()
     created_hosts = []
@@ -323,7 +325,7 @@ def test_non_culled_host_is_not_removed(
     assert created_host_ids == [host.id for host in retrieved_hosts]
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
 
     retrieved_hosts = db_get_hosts(created_host_ids)
 
@@ -332,7 +334,9 @@ def test_non_culled_host_is_not_removed(
 
 
 @pytest.mark.host_reaper
-def test_unknown_host_is_not_removed(event_producer_mock, db_create_host_in_unknown_state, db_get_host, flask_app):
+def test_unknown_host_is_not_removed(
+    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config
+):
     created_host = db_create_host_in_unknown_state
     retrieved_host = db_get_host(created_host.id)
 
@@ -341,7 +345,7 @@ def test_unknown_host_is_not_removed(event_producer_mock, db_create_host_in_unkn
     assert retrieved_host.reporter is None
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(flask_app.config["INVENTORY_CONFIG"], mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
 
     assert db_get_host(created_host.id)
     assert event_producer_mock.event is None

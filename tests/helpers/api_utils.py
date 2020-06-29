@@ -23,8 +23,29 @@ HEALTH_URL = "/health"
 METRICS_URL = "/metrics"
 VERSION_URL = "/version"
 
-FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 SHARED_SECRET = "SuperSecretStuff"
+
+FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
+TAGS = [
+    [
+        {"namespace": "NS1", "key": "key1", "value": "val1"},
+        {"namespace": "NS1", "key": "key2", "value": "val1"},
+        {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
+        {"namespace": "no", "key": "key", "value": None},
+    ],
+    [
+        {"namespace": "NS1", "key": "key1", "value": "val1"},
+        {"namespace": "NS2", "key": "key2", "value": "val2"},
+        {"namespace": "NS3", "key": "key3", "value": "val3"},
+    ],
+    [
+        {"namespace": "NS2", "key": "key2", "value": "val2"},
+        {"namespace": "NS3", "key": "key3", "value": "val3"},
+        {"namespace": "NS1", "key": "key3", "value": "val3"},
+        {"namespace": None, "key": "key4", "value": "val4"},
+        {"namespace": None, "key": "key5", "value": None},
+    ],
+]
 
 UUID_1 = "00000000-0000-0000-0000-000000000001"
 UUID_2 = "00000000-0000-0000-0000-000000000002"
@@ -174,10 +195,6 @@ def api_query_test(api_get, subtests, host_id_list, expected_host_list):
     assert len(response_data["results"]) == len(host_data)
 
     api_pagination_test(api_get, subtests, url, expected_total=total_expected)
-    api_pagination_invalid_parameters_test(api_get, subtests, url)
-
-    if total_expected > 0:
-        api_pagination_index_test(api_get, url, expected_total=total_expected)
 
 
 def api_pagination_invalid_parameters_test(api_get, subtests, url):
@@ -193,7 +210,7 @@ def api_pagination_index_test(api_get, url, expected_total):
     assert response_status == 404
 
 
-def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
+def api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
     total_pages = math.ceil(expected_total / expected_per_page)
     for page in range(1, total_pages + 1):
         with subtests.test(page=page):
@@ -210,6 +227,13 @@ def api_pagination_test(api_get, subtests, url, expected_total, expected_per_pag
                 assert len(response_data["results"]) == expected_per_page
 
 
+def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
+    api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page)
+    api_pagination_invalid_parameters_test(api_get, subtests, url)
+    if expected_total > 0:
+        api_pagination_index_test(api_get, url, expected_total)
+
+
 def build_expected_host_list(host_list):
     host_list.reverse()
     return [
@@ -218,7 +242,7 @@ def build_expected_host_list(host_list):
     ]
 
 
-def build_order_query_parameters(order_by, order_how):
+def build_order_query_parameters(order_by=None, order_how=None):
     query_parameters = {}
     if order_by:
         query_parameters["order_by"] = order_by
@@ -228,10 +252,17 @@ def build_order_query_parameters(order_by, order_how):
     return query_parameters
 
 
-def build_hosts_url(host_list):
-    url_host_id_list = build_host_id_list_for_url(host_list)
+def build_hosts_url(host_list=None, query=None):
+    url = HOST_URL
 
-    return f"{HOST_URL}/{url_host_id_list}"
+    if host_list:
+        url_host_id_list = build_host_id_list_for_url(host_list)
+        url = f"{url}/{url_host_id_list}"
+
+    if query:
+        url = f"{url}{query}"
+
+    return url
 
 
 def build_tags_url(host_list, count=False):
