@@ -13,12 +13,12 @@ from tests.helpers.db_utils import minimal_db_host
 @pytest.fixture(scope="session")
 def database():
     config = Config(RuntimeEnvironment.TEST)
-    if not database_exists(config.db_uri):
-        create_database(config.db_uri)
+    # if not database_exists(config.db_uri):
+    #     create_database(config.db_uri)
 
     yield config.db_uri
 
-    drop_database(config.db_uri)
+    # drop_database(config.db_uri)
 
 
 @pytest.fixture(scope="function")

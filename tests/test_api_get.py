@@ -608,7 +608,11 @@ def tests_hosts_are_ordered_by_updated_desc_by_default(mq_create_four_specific_h
     created_hosts = mq_create_four_specific_hosts
     created_hosts.reverse()
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
 
     for url in urls:
         with subtests.test(url=url):
@@ -621,7 +625,11 @@ def tests_hosts_ordered_by_updated_are_descending_by_default(mq_create_four_spec
     created_hosts = mq_create_four_specific_hosts
     created_hosts.reverse()
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="updated")
 
     for url in urls:
@@ -635,7 +643,11 @@ def tests_hosts_are_ordered_by_updated_descending(mq_create_four_specific_hosts,
     created_hosts = mq_create_four_specific_hosts
     created_hosts.reverse()
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="updated", order_how="DESC")
 
     for url in urls:
@@ -648,7 +660,11 @@ def tests_hosts_are_ordered_by_updated_descending(mq_create_four_specific_hosts,
 def tests_hosts_are_ordered_by_updated_ascending(mq_create_four_specific_hosts, api_get, subtests):
     created_hosts = mq_create_four_specific_hosts
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="updated", order_how="ASC")
 
     for url in urls:
@@ -662,7 +678,11 @@ def tests_hosts_ordered_by_display_name_are_ascending_by_default(mq_create_four_
     created_hosts = mq_create_four_specific_hosts
     expected_hosts = [created_hosts[3], created_hosts[0], created_hosts[1], created_hosts[2]]
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="display_name")
 
     for url in urls:
@@ -676,7 +696,11 @@ def tests_hosts_are_ordered_by_display_name_ascending(mq_create_four_specific_ho
     created_hosts = mq_create_four_specific_hosts
     expected_hosts = [created_hosts[3], created_hosts[0], created_hosts[1], created_hosts[2]]
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="display_name", order_how="ASC")
 
     for url in urls:
@@ -690,7 +714,11 @@ def tests_hosts_are_ordered_by_display_name_descending(mq_create_four_specific_h
     created_hosts = mq_create_four_specific_hosts
     expected_hosts = [created_hosts[2], created_hosts[1], created_hosts[3], created_hosts[0]]
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     order_query_parameters = build_order_query_parameters(order_by="display_name", order_how="DESC")
 
     for url in urls:
@@ -769,7 +797,11 @@ def test_hosts_ordered_by_display_name_are_also_ordered_by_id_desc(
 def test_invalid_order_by(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="fqdn", order_how="ASC")
@@ -780,7 +812,11 @@ def test_invalid_order_by(mq_create_three_specific_hosts, api_get, subtests):
 def test_invalid_order_how(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="display_name", order_how="asc")
@@ -791,7 +827,11 @@ def test_invalid_order_how(mq_create_three_specific_hosts, api_get, subtests):
 def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    urls = (HOST_URL, build_hosts_url(host_list=created_hosts), build_system_profile_url(host_list=created_hosts))
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by=None, order_how="ASC")

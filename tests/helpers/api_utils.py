@@ -183,18 +183,35 @@ def assert_error_response(
     _verify_value("type", expected_type)
 
 
-def api_query_test(api_get, subtests, host_id_list, expected_host_list):
-    url = build_hosts_url(host_id_list)
-    response_status, response_data = api_get(url)
+def assert_tags_response(response_data, expected_response):
+    assert len(response_data["results"].keys()) == len(expected_response.keys())
+    for host_id, tags in expected_response.items():
+        assert len(response_data["results"][host_id]) == len(tags)
 
-    total_expected = len(expected_host_list)
-    host_data = build_expected_host_list(expected_host_list)
 
-    assert response_data["count"] == total_expected
-    assert len(response_data["results"]) == total_expected
-    assert len(response_data["results"]) == len(host_data)
+def assert_tag_counts(response_data, expected_response):
+    assert len(response_data["results"].keys()) == len(expected_response.keys())
+    for host_id, tag_count in expected_response.items():
+        assert response_data["results"][host_id] == tag_count
 
-    api_pagination_test(api_get, subtests, url, expected_total=total_expected)
+
+def assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages):
+    # Check if it is the last page to calculate the correct number of returned items
+    if response_data["page"] == num_pages:
+        last_page_per_page = expected_total % expected_per_page
+        if last_page_per_page > 0:
+            expected_per_page = last_page_per_page
+
+    assert response_data["total"] == expected_total
+    assert response_data["count"] == expected_per_page
+    assert len(response_data["results"]) == expected_per_page
+
+
+def api_per_page_test(api_get, subtests, url, per_page, num_pages):
+    for page in range(1, num_pages):
+        with subtests.test(page=page, per_page=per_page):
+            response_status, response_data = api_get(url, query_parameters={"page": page, "per_page": per_page})
+            yield response_status, response_data
 
 
 def api_pagination_invalid_parameters_test(api_get, subtests, url):
@@ -210,21 +227,16 @@ def api_pagination_index_test(api_get, url, expected_total):
     assert response_status == 404
 
 
-def api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
-    total_pages = math.ceil(expected_total / expected_per_page)
-    for page in range(1, total_pages + 1):
-        with subtests.test(page=page):
-            response_status, response_data = api_get(
-                url, query_parameters={"page": page, "per_page": expected_per_page}
-            )
-            assert response_status == 200
-            assert response_data["total"] == expected_total
-            if page == total_pages and total_pages > 1:
-                assert response_data["count"] <= expected_per_page
-                assert len(response_data["results"]) <= expected_per_page
-            else:
-                assert response_data["count"] == expected_per_page
-                assert len(response_data["results"]) == expected_per_page
+def api_base_pagination_test(
+    api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None, response_match_func=None
+):
+    num_pages = math.ceil(expected_total / expected_per_page)
+    for response_status, response_data in api_per_page_test(api_get, subtests, url, expected_per_page, num_pages):
+        assert_response_status(response_status, expected_status=200)
+        assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages)
+        if expected_responses and callable(response_match_func):
+            expected_response = expected_responses[response_data["page"] - 1]
+            response_match_func(response_data, expected_response)
 
 
 def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
@@ -232,6 +244,34 @@ def api_pagination_test(api_get, subtests, url, expected_total, expected_per_pag
     api_pagination_invalid_parameters_test(api_get, subtests, url)
     if expected_total > 0:
         api_pagination_index_test(api_get, url, expected_total)
+
+
+def api_tags_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None):
+    api_base_pagination_test(
+        api_get, subtests, url, expected_total, expected_per_page, expected_responses, assert_tags_response
+    )
+
+
+def api_tags_count_pagination_test(
+    api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None
+):
+    api_base_pagination_test(
+        api_get, subtests, url, expected_total, expected_per_page, expected_responses, assert_tag_counts
+    )
+
+
+def api_query_test(api_get, subtests, host_id_list, expected_host_list):
+    url = build_hosts_url(host_id_list)
+    response_status, response_data = api_get(url)
+
+    total_expected = len(expected_host_list)
+    host_data = build_expected_host_list(expected_host_list)
+
+    assert response_data["count"] == total_expected
+    assert len(response_data["results"]) == total_expected
+    assert len(response_data["results"]) == len(host_data)
+
+    api_pagination_test(api_get, subtests, url, expected_total=total_expected)
 
 
 def build_expected_host_list(host_list):
@@ -252,12 +292,15 @@ def build_order_query_parameters(order_by=None, order_how=None):
     return query_parameters
 
 
-def build_hosts_url(host_list=None, query=None):
+def _build_url(path=None, host_list_or_id=None, query=None):
     url = HOST_URL
 
-    if host_list:
-        url_host_id_list = build_host_id_list_for_url(host_list)
+    if host_list_or_id:
+        url_host_id_list = build_host_id_list_for_url(host_list_or_id)
         url = f"{url}/{url_host_id_list}"
+
+    if path:
+        url = f"{url}{path}"
 
     if query:
         url = f"{url}{query}"
@@ -265,34 +308,34 @@ def build_hosts_url(host_list=None, query=None):
     return url
 
 
-def build_tags_url(host_list, count=False):
-    url_host_id_list = build_host_id_list_for_url(host_list)
-
-    tags_url = f"{HOST_URL}/{url_host_id_list}/tags"
-
-    return f"{tags_url}/count" if count else tags_url
+def build_hosts_url(host_list_or_id=None, query=None):
+    return _build_url(host_list_or_id=host_list_or_id, query=query)
 
 
-def build_system_profile_url(host_list):
-    url_host_id_list = build_host_id_list_for_url(host_list)
-
-    return f"{HOST_URL}/{url_host_id_list}/system_profile"
+def build_tags_url(host_list_or_id, query=None):
+    return _build_url(path="/tags", host_list_or_id=host_list_or_id, query=query)
 
 
-def build_facts_url(host_list, namespace):
-    url_host_id_list = build_host_id_list_for_url(host_list)
-
-    return f"{HOST_URL}/{url_host_id_list}/facts/{namespace}"
+def build_tags_count_url(host_list_or_id, query=None):
+    return _build_url(path="/tags/count", host_list_or_id=host_list_or_id, query=query)
 
 
-def build_host_id_list_for_url(host_list):
-    if type(host_list) == dict:
-        host_list = list(host_list.values())
+def build_system_profile_url(host_list_or_id, query=None):
+    return _build_url(path="/system_profile", host_list_or_id=host_list_or_id, query=query)
 
-    if type(host_list) == list:
-        return ",".join(get_id_list_from_hosts(host_list))
 
-    return str(host_list)
+def build_facts_url(host_list_or_id, namespace, query=None):
+    return _build_url(path=f"/facts/{namespace}", host_list_or_id=host_list_or_id, query=query)
+
+
+def build_host_id_list_for_url(host_list_or_id):
+    if type(host_list_or_id) == dict:
+        host_list_or_id = list(host_list_or_id.values())
+
+    if type(host_list_or_id) == list:
+        return ",".join(get_id_list_from_hosts(host_list_or_id))
+
+    return str(host_list_or_id)
 
 
 def get_id_list_from_hosts(host_list):
