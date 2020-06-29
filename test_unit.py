@@ -1633,24 +1633,23 @@ class EventProducerTests(TestCase):
     @classmethod
     @patch("app.queue.event_producer.KafkaProducer")
     def setUpClass(cls, mock_kafka_producer):
+        def _make_host(**values):
+            return {"canonical_facts": {"fqdn": "some fqdn"}, **values}
+
         cls.config = Config(RuntimeEnvironment.TEST)
         cls.event_producer = EventProducer(cls.config)
         cls.topic_name = {Topic.events: cls.config.event_topic, Topic.egress: cls.config.host_egress_topic}
         cls.event_types = {EventType.created: "created", EventType.updated: "updated", EventType.delete: "delete"}
         threadctx.request_id = "-1"
-
-    def _make_host(self, **values):
-        return {"canonical_facts": {"fqdn": "some fqdn"}, **values}
+        cls.basic_host = _make_host(id=str(uuid4()))
 
     # Check that the event is always sent to the right topic
     # Check that the key makes it through correct and encoded
     # check that the headers make it through and are encoded
     # check thet the event makes it through and is encoded
     def test_happy_path(self):
-        id = str(uuid4())
-        host = self._make_host(id=id)
-        event = build_event(EventType.created, host)
-        key = host["id"]
+        event = build_event(EventType.created, self.basic_host)
+        key = self.basic_host["id"]
 
         for event_type in EventType:
             for topic in Topic:
@@ -1660,16 +1659,25 @@ class EventProducerTests(TestCase):
                     self.event_producer.write_event(event, key, headers, topic)
 
                     call_args = self.event_producer._kafka_producer.send.call_args
-                    print(call_args)
-                    print(call_args[1])
-                    # Assert that KafkaProducerMock was called with expected parameters
 
+                    # Assert that KafkaProducerMock was called with expected parameters
                     self.assertEqual(call_args[0][0], self.topic_name[topic])
                     self.assertEqual(call_args[1]["key"], key.encode("utf-8"))
                     self.assertEqual(call_args[1]["value"], event.encode("utf-8"))
                     self.assertEqual(
                         call_args[1]["headers"], [("event_type", self.event_types[event_type].encode("utf-8"))]
                     )
+
+    # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
+    def test_invalid_topic_causes_failure(self):
+        event_type = EventType.created
+        event = build_event(event_type, self.basic_host)
+        key = self.basic_host["id"]
+        headers = message_headers(event_type)
+
+        self.assertRaises(
+            ValueError, self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
+        )
 
 
 if __name__ == "__main__":
