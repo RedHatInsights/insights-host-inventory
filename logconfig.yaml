@@ -36,8 +36,13 @@ handlers:
 #    formatter: logstash
     formatter: human_readable
     stream: ext://sys.stdout
+    filters:
+    - contextual
 formatters:
   human_readable:
     format: "[%(asctime)s] [%(process)d] [%(thread)d] [%(name)s] [%(levelname)s] %(message)s"
   logstash:
     class: logstash_formatter.LogstashFormatterV1
+filters:
+  contextual:
+    "()": app.logging.ContextualFilter

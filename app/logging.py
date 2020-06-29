@@ -28,7 +28,6 @@ def configure_logging(runtime_environment):
 
     if runtime_environment.logging_enabled:
         # Only enable the contextual filter if not in "testing" mode
-        _configure_contextual_logging_filter(logger)
         _configure_watchtower_logging_handler(logger)
 
 
@@ -68,10 +67,6 @@ def _get_cloudwatch_handler(
 
 def _get_hostname():
     return os.uname().nodename
-
-
-def _configure_contextual_logging_filter(logger):
-    logger.addFilter(ContextualFilter())
 
 
 class ContextualFilter(logging.Filter):
