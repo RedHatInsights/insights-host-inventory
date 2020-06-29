@@ -19,7 +19,7 @@ def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE) + "?" + "branch_id=1234"
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE, query="?branch_id=1234")
 
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
@@ -33,7 +33,7 @@ def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_mu
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     url_host_id_list = f"{build_host_id_list_for_url(created_hosts)},{generate_uuid()},{generate_uuid()}"
-    facts_url = f"{HOST_URL}/{url_host_id_list}/facts/{DB_FACTS_NAMESPACE}"
+    facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=400)
@@ -45,7 +45,7 @@ def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(db_create_mul
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     # Set the value in the namespace to an empty fact set
     response_status, response_data = api_put(facts_url, new_facts)
@@ -61,7 +61,7 @@ def test_replace_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
-    facts_url = build_facts_url(created_hosts, "imanonexistentnamespace")
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace="imanonexistentnamespace")
 
     response_status, response_data = api_patch(facts_url, new_facts)
     assert_response_status(response_status, expected_status=400)
@@ -78,7 +78,7 @@ def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts,
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
@@ -94,7 +94,7 @@ def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_put(facts_url, new_facts)
     assert_response_status(response_status, expected_status=200)
@@ -119,7 +119,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
         how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
     )
 
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)

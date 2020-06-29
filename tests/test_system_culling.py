@@ -45,14 +45,17 @@ def test_with_stale_timestamp(mq_create_or_update_host, api_get):
 
 
 def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "culled"})
+    url = build_hosts_url(query="?staleness=culled")
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
 
 def test_get_only_fresh(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "fresh"})
+
+    url = build_hosts_url(query="?staleness=fresh")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["fresh"]])
@@ -60,7 +63,9 @@ def test_get_only_fresh(mq_create_hosts_in_all_states, api_get):
 
 def test_get_only_stale(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "stale"})
+
+    url = build_hosts_url(query="?staleness=stale")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["stale"]])
@@ -68,14 +73,17 @@ def test_get_only_stale(mq_create_hosts_in_all_states, api_get):
 
 def test_get_only_stale_warning(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "stale_warning"})
+
+    url = build_hosts_url(query="?staleness=stale_warning")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["stale_warning"]])
 
 
 def test_get_only_unknown(mq_create_hosts_in_all_states, db_create_host_in_unknown_state, api_get):
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "unknown"})
+    url = build_hosts_url(query="?staleness=unknown")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [db_create_host_in_unknown_state])
@@ -84,7 +92,8 @@ def test_get_only_unknown(mq_create_hosts_in_all_states, db_create_host_in_unkno
 def test_get_multiple_states(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
-    response_status, response_data = api_get(HOST_URL, query_parameters={"staleness": "fresh,stale"})
+    url = build_hosts_url(query="?staleness=fresh,stale")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["fresh"], created_hosts["stale"]])

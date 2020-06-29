@@ -260,8 +260,7 @@ def api_tags_count_pagination_test(
     )
 
 
-def api_query_test(api_get, subtests, host_id_list, expected_host_list):
-    url = build_hosts_url(host_id_list)
+def api_query_test(api_get, subtests, url, expected_host_list):
     response_status, response_data = api_get(url)
 
     total_expected = len(expected_host_list)

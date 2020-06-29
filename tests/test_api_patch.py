@@ -5,6 +5,7 @@ from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_id_list_for_url
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import get_id_list_from_hosts
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.db_utils import DB_FACTS
@@ -29,7 +30,8 @@ from tests.helpers.test_utils import get_staleness_timestamps
 def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_host, api_patch):
     host = db_create_host()
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{host.id}", patch_doc)
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -44,11 +46,8 @@ def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_
 
     hosts = db_create_multiple_hosts(how_many=5)
 
-    host_ids = build_host_id_list_for_url(hosts)
-
-    response_status, response_data = api_patch(
-        f"{HOST_URL}/{host_ids}", patch_doc, query_parameters={"branch_id": 123}
-    )
+    url = build_hosts_url(host_list_or_id=hosts, query="?branch_id=123")
+    response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -58,9 +57,8 @@ def test_update_fields_on_multiple_hosts(event_producer_mock, db_create_multiple
 
     hosts = db_create_multiple_hosts(how_many=5)
 
-    host_ids = build_host_id_list_for_url(hosts)
-
-    response_status, response_data = api_patch(f"{HOST_URL}/{host_ids}", patch_doc)
+    url = build_hosts_url(host_list_or_id=hosts)
+    response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -77,7 +75,8 @@ def test_patch_on_non_existent_host(api_patch):
 
     patch_doc = {"ansible_host": "NEW_ansible_host"}
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{non_existent_id}", patch_doc)
+    url = build_hosts_url(host_list_or_id=non_existent_id)
+    response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=404)
 
@@ -88,7 +87,8 @@ def test_patch_on_multiple_hosts_with_some_non_existent(event_producer_mock, db_
 
     patch_doc = {"ansible_host": "NEW_ansible_host"}
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{non_existent_id},{host.id}", patch_doc)
+    url = build_hosts_url(host_list_or_id=f"{non_existent_id},{host.id}")
+    response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -100,7 +100,8 @@ def test_patch_on_multiple_hosts_with_some_non_existent(event_producer_mock, db_
 def test_invalid_data(invalid_data, db_create_host, api_patch):
     host = db_create_host()
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{host.id}", invalid_data)
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_patch(url, invalid_data)
 
     assert_response_status(response_status, expected_status=400)
 
@@ -113,7 +114,8 @@ def test_invalid_host_id(db_create_host, api_patch, subtests):
 
     for host_id_list in host_id_lists:
         with subtests.test(host_id_list=host_id_list):
-            response_status, response_data = api_patch(f"{HOST_URL}/{host_id_list}", patch_doc)
+            url = build_hosts_url(host_list_or_id=host_id_list)
+            response_status, response_data = api_patch(url, patch_doc)
             assert_response_status(response_status, expected_status=400)
 
 
@@ -125,7 +127,8 @@ def test_patch_produces_update_event_no_request_id(
     host = db_host()
     created_host = db_create_host(host)
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{created_host.id}", patch_doc)
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, response_data = api_patch(url, patch_doc)
     assert_response_status(response_status, expected_status=200)
 
     assert_patch_event_is_valid(
@@ -146,7 +149,8 @@ def test_patch_produces_update_event_with_request_id(
     host = db_host()
     created_host = db_create_host(host)
 
-    response_status, response_data = api_patch(f"{HOST_URL}/{created_host.id}", patch_doc, extra_headers=headers)
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, response_data = api_patch(url, patch_doc, extra_headers=headers)
     assert_response_status(response_status, expected_status=200)
 
     assert_patch_event_is_valid(
@@ -158,7 +162,7 @@ def test_patch_produces_update_event_with_request_id(
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):
-    facts_url = build_facts_url(1, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=1, namespace=DB_FACTS_NAMESPACE)
     response_status, response_data = api_patch(facts_url, None)
 
     assert_error_response(response_data, expected_status=400, expected_detail="Request body is not valid JSON")
@@ -168,7 +172,7 @@ def test_add_facts_to_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
 
@@ -183,7 +187,7 @@ def test_add_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE) + "?" + "branch_id=1234"
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE, query="?branch_id=1234")
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
@@ -197,7 +201,7 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     url_host_id_list = f"{build_host_id_list_for_url(created_hosts)},{generate_uuid()},{generate_uuid()}"
-    facts_url = f"{HOST_URL}/{url_host_id_list}/facts/{DB_FACTS_NAMESPACE}"
+    facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=400)
@@ -209,7 +213,7 @@ def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(db_create_mu
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=200)
@@ -237,7 +241,7 @@ def test_add_facts_to_namespace_that_does_not_exist(db_create_multiple_hosts, ap
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
 
-    facts_url = build_facts_url(created_hosts, "imanonexistentnamespace")
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace="imanonexistentnamespace")
 
     response_status, response_data = api_patch(facts_url, facts_to_update)
     assert_response_status(response_status, expected_status=400)
@@ -251,7 +255,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
         how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
     )
 
-    facts_url = build_facts_url(created_hosts, DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)

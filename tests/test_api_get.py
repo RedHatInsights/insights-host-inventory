@@ -49,9 +49,8 @@ def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0]])
 
-    response_status, response_data = api_get(
-        HOST_URL, query_parameters={"display_name": created_hosts[0].display_name}
-    )
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -62,7 +61,8 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
 
-    response_status, response_data = api_get(HOST_URL, query_parameters={"fqdn": created_hosts[0].fqdn})
+    url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 2
@@ -73,7 +73,8 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[2]])
 
-    response_status, response_data = api_get(HOST_URL, query_parameters={"fqdn": created_hosts[2].fqdn})
+    url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -81,7 +82,8 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
 
 
 def test_query_using_non_existent_fqdn(api_get):
-    response_status, response_data = api_get(HOST_URL, query_parameters={"fqdn": "ROFLSAUCE.com"})
+    url = build_hosts_url(query="?fqdn=ROFLSAUCE.com")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -93,8 +95,7 @@ def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_
 
     host_name_substr = created_hosts[0].display_name[:4]
 
-    url = f"{HOST_URL}?display_name={host_name_substr}"
-
+    url = build_hosts_url(query=f"?display_name={host_name_substr}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -109,12 +110,13 @@ def test_query_existent_hosts(mq_create_three_specific_hosts, api_get, subtests)
 
     for host_list in host_lists:
         with subtests.test(host_list=host_list):
-            host_id_list = build_host_id_list_for_url(host_list)
-            api_query_test(api_get, subtests, host_id_list, host_list)
+            url = build_hosts_url(host_list_or_id=host_list)
+            api_query_test(api_get, subtests, url, host_list)
 
 
 def test_query_single_non_existent_host(api_get, subtests):
-    api_query_test(api_get, subtests, generate_uuid(), [])
+    url = build_hosts_url(host_list_or_id=generate_uuid())
+    api_query_test(api_get, subtests, url, [])
 
 
 def test_query_multiple_hosts_with_some_non_existent(mq_create_three_specific_hosts, api_get, subtests):
@@ -124,9 +126,8 @@ def test_query_multiple_hosts_with_some_non_existent(mq_create_three_specific_ho
     existent_host_id_list = build_host_id_list_for_url(host_list)
     non_existent_host_id = generate_uuid()
 
-    host_id_list = f"{non_existent_host_id},{existent_host_id_list}"
-
-    api_query_test(api_get, subtests, host_id_list, host_list)
+    url = build_hosts_url(host_list_or_id=f"{non_existent_host_id},{existent_host_id_list}")
+    api_query_test(api_get, subtests, url, host_list)
 
 
 def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests):
@@ -141,7 +142,8 @@ def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests
 
     for host_id_list in chain(only_bad_id, with_bad_id):
         with subtests.test(host_id_list=host_id_list):
-            response_status, response_data = api_get(f"{HOST_URL}/{host_id_list}")
+            url = build_hosts_url(host_list_or_id=host_id_list)
+            response_status, response_data = api_get(url)
             assert response_status == 400
 
 
@@ -159,20 +161,20 @@ def test_query_host_id_without_hyphens(mq_create_three_specific_hosts, api_get, 
             # Remove the hyphens from one of the valid hosts.
             query_host_list[0].id = uuid.UUID(query_host_list[0].id, version=4).hex
 
-            host_id_list = build_host_id_list_for_url(query_host_list)
-            api_query_test(api_get, subtests, host_id_list, original_host_list)
+            url = build_hosts_url(host_list_or_id=query_host_list)
+            api_query_test(api_get, subtests, url, original_host_list)
 
 
 def test_query_with_branch_id_parameter(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
-    url_host_id_list = build_host_id_list_for_url(created_hosts)
     # branch_id parameter is accepted, but doesn’t affect results.
-    api_query_test(api_get, subtests, f"{url_host_id_list}?branch_id=123", created_hosts)
+    url = build_hosts_url(host_list_or_id=created_hosts, query="?branch_id=123")
+    api_query_test(api_get, subtests, url, created_hosts)
 
 
 def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(created_hosts)
+    url = build_hosts_url(host_list_or_id=created_hosts)
 
     api_pagination_invalid_parameters_test(api_get, subtests, url)
 
@@ -180,8 +182,7 @@ def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get
 def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    url = f"{HOST_URL}?hostname_or_id={created_hosts[0].display_name}"
-
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].display_name}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -193,8 +194,7 @@ def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, ap
 def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    url = f"{HOST_URL}?hostname_or_id={created_hosts[2].display_name}"
-
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[2].display_name}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -206,8 +206,7 @@ def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, s
 def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    url = f"{HOST_URL}?hostname_or_id={created_hosts[0].id}"
-
+    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -217,8 +216,7 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
 
 
 def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_get, subtests):
-    url = f"{HOST_URL}?hostname_or_id=NotGonnaFindMe"
-
+    url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -228,8 +226,7 @@ def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_g
 
 
 def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, subtests):
-    url = f"{HOST_URL}?hostname_or_id={generate_uuid()}"
-
+    url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -241,8 +238,7 @@ def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, su
 def test_query_with_matching_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    url = f"{HOST_URL}?insights_id={created_hosts[0].insights_id}"
-
+    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -252,8 +248,7 @@ def test_query_with_matching_insights_id(mq_create_three_specific_hosts, api_get
 
 
 def test_query_with_no_matching_insights_id(mq_create_three_specific_hosts, api_get, subtests):
-    url = f"{HOST_URL}?insights_id={generate_uuid()}"
-
+    url = build_hosts_url(query=f"?insights_id={generate_uuid()}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -263,7 +258,8 @@ def test_query_with_no_matching_insights_id(mq_create_three_specific_hosts, api_
 
 
 def test_query_with_invalid_insights_id(mq_create_three_specific_hosts, api_get, subtests):
-    response_status, response_data = api_get(f"{HOST_URL}?insights_id=notauuid")
+    url = build_hosts_url(query="?insights_id=notauuid")
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -272,7 +268,8 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
     created_hosts = mq_create_three_specific_hosts
     valid_insights_id = created_hosts[0].insights_id
 
-    response_status, response_data = api_get(f"{HOST_URL}?insights_id={valid_insights_id}&branch_id=123")
+    url = build_hosts_url(query=f"?insights_id={valid_insights_id}&branch_id=123")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -281,7 +278,9 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
 
     fqdn = "some fqdn"
-    api_get(f"{HOST_URL}?fqdn={fqdn}")
+
+    url = build_hosts_url(query=f"?fqdn={fqdn}")
+    api_get(url)
 
     mock.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
 
@@ -290,7 +289,9 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
 
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
-    api_get(f"{HOST_URL}?insights_id={insights_id}")
+
+    url = build_hosts_url(query=f"?insights_id={insights_id}")
+    api_get(url)
 
     mock.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
 
@@ -299,7 +300,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = f"{HOST_URL}?tags=SPECIAL/tag=ToFind"
+    url = build_hosts_url(query=f"?tags=SPECIAL/tag=ToFind")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -845,7 +846,8 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
     host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid())
     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
 
-    response_status, response_data = api_get(HOST_URL, query_parameters={"registered_with": "insights"})
+    url = build_hosts_url(query="?registered_with=insights")
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 3
