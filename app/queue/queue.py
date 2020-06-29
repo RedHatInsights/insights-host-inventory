@@ -154,7 +154,7 @@ def handle_message(message, event_producer):
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
         # for transition to platform.inventory.events
-        if event_producer.secondary_topic_enabled:
+        if inventory_config().secondary_topic_enabled:
             event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
 
 

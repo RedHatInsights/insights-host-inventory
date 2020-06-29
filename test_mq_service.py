@@ -95,7 +95,6 @@ class MQServiceTestCase(MQServiceBaseTestCase):
             with unittest.mock.patch("app.queue.queue.add_host") as m:
                 m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
                 mock_event_producer = Mock()
-                mock_event_producer.secondary_topic_enabled = False
                 handle_message(json.dumps(message), mock_event_producer)
 
                 mock_event_producer.write_event.assert_called_once()
@@ -142,8 +141,9 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         # setting envionment variable to enable the secondary topic
         with self.app.app_context():
             with unittest.mock.patch("app.queue.queue.add_host") as m:
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.secondary_topic_enabled = True
                 mock_event_producer = Mock()
-                mock_event_producer.secondary_topic_enabled = True
 
                 # for host add events
                 m.return_value = ({"id": host_id}, AddHostResult.created)
@@ -203,11 +203,12 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
             f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
         )
         for message in messages:
-            with self.subTest(message=message):
-                add_host.reset_mock()
-                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
-                handle_message(message, Mock())
-                add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+            with self.app.app_context():
+                with self.subTest(message=message):
+                    add_host.reset_mock()
+                    add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
+                    handle_message(message, Mock())
+                    add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
 
 class MQAddHostBaseClass(MQServiceBaseTestCase):
