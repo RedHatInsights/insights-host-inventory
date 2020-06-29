@@ -55,6 +55,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     post:
+      deprecated: true
       operationId: api.host.add_host_list
       tags:
         - hosts
@@ -63,6 +64,10 @@ paths:
         Create a new host and add it to the host list or update an existing
         hosts. A host is updated if there is already one with the same
         canonicals facts and belonging to the same account.
+        <br /><br />
+        NOTICE: This operation is deprecated. The explicit creation of hosts is
+        no longer supported. Hosts are created automatically based on uploads
+        processed by the [payload ingress service](/docs/api/ingress#operations-default-post_upload) instead.
       security:
         - ApiKeyAuth: []
         - BearerAuth: []
