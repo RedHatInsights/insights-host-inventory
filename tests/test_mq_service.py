@@ -9,6 +9,7 @@ from sqlalchemy import null
 from app import db
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -104,6 +105,41 @@ def test_shutdown_handler(mocker, flask_app):
     fake_consumer.poll.assert_called_once()
 
     assert handle_message_mock.call_count == 2
+
+
+def test_events_sent_to_correct_topic(mocker, flask_app, inventory_config):
+    inventory_config.secondary_topic_enabled = True
+
+    host_id = generate_uuid()
+    host = minimal_host(insights_id=generate_uuid())
+
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=({"id": host_id}, AddHostResult.created))
+    mock_event_producer = mocker.Mock()
+
+    message = wrap_message(host.data())
+    handle_message(json.dumps(message), mock_event_producer)
+
+    mock_event_producer.write_event.assert_called_once()
+
+    # checking events sent to both egress and events topic
+    assert mock_event_producer.write_event.call_count == 2
+    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
+    assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
+
+    mock_event_producer.reset_mock()
+
+    # for host update events
+    add_host.return_value = ({"id": host_id}, AddHostResult.updated)
+
+    message["data"].update(stale_timestamp=(now() + timedelta(hours=26)).isoformat())
+    handle_message(json.dumps(message), mock_event_producer)
+
+    # checking events sent to both egress and events topic
+    assert mock_event_producer.write_event.call_count == 2
+    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
+    assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
+
+    inventory_config.secondary_topic_enabled = False
 
 
 # Leaving this in as a reminder that we need to impliment this test eventually
@@ -497,9 +533,8 @@ def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_ge
     created_host = db_get_host_by_insights_id(insights_id)
     created_host.tags = empty
 
-    with flask_app.app_context():
-        db.session.add(created_host)
-        db.session.commit()
+    db.session.add(created_host)
+    db.session.commit()
 
     new_host = mq_create_or_update_host(host)
     assert [] == new_host.tags
