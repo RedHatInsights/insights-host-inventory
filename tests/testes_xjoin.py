@@ -962,6 +962,7 @@ def test_tags_response_pagination(
     response_status, response_data = api_get(url)
 
     assert response_status == 200
+
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset, "hostFilter": {"OR": mocker.ANY}},
