@@ -41,6 +41,7 @@ class Config:
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+        self.secondary_topic_enabled = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "false").lower() == "true"
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
@@ -122,6 +123,7 @@ class Config:
                 self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
                 self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
                 self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
+                self.logger.info("Kafka Secondary Topic Enabled: %s" % self.secondary_topic_enabled)
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s" % self.event_topic)
