@@ -13,6 +13,9 @@ from unittest.mock import patch
 
 import marshmallow
 from sqlalchemy import null
+from test_utils import MockEventProducer
+from test_utils import rename_host_table_and_indexes
+from test_utils import valid_system_profile
 
 from app import create_app
 from app import db
@@ -25,9 +28,6 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
-from test_utils import MockEventProducer
-from test_utils import rename_host_table_and_indexes
-from test_utils import valid_system_profile
 
 
 class MQServiceBaseTestCase(TestCase):

@@ -17,7 +17,7 @@ from tests.helpers.test_utils import now
 @pytest.fixture(scope="function")
 def mq_create_or_update_host(flask_app, event_producer_mock):
     def _mq_create_or_update_host(
-            host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
+        host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
     ):
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
         handle_message(json.dumps(message), event_producer)

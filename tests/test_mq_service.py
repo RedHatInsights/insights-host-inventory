@@ -135,6 +135,7 @@ def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled
     assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
     assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
 
+
 # Leaving this in as a reminder that we need to impliment this test eventually
 # when the problem that it is supposed to test is fixed
 # https://projects.engineering.redhat.com/browse/RHCLOUD-3503
