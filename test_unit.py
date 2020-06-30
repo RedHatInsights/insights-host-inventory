@@ -1675,9 +1675,8 @@ class EventProducerTests(TestCase):
         key = self.basic_host["id"]
         headers = message_headers(event_type)
 
-        self.assertRaises(
-            ValueError, self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
-        )
+        with self.assertRaises(KeyError):
+            self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
 
 
 if __name__ == "__main__":
