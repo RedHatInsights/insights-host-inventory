@@ -280,7 +280,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
 
 
 def test_query_variables_registered_with_insights(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query=f"?registered_with=insights")
+    url = build_hosts_url(query="?registered_with=insights")
     response_status, response_data = api_get(url)
 
     assert response_status == 200

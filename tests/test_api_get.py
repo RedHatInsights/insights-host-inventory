@@ -300,7 +300,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query=f"?tags=SPECIAL/tag=ToFind")
+    url = build_hosts_url(query="?tags=SPECIAL/tag=ToFind")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
