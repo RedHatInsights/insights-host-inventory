@@ -6,8 +6,6 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import init_payload_tracker
 from tests.helpers.test_utils import now
 
-DEFAULT_TOPIC = "platform.payload-status"
-
 
 @pytest.fixture(scope="function")
 def payload_tracker():

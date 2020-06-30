@@ -1,5 +1,7 @@
 import json
 
+DEFAULT_TOPIC = "platform.payload-status"
+
 
 def build_expected_tracker_message(
     status="received", status_msg=None, request_id="1357924680", account=None, datetime_mock=None

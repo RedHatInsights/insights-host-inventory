@@ -10,10 +10,10 @@ from app import UNKNOWN_REQUEST_ID_VALUE
 from host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import assert_host_ids_in_response
 from tests.helpers.api_utils import build_facts_url
+from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_count_url
-from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
@@ -121,7 +121,7 @@ def test_get_hosts_by_id_default_ignores_culled(mq_create_hosts_in_all_states, a
 def test_tags_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
-    url = build_tags_url(host_list_or_id=created_hosts)
+    url = build_host_tags_url(host_list_or_id=created_hosts)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -230,7 +230,7 @@ def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 def test_tags_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
-    url = build_tags_url(host_list_or_id=created_hosts)
+    url = build_host_tags_url(host_list_or_id=created_hosts)
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400

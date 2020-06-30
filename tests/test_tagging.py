@@ -5,8 +5,8 @@ from sqlalchemy import null
 from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
+from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
-from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import inject_qs
 from tests.helpers.db_utils import update_host_in_db
 
@@ -19,7 +19,7 @@ def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subt
     created_hosts = mq_create_four_specific_hosts
     expected_response = {host.id: host.tags for host in created_hosts}
 
-    url = build_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -46,7 +46,7 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
     send a request for some hosts that don't exist
     """
     host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
-    url = build_tags_url(host_id)
+    url = build_host_tags_url(host_id)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -152,7 +152,7 @@ def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_h
         (" ", {created_hosts[0].id: [], created_hosts[1].id: [], created_hosts[2].id: [], created_hosts[3].id: []}),
     ):
         with subtests.test(search=search):
-            url = build_tags_url(host_list_or_id=created_hosts, query=f"?search={search}")
+            url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?search={search}")
             response_status, response_data = api_get(url)
 
             assert response_status == 200
@@ -182,7 +182,7 @@ def test_get_tags_from_host_with_no_tags(mq_create_four_specific_hosts, api_get)
     host_with_no_tags = created_hosts[3]
     expected_response = {host_with_no_tags.id: []}
 
-    url = build_tags_url(host_list_or_id=host_with_no_tags.id)
+    url = build_host_tags_url(host_list_or_id=host_with_no_tags.id)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -197,7 +197,7 @@ def test_get_tags_from_host_with_null_tags(tags, mq_create_four_specific_hosts, 
     host_id = created_hosts[0].id
     update_host_in_db(host_id, tags=tags)
 
-    url = build_tags_url(host_list_or_id=host_id)
+    url = build_host_tags_url(host_list_or_id=host_id)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -281,7 +281,7 @@ def test_tags_pagination(mq_create_four_specific_hosts, api_get, subtests):
     created_hosts = mq_create_four_specific_hosts
     expected_responses_1_per_page = [{host.id: host.tags} for host in created_hosts]
 
-    url = build_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
 
     # 1 per page test
     api_tags_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)

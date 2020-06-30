@@ -7,10 +7,10 @@ import pytest
 from app.payload_tracker import _UNKNOWN_REQUEST_ID
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from tests.fixtures.tracker_fixtures import DEFAULT_TOPIC
 from tests.helpers.tracker_utils import assert_mock_send_call
 from tests.helpers.tracker_utils import assert_payload_tracker_is_disabled
 from tests.helpers.tracker_utils import build_expected_tracker_message
+from tests.helpers.tracker_utils import DEFAULT_TOPIC
 from tests.helpers.tracker_utils import get_payload_tracker_methods
 from tests.helpers.tracker_utils import method_to_raise_exception
 

@@ -291,8 +291,8 @@ def build_order_query_parameters(order_by=None, order_how=None):
     return query_parameters
 
 
-def _build_url(path=None, host_list_or_id=None, query=None):
-    url = HOST_URL
+def _build_url(base_url=HOST_URL, path=None, host_list_or_id=None, query=None):
+    url = base_url
 
     if host_list_or_id:
         url_host_id_list = build_host_id_list_for_url(host_list_or_id)
@@ -311,12 +311,16 @@ def build_hosts_url(host_list_or_id=None, query=None):
     return _build_url(host_list_or_id=host_list_or_id, query=query)
 
 
-def build_tags_url(host_list_or_id, query=None):
+def build_host_tags_url(host_list_or_id, query=None):
     return _build_url(path="/tags", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_tags_count_url(host_list_or_id, query=None):
     return _build_url(path="/tags/count", host_list_or_id=host_list_or_id, query=query)
+
+
+def build_tags_url(query=None):
+    return _build_url(base_url=TAGS_URL, query=query)
 
 
 def build_system_profile_url(host_list_or_id, query=None):

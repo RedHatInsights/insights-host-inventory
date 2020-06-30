@@ -1,4 +1,10 @@
-MOCK_XJOIN_HOST_RESPONSE = {
+from api.host_query_xjoin import QUERY as HOST_QUERY
+from tests.helpers.api_utils import get_valid_auth_header
+
+EMPTY_HOSTS_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
+TAGS_EMPTY_RESPONSE = {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
+
+XJOIN_HOSTS_RESPONSE = {
     "hosts": {
         "meta": {"total": 2},
         "data": [
@@ -44,3 +50,53 @@ MOCK_XJOIN_HOST_RESPONSE = {
         ],
     }
 }
+
+XJOIN_TAGS_RESPONSE = {
+    "hostTags": {
+        "meta": {"count": 3, "total": 3},
+        "data": [
+            {"tag": {"namespace": "Sat", "key": "env", "value": "prod"}, "count": 3},
+            {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
+            {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
+        ],
+    }
+}
+
+
+def xjoin_host_response(timestamp):
+    return {
+        "hosts": {
+            **XJOIN_HOSTS_RESPONSE["hosts"],
+            "meta": {"total": 1},
+            "data": [
+                {
+                    **XJOIN_HOSTS_RESPONSE["hosts"]["data"][0],
+                    "created_on": timestamp,
+                    "modified_on": timestamp,
+                    "stale_timestamp": timestamp,
+                }
+            ],
+        }
+    }
+
+
+def assert_graph_query_single_call_with_staleness(mocker, graphql_query, staleness_conditions):
+    conditions = tuple({"stale_timestamp": staleness_condition} for staleness_condition in staleness_conditions)
+    graphql_query.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": conditions},),
+        },
+    )
+
+
+def assert_called_with_headers(mocker, post, request_id):
+    identity = get_valid_auth_header().get("x-rh-identity").decode()
+
+    post.assert_called_once_with(
+        mocker.ANY, json=mocker.ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}
+    )
