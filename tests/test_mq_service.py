@@ -107,9 +107,7 @@ def test_shutdown_handler(mocker, flask_app):
     assert handle_message_mock.call_count == 2
 
 
-def test_events_sent_to_correct_topic(mocker, flask_app, inventory_config):
-    inventory_config.secondary_topic_enabled = True
-
+def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled):
     host_id = generate_uuid()
     host = minimal_host(insights_id=generate_uuid())
 
@@ -136,9 +134,6 @@ def test_events_sent_to_correct_topic(mocker, flask_app, inventory_config):
     assert mock_event_producer.write_event.call_count == 2
     assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
     assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
-
-    inventory_config.secondary_topic_enabled = False
-
 
 # Leaving this in as a reminder that we need to impliment this test eventually
 # when the problem that it is supposed to test is fixed

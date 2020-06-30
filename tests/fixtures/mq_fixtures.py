@@ -17,7 +17,7 @@ from tests.helpers.test_utils import now
 @pytest.fixture(scope="function")
 def mq_create_or_update_host(flask_app, event_producer_mock):
     def _mq_create_or_update_host(
-        host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
+            host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
     ):
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
         handle_message(json.dumps(message), event_producer)
@@ -67,6 +67,13 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
         created_hosts[state] = mq_create_or_update_host(host)
 
     return created_hosts
+
+
+@pytest.fixture(scope="function")
+def secondary_topic_enabled(inventory_config):
+    inventory_config.secondary_topic_enabled = True
+    yield
+    inventory_config.secondary_topic_enabled = False
 
 
 @pytest.fixture(scope="function")
