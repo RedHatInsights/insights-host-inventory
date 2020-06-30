@@ -27,7 +27,6 @@ def configure_logging(runtime_environment):
     logger.setLevel(log_level)
 
     if runtime_environment.logging_enabled:
-        # Only enable the contextual filter if not in "testing" mode
         _configure_watchtower_logging_handler(logger)
 
 
