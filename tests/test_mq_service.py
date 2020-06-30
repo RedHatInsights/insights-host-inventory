@@ -119,8 +119,6 @@ def test_events_sent_to_correct_topic(mocker, flask_app, inventory_config):
     message = wrap_message(host.data())
     handle_message(json.dumps(message), mock_event_producer)
 
-    mock_event_producer.write_event.assert_called_once()
-
     # checking events sent to both egress and events topic
     assert mock_event_producer.write_event.call_count == 2
     assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
