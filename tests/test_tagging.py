@@ -7,7 +7,6 @@ from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
-from tests.helpers.api_utils import inject_qs
 from tests.helpers.db_utils import update_host_in_db
 
 
@@ -245,33 +244,6 @@ def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific
 
     assert response_status == 200
     assert {host_with_valueless_tag.id: 4} == response_data["results"]
-
-
-def _per_page_test(self, url, per_page, num_pages):
-    for i in range(0, num_pages):
-        page = i + 1
-        with self.subTest(page=page):
-            url = inject_qs(url, page=str(page), per_page=str(per_page))
-            response = self.get(url, 200)
-            yield response
-
-
-def _assert_paginated_response_counts(self, response, per_page, total):
-    self.assertEqual(len(response["results"]), per_page)
-    self.assertEqual(response["count"], per_page)
-    self.assertEqual(response["total"], total)
-
-
-def _assert_response_tags(self, response, host_tags):
-    self.assertCountEqual(response["results"].keys(), host_tags.keys())
-    for host_id, tags in host_tags.items():
-        self.assertCountEqual(response["results"][host_id], tags)
-
-
-def _assert_response_tag_counts(self, response, host_tag_counts):
-    self.assertCountEqual(response["results"].keys(), host_tag_counts.keys())
-    for host_id, tag_count in host_tag_counts.items():
-        self.assertEqual(response["results"][host_id], tag_count)
 
 
 def test_tags_pagination(mq_create_four_specific_hosts, api_get, subtests):
