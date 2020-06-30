@@ -439,9 +439,7 @@ def test_query_variables_staleness(
 
     assert response_status == 200
 
-    assert_graph_query_single_call_with_staleness(
-        mocker, graphql_query_empty_response, (expected,)
-    )
+    assert_graph_query_single_call_with_staleness(mocker, graphql_query_empty_response, (expected,))
 
 
 def test_query_multiple_staleness(
