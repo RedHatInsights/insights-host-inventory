@@ -1,5 +1,6 @@
 import logging.config
 import os
+from logging import NullHandler
 from threading import local
 
 import logstash_formatter
@@ -26,42 +27,33 @@ def configure_logging(runtime_environment):
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger.setLevel(log_level)
 
-    if runtime_environment.logging_enabled:
-        _configure_watchtower_logging_handler(logger)
 
-
-def _configure_watchtower_logging_handler(logger):
+def cloudwatch_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
-    aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
-    aws_stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
-    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
 
-    if all([aws_access_key_id, aws_secret_access_key, aws_region_name]):
-        print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_stream_name})")
-        cloudwatch_handler = _get_cloudwatch_handler(
-            aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
+    logger = get_logger(__name__)
+    if all((aws_access_key_id, aws_secret_access_key, aws_region_name)):
+        aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
+        aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
+        create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+        logger.info(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
+        print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
+        boto3_session = Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region_name,
         )
-        logger.addHandler(cloudwatch_handler)
+        return watchtower.CloudWatchLogHandler(
+            boto3_session=boto3_session,
+            log_group=aws_log_group,
+            stream_name=aws_log_stream,
+            create_log_group=create_log_group,
+        )
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
-
-
-def _get_cloudwatch_handler(
-    aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, aws_stream_name, create_log_group
-):
-    boto3_session = Session(
-        aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=aws_region_name
-    )
-    handler = watchtower.CloudWatchLogHandler(
-        boto3_session=boto3_session,
-        log_group=aws_log_group,
-        stream_name=aws_stream_name,
-        create_log_group=create_log_group,
-    )
-    handler.setFormatter(logstash_formatter.LogstashFormatterV1())
-    return handler
+        return NullHandler
 
 
 def _get_hostname():

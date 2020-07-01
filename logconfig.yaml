@@ -24,6 +24,7 @@ loggers:
     level: DEBUG
     handlers:
     - logstash
+    - cloudwatch
     propagate: false
   inventory.xjoin:
     level: WARNING
@@ -36,6 +37,11 @@ handlers:
 #    formatter: logstash
     formatter: human_readable
     stream: ext://sys.stdout
+    filters:
+    - contextual
+  cloudwatch:
+    "()": app.logging.cloudwatch_handler
+    formatter: logstash
     filters:
     - contextual
 formatters:
