@@ -157,10 +157,13 @@ def handle_message(message, event_producer):
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
         event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
 
+        # for transition to platform.inventory.events
+        if inventory_config().secondary_topic_enabled:
+            event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
+
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
     with flask_app.app_context():
-
         signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
         signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
         while not shutdown_handler.shut_down():
