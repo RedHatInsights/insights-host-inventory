@@ -209,11 +209,7 @@ class PayloadTrackerContext:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            # self._payload_tracker.payload_error(status_message=self._error_status_msg)
-            # TODO: Remove this when done testing
             exception_status_message = f"{exc_type.__name__} encountered in ({self._current_operation}): {exc_value}"
-            # TODO: Remove logging when done testing
-            logger.error(exception_status_message)
             self._payload_tracker.payload_error(status_message=exception_status_message)
         else:
             self._payload_tracker.payload_success(status_message=self._success_status_msg)
@@ -236,8 +232,6 @@ class PayloadTrackerProcessingContext:
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
             exception_status_message = f"{exc_type.__name__} encountered in ({self._current_operation}): {exc_value}"
-            # TODO: Remove logging when done testing
-            logger.error(exception_status_message)
             self._payload_tracker.processing_error(status_message=exception_status_message)
         else:
             self._payload_tracker.processing_success(status_message=self._success_status_msg)
