@@ -64,12 +64,16 @@ def add_host_list(host_list):
 
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
-    with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
+    with PayloadTrackerContext(
+        payload_tracker, received_status_message="add host operation", current_operation="add host"
+    ):
 
         for host in host_list:
             try:
                 with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message="adding/updating host"
+                    payload_tracker,
+                    processing_status_message="adding/updating host",
+                    current_operation="adding/updating host",
                 ) as payload_tracker_processing_ctx:
                     if host.get("tags"):
                         tags_ignored_from_http_count.inc()
@@ -85,19 +89,14 @@ def add_host_list(host_list):
             except ValidationException as e:
                 number_of_errors += 1
                 logger.exception("Input validation error while adding host", extra={"host": host})
-                payload_tracker.payload_error(
-                    f"Input validation error: {e} \nEncountered validation error adding host: {host}"
-                )
                 response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
             except InventoryException as e:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
-                payload_tracker.payload_error(f"Inventory exception: {e} \nEncountered error adding host: {host}")
                 response_host_list.append({**e.to_json(), "host": host})
-            except Exception as e:
+            except Exception:
                 number_of_errors += 1
                 logger.exception("Error adding host", extra={"host": host})
-                payload_tracker.processing_error(f"Exception: {e} \nError adding host: {host}")
                 response_host_list.append(
                     {
                         "status": 500,
@@ -192,7 +191,9 @@ def get_host_list(
 def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
-    with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
+    with PayloadTrackerContext(
+        payload_tracker, received_status_message="delete operation", current_operation="delete"
+    ):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
         if not query.count():

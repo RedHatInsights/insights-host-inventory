@@ -94,7 +94,7 @@ def add_host(host_data):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
-        payload_tracker, processing_status_message="adding/updating host"
+        payload_tracker, processing_status_message="adding/updating host", current_operation="adding/updating host"
     ) as payload_tracker_processing_ctx:
 
         try:
@@ -149,7 +149,9 @@ def handle_message(message, event_producer):
 
     payload_tracker = get_payload_tracker(request_id=request_id)
 
-    with PayloadTrackerContext(payload_tracker, received_status_message="message received"):
+    with PayloadTrackerContext(
+        payload_tracker, received_status_message="message received", current_operation="handle_message"
+    ):
         (output_host, add_results) = add_host(validated_operation_msg["data"])
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
