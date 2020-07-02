@@ -25,7 +25,7 @@ from tests.helpers.test_utils import valid_system_profile
 
 
 def test_create_and_update(api_create_or_update_host, api_get):
-    host = minimal_host()
+    host = minimal_host(facts=FACTS)
 
     multi_response_status, multi_response_data = api_create_or_update_host([host])
 
