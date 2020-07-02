@@ -1,6 +1,5 @@
 import logging.config
 import os
-from logging import NullHandler
 from threading import local
 
 import logstash_formatter
@@ -30,8 +29,8 @@ def configure_logging(runtime_environment):
             logging.config.dictConfig(logconfig_dict)
         else:
             print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
-            logconfig_dict['loggers']['inventory']['handlers'].remove('cloudwatch')
-            logconfig_dict['handlers'].pop('cloudwatch', None)
+            logconfig_dict["loggers"]["inventory"]["handlers"].remove("cloudwatch")
+            logconfig_dict["handlers"].pop("cloudwatch", None)
             logging.config.dictConfig(logconfig_dict)
 
     logger = logging.getLogger(LOGGER_NAME)
@@ -47,9 +46,7 @@ def cloudwatch_handler():
     logger.info(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
     print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
     boto3_session = Session(
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION_NAME,
+        aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name=AWS_REGION_NAME
     )
     return watchtower.CloudWatchLogHandler(
         boto3_session=boto3_session,
@@ -57,6 +54,7 @@ def cloudwatch_handler():
         stream_name=aws_log_stream,
         create_log_group=create_log_group,
     )
+
 
 def _get_hostname():
     return os.uname().nodename
