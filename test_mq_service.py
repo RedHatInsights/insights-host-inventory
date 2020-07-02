@@ -20,6 +20,7 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import Host
+from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -125,6 +126,47 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         fake_consumer.poll.assert_called_once()
         self.assertEqual(handle_message_mock.call_count, 2)
 
+    def test_events_sent_to_correct_topic(self):
+        host_id = uuid.uuid4()
+        message = {
+            "operation": "add_host",
+            "data": {
+                "insights_id": str(uuid.uuid4()),
+                "account": "0000001",
+                "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+                "reporter": "test",
+            },
+        }
+
+        # setting envionment variable to enable the secondary topic
+        with self.app.app_context():
+            with unittest.mock.patch("app.queue.queue.add_host") as m:
+                config = self.app.config["INVENTORY_CONFIG"]
+                config.secondary_topic_enabled = True
+                mock_event_producer = Mock()
+
+                # for host add events
+                m.return_value = ({"id": host_id}, AddHostResult.created)
+                handle_message(json.dumps(message), mock_event_producer)
+
+                self.assertEqual(mock_event_producer.write_event.call_count, 2)
+
+                # checking events sent to both egress and events topic
+                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+
+                # for host update events
+                message["data"].update(stale_timestamp=(datetime.now(timezone.utc) + timedelta(hours=26)).isoformat())
+                m.return_value = ({"id": host_id}, AddHostResult.updated)
+                mock_event_producer.reset_mock()
+                handle_message(json.dumps(message), mock_event_producer)
+
+                self.assertEqual(mock_event_producer.write_event.call_count, 2)
+
+                # checking events sent to both egress and events topic
+                self.assertEqual(mock_event_producer.write_event.call_args_list[0][0][3], Topic.egress)
+                self.assertEqual(mock_event_producer.write_event.call_args_list[1][0][3], Topic.events)
+
     # Leaving this in as a reminder that we need to impliment this test eventually
     # when the problem that it is supposed to test is fixed
     # https://projects.engineering.redhat.com/browse/RHCLOUD-3503
@@ -161,11 +203,12 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
             f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
         )
         for message in messages:
-            with self.subTest(message=message):
-                add_host.reset_mock()
-                add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
-                handle_message(message, Mock())
-                add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+            with self.app.app_context():
+                with self.subTest(message=message):
+                    add_host.reset_mock()
+                    add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
+                    handle_message(message, Mock())
+                    add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
 
 class MQAddHostBaseClass(MQServiceBaseTestCase):
