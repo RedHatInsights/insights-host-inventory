@@ -30,11 +30,7 @@ def run_server():
     variables.
     """
     bind = f"0.0.0.0:{LISTEN_PORT}"
-<<<<<<< HEAD
-    run(("gunicorn", "--log-config=logconfig.yml", "--log-level=debug", f"--bind={bind}", "run"))
-=======
     run(("gunicorn", "--log-config=logconfig.yaml", "--log-level=debug", f"--bind={bind}", "run"))
->>>>>>> revert
 
 
 if __name__ == "__main__":
