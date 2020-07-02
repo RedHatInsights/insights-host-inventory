@@ -21,7 +21,7 @@ loggers:
     - logstash
     propagate: true
   inventory:
-    level: DEBUG
+    level: INFO
     handlers:
     - logstash
     - cloudwatch

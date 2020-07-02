@@ -17,12 +17,12 @@ LOGGER_NAME = "inventory"
 threadctx = local()
 
 
-def configure_logging(runtime_environment):
+def configure_logging():
     log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE", DEFAULT_LOGGING_CONFIG_FILE)
     with open(log_config_file) as log_config_file:
         logconfig_dict = safe_load(log_config_file)
-        logging.config.dictConfig(logconfig_dict)
 
+    logging.config.dictConfig(logconfig_dict)
     logger = logging.getLogger(LOGGER_NAME)
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger.setLevel(log_level)

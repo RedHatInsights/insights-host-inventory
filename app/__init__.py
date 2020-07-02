@@ -17,6 +17,8 @@ from app.models import db
 from app.queue.event_producer import EventProducer
 from app.validators import verify_uuid_format  # noqa: 401
 
+logger = get_logger(__name__)
+
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
@@ -37,8 +39,7 @@ def create_app(runtime_environment):
 
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
-    configure_logging(runtime_environment)
-    logger = get_logger(__name__)  # we need to call the logger after configuring it, not before
+    configure_logging()
 
     app_config = Config(runtime_environment)
     app_config.log_configuration()
