@@ -53,7 +53,7 @@ def cloudwatch_handler():
         )
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
-        return NullHandler
+        return NullHandler()
 
 
 def _get_hostname():
