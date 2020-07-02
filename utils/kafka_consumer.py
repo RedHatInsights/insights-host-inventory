@@ -9,6 +9,7 @@ from kafka import KafkaConsumer
 
 
 HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
+HOST_PAYLOAD_TRACKER_TOPIC = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
 HOST_INGRESS_GROUP = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
@@ -25,7 +26,7 @@ def msg_handler(parsed):
 
 
 def main():
-    consumer = KafkaConsumer(HOST_EGRESS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
+    consumer = KafkaConsumer(HOST_PAYLOAD_TRACKER_TOPIC, bootstrap_servers=BOOTSTRAP_SERVERS)
 
     logging.basicConfig(level=logging.INFO)
 

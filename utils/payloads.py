@@ -522,7 +522,7 @@ def build_host_chunk():
         # "tags": {
         #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},
         # },
-        # "ip_addresses": None,
+        "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
         "subscription_manager_id": random_uuid(),
