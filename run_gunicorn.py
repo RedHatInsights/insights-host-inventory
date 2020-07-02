@@ -30,7 +30,7 @@ def run_server():
     variables.
     """
     bind = f"0.0.0.0:{LISTEN_PORT}"
-    run(("gunicorn", "--log-config=logconfig.ini", "--log-level=debug", f"--bind={bind}", "run"))
+    run(("gunicorn", "--log-config=logconfig.yml", "--log-level=debug", f"--bind={bind}", "run"))
 
 
 if __name__ == "__main__":

@@ -14,14 +14,25 @@ DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
 DEFAULT_LOGGING_CONFIG_FILE = "logconfig.yaml"
 LOGGER_NAME = "inventory"
 
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", None)
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", None)
+AWS_REGION_NAME = os.getenv("AWS_REGION_NAME", None)
+
 threadctx = local()
 
 
 def configure_logging(runtime_environment):
     log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE", DEFAULT_LOGGING_CONFIG_FILE)
+
     with open(log_config_file) as log_config_file:
         logconfig_dict = safe_load(log_config_file)
-        logging.config.dictConfig(logconfig_dict)
+        if all((AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION_NAME)):
+            logging.config.dictConfig(logconfig_dict)
+        else:
+            print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
+            logconfig_dict['loggers']['inventory']['handlers'].remove('cloudwatch')
+            logconfig_dict['handlers'].pop('cloudwatch', None)
+            logging.config.dictConfig(logconfig_dict)
 
     logger = logging.getLogger(LOGGER_NAME)
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
@@ -29,32 +40,23 @@ def configure_logging(runtime_environment):
 
 
 def cloudwatch_handler():
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
-    aws_region_name = os.getenv("AWS_REGION_NAME", None)
-
     logger = get_logger(__name__)
-    if all((aws_access_key_id, aws_secret_access_key, aws_region_name)):
-        aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
-        aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
-        create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
-        logger.info(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
-        print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
-        boto3_session = Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=aws_region_name,
-        )
-        return watchtower.CloudWatchLogHandler(
-            boto3_session=boto3_session,
-            log_group=aws_log_group,
-            stream_name=aws_log_stream,
-            create_log_group=create_log_group,
-        )
-    else:
-        print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
-        return NullHandler
-
+    aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
+    aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
+    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+    logger.info(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
+    print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
+    boto3_session = Session(
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION_NAME,
+    )
+    return watchtower.CloudWatchLogHandler(
+        boto3_session=boto3_session,
+        log_group=aws_log_group,
+        stream_name=aws_log_stream,
+        create_log_group=create_log_group,
+    )
 
 def _get_hostname():
     return os.uname().nodename
