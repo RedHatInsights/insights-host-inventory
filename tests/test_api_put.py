@@ -6,7 +6,7 @@ from app.utils import HostWrapper
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
-from tests.test_culling import QueryStalenessGetHostsBaseTestCase
+from tests.test_culling_utils import HostStalenessBaseTestCase
 
 
 class FactsTestCase(PreCreatedHostsBaseTestCase):
@@ -183,7 +183,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
                     operation(url, fact_doc, 400)
 
 
-class FactsCullingTestCase(FactsTestCase, QueryStalenessGetHostsBaseTestCase):
+class FactsCullingTestCase(FactsTestCase, HostStalenessBaseTestCase):
     def test_replace_and_merge_ignore_culled_hosts(self):
         # Try to replace the facts on a host that has been marked as culled
         target_namespace = self.culled_host["facts"][0]["namespace"]
