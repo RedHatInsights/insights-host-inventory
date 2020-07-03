@@ -18,8 +18,7 @@ run_inv_web_service:
 	INVENTORY_LOG_LEVEL=DEBUG gunicorn -b :8080 run
 
 run_inv_mq_service:
-	PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOGGING_CONFIG_FILE=logconfig.yaml \
-	INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
+	PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
 
 run_inv_mq_service_test_producer:
 	python utils/kafka_producer.py
