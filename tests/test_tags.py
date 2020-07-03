@@ -23,7 +23,7 @@ class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
         self.assertEqual(response_ids, expected_ids)
 
 
-class TagTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
+class TagsTestCase(TagsPreCreatedHostsBaseTestCase, PaginationBaseTestCase):
     """
     Tests the tag endpoints
     """
