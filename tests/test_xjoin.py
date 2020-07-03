@@ -9,16 +9,16 @@ from unittest import mock
 from unittest.mock import ANY
 from unittest.mock import patch
 
-from .test_api_utils import ApiBaseTestCase
-from .test_api_utils import DbApiTestCase
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import quote
-from .test_api_utils import quote_everything
-from .test_api_utils import TAGS_URL
-from .test_utils import set_environment
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
+from tests.test_api_utils import ApiBaseTestCase
+from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import quote
+from tests.test_api_utils import quote_everything
+from tests.test_api_utils import TAGS_URL
+from tests.test_utils import set_environment
 
 MOCK_XJOIN_HOST_RESPONSE = {
     "hosts": {

@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import dateutil.parser
 
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import PreCreatedHostsBaseTestCase
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import PreCreatedHostsBaseTestCase
 
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):

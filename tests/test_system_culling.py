@@ -8,18 +8,18 @@ from unittest.mock import patch
 
 import pytest
 
-from .test_api_delete import DeleteHostsBaseTestCase
-from .test_api_utils import ACCOUNT
-from .test_api_utils import ApiBaseTestCase
-from .test_api_utils import DbApiTestCase
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import now
-from .test_api_utils import test_data
 from app import db
 from app.models import Host
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
+from tests.test_api_delete import DeleteHostsBaseTestCase
+from tests.test_api_utils import ACCOUNT
+from tests.test_api_utils import ApiBaseTestCase
+from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import now
+from tests.test_api_utils import test_data
 from tests.test_utils import MockEventProducer
 
 

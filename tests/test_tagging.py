@@ -3,13 +3,13 @@ from unittest import main
 
 from sqlalchemy import null
 
-from .test_api_utils import generate_uuid
-from .test_api_utils import HOST_URL
-from .test_api_utils import inject_qs
-from .test_api_utils import PaginationBaseTestCase
-from .test_api_utils import PreCreatedHostsBaseTestCase
 from app import db
 from app.models import Host
+from tests.test_api_utils import generate_uuid
+from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import inject_qs
+from tests.test_api_utils import PaginationBaseTestCase
+from tests.test_api_utils import PreCreatedHostsBaseTestCase
 
 
 class TagsPreCreatedHostsBaseTestCase(PreCreatedHostsBaseTestCase):
