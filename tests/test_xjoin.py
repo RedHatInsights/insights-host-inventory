@@ -9,8 +9,8 @@ from unittest import mock
 from unittest.mock import ANY
 from unittest.mock import patch
 
-from .test_api_utils import APIBaseTestCase
-from .test_api_utils import DBAPITestCase
+from .test_api_utils import ApiBaseTestCase
+from .test_api_utils import DbApiTestCase
 from .test_api_utils import generate_uuid
 from .test_api_utils import HOST_URL
 from .test_api_utils import quote
@@ -68,7 +68,7 @@ MOCK_XJOIN_HOST_RESPONSE = {
 }
 
 
-class XjoinRequestBaseTestCase(APIBaseTestCase):
+class XjoinRequestBaseTestCase(ApiBaseTestCase):
     @contextmanager
     def _patch_xjoin_post(self, response, status=200):
         with patch(
@@ -91,7 +91,7 @@ class XjoinRequestBaseTestCase(APIBaseTestCase):
         )
 
 
-class HostsXjoinBaseTestCase(APIBaseTestCase):
+class HostsXjoinBaseTestCase(ApiBaseTestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "xjoin"}):
             super().setUp()
@@ -967,7 +967,7 @@ class TagsRequestTestCase(XjoinRequestBaseTestCase):
 
 
 @patch("api.tag.xjoin_enabled", return_value=True)
-class TagsResponseTestCase(APIBaseTestCase):
+class TagsResponseTestCase(ApiBaseTestCase):
     RESPONSE = {
         "hostTags": {
             "meta": {"count": 3, "total": 3},
@@ -1007,7 +1007,7 @@ class TagsResponseTestCase(APIBaseTestCase):
         )
 
 
-class xjoinBulkSourceSwitchTestCaseEnvXjoin(DBAPITestCase):
+class XjoinBulkSourceSwitchTestCaseEnvXjoin(DbApiTestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
             super().setUp()
@@ -1040,7 +1040,7 @@ class xjoinBulkSourceSwitchTestCaseEnvXjoin(DBAPITestCase):
         graphql_query.assert_called_once()
 
 
-class xjoinBulkSourceSwitchTestCaseEnvDB(DBAPITestCase):
+class XjoinBulkSourceSwitchTestCaseEnvDb(DbApiTestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
             super().setUp()

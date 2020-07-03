@@ -96,7 +96,7 @@ def inject_qs(url, **kwargs):
     return urlunsplit((scheme, netloc, path, new_query, fragment))
 
 
-class APIBaseTestCase(TestCase):
+class ApiBaseTestCase(TestCase):
     def _create_header(self, auth_header, request_id_header):
         header = auth_header.copy()
         if request_id_header is not None:
@@ -176,7 +176,7 @@ class APIBaseTestCase(TestCase):
             return response
 
 
-class DBAPITestCase(APIBaseTestCase):
+class DbApiTestCase(ApiBaseTestCase):
     @classmethod
     def setUpClass(cls):
         # create test database
@@ -234,7 +234,7 @@ class DBAPITestCase(APIBaseTestCase):
         self.assertIsNotNone(received_host["updated"])
 
 
-class PaginationBaseTestCase(APIBaseTestCase):
+class PaginationBaseTestCase(ApiBaseTestCase):
     def _base_paging_test(self, url, expected_number_of_hosts):
         def _test_get_page(page, expected_count=1):
             test_url = inject_qs(url, page=page, per_page="1")
@@ -271,7 +271,7 @@ class PaginationBaseTestCase(APIBaseTestCase):
                     self.get(test_url, 400)
 
 
-class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
+class PreCreatedHostsBaseTestCase(DbApiTestCase, PaginationBaseTestCase):
     def setUp(self):
         super().setUp()
         self.added_hosts = self.create_hosts()
@@ -353,7 +353,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase, PaginationBaseTestCase):
         return host_list
 
 
-class HealthTestCase(APIBaseTestCase):
+class HealthTestCase(ApiBaseTestCase):
     """
     Tests the health check endpoint.
     """

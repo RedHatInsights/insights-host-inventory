@@ -8,7 +8,7 @@ from unittest.mock import patch
 from urllib.parse import quote_plus as url_quote
 
 from .test_api_utils import ACCOUNT
-from .test_api_utils import DBAPITestCase
+from .test_api_utils import DbApiTestCase
 from .test_api_utils import generate_uuid
 from .test_api_utils import HOST_URL
 from .test_api_utils import inject_qs
@@ -254,7 +254,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 @patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
-class QueryByCanonicalFactPerformanceTestCase(DBAPITestCase):
+class QueryByCanonicalFactPerformanceTestCase(DbApiTestCase):
     def test_query_using_fqdn_not_subset_match(self, canonical_fact_host_query):
         fqdn = "some fqdn"
         self.get(f"{HOST_URL}?fqdn={fqdn}")

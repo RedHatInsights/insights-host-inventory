@@ -16,7 +16,7 @@ from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
 from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import build_valid_auth_header
-from tests.test_api_utils import DBAPITestCase
+from tests.test_api_utils import DbApiTestCase
 from tests.test_api_utils import FACTS
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
@@ -29,7 +29,7 @@ from tests.test_utils import set_environment
 from tests.test_utils import valid_system_profile
 
 
-class CreateHostsTestCase(DBAPITestCase):
+class CreateHostsTestCase(DbApiTestCase):
     def test_create_and_update(self):
         facts = None
 
@@ -659,7 +659,7 @@ class CreateHostsTestCase(DBAPITestCase):
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
 
-class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
+class ResolveDisplayNameOnCreationTestCase(DbApiTestCase):
     def test_create_host_without_display_name_and_without_fqdn(self):
         """
         This test should verify that the display_name is set to the id
@@ -713,7 +713,7 @@ class ResolveDisplayNameOnCreationTestCase(DBAPITestCase):
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
 
-class BulkCreateHostsTestCase(DBAPITestCase):
+class BulkCreateHostsTestCase(DbApiTestCase):
     def _get_valid_auth_header(self):
         return build_valid_auth_header()
 
@@ -768,7 +768,7 @@ class BulkCreateHostsTestCase(DBAPITestCase):
                 i += 1
 
 
-class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase):
+class CreateHostsWithSystemProfileTestCase(DbApiTestCase, PaginationBaseTestCase):
     def test_create_host_with_system_profile(self):
         facts = None
 
@@ -996,7 +996,7 @@ class CreateHostsWithSystemProfileTestCase(DBAPITestCase, PaginationBaseTestCase
                 self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
 
-class CreateHostsWithStaleTimestampTestCase(DBAPITestCase):
+class CreateHostsWithStaleTimestampTestCase(DbApiTestCase):
     def _add_host(self, expected_status, **values):
         host_data = HostWrapper(test_data(fqdn="match this host", **values))
         response = self.post(HOST_URL, [host_data.data()], 207)

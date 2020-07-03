@@ -10,8 +10,8 @@ import pytest
 
 from .test_api_delete import DeleteHostsBaseTestCase
 from .test_api_utils import ACCOUNT
-from .test_api_utils import APIBaseTestCase
-from .test_api_utils import DBAPITestCase
+from .test_api_utils import ApiBaseTestCase
+from .test_api_utils import DbApiTestCase
 from .test_api_utils import generate_uuid
 from .test_api_utils import HOST_URL
 from .test_api_utils import now
@@ -23,7 +23,7 @@ from host_reaper import run as host_reaper_run
 from tests.test_utils import MockEventProducer
 
 
-class CullingBaseTestCase(APIBaseTestCase):
+class CullingBaseTestCase(ApiBaseTestCase):
     def _nullify_culling_fields(self, host_id):
         with self.app.app_context():
             host = db.session.query(Host).get(host_id)
@@ -33,7 +33,7 @@ class CullingBaseTestCase(APIBaseTestCase):
             db.session.commit()
 
 
-class QueryStaleTimestampTestCase(DBAPITestCase):
+class QueryStaleTimestampTestCase(DbApiTestCase):
     def test_with_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)
@@ -75,7 +75,7 @@ class QueryStaleTimestampTestCase(DBAPITestCase):
         _assert_values(get_by_id_response["results"][0])
 
 
-class QueryStalenessBaseTestCase(DBAPITestCase):
+class QueryStalenessBaseTestCase(DbApiTestCase):
     def _create_host(self, stale_timestamp):
         data = {
             "account": ACCOUNT,

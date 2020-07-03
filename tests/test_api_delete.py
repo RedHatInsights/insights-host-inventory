@@ -5,7 +5,7 @@ from datetime import timezone
 from unittest import main
 from unittest.mock import patch
 
-from .test_api_utils import DBAPITestCase
+from .test_api_utils import DbApiTestCase
 from .test_api_utils import generate_uuid
 from .test_api_utils import HOST_URL
 from .test_api_utils import PreCreatedHostsBaseTestCase
@@ -13,7 +13,7 @@ from app.models import Host
 from lib.host_delete import delete_hosts
 
 
-class DeleteHostsBaseTestCase(DBAPITestCase):
+class DeleteHostsBaseTestCase(DbApiTestCase):
     def _get_hosts(self, host_ids):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}", 200)
@@ -46,7 +46,7 @@ class DeleteHostsBaseTestCase(DBAPITestCase):
         self.assertEqual(retrieved_ids, ())
 
 
-class DeleteHostsErrorTestCase(DBAPITestCase):
+class DeleteHostsErrorTestCase(DbApiTestCase):
     def test_delete_non_existent_host(self):
         url = HOST_URL + "/" + generate_uuid()
 
