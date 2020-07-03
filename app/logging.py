@@ -33,12 +33,10 @@ def cloudwatch_handler():
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
 
-    logger = get_logger(__name__)
     if all((aws_access_key_id, aws_secret_access_key, aws_region_name)):
         aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
         aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
         create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
-        logger.info(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
         print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
         boto3_session = Session(
             aws_access_key_id=aws_access_key_id,
