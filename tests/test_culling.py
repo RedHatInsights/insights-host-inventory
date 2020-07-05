@@ -11,7 +11,7 @@ import pytest
 from app import db
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
-from tests.test_api_delete import DeleteHostsBaseTestCase
+from tests.test_api_hosts_delete import DeleteHostsBaseTestCase
 from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import DbApiTestCase
 from tests.test_api_utils import generate_uuid
