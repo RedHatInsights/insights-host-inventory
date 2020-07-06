@@ -27,13 +27,9 @@ def flask_app(database):
     app = create_app(RuntimeEnvironment.TEST)
 
     # binds the app to the current context
-    with app.app_context() as ctx:
+    with app.app_context():
         db.create_all()
-        ctx.push()
-
         yield app
-
-        ctx.pop()
         db.session.remove()
         db.drop_all()
 
