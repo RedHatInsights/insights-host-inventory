@@ -11,7 +11,6 @@ import pytest
 from app import db
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
-from tests.test_api_hosts_delete import DeleteHostsBaseTestCase
 from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import DbApiTestCase
 from tests.test_api_utils import generate_uuid
@@ -19,6 +18,7 @@ from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import now
 from tests.test_api_utils import test_data
 from tests.test_culling_utils import HostStalenessBaseTestCase
+from tests.test_delete_utils import DeleteHostsBaseTestCase
 from tests.test_utils import MockEventProducer
 
 
@@ -264,10 +264,6 @@ class HostReaperTestCase(DeleteHostsBaseTestCase):
             hosts.append(HostWrapper(added_host))
 
         return hosts
-
-    def _get_hosts(self, host_ids):
-        url_part = ",".join(host_ids)
-        return self.get(f"{HOST_URL}/{url_part}")
 
     @pytest.mark.host_reaper
     def test_culled_host_is_removed(self):
