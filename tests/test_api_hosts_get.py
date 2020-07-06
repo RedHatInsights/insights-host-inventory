@@ -742,7 +742,7 @@ class QueryOrderBadRequestsTestCase(QueryOrderBaseTestCase):
                 self._get(url, None, "ASC", 400)
 
 
-class InsightsFilterTestCase(PreCreatedHostsBaseTestCase):
+class QueryRegisteredWithInsightsTestCase(PreCreatedHostsBaseTestCase):
     # remove the insights ID from some hosts in setUp
     def setUp(self):
         super().setUp()
