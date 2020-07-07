@@ -99,7 +99,7 @@ runs.
 A command to run the server in a cluster.
 
 ```
-gunicorn -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run
+gunicorn -c gunicorn.conf.py run
 ```
 
 Running the server locally for development. In this case it’s not necessary to
