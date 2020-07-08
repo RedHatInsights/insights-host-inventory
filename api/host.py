@@ -57,60 +57,66 @@ logger = get_logger(__name__)
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
-    print(inventory_config().rest_post_enabled)
-    if inventory_config().rest_post_enabled:
-        reporter = None
+    if not inventory_config().rest_post_enabled:
+        return flask_json_response(
+            {
+                "detail": "This method is disabled.",
+                "status": 405,
+                "title": "Method Not Allowed",
+                "type": "about:blank",
+            },
+            status=405,
+        )
+    reporter = None
 
-        response_host_list = []
-        number_of_errors = 0
+    response_host_list = []
+    number_of_errors = 0
 
-        payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
-        with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
+    with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
 
-            for host in host_list:
-                try:
-                    with PayloadTrackerProcessingContext(
-                        payload_tracker, processing_status_message="adding/updating host"
-                    ) as payload_tracker_processing_ctx:
-                        if host.get("tags"):
-                            tags_ignored_from_http_count.inc()
-                            logger.info("Tags from an HTTP request were ignored")
+        for host in host_list:
+            try:
+                with PayloadTrackerProcessingContext(
+                    payload_tracker, processing_status_message="adding/updating host"
+                ) as payload_tracker_processing_ctx:
+                    if host.get("tags"):
+                        tags_ignored_from_http_count.inc()
+                        logger.info("Tags from an HTTP request were ignored")
 
-                        input_host = deserialize_host_http(host)
-                        (output_host, add_result) = _add_host(input_host)
-                        status_code = _convert_host_results_to_http_status(add_result)
-                        response_host_list.append({"status": status_code, "host": output_host})
-                        payload_tracker_processing_ctx.inventory_id = output_host["id"]
+                    input_host = deserialize_host_http(host)
+                    (output_host, add_result) = _add_host(input_host)
+                    status_code = _convert_host_results_to_http_status(add_result)
+                    response_host_list.append({"status": status_code, "host": output_host})
+                    payload_tracker_processing_ctx.inventory_id = output_host["id"]
 
-                        reporter = host.get("reporter")
-                except ValidationException as e:
-                    number_of_errors += 1
-                    logger.exception("Input validation error while adding host", extra={"host": host})
-                    response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
-                except InventoryException as e:
-                    number_of_errors += 1
-                    logger.exception("Error adding host", extra={"host": host})
-                    response_host_list.append({**e.to_json(), "host": host})
-                except Exception:
-                    number_of_errors += 1
-                    logger.exception("Error adding host", extra={"host": host})
-                    response_host_list.append(
-                        {
-                            "status": 500,
-                            "title": "Error",
-                            "type": "unknown",
-                            "detail": "Could not complete operation",
-                            "host": host,
-                        }
-                    )
+                    reporter = host.get("reporter")
+            except ValidationException as e:
+                number_of_errors += 1
+                logger.exception("Input validation error while adding host", extra={"host": host})
+                response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
+            except InventoryException as e:
+                number_of_errors += 1
+                logger.exception("Error adding host", extra={"host": host})
+                response_host_list.append({**e.to_json(), "host": host})
+            except Exception:
+                number_of_errors += 1
+                logger.exception("Error adding host", extra={"host": host})
+                response_host_list.append(
+                    {
+                        "status": 500,
+                        "title": "Error",
+                        "type": "unknown",
+                        "detail": "Could not complete operation",
+                        "host": host,
+                    }
+                )
 
-            rest_post_request_count.labels(reporter=reporter).inc()
+        rest_post_request_count.labels(reporter=reporter).inc()
 
-            response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
-            return flask_json_response(response, status=207)
-    else:
-        return flask_json_response({}, status=410)
+        response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
+        return flask_json_response(response, status=207)
 
 
 def _convert_host_results_to_http_status(result):

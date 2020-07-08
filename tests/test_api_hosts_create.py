@@ -1075,6 +1075,15 @@ class CreateHostsWithStaleTimestampTestCase(DbApiTestCase):
                 self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
                 self.assertEqual(new_reporter, new_retrieved_host.reporter)
 
+    def test_create_with_branch_id(self):
+        host_data = HostWrapper(test_data())
+
+        # Create the host
+        with self.app.app_context():
+            config = self.app.config["INVENTORY_CONFIG"]
+            config.rest_post_enabled = False
+            self.post(HOST_URL, [host_data.data()], 410)
+
 
 if __name__ == "__main__":
     main()
