@@ -1,5 +1,6 @@
 import logging
 from logging.config import fileConfig
+from app.logging import get_logger
 
 from alembic import context
 from flask import current_app
@@ -12,8 +13,11 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
-logger = logging.getLogger("alembic.env")
+# fileConfig(config.config_file_name)
+# logger = logging.getLogger("alembic.env")
+sql_logger = get_logger("sqlalchemy.engine")
+sql_logger.setLevel("INFO")
+logger = get_logger("alembic.env")
 
 # add your model's MetaData object here
 # for 'autogenerate' support
