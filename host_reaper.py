@@ -88,7 +88,7 @@ def main(logger):
 
 
 if __name__ == "__main__":
-    configure_logging(RUNTIME_ENVIRONMENT)
+    configure_logging()
 
     logger = get_logger(LOGGER_NAME)
     sys.excepthook = partial(_excepthook, logger)

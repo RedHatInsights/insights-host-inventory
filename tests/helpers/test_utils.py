@@ -121,14 +121,3 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
-
-
-def assert_system_culling_data(response_host, expected_stale_timestamp, expected_reporter):
-    assert "stale_timestamp" in response_host
-    assert "stale_warning_timestamp" in response_host
-    assert "culled_timestamp" in response_host
-    assert "reporter" in response_host
-    assert response_host["stale_timestamp"] == expected_stale_timestamp.isoformat()
-    assert response_host["stale_warning_timestamp"] == (expected_stale_timestamp + timedelta(weeks=1)).isoformat()
-    assert response_host["culled_timestamp"] == (expected_stale_timestamp + timedelta(weeks=2)).isoformat()
-    assert response_host["reporter"] == expected_reporter

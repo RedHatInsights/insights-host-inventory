@@ -16,7 +16,6 @@ from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
-from tests.helpers.test_utils import assert_system_culling_data
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -358,3 +357,14 @@ def test_unknown_host_is_not_removed(
 
     assert db_get_host(created_host.id)
     assert event_producer_mock.event is None
+
+
+def assert_system_culling_data(response_host, expected_stale_timestamp, expected_reporter):
+    assert "stale_timestamp" in response_host
+    assert "stale_warning_timestamp" in response_host
+    assert "culled_timestamp" in response_host
+    assert "reporter" in response_host
+    assert response_host["stale_timestamp"] == expected_stale_timestamp.isoformat()
+    assert response_host["stale_warning_timestamp"] == (expected_stale_timestamp + timedelta(weeks=1)).isoformat()
+    assert response_host["culled_timestamp"] == (expected_stale_timestamp + timedelta(weeks=2)).isoformat()
+    assert response_host["reporter"] == expected_reporter
