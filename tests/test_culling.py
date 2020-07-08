@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from datetime import timedelta
 from unittest import mock
 

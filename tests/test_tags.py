@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import pytest
 from sqlalchemy import null
 

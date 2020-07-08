@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import pytest
 
 from api.host_query_xjoin import QUERY as HOST_QUERY

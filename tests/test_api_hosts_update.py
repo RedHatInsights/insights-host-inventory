@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import pytest
 
 from tests.helpers.api_utils import assert_error_response

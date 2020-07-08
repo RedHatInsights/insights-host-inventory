@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status

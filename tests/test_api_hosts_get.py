@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import copy
 import uuid
 from itertools import chain
