@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json
 import unittest
 import uuid
@@ -25,9 +26,8 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
-from test_utils import MockEventProducer
-from test_utils import rename_host_table_and_indexes
-from test_utils import valid_system_profile
+from tests.test_utils import MockEventProducer
+from tests.test_utils import valid_system_profile
 
 
 class MQServiceBaseTestCase(TestCase):
@@ -212,14 +212,6 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
 
 
 class MQAddHostBaseClass(MQServiceBaseTestCase):
-    @classmethod
-    def setUpClass(cls):
-        """
-        Temporarily rename the host table while the tests run.  This is done
-        to make dropping the table at the end of the tests a bit safer.
-        """
-        rename_host_table_and_indexes()
-
     def setUp(self):
         """
         Initializes the database by creating all tables.
