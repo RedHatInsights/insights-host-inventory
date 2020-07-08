@@ -39,7 +39,7 @@ def create_app(runtime_environment):
 
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
-    configure_logging(runtime_environment)
+    configure_logging()
 
     app_config = Config(runtime_environment)
     app_config.log_configuration()
