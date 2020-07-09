@@ -279,6 +279,8 @@ class SystemProfileSchema(Schema):
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
+    sap_system = fields.Bool()
+    sap_local_instances = fields.List(fields.Str(validate=validate.Length(max=100)))
     system_memory_bytes = fields.Int()
     infrastructure_type = fields.Str(validate=validate.Length(max=100))
     infrastructure_vendor = fields.Str(validate=validate.Length(max=100))

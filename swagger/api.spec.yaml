@@ -1018,6 +1018,13 @@ components:
           type: integer
         cores_per_socket:
           type: integer
+        sap_system:
+          type: boolean
+        sap_local_instances:
+          type: array
+          items:
+            description: a local instance for this sap system.
+            type: string
         system_memory_bytes:
           type: integer
           format: int64
