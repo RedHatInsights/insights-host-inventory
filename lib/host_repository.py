@@ -15,6 +15,7 @@ from lib.db import session_guard
 
 __all__ = (
     "add_host",
+    "canonical_fact_host_query",
     "canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
