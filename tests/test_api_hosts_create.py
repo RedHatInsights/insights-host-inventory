@@ -619,6 +619,22 @@ def test_create_host_with_20_byte_mac_address(api_create_or_update_host, api_get
     assert_host_data(actual_host=host_response, expected_host=host, expected_id=created_host_id)
 
 
+def test_rest_post_disabling(disable_rest_api_post, api_create_or_update_host):
+    host = minimal_host()
+
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 405)
+
+    assert_error_response(
+        response=multi_response_data,
+        expected_status=405,
+        expected_title="Method Not Allowed",
+        expected_detail="The method is not allowed for the requested URL.",
+        expected_type="about:blank",
+    )
+
+
 @pytest.mark.parametrize("invalid_ansible_host", ["a" * 256])
 def test_create_host_with_invalid_ansible_host(api_create_or_update_host, invalid_ansible_host):
     host = minimal_host(ansible_host=invalid_ansible_host)
