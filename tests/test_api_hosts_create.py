@@ -1082,7 +1082,7 @@ class CreateHostsWithStaleTimestampTestCase(DbApiTestCase):
         with self.app.app_context():
             config = self.app.config["INVENTORY_CONFIG"]
             config.rest_post_enabled = False
-            self.post(HOST_URL, [host_data.data()], 410)
+            self.post(HOST_URL, [host_data.data()], 405)
 
 
 if __name__ == "__main__":

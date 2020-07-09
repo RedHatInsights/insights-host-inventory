@@ -60,7 +60,7 @@ def add_host_list(host_list):
     if not inventory_config().rest_post_enabled:
         return flask_json_response(
             {
-                "detail": "This method is disabled.",
+                "detail": "The method is not allowed for the requested URL.",
                 "status": 405,
                 "title": "Method Not Allowed",
                 "type": "about:blank",
