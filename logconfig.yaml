@@ -8,7 +8,7 @@ loggers:
   alembic:
     level: DEBUG
     handlers:
-    - console
+    - logstash
     - cloudwatch
     propagate: false
   gunicorn.error:
@@ -24,7 +24,7 @@ loggers:
   sqlalchemy.engine:
     level: WARNING
     handlers:
-    - console
+    - logstash
     - cloudwatch
     propagate: false
   inventory:
@@ -51,15 +51,9 @@ handlers:
     formatter: logstash
     filters:
     - contextual
-  console:
-    class: logging.StreamHandler
-    formatter: generic
-    stream: ext://sys.stderr
 formatters:
   human_readable:
     format: "[%(asctime)s] [%(process)d] [%(thread)d] [%(name)s] [%(levelname)s] %(message)s"
-  generic:
-    format: "%(levelname)-5.5s [%(name)s] %(message)s"
   logstash:
     class: logstash_formatter.LogstashFormatterV1
 filters:
