@@ -28,6 +28,12 @@ def configure_logging():
     logger.setLevel(log_level)
 
 
+def configure_migrations_logging():
+    logger = logging.getLogger("sqlalchemy.engine")
+    log_level = os.getenv("MIGRATIONS_LOG_LEVEL", "INFO").upper()
+    logger.setLevel(log_level)
+
+
 def cloudwatch_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
