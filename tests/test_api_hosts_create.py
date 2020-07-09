@@ -658,6 +658,22 @@ class CreateHostsTestCase(DbApiTestCase):
 
         self._validate_host(host_lookup_results["results"][0], host_data, expected_id=original_id)
 
+    def test_rest_post_disabling(self):
+        host_data = HostWrapper(test_data())
+
+        with self.app.app_context():
+            config = self.app.config["INVENTORY_CONFIG"]
+            config.rest_post_enabled = False
+            response = self.post(HOST_URL, [host_data.data()], 405)
+
+        self.verify_error_response(
+            response,
+            expected_status=405,
+            expected_title="Method Not Allowed",
+            expected_detail="The method is not allowed for the requested URL.",
+            expected_type="about:blank",
+        )
+
 
 class ResolveDisplayNameOnCreationTestCase(DbApiTestCase):
     def test_create_host_without_display_name_and_without_fqdn(self):
@@ -1074,15 +1090,6 @@ class CreateHostsWithStaleTimestampTestCase(DbApiTestCase):
 
                 self.assertEqual(new_stale_timestamp, new_retrieved_host.stale_timestamp)
                 self.assertEqual(new_reporter, new_retrieved_host.reporter)
-
-    def test_create_with_branch_id(self):
-        host_data = HostWrapper(test_data())
-
-        # Create the host
-        with self.app.app_context():
-            config = self.app.config["INVENTORY_CONFIG"]
-            config.rest_post_enabled = False
-            self.post(HOST_URL, [host_data.data()], 405)
 
 
 if __name__ == "__main__":
