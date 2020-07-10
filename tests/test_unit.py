@@ -14,6 +14,8 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+from kafka.errors import KafkaError
+
 from api import api_operation
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
@@ -1683,6 +1685,20 @@ class EventProducerTests(TestCase):
 
         with self.assertRaises(KeyError):
             self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
+
+    @patch("app.queue.event_producer.message_not_produced")
+    def test_kafka_errors_are_caught(self, message_not_produced_mock):
+        event_type = EventType.created
+        event = build_event(event_type, self.basic_host)
+        key = self.basic_host["id"]
+        headers = message_headers(event_type)
+
+        # set up send to return a kafka error to check our handling
+        self.event_producer._kafka_producer.send.side_effect = KafkaError()
+
+        self.event_producer.write_event(event, key, headers, Topic.events)
+
+        message_not_produced_mock.assert_called_once()
 
 
 if __name__ == "__main__":
