@@ -7,7 +7,7 @@ test:
 	pytest --cov=.
 
 upgrade_db:
-	MIGRATIONS_LOG_LEVEL=INFO python manage.py db upgrade
+	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO python manage.py db upgrade
 
 run_inv_web_service:
 	# Set the "KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS" environment variables

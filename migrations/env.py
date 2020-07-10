@@ -3,7 +3,6 @@ from flask import current_app
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
-from app.logging import configure_migrations_logging
 from app.logging import get_logger
 
 # this is the Alembic Config object, which provides
@@ -12,7 +11,6 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-configure_migrations_logging()
 logger = get_logger("alembic.env")
 
 # add your model's MetaData object here
