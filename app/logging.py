@@ -1,79 +1,65 @@
 import logging.config
 import os
+from logging import NullHandler
 from threading import local
 
 import logstash_formatter
 import watchtower
 from boto3.session import Session
 from gunicorn import glogging
+from yaml import safe_load
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 DEFAULT_AWS_LOGGING_NAMESPACE = "inventory-dev"
-LOGGER_PREFIX = "inventory."
+DEFAULT_LOGGING_CONFIG_FILE = "logconfig.yaml"
+LOGGER_NAME = "inventory"
 
 threadctx = local()
 
 
-def configure_logging(runtime_environment):
-    env_var_name = "INVENTORY_LOGGING_CONFIG_FILE"
-    log_config_file = os.getenv(env_var_name)
-    if log_config_file is not None:
-        # The logging module throws an odd error (KeyError) if the
-        # config file is not found.  Hopefully, this makes it more clear.
-        try:
-            fh = open(log_config_file)
-            fh.close()
-        except FileNotFoundError:
-            print(
-                f"Error reading the logging configuration file.  Verify the {env_var_name} environment variable is "
-                "set correctly. Aborting..."
-            )
-            raise
+def configure_logging():
+    log_config_file = os.getenv("INVENTORY_LOGGING_CONFIG_FILE", DEFAULT_LOGGING_CONFIG_FILE)
+    with open(log_config_file) as log_config_file:
+        logconfig_dict = safe_load(log_config_file)
 
-        logging.config.fileConfig(fname=log_config_file)
+    logging.config.dictConfig(logconfig_dict)
+    logger = logging.getLogger(LOGGER_NAME)
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
+    logger.setLevel(log_level)
 
-    if runtime_environment.logging_enabled:
-        _configure_watchtower_logging_handler()
-        _configure_contextual_logging_filter()
+    sqlalchemy_engine_level = os.getenv("SQLALCHEMY_ENGINE_LOG_LEVEL")
+    if sqlalchemy_engine_level:
+        logging.getLogger("sqlalchemy.engine").setLevel(sqlalchemy_engine_level.upper())
 
 
-def _configure_watchtower_logging_handler():
+def cloudwatch_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
-    log_group = os.getenv("AWS_LOG_GROUP", "platform")
-    stream_name = os.getenv("AWS_LOG_STREAM", _get_hostname())  # default to hostname
-    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
 
-    if all([aws_access_key_id, aws_secret_access_key, aws_region_name, stream_name]):
-        print(f"Configuring watchtower logging (log_group={log_group}, stream_name={stream_name})")
+    if all((aws_access_key_id, aws_secret_access_key, aws_region_name)):
+        aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
+        aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
+        create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+        print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
         boto3_session = Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name=aws_region_name,
         )
-
-        root = logging.getLogger()
-        handler = watchtower.CloudWatchLogHandler(
+        return watchtower.CloudWatchLogHandler(
             boto3_session=boto3_session,
-            log_group=log_group,
-            stream_name=stream_name,
+            log_group=aws_log_group,
+            stream_name=aws_log_stream,
             create_log_group=create_log_group,
         )
-        handler.setFormatter(logstash_formatter.LogstashFormatterV1())
-        root.addHandler(handler)
     else:
         print("Unable to configure watchtower logging.  Please verify watchtower logging configuration!")
+        return NullHandler()
 
 
 def _get_hostname():
-    return os.uname()[1]
-
-
-def _configure_contextual_logging_filter():
-    # Only enable the contextual filter if not in "testing" mode
-    root = logging.getLogger()
-    root.addFilter(ContextualFilter())
+    return os.uname().nodename
 
 
 class ContextualFilter(logging.Filter):
@@ -119,8 +105,4 @@ class InventoryGunicornLogger(glogging.Logger):
 
 
 def get_logger(name):
-    log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
-    logger = logging.getLogger(LOGGER_PREFIX + name)
-    logger.addFilter(ContextualFilter())
-    logger.setLevel(log_level)
-    return logger
+    return logging.getLogger(f"{LOGGER_NAME}.{name}")

@@ -18,7 +18,8 @@ class Config:
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
+        default_db_name = "insights_test" if runtime_environment == RuntimeEnvironment.TEST else "insights"
+        self._db_name = os.getenv("INVENTORY_DB_NAME", default_db_name)
         self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
         self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
 
@@ -33,6 +34,8 @@ class Config:
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
+
+        self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")

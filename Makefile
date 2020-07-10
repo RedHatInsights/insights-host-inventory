@@ -7,7 +7,7 @@ test:
 	pytest --cov=.
 
 upgrade_db:
-	python manage.py db upgrade
+	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO python manage.py db upgrade
 
 run_inv_web_service:
 	# Set the "KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS" environment variables
@@ -15,11 +15,10 @@ run_inv_web_service:
 	#
 	# KAFKA_TOPIC="platform.system-profile" KAFKA_GROUP="inventory" KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
 	#
-	INVENTORY_LOGGING_CONFIG_FILE=logconfig.ini INVENTORY_LOG_LEVEL=DEBUG gunicorn -b :8080 run
+	INVENTORY_LOG_LEVEL=DEBUG gunicorn -b :8080 run
 
 run_inv_mq_service:
-	PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOGGING_CONFIG_FILE=logconfig.ini \
-	INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
+	PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
 
 run_inv_mq_service_test_producer:
 	python utils/kafka_producer.py
