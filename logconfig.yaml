@@ -5,6 +5,12 @@ root:
   handlers:
   - logstash
 loggers:
+  alembic:
+    level: DEBUG
+    handlers:
+    - logstash
+    - cloudwatch
+    propagate: false
   gunicorn.error:
     level: ERROR
     handlers:
@@ -19,7 +25,8 @@ loggers:
     level: WARNING
     handlers:
     - logstash
-    propagate: true
+    - cloudwatch
+    propagate: false
   inventory:
     level: INFO
     handlers:

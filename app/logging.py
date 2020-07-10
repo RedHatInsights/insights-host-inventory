@@ -27,6 +27,10 @@ def configure_logging():
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger.setLevel(log_level)
 
+    sqlalchemy_engine_level = os.getenv("SQLALCHEMY_ENGINE_LOG_LEVEL")
+    if sqlalchemy_engine_level:
+        logging.getLogger("sqlalchemy.engine").setLevel(sqlalchemy_engine_level.upper())
+
 
 def cloudwatch_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
