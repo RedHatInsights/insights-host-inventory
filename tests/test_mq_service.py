@@ -510,9 +510,6 @@ class MQAddHostTestCase(MQAddHostBaseClass):
 
     @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
     def test_add_host_with_sap_system(self, datetime_mock):
-        """
-        Tests adding a host with some simple data
-        """
         expected_insights_id = str(uuid.uuid4())
         timestamp_iso = datetime_mock.now.return_value.isoformat()
 
@@ -522,7 +519,7 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "account": "0000001",
             "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
             "reporter": "test",
-            "sap_system": True,
+            "system_profile": {"sap_system": True},
         }
 
         expected_results = {
@@ -530,10 +527,9 @@ class MQAddHostTestCase(MQAddHostBaseClass):
             "platform_metadata": {},
             "timestamp": timestamp_iso,
             "type": "created",
-            "sap_system": True,
         }
 
-        host_keys_to_check = ["display_name", "insights_id", "account"]
+        host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
         self._base_add_host_test(host_data, expected_results, host_keys_to_check)
 
