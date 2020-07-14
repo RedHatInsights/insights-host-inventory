@@ -86,7 +86,7 @@ def add_host_list(host_list):
                         logger.info("Tags from an HTTP request were ignored")
 
                     input_host = deserialize_host_http(host)
-                    (output_host, add_result) = _add_host(input_host)
+                    ((output_host, _), add_result) = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": output_host})
                     payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -260,9 +260,10 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
-def _emit_patch_event(host):
+def _emit_patch_event(serialized_host_info):
+    (host, insights_id) = serialized_host_info
     key = host["id"]
-    headers = message_headers(EventType.updated)
+    headers = message_headers(EventType.updated, insights_id)
     event = build_event(EventType.updated, host)
     current_app.event_producer.write_event(event, key, headers, Topic.events)
 

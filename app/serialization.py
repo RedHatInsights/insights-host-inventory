@@ -101,6 +101,8 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
 
     serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
 
+    insights_id = host.canonical_facts["insights_id"] if "insights_id" in host.canonical_facts else ""
+
     if "id" in fields:
         serialized_host["id"] = _serialize_uuid(host.id)
     if "account" in fields:
@@ -130,7 +132,7 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
 
-    return serialized_host
+    return (serialized_host, insights_id)
 
 
 def serialize_host_system_profile(host):
