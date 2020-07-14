@@ -2,11 +2,11 @@ from datetime import timezone
 from json import loads
 
 from app.models import Host
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import HOST_URL
 
 
-class DeleteHostsBaseTestCase(DbApiTestCase):
+class DeleteHostsBaseTestCase(DbApiBaseTestCase):
     def _get_hosts(self, host_ids):
         url_part = ",".join(host_ids)
         return self.get(f"{HOST_URL}/{url_part}", 200)

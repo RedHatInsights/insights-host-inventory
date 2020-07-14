@@ -176,7 +176,7 @@ class ApiBaseTestCase(TestCase):
             return response
 
 
-class DbApiTestCase(ApiBaseTestCase):
+class DbApiBaseTestCase(ApiBaseTestCase):
     @classmethod
     def setUpClass(cls):
         # create test database
@@ -271,7 +271,7 @@ class PaginationBaseTestCase(ApiBaseTestCase):
                     self.get(test_url, 400)
 
 
-class PreCreatedHostsBaseTestCase(DbApiTestCase, PaginationBaseTestCase):
+class PreCreatedHostsBaseTestCase(DbApiBaseTestCase, PaginationBaseTestCase):
     def setUp(self):
         super().setUp()
         self.added_hosts = self.create_hosts()
