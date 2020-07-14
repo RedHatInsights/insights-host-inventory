@@ -1103,6 +1103,8 @@ components:
           type: array
           items:
             type: string
+        sap:
+          $ref: '#/components/schemas/SAP'
     PatchHostIn:
       title: Host data
       description: >-
@@ -1120,6 +1122,16 @@ components:
             name.
           type: string
           example: host1.mydomain.com
+    SAP:
+      title: SAP information
+      description: representation of SAP info for a system
+      properties:
+        is_sap_system:
+          type: boolean
+        local_instances:
+          type: array
+          items:
+            type: string
 
     ActiveTags:
       title: Host data

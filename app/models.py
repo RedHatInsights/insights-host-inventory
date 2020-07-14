@@ -275,6 +275,11 @@ class NetworkInterfaceSchema(Schema):
     type = fields.Str(validate=validate.Length(max=18))
 
 
+class SAPSchema(Schema):
+    is_sap_system = fields.Bool()
+    local_instances = fields.List(fields.Str(validate=validate.Length(max=256)))
+
+
 class SystemProfileSchema(Schema):
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
@@ -308,6 +313,7 @@ class SystemProfileSchema(Schema):
     installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
     installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
     enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    sap = fields.Nested(SAPSchema())
 
 
 class FactsSchema(Schema):
