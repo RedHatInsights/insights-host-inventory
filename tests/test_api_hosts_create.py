@@ -1011,6 +1011,30 @@ class CreateHostsWithSystemProfileTestCase(DbApiTestCase, PaginationBaseTestCase
                 response = self.get(f"{HOST_URL}/{host_id}/system_profile", 400)
                 self.verify_error_response(response, expected_title="Bad Request", expected_status=400)
 
+    def test_create_host_with_system_profile_sap_fact(self):
+        facts = None
+
+        host = test_data(display_name="host1", facts=facts)
+        host["ip_addresses"] = ["10.0.0.1"]
+        host["rhel_machine_id"] = generate_uuid()
+
+        host["system_profile"] = valid_system_profile()
+        host["system_profile"]["sap_system"] = True
+
+        # Create the host
+        response = self.post(HOST_URL, [host], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        host_lookup_results = self.get(f"{HOST_URL}/{original_id}/system_profile", 200)
+        actual_host = host_lookup_results["results"][0]
+
+        self.assertEqual(actual_host["system_profile"]["sap_system"], host["system_profile"]["sap_system"])
+
 
 class CreateHostsWithStaleTimestampTestCase(DbApiTestCase):
     def _add_host(self, expected_status, **values):
