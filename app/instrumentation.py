@@ -27,7 +27,7 @@ def message_not_produced(logger, topic, value, key, headers, error):
 
     info_extra = {**extra, "headers": headers, "error": error_message}
     info_message = "Message %s topic=%s, key=%s, headers=%s, error=%s"
-    logger.info(info_message, status, topic, key, headers, error, extra=info_extra)
+    logger.error(info_message, status, topic, key, headers, error, extra=info_extra)
 
     debug_message = "Message topic=%s key=%s value=%s"
     debug_extra = {**extra, "value": value}
