@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import json
-import tempfile
 import uuid
 from base64 import b64encode
 from datetime import datetime
@@ -25,13 +24,9 @@ from app.environment import RuntimeEnvironment
 from app.queue.queue import handle_message
 from app.utils import HostWrapper
 from tests.test_utils import MockEventProducer
-from tests.test_utils import set_environment
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
-HEALTH_URL = "/health"
-METRICS_URL = "/metrics"
-VERSION_URL = "/version"
 
 NS = "testns"
 ID = "whoabuddy"
@@ -176,7 +171,7 @@ class ApiBaseTestCase(TestCase):
             return response
 
 
-class DbApiTestCase(ApiBaseTestCase):
+class DbApiBaseTestCase(ApiBaseTestCase):
     @classmethod
     def setUpClass(cls):
         # create test database
@@ -271,7 +266,7 @@ class PaginationBaseTestCase(ApiBaseTestCase):
                     self.get(test_url, 400)
 
 
-class PreCreatedHostsBaseTestCase(DbApiTestCase, PaginationBaseTestCase):
+class PreCreatedHostsBaseTestCase(DbApiBaseTestCase, PaginationBaseTestCase):
     def setUp(self):
         super().setUp()
         self.added_hosts = self.create_hosts()
@@ -351,33 +346,6 @@ class PreCreatedHostsBaseTestCase(DbApiTestCase, PaginationBaseTestCase):
             host_list.append(HostWrapper(host_data))
 
         return host_list
-
-
-class HealthTestCase(ApiBaseTestCase):
-    """
-    Tests the health check endpoint.
-    """
-
-    def test_health(self):
-        """
-        The health check simply returns 200 to any GET request. The response body is
-        irrelevant.
-        """
-        response = self.client().get(HEALTH_URL)  # No identity header.
-        self.assertEqual(200, response.status_code)
-
-    def test_metrics(self):
-        """
-        The metrics endpoint simply returns 200 to any GET request.
-        """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with set_environment({"prometheus_multiproc_dir": temp_dir}):
-                response = self.client().get(METRICS_URL)  # No identity header.
-                self.assertEqual(200, response.status_code)
-
-    def test_version(self):
-        response = self.get(VERSION_URL, 200)
-        assert response["version"] is not None
 
 
 if __name__ == "__main__":
