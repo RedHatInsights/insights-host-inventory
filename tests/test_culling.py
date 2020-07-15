@@ -12,7 +12,7 @@ from app import db
 from app.utils import HostWrapper
 from host_reaper import run as host_reaper_run
 from tests.test_api_utils import ACCOUNT
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import now
@@ -22,7 +22,7 @@ from tests.test_delete_utils import DeleteHostsBaseTestCase
 from tests.test_utils import MockEventProducer
 
 
-class QueryStaleTimestampTestCase(DbApiTestCase):
+class QueryStaleTimestampTestCase(DbApiBaseTestCase):
     def test_with_stale_timestamp(self):
         def _assert_values(response_host):
             self.assertIn("stale_timestamp", response_host)

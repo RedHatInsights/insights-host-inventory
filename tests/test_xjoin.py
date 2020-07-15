@@ -12,7 +12,7 @@ from unittest.mock import patch
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
 from tests.test_api_utils import ApiBaseTestCase
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import quote
@@ -1007,7 +1007,7 @@ class TagsResponseTestCase(ApiBaseTestCase):
         )
 
 
-class XjoinBulkSourceSwitchTestCaseEnvXjoin(DbApiTestCase):
+class XjoinBulkSourceSwitchTestCaseEnvXjoin(DbApiBaseTestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "xjoin", "BULK_QUERY_SOURCE_BETA": "db"}):
             super().setUp()
@@ -1040,7 +1040,7 @@ class XjoinBulkSourceSwitchTestCaseEnvXjoin(DbApiTestCase):
         graphql_query.assert_called_once()
 
 
-class XjoinBulkSourceSwitchTestCaseEnvDb(DbApiTestCase):
+class XjoinBulkSourceSwitchTestCaseEnvDb(DbApiBaseTestCase):
     def setUp(self):
         with set_environment({"BULK_QUERY_SOURCE": "db", "BULK_QUERY_SOURCE_BETA": "xjoin"}):
             super().setUp()

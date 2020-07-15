@@ -6,14 +6,14 @@ from unittest.mock import patch
 
 from app.models import Host
 from lib.host_delete import delete_hosts
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
 from tests.test_delete_utils import DeleteHostsBaseTestCase
 
 
-class DeleteHostsErrorTestCase(DbApiTestCase):
+class DeleteHostsErrorTestCase(DbApiBaseTestCase):
     def test_delete_non_existent_host(self):
         url = HOST_URL + "/" + generate_uuid()
 
