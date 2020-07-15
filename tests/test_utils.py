@@ -74,6 +74,15 @@ def valid_system_profile():
     }
 
 
+def expected_headers(event_type, request_id, insights_id):
+    return {
+        "event_type": event_type,
+        "request_id": request_id,
+        "producer": os.uname().nodename,
+        "insights_id": insights_id,
+    }
+
+
 class MockEventProducer:
     def __init__(self):
         self.event = None

@@ -1143,7 +1143,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
-        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))[0]
         expected = {
             **canonical_facts,
             **unchanged_data,
@@ -1179,7 +1179,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             setattr(host, k, v)
 
         config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
-        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))[0]
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
@@ -1216,7 +1216,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                     setattr(host, k, v)
 
                 config = CullingConfig(stale_warning_offset_days, culled_offset_days)
-                serialized = serialize_host(host, Timestamps(config))
+                serialized = serialize_host(host, Timestamps(config))[0]
                 self.assertEqual(
                     self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
                     serialized["stale_warning_timestamp"],
@@ -1276,7 +1276,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
                 "stale_timestamp.culled_timestamp": datetime.now(timezone.utc) + timedelta(hours=2),
             }
         )
-        actual = serialize_host(host, staleness_offset, DEFAULT_FIELDS + ("tags",))
+        actual = serialize_host(host, staleness_offset, DEFAULT_FIELDS + ("tags",))[0]
         expected = {
             **canonical_facts,
             **unchanged_data,
