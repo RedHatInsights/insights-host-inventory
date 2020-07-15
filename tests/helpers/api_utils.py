@@ -19,9 +19,6 @@ from tests.helpers.test_utils import ACCOUNT
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
-HEALTH_URL = "/health"
-METRICS_URL = "/metrics"
-VERSION_URL = "/version"
 
 SHARED_SECRET = "SuperSecretStuff"
 
