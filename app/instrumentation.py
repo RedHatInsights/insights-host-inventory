@@ -1,5 +1,5 @@
-from app.queue.metrics import egress_message_handler_failure
-from app.queue.metrics import egress_message_handler_success
+from app.queue.metrics import event_producer_failure
+from app.queue.metrics import event_producer_success
 
 
 def message_produced(logger, value, key, headers, record_metadata):
@@ -17,7 +17,7 @@ def message_produced(logger, value, key, headers, record_metadata):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, offset, timestamp, topic, key, value, extra=debug_extra)
 
-    egress_message_handler_success.inc()
+    event_producer_success.inc()
 
 
 def message_not_produced(logger, topic, value, key, headers, error):
@@ -33,4 +33,4 @@ def message_not_produced(logger, topic, value, key, headers, error):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, topic, key, value, extra=debug_extra)
 
-    egress_message_handler_failure.inc()
+    event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
