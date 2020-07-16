@@ -127,14 +127,12 @@ def add_host(host_data):
             )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return (output_host, add_result)
-        except InventoryException as e:
+        except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
-            payload_tracker.payload_error(f"Inventory exception: {e}\nEncountered error adding host: {host_data}")
             metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
             raise
-        except Exception as e:
+        except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
-            payload_tracker.processing_error(f"Exception: {e} \nError while adding host: {host_data}")
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
 
