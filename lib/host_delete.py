@@ -23,7 +23,10 @@ def delete_hosts(select_query, event_producer):
             if host_deleted:
                 delete_host_count.inc()
                 event = build_event(EventType.delete, host)
-                event_producer.write_event(event, str(host.id), message_headers(EventType.delete), Topic.events)
+                insights_id = host.canonical_facts["insights_id"] if "insights_id" in host.canonical_facts else None
+                event_producer.write_event(
+                    event, str(host.id), message_headers(EventType.delete, insights_id), Topic.events
+                )
 
             yield host_id, host_deleted
 

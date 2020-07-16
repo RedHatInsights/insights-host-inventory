@@ -26,6 +26,7 @@ from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
+from tests.test_utils import expected_headers
 from tests.test_utils import MockEventProducer
 from tests.test_utils import valid_system_profile
 
@@ -93,7 +94,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
         }
         with self.app.app_context():
             with unittest.mock.patch("app.queue.queue.add_host") as m:
-                m.return_value = ({"id": host_id, "insights_id": None}, AddHostResult.created)
+                m.return_value = ({"id": host_id, "insights_id": None}, None, AddHostResult.created)
                 mock_event_producer = Mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
@@ -128,10 +129,11 @@ class MQServiceTestCase(MQServiceBaseTestCase):
 
     def test_events_sent_to_correct_topic(self):
         host_id = uuid.uuid4()
+        insights_id = str(uuid.uuid4())
         message = {
             "operation": "add_host",
             "data": {
-                "insights_id": str(uuid.uuid4()),
+                "insights_id": insights_id,
                 "account": "0000001",
                 "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
                 "reporter": "test",
@@ -146,7 +148,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
                 mock_event_producer = Mock()
 
                 # for host add events
-                m.return_value = ({"id": host_id}, AddHostResult.created)
+                m.return_value = ({"id": host_id}, insights_id, AddHostResult.created)
                 handle_message(json.dumps(message), mock_event_producer)
 
                 self.assertEqual(mock_event_producer.write_event.call_count, 2)
@@ -157,7 +159,7 @@ class MQServiceTestCase(MQServiceBaseTestCase):
 
                 # for host update events
                 message["data"].update(stale_timestamp=(datetime.now(timezone.utc) + timedelta(hours=26)).isoformat())
-                m.return_value = ({"id": host_id}, AddHostResult.updated)
+                m.return_value = ({"id": host_id}, insights_id, AddHostResult.updated)
                 mock_event_producer.reset_mock()
                 handle_message(json.dumps(message), mock_event_producer)
 
@@ -206,7 +208,11 @@ class MQServiceParseMessageTestCase(MQServiceBaseTestCase):
             with self.app.app_context():
                 with self.subTest(message=message):
                     add_host.reset_mock()
-                    add_host.return_value = ({"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"}, AddHostResult.updated)
+                    add_host.return_value = (
+                        {"id": "d7d92ccd-c281-49b9-b203-190565c45e1b"},
+                        None,
+                        AddHostResult.updated,
+                    )
                     handle_message(message, Mock())
                     add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
@@ -279,7 +285,7 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
     @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_key_and_metadata_not_required(self, add_host):
         host_data = self._host_data()
-        add_host.return_value = (host_data, AddHostResult.created)
+        add_host.return_value = (host_data, host_data["insights_id"], AddHostResult.created)
 
         message = {"operation": "add_host", "data": host_data}
 
@@ -294,19 +300,23 @@ class MQhandleMessageTestCase(MQAddHostBaseClass):
     @patch("app.queue.queue.add_host")
     def test_handle_message_verify_message_headers(self, add_host):
         host_data = self._host_data()
+        request_id = str(uuid.uuid4())
 
-        message = {"operation": "add_host", "data": host_data}
+        message = {"operation": "add_host", "platform_metadata": {"request_id": request_id}, "data": host_data}
 
         for add_host_result in AddHostResult:
             with self.subTest(add_host_result=add_host_result):
                 add_host.reset_mock()
-                add_host.return_value = (host_data, add_host_result)
+                add_host.return_value = (host_data, host_data["insights_id"], add_host_result)
 
                 mock_event_producer = MockEventProducer()
                 with self.app.app_context():
                     handle_message(json.dumps(message), mock_event_producer)
 
-                self.assertEqual(mock_event_producer.headers, {"event_type": add_host_result.name})
+                self.assertEqual(
+                    mock_event_producer.headers,
+                    expected_headers(add_host_result.name, request_id, host_data["insights_id"]),
+                )
 
 
 class MQAddHostTestCase(MQAddHostBaseClass):
