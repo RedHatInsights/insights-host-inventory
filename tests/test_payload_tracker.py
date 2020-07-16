@@ -166,9 +166,9 @@ class PayloadTrackerTestCase(TestCase):
 
         tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
-        current_operations = [None, "test operation"]
+        operations = [None, "test operation"]
 
-        for current_operation in current_operations:
+        for current_operation in operations:
             with self.subTest(current_operation=current_operation):
 
                 with self.assertRaises(ValueError):
@@ -253,9 +253,9 @@ class PayloadTrackerTestCase(TestCase):
 
         tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
-        current_operations = [None, "test operation"]
+        operations = [None, "test operation"]
 
-        for current_operation in current_operations:
+        for current_operation in operations:
             with self.subTest(current_operation=current_operation):
 
                 with self.assertRaises(ValueError):
