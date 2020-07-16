@@ -15,7 +15,7 @@ Order = namedtuple("Order", ("by", "how"))
 
 def build_paginated_host_list_response(total, page, per_page, host_list):
     timestamps = staleness_timestamps()
-    json_host_list = [serialize_host(host, timestamps)[0] for host in host_list]
+    json_host_list = [serialize_host(host, timestamps) for host in host_list]
     return {
         "total": total,
         "count": len(json_host_list),

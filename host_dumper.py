@@ -45,7 +45,7 @@ with application.app_context():
         query_results = Host.query.filter(Host.account == args.account_number).all()
 
     staleness_timestamps = Timestamps.from_config(inventory_config())
-    json_host_list = [serialize_host(host, staleness_timestamps)[0] for host in query_results]
+    json_host_list = [serialize_host(host, staleness_timestamps) for host in query_results]
 
     if args.no_pp:
         print(json_host_list)

@@ -663,7 +663,7 @@ class QueryOrderWithSameModifiedOnTestsCase(QueryOrderWithAdditionalHostsBaseTes
         db.session.add(old_host)
 
         staleness_offset = Timestamps.from_config(self.app.config["INVENTORY_CONFIG"])
-        serialized_old_host = serialize_host(old_host, staleness_offset)[0]
+        serialized_old_host = serialize_host(old_host, staleness_offset)
         self.added_hosts[added_host_index] = HostWrapper(serialized_old_host)
 
     def _update_hosts(self, id_updates):

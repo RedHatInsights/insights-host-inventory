@@ -11,7 +11,6 @@ import dateutil.parser
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
-from tests.test_utils import expected_headers
 
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
@@ -160,10 +159,7 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
 
         self.assertEqual(json.loads(self.app.event_producer.event), expected_event_message)
         self.assertEqual(self.app.event_producer.key, self.added_hosts[0].id)
-        self.assertEqual(
-            self.app.event_producer.headers,
-            expected_headers("updated", expected_request_id, self.added_hosts[0].insights_id),
-        )
+        self.assertEqual(self.app.event_producer.headers, {"event_type": "updated"})
 
     def test_patch_produces_update_event_no_request_id(self):
         with self.app.app_context():

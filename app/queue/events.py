@@ -22,7 +22,6 @@ EventType = Enum("EventType", ("created", "updated", "delete"))
 def hostname():
     return os.uname().nodename
 
-
 # Schemas
 class HostSchema(Schema):
     id = fields.UUID()
@@ -74,13 +73,12 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
-def message_headers(event_type, insights_id):
+def message_headers(event_type):
     return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
-        "producer": hostname(),
-        "insights_id": insights_id,
-    }
+        "producer": hostname()
+        }
 
 
 def host_create_update_event(event_type, host, platform_metadata=None):

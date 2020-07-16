@@ -4,7 +4,6 @@ from json import loads
 from app.models import Host
 from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import HOST_URL
-from tests.test_utils import expected_headers
 
 
 class DeleteHostsBaseTestCase(DbApiBaseTestCase):
@@ -25,7 +24,7 @@ class DeleteHostsBaseTestCase(DbApiBaseTestCase):
         self.assertEqual(host.insights_id, event["insights_id"])
 
         self.assertEqual(event_producer.key, host.id)
-        self.assertEqual(event_producer.headers, expected_headers("delete", event["request_id"], host.insights_id))
+        self.assertEqual(event_producer.headers, {"event_type": "delete"})
 
     def _get_hosts_from_db(self, host_ids):
         with self.app.app_context():

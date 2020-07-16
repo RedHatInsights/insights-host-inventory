@@ -16,7 +16,6 @@ def delete_hosts(select_query, event_producer):
     while select_query.count():
         for host in select_query.limit(CHUNK_SIZE):
             host_id = host.id
-            insights_id = host.canonical_facts["insights_id"] if "insights_id" in host.canonical_facts else ""
             with delete_host_processing_time.time():
                 _delete_host(select_query.session, host)
 
@@ -24,9 +23,7 @@ def delete_hosts(select_query, event_producer):
             if host_deleted:
                 delete_host_count.inc()
                 event = build_event(EventType.delete, host)
-                event_producer.write_event(
-                    event, str(host.id), message_headers(EventType.delete, insights_id), Topic.events
-                )
+                event_producer.write_event(event, str(host.id), message_headers(EventType.delete), Topic.events)
 
             yield host_id, host_deleted
 
