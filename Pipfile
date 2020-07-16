@@ -15,7 +15,6 @@ flask-sqlalchemy = "~=2.4.0"
 psycopg2-binary = "~=2.8.3"
 flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
-request = "==2019.4.13"  # Not semver
 gunicorn = "~=19.9.0"
 connexion = {version = "~=2.6.0",extras = ["swagger-ui"]}
 pyyaml = "~=5.1.2"
