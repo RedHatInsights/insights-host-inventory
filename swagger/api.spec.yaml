@@ -1103,6 +1103,8 @@ components:
           type: array
           items:
             type: string
+        sap_system:
+          type: boolean
     PatchHostIn:
       title: Host data
       description: >-
