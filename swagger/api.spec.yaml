@@ -687,7 +687,7 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         system_profile:
-          $ref: 'system_profile.spec.yaml#/SystemProfile'
+          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
@@ -908,7 +908,7 @@ components:
         id:
           type: string
         system_profile:
-          $ref: 'system_profile.spec.yaml#/SystemProfile'
+          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
     PatchHostIn:
       title: Host data
       description: >-
