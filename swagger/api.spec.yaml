@@ -78,7 +78,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: host_list
               type: array
               items:
                 $ref: '#/components/schemas/CreateHostIn'
@@ -168,7 +167,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: host_data
               $ref: '#/components/schemas/PatchHostIn'
       responses:
         '200':
@@ -196,7 +194,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: fact_dict
               $ref: '#/components/schemas/Facts'
       responses:
         '200':
@@ -223,7 +220,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: fact_dict
               $ref: '#/components/schemas/Facts'
       responses:
         '200':
