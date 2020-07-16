@@ -5,7 +5,7 @@ from app.utils import HostWrapper
 from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import ApiBaseTestCase
 from tests.test_api_utils import db
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import now
@@ -21,7 +21,7 @@ class CullingBaseTestCase(ApiBaseTestCase):
             db.session.commit()
 
 
-class HostStalenessBaseTestCase(DbApiTestCase, CullingBaseTestCase):
+class HostStalenessBaseTestCase(DbApiBaseTestCase, CullingBaseTestCase):
     def _create_host(self, stale_timestamp):
         data = {
             "account": ACCOUNT,
