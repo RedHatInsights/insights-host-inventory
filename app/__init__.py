@@ -1,9 +1,11 @@
+from os.path import join
+
 import connexion
-import yaml
 from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
 from flask import request
+from prance import ResolvingParser
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
@@ -22,6 +24,9 @@ logger = get_logger(__name__)
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
+
+SPECIFICATION_DIR = "./swagger/"
+SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 
 def render_exception(exception):
@@ -47,13 +52,13 @@ def create_app(runtime_environment):
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
-    with open("swagger/api.spec.yaml", "rb") as fp:
-        spec = yaml.safe_load(fp)
+    parser = ResolvingParser(SPECIFICATION_FILE)
+    parser.parse()
 
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
-                spec,
+                parser.specification,
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
                 validate_responses=True,

@@ -10,6 +10,7 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from tests.helpers.tracker_utils import assert_mock_send_call
 from tests.helpers.tracker_utils import assert_payload_tracker_is_disabled
 from tests.helpers.tracker_utils import build_expected_tracker_message
+from tests.helpers.tracker_utils import build_payload_tracker_context_error_message
 from tests.helpers.tracker_utils import DEFAULT_TOPIC
 from tests.helpers.tracker_utils import get_payload_tracker_methods
 from tests.helpers.tracker_utils import method_to_raise_exception
@@ -167,15 +168,15 @@ def test_payload_tracker_context_error(payload_tracker, tracker_datetime_mock, s
 
     tracker = payload_tracker(request_id=expected_request_id, producer=producer)
 
-    error_status_msgs = [None, "ima error status msg"]
+    operations = [None, "test operation"]
 
-    for error_status_msg in error_status_msgs:
-        with subtests.test(error_status_msg=error_status_msg):
+    for current_operation in operations:
+        with subtests.test(current_operation=current_operation):
             with pytest.raises(ValueError):
                 with PayloadTrackerContext(
                     payload_tracker=tracker,
                     received_status_message=expected_received_status_msg,
-                    error_status_message=error_status_msg,
+                    current_operation=current_operation,
                 ):
                     expected_msg = build_expected_tracker_message(
                         status="received",
@@ -190,7 +191,9 @@ def test_payload_tracker_context_error(payload_tracker, tracker_datetime_mock, s
 
             expected_msg = build_expected_tracker_message(
                 status="error",
-                status_msg=error_status_msg,
+                status_msg=build_payload_tracker_context_error_message(
+                    "ValueError", current_operation, "something bad happened!"
+                ),
                 request_id=expected_request_id,
                 datetime_mock=tracker_datetime_mock,
             )
@@ -250,15 +253,15 @@ def test_payload_tracker_processing_context_error(payload_tracker, tracker_datet
 
     tracker = payload_tracker(request_id=expected_request_id, producer=producer)
 
-    error_status_msgs = [None, "ima error status msg"]
+    operations = [None, "test operation"]
 
-    for error_status_msg in error_status_msgs:
-        with subtests.test(error_status_msg=error_status_msg):
+    for current_operation in operations:
+        with subtests.test(current_operation=current_operation):
             with pytest.raises(ValueError):
                 with PayloadTrackerProcessingContext(
                     payload_tracker=tracker,
                     processing_status_message=expected_processing_status_msg,
-                    error_status_message=error_status_msg,
+                    current_operation=current_operation,
                 ) as processing_context:
                     expected_msg = build_expected_tracker_message(
                         status=expected_processing_status,
@@ -274,7 +277,9 @@ def test_payload_tracker_processing_context_error(payload_tracker, tracker_datet
 
             expected_msg = build_expected_tracker_message(
                 status="processing_error",
-                status_msg=error_status_msg,
+                status_msg=build_payload_tracker_context_error_message(
+                    "ValueError", current_operation, "something bad happened!"
+                ),
                 request_id=expected_request_id,
                 datetime_mock=tracker_datetime_mock,
             )

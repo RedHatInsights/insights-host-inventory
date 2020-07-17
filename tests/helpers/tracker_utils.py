@@ -22,6 +22,10 @@ def build_expected_tracker_message(
     return expected_msg
 
 
+def build_payload_tracker_context_error_message(exception_name, current_operation, exception_value):
+    return f"{exception_name} encountered in ({current_operation}): {exception_value}"
+
+
 def get_payload_tracker_methods(tracker):
     return [
         (tracker.payload_received, "received"),
