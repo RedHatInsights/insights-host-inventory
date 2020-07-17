@@ -56,7 +56,7 @@ logger = get_logger(__name__)
 
 @api_operation
 @metrics.api_request_time.time()
-def add_host_list(host_list):
+def add_host_list(body):
     if not inventory_config().rest_post_enabled:
         return flask_json_response(
             {
@@ -74,12 +74,16 @@ def add_host_list(host_list):
 
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
-    with PayloadTrackerContext(payload_tracker, received_status_message="add host operation"):
+    with PayloadTrackerContext(
+        payload_tracker, received_status_message="add host operation", current_operation="add host"
+    ):
 
-        for host in host_list:
+        for host in body:
             try:
                 with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message="adding/updating host"
+                    payload_tracker,
+                    processing_status_message="adding/updating host",
+                    current_operation="adding/updating host",
                 ) as payload_tracker_processing_ctx:
                     if host.get("tags"):
                         tags_ignored_from_http_count.inc()
@@ -197,7 +201,9 @@ def get_host_list(
 def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
-    with PayloadTrackerContext(payload_tracker, received_status_message="delete operation"):
+    with PayloadTrackerContext(
+        payload_tracker, received_status_message="delete operation", current_operation="delete"
+    ):
         query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
 
         if not query.count():
@@ -269,11 +275,11 @@ def _emit_patch_event(host):
 
 @api_operation
 @metrics.api_request_time.time()
-def patch_by_id(host_id_list, host_data):
+def patch_by_id(host_id_list, body):
     try:
-        validated_patch_host_data = PatchHostSchema(strict=True).load(host_data).data
+        validated_patch_host_data = PatchHostSchema(strict=True).load(body).data
     except ValidationError as e:
-        logger.exception(f"Input validation error while patching host: {host_id_list} - {host_data}")
+        logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
@@ -295,19 +301,19 @@ def patch_by_id(host_id_list, host_data):
 
 @api_operation
 @metrics.api_request_time.time()
-def replace_facts(host_id_list, namespace, fact_dict):
-    return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, fact_dict)
+def replace_facts(host_id_list, namespace, body):
+    return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body)
 
 
 @api_operation
 @metrics.api_request_time.time()
-def merge_facts(host_id_list, namespace, fact_dict):
-    if not fact_dict:
+def merge_facts(host_id_list, namespace, body):
+    if not body:
         error_msg = "ERROR: Invalid request.  Merging empty facts into existing facts is a no-op."
         logger.debug(error_msg)
         return error_msg, 400
 
-    return update_facts_by_namespace(FactOperations.merge, host_id_list, namespace, fact_dict)
+    return update_facts_by_namespace(FactOperations.merge, host_id_list, namespace, body)
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):

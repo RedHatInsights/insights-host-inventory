@@ -1,3 +1,4 @@
+---
 openapi: 3.0.0
 info:
   description: REST interface for the Insights Platform Host Inventory application.
@@ -77,7 +78,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: host_list
               type: array
               items:
                 $ref: '#/components/schemas/CreateHostIn'
@@ -167,7 +167,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: host_data
               $ref: '#/components/schemas/PatchHostIn'
       responses:
         '200':
@@ -195,7 +194,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: fact_dict
               $ref: '#/components/schemas/Facts'
       responses:
         '200':
@@ -222,7 +220,6 @@ paths:
         content:
           application/json:
             schema:
-              x-body-name: fact_dict
               $ref: '#/components/schemas/Facts'
       responses:
         '200':
@@ -686,7 +683,7 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         system_profile:
-          $ref: '#/components/schemas/SystemProfileIn'
+          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
@@ -907,202 +904,7 @@ components:
         id:
           type: string
         system_profile:
-          $ref: '#/components/schemas/SystemProfileIn'
-    DiskDevice:
-      title: Disk Device
-      description: Representation of one mounted device
-      properties:
-        device:
-          example: "/dev/fdd0"
-          type: string
-        label:
-          description: user-defined mount label
-          type: string
-        options:
-          description: mount options
-          example:
-            uid: "0"
-            ro: true
-          type: object
-          properties:
-            name:
-              type: string
-            value:
-              type: string
-        mount_point:
-          description: mount point
-          example: "/mnt/remote_nfs_shares"
-          type: string
-        type:
-          description: mount type
-          example: "ext3"
-          type: string
-    YumRepo:
-      title: Yum Repository
-      description: Representation of one yum repository
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        gpgcheck:
-          type: boolean
-        enabled:
-          type: boolean
-        baseurl:
-          type: string
-          format: uri
-    DnfModule:
-      title: DNF Module
-      description: Representation of one DNF module
-      properties:
-        name:
-          type: string
-        stream:
-          type: string
-    InstalledProduct:
-      title: Installed Product
-      description: Representation of one installed product
-      properties:
-        name:
-          type: string
-        id:
-          description: the product ID
-          example: "71"
-          type: string
-        status:
-          description: subscription status for product
-          example: "Subscribed"
-          type: string
-    NetworkInterface:
-      title: Network Interface
-      description: Representation of one network interface
-      properties:
-        ipv4_addresses:
-          type: array
-          items:
-            type: string
-            format: ipv4
-        ipv6_addresses:
-          type: array
-          items:
-            type: string
-            format: ipv6
-        mtu:
-          description: MTU
-          type: integer
-        mac_address:
-          description: MAC address (with or without colons)
-          example: "00:00:00:00:00:00"
-          type: string
-        name:
-          description: name of interface
-          type: string
-          example: eth0
-        state:
-          description: interface state (UP, DOWN, UNKNOWN)
-          type: string
-          example: "UP"
-        type:
-          description: interface type (ether, loopback)
-          type: string
-          example: "ether"
-    SystemProfileIn:
-      title: System profile fields
-      description: Representation of the system profile fields
-      type: object
-      properties:
-        number_of_cpus:
-          type: integer
-        number_of_sockets:
-          type: integer
-        cores_per_socket:
-          type: integer
-        system_memory_bytes:
-          type: integer
-          format: int64
-        infrastructure_type:
-          type: string
-        infrastructure_vendor:
-          type: string
-        network_interfaces:
-          type: array  # techincally a set, ordering is not important
-          items:
-            $ref: '#/components/schemas/NetworkInterface'
-        disk_devices:
-          type: array  # techincally a set, ordering is not important
-          items:
-            $ref: '#/components/schemas/DiskDevice'
-        bios_vendor:
-          type: string
-        bios_version:
-          type: string
-        bios_release_date:
-          type: string
-        cpu_flags:
-          items:
-            type: string
-          type: array
-        os_release:
-          type: string
-        os_kernel_version:
-          type: string
-        arch:
-          type: string
-        kernel_modules:
-          type: array
-          items:
-            type: string
-        last_boot_time:
-          type: string
-          format: date-time
-        running_processes:
-          type: array  # techincally a set, ordering is not important
-          items:
-            description: a single running process. This will be truncated to 1000 characters when saved.
-            type: string
-        subscription_status:
-          type: string
-        subscription_auto_attach:
-          type: string
-        katello_agent_running:
-          type: boolean
-        satellite_managed:
-          type: boolean
-        cloud_provider:
-          type: string
-        yum_repos:
-          type: array  # technically a set, ordering is not important
-          items:
-            $ref: '#/components/schemas/YumRepo'
-        dnf_modules:
-          type: array # technically a set, ordering is not important
-          items:
-            $ref: '#/components/schemas/DnfModule'
-        installed_products:
-          type: array  # technically a set, ordering is not important
-          items:
-            $ref: '#/components/schemas/InstalledProduct'
-        insights_client_version:
-          type: string
-        insights_egg_version:
-          type: string
-        captured_date:
-          type: string
-        installed_packages:
-          type: array  # technically a set, ordering is not important
-          items:
-            description: a NEVRA string for a single installed package
-            type: string
-            example: "krb5-libs-0:-1.16.1-23.fc29.i686"
-        installed_services:
-          type: array
-          items:
-            type: string
-        enabled_services:
-          type: array
-          items:
-            type: string
+          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
     PatchHostIn:
       title: Host data
       description: >-
