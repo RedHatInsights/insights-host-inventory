@@ -166,16 +166,16 @@ class PayloadTrackerTestCase(TestCase):
 
         tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
-        error_status_msgs = [None, "ima error status msg"]
+        operations = [None, "test operation"]
 
-        for error_status_msg in error_status_msgs:
-            with self.subTest(error_status_msg=error_status_msg):
+        for current_operation in operations:
+            with self.subTest(current_operation=current_operation):
 
                 with self.assertRaises(ValueError):
                     with PayloadTrackerContext(
                         payload_tracker=tracker,
                         received_status_message=expected_received_status_msg,
-                        error_status_message=error_status_msg,
+                        current_operation=current_operation,
                     ):
 
                         expected_msg = self._build_expected_message(
@@ -191,7 +191,9 @@ class PayloadTrackerTestCase(TestCase):
 
                 expected_msg = self._build_expected_message(
                     status="error",
-                    status_msg=error_status_msg,
+                    status_msg=self._build_payload_tracker_context_error_message(
+                        "ValueError", current_operation, "something bad happened!"
+                    ),
                     request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
@@ -251,16 +253,16 @@ class PayloadTrackerTestCase(TestCase):
 
         tracker = self._get_tracker(request_id=expected_request_id, producer=producer)
 
-        error_status_msgs = [None, "ima error status msg"]
+        operations = [None, "test operation"]
 
-        for error_status_msg in error_status_msgs:
-            with self.subTest(error_status_msg=error_status_msg):
+        for current_operation in operations:
+            with self.subTest(current_operation=current_operation):
 
                 with self.assertRaises(ValueError):
                     with PayloadTrackerProcessingContext(
                         payload_tracker=tracker,
                         processing_status_message=expected_processing_status_msg,
-                        error_status_message=error_status_msg,
+                        current_operation=current_operation,
                     ) as processing_context:
 
                         expected_msg = self._build_expected_message(
@@ -277,7 +279,9 @@ class PayloadTrackerTestCase(TestCase):
 
                 expected_msg = self._build_expected_message(
                     status="processing_error",
-                    status_msg=error_status_msg,
+                    status_msg=self._build_payload_tracker_context_error_message(
+                        "ValueError", current_operation, "something bad happened!"
+                    ),
                     request_id=expected_request_id,
                     datetime_mock=datetime_mock,
                 )
@@ -373,6 +377,9 @@ class PayloadTrackerTestCase(TestCase):
                 null_producer.return_value.send.assert_not_called()
 
                 null_producer.reset_mock()
+
+    def _build_payload_tracker_context_error_message(self, exception_name, current_operation, exception_value):
+        return f"{exception_name} encountered in ({current_operation}): {exception_value}"
 
     def _build_expected_message(
         self, status="received", status_msg=None, request_id="1357924680", account=None, datetime_mock=None
