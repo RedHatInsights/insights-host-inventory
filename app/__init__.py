@@ -6,6 +6,7 @@ from flask import current_app
 from flask import jsonify
 from flask import request
 from prance import ResolvingParser
+from prance.util.resolver import RESOLVE_FILES
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
@@ -52,7 +53,7 @@ def create_app(runtime_environment):
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
-    parser = ResolvingParser(SPECIFICATION_FILE)
+    parser = ResolvingParser(SPECIFICATION_FILE, resolve_types=RESOLVE_FILES)
     parser.parse()
 
     for api_url in app_config.api_urls:
