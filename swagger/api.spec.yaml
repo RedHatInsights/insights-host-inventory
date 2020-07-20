@@ -683,7 +683,7 @@ components:
           items:
             $ref: '#/components/schemas/FactSet'
         system_profile:
-          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+          $ref: '#/components/schemas/SystemProfile'
         stale_timestamp:
           description: Timestamp from which the host is considered stale.
           type: string
@@ -904,7 +904,7 @@ components:
         id:
           type: string
         system_profile:
-          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+          $ref: '#/components/schemas/SystemProfile'
     PatchHostIn:
       title: Host data
       description: >-
@@ -990,6 +990,8 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
