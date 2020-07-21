@@ -196,16 +196,12 @@ class NullProducer:
 
 class PayloadTrackerContext:
     def __init__(
-        self,
-        payload_tracker=None,
-        received_status_message=None,
-        success_status_message=None,
-        error_status_message=None,
+        self, payload_tracker=None, received_status_message=None, success_status_message=None, current_operation=None
     ):
         self._payload_tracker = payload_tracker
         self._received_status_msg = received_status_message
         self._success_status_msg = success_status_message
-        self._error_status_msg = error_status_message
+        self._current_operation = current_operation
 
     def __enter__(self):
         self._payload_tracker.payload_received(status_message=self._received_status_msg)
@@ -213,23 +209,20 @@ class PayloadTrackerContext:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            self._payload_tracker.payload_error(status_message=self._error_status_msg)
+            exception_status_message = f"{exc_type.__name__} encountered in ({self._current_operation}): {exc_value}"
+            self._payload_tracker.payload_error(status_message=exception_status_message)
         else:
             self._payload_tracker.payload_success(status_message=self._success_status_msg)
 
 
 class PayloadTrackerProcessingContext:
     def __init__(
-        self,
-        payload_tracker=None,
-        processing_status_message=None,
-        success_status_message=None,
-        error_status_message=None,
+        self, payload_tracker=None, processing_status_message=None, success_status_message=None, current_operation=None
     ):
         self._payload_tracker = payload_tracker
         self._processing_status_msg = processing_status_message
         self._success_status_msg = success_status_message
-        self._error_status_msg = error_status_message
+        self._current_operation = current_operation
         self._inventory_id = None
 
     def __enter__(self):
@@ -238,7 +231,8 @@ class PayloadTrackerProcessingContext:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            self._payload_tracker.processing_error(status_message=self._error_status_msg)
+            exception_status_message = f"{exc_type.__name__} encountered in ({self._current_operation}): {exc_value}"
+            self._payload_tracker.processing_error(status_message=exception_status_message)
         else:
             self._payload_tracker.processing_success(status_message=self._success_status_msg)
 
