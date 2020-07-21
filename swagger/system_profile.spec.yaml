@@ -197,3 +197,6 @@ $defs:
         type: array
         items:
           type: string
+      sap_system:
+        type: boolean
+        description: Indicates if SAP is installed on the system
