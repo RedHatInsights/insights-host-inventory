@@ -218,13 +218,6 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
             mock_future.failure()
             message_not_produced.assert_called_once_with(*mock_future.errbacks[0][0][1:], ANY)
 
-            # with patch("app.models.datetime", **{"now.return_value": self.now_timestamp}):
-            #     with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
-            #         with patch("app.queue.event_producer.message_not_produced") as message_not_produced:
-            #             self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
-            # mock_future.failure()
-            # message_not_produced.assert_called_once_with(*mock_future.errbacks[0][0][1:], ANY)
-
 
 if __name__ == "__main__":
     main()
