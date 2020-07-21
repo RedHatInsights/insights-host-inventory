@@ -15,7 +15,7 @@ from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
 from tests.test_api_utils import ACCOUNT
-from tests.test_api_utils import DbApiTestCase
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import inject_qs
@@ -254,7 +254,7 @@ class QueryByInsightsIdTestCase(PreCreatedHostsBaseTestCase):
 
 
 @patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
-class QueryByCanonicalFactPerformanceTestCase(DbApiTestCase):
+class QueryByCanonicalFactPerformanceTestCase(DbApiBaseTestCase):
     def test_query_using_fqdn_not_subset_match(self, canonical_fact_host_query):
         fqdn = "some fqdn"
         self.get(f"{HOST_URL}?fqdn={fqdn}")
