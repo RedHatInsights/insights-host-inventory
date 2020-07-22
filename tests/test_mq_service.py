@@ -508,6 +508,31 @@ class MQAddHostTestCase(MQAddHostBaseClass):
                     with self.assertRaises(ValidationException):
                         handle_message(json.dumps(message), mock_event_producer)
 
+    @patch("app.queue.events.datetime", **{"now.return_value": datetime.now(timezone.utc)})
+    def test_add_host_with_sap_system(self, datetime_mock):
+        expected_insights_id = str(uuid.uuid4())
+        timestamp_iso = datetime_mock.now.return_value.isoformat()
+
+        host_data = {
+            "display_name": "test_host",
+            "insights_id": expected_insights_id,
+            "account": "0000001",
+            "stale_timestamp": "2019-12-16T10:10:06.754201+00:00",
+            "reporter": "test",
+            "system_profile": {"sap_system": True},
+        }
+
+        expected_results = {
+            "host": {**host_data},
+            "platform_metadata": {},
+            "timestamp": timestamp_iso,
+            "type": "created",
+        }
+
+        host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
+
+        self._base_add_host_test(host_data, expected_results, host_keys_to_check)
+
 
 class MQGetFromDbBaseTestCase(MQServiceBaseTestCase):
     def _get_host_by_insights_id(self, insights_id):
