@@ -21,12 +21,9 @@ class EventProducer:
     def write_event(self, event, key, headers, topic):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", topic, key, event, headers)
 
-        if not headers["insights_id"]:
-            headers.update(insights_id="")
-
         k = key.encode("utf-8") if key else None
         v = event.encode("utf-8")
-        h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
+        h = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
 
         try:
             send_future = self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
