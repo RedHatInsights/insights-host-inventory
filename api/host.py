@@ -90,10 +90,10 @@ def add_host_list(body):
                         logger.info("Tags from an HTTP request were ignored")
 
                     input_host = deserialize_host_http(host)
-                    (output_host, _, add_result) = _add_host(input_host)
+                    output_host, host_id, _, add_result = _add_host(input_host)
                     status_code = _convert_host_results_to_http_status(add_result)
                     response_host_list.append({"status": status_code, "host": output_host})
-                    payload_tracker_processing_ctx.inventory_id = output_host["id"]
+                    payload_tracker_processing_ctx.inventory_id = host_id
 
                     reporter = host.get("reporter")
             except ValidationException as e:
@@ -266,10 +266,10 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
-def _emit_patch_event(serialized_host, id, insights_id):
+def _emit_patch_event(serialized_host, host_id, insights_id):
     headers = message_headers(EventType.updated, insights_id)
     event = build_event(EventType.updated, serialized_host)
-    current_app.event_producer.write_event(event, id, headers, Topic.events)
+    current_app.event_producer.write_event(event, str(host_id), headers, Topic.events)
 
 
 @api_operation

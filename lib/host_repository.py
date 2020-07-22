@@ -145,9 +145,10 @@ def create_new_host(input_host, staleness_offset, fields):
     input_host.save()
     db.session.commit()
     metrics.create_host_count.inc()
+    output_host = serialize_host(input_host, staleness_offset, fields)
     insights_id = input_host.canonical_facts["insights_id"] if "insights_id" in input_host.canonical_facts else None
     logger.debug("Created host:%s", input_host)
-    return serialize_host(input_host, staleness_offset, fields), insights_id, AddHostResult.created
+    return output_host, input_host.id, insights_id, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -157,11 +158,12 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
     metrics.update_host_count.inc()
+    output_host = serialize_host(existing_host, staleness_offset, fields)
     insights_id = (
         existing_host.canonical_facts["insights_id"] if "insights_id" in existing_host.canonical_facts else None
     )
     logger.debug("Updated host:%s", existing_host)
-    return serialize_host(existing_host, staleness_offset, fields), insights_id, AddHostResult.updated
+    return output_host, existing_host.id, insights_id, AddHostResult.updated
 
 
 def stale_timestamp_filter(gt=None, lte=None):
