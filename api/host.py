@@ -266,11 +266,10 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
     return flask_json_response(json_output)
 
 
-def _emit_patch_event(host):
-    key = host["id"]
-    headers = message_headers(EventType.updated, host["insights_id"])
-    event = build_event(EventType.updated, host)
-    current_app.event_producer.write_event(event, key, headers, Topic.events)
+def _emit_patch_event(serialized_host, id, insights_id):
+    headers = message_headers(EventType.updated, insights_id)
+    event = build_event(EventType.updated, serialized_host)
+    current_app.event_producer.write_event(event, id, headers, Topic.events)
 
 
 @api_operation
@@ -292,7 +291,8 @@ def patch_by_id(host_id_list, body):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        _emit_patch_event(serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS))
+        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        _emit_patch_event(serialized_host, host.id, host.insights_id)
 
     db.session.commit()
 
