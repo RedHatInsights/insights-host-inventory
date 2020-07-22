@@ -18,6 +18,10 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
 from app.queue.event_producer import EventProducer
+from app.queue.event_producer import Topic
+from app.queue.events import EventType
+from app.queue.metrics import event_producer_failure
+from app.queue.metrics import event_producer_success
 from app.validators import verify_uuid_format  # noqa: 401
 
 logger = get_logger(__name__)
@@ -28,6 +32,13 @@ UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 SPECIFICATION_DIR = "./swagger/"
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
+
+
+def initialize_metrics():
+    for event_type in EventType:
+        for topic in Topic:
+            event_producer_failure.labels(event_type=event_type, topic=topic)
+            event_producer_success.labels(event_type=event_type, topic=topic)
 
 
 def render_exception(exception):
@@ -119,5 +130,8 @@ def create_app(runtime_environment):
             path=None,
             excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
         )
+
+    # initialize metrics to zero
+    initialize_metrics()
 
     return flask_app

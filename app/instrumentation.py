@@ -17,7 +17,7 @@ def message_produced(logger, value, key, headers, record_metadata):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, offset, timestamp, topic, key, value, extra=debug_extra)
 
-    event_producer_success.inc()
+    event_producer_success.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
 def message_not_produced(logger, topic, value, key, headers, error):
