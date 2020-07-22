@@ -1,4 +1,5 @@
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 from sqlalchemy_utils import drop_database
@@ -7,6 +8,14 @@ from app import create_app
 from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
+
+
+@pytest.fixture(scope="session", autouse=True)
+def database_name():
+    patch = MonkeyPatch()
+    patch.setenv("INVENTORY_DB_NAME", "insights_test")
+    yield patch
+    patch.undo()
 
 
 @pytest.fixture(scope="session")
