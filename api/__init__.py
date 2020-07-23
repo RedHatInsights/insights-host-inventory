@@ -2,10 +2,14 @@ import time
 from functools import wraps
 
 import flask
+from flask import current_app
 import ujson
 
 from api.metrics import api_request_count
 from app.logging import get_logger
+
+from lib.handlers import ShutdownHandler
+# import signal
 
 __all__ = ["api_operation"]
 
@@ -13,7 +17,8 @@ STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
 
 logger = get_logger(__name__)
-
+shutdown_handler = ShutdownHandler()
+# signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
 
 def api_operation(old_func):
     """
@@ -29,11 +34,12 @@ def api_operation(old_func):
         logger.debug("Entering %s", old_func.__name__)
 
         api_request_count.inc()
-
+        print("API_OPERATION", current_app.event_producer)
         start_time = time.perf_counter()
         results = old_func(*args, **kwargs)
         end_time = time.perf_counter()
-
+        if shutdown_handler.shut_down():
+            print("this is shutting down")
         contextual_data[STATUS_CODE] = _get_status_code(results)
 
         contextual_data[PROCESSING_TIME] = end_time - start_time

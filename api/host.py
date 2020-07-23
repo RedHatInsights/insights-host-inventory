@@ -1,4 +1,5 @@
 from enum import Enum
+import signal
 
 import connexion
 import flask
@@ -39,6 +40,7 @@ from app.serialization import deserialize_host_http
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
@@ -53,6 +55,10 @@ REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
 
+shutdown_handler = ShutdownHandler()
+
+signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
+# signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
 
 @api_operation
 @metrics.api_request_time.time()
@@ -73,12 +79,19 @@ def add_host_list(body):
     number_of_errors = 0
 
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
-
+    import time
+    print("BEFORE...........")
+    # time.sleep(10)
     with PayloadTrackerContext(
         payload_tracker, received_status_message="add host operation", current_operation="add host"
     ):
 
         for host in body:
+            # if not shutdown_handler.shut_down():
+                
+            print("SLEEEEEEEPIIIIINGGGGG")
+            time.sleep(10)
+            print("WAKKKKKINNNNNGGG UUPPPPP")
             try:
                 with PayloadTrackerProcessingContext(
                     payload_tracker,
@@ -116,6 +129,15 @@ def add_host_list(body):
                         "host": host,
                     }
                 )
+            # else:
+            #     response_host_list.append(
+            #         {
+            #             "status": 404,
+            #             "title": "Not Found",
+            #             "detail": "Service is not available to process request",
+            #             "host":host
+            #         }
+            #     )
 
         rest_post_request_count.labels(reporter=reporter).inc()
 
@@ -210,18 +232,20 @@ def delete_by_id(host_id_list):
             flask.abort(status.HTTP_404_NOT_FOUND)
 
         for host_id, deleted in delete_hosts(query, current_app.event_producer):
-            if deleted:
-                logger.info("Deleted host: %s", host_id)
-                tracker_message = "deleted host"
+            if not shutdown_handler.shut_down():
+                if deleted:
+                    logger.info("Deleted host: %s", host_id)
+                    tracker_message = "deleted host"
+                else:
+                    logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+                    tracker_message = "not deleted host"
+
+                with PayloadTrackerProcessingContext(
+                    payload_tracker, processing_status_message=tracker_message
+                ) as payload_tracker_processing_ctx:
+                    payload_tracker_processing_ctx.inventory_id = host_id
             else:
-                logger.info("Host %s already deleted. Delete event not emitted.", host_id)
-                tracker_message = "not deleted host"
-
-            with PayloadTrackerProcessingContext(
-                payload_tracker, processing_status_message=tracker_message
-            ) as payload_tracker_processing_ctx:
-                payload_tracker_processing_ctx.inventory_id = host_id
-
+                current_app.event_producer.close()
     return flask.Response(None, status.HTTP_200_OK)
 
 
@@ -291,8 +315,11 @@ def patch_by_id(host_id_list, body):
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     for host in hosts_to_update:
-        host.patch(validated_patch_host_data)
-        _emit_patch_event(serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS))
+        if not shutdown_handler.shut_down():
+            host.patch(validated_patch_host_data)
+            _emit_patch_event(serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS))
+        else:
+            current_app.event_producer.close()
 
     db.session.commit()
 
@@ -337,10 +364,11 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         return error_msg, 400
 
     for host in hosts_to_update:
-        if operation is FactOperations.replace:
-            host.replace_facts_in_namespace(namespace, fact_dict)
-        else:
-            host.merge_facts_in_namespace(namespace, fact_dict)
+        if not shutdown_handler.shut_down():
+            if operation is FactOperations.replace:
+                host.replace_facts_in_namespace(namespace, fact_dict)
+            else:
+                host.merge_facts_in_namespace(namespace, fact_dict)
 
     db.session.commit()
 
