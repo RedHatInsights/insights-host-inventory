@@ -3,13 +3,14 @@ from itertools import chain
 from unittest import main
 
 from app.utils import HostWrapper
+from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
 from tests.test_culling_utils import HostStalenessBaseTestCase
 
 
-class FactsTestCase(PreCreatedHostsBaseTestCase):
+class FactsBaseTestCase(DbApiBaseTestCase):
     def _valid_fact_doc(self):
         return {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
@@ -20,6 +21,8 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
             url_host_id_list = str(host_list)
         return HOST_URL + "/" + url_host_id_list + "/facts/" + namespace
 
+
+class FactsTestCase(FactsBaseTestCase, PreCreatedHostsBaseTestCase):
     def _basic_fact_test(self, input_facts, expected_facts, replace_facts):
 
         host_list = self.added_hosts
@@ -183,7 +186,7 @@ class FactsTestCase(PreCreatedHostsBaseTestCase):
                     operation(url, fact_doc, 400)
 
 
-class FactsCullingTestCase(FactsTestCase, HostStalenessBaseTestCase):
+class FactsCullingTestCase(FactsBaseTestCase, HostStalenessBaseTestCase):
     def test_replace_and_merge_ignore_culled_hosts(self):
         # Try to replace the facts on a host that has been marked as culled
         target_namespace = self.culled_host["facts"][0]["namespace"]
