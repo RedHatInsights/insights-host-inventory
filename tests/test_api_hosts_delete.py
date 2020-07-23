@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import json
 from datetime import datetime
+from datetime import timezone
 from unittest import main
 from unittest.mock import patch
 
 from app.models import Host
+from app.utils import HostWrapper
 from lib.host_delete import delete_hosts
+from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import DbApiBaseTestCase
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
@@ -28,64 +31,82 @@ class DeleteHostsErrorTestCase(DbApiBaseTestCase):
 class DeleteHostsEventTestCase(PreCreatedHostsBaseTestCase, DeleteHostsBaseTestCase):
     def setUp(self):
         super().setUp()
-        self.host_to_delete = self.added_hosts[0]
-        self.delete_url = HOST_URL + "/" + self.host_to_delete.id
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
-    def _delete(self, url_query="", header=None):
+    def _delete(self, host, url_query="", header=None):
+        delete_url = f"{HOST_URL}/{host.id}{url_query}"
+
         with patch("app.queue.events.datetime", **{"now.return_value": self.timestamp}):
-            url = f"{self.delete_url}{url_query}"
-            self.delete(url, 200, header, return_response_as_json=False)
+            self.delete(delete_url, 200, header, return_response_as_json=False)
 
     def _expected_metadata(self, expected_request_id):
         return {"request_id": expected_request_id}
 
     def test_create_then_delete(self):
         with self.app.app_context():
-            self._check_hosts_are_present((self.host_to_delete.id,))
-            self._delete()
+            self._check_hosts_are_present((self.added_hosts[0].id,))
+            self._delete(self.added_hosts[0])
 
-            self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
-            self._check_hosts_are_deleted((self.host_to_delete.id,))
+            self._assert_event_is_valid(self.app.event_producer, self.added_hosts[0], self.timestamp)
+            self._check_hosts_are_deleted((self.added_hosts[0].id,))
 
     def test_create_then_delete_with_branch_id(self):
         with self.app.app_context():
-            self._check_hosts_are_present((self.host_to_delete.id,))
-            self._delete(url_query="?branch_id=1234")
+            self._check_hosts_are_present((self.added_hosts[0].id,))
+            self._delete(self.added_hosts[0], url_query="?branch_id=1234")
 
-            self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
-            self._check_hosts_are_deleted((self.host_to_delete.id,))
+            self._assert_event_is_valid(self.app.event_producer, self.added_hosts[0], self.timestamp)
+            self._check_hosts_are_deleted((self.added_hosts[0].id,))
 
     def test_create_then_delete_with_request_id(self):
         with self.app.app_context():
             request_id = generate_uuid()
             header = {"x-rh-insights-request-id": request_id}
-            self._delete(header=header)
+            self._delete(self.added_hosts[0], header=header)
 
-            self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
+            self._assert_event_is_valid(self.app.event_producer, self.added_hosts[0], self.timestamp)
 
             event = json.loads(self.app.event_producer.event)
             self.assertEqual(request_id, event["request_id"])
 
     def test_create_then_delete_without_request_id(self):
         with self.app.app_context():
-            self._check_hosts_are_present((self.host_to_delete.id,))
-            self._delete(header=None)
+            self._check_hosts_are_present((self.added_hosts[0].id,))
+            self._delete(self.added_hosts[0], header=None)
 
-            self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
+            self._assert_event_is_valid(self.app.event_producer, self.added_hosts[0], self.timestamp)
 
             event = json.loads(self.app.event_producer.event)
             self.assertEqual("-1", event["request_id"])
 
+    def test_create_then_delete_without_insights_id(self):
+        response_data = self._create_host(
+            HostWrapper(
+                {
+                    "account": ACCOUNT,
+                    "subscription_manager_id": generate_uuid(),
+                    "stale_timestamp": self.timestamp.isoformat(),
+                    "reporter": "test",
+                }
+            )
+        )
+        host = HostWrapper(response_data["host"])
+
+        with self.app.app_context():
+            self._check_hosts_are_present((host.id,))
+            self._delete(host)
+
+        self._assert_event_is_valid(self.app.event_producer, host, self.timestamp)
+
     def test_create_then_delete_check_metadata(self):
         with self.app.app_context():
-            self._check_hosts_are_present((self.host_to_delete.id,))
+            self._check_hosts_are_present((self.added_hosts[0].id,))
 
             request_id = generate_uuid()
             header = {"x-rh-insights-request-id": request_id}
-            self._delete(header=header)
+            self._delete(self.added_hosts[0], header=header)
 
-            self._assert_event_is_valid(self.app.event_producer, self.host_to_delete, self.timestamp)
+            self._assert_event_is_valid(self.app.event_producer, self.added_hosts[0], self.timestamp)
 
             event = json.loads(self.app.event_producer.event)
             self.assertEqual(self._expected_metadata(request_id), event["metadata"])
