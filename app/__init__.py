@@ -34,11 +34,12 @@ SPECIFICATION_DIR = "./swagger/"
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 
-def initialize_metrics():
+def initialize_metrics(config):
+    topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
     for event_type in EventType:
         for topic in Topic:
-            event_producer_failure.labels(event_type=event_type, topic=topic)
-            event_producer_success.labels(event_type=event_type, topic=topic)
+            event_producer_failure.labels(event_type=event_type, topic=topic_names[topic])
+            event_producer_success.labels(event_type=event_type, topic=topic_names[topic])
 
 
 def render_exception(exception):
@@ -132,6 +133,6 @@ def create_app(runtime_environment):
         )
 
     # initialize metrics to zero
-    initialize_metrics()
+    initialize_metrics(app_config)
 
     return flask_app
