@@ -20,13 +20,23 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
+from lib.metrics import event_producer_failure
+from lib.metrics import event_producer_success
+from lib.metrics import event_serialization_time
 from lib.metrics import host_reaper_fail_count
 
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-reaper"
 LOGGER_NAME = "host_reaper"
-COLLECTED_METRICS = (delete_host_count, delete_host_processing_time, host_reaper_fail_count)
+COLLECTED_METRICS = (
+    delete_host_count,
+    delete_host_processing_time,
+    host_reaper_fail_count,
+    event_producer_failure,
+    event_producer_success,
+    event_serialization_time,
+)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
