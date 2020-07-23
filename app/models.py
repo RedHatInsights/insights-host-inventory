@@ -308,6 +308,7 @@ class SystemProfileSchema(Schema):
     installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
     installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
     enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    sap_system = fields.Bool()
 
 
 class FactsSchema(Schema):
