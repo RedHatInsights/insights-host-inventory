@@ -23,7 +23,7 @@ class EventProducer:
 
         k = key.encode("utf-8") if key else None
         v = event.encode("utf-8")
-        h = [(hk, hv.encode("utf-8")) for hk, hv in headers.items()]
+        h = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
 
         try:
             send_future = self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
