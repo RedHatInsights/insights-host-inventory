@@ -38,8 +38,8 @@ def initialize_metrics(config):
     topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
     for event_type in EventType:
         for topic in Topic:
-            event_producer_failure.labels(event_type=event_type, topic=topic_names[topic])
-            event_producer_success.labels(event_type=event_type, topic=topic_names[topic])
+            event_producer_failure.labels(event_type=event_type.name, topic=topic_names[topic])
+            event_producer_success.labels(event_type=event_type.name, topic=topic_names[topic])
 
 
 def render_exception(exception):
