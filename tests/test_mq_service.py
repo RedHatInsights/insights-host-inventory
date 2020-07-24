@@ -16,6 +16,7 @@ from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.test_utils import expected_headers
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -70,7 +71,13 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     timestamp_iso = event_datetime_mock.isoformat()
 
     mocker.patch(
-        "app.queue.queue.add_host", return_value=({"id": host_id, "insights_id": None}, AddHostResult.created)
+        "app.queue.queue.add_host",
+        return_value=(
+            {"id": host_id, "insights_id": expected_insights_id},
+            host_id,
+            expected_insights_id,
+            AddHostResult.created,
+        ),
     )
     mock_event_producer = mocker.Mock()
 
@@ -83,7 +90,7 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
         "timestamp": timestamp_iso,
         "type": "created",
-        "host": {"id": str(host_id), "insights_id": None},
+        "host": {"id": host_id, "insights_id": expected_insights_id},
         "platform_metadata": {},
         "metadata": {"request_id": "-1"},
     }
@@ -109,9 +116,13 @@ def test_shutdown_handler(mocker, flask_app):
 
 def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled):
     host_id = generate_uuid()
-    host = minimal_host(insights_id=generate_uuid())
+    insights_id = generate_uuid()
 
-    add_host = mocker.patch("app.queue.queue.add_host", return_value=({"id": host_id}, AddHostResult.created))
+    host = minimal_host(id=host_id, insights_id=insights_id)
+
+    add_host = mocker.patch(
+        "app.queue.queue.add_host", return_value=({"id": host_id}, host_id, insights_id, AddHostResult.created)
+    )
     mock_event_producer = mocker.Mock()
 
     message = wrap_message(host.data())
@@ -125,7 +136,7 @@ def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled
     mock_event_producer.reset_mock()
 
     # for host update events
-    add_host.return_value = ({"id": host_id}, AddHostResult.updated)
+    add_host.return_value = ({"id": host_id}, host_id, insights_id, AddHostResult.updated)
 
     message["data"].update(stale_timestamp=(now() + timedelta(hours=26)).isoformat())
     handle_message(json.dumps(message), mock_event_producer)
@@ -160,7 +171,7 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
 
 def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     mocker.patch("app.queue.queue.build_event")
-    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None))
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
 
     operation_raw = "🧜🏿‍♂️"
     operation_escaped = json.dumps(operation_raw)[1:-1]
@@ -172,14 +183,18 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     )
     for message in messages:
         with subtests.test(message=message):
+            host_id = generate_uuid()
             add_host.reset_mock()
-            add_host.return_value = ({"id": generate_uuid()}, AddHostResult.updated)
+            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
             add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
-    host = minimal_host()
+    host_id = generate_uuid()
+    insights_id = generate_uuid()
+
+    host = minimal_host(id=host_id, insights_id=insights_id)
     metadata = {"request_id": generate_uuid(), "archive_url": "https://some.url"}
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
@@ -188,28 +203,35 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
 
 
 def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_create_or_update_host):
-    host = minimal_host(id=generate_uuid())
+    host_id = generate_uuid()
+    insights_id = generate_uuid()
+
+    host = minimal_host(id=host_id, insights_id=insights_id)
     host_data = host.data()
 
-    add_host = mocker.patch("app.queue.queue.add_host")
-    add_host.return_value = (host_data, AddHostResult.created)
+    mocker.patch("app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created))
 
     key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
-    assert key == host_data["id"]
+    assert key == host_id
     assert event["host"] == host_data
 
 
 @pytest.mark.parametrize("add_host_result", AddHostResult)
 def test_handle_message_verify_message_headers(mocker, add_host_result, mq_create_or_update_host):
-    host = minimal_host(id=generate_uuid())
+    host_id = generate_uuid()
+    insights_id = generate_uuid()
+    request_id = generate_uuid()
 
-    add_host = mocker.patch("app.queue.queue.add_host")
-    add_host.return_value = (host.data(), add_host_result)
+    host = minimal_host(id=host_id, insights_id=insights_id)
 
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+    mocker.patch("app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result))
 
-    assert headers == {"event_type": add_host_result.name}
+    key, event, headers = mq_create_or_update_host(
+        host, platform_metadata={"request_id": request_id}, return_all_data=True
+    )
+
+    assert headers == expected_headers(add_host_result.name, request_id, insights_id)
 
 
 def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
@@ -349,6 +371,29 @@ def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_upd
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
+
+
+def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host):
+    expected_insights_id = generate_uuid()
+    timestamp_iso = event_datetime_mock.isoformat()
+
+    system_profile = valid_system_profile()
+    system_profile["sap_system"] = True
+
+    host = minimal_host(insights_id=expected_insights_id, system_profile=system_profile)
+
+    expected_results = {
+        "host": {**host.data()},
+        "platform_metadata": {},
+        "timestamp": timestamp_iso,
+        "type": "created",
+    }
+
+    host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
+
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))

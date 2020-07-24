@@ -1,6 +1,7 @@
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 
@@ -74,6 +75,21 @@ def test_create_then_delete_without_request_id(
     assert_delete_event_is_valid(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, expected_request_id="-1"
     )
+
+
+def test_create_then_delete_without_insights_id(
+    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
+):
+    host = db_host()
+    del host.canonical_facts["insights_id"]
+
+    db_create_host(host)
+
+    response_status, response_data = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):

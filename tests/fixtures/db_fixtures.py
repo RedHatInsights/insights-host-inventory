@@ -8,10 +8,17 @@ from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import set_environment
 
 
 @pytest.fixture(scope="session")
-def database():
+def database_name():
+    with set_environment({"INVENTORY_DB_NAME": "insights_test"}):
+        yield
+
+
+@pytest.fixture(scope="session")
+def database(database_name):
     config = Config(RuntimeEnvironment.TEST)
     if not database_exists(config.db_uri):
         create_database(config.db_uri)

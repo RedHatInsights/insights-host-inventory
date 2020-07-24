@@ -3,6 +3,7 @@ from datetime import timedelta
 from datetime import timezone
 
 from app.utils import Tag
+from tests.helpers.test_utils import expected_headers
 
 
 class MockEventProducer:
@@ -50,7 +51,9 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
     assert host.canonical_facts.get("insights_id") == event["insights_id"]
 
     assert event_producer.key == str(host.id)
-    assert event_producer.headers == {"event_type": "delete"}
+    assert event_producer.headers == expected_headers(
+        "delete", event["request_id"], host.canonical_facts.get("insights_id")
+    )
 
     if expected_request_id:
         assert event["request_id"] == expected_request_id
@@ -98,4 +101,6 @@ def assert_patch_event_is_valid(host, event_producer, expected_request_id, expec
 
     assert event == expected_event
     assert event_producer.key == str(host.id)
-    assert event_producer.headers == {"event_type": "updated"}
+    assert event_producer.headers == expected_headers(
+        "updated", expected_request_id, host.canonical_facts.get("insights_id")
+    )

@@ -1111,6 +1111,34 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
+@pytest.mark.system_profile
+def test_create_host_with_system_profile_sap_fact(api_create_or_update_host, api_get):
+    system_profile = valid_system_profile()
+    system_profile["sap_system"] = True
+
+    host = minimal_host(system_profile=system_profile)
+
+    # Create the host
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
+
+    assert_host_was_created(create_host_response)
+
+    created_host = create_host_response["host"]
+
+    response_status, response_data = api_get(f"{HOST_URL}/{created_host['id']}/system_profile")
+
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
+
+    assert host_response["system_profile"] == host.system_profile
+    assert host_response["system_profile"]["sap_system"] == system_profile["sap_system"]
+
+
 @pytest.mark.system_culling
 @pytest.mark.parametrize("fields_to_delete", [("stale_timestamp", "reporter"), ("stale_timestamp",), ("reporter",)])
 def test_create_host_without_culling_fields(api_create_or_update_host, fields_to_delete):

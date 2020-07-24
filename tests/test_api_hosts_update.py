@@ -120,10 +120,10 @@ def test_invalid_host_id(db_create_host, api_patch, subtests):
 def test_patch_produces_update_event_no_request_id(
     event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_patch
 ):
-    patch_doc = {"display_name": "patch_event_test"}
-
     host = db_host()
     created_host = db_create_host(host)
+
+    patch_doc = {"display_name": "patch_event_test"}
 
     url = build_hosts_url(host_list_or_id=created_host.id)
     response_status, response_data = api_patch(url, patch_doc)
@@ -155,6 +155,28 @@ def test_patch_produces_update_event_with_request_id(
         host=created_host,
         event_producer=event_producer_mock,
         expected_request_id=request_id,
+        expected_timestamp=event_datetime_mock,
+    )
+
+
+def test_patch_produces_update_event_no_insights_id(
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_patch
+):
+    host = db_host()
+    del host.canonical_facts["insights_id"]
+
+    created_host = db_create_host(host)
+
+    patch_doc = {"display_name": "patch_event_test"}
+
+    url = build_hosts_url(host_list_or_id=created_host.id)
+    response_status, response_data = api_patch(url, patch_doc)
+    assert_response_status(response_status, expected_status=200)
+
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id="-1",
         expected_timestamp=event_datetime_mock,
     )
 
