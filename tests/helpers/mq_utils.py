@@ -1,9 +1,9 @@
 import json
+import os
 from datetime import timedelta
 from datetime import timezone
 
 from app.utils import Tag
-from tests.helpers.test_utils import expected_headers
 
 
 class MockEventProducer:
@@ -104,3 +104,12 @@ def assert_patch_event_is_valid(host, event_producer, expected_request_id, expec
     assert event_producer.headers == expected_headers(
         "updated", expected_request_id, host.canonical_facts.get("insights_id")
     )
+
+
+def expected_headers(event_type, request_id, insights_id):
+    return {
+        "event_type": event_type,
+        "request_id": request_id,
+        "producer": os.uname().nodename,
+        "insights_id": insights_id,
+    }

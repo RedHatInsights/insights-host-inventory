@@ -15,8 +15,8 @@ from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
+from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
-from tests.helpers.test_utils import expected_headers
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
