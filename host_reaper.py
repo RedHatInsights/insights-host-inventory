@@ -15,14 +15,14 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.queue.event_producer import EventProducer
+from app.queue.metrics import event_producer_failure
+from app.queue.metrics import event_producer_success
+from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
-from lib.metrics import event_producer_failure
-from lib.metrics import event_producer_success
-from lib.metrics import event_serialization_time
 from lib.metrics import host_reaper_fail_count
 
 __all__ = ("main", "run")
