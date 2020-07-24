@@ -4,13 +4,18 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from unittest import main
+from unittest.mock import ANY
 from unittest.mock import patch
 
 import dateutil.parser
 
+from app.utils import HostWrapper
+from tests.test_api_utils import ACCOUNT
 from tests.test_api_utils import generate_uuid
 from tests.test_api_utils import HOST_URL
+from tests.test_api_utils import now
 from tests.test_api_utils import PreCreatedHostsBaseTestCase
+from tests.test_utils import expected_headers
 
 
 class PatchHostTestCase(PreCreatedHostsBaseTestCase):
@@ -110,47 +115,41 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
                 with self.app.app_context():
                     self.patch(f"{HOST_URL}/{host_id_list}", patch_doc, 400)
 
-    def _base_patch_produces_update_event_test(self, headers, expected_request_id):
+    def _base_patch_produces_update_event_test(self, host_to_patch, headers, expected_request_id):
         patch_doc = {"display_name": "patch_event_test"}
-        host_to_patch = self.added_hosts[0].id
 
         with self.app.app_context():
             with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
-                self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200, extra_headers=headers)
+                self.patch(f"{HOST_URL}/{host_to_patch.id}", patch_doc, 200, extra_headers=headers)
 
         expected_event_message = {
             "type": "updated",
             "host": {
-                "account": self.added_hosts[0].account,
-                "ansible_host": self.added_hosts[0].ansible_host,
-                "bios_uuid": self.added_hosts[0].bios_uuid,
-                "created": self.added_hosts[0].created,
+                "account": host_to_patch.account,
+                "ansible_host": host_to_patch.ansible_host,
+                "bios_uuid": host_to_patch.bios_uuid,
+                "created": host_to_patch.created,
                 "culled_timestamp": (
-                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=2)
+                    dateutil.parser.parse(host_to_patch.stale_timestamp) + timedelta(weeks=2)
                 ).isoformat(),
                 "display_name": "patch_event_test",
-                "external_id": self.added_hosts[0].external_id,
-                "fqdn": self.added_hosts[0].fqdn,
-                "id": self.added_hosts[0].id,
-                "insights_id": self.added_hosts[0].insights_id,
-                "ip_addresses": self.added_hosts[0].ip_addresses,
-                "mac_addresses": self.added_hosts[0].mac_addresses,
-                "reporter": self.added_hosts[0].reporter,
-                "rhel_machine_id": self.added_hosts[0].rhel_machine_id,
-                "satellite_id": self.added_hosts[0].satellite_id,
-                "stale_timestamp": self.added_hosts[0].stale_timestamp,
+                "external_id": host_to_patch.external_id,
+                "fqdn": host_to_patch.fqdn,
+                "id": host_to_patch.id,
+                "insights_id": host_to_patch.insights_id,
+                "ip_addresses": host_to_patch.ip_addresses,
+                "mac_addresses": host_to_patch.mac_addresses,
+                "reporter": host_to_patch.reporter,
+                "rhel_machine_id": host_to_patch.rhel_machine_id,
+                "satellite_id": host_to_patch.satellite_id,
+                "stale_timestamp": host_to_patch.stale_timestamp,
                 "stale_warning_timestamp": (
-                    dateutil.parser.parse(self.added_hosts[0].stale_timestamp) + timedelta(weeks=1)
+                    dateutil.parser.parse(host_to_patch.stale_timestamp) + timedelta(weeks=1)
                 ).isoformat(),
-                "subscription_manager_id": self.added_hosts[0].subscription_manager_id,
+                "subscription_manager_id": host_to_patch.subscription_manager_id,
                 "system_profile": {},
-                "tags": [
-                    {"namespace": "no", "key": "key", "value": None},
-                    {"namespace": "NS1", "key": "key1", "value": "val1"},
-                    {"namespace": "NS1", "key": "key2", "value": "val1"},
-                    {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-                ],
-                "updated": self.added_hosts[0].updated,
+                "tags": host_to_patch.tags,
+                "updated": host_to_patch.updated,
             },
             "platform_metadata": None,
             "metadata": {"request_id": expected_request_id},
@@ -158,18 +157,36 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         }
 
         self.assertEqual(json.loads(self.app.event_producer.event), expected_event_message)
-        self.assertEqual(self.app.event_producer.key, self.added_hosts[0].id)
-        self.assertEqual(self.app.event_producer.headers, {"event_type": "updated"})
+        self.assertEqual(self.app.event_producer.key, host_to_patch.id)
+        self.assertEqual(
+            self.app.event_producer.headers,
+            expected_headers("updated", expected_request_id, host_to_patch.insights_id),
+        )
 
     def test_patch_produces_update_event_no_request_id(self):
         with self.app.app_context():
-            self._base_patch_produces_update_event_test({}, "-1")
+            self._base_patch_produces_update_event_test(self.added_hosts[0], {}, "-1")
 
     def test_patch_produces_update_event_with_request_id(self):
         request_id = generate_uuid()
         headers = {"x-rh-insights-request-id": request_id}
         with self.app.app_context():
-            self._base_patch_produces_update_event_test(headers, request_id)
+            self._base_patch_produces_update_event_test(self.added_hosts[0], headers, request_id)
+
+    def test_patch_produces_update_event_no_insights_id(self):
+        host = HostWrapper(
+            {
+                "account": ACCOUNT,
+                "subscription_manager_id": generate_uuid(),
+                "stale_timestamp": now().isoformat(),
+                "reporter": "test",
+            }
+        )
+        response_data = self._create_host(host)
+        created_host = HostWrapper(response_data["host"])
+
+        with self.app.app_context():
+            self._base_patch_produces_update_event_test(created_host, {}, ANY)
 
 
 if __name__ == "__main__":
