@@ -188,6 +188,53 @@ class PatchHostTestCase(PreCreatedHostsBaseTestCase):
         with self.app.app_context():
             self._base_patch_produces_update_event_test(created_host, {}, ANY)
 
+    def test_event_producer_instrumentation(self):
+        from unittest.mock import Mock
+        from unittest.mock import ANY
+
+        class MockFuture:
+            def __init__(self):
+                self.callbacks = []
+                self.errbacks = []
+
+            def add_callback(self, *args, **kwargs):
+                self.callbacks.append((args, kwargs))
+
+            def add_errback(self, *args, **kwargs):
+                self.errbacks.append((args, kwargs))
+
+            def success(self):
+                for args, kwargs in self.callbacks:
+                    method = args[0]
+                    args_ = args[1:] + (Mock(),)
+                    method(*args_, **kwargs)
+
+            def failure(self):
+                for args, kwargs in self.errbacks:
+                    method = args[0]
+                    args_ = args[1:] + (Mock(),)
+                    method(*args_, **kwargs)
+
+        mock_future = MockFuture()
+
+        from app.queue.event_producer import EventProducer
+
+        with patch("app.queue.event_producer.KafkaProducer", **{"return_value.send.return_value": mock_future}):
+            self.app.event_producer = EventProducer(self.app.config["INVENTORY_CONFIG"])
+
+        patch_doc = {"display_name": "patch_event_test"}
+        host_to_patch = self.added_hosts[0].id
+
+        with self.app.app_context():
+            with patch("app.queue.events.datetime", **{"now.return_value": self.now_timestamp}):
+                with patch("app.queue.event_producer.message_produced") as message_produced:
+                    with patch("app.queue.event_producer.message_not_produced") as message_not_produced:
+                        self.patch(f"{HOST_URL}/{host_to_patch}", patch_doc, 200)
+            mock_future.success()
+            message_produced.assert_called_once_with(*mock_future.callbacks[0][0][1:], ANY)
+            mock_future.failure()
+            message_not_produced.assert_called_once_with(*mock_future.errbacks[0][0][1:], ANY)
+
 
 if __name__ == "__main__":
     main()
