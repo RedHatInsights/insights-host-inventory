@@ -1,3 +1,5 @@
+from signal import Signals
+
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server
 
@@ -8,9 +10,20 @@ from app.queue.event_producer import EventProducer
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
 
-from lib.handlers import ShutdownHandler
-
 logger = get_logger("mq_service")
+
+
+class ShutdownHandler:
+    def __init__(self):
+        self._shutdown = False
+
+    def signal_handler(self, signum, frame):
+        signame = Signals(signum).name
+        logger.info("Gracefully Shutting Down. Received: %s", signame)
+        self._shutdown = True
+
+    def shut_down(self):
+        return self._shutdown
 
 
 def main():
