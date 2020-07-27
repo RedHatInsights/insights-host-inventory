@@ -86,10 +86,12 @@ def assert_patch_event_is_valid(host, event_producer, expected_request_id, expec
             "external_id": None,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
             "reporter": host.reporter,
-            "stale_timestamp": host.stale_timestamp.isoformat(),
-            "stale_warning_timestamp": (host.stale_timestamp + timedelta(weeks=1)).isoformat(),
-            "culled_timestamp": (host.stale_timestamp + timedelta(weeks=2)).isoformat(),
-            "created": host.created_on.isoformat(),
+            "stale_timestamp": host.stale_timestamp.astimezone(timezone.utc).isoformat(),
+            "stale_warning_timestamp": (
+                host.stale_timestamp.astimezone(timezone.utc) + timedelta(weeks=1)
+            ).isoformat(),
+            "culled_timestamp": (host.stale_timestamp.astimezone(timezone.utc) + timedelta(weeks=2)).isoformat(),
+            "created": host.created_on.astimezone(timezone.utc).isoformat(),
         },
         "platform_metadata": None,
         "metadata": {"request_id": expected_request_id},
