@@ -7,6 +7,7 @@ from flask import current_app
 from flask import jsonify
 from flask import request
 from prance import ResolvingParser
+from prance.util.resolver import RESOLVE_FILES
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
@@ -18,6 +19,10 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
 from app.queue.event_producer import EventProducer
+from app.queue.event_producer import Topic
+from app.queue.events import EventType
+from app.queue.metrics import event_producer_failure
+from app.queue.metrics import event_producer_success
 from app.validators import verify_uuid_format  # noqa: 401
 
 logger = get_logger(__name__)
@@ -28,6 +33,14 @@ UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 SPECIFICATION_DIR = "./swagger/"
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
+
+
+def initialize_metrics(config):
+    topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
+    for event_type in EventType:
+        for topic in Topic:
+            event_producer_failure.labels(event_type=event_type.name, topic=topic_names[topic])
+            event_producer_success.labels(event_type=event_type.name, topic=topic_names[topic])
 
 
 def render_exception(exception):
@@ -52,7 +65,7 @@ def create_app(runtime_environment):
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
-    parser = ResolvingParser(SPECIFICATION_FILE)
+    parser = ResolvingParser(SPECIFICATION_FILE, resolve_types=RESOLVE_FILES)
     parser.parse()
 
     for api_url in app_config.api_urls:
@@ -126,5 +139,8 @@ def create_app(runtime_environment):
             path=None,
             excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
         )
+
+    # initialize metrics to zero
+    initialize_metrics(app_config)
 
     return flask_app

@@ -269,7 +269,14 @@ class PaginationBaseTestCase(ApiBaseTestCase):
 class PreCreatedHostsBaseTestCase(DbApiBaseTestCase, PaginationBaseTestCase):
     def setUp(self):
         super().setUp()
+        self.mock_event_producer = MockEventProducer()
         self.added_hosts = self.create_hosts()
+
+    def _create_host(self, host):
+        message = {"operation": "add_host", "data": host.data()}
+        with self.app.app_context():
+            handle_message(json.dumps(message), self.mock_event_producer)
+        return json.loads(self.mock_event_producer.event)
 
     def create_hosts(self):
         hosts_to_create = [
@@ -315,8 +322,6 @@ class PreCreatedHostsBaseTestCase(DbApiBaseTestCase, PaginationBaseTestCase):
 
         host_list = []
 
-        mock_event_producer = MockEventProducer()
-
         for host in self.hosts_to_create:
             host_wrapper = HostWrapper()
             host_wrapper.account = ACCOUNT
@@ -334,15 +339,11 @@ class PreCreatedHostsBaseTestCase(DbApiBaseTestCase, PaginationBaseTestCase):
             host_wrapper.tags = host[3]
             host_wrapper.stale_timestamp = now().isoformat()
             host_wrapper.reporter = "test"
-            message = {"operation": "add_host", "data": host_wrapper.data()}
 
-            with self.app.app_context():
-                handle_message(json.dumps(message), mock_event_producer)
-
-            response_data = json.loads(mock_event_producer.event)
+            response_data = self._create_host(host_wrapper)
 
             # add facts object since it's not returned by message
-            host_data = {**response_data["host"], "facts": message["data"]["facts"]}
+            host_data = {**response_data["host"], "facts": host_wrapper.facts}
             host_list.append(HostWrapper(host_data))
 
         return host_list
