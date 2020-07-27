@@ -1,4 +1,5 @@
 from os.path import join
+import atexit
 
 import connexion
 from connexion.resolver import RestyResolver
@@ -41,7 +42,6 @@ def inventory_config():
 
 def create_app(runtime_environment):
     connexion_options = {"swagger_ui": True}
-
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
@@ -96,6 +96,14 @@ def create_app(runtime_environment):
             "WARNING: The event producer has been disabled.  "
             "The message queue based event notifications have been disabled."
         )
+
+    @atexit.register
+    def pre_shutdown_cleaner():
+        if runtime_environment.event_producer_enabled:
+            logger.info('Closing EventProducer()')
+            flask_app.event_producer.close()
+            logger.info('Closing Database')
+            db.get_engine(flask_app).dispose()
 
     payload_tracker_producer = None
     if not runtime_environment.payload_tracker_enabled:
