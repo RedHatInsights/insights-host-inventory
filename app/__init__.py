@@ -1,5 +1,5 @@
-from os.path import join
 import atexit
+from os.path import join
 
 import connexion
 from connexion.resolver import RestyResolver
@@ -100,9 +100,9 @@ def create_app(runtime_environment):
     @atexit.register
     def pre_shutdown_cleaner():
         if runtime_environment.event_producer_enabled:
-            logger.info('Closing EventProducer()')
+            logger.info("Closing EventProducer()")
             flask_app.event_producer.close()
-            logger.info('Closing Database')
+            logger.info("Closing Database")
             db.get_engine(flask_app).dispose()
 
     payload_tracker_producer = None

@@ -1,6 +1,5 @@
 import os
 import tempfile
-import signal
 
 from prometheus_client import multiprocess
 
