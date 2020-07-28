@@ -82,7 +82,6 @@ def secondary_topic_enabled(inventory_config):
 def kafka_producer(mocker):
     kafka_producer = mocker.patch("app.queue.event_producer.KafkaProducer")
     yield kafka_producer
-    kafka_producer.stop()
 
 
 @pytest.fixture(scope="function")
