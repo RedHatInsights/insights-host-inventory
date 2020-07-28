@@ -50,7 +50,7 @@ def render_exception(exception):
 
 
 def shutdown_hook(close_function, name):
-    logger.info(f"Closing {name}")
+    logger.info("Closing %s", name)
     close_function()
 
 
@@ -101,8 +101,7 @@ def create_app(runtime_environment):
 
     db.init_app(flask_app)
 
-    if runtime_environment.logging_enabled:
-        atexit.register(shutdown_hook, db.get_engine(flask_app).dispose, "Database")
+    atexit.register(shutdown_hook, db.get_engine(flask_app).dispose, "Database")
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 

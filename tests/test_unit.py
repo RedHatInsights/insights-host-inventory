@@ -283,7 +283,13 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_timeout, 3)
 
 
-@patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
+@patch(
+    "app.Config",
+    **{
+        "return_value.mgmt_url_path_prefix": "/",
+        "return_value.db_uri": "postgresql://insights:insights@localhost/insights",
+    },
+)
 class CreateAppConfigTestCase(TestCase):
     def test_config_is_assigned(self, config):
         app = create_app(RuntimeEnvironment.TEST)
