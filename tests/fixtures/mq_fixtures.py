@@ -2,11 +2,13 @@ import json
 
 import pytest
 
+from app.queue.event_producer import EventProducer
 from app.queue.queue import handle_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import TAGS
 from tests.helpers.mq_utils import MockEventProducer
+from tests.helpers.mq_utils import MockFuture
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
@@ -77,10 +79,29 @@ def secondary_topic_enabled(inventory_config):
 
 
 @pytest.fixture(scope="function")
+def kafka_producer(mocker):
+    kafka_producer = mocker.patch("app.queue.event_producer.KafkaProducer")
+    yield kafka_producer
+    kafka_producer.stop()
+
+
+@pytest.fixture(scope="function")
+def event_producer(flask_app, kafka_producer):
+    flask_app.event_producer = EventProducer(flask_app.config["INVENTORY_CONFIG"])
+    yield flask_app.event_producer
+    flask_app.event_producer = None
+
+
+@pytest.fixture(scope="function")
 def event_producer_mock(flask_app):
     flask_app.event_producer = MockEventProducer()
     yield flask_app.event_producer
     flask_app.event_producer = None
+
+
+@pytest.fixture(scope="function")
+def future_mock():
+    yield MockFuture()
 
 
 @pytest.fixture(scope="function")

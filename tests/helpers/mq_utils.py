@@ -1,9 +1,13 @@
 import json
 import os
+from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
 
 from app.utils import Tag
+
+
+MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
 
 
 class MockEventProducer:
@@ -18,6 +22,35 @@ class MockEventProducer:
         self.key = key
         self.headers = headers
         self.topic = topic
+
+
+class MockFuture:
+    def __init__(self):
+        self.callbacks = []
+        self.errbacks = []
+
+    @staticmethod
+    def _fire(source):
+        for callback in source:
+            args = callback.args + (callback.extra_arg,)
+            callback.method(*args, **callback.kwargs)
+
+    @staticmethod
+    def _add(target, args, kwargs):
+        item = MockFutureCallback(args[0], args[1:], kwargs, object())
+        target.append(item)
+
+    def add_callback(self, *args, **kwargs):
+        self._add(self.callbacks, args, kwargs)
+
+    def add_errback(self, *args, **kwargs):
+        self._add(self.errbacks, args, kwargs)
+
+    def success(self):
+        self._fire(self.callbacks)
+
+    def failure(self):
+        self._fire(self.errbacks)
 
 
 def wrap_message(host_data, operation="add_host", platform_metadata=None):
