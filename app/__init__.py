@@ -49,6 +49,11 @@ def render_exception(exception):
     return response
 
 
+def shutdown_hook(close_function, name):
+    logger.info(f"Closing {name}")
+    close_function()
+
+
 def inventory_config():
     return current_app.config["INVENTORY_CONFIG"]
 
@@ -96,6 +101,9 @@ def create_app(runtime_environment):
 
     db.init_app(flask_app)
 
+    if runtime_environment.logging_enabled:
+        atexit.register(shutdown_hook, db.get_engine(flask_app).dispose, "Database")
+
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
     @flask_app.before_request
@@ -104,19 +112,12 @@ def create_app(runtime_environment):
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config)
+        atexit.register(shutdown_hook, flask_app.event_producer.close, "EventProducer()")
     else:
         logger.warning(
             "WARNING: The event producer has been disabled.  "
             "The message queue based event notifications have been disabled."
         )
-
-    @atexit.register
-    def pre_shutdown_cleaner():
-        if runtime_environment.event_producer_enabled:
-            logger.info("Closing EventProducer()")
-            flask_app.event_producer.close()
-            logger.info("Closing Database")
-            db.get_engine(flask_app).dispose()
 
     payload_tracker_producer = None
     if not runtime_environment.payload_tracker_enabled:
