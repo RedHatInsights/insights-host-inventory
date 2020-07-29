@@ -15,6 +15,9 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.queue.event_producer import EventProducer
+from app.queue.metrics import event_producer_failure
+from app.queue.metrics import event_producer_success
+from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
@@ -26,7 +29,14 @@ __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-reaper"
 LOGGER_NAME = "host_reaper"
-COLLECTED_METRICS = (delete_host_count, delete_host_processing_time, host_reaper_fail_count)
+COLLECTED_METRICS = (
+    delete_host_count,
+    delete_host_processing_time,
+    host_reaper_fail_count,
+    event_producer_failure,
+    event_producer_success,
+    event_serialization_time,
+)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 

@@ -142,22 +142,32 @@ def find_non_culled_hosts(query):
 @metrics.new_host_commit_processing_time.time()
 def create_new_host(input_host, staleness_offset, fields):
     logger.debug("Creating a new host")
+
     input_host.save()
     db.session.commit()
+
     metrics.create_host_count.inc()
     logger.debug("Created host:%s", input_host)
-    return serialize_host(input_host, staleness_offset, fields), AddHostResult.created
+
+    output_host = serialize_host(input_host, staleness_offset, fields)
+    insights_id = input_host.canonical_facts.get("insights_id")
+    return output_host, input_host.id, insights_id, AddHostResult.created
 
 
 @metrics.update_host_commit_processing_time.time()
 def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
+
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
+
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s", existing_host)
-    return serialize_host(existing_host, staleness_offset, fields), AddHostResult.updated
+
+    output_host = serialize_host(existing_host, staleness_offset, fields)
+    insights_id = existing_host.canonical_facts.get("insights_id")
+    return output_host, existing_host.id, insights_id, AddHostResult.updated
 
 
 def stale_timestamp_filter(gt=None, lte=None):

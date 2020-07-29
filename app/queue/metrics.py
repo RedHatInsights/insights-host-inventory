@@ -28,12 +28,12 @@ ingress_message_handler_time = Summary(
 )
 version = Info("inventory_mq_service_version", "Build version for the inventory message queue service")
 version.info({"version": get_build_version()})
-egress_message_handler_success = Counter(
-    "inventory_egress_message_handler_successes", "Total amount of messages successfully written to the egress queue"
+event_producer_success = Counter(
+    "inventory_event_producer_successes", "Total amount of messages successfully written", ["event_type", "topic"]
 )
-egress_message_handler_failure = Counter(
-    "inventory_egress_message_handler_failures", "Total amount of failures while writing messages to the egress queue"
+event_producer_failure = Counter(
+    "inventory_event_producer_failures", "Total amount of failures while writing messages", ["event_type", "topic"]
 )
 event_serialization_time = Summary(
-    "inventory_event_serialization_seconds", "Time spent parsing a message from the egress queue", ["event_type"]
+    "inventory_event_serialization_seconds", "Time spent parsing a message", ["event_type"]
 )
