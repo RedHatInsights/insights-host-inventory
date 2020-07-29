@@ -18,7 +18,7 @@ run_inv_web_service:
 	INVENTORY_LOG_LEVEL=DEBUG gunicorn -b :8080 run
 
 run_inv_mq_service:
-	PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
+	KAFKA_HOST_EGRESS_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
 
 run_inv_mq_service_test_producer:
 	python utils/kafka_producer.py
@@ -28,6 +28,9 @@ run_inv_mq_service_test_consumer:
 
 run_inv_http_test_producer:
 	python utils/rest_producer.py
+
+run_reaper:
+	python host_reaper.py
 
 style:
 	pre-commit run --all-files
