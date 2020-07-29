@@ -101,7 +101,7 @@ class Host(db.Model):
             self.display_name = display_name
         self._update_ansible_host(ansible_host)
         self.account = account
-        self.facts = facts
+        self.facts = facts or {}
         self.tags = tags or {}
         self.system_profile_facts = system_profile_facts or {}
         self.stale_timestamp = stale_timestamp

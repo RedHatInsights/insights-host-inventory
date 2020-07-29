@@ -1,6 +1,42 @@
 import contextlib
 import os
+import string
 import unittest.mock
+import uuid
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+from random import choice
+from random import randint
+
+from app.utils import HostWrapper
+
+NS = "testns"
+ID = "whoabuddy"
+
+ACCOUNT = "000501"
+
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+
+def generate_random_string(size=10):
+    return "".join(choice(string.ascii_lowercase) for _ in range(size))
+
+
+def now():
+    return datetime.now(timezone.utc)
+
+
+def get_staleness_timestamps():
+    current_timestamp = now()
+    return {
+        "fresh": current_timestamp + timedelta(hours=1),
+        "stale": current_timestamp,
+        "stale_warning": current_timestamp - timedelta(weeks=1),
+        "culled": current_timestamp - timedelta(weeks=2),
+    }
 
 
 @contextlib.contextmanager
@@ -12,6 +48,19 @@ def set_environment(new_env=None):
     os.environ.update(new_env)
     yield
     patched_dict.stop()
+
+
+def minimal_host(**values):
+    data = {
+        "account": ACCOUNT,
+        "display_name": "test" + generate_random_string(),
+        "ip_addresses": ["10.10.0.1"],
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "reporter": "test" + generate_random_string(),
+        **values,
+    }
+
+    return HostWrapper(data)
 
 
 def valid_system_profile():
@@ -72,26 +121,3 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
     }
-
-
-def expected_headers(event_type, request_id, insights_id):
-    return {
-        "event_type": event_type,
-        "request_id": request_id,
-        "producer": os.uname().nodename,
-        "insights_id": insights_id,
-    }
-
-
-class MockEventProducer:
-    def __init__(self):
-        self.event = None
-        self.key = None
-        self.headers = None
-        self.topic = None
-
-    def write_event(self, event, key, headers, topic):
-        self.event = event
-        self.key = key
-        self.headers = headers
-        self.topic = topic
