@@ -1,7 +1,9 @@
 from signal import Signals
+
 from app.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 class ShutdownHandler:
     def __init__(self):
@@ -14,4 +16,3 @@ class ShutdownHandler:
 
     def shut_down(self):
         return self._shutdown
-
