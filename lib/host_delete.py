@@ -12,9 +12,12 @@ __all__ = ("delete_hosts",)
 CHUNK_SIZE = 1000
 
 
-def delete_hosts(select_query, event_producer):
+def delete_hosts(select_query, event_producer, reaper_shutdown_handler=None):
     while select_query.count():
         for host in select_query.limit(CHUNK_SIZE):
+            if reaper_shutdown_handler and reaper_shutdown_handler.shut_down():
+                return
+
             host_id = host.id
             with delete_host_processing_time.time():
                 _delete_host(select_query.session, host)
@@ -29,6 +32,9 @@ def delete_hosts(select_query, event_producer):
                 event_producer.write_event(event, str(host.id), headers, Topic.events)
 
             yield host_id, host_deleted
+
+        if reaper_shutdown_handler and reaper_shutdown_handler.shut_down():
+            return
 
 
 def _delete_host(session, host):

@@ -1,3 +1,4 @@
+import signal
 import sys
 from functools import partial
 
@@ -19,6 +20,7 @@ from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
+from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
@@ -60,13 +62,13 @@ def _excepthook(logger, type, value, traceback):
 
 
 @host_reaper_fail_count.count_exceptions()
-def run(config, logger, session, event_producer):
+def run(config, logger, session, event_producer, shutdown_handler):
     conditions = Conditions.from_config(config)
     query_filter = stale_timestamp_filter(*conditions.culled())
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query, event_producer)
+    events = delete_hosts(query, event_producer, shutdown_handler)
     for host_id, deleted in events:
         if deleted:
             logger.info("Deleted host: %s", host_id)
@@ -86,14 +88,21 @@ def main(logger):
 
     event_producer = EventProducer(config)
 
+    shutdown_handler = ShutdownHandler()
+    signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
+    signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
+
     try:
         with session_guard(session):
-            run(config, logger, session, event_producer)
+            run(config, logger, session, event_producer, shutdown_handler)
     finally:
         try:
             job = _prometheus_job(config.kubernetes_namespace)
             push_to_gateway(config.prometheus_pushgateway, job, registry)
         finally:
+            logger.info("Closing Database")
+            session.get_bind().dispose()
+            logger.info("Closing EventProducer()")
             event_producer.close()
 
 
