@@ -18,8 +18,7 @@ class Config:
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        default_db_name = "insights_test" if runtime_environment == RuntimeEnvironment.TEST else "insights"
-        self._db_name = os.getenv("INVENTORY_DB_NAME", default_db_name)
+        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
         self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
 

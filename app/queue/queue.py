@@ -113,7 +113,7 @@ def add_host(host_data):
                     }
                 },
             )
-            (output_host, add_result) = host_repository.add_host(
+            output_host, host_id, insights_id, add_result = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
             metrics.add_host_success.labels(
@@ -126,7 +126,7 @@ def add_host(host_data):
                 extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
             )
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return (output_host, add_result)
+            return output_host, host_id, insights_id, add_result
         except InventoryException:
             logger.exception("Error adding host ", extra={"host": host_data})
             metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
@@ -150,14 +150,16 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        (output_host, add_results) = add_host(validated_operation_msg["data"])
+        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"])
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
-        event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.egress)
+
+        headers = message_headers(add_results, insights_id)
+        event_producer.write_event(event, str(host_id), headers, Topic.egress)
 
         # for transition to platform.inventory.events
         if inventory_config().secondary_topic_enabled:
-            event_producer.write_event(event, output_host["id"], message_headers(add_results), Topic.events)
+            event_producer.write_event(event, str(host_id), headers, Topic.events)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):

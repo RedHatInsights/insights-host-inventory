@@ -94,6 +94,14 @@ class HostWrapper:
         self.__data["external_id"] = cf
 
     @property
+    def system_profile(self):
+        return self.__data.get("system_profile", None)
+
+    @system_profile.setter
+    def system_profile(self, system_profile):
+        self.__data["system_profile"] = system_profile
+
+    @property
     def facts(self):
         return self.__data.get("facts", None)
 
