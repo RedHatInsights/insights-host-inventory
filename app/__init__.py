@@ -111,7 +111,7 @@ def create_app(runtime_environment):
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config)
-        atexit.register(shutdown_hook, flask_app.event_producer.close, "EventProducer()")
+        atexit.register(shutdown_hook, flask_app.event_producer.close, "EventProducer")
     else:
         logger.warning(
             "WARNING: The event producer has been disabled.  "
