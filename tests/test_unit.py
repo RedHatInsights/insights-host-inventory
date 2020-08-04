@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -1632,15 +1633,15 @@ class SerializationDeserializeTags(TestCase):
 
 
 class EventProducerTests(TestCase):
-    @classmethod
     @patch("app.queue.event_producer.KafkaProducer")
-    def setUpClass(cls, mock_kafka_producer):
-        cls.config = Config(RuntimeEnvironment.TEST)
-        cls.event_producer = EventProducer(cls.config)
-        cls.topic_name = {Topic.events: cls.config.event_topic, Topic.egress: cls.config.host_egress_topic}
-        cls.event_types = {EventType.created: "created", EventType.updated: "updated", EventType.delete: "delete"}
-        threadctx.request_id = "-1"
-        cls.basic_host = {
+    def setUp(self, mock_kafka_producer):
+        super().setUp()
+
+        self.config = Config(RuntimeEnvironment.TEST)
+        self.event_producer = EventProducer(self.config)
+        self.topic_names = {Topic.events: self.config.event_topic, Topic.egress: self.config.host_egress_topic}
+        threadctx.request_id = str(uuid4())
+        self.basic_host = {
             "id": str(uuid4()),
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "test_reporter",
@@ -1648,40 +1649,44 @@ class EventProducerTests(TestCase):
             "fqdn": "fqdn",
         }
 
-    def _happy_path_subtest(self, event_type, topic, host, key):
+    def _create_encoded_headers(self, event_type, request_id, insights_id):
+        return [
+            ("event_type", event_type.name.encode("utf-8")),
+            ("request_id", request_id.encode("utf-8")),
+            ("producer", os.uname().nodename.encode("utf-8")),
+            ("insights_id", insights_id.encode("utf-8")),
+        ]
+
+    def _happy_path_subtest(self, event_type, topic, host):
         with self.subTest(event_type=event_type, topic=topic):
+            host_id = self.basic_host["id"]
             event = build_event(event_type, host)
-            headers = message_headers(event_type)
+            headers = message_headers(event_type, host_id)
+            key = host_id
 
             self.event_producer.write_event(event, key, headers, topic)
 
             call_args = self.event_producer._kafka_producer.send.call_args
 
-            # Assert that KafkaProducerMock was called with expected parameters
-            self.assertEqual(call_args[0][0], self.topic_name[topic])
+            self.assertEqual(call_args[0][0], self.topic_names[topic])
             self.assertEqual(call_args[1]["key"], key.encode("utf-8"))
             self.assertEqual(call_args[1]["value"], event.encode("utf-8"))
-            self.assertEqual(call_args[1]["headers"], [("event_type", self.event_types[event_type].encode("utf-8"))])
+            self.assertEqual(
+                call_args[1]["headers"], self._create_encoded_headers(event_type, threadctx.request_id, host_id)
+            )
 
-    # Check that the event is always sent to the right topic
-    # Check that the key makes it through correct and encoded
-    # check that the headers make it through and are encoded
-    # check thet the event makes it through and is encoded
     def test_happy_path(self):
-        key = self.basic_host["id"]
-
-        # Test updated and deleted
         for topic in Topic:
             for event_type in (EventType.created, EventType.updated):
-                self._happy_path_subtest(event_type, topic, self.basic_host, key)
-            self._happy_path_subtest(EventType.delete, topic, deserialize_host(self.basic_host, MqHostSchema), key)
+                self._happy_path_subtest(event_type, topic, self.basic_host)
+            self._happy_path_subtest(EventType.delete, topic, deserialize_host(self.basic_host, MqHostSchema))
 
     # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
     def test_invalid_topic_causes_failure(self):
         event_type = EventType.created
         event = build_event(event_type, self.basic_host)
         key = self.basic_host["id"]
-        headers = message_headers(event_type)
+        headers = message_headers(event_type, self.basic_host["id"])
 
         with self.assertRaises(KeyError):
             self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
@@ -1691,7 +1696,7 @@ class EventProducerTests(TestCase):
         event_type = EventType.created
         event = build_event(event_type, self.basic_host)
         key = self.basic_host["id"]
-        headers = message_headers(event_type)
+        headers = message_headers(event_type, self.basic_host["id"])
 
         # set up send to return a kafka error to check our handling
         self.event_producer._kafka_producer.send.side_effect = KafkaError()
