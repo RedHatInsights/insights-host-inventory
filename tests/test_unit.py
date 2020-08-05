@@ -37,6 +37,7 @@ from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
 from app.queue.event_producer import EventProducer
+from app.queue.event_producer import logger as event_producer_logger
 from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
@@ -1676,10 +1677,16 @@ class EventProducerTests(TestCase):
             )
 
     def test_happy_path(self):
-        for topic in Topic:
-            for event_type in (EventType.created, EventType.updated):
-                self._happy_path_subtest(event_type, topic, self.basic_host)
-            self._happy_path_subtest(EventType.delete, topic, deserialize_host(self.basic_host, MqHostSchema))
+        for topic, (event_type, host) in product(
+            Topic,
+            (
+                (EventType.created, self.basic_host),
+                (EventType.updated, self.basic_host),
+                (EventType.delete, deserialize_host(self.basic_host, MqHostSchema)),
+            ),
+        ):
+            with self.subTest(topic=topic, event_type=event_type):
+                self._happy_path_subtest(event_type, topic, host)
 
     # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
     def test_invalid_topic_causes_failure(self):
@@ -1689,7 +1696,7 @@ class EventProducerTests(TestCase):
         headers = message_headers(event_type, self.basic_host["id"])
 
         with self.assertRaises(KeyError):
-            self.event_producer.write_event(event, key, headers, "platform.invalid.topic_name")
+            self.event_producer.write_event(event, key, headers, "invalid")
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_errors_are_caught(self, message_not_produced_mock):
@@ -1703,7 +1710,14 @@ class EventProducerTests(TestCase):
 
         self.event_producer.write_event(event, key, headers, Topic.events)
 
-        message_not_produced_mock.assert_called_once()
+        message_not_produced_mock.assert_called_once_with(
+            event_producer_logger,
+            self.config.event_topic,
+            event,
+            key,
+            headers,
+            self.event_producer._kafka_producer.send.side_effect,
+        )
 
 
 if __name__ == "__main__":
