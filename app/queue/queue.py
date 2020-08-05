@@ -161,10 +161,9 @@ def handle_message(message, event_producer):
             event_producer.write_event(event, str(host_id), headers, Topic.events)
 
 
-def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
+def event_loop(consumer, flask_app, event_producer, handler, interrupt):
     with flask_app.app_context():
-        shutdown_handler.register()
-        while not shutdown_handler.shut_down():
+        while not interrupt():
             msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
             for topic_partition, messages in msgs.items():
                 for message in messages:

@@ -28,9 +28,11 @@ def main():
     )
 
     event_producer = EventProducer(config)
+    shutdown_handler = ShutdownHandler()
+    shutdown_handler.register()
 
     try:
-        event_loop(consumer, application, event_producer, handle_message, ShutdownHandler())
+        event_loop(consumer, application, event_producer, handle_message, shutdown_handler.shut_down)
     finally:
         logger.info("Closing consumer")
         consumer.close(autocommit=True)
