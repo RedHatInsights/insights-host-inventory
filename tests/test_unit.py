@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -56,6 +55,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.test_utils import set_environment
 
 
@@ -1650,14 +1650,6 @@ class EventProducerTests(TestCase):
             "fqdn": "fqdn",
         }
 
-    def _create_encoded_headers(self, event_type, request_id, insights_id):
-        return [
-            ("event_type", event_type.name.encode("utf-8")),
-            ("request_id", request_id.encode("utf-8")),
-            ("producer", os.uname().nodename.encode("utf-8")),
-            ("insights_id", insights_id.encode("utf-8")),
-        ]
-
     def test_happy_path(self):
         send = self.event_producer._kafka_producer.send
         host_id = self.basic_host["id"]
@@ -1680,7 +1672,7 @@ class EventProducerTests(TestCase):
                     self.topic_names[topic],
                     key=host_id.encode("utf-8"),
                     value=event.encode("utf-8"),
-                    headers=self._create_encoded_headers(event_type, threadctx.request_id, host_id),
+                    headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
                 )
                 send.reset_mock()
 
