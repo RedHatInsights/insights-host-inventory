@@ -1,4 +1,3 @@
-import signal
 import sys
 from functools import partial
 
@@ -89,8 +88,7 @@ def main(logger):
     event_producer = EventProducer(config)
 
     shutdown_handler = ShutdownHandler()
-    signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
-    signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
+    shutdown_handler.register()
 
     try:
         with session_guard(session):

@@ -1,5 +1,4 @@
 import json
-import signal
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -164,8 +163,7 @@ def handle_message(message, event_producer):
 
 def event_loop(consumer, flask_app, event_producer, handler, shutdown_handler):
     with flask_app.app_context():
-        signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
-        signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
+        shutdown_handler.register()
         while not shutdown_handler.shut_down():
             msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
             for topic_partition, messages in msgs.items():
