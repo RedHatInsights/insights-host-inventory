@@ -1658,25 +1658,10 @@ class EventProducerTests(TestCase):
             ("insights_id", insights_id.encode("utf-8")),
         ]
 
-    def _happy_path_subtest(self, event_type, topic, host):
-        with self.subTest(event_type=event_type, topic=topic):
-            host_id = self.basic_host["id"]
-            event = build_event(event_type, host)
-            headers = message_headers(event_type, host_id)
-            key = host_id
-
-            self.event_producer.write_event(event, key, headers, topic)
-
-            call_args = self.event_producer._kafka_producer.send.call_args
-
-            self.assertEqual(call_args[0][0], self.topic_names[topic])
-            self.assertEqual(call_args[1]["key"], key.encode("utf-8"))
-            self.assertEqual(call_args[1]["value"], event.encode("utf-8"))
-            self.assertEqual(
-                call_args[1]["headers"], self._create_encoded_headers(event_type, threadctx.request_id, host_id)
-            )
-
     def test_happy_path(self):
+        send = self.event_producer._kafka_producer.send
+        host_id = self.basic_host["id"]
+
         for topic, (event_type, host) in product(
             Topic,
             (
@@ -1686,7 +1671,18 @@ class EventProducerTests(TestCase):
             ),
         ):
             with self.subTest(topic=topic, event_type=event_type):
-                self._happy_path_subtest(event_type, topic, host)
+                event = build_event(event_type, host)
+                headers = message_headers(event_type, host_id)
+
+                self.event_producer.write_event(event, host_id, headers, topic)
+
+                send.assert_called_once_with(
+                    self.topic_names[topic],
+                    key=host_id.encode("utf-8"),
+                    value=event.encode("utf-8"),
+                    headers=self._create_encoded_headers(event_type, threadctx.request_id, host_id),
+                )
+                send.reset_mock()
 
     # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
     def test_invalid_topic_causes_failure(self):
