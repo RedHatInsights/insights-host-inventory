@@ -1,4 +1,3 @@
-import signal
 import sys
 from functools import partial
 
@@ -20,6 +19,7 @@ from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
+from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
@@ -68,7 +68,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
 
     query = session.query(Host).filter(query_filter)
 
-    events = delete_hosts(query, event_producer, shutdown_handler)
+    events = delete_hosts(query, event_producer, shutdown_handler.shut_down)
     for host_id, deleted in events:
         if deleted:
             logger.info("Deleted host: %s", host_id)
@@ -82,28 +82,22 @@ def main(logger):
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)
+    job = _prometheus_job(config.kubernetes_namespace)
+    prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
+    register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
     session = Session()
+    register_shutdown(session.get_bind().dispose, "Closing database")
 
     event_producer = EventProducer(config)
+    register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()
-    signal.signal(signal.SIGTERM, shutdown_handler.signal_handler)  # For Openshift
-    signal.signal(signal.SIGINT, shutdown_handler.signal_handler)  # For Ctrl+C
+    shutdown_handler.register()
 
-    try:
-        with session_guard(session):
-            run(config, logger, session, event_producer, shutdown_handler)
-    finally:
-        try:
-            job = _prometheus_job(config.kubernetes_namespace)
-            push_to_gateway(config.prometheus_pushgateway, job, registry)
-        finally:
-            logger.info("Closing Database")
-            session.get_bind().dispose()
-            logger.info("Closing EventProducer()")
-            event_producer.close()
+    with session_guard(session):
+        run(config, logger, session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
