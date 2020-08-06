@@ -1,3 +1,5 @@
+from functools import partial
+
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server
 
@@ -7,6 +9,7 @@ from app.logging import get_logger
 from app.queue.event_producer import EventProducer
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
 logger = get_logger("mq_service")
@@ -26,18 +29,16 @@ def main():
         value_deserializer=lambda m: m.decode(),
         **config.kafka_consumer,
     )
+    consumer_shutdown = partial(consumer.close, autocommit=True)
+    register_shutdown(consumer_shutdown, "Closing consumer")
 
     event_producer = EventProducer(config)
+    register_shutdown(event_producer.close, "Closing producer")
+
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    try:
-        event_loop(consumer, application, event_producer, handle_message, shutdown_handler.shut_down)
-    finally:
-        logger.info("Closing consumer")
-        consumer.close(autocommit=True)
-        logger.info("Closing producer")
-        event_producer.close()
+    event_loop(consumer, application, event_producer, handle_message, shutdown_handler.shut_down)
 
 
 if __name__ == "__main__":

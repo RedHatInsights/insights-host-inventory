@@ -1,3 +1,4 @@
+from atexit import register
 from signal import SIGINT as CTRL_C_TERM
 from signal import signal
 from signal import Signals
@@ -23,3 +24,11 @@ class ShutdownHandler:
 
     def shut_down(self):
         return self._shutdown
+
+
+def register_shutdown(function, message):
+    def atexit_function():
+        logger.info(message)
+        function()
+
+    register(atexit_function)

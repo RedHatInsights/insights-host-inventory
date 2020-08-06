@@ -19,6 +19,7 @@ from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
+from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
 from lib.host_repository import stale_timestamp_filter
@@ -81,27 +82,22 @@ def main(logger):
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)
+    job = _prometheus_job(config.kubernetes_namespace)
+    prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
+    register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
     session = Session()
+    register_shutdown(session.get_bind().dispose, "Closing database")
 
     event_producer = EventProducer(config)
+    register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    try:
-        with session_guard(session):
-            run(config, logger, session, event_producer, shutdown_handler)
-    finally:
-        try:
-            job = _prometheus_job(config.kubernetes_namespace)
-            push_to_gateway(config.prometheus_pushgateway, job, registry)
-        finally:
-            logger.info("Closing Database")
-            session.get_bind().dispose()
-            logger.info("Closing EventProducer()")
-            event_producer.close()
+    with session_guard(session):
+        run(config, logger, session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
