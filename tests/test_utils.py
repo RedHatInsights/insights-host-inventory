@@ -8,6 +8,13 @@ from yaml import safe_load
 
 from utils.deploy import main as deploy
 
+RESOURCE_TEMPLATES_INDEXES = {
+    "insights-inventory-reaper": 0,
+    "insights-host-delete": 1,
+    "insights-inventory-mq-service": 2,
+    "insights-inventory": 3,
+}
+TARGETS_INDEXES = {"prod": 0, "stage": 1}
 DEPLOY_YML = """$schema: /some-schema
 
 labels:
@@ -119,7 +126,12 @@ def test_deploy_image_tag_is_replaced(run_deploy):
     promo_code = "abcd1234"
 
     expected = safe_load(DEPLOY_YML)
-    for rt_i, t_i in product((0, 2, 3), (0, 1)):
+    resource_templates = (
+        RESOURCE_TEMPLATES_INDEXES["insights-inventory-reaper"],
+        RESOURCE_TEMPLATES_INDEXES["insights-inventory-mq-service"],
+        RESOURCE_TEMPLATES_INDEXES["insights-inventory"],
+    )
+    for rt_i, t_i in product(resource_templates, TARGETS_INDEXES.values()):
         expected["resourceTemplates"][rt_i]["targets"][t_i]["parameters"]["IMAGE_TAG"] = promo_code
 
     result = run_deploy(promo_code, DEPLOY_YML)
