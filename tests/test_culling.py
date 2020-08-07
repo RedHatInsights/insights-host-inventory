@@ -304,7 +304,13 @@ def test_culled_host_is_removed(
     assert db_get_host(created_host.id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
 
     assert not db_get_host(created_host.id)
 
@@ -333,12 +339,49 @@ def test_non_culled_host_is_not_removed(
     assert created_host_ids == [host.id for host in retrieved_hosts]
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
 
     retrieved_hosts = db_get_hosts(created_host_ids)
 
     assert created_host_ids == [host.id for host in retrieved_hosts]
     assert event_producer_mock.event is None
+
+
+@pytest.mark.host_reaper
+def test_reaper_shutdown_handler(
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, inventory_config
+):
+    staleness_timestamps = get_staleness_timestamps()
+    created_host_ids = []
+
+    host_count = 3
+    for _ in range(host_count):
+        host_data = minimal_db_host(
+            stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter"
+        )
+        created_host = db_create_host(host_data)
+        created_host_ids.append(created_host.id)
+
+    created_hosts = db_get_hosts(created_host_ids)
+    assert created_hosts.count() == host_count
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_reaper_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
+    )
+
+    remaining_hosts = db_get_hosts(created_host_ids)
+    assert remaining_hosts.count() == 1
 
 
 @pytest.mark.host_reaper
@@ -353,7 +396,13 @@ def test_unknown_host_is_not_removed(
     assert retrieved_host.reporter is None
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    host_reaper_run(inventory_config, mock.Mock(), db.session, event_producer_mock)
+    host_reaper_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
 
     assert db_get_host(created_host.id)
     assert event_producer_mock.event is None

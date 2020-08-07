@@ -1,3 +1,4 @@
+import atexit
 from os.path import join
 
 import connexion
@@ -48,13 +49,17 @@ def render_exception(exception):
     return response
 
 
+def shutdown_hook(close_function, name):
+    logger.info("Closing %s", name)
+    close_function()
+
+
 def inventory_config():
     return current_app.config["INVENTORY_CONFIG"]
 
 
 def create_app(runtime_environment):
     connexion_options = {"swagger_ui": True}
-
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()
@@ -96,6 +101,8 @@ def create_app(runtime_environment):
 
     db.init_app(flask_app)
 
+    atexit.register(shutdown_hook, db.get_engine(flask_app).dispose, "Database")
+
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
     @flask_app.before_request
@@ -104,6 +111,7 @@ def create_app(runtime_environment):
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config)
+        atexit.register(shutdown_hook, flask_app.event_producer.close, "EventProducer")
     else:
         logger.warning(
             "WARNING: The event producer has been disabled.  "

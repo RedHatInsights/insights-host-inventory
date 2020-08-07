@@ -38,7 +38,7 @@ def test_event_loop_exception_handling(mocker, flask_app):
         flask_app,
         fake_event_producer,
         handler=handle_message_mock,
-        shutdown_handler=mocker.Mock(**{"shut_down.side_effect": (False, True)}),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
     assert handle_message_mock.call_count == 3
 
@@ -107,7 +107,7 @@ def test_shutdown_handler(mocker, flask_app):
         flask_app,
         fake_event_producer,
         handler=handle_message_mock,
-        shutdown_handler=mocker.Mock(**{"shut_down.side_effect": (False, True)}),
+        interrupt=mocker.Mock(side_effect=(False, True)),
     )
     fake_consumer.poll.assert_called_once()
 
