@@ -401,7 +401,7 @@ def test_unknown_host_is_not_removed(
         mock.Mock(),
         db.session,
         event_producer_mock,
-        shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False)}),
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
     assert db_get_host(created_host.id)
