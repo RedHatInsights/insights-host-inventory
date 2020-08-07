@@ -335,7 +335,8 @@ For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitla
 
 ### Service owner approval
 
-Changes to the deploy.yml file need to be approved by a service owner.
+Changes to the deploy.yml file need to be approved by a service owner, a member of
+[AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory).
 A service owner approves a MR by adding a `/lgtm` comment.
 Afterwards, the MR is merged automatically and changes are deployed.
 
