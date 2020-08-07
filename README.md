@@ -286,7 +286,7 @@ They trigger the QE testing jobs \[[1](https://jenkins-jenkins.5a9f.insights-dev
 
 Once all of this is finished, a [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) representative (manually) reports the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
 
-## 5. Promoting the image to production
+## 5. Promoting the image to production (v3 cluster)
 
 Once the image has passed QE testing, it can be promoted to production.
 
@@ -312,3 +312,41 @@ A non-exhaustive list of things to watch includes:
 Should unexpected problems occur after a production deployment, it is possible to do a rollback.
 The process is the same as above, i.e. the same [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
 What differs is that a SHA of a previous commit, to which the deployment should be rolled back, should be used as _PROMO_CODE_.
+
+## 6. Promoting the image to stage and production (v4 cluster)
+
+The stage and prod environments in the new v4 clusters are controlled via [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
+
+### Updating app-interface
+
+In order to promote a new image it is necessary to update the [deploy.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy.yml) file.
+The `IMAGE_TAG` parameter needs to be updated to the current _PROMO_CODE_ (truncated to first 7 characters).
+This applies to the following components:
+
+* insights-inventory-reaper
+* insights-inventory-mq-service
+* insights-inventory
+
+The `IMAGE_TAG` parameter should be updated for both namespaces for each of the aforementioned components.
+Note that `insights-host-delete`, which uses a different image, should not be updated.
+
+Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
+
+### Service owner approval
+
+Changes to the deploy.yml file need to be approved by a service owner.
+A service owner approves a MR by adding a `/lgtm` comment.
+Afterwards, the MR is merged automatically and changes are deployed.
+
+### Monitoring of deployment
+
+At the time of this writing monitoring tools are being set up.
+Tools that are already available include:
+
+1. Inventory Dashboard ([stage](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [prod](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus))
+1. OpenShift Console ([stage](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects))
+
+### Deployment rollback
+
+Should unexpected problems occur during the deployment, it is possible to do a rollback.
+This is done by updating the `IMAGE_TAG` parameters in deploy.yml to point to a previous _PROMO_CODE_.
