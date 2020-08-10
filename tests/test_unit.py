@@ -14,6 +14,8 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+from kafka.errors import KafkaError
+
 from api import api_operation
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
@@ -29,9 +31,16 @@ from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
+from app.logging import threadctx
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.queue.event_producer import EventProducer
+from app.queue.event_producer import logger as event_producer_logger
+from app.queue.event_producer import Topic
+from app.queue.events import build_event
+from app.queue.events import EventType
+from app.queue.events import message_headers
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -46,6 +55,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.test_utils import set_environment
 
 
@@ -1622,6 +1632,81 @@ class SerializationDeserializeTags(TestCase):
                     with self.assertRaises(ValueError):
                         nested_tags = {"namespace": {key: ["value"]}}
                         function(nested_tags)
+
+
+class EventProducerTests(TestCase):
+    @patch("app.queue.event_producer.KafkaProducer")
+    def setUp(self, mock_kafka_producer):
+        super().setUp()
+
+        self.config = Config(RuntimeEnvironment.TEST)
+        self.event_producer = EventProducer(self.config)
+        self.topic_names = {Topic.events: self.config.event_topic, Topic.egress: self.config.host_egress_topic}
+        threadctx.request_id = str(uuid4())
+        self.basic_host = {
+            "id": str(uuid4()),
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test_reporter",
+            "account": "test",
+            "fqdn": "fqdn",
+        }
+
+    def test_happy_path(self):
+        send = self.event_producer._kafka_producer.send
+        host_id = self.basic_host["id"]
+
+        for topic, (event_type, host) in product(
+            Topic,
+            (
+                (EventType.created, self.basic_host),
+                (EventType.updated, self.basic_host),
+                (EventType.delete, deserialize_host(self.basic_host, MqHostSchema)),
+            ),
+        ):
+            with self.subTest(topic=topic, event_type=event_type):
+                event = build_event(event_type, host)
+                headers = message_headers(event_type, host_id)
+
+                self.event_producer.write_event(event, host_id, headers, topic)
+
+                send.assert_called_once_with(
+                    self.topic_names[topic],
+                    key=host_id.encode("utf-8"),
+                    value=event.encode("utf-8"),
+                    headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
+                )
+                send.reset_mock()
+
+    # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
+    def test_invalid_topic_causes_failure(self):
+        event_type = EventType.created
+        event = build_event(event_type, self.basic_host)
+        key = self.basic_host["id"]
+        headers = message_headers(event_type, self.basic_host["id"])
+
+        with self.assertRaises(KeyError):
+            self.event_producer.write_event(event, key, headers, "invalid")
+
+    @patch("app.queue.event_producer.message_not_produced")
+    def test_kafka_errors_are_caught(self, message_not_produced_mock):
+        event_type = EventType.created
+        event = build_event(event_type, self.basic_host)
+        key = self.basic_host["id"]
+        headers = message_headers(event_type, self.basic_host["id"])
+
+        # set up send to return a kafka error to check our handling
+        self.event_producer._kafka_producer.send.side_effect = KafkaError()
+
+        self.event_producer.write_event(event, key, headers, Topic.events)
+
+        message_not_produced_mock.assert_called_once_with(
+            event_producer_logger,
+            self.config.event_topic,
+            event,
+            key,
+            headers,
+            self.event_producer._kafka_producer.send.side_effect,
+        )
 
 
 if __name__ == "__main__":
