@@ -331,7 +331,7 @@ The `IMAGE_TAG` parameter should be updated for both namespaces for each of the 
 Note that `insights-host-delete`, which uses a different image, should not be updated.
 
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
-For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. It’s “Members” GitLab menu item in your fork.
+For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
 
 ### Service owner approval
 
