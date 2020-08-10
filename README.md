@@ -330,6 +330,13 @@ This applies to the following components:
 The `IMAGE_TAG` parameter should be updated for both namespaces for each of the aforementioned components.
 Note that `insights-host-delete`, which uses a different image, should not be updated.
 
+There is a script _utils/deploy.py_ that can be used to automatically update the `IMAGE_TAG`. Possible usage using
+_sponge_ from [_moreutils_](http://joeyh.name/code/moreutils/):
+
+```bash
+$ pipenv run python utils/deploy.py < path/to/deploy.yml | sponge path/to/deploy.yml
+```
+
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
 
 ### Service owner approval
