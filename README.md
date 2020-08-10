@@ -345,8 +345,8 @@ Afterwards, the MR is merged automatically and changes are deployed.
 At the time of this writing monitoring tools are being set up.
 Tools that are already available include:
 
-1. Inventory Dashboard – [staging](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [production](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus)
-2. OpenShift Console – [staging](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [production](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects)
+1. Inventory Dashboard – [stage](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [prod](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus)
+2. OpenShift Console – [stage](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects)
 
 ### Deployment rollback
 
