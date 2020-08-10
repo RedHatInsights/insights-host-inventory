@@ -338,10 +338,12 @@ $ pipenv run python utils/deploy.py < path/to/deploy.yml | sponge path/to/deploy
 ```
 
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
+For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
 
 ### Service owner approval
 
-Changes to the deploy.yml file need to be approved by a service owner.
+Changes to the deploy.yml file need to be approved by a service owner, a member of
+[AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory).
 A service owner approves a MR by adding a `/lgtm` comment.
 Afterwards, the MR is merged automatically and changes are deployed.
 
@@ -350,8 +352,8 @@ Afterwards, the MR is merged automatically and changes are deployed.
 At the time of this writing monitoring tools are being set up.
 Tools that are already available include:
 
-1. Inventory Dashboard ([stage](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [prod](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus))
-1. OpenShift Console ([stage](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects))
+1. Inventory Dashboard – [stage](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [prod](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus)
+2. OpenShift Console – [stage](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects)
 
 ### Deployment rollback
 

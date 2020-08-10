@@ -1,4 +1,3 @@
-import atexit
 from os.path import join
 
 import connexion
@@ -24,6 +23,7 @@ from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.validators import verify_uuid_format  # noqa: 401
+from lib.handlers import register_shutdown
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,7 @@ def create_app(runtime_environment):
 
     db.init_app(flask_app)
 
-    atexit.register(shutdown_hook, db.get_engine(flask_app).dispose, "Database")
+    register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
 
@@ -111,7 +111,7 @@ def create_app(runtime_environment):
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config)
-        atexit.register(shutdown_hook, flask_app.event_producer.close, "EventProducer")
+        register_shutdown(flask_app.event_producer.close, "Closing EventProducer")
     else:
         logger.warning(
             "WARNING: The event producer has been disabled.  "
