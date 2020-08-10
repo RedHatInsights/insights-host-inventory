@@ -6,6 +6,7 @@ import ujson
 
 from api.metrics import api_request_count
 from app.logging import get_logger
+from lib.middlewares import check_rbac_permissions
 
 __all__ = ["api_operation"]
 
@@ -31,6 +32,7 @@ def api_operation(old_func):
         api_request_count.inc()
 
         start_time = time.perf_counter()
+        check_rbac_permissions()
         results = old_func(*args, **kwargs)
         end_time = time.perf_counter()
 
