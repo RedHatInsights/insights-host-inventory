@@ -1,3 +1,5 @@
+from flask import current_app
+
 from app.logging import get_logger
 from app.logging import threadctx
 

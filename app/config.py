@@ -36,6 +36,9 @@ class Config:
 
         self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
+        self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "")
+        self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "true").lower() == "true"
+
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
