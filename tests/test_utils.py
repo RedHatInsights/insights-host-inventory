@@ -118,6 +118,6 @@ def test_deploy_image_tag_is_replaced():
     assert safe_load(result) == expected
 
 
-def test_deploy_formatting_is_not_broken():
+def test_deploy_formatting_is_not_changed():
     result = _run_deploy("abcd1234", DEPLOY_YML)
     assert _head(result) == _head(DEPLOY_YML)
