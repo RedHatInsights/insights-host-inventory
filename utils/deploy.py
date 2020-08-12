@@ -48,5 +48,5 @@ def main(args, inp, outp):
 
 
 if __name__ == "__main__":
-    args = _parse_args()
-    main(args, stdin, stdout)
+    parsed_args = _parse_args()
+    main(parsed_args, stdin, stdout)
