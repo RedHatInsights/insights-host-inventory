@@ -334,7 +334,7 @@ There is a script _utils/deploy.py_ that can be used to automatically update the
 _sponge_ from [_moreutils_](http://joeyh.name/code/moreutils/):
 
 ```bash
-$ pipenv run python utils/deploy.py < path/to/deploy.yml | sponge path/to/deploy.yml
+$ pipenv run python utils/deploy.py PROMO_CODE < path/to/deploy.yml | sponge path/to/deploy.yml
 ```
 
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
