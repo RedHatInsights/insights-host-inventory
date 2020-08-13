@@ -108,7 +108,6 @@ def add_host(host_data):
                         "canonical_facts": input_host.canonical_facts,
                         "reporter": input_host.reporter,
                         "stale_timestamp": input_host.stale_timestamp.isoformat(),
-                        "tags": input_host.tags,
                     }
                 },
             )
