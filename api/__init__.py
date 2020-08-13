@@ -3,12 +3,11 @@ from functools import wraps
 
 import flask
 import ujson
-
 from flask import current_app
+from flask_api import status
 
 from api.metrics import api_request_count
 from app.logging import get_logger
-
 from lib.middlewares import check_rbac_permissions
 
 __all__ = ["api_operation"]
@@ -34,10 +33,11 @@ def api_operation(old_func):
 
         api_request_count.inc()
 
-        start_time = time.perf_counter()
-
         if current_app.config["INVENTORY_CONFIG"].rbac_enforced:
-            check_rbac_permissions()
+            if not check_rbac_permissions(old_func.__name__):
+                flask.abort(status.HTTP_403_FORBIDDEN)
+
+        start_time = time.perf_counter()
 
         results = old_func(*args, **kwargs)
         end_time = time.perf_counter()
