@@ -10,6 +10,13 @@ from sys import stdout
 RESOURCE_TEMPLATES = ("insights-inventory-reaper", "insights-inventory-mq-service", "insights-inventory")
 TARGETS = {0: "prod", 1: "stage"}
 # Note: insights-host-delete resource template uses a different image. Not updated by this script.
+IMAGE_TAG_PATTERN = r"(      IMAGE_TAG: ).+"
+LINE_MATCHES = (
+    (r"- name: (.+)", "name"),
+    (r"  targets:", "targets"),
+    (r"  - namespace:", "namespace"),
+    (IMAGE_TAG_PATTERN, "image_tag"),
+)
 
 
 def _parse_args():
@@ -30,27 +37,39 @@ sponge is part of moreutils""",
     return parser.parse_args()
 
 
-def _set_promo_code(original_yml, promo_code, targets):
+def _set_promo_code(line, promo_code):
+    return sub(IMAGE_TAG_PATTERN, fr"\g<1>{promo_code}", line)
+
+
+def _match_line(line):
+    for line_match, name in LINE_MATCHES:
+        result = fullmatch(line_match, line)
+        if result:
+            return name, result
+    return None, None
+
+
+def _deploy(original_yml, promo_code, targets):
     updated_lines = []
     current_name = None
     current_target = None
     for original_line in original_yml.split("\n"):
-        name_match = fullmatch(r"- name: (.+)", original_line)
-        if name_match:
-            current_name = name_match[1]
+        updated_line = original_line
 
-        targets_match = fullmatch(r"  targets:", original_line)
-        if targets_match:
+        line_type, line_match = _match_line(original_line)
+        if line_type == "name":
+            current_name = line_match[1]
+        elif line_type == "targets":
             current_target = None
-
-        namespace_match = fullmatch(r"  - namespace:", original_line)
-        if namespace_match:
+        elif line_type == "namespace":
             current_target = 0 if current_target is None else current_target + 1
-
-        if current_name in RESOURCE_TEMPLATES and current_target is not None and TARGETS[current_target] in targets:
-            updated_line = sub(r"^(      IMAGE_TAG: ).+$", fr"\g<1>{promo_code}", original_line)
-        else:
-            updated_line = original_line
+        elif (
+            line_type == "image_tag"
+            and current_name in RESOURCE_TEMPLATES
+            and current_target is not None
+            and TARGETS[current_target] in targets
+        ):
+            updated_line = _set_promo_code(original_line, promo_code)
 
         updated_lines.append(updated_line)
 
@@ -59,7 +78,7 @@ def _set_promo_code(original_yml, promo_code, targets):
 
 def main(args, inp, outp):
     original_yml = inp.read()
-    updated_yml = _set_promo_code(original_yml, args.promo_code, args.targets or [])
+    updated_yml = _deploy(original_yml, args.promo_code, args.targets or [])
     outp.write(updated_yml)
 
 
