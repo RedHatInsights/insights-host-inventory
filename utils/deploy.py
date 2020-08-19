@@ -2,6 +2,8 @@
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from collections import namedtuple
+from functools import partial
+from functools import reduce
 from re import fullmatch
 from sys import stdin
 from sys import stdout
@@ -12,7 +14,7 @@ TARGETS = {0: "prod", 1: "stage"}
 # Note: insights-host-delete resource template uses a different image. Not updated by this script.
 
 
-State = namedtuple("State", ("name", "target", "processed", "remaining"))
+State = namedtuple("State", ("name", "target", "lines"))
 
 
 def _parse_args():
@@ -75,19 +77,18 @@ def _match_line(line):
     return _do_nothing, None
 
 
-def _step(state, args):
-    current = state.remaining[0]
+def _process_line(args, state, current):
     func, match = _match_line(current)
     name, target, line = func(state.name, state.target, current, match, args)
-    return State(name, target, state.processed + [line], state.remaining[1:])
+    return State(name, target, state.lines + [line])
 
 
 def _deploy(original_yml, args):
-    state = State(None, None, [], original_yml.split("\n"))
-    while state.remaining:
-        state = _step(state, args)
-
-    return "\n".join(state.processed)
+    process_line = partial(_process_line, args)
+    lines = original_yml.split("\n")
+    initial = State(None, None, [])
+    state = reduce(process_line, lines, initial)
+    return "\n".join(state.lines)
 
 
 def main(args, inp, outp):
