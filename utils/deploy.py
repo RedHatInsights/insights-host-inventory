@@ -14,7 +14,7 @@ TARGETS = {0: "prod", 1: "stage"}
 # Note: insights-host-delete resource template uses a different image. Not updated by this script.
 
 
-State = namedtuple("State", ("name", "target", "lines"))
+Current = namedtuple("Current", ("name", "target"))
 
 
 def _parse_args():
@@ -78,18 +78,19 @@ def _match_line(line):
     raise RuntimeError
 
 
-def _process_line(args, state, current):
-    func, match = _match_line(current)
-    name, target, line = func(state.name, state.target, match, args)
-    return State(name, target, state.lines + [line])
+def _process_line(args, state, original_line):
+    current, processed_lines = state
+    func, match = _match_line(original_line)
+    name, target, processed_line = func(current.name, current.target, match, args)
+    return Current(name, target), processed_lines + [processed_line]
 
 
 def _deploy(original_yml, args):
     process_line = partial(_process_line, args)
-    lines = original_yml.split("\n")
-    initial = State(None, None, [])
-    state = reduce(process_line, lines, initial)
-    return "\n".join(state.lines)
+    original_lines = original_yml.split("\n")
+    initial = (Current(None, None), [])
+    _, processed_lines = reduce(process_line, original_lines, initial)
+    return "\n".join(processed_lines)
 
 
 def main(args, inp, outp):
