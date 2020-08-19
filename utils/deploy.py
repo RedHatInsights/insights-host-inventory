@@ -35,37 +35,38 @@ sponge is part of moreutils""",
     return parser.parse_args()
 
 
-def _set_name(name, target, line, match, args):
-    return match[1], target, line
+def _set_name(name, target, match, args):
+    return match[1], target, match[0]
 
 
-def _reset_target(name, target, line, match, args):
-    return name, None, line
+def _reset_target(name, target, match, args):
+    return name, None, match[0]
 
 
-def _increment_target(name, target, line, match, args):
+def _increment_target(name, target, match, args):
     target = 0 if target is None else target + 1
-    return name, target, line
+    return name, target, match[0]
 
 
-def _set_image_tag(name, target, original_line, match, args):
+def _set_image_tag(name, target, match, args):
     if name in RESOURCE_TEMPLATES and target is not None and TARGETS[target] in (args.targets or []):
-        updated_line = f"{match[1]}{args.promo_code}"
+        promo_code = args.promo_code
     else:
-        updated_line = original_line
+        promo_code = match[2]
 
-    return name, target, updated_line
+    return name, target, f"{match[1]}{promo_code}"
 
 
-def _do_nothing(name, target, line, match, args):
-    return name, target, line
+def _do_nothing(name, target, match, args):
+    return name, target, match[0]
 
 
 LINE_MATCHES = (
     (r"- name: (.+)", _set_name),
     (r"  targets:", _reset_target),
     (r"  - namespace:", _increment_target),
-    (r"(      IMAGE_TAG: ).+", _set_image_tag),
+    (r"(      IMAGE_TAG: )(.+)", _set_image_tag),
+    (r".*", _do_nothing),
 )
 
 
@@ -74,12 +75,12 @@ def _match_line(line):
         result = fullmatch(line_match, line)
         if result:
             return func, result
-    return _do_nothing, None
+    raise RuntimeError
 
 
 def _process_line(args, state, current):
     func, match = _match_line(current)
-    name, target, line = func(state.name, state.target, current, match, args)
+    name, target, line = func(state.name, state.target, match, args)
     return State(name, target, state.lines + [line])
 
 
