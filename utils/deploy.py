@@ -32,14 +32,6 @@ sponge is part of moreutils""",
     return parser.parse_args()
 
 
-def _match_line(line):
-    for line_match, func in LINE_MATCHES:
-        result = fullmatch(line_match, line)
-        if result:
-            return func, result
-    raise KeyError
-
-
 def _set_name(state, line, match, args):
     return State(match[1], state.target), line
 
@@ -62,6 +54,10 @@ def _set_image_tag(state, original_line, match, args):
     return state, updated_line
 
 
+def _do_nothing(state, original_line, match, args):
+    return state, original_line
+
+
 LINE_MATCHES = (
     (r"- name: (.+)", _set_name),
     (r"  targets:", _reset_target),
@@ -70,16 +66,20 @@ LINE_MATCHES = (
 )
 
 
+def _match_line(line):
+    for line_match, func in LINE_MATCHES:
+        result = fullmatch(line_match, line)
+        if result:
+            return func, result
+    return _do_nothing, None
+
+
 def _deploy(original_yml, args):
     updated_lines = []
     state = State(None, None)
     for original_line in original_yml.split("\n"):
-        try:
-            func, match = _match_line(original_line)
-            state, updated_line = func(state, original_line, match, args)
-        except KeyError:
-            updated_line = original_line
-
+        func, match = _match_line(original_line)
+        state, updated_line = func(state, original_line, match, args)
         updated_lines.append(updated_line)
 
     return "\n".join(updated_lines)
