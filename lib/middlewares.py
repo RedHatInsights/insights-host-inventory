@@ -1,33 +1,26 @@
 import json
+from functools import wraps
+
+import flask
+from flask import request
+from flask_api import status
 from requests import get
 
-from flask import current_app
-from flask import request
-
+from app import inventory_config
 from app.logging import get_logger
 
 
 logger = get_logger(__name__)
 
-read_actions = {
-    "get_host_list",
-    "get_host_by_id",
-    "get_host_system_profile_by_id",
-    "get_host_tag_count",
-    "get_host_tags",
-}
-write_actions = {"add_host_list", "delete_by_id", "patch_by_id", "replace_facts", "merge_facts"}
-
 
 def get_rbac_permissions():
     # route = "/api/rbac/v1/access/?application=inventory"
     route = "/r/insights/platform/rbac/v1/access/?application=inventory"
-    rbac_url = current_app.config["INVENTORY_CONFIG"].rbac_endpoint + route
-    request_header = { 'x-rh-identity': request.headers['x-rh-identity'],}
+    rbac_url = inventory_config().rbac_endpoint + route
+    request_header = {"x-rh-identity": request.headers["x-rh-identity"]}
 
     with get(rbac_url, headers=request_header) as rbac_response:
-        resp_data = json.loads(rbac_response.content.decode('utf-8'))
-        print("RBAC_DATA RESPONSE", resp_data)
+        resp_data = json.loads(rbac_response.content.decode("utf-8"))
         return resp_data["data"]
 
     # with open("utils/rbac-mock-data/inv-read-write.json", "r") as rbac_response:
@@ -35,20 +28,29 @@ def get_rbac_permissions():
     #     return resp_data["data"]
 
 
-def check_rbac_permissions(action):
-    rbac_data = get_rbac_permissions()
+def rbac(requested_permission):
+    def other_func(func):
+        @wraps(func)
+        def modified_func(*args, **kwargs):
+            result = func(*args, **kwargs)
 
-    logger.info("Fetched RBAC Permissions %s", rbac_data)
+            if not inventory_config().rbac_enforced:
+                return result
 
-    for rbac_permission in rbac_data:
-        _, resource, verb = rbac_permission["permission"].split(":")
+            rbac_data = get_rbac_permissions()
 
-        if resource == "hosts" or resource == "*":
-            if verb == "read" and action in read_actions:
-                return True
-            if verb == "write" and action in write_actions:
-                return True
-            if verb == "*":
-                return True
+            logger.info("Fetched RBAC Permissions %s", rbac_data)
 
-    return False
+            for rbac_permission in rbac_data:
+                if (
+                    rbac_permission["permission"] == "inventory:*:*"
+                    or rbac_permission["permission"] == "inventory:hosts:*"
+                    or rbac_permission["permission"] == requested_permission
+                ):
+                    return result
+
+            flask.abort(status.HTTP_403_FORBIDDEN)
+
+        return modified_func
+
+    return other_func
