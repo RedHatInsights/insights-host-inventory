@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
+from collections import namedtuple
 from re import fullmatch
 from re import sub
 from sys import stdin
@@ -17,6 +18,8 @@ LINE_MATCHES = (
     (r"  - namespace:", "namespace"),
     (IMAGE_TAG_PATTERN, "image_tag"),
 )
+
+State = namedtuple("State", ("name", "target"))
 
 
 def _parse_args():
@@ -51,23 +54,23 @@ def _match_line(line):
 
 def _deploy(original_yml, promo_code, targets):
     updated_lines = []
-    current_name = None
-    current_target = None
+    state = State(None, None)
     for original_line in original_yml.split("\n"):
         updated_line = original_line
 
         line_type, line_match = _match_line(original_line)
         if line_type == "name":
-            current_name = line_match[1]
+            state = State(line_match[1], state.target)
         elif line_type == "targets":
-            current_target = None
+            state = State(state.name, None)
         elif line_type == "namespace":
-            current_target = 0 if current_target is None else current_target + 1
+            target = 0 if state.target is None else state.target + 1
+            state = State(state.name, target)
         elif (
             line_type == "image_tag"
-            and current_name in RESOURCE_TEMPLATES
-            and current_target is not None
-            and TARGETS[current_target] in targets
+            and state.name in RESOURCE_TEMPLATES
+            and state.target is not None
+            and TARGETS[state.target] in targets
         ):
             updated_line = _set_promo_code(original_line, promo_code)
 
