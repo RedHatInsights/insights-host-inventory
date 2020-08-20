@@ -2,6 +2,7 @@ from collections import namedtuple
 from itertools import product
 from tempfile import TemporaryFile
 
+from pytest import mark
 from yaml import safe_load
 
 from utils.deploy import main as deploy
@@ -80,11 +81,11 @@ resourceTemplates:
 """
 
 
-Args = namedtuple("Args", ("promo_code",))
+Args = namedtuple("Args", ("promo_code", "targets"))
 
 
-def _run_deploy(promo_code, inp_):
-    args = Args(promo_code)
+def _run_deploy(promo_code, targets, inp_):
+    args = Args(promo_code, targets)
 
     with TemporaryFile("r+", encoding="utf-8") as inp, TemporaryFile("r+", encoding="utf-8") as outp:
         inp.write(inp_)
@@ -102,7 +103,8 @@ def _head(doc):
     return "\n".join(first_lines)
 
 
-def test_deploy_image_tag_is_replaced():
+@mark.parametrize(("args_targets"), ([], ["prod"], ["stage"], ["prod", "stage"]))
+def test_deploy_image_tag_is_replaced(args_targets):
     promo_code = "abcd1234"
 
     expected = safe_load(DEPLOY_YML)
@@ -111,13 +113,14 @@ def test_deploy_image_tag_is_replaced():
         RESOURCE_TEMPLATES_INDEXES["insights-inventory-mq-service"],
         RESOURCE_TEMPLATES_INDEXES["insights-inventory"],
     )
-    for rt_i, t_i in product(resource_templates, TARGETS_INDEXES.values()):
+    targets = [v for k, v in TARGETS_INDEXES.items() if k in args_targets]
+    for rt_i, t_i in product(resource_templates, targets):
         expected["resourceTemplates"][rt_i]["targets"][t_i]["parameters"]["IMAGE_TAG"] = promo_code
 
-    result = _run_deploy(promo_code, DEPLOY_YML)
+    result = _run_deploy(promo_code, args_targets, DEPLOY_YML)
     assert safe_load(result) == expected
 
 
 def test_deploy_formatting_is_not_changed():
-    result = _run_deploy("abcd1234", DEPLOY_YML)
+    result = _run_deploy("abcd1234", ["prod", "stage"], DEPLOY_YML)
     assert _head(result) == _head(DEPLOY_YML)
