@@ -277,7 +277,7 @@ By default the [vortex job](https://jenkins-insights-qe-ci.cloud.paas.psi.redhat
 Once the vortex tests are finished the stable inventory image is tagged as [insights-inventory:qa](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/qa?tab=body) and deployed to the [QA environment](https://console.insights-dev.openshift.com/console/project/platform-qa/overview).
 This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 3)_.
 
-## 4. QE testing
+## 4. QE testing in the QA environment
 
 Once the stable image lands in the QA environment, the QE testing can begin.
 
@@ -286,40 +286,11 @@ They trigger the QE testing jobs \[[1](https://jenkins-jenkins.5a9f.insights-dev
 
 Once all of this is finished, a [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) representative (manually) reports the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
 
-## 5. Promoting the image to production (v3 cluster)
+## 5. Promoting the image to stage environment
 
-Once the image has passed QE testing, it can be promoted to production.
+This step can be performed in parallel with step 4.
 
-### Triggering the production deployment
-
-This is done using a [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
-The SHA of the HEAD commit should be used as _PROMO_CODE_.
-
-A new deployment is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 4)_
-
-### Monitoring of the production deployment
-
-It is essential to monitor the health of the service during and after the production deployment.
-A non-exhaustive list of things to watch includes:
-
-* Inventory deployments in [platform-prod OSD namespace](https://console.insights.openshift.com/console/project/platform-prod/overview)
-  * primarily ensure that the new pods are spun up properly
-* [#platform-inventory-standup Slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) for any Prometheus alerts
-* [Inventory Dashboard](https://metrics.1b13.insights.openshiftapps.com/d/EiIhtC0Wa/inventory?orgId=1&var-namespace=prod) for any anomalies such as error rate or consumer lag
-
-### Production rollback
-
-Should unexpected problems occur after a production deployment, it is possible to do a rollback.
-The process is the same as above, i.e. the same [Jenkins job](https://jenkins-insights-jenkins.1b13.insights.openshiftapps.com/job/platform-prod/job/platform-prod-insights-inventory-deployer/build).
-What differs is that a SHA of a previous commit, to which the deployment should be rolled back, should be used as _PROMO_CODE_.
-
-## 6. Promoting the image to stage and production (v4 cluster)
-
-The stage and prod environments in the new v4 clusters are controlled via [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
-
-### Updating app-interface
-
-In order to promote a new image it is necessary to update the [deploy.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy.yml) file.
+In order to promote a new image to the stage environment it is necessary to update the [deploy.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy.yml) file.
 The `IMAGE_TAG` parameter needs to be updated to the current _PROMO_CODE_ (truncated to first 7 characters).
 This applies to the following components:
 
@@ -327,33 +298,51 @@ This applies to the following components:
 * insights-inventory-mq-service
 * insights-inventory
 
-The `IMAGE_TAG` parameter should be updated for both namespaces for each of the aforementioned components.
+The `IMAGE_TAG` parameter should be updated for the stage namespace for each of the aforementioned components.
 Note that `insights-host-delete`, which uses a different image, should not be updated.
 
 There is a script _utils/deploy.py_ that can be used to automatically update the `IMAGE_TAG`. Possible usage using
 _sponge_ from [_moreutils_](http://joeyh.name/code/moreutils/):
 
 ```bash
-$ pipenv run python utils/deploy.py PROMO_CODE < path/to/deploy.yml | sponge path/to/deploy.yml
+$ pipenv run python utils/deploy.py -s PROMO_CODE < ../app-interface/data/services/insights/host-inventory/deploy.yml | sponge ../app-interface/data/services/insights/host-inventory/deploy.yml
 ```
 
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
-For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
+For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
+See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
+
+After the MR has been opened, get somebody from [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) to approve the MR by adding a `/lgtm` comment.
+Afterwards, the MR is merged automatically and changes are deployed to the stage environment.
+
+Once that happens, contact [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) and request the image to be tested in the stage environment.
+
+## 6. Promoting the image to production
+
+Once [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) finishes testing of the image in both qa and stage environments (i.e. steps 4 and 5 are completed) they propose a release to production.
+
+They do so by opening a MR in [app-interface](https://gitlab.cee.redhat.com/service/app-interface) to update the `IMAGE_TAG` in the production namespace to the _PROMO_CODE_.
+The same steps to create a MR to app-interface are followed as defined in step 5 except that the `IMAGE_TAG` parameter for the prod (instead of stage) namespace is changed.
+
+```bash
+$ pipenv run python utils/deploy.py -p PROMO_CODE < ../app-interface/data/services/insights/host-inventory/deploy.yml | sponge ../app-interface/data/services/insights/host-inventory/deploy.yml
+```
 
 ### Service owner approval
 
-Changes to the deploy.yml file need to be approved by a service owner, a member of
-[AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory).
-A service owner approves a MR by adding a `/lgtm` comment.
-Afterwards, the MR is merged automatically and changes are deployed.
+Once the MR has been created, an engineer, who is a member of [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) and has been trained to perform inventory releases, approves the MR by adding a `/lgtm` comment.
+The engineer is then **responsible for monitoring of the rollout of the new image**.
 
 ### Monitoring of deployment
 
-At the time of this writing monitoring tools are being set up.
-Tools that are already available include:
+It is essential to monitor the health of the service during and after the production deployment.
+A non-exhaustive list of things to watch includes:
 
-1. Inventory Dashboard – [stage](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crc-stg-01-prometheus), [prod](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus)
-2. OpenShift Console – [stage](https://console-openshift-console.apps.crc-stg-01.o4v9.p1.openshiftapps.com/k8s/cluster/projects), [prod](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects)
+* Inventory deployments in [platform-prod OSD namespace](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/topology/ns/platform-prod/list)
+  * primarily ensure that the new pods are spun up properly
+* [#team-insights-alerts Slack channel](https://app.slack.com/client/T027F3GAJ/C015X9ZF621/details) for any inventory-related Prometheus alerts
+* [Inventory Dashboard](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus) for any anomalies such as error rate or consumer lag
+* [Kibana](https://kibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com/app/kibana#/discover?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15m,to:now))&_a=(columns:!(_source),filters:!(),index:'43c5fed0-d5ce-11ea-b58c-a7c95afd7a5d',interval:auto,query:(language:lucene,query:'(@log_stream:%20%22inventory-reaper%22%20OR%20@log_stream:%20%22inventory-mq%22%20OR%20@log_stream:%20%22insights-inventory%22)%20AND%20levelname:%20ERROR'),sort:!(!('@timestamp',desc)))) for any error-level log entries
 
 ### Deployment rollback
 
