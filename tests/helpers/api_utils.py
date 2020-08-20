@@ -83,7 +83,7 @@ def get_required_headers(auth_type="account_number"):
 
 
 def build_account_auth_header(account=ACCOUNT):
-    identity = Identity(account_number=account)
+    identity = Identity(account_number=account, identity_type="System")
     dict_ = {"identity": identity._asdict()}
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}

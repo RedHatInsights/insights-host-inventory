@@ -36,7 +36,7 @@ class Config:
 
         self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
-        self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://127.0.0.1:8111")
+        self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "true").lower() == "true"
 
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")

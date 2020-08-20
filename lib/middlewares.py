@@ -36,7 +36,7 @@ def get_rbac_permissions():
         abort(500, "Error Fetching RBAC Data, Request Cannot be fulfilled")
 
     resp_data = loads(rbac_response.content.decode("utf-8"))
-    logger.debug("Fetched RBAC Permissions %s", resp_data)
+    logger.debug("Fetched RBAC Data %s", resp_data)
 
     return resp_data["data"]
 
@@ -50,7 +50,7 @@ def rbac(requested_permission):
             if not inventory_config().rbac_enforced:
                 return result
 
-            if get_identity_type(request.headers[IDENTITY_HEADER]) == "System":
+            if "authorization" in request.headers or get_identity_type(request.headers[IDENTITY_HEADER]) == "System":
                 return result
 
             rbac_data = get_rbac_permissions()

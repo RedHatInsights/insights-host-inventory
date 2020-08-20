@@ -11,7 +11,7 @@ def valid_identity():
     """
     Provides a valid Identity object.
     """
-    return Identity(account_number="some account number")
+    return Identity(account_number="some account number", identity_type="System")
 
 
 def valid_payload():

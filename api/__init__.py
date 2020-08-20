@@ -7,7 +7,6 @@ import ujson
 from api.metrics import api_request_count
 from app.logging import get_logger
 
-
 __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
@@ -32,7 +31,6 @@ def api_operation(old_func):
         api_request_count.inc()
 
         start_time = time.perf_counter()
-
         results = old_func(*args, **kwargs)
         end_time = time.perf_counter()
 
