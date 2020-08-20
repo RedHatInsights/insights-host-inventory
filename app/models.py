@@ -350,38 +350,24 @@ class BaseHostSchema(Schema):
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    system_profile = fields.Dict()
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
-        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-        with open(specification) as file:
-            self.system_profile_spec = safe_load(file)
-
-    @pre_load
-    def coerce_system_profile(self, raw_data):
-        processed_data = deepcopy(raw_data)
-        coerce_type(self.system_profile_spec["$defs"]["SystemProfile"], processed_data["system_profile"], "property")
-        return processed_data
 
     @validates("stale_timestamp")
     def has_timezone_info(self, timestamp):
         if timestamp.tzinfo is None:
             raise MarshmallowValidationError("Timestamp must contain timezone info")
 
-    @validates("system_profile")
-    def system_profile_is_valid(self, system_profile):
-        schema = {**self.system_profile_spec, "$ref": "#/$defs/SystemProfile"}
-        try:
-            jsonschema_validate(system_profile, schema)
-        except JsonSchemaValidationError as error:
-            raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
-
 
 class MqHostSchema(BaseHostSchema):
+    system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+        with open(specification) as file:
+            self.system_profile_spec = safe_load(file)
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -424,9 +410,23 @@ class MqHostSchema(BaseHostSchema):
 
         return True
 
+    @pre_load
+    def coerce_system_profile(self, raw_data):
+        processed_data = deepcopy(raw_data)
+        coerce_type(self.system_profile_spec["$defs"]["SystemProfile"], processed_data["system_profile"], "property")
+        return processed_data
+
+    @validates("system_profile")
+    def system_profile_is_valid(self, system_profile):
+        schema = {**self.system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+        try:
+            jsonschema_validate(system_profile, schema)
+        except JsonSchemaValidationError as error:
+            raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
+
 
 class HttpHostSchema(BaseHostSchema):
-    pass
+    system_profile = fields.Nested(SystemProfileSchema)
 
 
 class PatchHostSchema(Schema):
