@@ -1,11 +1,13 @@
-import json
+from base64 import b64decode
 from functools import wraps
+from json import loads
 
-import flask
+from flask import abort
 from flask import request
 from flask_api import status
 from requests import get
 
+from app import IDENTITY_HEADER
 from app import inventory_config
 from app.logging import get_logger
 
@@ -13,19 +15,30 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
+def get_identity_type(identity_header):
+    decoded_header = b64decode(identity_header)
+    identity_dict = loads(decoded_header)
+    return identity_dict["identity"]["type"]
+
+
+def rbac_url():
+    route = "/api/rbac/v1/access/?application=inventory"
+    return inventory_config().rbac_endpoint + route
+
+
 def get_rbac_permissions():
-    # route = "/api/rbac/v1/access/?application=inventory"
-    route = "/r/insights/platform/rbac/v1/access/?application=inventory"
-    rbac_url = inventory_config().rbac_endpoint + route
-    request_header = {"x-rh-identity": request.headers["x-rh-identity"]}
+    request_header = {IDENTITY_HEADER: request.headers[IDENTITY_HEADER]}
 
-    with get(rbac_url, headers=request_header) as rbac_response:
-        resp_data = json.loads(rbac_response.content.decode("utf-8"))
-        return resp_data["data"]
+    rbac_response = get(rbac_url(), headers=request_header)
+    status = rbac_response.status_code
+    if status != 200:
+        logger.error("RBAC returned status: %s", status)
+        abort(500, "Error Fetching RBAC Data, Request Cannot be fulfilled")
 
-    # with open("utils/rbac-mock-data/inv-read-write.json", "r") as rbac_response:
-    #     resp_data = json.load(rbac_response)
-    #     return resp_data["data"]
+    resp_data = loads(rbac_response.content.decode("utf-8"))
+    logger.debug("Fetched RBAC Permissions %s", resp_data)
+
+    return resp_data["data"]
 
 
 def rbac(requested_permission):
@@ -37,9 +50,10 @@ def rbac(requested_permission):
             if not inventory_config().rbac_enforced:
                 return result
 
-            rbac_data = get_rbac_permissions()
+            if get_identity_type(request.headers[IDENTITY_HEADER]) == "System":
+                return result
 
-            logger.info("Fetched RBAC Permissions %s", rbac_data)
+            rbac_data = get_rbac_permissions()
 
             for rbac_permission in rbac_data:
                 if (
@@ -49,7 +63,7 @@ def rbac(requested_permission):
                 ):
                     return result
 
-            flask.abort(status.HTTP_403_FORBIDDEN)
+            abort(status.HTTP_403_FORBIDDEN)
 
         return modified_func
 
