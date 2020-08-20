@@ -1,6 +1,6 @@
 ---
 $id: system_profile.spec.yaml
-$schema: http://json-schema.org/draft-07/schema#
+$schema: http://json-schema.org/draft-04/schema#
 $defs:
   DiskDevice:
     description: Representation of one mounted device
@@ -18,8 +18,6 @@ $defs:
         example:
           uid: "0"
           ro: true
-        propertyNames:
-          minLength: 1
       mount_point:
         description: mount point
         example: "/mnt/remote_nfs_shares"
