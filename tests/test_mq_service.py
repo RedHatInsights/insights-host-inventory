@@ -340,13 +340,68 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host)
 
 
+@pytest.mark.system_profile
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
-    insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
-    host = minimal_host(insights_id=insights_id, system_profile=system_profile)
+    host = minimal_host(system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
+
+
+@pytest.mark.parametrize(
+    ("system_profile",),
+    (
+        ({"infrastructure_type": "x" * 101},),
+        ({"infrastructure_vendor": "x" * 101},),
+        ({"network_interfaces": [{"mac_address": "x" * 60}]},),
+        ({"network_interfaces": [{"name": "x" * 51}]},),
+        ({"network_interfaces": [{"state": "x" * 26}]},),
+        ({"network_interfaces": [{"type": "x" * 19}]},),
+        ({"disk_devices": [{"device": "x" * 2049}]},),
+        ({"disk_devices": [{"label": "x" * 1025}]},),
+        ({"disk_devices": [{"mount_point": "x" * 2049}]},),
+        ({"disk_devices": [{"type": "x" * 257}]},),
+        ({"bios_vendor": "x" * 101},),
+        ({"bios_version": "x" * 101},),
+        ({"bios_release_date": "x" * 51},),
+        ({"cpu_flags": ["x" * 31]},),
+        ({"os_release": "x" * 101},),
+        ({"os_kernel_version": "x" * 101},),
+        ({"arch": "x" * 51},),
+        ({"kernel_modules": ["x" * 256]},),
+        ({"last_boot_time": ["x" * 51]},),
+        ({"running_processes": ["x" * 1001]},),
+        ({"subscription_status": ["x" * 101]},),
+        ({"cloud_provider": ["x" * 101]},),
+        ({"yum_repos": [{"id": "x" * 257}]},),
+        ({"yum_repos": [{"name": "x" * 1025}]},),
+        ({"yum_repos": [{"baseurl": "x" * 2049}]},),
+        ({"dnf_modules": [{"name": "x" * 129}]},),
+        ({"dnf_modules": [{"stream": "x" * 2049}]},),
+        ({"installed_products": [{"name": "x" * 513}]},),
+        ({"installed_products": [{"id": "x" * 65}]},),
+        ({"installed_products": [{"status": "x" * 257}]},),
+        ({"insights_client_version": "x" * 51},),
+        ({"insights_egg_version": "x" * 51},),
+        ({"captured_date": "x" * 33},),
+        ({"installed_packages": ["x" * 513]},),
+        ({"installed_services": ["x" * 513]},),
+        ({"enabled_services": ["x" * 513]},),
+    ),
+)
+def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
+    host = minimal_host(system_profile=system_profile)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+def test_add_host_type_coercion_system_profile(mq_create_or_update_host):
+    host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
+    created_host = mq_create_or_update_host(host_to_create)
+    assert type(created_host.system_profile["number_of_cpus"]) is int
+    assert created_host.system_profile["number_of_cpus"] == 1
 
 
 @pytest.mark.parametrize(
