@@ -506,7 +506,7 @@ def random_uuid():
 
 
 def build_host_chunk():
-    fqdn = "fred.flintstone.com"
+    fqdn = random_uuid() + ".foo.redhat.com"
     payload = {
         "account": "0000001",
         "insights_id": random_uuid(),
