@@ -1279,7 +1279,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_ho
 
             host = minimal_host()
 
-            response_status, response_data = api_create_or_update_host([host])
+            response_status, response_data = api_create_or_update_host([host], identity_type=None)
 
             assert_response_status(response_status, 207)
 
@@ -1296,6 +1296,6 @@ def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_hos
 
             host = minimal_host()
 
-            response_status, response_data = api_create_or_update_host([host])
+            response_status, response_data = api_create_or_update_host([host], identity_type=None)
 
             assert_response_status(response_status, 403)
