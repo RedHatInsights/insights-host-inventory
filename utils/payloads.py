@@ -376,7 +376,7 @@ def create_system_profile():
         "number_of_sockets": 2,
         "cores_per_socket": 4,
         "system_memory_bytes": 1024,
-        "infrastructure_type": "jingleheimer junction cpu" * 4,
+        "infrastructure_type": "jingleheimer junction cpu",
         "infrastructure_vendor": "dell",
         "network_interfaces": [
             {
