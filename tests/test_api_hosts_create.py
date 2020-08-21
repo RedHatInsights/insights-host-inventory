@@ -704,16 +704,9 @@ def test_create_host_with_too_long_mac_address(api_create_or_update_host):
     system_profile = {
         "network_interfaces": [{"mac_address": "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"}]
     }
-
     host = minimal_host(system_profile=system_profile)
-
     multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
+    assert_response_status(multi_response_status, 400)
 
 
 @pytest.mark.parametrize(
@@ -941,15 +934,8 @@ def test_create_host_with_null_system_profile(api_create_or_update_host):
 )
 def test_create_host_with_system_profile_with_invalid_data(api_create_or_update_host, api_get, system_profile):
     host = minimal_host(system_profile=system_profile)
-
-    # Create the host
     multi_response_status, multi_response_data = api_create_or_update_host([host])
-
-    assert_response_status(multi_response_status, 207)
-
-    host_response = get_host_from_multi_response(multi_response_data)
-
-    assert_error_response(host_response, expected_title="Bad Request", expected_status=400)
+    assert_response_status(multi_response_status, 400)
 
 
 @pytest.mark.system_profile
