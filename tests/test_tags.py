@@ -4,8 +4,10 @@ from sqlalchemy import null
 from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
+from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import update_host_in_db
 
 
@@ -285,3 +287,44 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
 
     # 2 per page test
     api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
+
+
+def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+
+    permiting_response_files = (
+        "utils/rbac-mock-data/inv-read-write.json",
+        "utils/rbac-mock-data/inv-read-only.json",
+        "utils/rbac-mock-data/inv-admin.json",
+        "utils/rbac-mock-data/inv-hosts-splat.json",
+    )
+
+    for response_file in permiting_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_host_tags_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url)
+
+            assert_response_status(response_status, 200)
+
+
+def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+
+    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-write-only.json")
+
+    for response_file in denying_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_host_tags_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url)
+
+            assert_response_status(response_status, 403)

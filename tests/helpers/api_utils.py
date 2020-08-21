@@ -358,3 +358,9 @@ def quote_everything(string):
     encoded = string.encode()
     codes = unpack(f"{len(encoded)}B", encoded)
     return "".join(f"%{code:02x}" for code in codes)
+
+
+def create_mock_rbac_response(permissions_response_file):
+    with open(permissions_response_file, "r") as rbac_response:
+        resp_data = json.load(rbac_response)
+        return resp_data["data"]

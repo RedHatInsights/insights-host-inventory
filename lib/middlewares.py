@@ -48,6 +48,8 @@ def rbac(requested_permission):
             result = func(*args, **kwargs)
 
             if not inventory_config().rbac_enforced:
+                # TODO: remove
+                print("RBAC not enforced")
                 return result
 
             if "authorization" in request.headers or get_identity_type(request.headers[IDENTITY_HEADER]) == "System":

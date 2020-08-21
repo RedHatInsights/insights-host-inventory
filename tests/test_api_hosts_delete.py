@@ -1,6 +1,7 @@
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
@@ -153,6 +154,60 @@ def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multip
     assert_response_status(response_status, expected_status=200)
 
     assert host_id_list[1] == event_producer_mock.key
+
+
+def test_delete_host_with_RBAC_allowed(
+    subtests,
+    mocker,
+    api_delete_host,
+    event_datetime_mock,
+    event_producer_mock,
+    db_get_host,
+    db_create_host,
+    enable_rbac,
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+
+    permiting_response_files = (
+        "utils/rbac-mock-data/inv-read-write.json",
+        "utils/rbac-mock-data/inv-write-only.json",
+        "utils/rbac-mock-data/inv-admin.json",
+        "utils/rbac-mock-data/inv-hosts-splat.json",
+    )
+
+    for response_file in permiting_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            response_status, response_data = api_delete_host(host.id)
+
+            assert_response_status(response_status, 200)
+
+            assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+            assert not db_get_host(host.id)
+
+
+def test_delete_host_with_RBAC_denied(
+    subtests, mocker, api_delete_host, event_producer_mock, db_create_host, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+
+    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-read-only.json")
+
+    for response_file in denying_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            response_status, response_data = api_delete_host(host.id)
+
+            assert_response_status(response_status, 403)
 
 
 class DeleteHostsMock:
