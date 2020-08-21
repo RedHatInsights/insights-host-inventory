@@ -412,9 +412,14 @@ class MqHostSchema(BaseHostSchema):
 
     @pre_load
     def coerce_system_profile(self, raw_data):
-        processed_data = deepcopy(raw_data)
-        coerce_type(self.system_profile_spec["$defs"]["SystemProfile"], processed_data["system_profile"], "property")
-        return processed_data
+        if "system_profile" in raw_data:
+            processed_data = deepcopy(raw_data)
+            coerce_type(
+                self.system_profile_spec["$defs"]["SystemProfile"], processed_data["system_profile"], "property"
+            )
+            return processed_data
+        else:
+            return raw_data
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
