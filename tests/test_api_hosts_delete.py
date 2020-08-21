@@ -182,7 +182,7 @@ def test_delete_host_with_RBAC_allowed(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id)
+            response_status, response_data = api_delete_host(host.id, identity_type=None)
 
             assert_response_status(response_status, 200)
 
@@ -205,7 +205,7 @@ def test_delete_host_with_RBAC_denied(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id)
+            response_status, response_data = api_delete_host(host.id, identity_type=None)
 
             assert_response_status(response_status, 403)
 
