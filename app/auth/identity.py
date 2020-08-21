@@ -16,7 +16,7 @@ SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 def from_auth_header(base64):
     json = b64decode(base64)
     identity_dict = loads(json)
-    return Identity(identity_dict["identity"]["account_number"])
+    return Identity(identity_dict["identity"]["account_number"], identity_dict["identity"]["type"])
 
 
 def from_bearer_token(token):

@@ -1,24 +1,27 @@
-from base64 import b64decode
 from functools import wraps
 from json import loads
 
 from flask import abort
 from flask import request
 from flask_api import status
+
 from requests import get
+from requests import Session
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+from requests import exceptions
 
 from app import IDENTITY_HEADER
 from app import inventory_config
+from app import REQUEST_ID_HEADER
+from app import UNKNOWN_REQUEST_ID_VALUE
+from app.auth import current_identity
+
+from app.instrumentation import rbac_failure
 from app.logging import get_logger
 
 
 logger = get_logger(__name__)
-
-
-def get_identity_type(identity_header):
-    decoded_header = b64decode(identity_header)
-    identity_dict = loads(decoded_header)
-    return identity_dict["identity"]["type"]
 
 
 def rbac_url():
@@ -27,16 +30,28 @@ def rbac_url():
 
 
 def get_rbac_permissions():
-    request_header = {IDENTITY_HEADER: request.headers[IDENTITY_HEADER]}
+    request_header = {
+        IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE),
+    }
 
-    rbac_response = get(rbac_url(), headers=request_header)
-    status = rbac_response.status_code
-    if status != 200:
-        logger.error("RBAC returned status: %s", status)
-        abort(500, "Error Fetching RBAC Data, Request Cannot be fulfilled")
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=[ 401, 404, 500 ])
+    request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
+
+    try:
+        rbac_response = request_session.get(url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout)
+    except exceptions.RetryError as e:
+        rbac_failure(logger, "max_retry", e)
+        abort(503, "Error fetching RBAC data, request cannot be fulfilled")
+    except Exception as e:
+        rbac_failure(logger, "fetch", e)
+        abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
+    finally:
+        request_session.close()
 
     resp_data = loads(rbac_response.content.decode("utf-8"))
-    logger.debug("Fetched RBAC Data %s", resp_data)
+    logger.debug("Fetched RBAC Data", extra=resp_data)
 
     return resp_data["data"]
 
@@ -48,11 +63,12 @@ def rbac(requested_permission):
             result = func(*args, **kwargs)
 
             if not inventory_config().rbac_enforced:
-                # TODO: remove
-                print("RBAC not enforced")
                 return result
 
-            if "authorization" in request.headers or get_identity_type(request.headers[IDENTITY_HEADER]) == "System":
+            if "authorization" in request.headers:
+                return result
+
+            if current_identity.identity_type != "User":
                 return result
 
             rbac_data = get_rbac_permissions()
@@ -65,6 +81,7 @@ def rbac(requested_permission):
                 ):
                     return result
 
+            rbac_failure(logger, "unauth")
             abort(status.HTTP_403_FORBIDDEN)
 
         return modified_func

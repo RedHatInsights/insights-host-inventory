@@ -14,6 +14,7 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
+from lib.middlewares import rbac
 
 logger = get_logger(__name__)
 
@@ -53,6 +54,7 @@ def xjoin_enabled():
 
 
 @api_operation
+@rbac("inventory:hosts:read")
 @metrics.api_request_time.time()
 def get_tags(
     search=None,
