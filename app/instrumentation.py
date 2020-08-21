@@ -1,6 +1,5 @@
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
-
 from app.queue.metrics import rbac_fetching_failure
 from app.queue.metrics import rbac_permission_failure
 
@@ -37,6 +36,7 @@ def message_not_produced(logger, topic, value, key, headers, error):
     logger.debug(debug_message, topic, key, value, extra=debug_extra)
 
     event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
+
 
 def rbac_failure(logger, error_type, error_message=None):
     if error_type == "max_retry":

@@ -4,19 +4,16 @@ from json import loads
 from flask import abort
 from flask import request
 from flask_api import status
-
-from requests import get
+from requests import exceptions
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from requests import exceptions
 
 from app import IDENTITY_HEADER
 from app import inventory_config
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import current_identity
-
 from app.instrumentation import rbac_failure
 from app.logging import get_logger
 
@@ -36,11 +33,13 @@ def get_rbac_permissions():
     }
 
     request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=[ 401, 404, 500 ])
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=[401, 404, 500])
     request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
 
     try:
-        rbac_response = request_session.get(url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout)
+        rbac_response = request_session.get(
+            url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout
+        )
     except exceptions.RetryError as e:
         rbac_failure(logger, "max_retry", e)
         abort(503, "Error fetching RBAC data, request cannot be fulfilled")

@@ -38,7 +38,7 @@ class Config:
 
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
-        self.rbac_retries = os.environ.get("RBAC_RETRIES",2)
+        self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 1)
 
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")

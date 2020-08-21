@@ -143,7 +143,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host,
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type=None)
+            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
 
             assert_response_status(response_status, 200)
 
@@ -161,6 +161,6 @@ def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type=None)
+            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
 
             assert_response_status(response_status, 403)

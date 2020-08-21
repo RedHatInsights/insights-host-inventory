@@ -326,7 +326,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type=None)
+            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
 
             assert_response_status(response_status, 200)
 
@@ -344,6 +344,6 @@ def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type=None)
+            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
 
             assert_response_status(response_status, 403)
