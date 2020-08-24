@@ -1,5 +1,5 @@
+from enum import Enum
 from functools import wraps
-from json import loads
 
 from flask import abort
 from flask import request
@@ -15,15 +15,24 @@ from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import current_identity
 from app.instrumentation import rbac_failure
+from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 
 
 logger = get_logger(__name__)
 
+ROUTE = "/api/rbac/v1/access/?application=inventory"
+ALLOWED_TYPE = "User"
+
+class Permission(Enum):
+    READ = "inventory:hosts:read"
+    WRITE = "inventory:hosts:write"
+    ADMIN = "inventory:*:*"
+    HOSTS_ALL = "inventory:hosts:*"
+
 
 def rbac_url():
-    route = "/api/rbac/v1/access/?application=inventory"
-    return inventory_config().rbac_endpoint + route
+    return inventory_config().rbac_endpoint + ROUTE
 
 
 def get_rbac_permissions():
@@ -49,35 +58,33 @@ def get_rbac_permissions():
     finally:
         request_session.close()
 
-    resp_data = loads(rbac_response.content.decode("utf-8"))
+    resp_data = rbac_response.json()
     logger.debug("Fetched RBAC Data", extra=resp_data)
 
     return resp_data["data"]
 
 
-def rbac(requested_permission):
+def rbac(required_permission):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            result = func(*args, **kwargs)
-
             if not inventory_config().rbac_enforced:
-                return result
+                return func(*args, **kwargs)
 
-            if current_identity.identity_type != "User":
-                return result
+            if current_identity.identity_type != ALLOWED_TYPE:
+                return func(*args, **kwargs)
 
             rbac_data = get_rbac_permissions()
 
             for rbac_permission in rbac_data:
                 if (
-                    rbac_permission["permission"] == "inventory:*:*"
-                    or rbac_permission["permission"] == "inventory:hosts:*"
-                    or rbac_permission["permission"] == requested_permission
+                    rbac_permission["permission"] == Permission.ADMIN.value
+                    or rbac_permission["permission"] == Permission.HOSTS_ALL.value
+                    or rbac_permission["permission"] == required_permission.value
                 ):
-                    return result
+                    return func(*args, **kwargs)
 
-            rbac_failure(logger, "unauth")
+            rbac_permission_denied(logger, required_permission.value, rbac_data)
             abort(status.HTTP_403_FORBIDDEN)
 
         return modified_func

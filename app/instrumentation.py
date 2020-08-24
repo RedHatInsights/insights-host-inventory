@@ -1,7 +1,7 @@
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
+from app.queue.metrics import rbac_access_denied
 from app.queue.metrics import rbac_fetching_failure
-from app.queue.metrics import rbac_permission_failure
 
 
 def message_produced(logger, value, key, headers, record_metadata):
@@ -45,6 +45,9 @@ def rbac_failure(logger, error_type, error_message=None):
     if error_type == "fetch":
         logger.error("RBAC endpoint unreachable: %s", error_message)
         rbac_fetching_failure.inc()
-    if error_type == "unauth":
-        logger.debug("Failed to authorize request with RBAC")
-        rbac_permission_failure.inc()
+
+
+def rbac_permission_denied(logger, required_permission, user_permissions):
+    logger.debug("Failed to authorize request with RBAC")
+    logger.debug("Required Permission=%s  User Permissions=%s", required_permission, user_permissions)
+    rbac_access_denied.inc()

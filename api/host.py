@@ -43,7 +43,8 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
 from lib.host_repository import find_non_culled_hosts
-from lib.middlewares import rbac
+from lib.middleware import Permission
+from lib.middleware import rbac
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -56,7 +57,7 @@ logger = get_logger(__name__)
 
 
 @api_operation
-@rbac("inventory:hosts:write")
+@rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def add_host_list(body):
     if not inventory_config().rest_post_enabled:
@@ -156,7 +157,7 @@ def get_bulk_query_source():
 
 
 @api_operation
-@rbac("inventory:hosts:read")
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_list(
     display_name=None,
@@ -200,7 +201,7 @@ def get_host_list(
 
 
 @api_operation
-@rbac("inventory:hosts:write")
+@rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
@@ -230,7 +231,7 @@ def delete_by_id(host_id_list):
 
 
 @api_operation
-@rbac("inventory:hosts:read")
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
@@ -254,7 +255,7 @@ def _get_host_list_by_id_list(account_number, host_id_list):
 
 
 @api_operation
-@rbac("inventory:hosts:read")
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
@@ -279,7 +280,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 
 
 @api_operation
-@rbac("inventory:hosts:write")
+@rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def patch_by_id(host_id_list, body):
     try:
@@ -307,14 +308,14 @@ def patch_by_id(host_id_list, body):
 
 
 @api_operation
-@rbac("inventory:hosts:write")
+@rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def replace_facts(host_id_list, namespace, body):
     return update_facts_by_namespace(FactOperations.replace, host_id_list, namespace, body)
 
 
 @api_operation
-@rbac("inventory:hosts:write")
+@rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def merge_facts(host_id_list, namespace, body):
     if not body:
@@ -359,7 +360,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
 
 @api_operation
-@rbac("inventory:hosts:read")
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
@@ -396,7 +397,7 @@ def _count_tags(host_list):
 
 
 @api_operation
-@rbac("inventory:hosts:read")
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
     query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)

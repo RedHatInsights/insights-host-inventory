@@ -311,7 +311,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
 
 
 def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -327,7 +327,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
 
 
 def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)

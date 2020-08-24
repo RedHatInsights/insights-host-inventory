@@ -128,7 +128,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
 
 
 def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -144,7 +144,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host,
 
 
 def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     host = db_create_host(extra_data={"facts": DB_FACTS})
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)

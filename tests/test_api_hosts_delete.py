@@ -168,7 +168,7 @@ def test_delete_host_with_RBAC_allowed(
     db_create_host,
     enable_rbac,
 ):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -189,7 +189,7 @@ def test_delete_host_with_RBAC_allowed(
 def test_delete_host_with_RBAC_denied(
     subtests, mocker, api_delete_host, event_producer_mock, db_create_host, enable_rbac
 ):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)

@@ -292,7 +292,7 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
 
 
 def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -308,7 +308,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get
 
 
 def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)

@@ -1265,7 +1265,7 @@ def test_always_update_stale_timestamp_from_next_reporter(
 
 
 def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_host, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -1280,7 +1280,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_ho
 
 
 def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_host, enable_rbac):
-    get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
