@@ -48,6 +48,27 @@ UUID_1 = "00000000-0000-0000-0000-000000000001"
 UUID_2 = "00000000-0000-0000-0000-000000000002"
 UUID_3 = "00000000-0000-0000-0000-000000000003"
 
+READ_ALLOWED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-read-write.json",
+    "utils/rbac-mock-data/inv-read-only.json",
+    "utils/rbac-mock-data/inv-admin.json",
+    "utils/rbac-mock-data/inv-hosts-splat.json",
+)
+READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-none.json",
+    "utils/rbac-mock-data/inv-write-only.json",
+)
+WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-read-write.json",
+    "utils/rbac-mock-data/inv-write-only.json",
+    "utils/rbac-mock-data/inv-admin.json",
+    "utils/rbac-mock-data/inv-hosts-splat.json",
+)
+WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-none.json",
+    "utils/rbac-mock-data/inv-read-only.json",
+)
+
 
 def do_request(
     func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="System"

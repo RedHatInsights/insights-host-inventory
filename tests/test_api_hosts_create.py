@@ -17,6 +17,8 @@ from tests.helpers.api_utils import get_host_from_multi_response
 from tests.helpers.api_utils import get_host_from_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SHARED_SECRET
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -1265,14 +1267,7 @@ def test_always_update_stale_timestamp_from_next_reporter(
 def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    permiting_response_files = (
-        "utils/rbac-mock-data/inv-read-write.json",
-        "utils/rbac-mock-data/inv-write-only.json",
-        "utils/rbac-mock-data/inv-admin.json",
-        "utils/rbac-mock-data/inv-hosts-splat.json",
-    )
-
-    for response_file in permiting_response_files:
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -1287,9 +1282,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_ho
 def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-read-only.json")
-
-    for response_file in denying_response_files:
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

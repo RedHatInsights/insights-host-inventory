@@ -6,6 +6,8 @@ from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
@@ -128,14 +130,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
 def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, event_producer_mock, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    permiting_response_files = (
-        "utils/rbac-mock-data/inv-read-write.json",
-        "utils/rbac-mock-data/inv-write-only.json",
-        "utils/rbac-mock-data/inv-admin.json",
-        "utils/rbac-mock-data/inv-hosts-splat.json",
-    )
-
-    for response_file in permiting_response_files:
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         host = db_create_host(extra_data={"facts": DB_FACTS})
         url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
@@ -151,12 +146,10 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host,
 def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, event_producer_mock, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-read-only.json")
-
     host = db_create_host(extra_data={"facts": DB_FACTS})
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    for response_file in denying_response_files:
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

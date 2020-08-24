@@ -2,6 +2,8 @@ from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
@@ -168,14 +170,7 @@ def test_delete_host_with_RBAC_allowed(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    permiting_response_files = (
-        "utils/rbac-mock-data/inv-read-write.json",
-        "utils/rbac-mock-data/inv-write-only.json",
-        "utils/rbac-mock-data/inv-admin.json",
-        "utils/rbac-mock-data/inv-hosts-splat.json",
-    )
-
-    for response_file in permiting_response_files:
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -196,9 +191,7 @@ def test_delete_host_with_RBAC_denied(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-read-only.json")
-
-    for response_file in denying_response_files:
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response

@@ -8,6 +8,8 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
 
 
@@ -292,14 +294,7 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
 def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    permiting_response_files = (
-        "utils/rbac-mock-data/inv-read-write.json",
-        "utils/rbac-mock-data/inv-read-only.json",
-        "utils/rbac-mock-data/inv-admin.json",
-        "utils/rbac-mock-data/inv-hosts-splat.json",
-    )
-
-    for response_file in permiting_response_files:
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
@@ -315,9 +310,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get
 def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
-    denying_response_files = ("utils/rbac-mock-data/inv-none.json", "utils/rbac-mock-data/inv-write-only.json")
-
-    for response_file in denying_response_files:
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
