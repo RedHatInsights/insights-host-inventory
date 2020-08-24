@@ -1,4 +1,3 @@
-from enum import Enum
 from functools import wraps
 
 from flask import abort
@@ -11,6 +10,7 @@ from requests.packages.urllib3.util.retry import Retry
 
 from app import IDENTITY_HEADER
 from app import inventory_config
+from app import Permission
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import current_identity
@@ -23,13 +23,6 @@ logger = get_logger(__name__)
 
 ROUTE = "/api/rbac/v1/access/?application=inventory"
 CHECKED_TYPE = "User"
-
-
-class Permission(Enum):
-    READ = "inventory:hosts:read"
-    WRITE = "inventory:hosts:write"
-    ADMIN = "inventory:*:*"
-    HOSTS_ALL = "inventory:hosts:*"
 
 
 def rbac_url():

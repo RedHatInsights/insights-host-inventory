@@ -19,6 +19,7 @@ from api.metrics import rest_post_request_count
 from api.metrics import tags_ignored_from_http_count
 from app import db
 from app import inventory_config
+from app import Permission
 from app.auth import current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
@@ -43,7 +44,6 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
 from lib.host_repository import find_non_culled_hosts
-from lib.middleware import Permission
 from lib.middleware import rbac
 
 
