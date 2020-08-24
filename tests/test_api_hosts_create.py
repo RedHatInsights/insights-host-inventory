@@ -1292,3 +1292,11 @@ def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_hos
             response_status, response_data = api_create_or_update_host([host], identity_type="User")
 
             assert_response_status(response_status, 403)
+
+
+def test_create_host_with_RBAC_bypassed_as_system(api_create_or_update_host, enable_rbac):
+    host = minimal_host()
+
+    response_status, response_data = api_create_or_update_host([host], identity_type="System")
+
+    assert_response_status(response_status, 207)

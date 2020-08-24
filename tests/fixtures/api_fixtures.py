@@ -12,7 +12,7 @@ def flask_client(flask_app):
 @pytest.fixture(scope="function")
 def api_create_or_update_host(flask_client):
     def _api_create_or_update_host(
-        host_data, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="System"
+        host_data, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
     ):
         data = [item.data() for item in host_data]
         return do_request(flask_client.post, HOST_URL, data, query_parameters, extra_headers, auth_type, identity_type)
@@ -22,7 +22,7 @@ def api_create_or_update_host(flask_client):
 
 @pytest.fixture(scope="function")
 def api_patch(flask_client):
-    def _api_patch(url, host_data, query_parameters=None, extra_headers=None, identity_type="System"):
+    def _api_patch(url, host_data, query_parameters=None, extra_headers=None, identity_type="User"):
         return do_request(
             flask_client.patch, url, host_data, query_parameters, extra_headers, identity_type=identity_type
         )
@@ -32,7 +32,7 @@ def api_patch(flask_client):
 
 @pytest.fixture(scope="function")
 def api_put(flask_client):
-    def _api_put(url, host_data, query_parameters=None, extra_headers=None, identity_type="System"):
+    def _api_put(url, host_data, query_parameters=None, extra_headers=None, identity_type="User"):
         return do_request(
             flask_client.put, url, host_data, query_parameters, extra_headers, identity_type=identity_type
         )
@@ -42,7 +42,7 @@ def api_put(flask_client):
 
 @pytest.fixture(scope="function")
 def api_get(flask_client):
-    def _api_get(url, query_parameters=None, extra_headers=None, identity_type="System"):
+    def _api_get(url, query_parameters=None, extra_headers=None, identity_type="User"):
         return do_request(
             flask_client.get,
             url,
@@ -56,7 +56,7 @@ def api_get(flask_client):
 
 @pytest.fixture(scope="function")
 def api_delete_host(flask_client):
-    def _api_delete_host(host_id, query_parameters=None, extra_headers=None, identity_type="System"):
+    def _api_delete_host(host_id, query_parameters=None, extra_headers=None, identity_type="User"):
         url = f"{HOST_URL}/{host_id}"
         return do_request(
             flask_client.delete,

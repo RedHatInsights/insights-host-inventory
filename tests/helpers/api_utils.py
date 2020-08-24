@@ -71,7 +71,7 @@ WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
 
 
 def do_request(
-    func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="System"
+    func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
 ):
     url = inject_qs(url, **query_parameters) if query_parameters else url
     headers = get_required_headers(auth_type, identity_type)
@@ -91,21 +91,21 @@ def do_request(
     return response.status_code, response_data
 
 
-def get_valid_auth_header(auth_type="account_number", identity_type="System"):
+def get_valid_auth_header(auth_type="account_number", identity_type="User"):
     if auth_type == "account_number":
         return build_account_auth_header(identity_type=identity_type)
 
     return build_token_auth_header()
 
 
-def get_required_headers(auth_type="account_number", identity_type="System"):
+def get_required_headers(auth_type="account_number", identity_type="User"):
     headers = get_valid_auth_header(auth_type, identity_type)
     headers["content-type"] = "application/json"
 
     return headers
 
 
-def build_account_auth_header(account=ACCOUNT, identity_type="System"):
+def build_account_auth_header(account=ACCOUNT, identity_type="User"):
     identity = Identity(account_number=account, identity_type=identity_type)
     dict_ = {"identity": identity._asdict()}
     json_doc = json.dumps(dict_)

@@ -203,6 +203,20 @@ def test_delete_host_with_RBAC_denied(
             assert_response_status(response_status, 403)
 
 
+def test_delete_host_with_RBAC_bypassed_as_system(
+    api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
+):
+    host = db_create_host()
+
+    response_status, response_data = api_delete_host(host.id, identity_type="System")
+
+    assert_response_status(response_status, 200)
+
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+    assert not db_get_host(host.id)
+
+
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):

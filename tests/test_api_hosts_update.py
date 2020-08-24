@@ -340,3 +340,12 @@ def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host
             response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+
+def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
+    host = db_create_host()
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
+
+    assert_response_status(response_status, 200)

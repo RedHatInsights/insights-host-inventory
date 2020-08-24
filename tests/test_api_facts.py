@@ -127,7 +127,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
     assert_response_status(response_status, expected_status=400)
 
 
-def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -143,7 +143,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_put, db_create_host,
             assert_response_status(response_status, 200)
 
 
-def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middlewares.get_rbac_permissions")
 
     host = db_create_host(extra_data={"facts": DB_FACTS})
@@ -157,3 +157,12 @@ def test_patch_host_with_RBAC_denied(subtests, mocker, api_put, db_create_host, 
             response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+
+def test_patch_host_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
+    host = db_create_host(extra_data={"facts": DB_FACTS})
+    url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+
+    response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="System")
+
+    assert_response_status(response_status, 200)

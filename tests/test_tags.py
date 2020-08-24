@@ -321,3 +321,12 @@ def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get,
             response_status, response_data = api_get(url, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+
+def test_create_host_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+    host = db_create_host()
+
+    url = build_host_tags_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)
