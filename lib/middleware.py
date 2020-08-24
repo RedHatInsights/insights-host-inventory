@@ -22,7 +22,8 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 ROUTE = "/api/rbac/v1/access/?application=inventory"
-ALLOWED_TYPE = "User"
+CHECKED_TYPE = "User"
+
 
 class Permission(Enum):
     READ = "inventory:hosts:read"
@@ -71,7 +72,7 @@ def rbac(required_permission):
             if not inventory_config().rbac_enforced:
                 return func(*args, **kwargs)
 
-            if current_identity.identity_type != ALLOWED_TYPE:
+            if current_identity.identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
 
             rbac_data = get_rbac_permissions()

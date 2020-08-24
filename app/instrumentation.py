@@ -50,4 +50,4 @@ def rbac_failure(logger, error_type, error_message=None):
 def rbac_permission_denied(logger, required_permission, user_permissions):
     logger.debug("Failed to authorize request with RBAC")
     logger.debug("Required Permission=%s  User Permissions=%s", required_permission, user_permissions)
-    rbac_access_denied.inc()
+    rbac_access_denied.labels(required_permission=required_permission).inc()
