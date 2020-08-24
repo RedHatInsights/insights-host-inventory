@@ -64,9 +64,6 @@ def rbac(requested_permission):
             if not inventory_config().rbac_enforced:
                 return result
 
-            if "authorization" in request.headers:
-                return result
-
             if current_identity.identity_type != "User":
                 return result
 
