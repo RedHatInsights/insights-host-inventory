@@ -39,7 +39,7 @@ class Config:
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
-        self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 1)
+        self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
@@ -124,6 +124,8 @@ class Config:
 
             self.logger.info("RBAC Enforced: %s", self.rbac_enforced)
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
+            self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
+            self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
             self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
