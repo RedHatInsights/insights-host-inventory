@@ -99,7 +99,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(account_number="some acct", identity_type="System")
+        return Identity(account_number="some acct")
 
 
 class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
@@ -171,7 +171,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(account_number="some acct", identity_type="System")
+            identity = Identity(account_number="some acct")
             validate(identity)
             self.assertTrue(True)
         except ValueError:
