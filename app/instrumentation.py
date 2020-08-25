@@ -39,11 +39,13 @@ def message_not_produced(logger, topic, value, key, headers, error):
 
 
 def rbac_failure(logger, error_message=None):
-    logger.error("RBAC endpoint unreachable: %s", error_message)
+    logger.error("Failed to fetch RBAC permissions: %s", error_message)
     rbac_fetching_failure.inc()
 
 
 def rbac_permission_denied(logger, required_permission, user_permissions):
-    logger.debug("Failed to authorize request with RBAC")
-    logger.debug("Required Permission=%s  User Permissions=%s", required_permission, user_permissions)
+    logger.debug(
+        "Access denied due to RBAC",
+        extra={"required_permission": required_permission, "user_permissions": user_permissions},
+    )
     rbac_access_denied.labels(required_permission=required_permission).inc()
