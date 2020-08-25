@@ -291,7 +291,7 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
     api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
 
 
-def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -307,7 +307,7 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, db_create_host, api_get
             assert_response_status(response_status, 200)
 
 
-def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -323,7 +323,7 @@ def test_create_host_with_RBAC_denied(subtests, mocker, db_create_host, api_get,
             assert_response_status(response_status, 403)
 
 
-def test_create_host_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host()
 
     url = build_host_tags_url(host_list_or_id=host.id)
