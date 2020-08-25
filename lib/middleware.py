@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 
 ROUTE = "/api/rbac/v1/access/?application=inventory"
 CHECKED_TYPE = "User"
+RETRY_STATUSES = [500, 502, 503, 504]
 
 
 def rbac_url():
@@ -35,7 +36,7 @@ def get_rbac_permissions():
     }
 
     request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=[401, 404, 500])
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
 
     try:
