@@ -8,12 +8,14 @@ from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
 from api.host_query_xjoin import build_tag_query_dict_tuple
+from app import Permission
 from app.config import BulkQuerySource
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
+from lib.middleware import rbac
 
 logger = get_logger(__name__)
 
@@ -53,6 +55,7 @@ def xjoin_enabled():
 
 
 @api_operation
+@rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_tags(
     search=None,

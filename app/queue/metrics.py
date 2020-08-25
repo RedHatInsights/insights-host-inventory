@@ -37,3 +37,7 @@ event_producer_failure = Counter(
 event_serialization_time = Summary(
     "inventory_event_serialization_seconds", "Time spent parsing a message", ["event_type"]
 )
+rbac_fetching_failure = Counter("inventory_rbac_fetching_failures", "Total amount of failures fetching RBAC data")
+rbac_access_denied = Counter(
+    "inventory_rbac_access_denied", "Total amount of failures authorizing with RBAC", ["required_permission"]
+)
