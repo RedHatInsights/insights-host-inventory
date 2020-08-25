@@ -148,3 +148,12 @@ def expected_headers(event_type, request_id, insights_id):
         "producer": os.uname().nodename,
         "insights_id": insights_id,
     }
+
+
+def expected_encoded_headers(event_type, request_id, insights_id):
+    return [
+        ("event_type", event_type.name.encode("utf-8")),
+        ("request_id", request_id.encode("utf-8")),
+        ("producer", os.uname().nodename.encode("utf-8")),
+        ("insights_id", insights_id.encode("utf-8")),
+    ]
