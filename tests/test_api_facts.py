@@ -143,7 +143,7 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
             assert_response_status(response_status, 200)
 
 
-def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, enable_rbac):
+def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, db_get_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     host = db_create_host(extra_data={"facts": DB_FACTS})
@@ -157,6 +157,8 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, e
             response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+            assert db_get_host(host.id).facts != DB_NEW_FACTS
 
 
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):

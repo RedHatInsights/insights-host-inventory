@@ -2,6 +2,7 @@ import copy
 from datetime import timedelta
 
 import pytest
+from sqlalchemy.orm.exc import NoResultFound
 
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
@@ -1279,7 +1280,9 @@ def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_ho
             assert_response_status(response_status, 207)
 
 
-def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_host, enable_rbac):
+def test_create_host_with_RBAC_denied(
+    subtests, mocker, api_create_or_update_host, db_get_host_by_insights_id, enable_rbac
+):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -1287,11 +1290,15 @@ def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_hos
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = minimal_host()
+            generated_insights_id = generate_uuid()
+            host = minimal_host(insights_id=generated_insights_id)
 
             response_status, response_data = api_create_or_update_host([host], identity_type="User")
 
             assert_response_status(response_status, 403)
+
+            with pytest.raises(NoResultFound):
+                db_get_host_by_insights_id(generated_insights_id)
 
 
 def test_create_host_with_RBAC_bypassed_as_system(api_create_or_update_host, enable_rbac):
