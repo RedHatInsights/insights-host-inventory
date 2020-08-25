@@ -3,7 +3,6 @@ from functools import wraps
 from flask import abort
 from flask import request
 from flask_api import status
-from requests import exceptions
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -43,11 +42,8 @@ def get_rbac_permissions():
         rbac_response = request_session.get(
             url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout
         )
-    except exceptions.RetryError as e:
-        rbac_failure(logger, "max_retry", e)
-        abort(503, "Error fetching RBAC data, request cannot be fulfilled")
     except Exception as e:
-        rbac_failure(logger, "fetch", e)
+        rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
     finally:
         request_session.close()

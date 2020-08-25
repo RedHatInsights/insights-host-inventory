@@ -38,13 +38,9 @@ def message_not_produced(logger, topic, value, key, headers, error):
     event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
-def rbac_failure(logger, error_type, error_message=None):
-    if error_type == "max_retry":
-        logger.warning("Failed to fetch RBAC data: %s", error_message)
-        rbac_fetching_failure.inc()
-    if error_type == "fetch":
-        logger.error("RBAC endpoint unreachable: %s", error_message)
-        rbac_fetching_failure.inc()
+def rbac_failure(logger, error_message=None):
+    logger.error("RBAC endpoint unreachable: %s", error_message)
+    rbac_fetching_failure.inc()
 
 
 def rbac_permission_denied(logger, required_permission, user_permissions):

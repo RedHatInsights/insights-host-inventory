@@ -17,7 +17,7 @@ def test_rbac_retry_error_handling(mocker, db_create_host, api_get, enable_rbac)
     api_get(url, identity_type="User")
 
     mock_rbac_failure.assert_called_once()
-    abort_mock.assert_called_once_with(503, "Error fetching RBAC data, request cannot be fulfilled")
+    abort_mock.assert_called_once_with(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
 
 
 def test_rbac_exception_handling(mocker, db_create_host, api_get, enable_rbac):
