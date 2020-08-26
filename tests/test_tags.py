@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import null
 
+from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
@@ -309,6 +310,9 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_g
 
 def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    find_hosts_by_staleness_mock = mocker.patch(
+        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
+    )
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -321,6 +325,8 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
             response_status, response_data = api_get(url, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+            find_hosts_by_staleness_mock.assert_not_called()
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
