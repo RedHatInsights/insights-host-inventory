@@ -27,9 +27,13 @@ def configure_logging():
     log_level = os.getenv("INVENTORY_LOG_LEVEL", "INFO").upper()
     logger.setLevel(log_level)
 
-    sqlalchemy_engine_level = os.getenv("SQLALCHEMY_ENGINE_LOG_LEVEL")
-    if sqlalchemy_engine_level:
-        logging.getLogger("sqlalchemy.engine").setLevel(sqlalchemy_engine_level.upper())
+    # Allows for the log level of certain loggers to be redefined with an env variable
+    # e.g. SQLALCHEMY_ENGINE_LOG_LEVEL=DEBUG
+    for component in ("sqlalchemy.engine", "urllib3"):
+        env_key = component.replace(".", "_").upper()
+        level = os.getenv(f"{env_key}_LOG_LEVEL")
+        if level:
+            logging.getLogger(component).setLevel(level.upper())
 
 
 def cloudwatch_handler():
