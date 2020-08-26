@@ -5,6 +5,7 @@ from flask import current_app
 from flask import request
 from requests import post
 
+from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
 from app import inventory_config
 from app import REQUEST_ID_HEADER
@@ -14,6 +15,7 @@ from app.culling import staleness_to_conditions
 __all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "url")
 
 logger = getLogger("graphql")
+outbound_http_metric = outbound_http_response_time.labels("xjoin")
 
 
 def check_pagination(offset, total):
@@ -26,7 +28,9 @@ def graphql_query(query_string, variables):
     logger.info("QUERY: URL %s; query %s, variables %s", url_, query_string, variables)
     payload = {"query": query_string, "variables": variables}
 
-    response = post(url_, json=payload, headers=_forwarded_headers())
+    with outbound_http_metric.time():
+        response = post(url_, json=payload, headers=_forwarded_headers())
+
     status = response.status_code
     if status != 200:
         logger.error("xjoin-search returned status: %s", status)
