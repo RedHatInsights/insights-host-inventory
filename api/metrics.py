@@ -1,4 +1,5 @@
 from prometheus_client import Counter
+from prometheus_client import Histogram
 from prometheus_client import Summary
 
 api_request_time = Summary("inventory_request_processing_seconds", "Time spent processing request")
@@ -9,4 +10,10 @@ tags_ignored_from_http_count = Counter(
 )
 rest_post_request_count = Counter(
     "rest_post_request_count", "The number of times a REST POST request has been recieved", ["reporter"]
+)
+
+outbound_http_response_time = Histogram(
+    "inventory_outbound_http_response_time_seconds",
+    "Time spent waiting for an external service to respond",
+    ["service"],
 )

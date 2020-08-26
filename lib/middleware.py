@@ -7,6 +7,7 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
 from app import inventory_config
 from app import Permission
@@ -24,6 +25,8 @@ ROUTE = "/api/rbac/v1/access/?application=inventory"
 CHECKED_TYPE = "User"
 RETRY_STATUSES = [500, 502, 503, 504]
 
+outbound_http_metric = outbound_http_response_time.labels("rbac")
+
 
 def rbac_url():
     return inventory_config().rbac_endpoint + ROUTE
@@ -40,9 +43,10 @@ def get_rbac_permissions():
     request_session.mount(rbac_url(), HTTPAdapter(max_retries=retry_config))
 
     try:
-        rbac_response = request_session.get(
-            url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout
-        )
+        with outbound_http_metric.time():
+            rbac_response = request_session.get(
+                url=rbac_url(), headers=request_header, timeout=inventory_config().rbac_timeout
+            )
     except Exception as e:
         rbac_failure(logger, e)
         abort(503, "Failed to reach RBAC endpoint, request cannot be fulfilled")
