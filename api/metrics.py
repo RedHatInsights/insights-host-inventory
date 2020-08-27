@@ -15,5 +15,5 @@ rest_post_request_count = Counter(
 outbound_http_response_time = Histogram(
     "inventory_outbound_http_response_time_seconds",
     "Time spent waiting for an external service to respond",
-    ["service"],
+    ["dependency"],
 )
