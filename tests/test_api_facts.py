@@ -138,7 +138,7 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
+            response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="User")
 
             assert_response_status(response_status, 200)
 
@@ -146,25 +146,27 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
 def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, db_get_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    host = db_create_host(extra_data={"facts": DB_FACTS})
-    url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+    updated_facts = {"updatedfact1": "updatedvalue1", "updatedfact2": "updatedvalue2"}
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
+        host = db_create_host(extra_data={"facts": DB_FACTS})
+        url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
+            response_status, response_data = api_put(url, updated_facts, identity_type="User")
 
             assert_response_status(response_status, 403)
 
-            assert db_get_host(host.id).facts != DB_NEW_FACTS
+            assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
     host = db_create_host(extra_data={"facts": DB_FACTS})
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="System")
+    response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
 
     assert_response_status(response_status, 200)
