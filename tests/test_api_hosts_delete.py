@@ -220,14 +220,14 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
-        def _constructor(select_query, event_producer):
-            return cls(hosts_ids_to_delete, select_query, event_producer)
+        def _constructor(select_query, event_producer, chunk_size):
+            return cls(hosts_ids_to_delete, select_query, event_producer, chunk_size)
 
         return _constructor
 
-    def __init__(self, host_ids_to_delete, original_query, event_producer):
+    def __init__(self, host_ids_to_delete, original_query, event_producer, chunk_size):
         self.host_ids_to_delete = host_ids_to_delete
-        self.original_query = delete_hosts(original_query, event_producer)
+        self.original_query = delete_hosts(original_query, event_producer, chunk_size)
 
     def __getattr__(self, item):
         """

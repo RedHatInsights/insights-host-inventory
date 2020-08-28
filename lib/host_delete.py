@@ -1,6 +1,5 @@
 from sqlalchemy.orm.base import instance_state
 
-from app import inventory_config
 from app.models import Host
 from app.queue.event_producer import Topic
 from app.queue.events import build_event
@@ -12,9 +11,9 @@ from lib.metrics import delete_host_processing_time
 __all__ = ("delete_hosts",)
 
 
-def delete_hosts(select_query, event_producer, interrupt=lambda: False):
+def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
     while select_query.count():
-        for host in select_query.limit(inventory_config().host_delete_chunk_size):
+        for host in select_query.limit(chunk_size):
             host_id = host.id
             with delete_host_processing_time.time():
                 _delete_host(select_query.session, host)
