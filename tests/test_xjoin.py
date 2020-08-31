@@ -4,9 +4,12 @@ from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_tags_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import TAGS_URL
 from tests.helpers.graphql_utils import assert_called_with_headers
 from tests.helpers.graphql_utils import assert_graph_query_single_call_with_staleness
@@ -1028,6 +1031,40 @@ def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphq
     graphql_tag_query_with_response.assert_called_once_with(
         TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": mocker.ANY}}
     )
+
+
+def test_tags_RBAC_allowed(
+    subtests, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            url = build_tags_url(query="?registered_with=insights")
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+
+def test_tags_RBAC_denied(
+    subtests, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            url = build_tags_url(query="?registered_with=insights")
+            response_status, response_data = api_get(url)
+
+            assert response_status == 403
+
+            graphql_tag_query_empty_response.assert_not_called()
 
 
 def test_bulk_source_header_set_to_db(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
