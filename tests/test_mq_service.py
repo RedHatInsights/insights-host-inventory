@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 
 import marshmallow
 import pytest
@@ -9,10 +10,12 @@ from sqlalchemy import null
 from app import db
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.models import MqHostSchema
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from app.serialization import deserialize_host
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
@@ -402,6 +405,17 @@ def test_add_host_type_coercion_system_profile(mq_create_or_update_host):
     created_host = mq_create_or_update_host(host_to_create)
     assert type(created_host.system_profile["number_of_cpus"]) is int
     assert created_host.system_profile["number_of_cpus"] == 1
+
+
+def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
+    mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
+    mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
+
+    host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+    mq_create_or_update_host(host_to_create)
+    mock.assert_called_once_with(mocker.ANY, MqHostSchema)
+
+    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
 
 
 @pytest.mark.parametrize(
