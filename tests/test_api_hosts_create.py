@@ -6,6 +6,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
+from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_host_data
 from tests.helpers.api_utils import assert_host_response_status
@@ -17,6 +18,8 @@ from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import get_host_from_multi_response
 from tests.helpers.api_utils import get_host_from_response
 from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SHARED_SECRET
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -1091,6 +1094,42 @@ def test_get_system_profile_of_multiple_hosts(api_create_or_update_host, api_get
     # TODO: Move to a separate pagination test
     # paging_test(test_url, len(expected_system_profiles))
     # invalid_paging_parameters_test(test_url)
+
+
+@pytest.mark.system_profile
+def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    host = db_create_host()
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+
+            assert_response_status(response_status, 200)
+
+
+@pytest.mark.system_profile
+def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    find_hosts_by_staleness_mock = mocker.patch(
+        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
+    )
+
+    host = db_create_host()
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+
+            assert_response_status(response_status, 403)
+            find_hosts_by_staleness_mock.assert_not_called()
 
 
 @pytest.mark.system_profile
