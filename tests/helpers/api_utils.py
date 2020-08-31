@@ -48,10 +48,33 @@ UUID_1 = "00000000-0000-0000-0000-000000000001"
 UUID_2 = "00000000-0000-0000-0000-000000000002"
 UUID_3 = "00000000-0000-0000-0000-000000000003"
 
+READ_ALLOWED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-read-write.json",
+    "utils/rbac-mock-data/inv-read-only.json",
+    "utils/rbac-mock-data/inv-admin.json",
+    "utils/rbac-mock-data/inv-hosts-splat.json",
+)
+READ_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-none.json",
+    "utils/rbac-mock-data/inv-write-only.json",
+)
+WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-read-write.json",
+    "utils/rbac-mock-data/inv-write-only.json",
+    "utils/rbac-mock-data/inv-admin.json",
+    "utils/rbac-mock-data/inv-hosts-splat.json",
+)
+WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-none.json",
+    "utils/rbac-mock-data/inv-read-only.json",
+)
 
-def do_request(func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number"):
+
+def do_request(
+    func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
+):
     url = inject_qs(url, **query_parameters) if query_parameters else url
-    headers = get_required_headers(auth_type)
+    headers = get_required_headers(auth_type, identity_type)
     if extra_headers:
         headers = {**headers, **extra_headers}
 
@@ -68,22 +91,22 @@ def do_request(func, url, data=None, query_parameters=None, extra_headers=None, 
     return response.status_code, response_data
 
 
-def get_valid_auth_header(auth_type="account_number"):
+def get_valid_auth_header(auth_type="account_number", identity_type="User"):
     if auth_type == "account_number":
-        return build_account_auth_header()
+        return build_account_auth_header(identity_type=identity_type)
 
     return build_token_auth_header()
 
 
-def get_required_headers(auth_type="account_number"):
-    headers = get_valid_auth_header(auth_type)
+def get_required_headers(auth_type="account_number", identity_type="User"):
+    headers = get_valid_auth_header(auth_type, identity_type)
     headers["content-type"] = "application/json"
 
     return headers
 
 
-def build_account_auth_header(account=ACCOUNT):
-    identity = Identity(account_number=account)
+def build_account_auth_header(account=ACCOUNT, identity_type="User"):
+    identity = Identity(account_number=account, identity_type=identity_type)
     dict_ = {"identity": identity._asdict()}
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
@@ -358,3 +381,9 @@ def quote_everything(string):
     encoded = string.encode()
     codes = unpack(f"{len(encoded)}B", encoded)
     return "".join(f"%{code:02x}" for code in codes)
+
+
+def create_mock_rbac_response(permissions_response_file):
+    with open(permissions_response_file, "r") as rbac_response:
+        resp_data = json.load(rbac_response)
+        return resp_data["data"]

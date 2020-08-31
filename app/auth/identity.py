@@ -16,7 +16,7 @@ SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 def from_auth_header(base64):
     json = b64decode(base64)
     identity_dict = loads(json)
-    return Identity(identity_dict["identity"]["account_number"])
+    return Identity(identity_dict["identity"]["account_number"], identity_dict["identity"]["type"])
 
 
 def from_bearer_token(token):
@@ -24,7 +24,7 @@ def from_bearer_token(token):
 
 
 class Identity:
-    def __init__(self, account_number=None, token=None):
+    def __init__(self, account_number=None, identity_type=None, token=None):
         """
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
@@ -34,6 +34,8 @@ class Identity:
 
         self.is_trusted_system = False
         self.account_number = account_number
+        self.identity_type = identity_type
+
         threadctx.account_number = account_number
 
         if token:
@@ -42,7 +44,7 @@ class Identity:
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
-        return {"account_number": self.account_number}
+        return {"account_number": self.account_number, "type": self.identity_type}
 
     def __eq__(self, other):
         return self.account_number == other.account_number

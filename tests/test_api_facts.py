@@ -4,7 +4,10 @@ from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_id_list_for_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import DB_NEW_FACTS
@@ -122,3 +125,44 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=400)
+
+
+def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        host = db_create_host(extra_data={"facts": DB_FACTS})
+        url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
+
+            assert_response_status(response_status, 200)
+
+
+def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    host = db_create_host(extra_data={"facts": DB_FACTS})
+    url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+
+def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
+    host = db_create_host(extra_data={"facts": DB_FACTS})
+    url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
+
+    response_status, response_data = api_put(url, {"facts": DB_NEW_FACTS}, identity_type="System")
+
+    assert_response_status(response_status, 200)

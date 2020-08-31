@@ -11,11 +11,14 @@ from tests.helpers.api_utils import assert_host_response_status
 from tests.helpers.api_utils import assert_host_was_created
 from tests.helpers.api_utils import assert_host_was_updated
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import get_host_from_multi_response
 from tests.helpers.api_utils import get_host_from_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SHARED_SECRET
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -1245,3 +1248,41 @@ def test_always_update_stale_timestamp_from_next_reporter(
 
     assert new_stale_timestamp == retrieved_host.stale_timestamp
     assert new_reporter == retrieved_host.reporter
+
+
+def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = minimal_host()
+
+            response_status, response_data = api_create_or_update_host([host], identity_type="User")
+
+            assert_response_status(response_status, 207)
+
+
+def test_create_host_with_RBAC_denied(subtests, mocker, api_create_or_update_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = minimal_host()
+
+            response_status, response_data = api_create_or_update_host([host], identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+
+def test_create_host_with_RBAC_bypassed_as_system(api_create_or_update_host, enable_rbac):
+    host = minimal_host()
+
+    response_status, response_data = api_create_or_update_host([host], identity_type="System")
+
+    assert_response_status(response_status, 207)

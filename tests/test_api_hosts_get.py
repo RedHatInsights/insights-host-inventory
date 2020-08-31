@@ -18,9 +18,12 @@ from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
 from tests.helpers.api_utils import build_system_profile_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import UUID_1
 from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
@@ -857,3 +860,44 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
 
     assert expected_ids == result_ids
     assert non_expected_id not in expected_ids
+
+
+def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_hosts_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url, identity_type="User")
+
+            assert_response_status(response_status, 200)
+
+
+def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_hosts_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url, identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+
+def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+    host = db_create_host()
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)

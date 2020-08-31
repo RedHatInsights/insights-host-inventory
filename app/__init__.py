@@ -1,3 +1,4 @@
+from enum import Enum
 from os.path import join
 
 import connexion
@@ -23,6 +24,7 @@ from app.queue.event_producer import Topic
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
+from app.queue.metrics import rbac_access_denied
 from app.validators import verify_uuid_format  # noqa: 401
 from lib.handlers import register_shutdown
 
@@ -35,12 +37,22 @@ UNKNOWN_REQUEST_ID_VALUE = "-1"
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 
+class Permission(Enum):
+    READ = "inventory:hosts:read"
+    WRITE = "inventory:hosts:write"
+    ADMIN = "inventory:*:*"
+    HOSTS_ALL = "inventory:hosts:*"
+
+
 def initialize_metrics(config):
     topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
     for event_type in EventType:
         for topic in Topic:
             event_producer_failure.labels(event_type=event_type.name, topic=topic_names[topic])
             event_producer_success.labels(event_type=event_type.name, topic=topic_names[topic])
+
+    rbac_access_denied.labels(required_permission=Permission.READ.value)
+    rbac_access_denied.labels(required_permission=Permission.WRITE.value)
 
 
 def render_exception(exception):
