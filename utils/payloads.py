@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 from datetime import datetime
 from datetime import timedelta
@@ -506,9 +507,10 @@ def random_uuid():
 
 
 def build_host_chunk():
-    fqdn = "fred.flintstone.com"
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "0000001")
+    fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
-        "account": "0000001",
+        "account": account,
         "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
