@@ -426,6 +426,14 @@ def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_hos
 
 
 def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
+    def reset_schema():
+        try:
+            delattr(MqHostSchema, "_system_profile_schema")
+        except AttributeError:
+            pass
+
+    reset_schema()
+
     orig_file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
     with open(orig_file_name) as orig_file:
         orig_spec = safe_load(orig_file)
@@ -441,6 +449,8 @@ def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
 
         with pytest.raises(ValidationException):
             mq_create_or_update_host(host_to_create)
+
+    reset_schema()
 
 
 @pytest.mark.parametrize(

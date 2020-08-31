@@ -363,12 +363,15 @@ class MqHostSchema(BaseHostSchema):
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
-        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-        with open(specification) as file:
-            system_profile_spec = safe_load(file)
-        self.system_profile_schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+    @classmethod
+    def system_profile_schema(cls):
+        if not hasattr(cls, "_system_profile_schema"):
+            specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+            with open(specification) as file:
+                system_profile_spec = safe_load(file)
+            cls._system_profile_schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+
+        return cls._system_profile_schema
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -413,19 +416,19 @@ class MqHostSchema(BaseHostSchema):
 
     @pre_load
     def coerce_system_profile(self, raw_data):
+        schema = self.system_profile_schema()
         if "system_profile" in raw_data:
             processed_data = deepcopy(raw_data)
-            coerce_type(
-                self.system_profile_schema["$defs"]["SystemProfile"], processed_data["system_profile"], "property"
-            )
+            coerce_type(schema["$defs"]["SystemProfile"], processed_data["system_profile"], "property")
             return processed_data
         else:
             return raw_data
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
+        schema = self.system_profile_schema
         try:
-            jsonschema_validate(system_profile, self.system_profile_schema)
+            jsonschema_validate(system_profile, schema())
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
