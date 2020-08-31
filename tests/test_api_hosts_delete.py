@@ -187,7 +187,7 @@ def test_delete_host_with_RBAC_allowed(
 
 
 def test_delete_host_with_RBAC_denied(
-    subtests, mocker, api_delete_host, event_producer_mock, db_create_host, enable_rbac
+    subtests, mocker, api_delete_host, event_producer_mock, db_create_host, db_get_host, enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -201,6 +201,8 @@ def test_delete_host_with_RBAC_denied(
             response_status, response_data = api_delete_host(host.id, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+            assert db_get_host(host.id)
 
 
 def test_delete_host_with_RBAC_bypassed_as_system(

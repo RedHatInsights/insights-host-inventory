@@ -326,7 +326,9 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
             assert_response_status(response_status, 200)
 
 
-def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
+def test_patch_host_with_RBAC_denied(
+    subtests, mocker, api_patch, db_create_host, event_producer_mock, db_get_host, enable_rbac
+):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -337,9 +339,13 @@ def test_patch_host_with_RBAC_denied(subtests, mocker, api_patch, db_create_host
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
+
+            new_display_name = "fred_flintstone"
+            response_status, response_data = api_patch(url, {"display_name": new_display_name}, identity_type="User")
 
             assert_response_status(response_status, 403)
+
+            assert not db_get_host(host.id).display_name == new_display_name
 
 
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
