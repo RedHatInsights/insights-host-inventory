@@ -367,7 +367,8 @@ class MqHostSchema(BaseHostSchema):
         super().__init__(self, *args, **kwargs)
         specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
         with open(specification) as file:
-            self.system_profile_spec = safe_load(file)
+            system_profile_spec = safe_load(file)
+        self.system_profile_schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -415,7 +416,7 @@ class MqHostSchema(BaseHostSchema):
         if "system_profile" in raw_data:
             processed_data = deepcopy(raw_data)
             coerce_type(
-                self.system_profile_spec["$defs"]["SystemProfile"], processed_data["system_profile"], "property"
+                self.system_profile_schema["$defs"]["SystemProfile"], processed_data["system_profile"], "property"
             )
             return processed_data
         else:
@@ -423,9 +424,8 @@ class MqHostSchema(BaseHostSchema):
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
-        schema = {**self.system_profile_spec, "$ref": "#/$defs/SystemProfile"}
         try:
-            jsonschema_validate(system_profile, schema)
+            jsonschema_validate(system_profile, self.system_profile_schema)
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
