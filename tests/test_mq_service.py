@@ -1,16 +1,23 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from functools import partial
+from os.path import join
+from tempfile import NamedTemporaryFile
 
 import marshmallow
 import pytest
 from sqlalchemy import null
+from yaml import safe_dump
+from yaml import safe_load
 
 from app import db
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import MqHostSchema
+from app.models import SPECIFICATION_DIR
+from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
@@ -416,6 +423,24 @@ def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_hos
     mock.assert_called_once_with(mocker.ANY, MqHostSchema)
 
     assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
+
+
+def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
+    orig_file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+    with open(orig_file_name) as orig_file:
+        orig_spec = safe_load(orig_file)
+
+    fake_spec = deepcopy(orig_spec)
+    fake_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+
+    with NamedTemporaryFile("w+") as temp_file:
+        safe_dump(fake_spec, temp_file)
+        mocker.patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name)
+
+        host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host_to_create)
 
 
 @pytest.mark.parametrize(
