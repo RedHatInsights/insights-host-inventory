@@ -11,7 +11,10 @@ paths:
       tags:
         - hosts
       summary: Read the entire list of hosts
-      description: Read the entire list of all hosts available to the account.
+      description: >-
+        Read the entire list of all hosts available to the account.
+        <br /><br />
+        Required permissions: inventory:hosts:read
       security:
         - ApiKeyAuth: []
       parameters:
@@ -66,6 +69,8 @@ paths:
         hosts. A host is updated if there is already one with the same
         canonicals facts and belonging to the same account.
         <br /><br />
+        Required permissions: inventory:hosts:write
+        <br /><br />
         NOTICE: This operation is deprecated. The explicit creation of hosts is
         no longer supported. Hosts are created automatically based on uploads
         processed by the [payload ingress service](/docs/api/ingress#operations-default-post_upload) instead.
@@ -110,7 +115,10 @@ paths:
       tags:
         - hosts
       summary: Find hosts by their IDs
-      description: Find one or more hosts by their ID.
+      description: >-
+        Find one or more hosts by their ID.
+        <br /><br />
+        Required permissions: inventory:hosts:read
       operationId: api.host.get_host_by_id
       security:
         - ApiKeyAuth: []
@@ -136,7 +144,10 @@ paths:
       tags:
         - hosts
       summary: Delete hosts by IDs
-      description: Delete hosts by IDs
+      description: >-
+        Delete hosts by IDs
+        <br /><br />
+        Required permissions: inventory:hosts:write
       operationId: api.host.delete_by_id
       security:
         - ApiKeyAuth: []
@@ -154,7 +165,10 @@ paths:
       tags:
         - hosts
       summary: Update a host
-      description: Update a host
+      description: >-
+        Update a host
+        <br /><br />
+        Required permissions: inventory:hosts:write
       operationId: api.host.patch_by_id
       security:
         - ApiKeyAuth: []
@@ -180,7 +194,10 @@ paths:
       tags:
         - hosts
       summary: Merge facts under a namespace
-      description: Merge one or multiple hosts facts under a namespace.
+      description: >-
+        Merge one or multiple hosts facts under a namespace.
+        <br /><br />
+        Required permissions: inventory:hosts:write
       operationId: api.host.merge_facts
       security:
         - ApiKeyAuth: []
@@ -206,7 +223,10 @@ paths:
       tags:
         - hosts
       summary: Replace facts under a namespace
-      description: Replace facts under a namespace
+      description: >-
+        Replace facts under a namespace
+        <br /><br />
+        Required permissions: inventory:hosts:write
       security:
         - ApiKeyAuth: []
       operationId: api.host.replace_facts
@@ -233,7 +253,10 @@ paths:
       tags:
         - hosts
       summary: Return one or more hosts system profile
-      description: Find one or more hosts by their ID and return the id and system profile
+      description: >-
+        Find one or more hosts by their ID and return the id and system profile
+        <br /><br />
+        Required permissions: inventory:hosts:read
       operationId: api.host.get_host_system_profile_by_id
       security:
         - ApiKeyAuth: []
@@ -260,7 +283,10 @@ paths:
       tags:
         - hosts
       summary: Get the tags on a host
-      description: Get the tags on a host
+      description: >-
+        Get the tags on a host
+        <br /><br />
+        Required permissions: inventory:hosts:read
       operationId: api.host.get_host_tags
       security:
         - ApiKeyAuth: []
@@ -285,7 +311,10 @@ paths:
       tags:
         - hosts
       summary: Get the number of tags on a host
-      description: Get the number of tags on a host
+      description: >-
+        Get the number of tags on a host
+        <br /><br />
+        Required permissions: inventory:hosts:read
       operationId: api.host.get_host_tag_count
       security:
         - ApiKeyAuth: []
@@ -310,6 +339,8 @@ paths:
       tags:
         - tags
       summary: Get the active host tags for a given account
+      description: >-
+        Required permissions: inventory:hosts:read
       operationId: api.tag.get_tags
       security:
         - ApiKeyAuth: []

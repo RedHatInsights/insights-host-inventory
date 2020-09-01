@@ -1,5 +1,7 @@
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
+from app.queue.metrics import rbac_access_denied
+from app.queue.metrics import rbac_fetching_failure
 
 
 def message_produced(logger, value, key, headers, record_metadata):
@@ -34,3 +36,16 @@ def message_not_produced(logger, topic, value, key, headers, error):
     logger.debug(debug_message, topic, key, value, extra=debug_extra)
 
     event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
+
+
+def rbac_failure(logger, error_message=None):
+    logger.error("Failed to fetch RBAC permissions: %s", error_message)
+    rbac_fetching_failure.inc()
+
+
+def rbac_permission_denied(logger, required_permission, user_permissions):
+    logger.debug(
+        "Access denied due to RBAC",
+        extra={"required_permission": required_permission, "user_permissions": user_permissions},
+    )
+    rbac_access_denied.labels(required_permission=required_permission).inc()

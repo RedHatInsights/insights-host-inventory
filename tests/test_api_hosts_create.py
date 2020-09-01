@@ -2,20 +2,27 @@ import copy
 from datetime import timedelta
 
 import pytest
+from sqlalchemy.orm.exc import NoResultFound
 
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import canonical_facts_host_query
+from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_host_data
 from tests.helpers.api_utils import assert_host_response_status
 from tests.helpers.api_utils import assert_host_was_created
 from tests.helpers.api_utils import assert_host_was_updated
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import get_host_from_multi_response
 from tests.helpers.api_utils import get_host_from_response
 from tests.helpers.api_utils import HOST_URL
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SHARED_SECRET
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -1090,6 +1097,42 @@ def test_get_system_profile_of_multiple_hosts(api_create_or_update_host, api_get
 
 
 @pytest.mark.system_profile
+def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    host = db_create_host()
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+
+            assert_response_status(response_status, 200)
+
+
+@pytest.mark.system_profile
+def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    find_hosts_by_staleness_mock = mocker.patch(
+        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
+    )
+
+    host = db_create_host()
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+
+            assert_response_status(response_status, 403)
+            find_hosts_by_staleness_mock.assert_not_called()
+
+
+@pytest.mark.system_profile
 def test_get_system_profile_of_host_that_does_not_exist(api_get):
     expected_count = 0
     expected_total = 0
@@ -1259,3 +1302,47 @@ def test_always_update_stale_timestamp_from_next_reporter(
 
     assert new_stale_timestamp == retrieved_host.stale_timestamp
     assert new_reporter == retrieved_host.reporter
+
+
+def test_create_host_with_RBAC_allowed(subtests, mocker, api_create_or_update_host, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = minimal_host()
+
+            response_status, response_data = api_create_or_update_host([host], identity_type="User")
+
+            assert_response_status(response_status, 207)
+
+
+def test_create_host_with_RBAC_denied(
+    subtests, mocker, api_create_or_update_host, db_get_host_by_insights_id, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            generated_insights_id = generate_uuid()
+            host = minimal_host(insights_id=generated_insights_id)
+
+            response_status, response_data = api_create_or_update_host([host], identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+            with pytest.raises(NoResultFound):
+                db_get_host_by_insights_id(generated_insights_id)
+
+
+def test_create_host_with_RBAC_bypassed_as_system(api_create_or_update_host, enable_rbac):
+    host = minimal_host()
+
+    response_status, response_data = api_create_or_update_host([host], identity_type="System")
+
+    assert_response_status(response_status, 207)

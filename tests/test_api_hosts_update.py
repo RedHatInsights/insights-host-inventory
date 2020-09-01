@@ -5,7 +5,10 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import get_id_list_from_hosts
+from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import DB_FACTS
 from tests.helpers.db_utils import DB_FACTS_NAMESPACE
 from tests.helpers.db_utils import db_host
@@ -305,3 +308,50 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
     assert_response_status(response_status, expected_status=400)
+
+
+def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_host, event_producer_mock, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_hosts_url(host_list_or_id=host.id)
+            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
+
+            assert_response_status(response_status, 200)
+
+
+def test_patch_host_with_RBAC_denied(
+    subtests, mocker, api_patch, db_create_host, event_producer_mock, db_get_host, enable_rbac
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_hosts_url(host_list_or_id=host.id)
+
+            new_display_name = "fred_flintstone"
+            response_status, response_data = api_patch(url, {"display_name": new_display_name}, identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+            assert not db_get_host(host.id).display_name == new_display_name
+
+
+def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
+    host = db_create_host()
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
+
+    assert_response_status(response_status, 200)

@@ -38,6 +38,13 @@ loggers:
     handlers:
     - logstash
     propagate: false
+  urllib3:
+    level: WARNING
+    handlers:
+    - logstash
+    - cloudwatch
+    propagate: false
+
 handlers:
   logstash:
     class: logging.StreamHandler

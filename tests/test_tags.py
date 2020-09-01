@@ -1,11 +1,17 @@
 import pytest
 from sqlalchemy import null
 
+from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import api_pagination_test
 from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
+from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
+from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
 
 
@@ -285,3 +291,88 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
 
     # 2 per page test
     api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
+
+
+def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_host_tags_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url, identity_type="User")
+
+            assert_response_status(response_status, 200)
+
+
+def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_get, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    find_hosts_by_staleness_mock = mocker.patch(
+        "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
+    )
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            host = db_create_host()
+
+            url = build_host_tags_url(host_list_or_id=host.id)
+            response_status, response_data = api_get(url, identity_type="User")
+
+            assert_response_status(response_status, 403)
+
+            find_hosts_by_staleness_mock.assert_not_called()
+
+
+def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    created_hosts = mq_create_four_specific_hosts
+    expected_response = {host.id: len(host.tags) for host in created_hosts}
+
+    for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+            assert len(expected_response) == len(response_data["results"])
+
+            api_pagination_test(api_get, subtests, url, expected_total=len(expected_response))
+
+
+def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    find_non_culled_hosts_mock = mocker.patch("lib.host_repository.find_non_culled_hosts", wraps=find_non_culled_hosts)
+
+    created_hosts = mq_create_four_specific_hosts
+
+    for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+
+            url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+            response_status, response_data = api_get(url)
+
+            assert response_status == 403
+
+            find_non_culled_hosts_mock.assert_not_called()
+
+
+def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
+    host = db_create_host()
+
+    url = build_host_tags_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)
