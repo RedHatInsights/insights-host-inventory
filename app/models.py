@@ -426,9 +426,9 @@ class MqHostSchema(BaseHostSchema):
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
-        schema = self.system_profile_schema
+        schema = self.system_profile_schema()
         try:
-            jsonschema_validate(system_profile, schema())
+            jsonschema_validate(system_profile, schema)
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
