@@ -66,6 +66,16 @@ class Config:
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
         }
 
+        # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
+        self.kafka_producer = {
+            "acks": os.environ.get("KAFKA_PRODUCER_ACKS", 1),
+            "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
+            "batch_size": int(os.environ.get("KAFKA_PRODUCER_BATCH_SIZE", "16384")),
+            "linger_ms": int(os.environ.get("KAFKA_PRODUCER_LINGER_MS", "0")),
+            "retry_backoff_ms": int(os.environ.get("KAFKA_PRODUCER_RETRY_BACKOFF_MS", "100")),
+            "max_in_flight_requests_per_connection": int(os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS", "5")),
+        }
+
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
