@@ -434,23 +434,24 @@ def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
 
     reset_schema()
 
-    orig_file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-    with open(orig_file_name) as orig_file:
-        orig_spec = safe_load(orig_file)
+    try:
+        orig_file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+        with open(orig_file_name) as orig_file:
+            orig_spec = safe_load(orig_file)
 
-    fake_spec = deepcopy(orig_spec)
-    fake_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+        fake_spec = deepcopy(orig_spec)
+        fake_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
 
-    with NamedTemporaryFile("w+") as temp_file:
-        safe_dump(fake_spec, temp_file)
-        mocker.patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name)
+        with NamedTemporaryFile("w+") as temp_file:
+            safe_dump(fake_spec, temp_file)
+            mocker.patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name)
 
-        host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+            host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
 
-        with pytest.raises(ValidationException):
-            mq_create_or_update_host(host_to_create)
-
-    reset_schema()
+            with pytest.raises(ValidationException):
+                mq_create_or_update_host(host_to_create)
+    finally:
+        reset_schema()
 
 
 @pytest.mark.parametrize(
