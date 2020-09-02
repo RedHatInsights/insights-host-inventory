@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from kafka.errors import KafkaError
 
 from app import db
 from app import threadctx
@@ -414,3 +415,42 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     assert response_host["stale_warning_timestamp"] == (expected_stale_timestamp + timedelta(weeks=1)).isoformat()
     assert response_host["culled_timestamp"] == (expected_stale_timestamp + timedelta(weeks=2)).isoformat()
     assert response_host["reporter"] == expected_reporter
+
+
+@pytest.mark.host_reaper
+def test_reaper_stops_after_kafka_producer_error(
+    kafka_producer,
+    event_producer,
+    event_datetime_mock,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    inventory_config,
+    mocker,
+):
+    event_producer._kafka_producer.send.side_effect = (mocker.Mock(), mocker.Mock(**{"get.side_effect": KafkaError()}))
+
+    staleness_timestamps = get_staleness_timestamps()
+
+    host_count = 3
+    created_hosts = db_create_multiple_hosts(
+        how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"].isoformat()}
+    )
+    created_host_ids = [str(host.id) for host in created_hosts]
+
+    hosts = db_get_hosts(created_host_ids)
+    assert hosts.count() == host_count
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+
+    with pytest.raises(KafkaError):
+        host_reaper_run(
+            inventory_config,
+            mock.Mock(),
+            db.session,
+            event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        )
+
+    remaining_hosts = db_get_hosts(created_host_ids)
+    assert remaining_hosts.count() == 1
+    assert event_producer._kafka_producer.send.call_count == 2

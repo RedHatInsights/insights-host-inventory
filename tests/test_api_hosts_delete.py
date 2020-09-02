@@ -1,3 +1,5 @@
+from kafka.errors import KafkaError
+
 from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
@@ -229,13 +231,30 @@ def test_delete_hosts_chunk_size(
     mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
 
     hosts = db_create_multiple_hosts(how_many=2)
-    host_id_list = [str(hosts[0].id), str(hosts[1].id)]
+    host_id_list = [str(host.id) for host in hosts]
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
     query_wraper.query.limit.assert_called_with(5)
+
+
+def test_delete_stops_after_kafka_producer_error(
+    kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, mocker, db_get_hosts
+):
+    event_producer._kafka_producer.send.side_effect = (mocker.Mock(), mocker.Mock(**{"get.side_effect": KafkaError()}))
+
+    hosts = db_create_multiple_hosts(how_many=3)
+    host_id_list = [str(host.id) for host in hosts]
+
+    response_status, response_data = api_delete_host(",".join(host_id_list))
+
+    assert_response_status(response_status, expected_status=500)
+
+    remaining_hosts = db_get_hosts(host_id_list)
+    assert remaining_hosts.count() == 1
+    assert event_producer._kafka_producer.send.call_count == 2
 
 
 class DeleteHostsMock:
