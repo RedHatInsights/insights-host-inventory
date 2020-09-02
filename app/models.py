@@ -55,6 +55,25 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
+def _filter_keys(schema, payload):
+    schema_type = schema.get("type")
+    if schema_type == "object" and "properties" in schema:
+        return {
+            key: _filter_keys(schema["properties"][key], value)
+            for key, value in payload.items()
+            if key in schema["properties"]
+        }
+    elif schema_type == "array" and "items" in schema:
+        return [_filter_keys(schema["items"], value) for value in payload]
+    else:
+        return deepcopy(payload)
+
+
+def _coerce_types(schema, original_payload):
+    processed_payload = deepcopy(original_payload)
+    return coerce_type(schema, processed_payload, "property")
+
+
 class Host(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
@@ -416,13 +435,16 @@ class MqHostSchema(BaseHostSchema):
 
     @pre_load
     def coerce_system_profile(self, raw_data):
-        schema = self.system_profile_schema()
-        if "system_profile" in raw_data:
-            processed_data = deepcopy(raw_data)
-            coerce_type(schema["$defs"]["SystemProfile"], processed_data["system_profile"], "property")
-            return processed_data
-        else:
+        if "system_profile" not in raw_data:
             return raw_data
+
+        schema = self.system_profile_schema()
+        definition = schema["$defs"]["SystemProfile"]
+
+        processed_data = deepcopy(raw_data)
+        system_profile = _coerce_types(definition, processed_data["system_profile"])
+        system_profile = _filter_keys(definition, system_profile)
+        return {**processed_data, "system_profile": system_profile}
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):

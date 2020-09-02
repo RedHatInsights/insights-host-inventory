@@ -32,6 +32,7 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import threadctx
+from app.models import _filter_keys
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
@@ -1707,6 +1708,106 @@ class EventProducerTests(TestCase):
             headers,
             self.event_producer._kafka_producer.send.side_effect,
         )
+
+
+class ModelsFilterKeysTestCase(TestCase):
+    def test_no_keys_are_removed(self):
+        schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_root_keys_are_removed(self):
+        schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1, "number_of_sockets": 2}
+        actual = _filter_keys(schema, payload)
+        expected = {"number_of_cpus": 1}
+        self.assertEqual(expected, actual)
+
+    def test_keys_in_array_items_are_removed(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"ipv4_addresses": {"type": "array"}}},
+                }
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
+        actual = _filter_keys(schema, payload)
+        expected = {"network_interfaces": [{"ipv4_addresses": []}]}
+        self.assertEqual(expected, actual)
+
+    def test_root_non_object_keys_are_kept(self):
+        schema = {"properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1, "number_of_sockets": 2}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_non_object_keys_in_array_items_are_removed(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {"type": "array", "items": {"properties": {"ipv4_addresses": {"type": "array"}}}}
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_non_object_array_items_are_kept(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {
+                    "type": "array",
+                    "items": {"properties": {"ipv4_addresses": {"type": "array", "items": {"type": "string"}}}},
+                }
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"]}]}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_root_object_items_without_properties_are_kept(self):
+        schema = {"type": "object"}
+        payload = {"number_of_cpus": 1}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_nested_object_items_without_properties_are_kept(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "disk_devices": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"options": {"type": "object"}}},
+                }
+            },
+        }
+        payload = {"disk_devices": [{"options": {"uid": "0", "ro": True}}]}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual(payload, actual)
+
+    def test_additional_properties_are_ignored(self):
+        schema = {
+            "type": "object",
+            "properties": {"number_of_sockets": {"type": "integer"}, "additionalProperties": {"type": "integer"}},
+        }
+        payload = {"number_of_cpus": 1}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual({}, actual)
+
+    def test_required_properties_are_ignored(self):
+        schema = {
+            "type": "object",
+            "required": "number_of_cpus",
+            "properties": {"number_of_sockets": {"type": "integer"}},
+        }
+        payload = {"number_of_cpus": 1}
+        actual = _filter_keys(schema, payload)
+        self.assertEqual({}, actual)
 
 
 if __name__ == "__main__":

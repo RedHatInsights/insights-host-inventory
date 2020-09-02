@@ -414,6 +414,18 @@ def test_add_host_type_coercion_system_profile(mq_create_or_update_host):
     assert created_host.system_profile["number_of_cpus"] == 1
 
 
+def test_add_host_key_filtering_system_profile(mq_create_or_update_host):
+    host_to_create = minimal_host(
+        system_profile={
+            "number_of_cpus": 1,
+            "number_of_gpus": 2,
+            "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
+        }
+    )
+    created_host = mq_create_or_update_host(host_to_create)
+    assert created_host.system_profile == {"number_of_cpus": 1, "disk_devices": [{"options": {"uid": "0"}}]}
+
+
 def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
     mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
     mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
