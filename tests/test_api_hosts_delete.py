@@ -1,3 +1,4 @@
+from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
@@ -219,6 +220,20 @@ def test_delete_host_with_RBAC_bypassed_as_system(
     assert not db_get_host(host.id)
 
 
+def test_delete_hosts_chunk_size(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker, monkeypatch):
+    query_wraper = DeleteQueryWrapper(mocker)
+    mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
+
+    hosts = db_create_multiple_hosts(how_many=2)
+    host_id_list = [str(hosts[0].id), str(hosts[1].id)]
+
+    response_status, response_data = api_delete_host(",".join(host_id_list))
+
+    assert_response_status(response_status, expected_status=200)
+
+    query_wraper.query.limit.assert_called_with(1000)
+
+
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
@@ -250,3 +265,14 @@ class DeleteHostsMock:
         iterator = self.original_query.__iter__(*args, **kwargs)
         self._delete_hosts()
         return iterator
+
+
+class DeleteQueryWrapper:
+    def __init__(self, mocker):
+        self.query = None
+        self.mocker = mocker
+
+    def mock_get_host_list_by_id_list(self, acc_num, host_list):
+        self.query = _get_host_list_by_id_list(acc_num, host_list)
+        self.query.limit = self.mocker.Mock(wraps=self.query.limit)
+        return self.query
