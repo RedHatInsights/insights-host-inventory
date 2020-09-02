@@ -365,6 +365,8 @@ def test_reaper_shutdown_handler(
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
 
+    event_producer_mock.write_event = mock.Mock()
+
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
         inventory_config,
@@ -376,6 +378,7 @@ def test_reaper_shutdown_handler(
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 1
+    assert event_producer_mock.write_event.call_count == 2
 
 
 @pytest.mark.host_reaper
