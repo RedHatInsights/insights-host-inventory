@@ -18,7 +18,7 @@ class EventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
         self.topics = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
 
-    def write_event(self, event, key, headers, topic):
+    def write_event(self, event, key, headers, topic, wait=False):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
@@ -32,6 +32,9 @@ class EventProducer:
         else:
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self.topics[topic], event, key, headers)
+
+        if wait:
+            send_future.get()
 
     def close(self):
         self._kafka_producer.flush()
