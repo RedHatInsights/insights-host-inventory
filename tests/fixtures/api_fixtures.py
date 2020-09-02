@@ -72,12 +72,8 @@ def api_delete_host(flask_client):
 @pytest.fixture(scope="function")
 def disable_rest_api_post(inventory_config):
     inventory_config.rest_post_enabled = False
-    yield
-    inventory_config.rest_post_enabled = True
 
 
 @pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.rbac_enforced = True
-    yield
-    inventory_config.rbac_enforced = False
