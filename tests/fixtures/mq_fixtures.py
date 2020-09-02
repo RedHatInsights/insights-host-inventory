@@ -74,8 +74,6 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
 @pytest.fixture(scope="function")
 def secondary_topic_enabled(inventory_config):
     inventory_config.secondary_topic_enabled = True
-    yield
-    inventory_config.secondary_topic_enabled = False
 
 
 @pytest.fixture(scope="function")
