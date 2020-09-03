@@ -6,6 +6,7 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
 BulkQuerySource = Enum("BulkQuerySource", ("db", "xjoin"))
+PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
 
 class Config:
@@ -68,7 +69,7 @@ class Config:
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
         self.kafka_producer = {
-            "acks": os.environ.get("KAFKA_PRODUCER_ACKS", 1),
+            "acks": PRODUCER_ACKS[os.environ.get("KAFKA_PRODUCER_ACKS", "1")],
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch_size": int(os.environ.get("KAFKA_PRODUCER_BATCH_SIZE", "16384")),
             "linger_ms": int(os.environ.get("KAFKA_PRODUCER_LINGER_MS", "0")),
