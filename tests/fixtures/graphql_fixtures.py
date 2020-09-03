@@ -57,16 +57,11 @@ def patch_xjoin_post(mocker, query_source_xjoin):
 @pytest.fixture(scope="function")
 def query_source_xjoin(inventory_config):
     inventory_config.bulk_query_source = BulkQuerySource.xjoin
-    yield
-    inventory_config.bulk_query_source = BulkQuerySource.db
 
 
 @pytest.fixture(scope="function")
 def query_source_xjoin_beta_db(inventory_config):
     inventory_config.bulk_query_source = BulkQuerySource.xjoin
-    inventory_config.bulk_query_source_beta = BulkQuerySource.db
-    yield
-    inventory_config.bulk_query_source = BulkQuerySource.db
     inventory_config.bulk_query_source_beta = BulkQuerySource.db
 
 
@@ -74,9 +69,6 @@ def query_source_xjoin_beta_db(inventory_config):
 def query_source_db_beta_xjoin(inventory_config):
     inventory_config.bulk_query_source = BulkQuerySource.db
     inventory_config.bulk_query_source_beta = BulkQuerySource.xjoin
-    yield
-    inventory_config.bulk_query_source = BulkQuerySource.db
-    inventory_config.bulk_query_source_beta = BulkQuerySource.db
 
 
 @pytest.fixture(scope="function")

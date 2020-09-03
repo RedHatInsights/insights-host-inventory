@@ -256,7 +256,6 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 def test_stale_warning_timestamp(
     culling_stale_warning_offset_days, inventory_config, mq_create_or_update_host, api_get
 ):
-    original_culling_stale_warning_offset_days = inventory_config.culling_stale_warning_offset_days
     inventory_config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
 
     stale_timestamp = now() + timedelta(hours=1)
@@ -270,12 +269,9 @@ def test_stale_warning_timestamp(
     stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
     assert stale_warning_timestamp.isoformat() == response_data["results"][0]["stale_warning_timestamp"]
 
-    inventory_config.culling_stale_warning_offset_days = original_culling_stale_warning_offset_days
-
 
 @pytest.mark.parametrize("culling_culled_offset_days", (8, 14, 20))
 def test_culled_timestamp(culling_culled_offset_days, inventory_config, mq_create_or_update_host, api_get):
-    original_culling_culled_offset_days = inventory_config.culling_culled_offset_days
     inventory_config.culling_culled_offset_days = culling_culled_offset_days
 
     stale_timestamp = now() + timedelta(hours=1)
@@ -288,8 +284,6 @@ def test_culled_timestamp(culling_culled_offset_days, inventory_config, mq_creat
 
     culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
     assert culled_timestamp.isoformat() == response_data["results"][0]["culled_timestamp"]
-
-    inventory_config.culling_culled_offset_days = original_culling_culled_offset_days
 
 
 @pytest.mark.host_reaper
