@@ -2,6 +2,7 @@ import pytest
 
 from app import create_app
 from app import db
+from app.config import Config
 from app.config import RuntimeEnvironment
 from tests.helpers.db_utils import clean_tables
 
@@ -28,4 +29,5 @@ def flask_app(new_flask_app):
 
 @pytest.fixture(scope="function")
 def inventory_config(flask_app):
-    return flask_app.config["INVENTORY_CONFIG"]
+    yield flask_app.config["INVENTORY_CONFIG"]
+    flask_app.config["INVENTORY_CONFIG"] = Config(RuntimeEnvironment.TEST)

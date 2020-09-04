@@ -214,7 +214,9 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
-        for host_id, deleted in delete_hosts(query, current_app.event_producer):
+        for host_id, deleted in delete_hosts(
+            query, current_app.event_producer, inventory_config().host_delete_chunk_size
+        ):
             if deleted:
                 logger.info("Deleted host: %s", host_id)
                 tracker_message = "deleted host"

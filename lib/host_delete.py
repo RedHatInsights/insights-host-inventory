@@ -9,12 +9,11 @@ from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 
 __all__ = ("delete_hosts",)
-CHUNK_SIZE = 1000
 
 
-def delete_hosts(select_query, event_producer, interrupt=lambda: False):
+def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
     while select_query.count():
-        for host in select_query.limit(CHUNK_SIZE):
+        for host in select_query.limit(chunk_size):
             host_id = host.id
             with delete_host_processing_time.time():
                 _delete_host(select_query.session, host)
