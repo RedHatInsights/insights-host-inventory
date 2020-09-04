@@ -67,15 +67,9 @@ class Config:
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
         }
 
-        kafka_producer_acks = PRODUCER_ACKS.get(os.environ.get("KAFKA_PRODUCER_ACKS", "1"))
-        if kafka_producer_acks is None:
-            raise ValueError(
-                f"""{os.environ.get("KAFKA_PRODUCER_ACKS")} is not a valid value for KAFKA_PRODUCER_ACKS"""
-            )
-
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
         self.kafka_producer = {
-            "acks": kafka_producer_acks,
+            "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch_size": int(os.environ.get("KAFKA_PRODUCER_BATCH_SIZE", "16384")),
             "linger_ms": int(os.environ.get("KAFKA_PRODUCER_LINGER_MS", "0")),
@@ -123,6 +117,13 @@ class Config:
         if ssl_mode == self.SSL_VERIFY_FULL:
             db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
         return db_uri
+
+    def _from_dict(self, dict, name, default):
+        value = dict.get(os.environ.get(name, default))
+
+        if value is None:
+            raise ValueError(f"{os.environ.get(name)} is not a valid value for {name}")
+        return value
 
     def log_configuration(self):
         if not self._runtime_environment.logging_enabled:
