@@ -293,6 +293,56 @@ class ConfigTestCase(TestCase):
 
             self.assertEqual(conf.db_pool_timeout, 3)
 
+    def test_kafka_produducer_acks(self):
+        for value in (0, 1, "all"):
+            with self.subTest(value=value):
+                with set_environment({"KAFKA_PRODUCER_ACKS": f"{value}"}):
+                    self.assertEqual(self._config().kafka_producer["acks"], value)
+
+    def test_kafka_producer_acks_unknown(self):
+        with set_environment({"KAFKA_PRODUCER_ACKS": "2"}):
+            with self.assertRaises(ValueError):
+                self._config()
+
+    def test_kafka_producer_int_params(self):
+        for param in (
+            "retries",
+            "batch_size",
+            "linger_ms",
+            "retry_backoff_ms",
+            "max_in_flight_requests_per_connection",
+        ):
+            with self.subTest(param=param):
+                with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "2020"}):
+                    self.assertEqual(self._config().kafka_producer[param], 2020)
+
+    def test_kafka_producer_int_params_invalid(self):
+        for param in (
+            "retries",
+            "batch_size",
+            "linger_ms",
+            "retry_backoff_ms",
+            "max_in_flight_requests_per_connection",
+        ):
+            with self.subTest(param=param):
+                with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "abc"}):
+                    with self.assertRaises(ValueError):
+                        self._config()
+
+    def test_kafka_producer_defaults(self):
+        config = self._config()
+
+        for param, expected_value in (
+            ("acks", 1),
+            ("retries", 0),
+            ("batch_size", 16384),
+            ("linger_ms", 0),
+            ("retry_backoff_ms", 100),
+            ("max_in_flight_requests_per_connection", 5),
+        ):
+            with self.subTest(param=param):
+                self.assertEqual(config.kafka_producer[param], expected_value)
+
 
 @patch("app.db.get_engine")
 @patch("app.Config", **{"return_value.mgmt_url_path_prefix": "/"})
