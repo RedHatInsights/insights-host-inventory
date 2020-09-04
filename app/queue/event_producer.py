@@ -15,7 +15,7 @@ Topic = Enum("Topic", ("egress", "events"))
 class EventProducer:
     def __init__(self, config):
         logger.info("Starting EventProducer()")
-        self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers)
+        self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
         self.topics = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
 
     def write_event(self, event, key, headers, topic):
