@@ -67,14 +67,22 @@ class Config:
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
         }
 
+        kafka_producer_acks = PRODUCER_ACKS.get(os.environ.get("KAFKA_PRODUCER_ACKS", "1"))
+        if kafka_producer_acks is None:
+            raise ValueError(
+                f"""{os.environ.get("KAFKA_PRODUCER_ACKS")} is not a valid value for KAFKA_PRODUCER_ACKS"""
+            )
+
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
         self.kafka_producer = {
-            "acks": PRODUCER_ACKS[os.environ.get("KAFKA_PRODUCER_ACKS", "1")],
+            "acks": kafka_producer_acks,
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch_size": int(os.environ.get("KAFKA_PRODUCER_BATCH_SIZE", "16384")),
             "linger_ms": int(os.environ.get("KAFKA_PRODUCER_LINGER_MS", "0")),
             "retry_backoff_ms": int(os.environ.get("KAFKA_PRODUCER_RETRY_BACKOFF_MS", "100")),
-            "max_in_flight_requests_per_connection": int(os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS", "5")),
+            "max_in_flight_requests_per_connection": int(
+                os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
+            ),
         }
 
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")

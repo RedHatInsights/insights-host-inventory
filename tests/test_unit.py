@@ -1708,14 +1708,6 @@ class EventProducerTests(TestCase):
             self.event_producer._kafka_producer.send.side_effect,
         )
 
-    def test_validate_kafka_producer_configs(self):
-        assert self.config.kafka_producer["acks"] in [0, 1, "all"]
-        assert type(self.config.kafka_producer["retries"]) is int
-        assert type(self.config.kafka_producer["batch_size"]) is int
-        assert type(self.config.kafka_producer["linger_ms"]) is int
-        assert type(self.config.kafka_producer["retry_backoff_ms"]) is int
-        assert type(self.config.kafka_producer["max_in_flight_requests_per_connection"]) is int
-
 
 if __name__ == "__main__":
     main()
