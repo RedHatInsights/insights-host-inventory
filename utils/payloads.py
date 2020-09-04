@@ -373,7 +373,7 @@ def rpm_list():
 
 def create_system_profile():
     return {
-        "number_of_cpus": "1",
+        "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
         "system_memory_bytes": 1024,
