@@ -2,6 +2,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
+from functools import partial
 from os.path import join
 
 from connexion.decorators.validation import coerce_type
@@ -58,20 +59,20 @@ def _time_now():
 def _filter_keys(schema, payload):
     schema_type = schema.get("type")
     if schema_type == "object" and "properties" in schema:
-        return {
-            key: _filter_keys(schema["properties"][key], value)
-            for key, value in payload.items()
-            if key in schema["properties"]
-        }
+        properties = schema["properties"]
+        for key in payload.keys() - properties.keys():
+            del payload[key]
+        for key in payload:
+            _filter_keys(properties[key], payload[key])
     elif schema_type == "array" and "items" in schema:
-        return [_filter_keys(schema["items"], value) for value in payload]
+        for value in payload:
+            _filter_keys(schema["items"], value)
     else:
-        return deepcopy(payload)
+        return payload
 
 
-def _coerce_types(schema, original_payload):
-    processed_payload = deepcopy(original_payload)
-    return coerce_type(schema, processed_payload, "property")
+SOME_ARBITRARY_STRING = "property"
+_coerce_types = partial(coerce_type, parameter_type=SOME_ARBITRARY_STRING)
 
 
 class Host(db.Model):
@@ -434,17 +435,17 @@ class MqHostSchema(BaseHostSchema):
         return True
 
     @pre_load
-    def coerce_system_profile(self, raw_data):
-        if "system_profile" not in raw_data:
-            return raw_data
+    def normalize_system_profile(self, data):
+        if "system_profile" not in data:
+            return data
 
         schema = self.system_profile_schema()
         definition = schema["$defs"]["SystemProfile"]
 
-        processed_data = deepcopy(raw_data)
-        system_profile = _coerce_types(definition, processed_data["system_profile"])
-        system_profile = _filter_keys(definition, system_profile)
-        return {**processed_data, "system_profile": system_profile}
+        system_profile = deepcopy(data["system_profile"])
+        _filter_keys(definition, system_profile)
+        _coerce_types(definition, system_profile)
+        return {**data, "system_profile": system_profile}
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
