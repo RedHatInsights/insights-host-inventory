@@ -2,7 +2,6 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
-from functools import partial
 from os.path import join
 
 from connexion.decorators.validation import coerce_type
@@ -56,23 +55,43 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-def _filter_keys(schema, payload):
-    schema_type = schema.get("type")
-    if schema_type == "object" and "properties" in schema:
-        properties = schema["properties"]
-        for key in payload.keys() - properties.keys():
-            del payload[key]
-        for key in payload:
-            _filter_keys(properties[key], payload[key])
-    elif schema_type == "array" and "items" in schema:
-        for value in payload:
-            _filter_keys(schema["items"], value)
-    else:
-        return payload
+class FilterKeys:
+    def __new__(cls, schema):
+        try:
+            schema_type = schema["type"]
+            key_filter = FilterKeys.TYPE_MAP[schema_type]
+            return key_filter(schema)
+        except KeyError:
+            return FilterKeys.NoFilter(schema)
 
+    class ObjectFilter:
+        def __init__(self, schema):
+            self.properties = schema["properties"]
 
-SOME_ARBITRARY_STRING = "property"
-_coerce_types = partial(coerce_type, parameter_type=SOME_ARBITRARY_STRING)
+        def __call__(self, payload):
+            for key in payload.keys() - self.properties.keys():
+                del payload[key]
+            for key in payload:
+                key_filter = FilterKeys(self.properties[key])
+                key_filter(payload[key])
+
+    class ArrayFilter:
+        def __init__(self, schema):
+            self.items = schema["items"]
+
+        def __call__(self, payload):
+            for value in payload:
+                key_filter = FilterKeys(self.items)
+                key_filter(value)
+
+    class NoFilter:
+        def __init__(self, schema):
+            pass
+
+        def __call__(self, payload):
+            pass
+
+    TYPE_MAP = {"array": ArrayFilter, "object": ObjectFilter}
 
 
 class Host(db.Model):
@@ -443,8 +462,13 @@ class MqHostSchema(BaseHostSchema):
         definition = schema["$defs"]["SystemProfile"]
 
         system_profile = deepcopy(data["system_profile"])
-        _filter_keys(definition, system_profile)
-        _coerce_types(definition, system_profile)
+
+        key_filter = FilterKeys(definition)
+        key_filter(system_profile)
+
+        some_arbitrary_string = "property"
+        coerce_type(definition, system_profile, some_arbitrary_string)
+
         return {**data, "system_profile": system_profile}
 
     @validates("system_profile")
