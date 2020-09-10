@@ -55,43 +55,40 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-class FilterKeys:
-    def __new__(cls, schema):
-        try:
-            schema_type = schema["type"]
-            key_filter = FilterKeys.TYPE_MAP[schema_type]
-            return key_filter(schema)
-        except KeyError:
-            return FilterKeys.NoFilter(schema)
+def _filter_keys(schema, payload):
+    schema_type = schema.get("type")
+    schema_func = SCHEMA_TYPE_MAP.get(schema_type, _no_filter)
+    filter_func = schema_func(schema)
+    filter_func(payload)
 
-    class ObjectFilter:
-        def __init__(self, schema):
-            self.properties = schema["properties"]
 
-        def __call__(self, payload):
-            for key in payload.keys() - self.properties.keys():
-                del payload[key]
-            for key in payload:
-                key_filter = FilterKeys(self.properties[key])
-                key_filter(payload[key])
+def _object_filter(schema):
+    properties = schema.get("properties")
 
-    class ArrayFilter:
-        def __init__(self, schema):
-            self.items = schema["items"]
+    def _filter(payload):
+        for key in payload.keys() - properties.keys():
+            del payload[key]
+        for key in payload:
+            _filter_keys(properties[key], payload[key])
 
-        def __call__(self, payload):
-            for value in payload:
-                key_filter = FilterKeys(self.items)
-                key_filter(value)
+    return _filter if properties else lambda: None
 
-    class NoFilter:
-        def __init__(self, schema):
-            pass
 
-        def __call__(self, payload):
-            pass
+def _array_filter(schema):
+    items = schema.get("items")
 
-    TYPE_MAP = {"array": ArrayFilter, "object": ObjectFilter}
+    def _filter(payload):
+        for value in payload:
+            _filter_keys(items, value)
+
+    return _filter
+
+
+def _no_filter(schema):
+    return lambda payload: None
+
+
+SCHEMA_TYPE_MAP = {"array": _array_filter, "object": _object_filter}
 
 
 class Host(db.Model):
@@ -464,8 +461,7 @@ class MqHostSchema(BaseHostSchema):
 
         system_profile = deepcopy(data["system_profile"])
 
-        key_filter = FilterKeys(definition)
-        key_filter(system_profile)
+        _filter_keys(definition, system_profile)
 
         some_arbitrary_string = "property"
         coerce_type(definition, system_profile, some_arbitrary_string)
