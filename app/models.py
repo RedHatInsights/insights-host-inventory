@@ -1,4 +1,5 @@
 import uuid
+from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
@@ -10,7 +11,7 @@ from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import fields
 from marshmallow import pre_load
-from marshmallow import Schema
+from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -39,6 +40,9 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
+Schema = namedtuple("Schema", ("type", "properties", "items"))
+Schema.__new__.__defaults__ = (None,) * len(Schema._fields)
+
 
 def _set_display_name_on_save(context):
     """
@@ -55,28 +59,29 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-def _filter_keys(schema, payload):
-    filter_func = SCHEMA_TYPE_MAP.get(schema["type"])
+def _filter_keys(schema_dict, payload):
+    schema_obj = Schema(**{key: value for key, value in schema_dict.items() if key in Schema._fields})
+    filter_func = SCHEMA_TYPE_MAP.get(schema_obj.type)
     if filter_func:
-        filter_func(schema, payload)
+        filter_func(schema_obj, payload)
 
 
 def _object_filter(schema, payload):
-    if not schema["properties"]:
+    if not schema.properties:
         return
 
-    for key in payload.keys() - schema["properties"].keys():
+    for key in payload.keys() - schema.properties.keys():
         del payload[key]
     for key in payload:
-        _filter_keys(schema["properties"][key], payload[key])
+        _filter_keys(schema.properties[key], payload[key])
 
 
 def _array_filter(schema, payload):
-    if not schema["items"]:
+    if not schema.items:
         return
 
     for value in payload:
-        _filter_keys(schema["items"], value)
+        _filter_keys(schema.items, value)
 
 
 SCHEMA_TYPE_MAP = {"array": _array_filter, "object": _object_filter}
@@ -275,7 +280,7 @@ class Host(db.Model):
         )
 
 
-class DiskDeviceSchema(Schema):
+class DiskDeviceSchema(MarshmallowSchema):
     device = fields.Str(validate=marshmallow_validate.Length(max=2048))
     label = fields.Str(validate=marshmallow_validate.Length(max=1024))
     options = fields.Dict(validate=check_empty_keys)
@@ -283,7 +288,7 @@ class DiskDeviceSchema(Schema):
     type = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
-class YumRepoSchema(Schema):
+class YumRepoSchema(MarshmallowSchema):
     id = fields.Str(validate=marshmallow_validate.Length(max=256))
     name = fields.Str(validate=marshmallow_validate.Length(max=1024))
     gpgcheck = fields.Bool()
@@ -291,18 +296,18 @@ class YumRepoSchema(Schema):
     base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
 
 
-class DnfModuleSchema(Schema):
+class DnfModuleSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(max=128))
     stream = fields.Str(validate=marshmallow_validate.Length(max=128))
 
 
-class InstalledProductSchema(Schema):
+class InstalledProductSchema(MarshmallowSchema):
     name = fields.Str(validate=marshmallow_validate.Length(max=512))
     id = fields.Str(validate=marshmallow_validate.Length(max=64))
     status = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
-class NetworkInterfaceSchema(Schema):
+class NetworkInterfaceSchema(MarshmallowSchema):
     ipv4_addresses = fields.List(fields.Str())
     ipv6_addresses = fields.List(fields.Str())
     state = fields.Str(validate=marshmallow_validate.Length(max=25))
@@ -312,7 +317,7 @@ class NetworkInterfaceSchema(Schema):
     type = fields.Str(validate=marshmallow_validate.Length(max=18))
 
 
-class SystemProfileSchema(Schema):
+class SystemProfileSchema(MarshmallowSchema):
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
@@ -349,18 +354,18 @@ class SystemProfileSchema(Schema):
     sap_sids = fields.List(fields.Str(validate=marshmallow_validate.Length(max=3)))
 
 
-class FactsSchema(Schema):
+class FactsSchema(MarshmallowSchema):
     namespace = fields.Str()
     facts = fields.Dict(validate=check_empty_keys)
 
 
-class TagsSchema(Schema):
+class TagsSchema(MarshmallowSchema):
     namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
-class BaseHostSchema(Schema):
+class BaseHostSchema(MarshmallowSchema):
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
@@ -476,6 +481,6 @@ class HttpHostSchema(BaseHostSchema):
     system_profile = fields.Nested(SystemProfileSchema)
 
 
-class PatchHostSchema(Schema):
+class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
