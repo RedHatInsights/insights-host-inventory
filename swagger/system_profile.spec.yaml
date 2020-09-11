@@ -232,3 +232,8 @@ $defs:
       sap_system:
         type: boolean
         description: Indicates if SAP is installed on the system
+      sap_sids:
+        type: array
+        description: list of SAP SIDs
+        items:
+          type: string
