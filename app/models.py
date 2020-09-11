@@ -56,36 +56,27 @@ def _time_now():
 
 
 def _filter_keys(schema, payload):
-    schema_type = schema.get("type")
-    schema_func = SCHEMA_TYPE_MAP.get(schema_type, _no_filter)
-    filter_func = schema_func(schema)
-    filter_func(payload)
+    filter_func = SCHEMA_TYPE_MAP.get(schema["type"])
+    if filter_func:
+        filter_func(schema, payload)
 
 
-def _object_filter(schema):
-    properties = schema.get("properties")
+def _object_filter(schema, payload):
+    if not schema["properties"]:
+        return
 
-    def _filter(payload):
-        for key in payload.keys() - properties.keys():
-            del payload[key]
-        for key in payload:
-            _filter_keys(properties[key], payload[key])
-
-    return _filter if properties else lambda: None
+    for key in payload.keys() - schema["properties"].keys():
+        del payload[key]
+    for key in payload:
+        _filter_keys(schema["properties"][key], payload[key])
 
 
-def _array_filter(schema):
-    items = schema.get("items")
+def _array_filter(schema, payload):
+    if not schema["items"]:
+        return
 
-    def _filter(payload):
-        for value in payload:
-            _filter_keys(items, value)
-
-    return _filter
-
-
-def _no_filter(schema):
-    return lambda payload: None
+    for value in payload:
+        _filter_keys(schema["items"], value)
 
 
 SCHEMA_TYPE_MAP = {"array": _array_filter, "object": _object_filter}
