@@ -40,9 +40,6 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
-Schema = namedtuple("Schema", ("type", "properties", "items"))
-Schema.__new__.__defaults__ = (None,) * len(Schema._fields)
-
 
 def _set_display_name_on_save(context):
     """
@@ -59,32 +56,50 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-def _filter_keys(schema_dict, payload):
-    schema_obj = Schema(**{key: value for key, value in schema_dict.items() if key in Schema._fields})
-    filter_func = SCHEMA_TYPE_MAP.get(schema_obj.type)
-    if filter_func:
-        filter_func(schema_obj, payload)
+class SystemProfileNormalization:
+    SOME_ARBITRARY_STRING = "property"
 
+    Schema = namedtuple("Schema", ("type", "properties", "items"))
+    Schema.__new__.__defaults__ = (None,) * len(Schema._fields)
 
-def _object_filter(schema, payload):
-    if not schema.properties:
-        return
+    @classmethod
+    def filter_keys(cls, schema_dict, payload):
+        schema_obj = cls._schema_from_dict(schema_dict)
+        filter_func = cls._filter_for_schema(schema_obj)
+        if filter_func:
+            filter_func(schema_obj, payload)
 
-    for key in payload.keys() - schema.properties.keys():
-        del payload[key]
-    for key in payload:
-        _filter_keys(schema.properties[key], payload[key])
+    @classmethod
+    def coerce_types(cls, schema_dict, payload):
+        coerce_type(schema_dict, payload, cls.SOME_ARBITRARY_STRING)
 
+    @classmethod
+    def _schema_from_dict(cls, original):
+        filtered = {key: value for key, value in original.items() if key in cls.Schema._fields}
+        return cls.Schema(**filtered)
 
-def _array_filter(schema, payload):
-    if not schema.items:
-        return
+    @classmethod
+    def _filter_for_schema(cls, schema):
+        type_map = {"array": cls._array_filter, "object": cls._object_filter}
+        return type_map.get(schema.type)
 
-    for value in payload:
-        _filter_keys(schema.items, value)
+    @classmethod
+    def _object_filter(cls, schema, payload):
+        if not schema.properties:
+            return
 
+        for key in payload.keys() - schema.properties.keys():
+            del payload[key]
+        for key in payload:
+            cls.filter_keys(schema.properties[key], payload[key])
 
-SCHEMA_TYPE_MAP = {"array": _array_filter, "object": _object_filter}
+    @classmethod
+    def _array_filter(cls, schema, payload):
+        if not schema.items:
+            return
+
+        for value in payload:
+            cls.filter_keys(schema.items, value)
 
 
 class Host(db.Model):
@@ -457,10 +472,8 @@ class MqHostSchema(BaseHostSchema):
 
         system_profile = deepcopy(data["system_profile"])
 
-        _filter_keys(definition, system_profile)
-
-        some_arbitrary_string = "property"
-        coerce_type(definition, system_profile, some_arbitrary_string)
+        SystemProfileNormalization.filter_keys(definition, system_profile)
+        SystemProfileNormalization.coerce_types(definition, system_profile)
 
         return {**data, "system_profile": system_profile}
 
