@@ -3,6 +3,7 @@ from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
+from enum import Enum
 from os.path import join
 
 from connexion.decorators.validation import coerce_type
@@ -59,15 +60,23 @@ def _time_now():
 class SystemProfileNormalization:
     SOME_ARBITRARY_STRING = "property"
 
-    Schema = namedtuple("Schema", ("type", "properties", "items"))
+    class Schema(namedtuple("Schema", ("type", "properties", "items"))):
+        Types = Enum("SchemaTypes", ("array", "object"))
+
+        @property
+        def type(self):
+            type_str = self._asdict()["type"]
+            return self.Types[type_str] if type_str and type_str in self.Types.__members__.keys() else None
+
     Schema.__new__.__defaults__ = (None,) * len(Schema._fields)
 
     @classmethod
     def filter_keys(cls, schema_dict, payload):
         schema_obj = cls._schema_from_dict(schema_dict)
-        filter_func = cls._filter_for_schema(schema_obj)
-        if filter_func:
-            filter_func(schema_obj, payload)
+        if schema_obj.type == cls.Schema.Types.object:
+            cls._object_filter(schema_obj, payload)
+        elif schema_obj.type == cls.Schema.Types.array:
+            cls._object_filter(schema_obj, payload)
 
     @classmethod
     def coerce_types(cls, schema_dict, payload):
@@ -77,11 +86,6 @@ class SystemProfileNormalization:
     def _schema_from_dict(cls, original):
         filtered = {key: value for key, value in original.items() if key in cls.Schema._fields}
         return cls.Schema(**filtered)
-
-    @classmethod
-    def _filter_for_schema(cls, schema):
-        type_map = {"array": cls._array_filter, "object": cls._object_filter}
-        return type_map.get(schema.type)
 
     @classmethod
     def _object_filter(cls, schema, payload):
