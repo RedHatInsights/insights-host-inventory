@@ -76,7 +76,7 @@ class SystemProfileNormalization:
         if schema_obj.type == cls.Schema.Types.object:
             cls._object_filter(schema_obj, payload)
         elif schema_obj.type == cls.Schema.Types.array:
-            cls._object_filter(schema_obj, payload)
+            cls._array_filter(schema_obj, payload)
 
     @classmethod
     def coerce_types(cls, schema_dict, payload):
