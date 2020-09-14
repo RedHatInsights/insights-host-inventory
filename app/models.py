@@ -64,18 +64,15 @@ class SystemProfileNormalization:
         Types = Enum("SchemaTypes", ("array", "object"))
 
         @property
-        def type(self):
-            type_str = self._asdict()["type"]
-            return self.Types[type_str] if type_str and type_str in self.Types.__members__.keys() else None
-
-    Schema.__new__.__defaults__ = (None,) * len(Schema._fields)
+        def schema_type(self):
+            return self.Types.__members__.get(self.type)
 
     @classmethod
     def filter_keys(cls, schema_dict, payload):
         schema_obj = cls._schema_from_dict(schema_dict)
-        if schema_obj.type == cls.Schema.Types.object:
+        if schema_obj.schema_type == cls.Schema.Types.object:
             cls._object_filter(schema_obj, payload)
-        elif schema_obj.type == cls.Schema.Types.array:
+        elif schema_obj.schema_type == cls.Schema.Types.array:
             cls._array_filter(schema_obj, payload)
 
     @classmethod
@@ -84,7 +81,7 @@ class SystemProfileNormalization:
 
     @classmethod
     def _schema_from_dict(cls, original):
-        filtered = {key: value for key, value in original.items() if key in cls.Schema._fields}
+        filtered = {key: original.get(key) for key in cls.Schema._fields}
         return cls.Schema(**filtered)
 
     @classmethod
