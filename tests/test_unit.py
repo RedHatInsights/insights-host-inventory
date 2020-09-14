@@ -33,10 +33,10 @@ from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import threadctx
-from app.models import FilterKeys
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.models import SystemProfileNormalization
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
 from app.queue.event_producer import Topic
@@ -1766,13 +1766,13 @@ class ModelsFilterKeysTestCase(TestCase):
         schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
         payload = {"number_of_cpus": 1}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_root_keys_are_removed(self):
         schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
         payload = {"number_of_cpus": 1, "number_of_sockets": 2}
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         expected = {"number_of_cpus": 1}
         self.assertEqual(expected, payload)
 
@@ -1787,7 +1787,7 @@ class ModelsFilterKeysTestCase(TestCase):
             },
         }
         payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         expected = {"network_interfaces": [{"ipv4_addresses": []}]}
         self.assertEqual(expected, payload)
 
@@ -1795,7 +1795,7 @@ class ModelsFilterKeysTestCase(TestCase):
         schema = {"properties": {"number_of_cpus": {"type": "integer"}}}
         payload = {"number_of_cpus": 1, "number_of_sockets": 2}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_non_object_keys_in_array_items_are_removed(self):
@@ -1809,7 +1809,7 @@ class ModelsFilterKeysTestCase(TestCase):
             },
         }
         payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         expected = {"network_interfaces": [{"ipv4_addresses": []}]}
         self.assertEqual(expected, payload)
 
@@ -1825,21 +1825,21 @@ class ModelsFilterKeysTestCase(TestCase):
         }
         payload = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"]}]}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_root_object_keys_without_properties_are_kept(self):
         schema = {"type": "object"}
         payload = {"number_of_cpus": 1}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_root_object_keys_without_type_are_kept(self):
         schema = {"properties": {"number_of_sockets": {"type": "integer"}}}
         payload = {"number_of_cpus": 1}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_nested_object_items_without_properties_are_kept(self):
@@ -1854,7 +1854,7 @@ class ModelsFilterKeysTestCase(TestCase):
         }
         payload = {"disk_devices": [{"options": {"uid": "0", "ro": True}}]}
         original = deepcopy(payload)
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual(original, payload)
 
     def test_additional_properties_are_ignored(self):
@@ -1863,7 +1863,7 @@ class ModelsFilterKeysTestCase(TestCase):
             "properties": {"number_of_sockets": {"type": "integer"}, "additionalProperties": {"type": "integer"}},
         }
         payload = {"number_of_cpus": 1}
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual({}, payload)
 
     def test_required_properties_are_ignored(self):
@@ -1873,7 +1873,7 @@ class ModelsFilterKeysTestCase(TestCase):
             "properties": {"number_of_sockets": {"type": "integer"}},
         }
         payload = {"number_of_cpus": 1}
-        FilterKeys(schema)(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual({}, payload)
 
 
