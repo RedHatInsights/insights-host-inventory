@@ -118,6 +118,13 @@ def _sap_system_filters(sap_system):
         return ({"spf_sap_system": {"is": (sap_system == "true")}},)
 
 
+def _sap_sids_filters(sap_sids):
+    sap_sids_filters = ()
+    for sap_sid in sap_sids.split(","):
+        sap_sids_filters += ({"spf_sap_sids": {"eq": sap_sid}},)
+    return sap_sids_filters
+
+
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
@@ -147,6 +154,16 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                if isinstance(filter["system_profile"]["sap_system"], str):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"])
+                elif filter["system_profile"]["sap_system"].get("eq"):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"]["eq"])
+            if filter["system_profile"].get("sap_sids"):
+                query_filters += _sap_sids_filters(filter["system_profile"]["sap_sids"])
 
     if filter:
         if filter.get("system_profile"):

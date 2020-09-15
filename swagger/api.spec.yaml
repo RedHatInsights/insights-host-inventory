@@ -523,25 +523,12 @@ components:
       explode: true
       schema:
         type: object
-        additionalProperties:
-          type: object
-          description: System profile field values to filter with
-          additionalProperties:
-            oneOf:
-              - type: string
-                enum:
-                  - "true"
-                  - "false"
-                  - "nil"
-                  - "not_nil"
-              - type: object
-                additionalProperties:
-                  type: string
-                  enum:
-                    - "true"
-                    - "false"
-                    - "nil"
-                    - "not_nil"
+        description: System profile field values to filter with
+        properties:
+          # sap_system:
+          #   $ref: '#/components/schemas/sap_system'
+          sap_sids:
+            $ref: '#/components/schemas/sap_sids'
 
   schemas:
     TagsOut:
@@ -1051,6 +1038,34 @@ components:
       description: The number of items to return per page
     SystemProfile:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    sap_system:
+      type: object
+      description: sap_system
+      additionalProperties:
+        oneOf:
+          - type: string
+            enum:
+              - "true"
+              - "false"
+              - "nil"
+              - "not_nil"
+          - type: object
+            additionalProperties:
+              type: string
+              enum:
+                - "true"
+                - "false"
+                - "nil"
+                - "not_nil"
+    sap_sids:
+      type: array
+      description: list of SAP SIDs
+      items:
+        description: The SAP system ID (SID)
+        type: string
+        example: "H2O"
+        maxLength: 3
+        pattern: '^[A-Z][A-Z0-9]{2}$'
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
