@@ -29,6 +29,7 @@ def get_host_list(
     order_how,
     staleness,
     registered_with,
+    filter_param
 ):
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
