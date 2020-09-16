@@ -416,7 +416,12 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
 
 
 @pytest.mark.host_reaper
+@pytest.mark.parametrize(
+    "send_side_effects",
+    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+)
 def test_reaper_stops_after_kafka_producer_error(
+    send_side_effects,
     kafka_producer,
     event_producer,
     event_datetime_mock,
@@ -425,7 +430,7 @@ def test_reaper_stops_after_kafka_producer_error(
     inventory_config,
     mocker,
 ):
-    event_producer._kafka_producer.send.side_effect = (mocker.Mock(), mocker.Mock(**{"get.side_effect": KafkaError()}))
+    event_producer._kafka_producer.send.side_effect = send_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
 

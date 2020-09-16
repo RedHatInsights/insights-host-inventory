@@ -29,6 +29,7 @@ class EventProducer:
             send_future = self._kafka_producer.send(self.topics[topic], key=k, value=v, headers=h)
         except KafkaError as error:
             message_not_produced(logger, self.topics[topic], event, key, headers, error)
+            raise error
         else:
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self.topics[topic], event, key, headers)

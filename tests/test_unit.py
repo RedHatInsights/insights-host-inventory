@@ -1747,7 +1747,8 @@ class EventProducerTests(TestCase):
         # set up send to return a kafka error to check our handling
         self.event_producer._kafka_producer.send.side_effect = KafkaError()
 
-        self.event_producer.write_event(event, key, headers, Topic.events)
+        with self.assertRaises(KafkaError):
+            self.event_producer.write_event(event, key, headers, Topic.events)
 
         message_not_produced_mock.assert_called_once_with(
             event_producer_logger,
