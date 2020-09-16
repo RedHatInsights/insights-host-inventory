@@ -349,9 +349,7 @@ def test_non_culled_host_is_not_removed(
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, inventory_config
-):
+def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hosts, inventory_config):
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -366,7 +364,7 @@ def test_reaper_shutdown_handler(
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
 
-    event_producer_mock.write_event = mock.Mock()
+    event_producer_mock = mock.Mock()
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
