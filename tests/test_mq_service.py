@@ -1,28 +1,18 @@
 import json
-from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
-from functools import partial
-from os.path import join
-from tempfile import NamedTemporaryFile
 
 import marshmallow
 import pytest
 from sqlalchemy import null
-from yaml import safe_dump
-from yaml import safe_load
 
 from app import db
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
-from app.models import MqHostSchema
-from app.models import SPECIFICATION_DIR
-from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
-from app.serialization import deserialize_host
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
@@ -350,120 +340,13 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host)
 
 
-@pytest.mark.system_profile
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
+    insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
-    host = minimal_host(system_profile=system_profile)
+    host = minimal_host(insights_id=insights_id, system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
-
-
-@pytest.mark.parametrize(
-    ("system_profile",),
-    (
-        ({"infrastructure_type": "x" * 101},),
-        ({"infrastructure_vendor": "x" * 101},),
-        ({"network_interfaces": [{"mac_address": "x" * 60}]},),
-        ({"network_interfaces": [{"name": "x" * 51}]},),
-        ({"network_interfaces": [{"state": "x" * 26}]},),
-        ({"network_interfaces": [{"type": "x" * 19}]},),
-        ({"disk_devices": [{"device": "x" * 2049}]},),
-        ({"disk_devices": [{"label": "x" * 1025}]},),
-        ({"disk_devices": [{"mount_point": "x" * 2049}]},),
-        ({"disk_devices": [{"type": "x" * 257}]},),
-        ({"bios_vendor": "x" * 101},),
-        ({"bios_version": "x" * 101},),
-        ({"bios_release_date": "x" * 51},),
-        ({"cpu_flags": ["x" * 31]},),
-        ({"os_release": "x" * 101},),
-        ({"os_kernel_version": "x" * 101},),
-        ({"arch": "x" * 51},),
-        ({"kernel_modules": ["x" * 256]},),
-        ({"last_boot_time": ["x" * 51]},),
-        ({"running_processes": ["x" * 1001]},),
-        ({"subscription_status": ["x" * 101]},),
-        ({"cloud_provider": ["x" * 101]},),
-        ({"yum_repos": [{"id": "x" * 257}]},),
-        ({"yum_repos": [{"name": "x" * 1025}]},),
-        ({"yum_repos": [{"baseurl": "x" * 2049}]},),
-        ({"dnf_modules": [{"name": "x" * 129}]},),
-        ({"dnf_modules": [{"stream": "x" * 2049}]},),
-        ({"installed_products": [{"name": "x" * 513}]},),
-        ({"installed_products": [{"id": "x" * 65}]},),
-        ({"installed_products": [{"status": "x" * 257}]},),
-        ({"insights_client_version": "x" * 51},),
-        ({"insights_egg_version": "x" * 51},),
-        ({"captured_date": "x" * 33},),
-        ({"installed_packages": ["x" * 513]},),
-        ({"installed_services": ["x" * 513]},),
-        ({"enabled_services": ["x" * 513]},),
-    ),
-)
-def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
-    host = minimal_host(system_profile=system_profile)
-
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
-
-
-def test_add_host_type_coercion_system_profile(mq_create_or_update_host):
-    host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
-    created_host = mq_create_or_update_host(host_to_create)
-    assert type(created_host.system_profile["number_of_cpus"]) is int
-    assert created_host.system_profile["number_of_cpus"] == 1
-
-
-def test_add_host_key_filtering_system_profile(mq_create_or_update_host):
-    host_to_create = minimal_host(
-        system_profile={
-            "number_of_cpus": 1,
-            "number_of_gpus": 2,
-            "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
-        }
-    )
-    created_host = mq_create_or_update_host(host_to_create)
-    assert created_host.system_profile == {"number_of_cpus": 1, "disk_devices": [{"options": {"uid": "0"}}]}
-
-
-def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
-    mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
-    mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
-
-    host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
-    mq_create_or_update_host(host_to_create)
-    mock.assert_called_once_with(mocker.ANY, MqHostSchema)
-
-    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
-
-
-def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
-    def reset_schema():
-        try:
-            delattr(MqHostSchema, "_system_profile_schema")
-        except AttributeError:
-            pass
-
-    reset_schema()
-
-    try:
-        orig_file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-        with open(orig_file_name) as orig_file:
-            orig_spec = safe_load(orig_file)
-
-        fake_spec = deepcopy(orig_spec)
-        fake_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
-
-        with NamedTemporaryFile("w+") as temp_file:
-            safe_dump(fake_spec, temp_file)
-            mocker.patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name)
-
-            host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
-
-            with pytest.raises(ValidationException):
-                mq_create_or_update_host(host_to_create)
-    finally:
-        reset_schema()
 
 
 @pytest.mark.parametrize(
