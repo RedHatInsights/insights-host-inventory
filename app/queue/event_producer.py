@@ -34,8 +34,8 @@ class EventProducer:
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self.topics[topic], event, key, headers)
 
-        if wait:
-            send_future.get()
+            if wait:
+                send_future.get()
 
     def close(self):
         self._kafka_producer.flush()

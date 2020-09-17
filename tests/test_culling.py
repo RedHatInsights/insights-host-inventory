@@ -428,7 +428,6 @@ def test_reaper_stops_after_kafka_producer_error(
     db_create_multiple_hosts,
     db_get_hosts,
     inventory_config,
-    mocker,
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
