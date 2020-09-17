@@ -16,12 +16,14 @@ class MockEventProducer:
         self.key = None
         self.headers = None
         self.topic = None
+        self.wait = None
 
-    def write_event(self, event, key, headers, topic):
+    def write_event(self, event, key, headers, topic, wait=False):
         self.event = event
         self.key = key
         self.headers = headers
         self.topic = topic
+        self.wait = wait
 
 
 class MockFuture:
