@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from base64 import b64encode
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -35,6 +36,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.models import SystemProfileNormalization
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
 from app.queue.event_producer import Topic
@@ -1757,6 +1759,122 @@ class EventProducerTests(TestCase):
             headers,
             self.event_producer._kafka_producer.send.side_effect,
         )
+
+
+class ModelsFilterKeysTestCase(TestCase):
+    def test_no_keys_are_removed(self):
+        schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_root_keys_are_removed(self):
+        schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1, "number_of_sockets": 2}
+        SystemProfileNormalization.filter_keys(schema, payload)
+        expected = {"number_of_cpus": 1}
+        self.assertEqual(expected, payload)
+
+    def test_keys_in_array_items_are_removed(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"ipv4_addresses": {"type": "array"}}},
+                }
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
+        SystemProfileNormalization.filter_keys(schema, payload)
+        expected = {"network_interfaces": [{"ipv4_addresses": []}]}
+        self.assertEqual(expected, payload)
+
+    def test_root_non_object_keys_are_kept(self):
+        schema = {"properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1, "number_of_sockets": 2}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_non_object_keys_in_array_items_are_removed(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"ipv4_addresses": {"type": "array"}}},
+                }
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": [], "ipv6_addresses": []}]}
+        SystemProfileNormalization.filter_keys(schema, payload)
+        expected = {"network_interfaces": [{"ipv4_addresses": []}]}
+        self.assertEqual(expected, payload)
+
+    def test_non_object_array_items_are_kept(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "network_interfaces": {
+                    "type": "array",
+                    "items": {"properties": {"ipv4_addresses": {"type": "array", "items": {"type": "string"}}}},
+                }
+            },
+        }
+        payload = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"]}]}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_root_object_keys_without_properties_are_kept(self):
+        schema = {"type": "object"}
+        payload = {"number_of_cpus": 1}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_root_object_keys_without_type_are_kept(self):
+        schema = {"properties": {"number_of_sockets": {"type": "integer"}}}
+        payload = {"number_of_cpus": 1}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_nested_object_items_without_properties_are_kept(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "disk_devices": {
+                    "type": "array",
+                    "items": {"type": "object", "properties": {"options": {"type": "object"}}},
+                }
+            },
+        }
+        payload = {"disk_devices": [{"options": {"uid": "0", "ro": True}}]}
+        original = deepcopy(payload)
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual(original, payload)
+
+    def test_additional_properties_are_ignored(self):
+        schema = {
+            "type": "object",
+            "properties": {"number_of_sockets": {"type": "integer"}, "additionalProperties": {"type": "integer"}},
+        }
+        payload = {"number_of_cpus": 1}
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual({}, payload)
+
+    def test_required_properties_are_ignored(self):
+        schema = {
+            "type": "object",
+            "required": "number_of_cpus",
+            "properties": {"number_of_sockets": {"type": "integer"}},
+        }
+        payload = {"number_of_cpus": 1}
+        SystemProfileNormalization.filter_keys(schema, payload)
+        self.assertEqual({}, payload)
 
 
 if __name__ == "__main__":
