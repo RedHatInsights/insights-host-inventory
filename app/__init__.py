@@ -18,7 +18,6 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
-from app.models import SPECIFICATION_DIR
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import Topic
 from app.queue.events import EventType
@@ -34,6 +33,7 @@ IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
+SPECIFICATION_DIR = "./swagger/"
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 
