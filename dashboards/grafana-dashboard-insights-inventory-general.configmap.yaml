@@ -3336,7 +3336,7 @@ data:
       "title": "Inventory",
       "uid": "EiIhtC0Wa",
       "version": 2
-    }kjsldf
+    }
 kind: ConfigMap
 metadata:
   name: grafana-dashboard-clouddot-insights-inventory-general
