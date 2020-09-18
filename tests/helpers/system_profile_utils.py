@@ -1,3 +1,11 @@
+from os.path import join
+
+from yaml import safe_load
+
+from app.models import SPECIFICATION_DIR
+from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
+
+
 INVALID_SYSTEM_PROFILES = (
     {"infrastructure_type": "x" * 101},
     {"infrastructure_vendor": "x" * 101},
@@ -36,3 +44,9 @@ INVALID_SYSTEM_PROFILES = (
     {"installed_services": ["x" * 513]},
     {"enabled_services": ["x" * 513]},
 )
+
+
+def system_profile_specification():
+    file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+    with open(file_name) as orig_file:
+        return safe_load(orig_file)
