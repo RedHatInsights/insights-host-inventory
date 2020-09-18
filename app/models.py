@@ -58,14 +58,14 @@ def _time_now():
 
 
 class SystemProfileNormalization:
-    SOME_ARBITRARY_STRING = "property"
-
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
         Types = Enum("SchemaTypes", ("array", "object"))
 
         @property
         def schema_type(self):
             return self.Types.__members__.get(self.type)
+
+    SOME_ARBITRARY_STRING = "property"
 
     @classmethod
     def filter_keys(cls, schema_dict, payload):
@@ -86,7 +86,7 @@ class SystemProfileNormalization:
 
     @classmethod
     def _object_filter(cls, schema, payload):
-        if not schema.properties:
+        if not schema.properties or type(payload) is not dict:
             return
 
         for key in payload.keys() - schema.properties.keys():
@@ -96,7 +96,7 @@ class SystemProfileNormalization:
 
     @classmethod
     def _array_filter(cls, schema, payload):
-        if not schema.items:
+        if not schema.items or type(payload) is not list:
             return
 
         for value in payload:

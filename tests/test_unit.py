@@ -1877,6 +1877,19 @@ class ModelsFilterKeysTestCase(TestCase):
         SystemProfileNormalization.filter_keys(schema, payload)
         self.assertEqual({}, payload)
 
+    def test_invalid_traversables_are_ignored(self):
+        original = {"number_of_cpus": 1}
+
+        for definition in (
+            {"type": "array", "items": {"type": "integer"}},
+            {"type": "object", "properties": {"value": {"type": "integer"}}},
+        ):
+            with self.subTest(type=definition["type"]):
+                schema = {"type": "object", "required": "number_of_cpus", "properties": {"number_of_cpus": definition}}
+                payload = deepcopy(original)
+                SystemProfileNormalization.filter_keys(schema, payload)
+                self.assertEqual(original, payload)
+
 
 if __name__ == "__main__":
     main()
