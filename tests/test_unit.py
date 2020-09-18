@@ -58,6 +58,7 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from tests.helpers.mq_utils import expected_encoded_headers
+from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.test_utils import set_environment
 
 
@@ -276,7 +277,6 @@ class ConfigTestCase(TestCase):
 
         # Make sure the runtime_environment variables are not set
         with set_environment(None):
-
             conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
@@ -289,7 +289,6 @@ class ConfigTestCase(TestCase):
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
-
             conf = self._config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -1762,7 +1761,7 @@ class EventProducerTests(TestCase):
         )
 
 
-class ModelsFilterKeysTestCase(TestCase):
+class ModelsSystemProfileNormalizationFilterKeysTestCase(TestCase):
     def test_no_keys_are_removed(self):
         schema = {"type": "object", "properties": {"number_of_cpus": {"type": "integer"}}}
         payload = {"number_of_cpus": 1}
@@ -1889,6 +1888,28 @@ class ModelsFilterKeysTestCase(TestCase):
                 payload = deepcopy(original)
                 SystemProfileNormalization.filter_keys(schema, payload)
                 self.assertEqual(original, payload)
+
+
+class ModelsSystemProfileTestCase(TestCase):
+    def test_system_profile_is_validated(self):
+        schema = MqHostSchema()
+        for system_profile in INVALID_SYSTEM_PROFILES:
+            with self.subTest(system_profile=system_profile):
+                result = schema.load(
+                    {
+                        "account": "0000001",
+                        "system_profile": system_profile,
+                        "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "reporter": "test",
+                    }
+                )
+                self.assertIn("system_profile", result.errors)
+                self.assertTrue(
+                    any(
+                        "System profile does not conform to schema." in message
+                        for message in result.errors["system_profile"]
+                    )
+                )
 
 
 if __name__ == "__main__":
