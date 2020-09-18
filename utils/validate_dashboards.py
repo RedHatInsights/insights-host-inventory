@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-
 # Originally Authored by Kyle Lape (https://github.com/kylape)
-
-import yaml
 import json
 import os
 import sys
 
-class Error:
+import yaml
 
+
+class Error:
     def __init__(self, msg, f):
         self.msg = msg
         self.f = f
 
     def __repr__(self):
-        return "ERROR %s: %s" % (self.f, self.msg)
+        return f"ERROR {self.f}: {self.msg}"
+
 
 def validate(f):
     print("Validating %s" % f)
@@ -33,7 +33,7 @@ def validate(f):
 
         if len(d) != 1:
             yield Error("Invalid number of keys in ConfigMap", f)
-        
+
         key = list(d.keys())[0]
 
         if not key.endswith(".json"):
@@ -42,6 +42,7 @@ def validate(f):
         json.loads(d[key])
     except Exception as e:
         yield Error(e.msg, f)
+
 
 seen_error = False
 
