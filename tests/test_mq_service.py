@@ -3,12 +3,10 @@ from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from functools import partial
-from tempfile import NamedTemporaryFile
 
 import marshmallow
 import pytest
 from sqlalchemy import null
-from yaml import safe_dump
 
 from app import db
 from app.exceptions import InventoryException
@@ -24,6 +22,7 @@ from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
+from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -396,30 +395,15 @@ def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_hos
     assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
 
 
-def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host, mock_system_profile):
-    def reset_schema():
-        try:
-            delattr(MqHostSchema, "_system_profile_schema")
-        except AttributeError:
-            pass
+def test_add_host_externalized_system_profile(mq_create_or_update_host):
+    orig_spec = system_profile_specification()
+    mock_spec = deepcopy(orig_spec)
+    mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
 
-    reset_schema()
-
-    try:
-        orig_spec = system_profile_specification()
-        mock_spec = deepcopy(orig_spec)
-        mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
-
-        with NamedTemporaryFile("w+") as temp_file:
-            safe_dump(mock_spec, temp_file)
-            mocker.patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name)
-
-            host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
-
-            with pytest.raises(ValidationException):
-                mq_create_or_update_host(host_to_create)
-    finally:
-        reset_schema()
+    with mock_system_profile_specification(mock_spec):
+        host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host_to_create)
 
 
 @pytest.mark.parametrize(

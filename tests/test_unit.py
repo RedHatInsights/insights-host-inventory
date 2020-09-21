@@ -59,6 +59,8 @@ from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
+from tests.helpers.system_profile_utils import mock_system_profile_specification
+from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
 
 
@@ -1891,25 +1893,44 @@ class ModelsSystemProfileNormalizationFilterKeysTestCase(TestCase):
 
 
 class ModelsSystemProfileTestCase(TestCase):
-    def test_system_profile_is_validated(self):
-        schema = MqHostSchema()
+    def _payload(self, system_profile):
+        return {
+            "account": "0000001",
+            "system_profile": system_profile,
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test",
+        }
+
+    def _assert_system_profile_is_invalid(self, load_result):
+        self.assertIn("system_profile", load_result.errors)
+        self.assertTrue(
+            any(
+                "System profile does not conform to schema." in message
+                for message in load_result.errors["system_profile"]
+            )
+        )
+
+    def setUp(self):
+        self.schema = MqHostSchema()
+        super().setUp()
+
+    def test_invalid_values_are_rejected(self):
         for system_profile in INVALID_SYSTEM_PROFILES:
             with self.subTest(system_profile=system_profile):
-                result = schema.load(
-                    {
-                        "account": "0000001",
-                        "system_profile": system_profile,
-                        "stale_timestamp": datetime.now(timezone.utc).isoformat(),
-                        "reporter": "test",
-                    }
-                )
-                self.assertIn("system_profile", result.errors)
-                self.assertTrue(
-                    any(
-                        "System profile does not conform to schema." in message
-                        for message in result.errors["system_profile"]
-                    )
-                )
+                payload = self._payload(system_profile)
+                result = self.schema.load(payload)
+                self._assert_system_profile_is_invalid(result)
+
+    def test_specification_file_is_used(self):
+        payload = self._payload({"number_of_cpus": 1})
+
+        orig_spec = system_profile_specification()
+        mock_spec = deepcopy(orig_spec)
+        mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+
+        with mock_system_profile_specification(mock_spec):
+            result = self.schema.load(payload)
+            self._assert_system_profile_is_invalid(result)
 
 
 if __name__ == "__main__":

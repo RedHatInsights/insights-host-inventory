@@ -1,7 +1,12 @@
+from contextlib import contextmanager
 from os.path import join
+from tempfile import NamedTemporaryFile
+from unittest.mock import patch
 
+from yaml import safe_dump
 from yaml import safe_load
 
+from app.models import MqHostSchema
 from app.models import SPECIFICATION_DIR
 from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 
@@ -50,3 +55,23 @@ def system_profile_specification():
     file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
     with open(file_name) as orig_file:
         return safe_load(orig_file)
+
+
+def reset_schema():
+    try:
+        delattr(MqHostSchema, "_system_profile_schema")
+    except AttributeError:
+        pass
+
+
+@contextmanager
+def mock_system_profile_specification(mock_spec):
+    reset_schema()
+
+    try:
+        with NamedTemporaryFile("w+") as temp_file:
+            safe_dump(mock_spec, temp_file)
+            with patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name):
+                yield
+    finally:
+        reset_schema()
