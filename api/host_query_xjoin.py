@@ -107,10 +107,19 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
-    # TODO: Remove
-    logger.info("WE IN QUERY FIltERS")
+def _sap_system_filters(sap_system):
+    if isinstance(sap_system, str):
+        if sap_system == "nil":
+            return ({"NOT": {"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]}},)
+        elif sap_system == "not_nil":
+            return ({"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]},)
+        else:
+           return ({"spf_sap_system": {"is": (sap_system == "true")}},)
+    elif sap_system.get("eq"):
+        return ({"spf_sap_system": {"is": (sap_system["eq"] == "true")}},)
 
+
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -139,12 +148,11 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+
     if filter:
         if filter.get("system_profile"):
-            logger.info("system_profile")
             if filter["system_profile"].get("sap_system"):
-                logger.info("sap_system")
-                query_filters += ({"spf_sap_system": {"eq": filter["system_profile"]["sap_system"]}},)
+                query_filters += _sap_system_filters(filter["system_profile"]["sap_system"])
 
     logger.debug(query_filters)
     return query_filters

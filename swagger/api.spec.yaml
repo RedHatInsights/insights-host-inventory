@@ -523,7 +523,25 @@ components:
       explode: true
       schema:
         type: object
-
+        additionalProperties:
+          type: object
+          description: System profile field values to filter with
+          additionalProperties:
+            oneOf:
+              - type: string
+                enum:
+                  - "true"
+                  - "false"
+                  - "nil"
+                  - "not_nil"
+              - type: object
+                additionalProperties:
+                  type: string
+                  enum:
+                    - "true"
+                    - "false"
+                    - "nil"
+                    - "not_nil"
 
   schemas:
     TagsOut:
