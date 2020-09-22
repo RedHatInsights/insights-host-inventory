@@ -57,16 +57,16 @@ def system_profile_specification():
         return safe_load(orig_file)
 
 
-def reset_schema():
+def clear_schema_cache():
     try:
-        delattr(MqHostSchema, "_system_profile_schema")
+        delattr(MqHostSchema, "_system_profile_schema_cache")
     except AttributeError:
         pass
 
 
 @contextmanager
 def mock_system_profile_specification(mock_spec):
-    reset_schema()
+    clear_schema_cache()
 
     try:
         with NamedTemporaryFile("w+") as temp_file:
@@ -74,4 +74,4 @@ def mock_system_profile_specification(mock_spec):
             with patch("app.models.SYSTEM_PROFILE_SPECIFICATION_FILE", temp_file.name):
                 yield
     finally:
-        reset_schema()
+        clear_schema_cache()

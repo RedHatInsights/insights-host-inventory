@@ -8,6 +8,7 @@ from os.path import join
 
 from connexion.decorators.validation import coerce_type
 from flask_sqlalchemy import SQLAlchemy
+from jsonschema import RefResolver
 from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import fields
@@ -61,6 +62,14 @@ class SystemProfileNormalization:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
         Types = Enum("SchemaTypes", ("array", "object"))
 
+        @classmethod
+        def from_dict(cls, schema, resolver):
+            if "$ref" in schema:
+                _, schema = resolver.resolve(schema["$ref"])
+
+            filtered = {key: schema.get(key) for key in cls._fields}
+            return cls(**filtered)
+
         @property
         def schema_type(self):
             return self.Types.__members__.get(self.type)
@@ -68,39 +77,34 @@ class SystemProfileNormalization:
     SOME_ARBITRARY_STRING = "property"
 
     @classmethod
-    def filter_keys(cls, schema_dict, payload):
-        schema_obj = cls._schema_from_dict(schema_dict)
+    def filter_keys(cls, schema_dict, payload, resolver):
+        schema_obj = cls.Schema.from_dict(schema_dict, resolver)
         if schema_obj.schema_type == cls.Schema.Types.object:
-            cls._object_filter(schema_obj, payload)
+            cls._object_filter(schema_obj, payload, resolver)
         elif schema_obj.schema_type == cls.Schema.Types.array:
-            cls._array_filter(schema_obj, payload)
+            cls._array_filter(schema_obj, payload, resolver)
 
     @classmethod
     def coerce_types(cls, schema_dict, payload):
         coerce_type(schema_dict, payload, cls.SOME_ARBITRARY_STRING)
 
     @classmethod
-    def _schema_from_dict(cls, original):
-        filtered = {key: original.get(key) for key in cls.Schema._fields}
-        return cls.Schema(**filtered)
-
-    @classmethod
-    def _object_filter(cls, schema, payload):
+    def _object_filter(cls, schema, payload, resolver):
         if not schema.properties or type(payload) is not dict:
             return
 
         for key in payload.keys() - schema.properties.keys():
             del payload[key]
         for key in payload:
-            cls.filter_keys(schema.properties[key], payload[key])
+            cls.filter_keys(schema.properties[key], payload[key], resolver)
 
     @classmethod
-    def _array_filter(cls, schema, payload):
+    def _array_filter(cls, schema, payload, resolver):
         if not schema.items or type(payload) is not list:
             return
 
         for value in payload:
-            cls.filter_keys(schema.items, value)
+            cls.filter_keys(schema.items, value, resolver)
 
 
 class Host(db.Model):
@@ -413,14 +417,17 @@ class MqHostSchema(BaseHostSchema):
     tags = fields.Raw(allow_none=True)
 
     @classmethod
-    def system_profile_schema(cls):
-        if not hasattr(cls, "_system_profile_schema"):
+    def _system_profile_schema(cls):
+        if not hasattr(cls, "_system_profile_schema_cache"):
             specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
             with open(specification) as file:
                 system_profile_spec = safe_load(file)
-            cls._system_profile_schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
 
-        return cls._system_profile_schema
+            schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+            resolver = RefResolver.from_schema(system_profile_spec)
+            cls._system_profile_schema_cache = schema, resolver
+
+        return cls._system_profile_schema_cache
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -468,19 +475,17 @@ class MqHostSchema(BaseHostSchema):
         if "system_profile" not in data:
             return data
 
-        schema = self.system_profile_schema()
+        schema, resolver = self._system_profile_schema()
         definition = schema["$defs"]["SystemProfile"]
 
         system_profile = deepcopy(data["system_profile"])
-
-        SystemProfileNormalization.filter_keys(definition, system_profile)
         SystemProfileNormalization.coerce_types(definition, system_profile)
-
+        SystemProfileNormalization.filter_keys(definition, system_profile, resolver)
         return {**data, "system_profile": system_profile}
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
-        schema = self.system_profile_schema()
+        schema, _ = self._system_profile_schema()
         try:
             jsonschema_validate(system_profile, schema)
         except JsonSchemaValidationError as error:

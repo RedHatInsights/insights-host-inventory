@@ -1932,6 +1932,23 @@ class ModelsSystemProfileTestCase(TestCase):
             result = self.schema.load(payload)
             self._assert_system_profile_is_invalid(result)
 
+    def test_types_are_coerced(self):
+        payload = self._payload({"number_of_cpus": "1"})
+        result = self.schema.load(payload)
+        self.assertEqual({"number_of_cpus": 1}, result.data["system_profile"])
+
+    def test_fields_are_filtered(self):
+        payload = self._payload(
+            {
+                "number_of_cpus": 1,
+                "number_of_gpus": 2,
+                "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"], "mac_addresses": ["aa:bb:cc:dd:ee:ff"]}],
+            }
+        )
+        result = self.schema.load(payload)
+        expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
+        self.assertEqual(expected, result.data["system_profile"])
+
 
 if __name__ == "__main__":
     main()
