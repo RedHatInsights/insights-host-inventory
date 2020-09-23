@@ -1763,7 +1763,7 @@ class EventProducerTests(TestCase):
         )
 
 
-class ModelsSystemProfileNormalizationFilterKeysTestCase(TestCase):
+class ModelsSystemProfileNormalizerFilterKeysTestCase(TestCase):
     def setUp(self):
         self.normalizer = SystemProfileNormalizer()
 
