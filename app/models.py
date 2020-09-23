@@ -58,7 +58,7 @@ def _time_now():
     return datetime.now(timezone.utc)
 
 
-class SystemProfileNormalization:
+class SystemProfileNormalizer:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
         Types = Enum("SchemaTypes", ("array", "object"))
 
@@ -76,35 +76,47 @@ class SystemProfileNormalization:
 
     SOME_ARBITRARY_STRING = "property"
 
-    @classmethod
-    def filter_keys(cls, schema_dict, payload, resolver):
-        schema_obj = cls.Schema.from_dict(schema_dict, resolver)
-        if schema_obj.schema_type == cls.Schema.Types.object:
-            cls._object_filter(schema_obj, payload, resolver)
-        elif schema_obj.schema_type == cls.Schema.Types.array:
-            cls._array_filter(schema_obj, payload, resolver)
+    def __init__(self):
+        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+        with open(specification) as file:
+            system_profile_spec = safe_load(file)
 
-    @classmethod
-    def coerce_types(cls, schema_dict, payload):
-        coerce_type(schema_dict, payload, cls.SOME_ARBITRARY_STRING)
+        self.schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+        self._resolver = RefResolver.from_schema(system_profile_spec)
 
-    @classmethod
-    def _object_filter(cls, schema, payload, resolver):
+    def filter_keys(self, payload, schema_dict=None):
+        if schema_dict is None:
+            schema_dict = self._system_profile_definition()
+
+        schema_obj = self.Schema.from_dict(schema_dict, self._resolver)
+        if schema_obj.schema_type == self.Schema.Types.object:
+            self._object_filter(schema_obj, payload)
+        elif schema_obj.schema_type == self.Schema.Types.array:
+            self._array_filter(schema_obj, payload)
+
+    def coerce_types(self, payload, schema_dict=None):
+        if schema_dict is None:
+            schema_dict = self._system_profile_definition()
+        coerce_type(schema_dict, payload, self.SOME_ARBITRARY_STRING)
+
+    def _system_profile_definition(self):
+        return self.schema["$defs"]["SystemProfile"]
+
+    def _object_filter(self, schema, payload):
         if not schema.properties or type(payload) is not dict:
             return
 
         for key in payload.keys() - schema.properties.keys():
             del payload[key]
         for key in payload:
-            cls.filter_keys(schema.properties[key], payload[key], resolver)
+            self.filter_keys(payload[key], schema.properties[key])
 
-    @classmethod
-    def _array_filter(cls, schema, payload, resolver):
+    def _array_filter(self, schema, payload):
         if not schema.items or type(payload) is not list:
             return
 
         for value in payload:
-            cls.filter_keys(schema.items, value, resolver)
+            self.filter_keys(value, schema.items)
 
 
 class Host(db.Model):
@@ -416,18 +428,11 @@ class MqHostSchema(BaseHostSchema):
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
 
-    @classmethod
-    def _system_profile_schema(cls):
-        if not hasattr(cls, "_system_profile_schema_cache"):
-            specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-            with open(specification) as file:
-                system_profile_spec = safe_load(file)
-
-            schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
-            resolver = RefResolver.from_schema(system_profile_spec)
-            cls._system_profile_schema_cache = schema, resolver
-
-        return cls._system_profile_schema_cache
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls = type(self)
+        if not hasattr(cls, "system_profile_normalizer"):
+            cls.system_profile_normalizer = SystemProfileNormalizer()
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -475,19 +480,15 @@ class MqHostSchema(BaseHostSchema):
         if "system_profile" not in data:
             return data
 
-        schema, resolver = self._system_profile_schema()
-        definition = schema["$defs"]["SystemProfile"]
-
         system_profile = deepcopy(data["system_profile"])
-        SystemProfileNormalization.coerce_types(definition, system_profile)
-        SystemProfileNormalization.filter_keys(definition, system_profile, resolver)
+        self.system_profile_normalizer.coerce_types(system_profile)
+        self.system_profile_normalizer.filter_keys(system_profile)
         return {**data, "system_profile": system_profile}
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
-        schema, _ = self._system_profile_schema()
         try:
-            jsonschema_validate(system_profile, schema)
+            jsonschema_validate(system_profile, self.system_profile_normalizer.schema)
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
