@@ -59,7 +59,7 @@ def system_profile_specification():
 
 def clear_schema_cache():
     try:
-        delattr(MqHostSchema, "_system_profile_schema_cache")
+        delattr(MqHostSchema, "system_profile_normalizer")
     except AttributeError:
         pass
 
