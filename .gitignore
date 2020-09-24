@@ -7,3 +7,5 @@ pyvenv.cfg
 tags
 .coverage
 .pytest_cache/
+temp/
+
