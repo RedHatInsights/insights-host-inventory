@@ -1,44 +1,45 @@
 ---
 $id: system_profile.spec.yaml
-$version: 1
+$schema: http://json-schema.org/draft-04/schema#
 $defs:
   DiskDevice:
-    title: Disk Device
     description: Representation of one mounted device
+    type: object
     properties:
       device:
         example: "/dev/fdd0"
         type: string
+        maxLength: 2048
       label:
         description: user-defined mount label
         type: string
+        maxLength: 1024
       options:
         description: mount options
         example:
           uid: "0"
           ro: true
         type: object
-        properties:
-          name:
-            type: string
-          value:
-            type: string
       mount_point:
         description: mount point
         example: "/mnt/remote_nfs_shares"
         type: string
+        maxLength: 2048
       type:
         description: mount type
         example: "ext3"
         type: string
+        maxLength: 256
   YumRepo:
-    title: Yum Repository
     description: Representation of one yum repository
+    type: object
     properties:
       id:
         type: string
+        maxLength: 256
       name:
         type: string
+        maxLength: 1024
       gpgcheck:
         type: boolean
       enabled:
@@ -46,31 +47,37 @@ $defs:
       baseurl:
         type: string
         format: uri
+        maxLength: 2048
   DnfModule:
-    title: DNF Module
     description: Representation of one DNF module
+    type: object
     properties:
       name:
         type: string
+        maxLength: 128
       stream:
         type: string
+        maxLength: 2048
   InstalledProduct:
-    title: Installed Product
     description: Representation of one installed product
+    type: object
     properties:
       name:
         type: string
+        maxLength: 512
       id:
         description: the product ID
         example: "71"
         type: string
+        maxLength: 64
       status:
         description: subscription status for product
         example: "Subscribed"
         type: string
+        maxLength: 256
   NetworkInterface:
-    title: Network Interface
     description: Representation of one network interface
+    type: object
     properties:
       ipv4_addresses:
         type: array
@@ -89,20 +96,24 @@ $defs:
         description: MAC address (with or without colons)
         example: "00:00:00:00:00:00"
         type: string
+        maxLength: 59
       name:
         description: name of interface
         type: string
         example: eth0
+        minLength: 1
+        maxLength: 50
       state:
         description: interface state (UP, DOWN, UNKNOWN)
         type: string
         example: "UP"
+        maxLength: 25
       type:
         description: interface type (ether, loopback)
         type: string
         example: "ether"
+        maxLength: 18
   SystemProfile:
-    title: System profile fields
     description: Representation of the system profile fields
     type: object
     properties:
@@ -117,8 +128,10 @@ $defs:
         format: int64
       infrastructure_type:
         type: string
+        maxLength: 100
       infrastructure_vendor:
         type: string
+        maxLength: 100
       network_interfaces:
         type: array  # techincally a set, ordering is not important
         items:
@@ -129,42 +142,55 @@ $defs:
           $ref: '#/$defs/DiskDevice'
       bios_vendor:
         type: string
+        maxLength: 100
       bios_version:
         type: string
+        maxLength: 100
       bios_release_date:
         type: string
+        maxLength: 50
       cpu_flags:
         items:
           type: string
+          maxLength: 30
         type: array
       os_release:
         type: string
+        maxLength: 100
       os_kernel_version:
         type: string
+        maxLength: 100
       arch:
         type: string
+        maxLength: 50
       kernel_modules:
         type: array
         items:
           type: string
+          maxLength: 255
       last_boot_time:
         type: string
         format: date-time
+        maxLength: 50
       running_processes:
         type: array  # techincally a set, ordering is not important
         items:
           description: a single running process. This will be truncated to 1000 characters when saved.
           type: string
+          maxLength: 1000
       subscription_status:
         type: string
+        maxLength: 100
       subscription_auto_attach:
         type: string
+        maxLength: 100
       katello_agent_running:
         type: boolean
       satellite_managed:
         type: boolean
       cloud_provider:
         type: string
+        maxLength: 100
       yum_repos:
         type: array  # technically a set, ordering is not important
         items:
@@ -179,24 +205,30 @@ $defs:
           $ref: '#/$defs/InstalledProduct'
       insights_client_version:
         type: string
+        maxLength: 50
       insights_egg_version:
         type: string
+        maxLength: 50
       captured_date:
         type: string
+        maxLength: 32
       installed_packages:
         type: array  # technically a set, ordering is not important
         items:
           description: a NEVRA string for a single installed package
           type: string
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"
+          maxLength: 512
       installed_services:
         type: array
         items:
           type: string
+          maxLength: 512
       enabled_services:
         type: array
         items:
           type: string
+          maxLength: 512
       sap_system:
         type: boolean
         description: Indicates if SAP is installed on the system
@@ -204,4 +236,8 @@ $defs:
         type: array
         description: list of SAP SIDs
         items:
+          description: The SAP system ID (SID)
           type: string
+          example: "H2O"
+          maxLength: 3
+          pattern: '^[A-Z][A-Z0-9]{2}$'
