@@ -1960,6 +1960,25 @@ class ModelsSystemProfileTestCase(TestCase):
         expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
         self.assertEqual(expected, result.data["system_profile"])
 
+    @patch("app.models.jsonschema_validate")
+    def test_type_coercion_happens_before_loading(self, jsonschema_validate):
+        schema = MqHostSchema()
+        payload = self._payload({"number_of_cpus": "1"})
+        schema.load(payload)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_cpus": 1}, MqHostSchema.system_profile_normalizer.schema
+        )
+
+    @patch("app.models.jsonschema_validate")
+    def test_type_filtering_happens_after_loading(self, jsonschema_validate):
+        schema = MqHostSchema()
+        payload = self._payload({"number_of_gpus": 1})
+        result = schema.load(payload)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_gpus": 1}, MqHostSchema.system_profile_normalizer.schema
+        )
+        self.assertEqual({}, result.data["system_profile"])
+
 
 if __name__ == "__main__":
     main()

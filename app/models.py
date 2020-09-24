@@ -12,6 +12,7 @@ from jsonschema import RefResolver
 from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import fields
+from marshmallow import post_load
 from marshmallow import pre_load
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
@@ -475,15 +476,22 @@ class MqHostSchema(BaseHostSchema):
 
         return True
 
-    @pre_load
-    def normalize_system_profile(self, data):
+    @staticmethod
+    def _normalize_system_profile(normalize, data):
         if "system_profile" not in data:
             return data
 
         system_profile = deepcopy(data["system_profile"])
-        self.system_profile_normalizer.coerce_types(system_profile)
-        self.system_profile_normalizer.filter_keys(system_profile)
+        normalize(system_profile)
         return {**data, "system_profile": system_profile}
+
+    @pre_load
+    def coerce_system_profile_types(self, data):
+        return self._normalize_system_profile(self.system_profile_normalizer.coerce_types, data)
+
+    @post_load
+    def filter_system_profile_keys(self, data):
+        return self._normalize_system_profile(self.system_profile_normalizer.filter_keys, data)
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
