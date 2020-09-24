@@ -26,7 +26,7 @@ def validate(f):
         with open(f) as fp:
             y = yaml.safe_load(fp)
 
-        if not y["metadata"]["name"]:
+        if not y["metadata"].get("name"):
             yield Error("Resource name not found", f)
 
         d = y["data"]
@@ -39,10 +39,13 @@ def validate(f):
         if not key.endswith(".json"):
             yield Error("Key does not end with .json: %s" % key, f)
 
-        json.loads(d[key])
+        dashboard = json.loads(d[key])
+        if "panels" not in dashboard:
+            yield Error("Dashboard object is not valid", f)
+
         print("Dashboard %s successfully validated" % f)
     except Exception as e:
-        yield Error(e.msg, f)
+        yield Error(e, f)
 
 
 seen_error = False
