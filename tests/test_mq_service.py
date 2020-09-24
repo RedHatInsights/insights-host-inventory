@@ -365,14 +365,17 @@ def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_p
         mq_create_or_update_host(host)
 
 
-def test_add_host_type_coercion_system_profile(mq_create_or_update_host):
+@pytest.mark.system_profile
+def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_host):
     host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
-    created_host = mq_create_or_update_host(host_to_create)
-    assert type(created_host.system_profile["number_of_cpus"]) is int
-    assert created_host.system_profile["number_of_cpus"] == 1
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+
+    assert created_host_from_db.system_profile_facts == {"number_of_cpus": 1}
 
 
-def test_add_host_key_filtering_system_profile(mq_create_or_update_host):
+@pytest.mark.system_profile
+def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_host):
     host_to_create = minimal_host(
         system_profile={
             "number_of_cpus": 1,
@@ -380,8 +383,12 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host):
             "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
         }
     )
-    created_host = mq_create_or_update_host(host_to_create)
-    assert created_host.system_profile == {"number_of_cpus": 1, "disk_devices": [{"options": {"uid": "0"}}]}
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {
+        "number_of_cpus": 1,
+        "disk_devices": [{"options": {"uid": "0"}}],
+    }
 
 
 def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
