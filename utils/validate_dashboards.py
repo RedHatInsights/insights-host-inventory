@@ -40,6 +40,7 @@ def validate(f):
             yield Error("Key does not end with .json: %s" % key, f)
 
         json.loads(d[key])
+        print("Dashboard %s successfully validated" % f)
     except Exception as e:
         yield Error(e.msg, f)
 
