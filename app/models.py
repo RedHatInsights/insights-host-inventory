@@ -389,6 +389,7 @@ class SystemProfileSchema(MarshmallowSchema):
             validate=[marshmallow_validate.Length(max=3), marshmallow_validate.Regexp(regex=r"^[A-Z][A-Z0-9]{2}$")]
         )
     )
+    tuned_profile = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
 class FactsSchema(MarshmallowSchema):
