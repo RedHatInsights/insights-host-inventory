@@ -64,6 +64,7 @@ WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-write-only.json",
     "utils/rbac-mock-data/inv-admin.json",
     "utils/rbac-mock-data/inv-hosts-splat.json",
+    "utils/rbac-mock-data/inv-star-write.json",
 )
 WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-none.json",
