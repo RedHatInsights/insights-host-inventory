@@ -376,4 +376,3 @@ def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, ena
     response_status, response_data = api_get(url, identity_type="System")
 
     assert_response_status(response_status, 200)
-    
