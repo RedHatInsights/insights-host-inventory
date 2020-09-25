@@ -34,3 +34,6 @@ run_reaper:
 
 style:
 	pre-commit run --all-files
+
+validate-dashboard:
+	python utils/validate_dashboards.py

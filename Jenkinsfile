@@ -67,6 +67,7 @@ def runStages() {
                 stage('Pre-commit checks') {
                     withStatusContext.custom('pre-commit') {
                         sh "${pipelineVars.userPath}/pipenv run pre-commit run --all-files"
+                        sh "${pipelineVars.userPath}/pipenv run python utils/validate_dashboards.py"
                     }
                 }
 
