@@ -75,7 +75,7 @@ def get_host_list(
     param_order_how,
     staleness,
     registered_with,
-    filter
+    filter,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -85,7 +85,9 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter),
+        "filter": _query_filters(
+            fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+        ),
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -109,9 +111,9 @@ def _params_to_order(param_order_by=None, param_order_how=None):
 
 def _sap_system_filters(sap_system):
     if sap_system == "nil":
-        return ({"NOT": {"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]}},)
+        return ({"NOT": {"OR": [{"spf_sap_system": {"is": True}}, {"spf_sap_system": {"is": False}}]}},)
     elif sap_system == "not_nil":
-        return ({"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]},)
+        return ({"OR": [{"spf_sap_system": {"is": True}}, {"spf_sap_system": {"is": False}}]},)
     else:
         return ({"spf_sap_system": {"is": (sap_system == "true")}},)
 
