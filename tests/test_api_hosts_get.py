@@ -935,8 +935,8 @@ def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
 def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests):
     patch_xjoin_post(response={})
 
-    implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]=beans")
-    eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]=Garfield")
+    implicit_url = build_hosts_url(query="?filter[system_profile][sap_system]=beans")
+    eq_url = build_hosts_url(query="?filter[system_profile][sap_system][eq]=Garfield")
 
     implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
     eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
@@ -948,8 +948,8 @@ def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, su
 def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get):
     patch_xjoin_post(response={})
 
-    implicit_url = build_hosts_url(query=f"?filter[system_profile][bad_thing]=Banana")
-    eq_url = build_hosts_url(query=f"?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
+    implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
+    eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
     implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
     eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
