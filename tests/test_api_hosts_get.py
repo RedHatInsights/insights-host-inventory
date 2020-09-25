@@ -35,6 +35,8 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 
+DATA_SOURCE_XJOIN_HEADER = {"x-rh-cloud-bulk-query-source": "xjoin"}
+
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
@@ -919,8 +921,8 @@ def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
-            eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+            implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
+            eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
 
             assert_response_status(implicit_response_status, 200)
             assert_response_status(eq_response_status, 200)
@@ -934,8 +936,8 @@ def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, su
     implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]=beans")
     eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]=Garfield")
 
-    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
-    eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
+    eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
 
     assert_response_status(implicit_response_status, 400)
     assert_response_status(eq_response_status, 400)
@@ -947,8 +949,8 @@ def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get):
     implicit_url = build_hosts_url(query=f"?filter[system_profile][bad_thing]=Banana")
     eq_url = build_hosts_url(query=f"?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
-    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
-    eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
+    eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
 
     assert_response_status(implicit_response_status, 400)
     assert_response_status(eq_response_status, 400)
