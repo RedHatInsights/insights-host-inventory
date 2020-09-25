@@ -942,7 +942,9 @@ def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, su
             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
+            implicit_response_status, implicit_response_data = api_get(
+                implicit_url, extra_headers=DATA_SOURCE_XJOIN_HEADER
+            )
             eq_response_status, eq_response_data = api_get(eq_url, extra_headers=DATA_SOURCE_XJOIN_HEADER)
 
             assert_response_status(implicit_response_status, 400)
