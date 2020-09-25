@@ -907,3 +907,21 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_
     response_status, response_data = api_get(url, identity_type="System")
 
     assert_response_status(response_status, 200)
+
+def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}}, status=200)
+
+    values = ("true", "false", "nil", "not_nil")
+
+    for value in values:
+        with subtests.test(value=value):
+            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
+            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+
+            implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+            eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+
+            assert_response_status(implicit_response_status, 200)
+            assert_response_status(eq_response_status, 200)
+            assert implicit_response_data["total"] == 1
+            assert eq_response_data["total"] == 1

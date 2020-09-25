@@ -108,15 +108,12 @@ def _params_to_order(param_order_by=None, param_order_how=None):
 
 
 def _sap_system_filters(sap_system):
-    if isinstance(sap_system, str):
-        if sap_system == "nil":
-            return ({"NOT": {"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]}},)
-        elif sap_system == "not_nil":
-            return ({"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]},)
-        else:
-           return ({"spf_sap_system": {"is": (sap_system == "true")}},)
-    elif sap_system.get("eq"):
-        return ({"spf_sap_system": {"is": (sap_system["eq"] == "true")}},)
+    if sap_system == "nil":
+        return ({"NOT": {"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]}},)
+    elif sap_system == "not_nil":
+        return ({"OR": [{"spf_sap_system":{"is": True}}, {"spf_sap_system":{"is": False}}]},)
+    else:
+        return ({"spf_sap_system": {"is": (sap_system == "true")}},)
 
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
@@ -152,7 +149,10 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if filter:
         if filter.get("system_profile"):
             if filter["system_profile"].get("sap_system"):
-                query_filters += _sap_system_filters(filter["system_profile"]["sap_system"])
+                if isinstance(filter["system_profile"]["sap_system"], str):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"])
+                elif filter["system_profile"]["sap_system"].get("eq"):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"]["eq"])
 
     logger.debug(query_filters)
     return query_filters

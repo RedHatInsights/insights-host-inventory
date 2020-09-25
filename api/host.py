@@ -174,9 +174,6 @@ def get_host_list(
     filter_param=None,
     filter=None
 ):
-
-    logger.info(filter)
-
     total = 0
     host_list = ()
 
