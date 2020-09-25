@@ -171,7 +171,6 @@ def get_host_list(
     order_how=None,
     staleness=None,
     registered_with=None,
-    filter_param=None,
     filter=None
 ):
     total = 0

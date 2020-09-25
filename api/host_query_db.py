@@ -30,7 +30,7 @@ def get_host_list(
     order_how,
     staleness,
     registered_with,
-    filter_param
+    filter
 ):
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
@@ -54,7 +54,7 @@ def get_host_list(
         query = find_hosts_with_insights_enabled(query)
 
     if filter:
-        flask.abort(503)
+        flask.abort(404)
 
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)

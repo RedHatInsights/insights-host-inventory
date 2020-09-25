@@ -908,8 +908,9 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_
 
     assert_response_status(response_status, 200)
 
+
 def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
-    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}}, status=200)
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
 
     values = ("true", "false", "nil", "not_nil")
 
@@ -925,3 +926,29 @@ def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests):
             assert_response_status(eq_response_status, 200)
             assert implicit_response_data["total"] == 1
             assert eq_response_data["total"] == 1
+
+
+def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests):
+    patch_xjoin_post(response = {})
+
+    implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]=beans")
+    eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]=Garfield")
+
+    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+    eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+
+    assert_response_status(implicit_response_status, 400)
+    assert_response_status(eq_response_status, 400)
+
+
+def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get):
+    patch_xjoin_post(response={})
+
+    implicit_url = build_hosts_url(query=f"?filter[system_profile][bad_thing]=Banana")
+    eq_url = build_hosts_url(query=f"?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
+
+    implicit_response_status, implicit_response_data = api_get(implicit_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+    eq_response_status, eq_response_data = api_get(eq_url, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
+
+    assert_response_status(implicit_response_status, 400)
+    assert_response_status(eq_response_status, 400)
