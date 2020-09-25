@@ -309,7 +309,7 @@ class SystemProfileSchema(Schema):
     installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
     enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
     sap_system = fields.Bool()
-    sap_sids = fields.List(fields.Str(validate=validate.Length(max=3)))
+    sap_sids = fields.List(fields.Str(validate=[validate.Length(max=3), validate.Regexp(regex=r"^[A-Z][A-Z0-9]{2}$")]))
 
 
 class FactsSchema(Schema):

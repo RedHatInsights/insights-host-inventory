@@ -204,4 +204,8 @@ $defs:
         type: array
         description: list of SAP SIDs
         items:
+          description: The SAP system ID (SID)
           type: string
+          example: "H2O"
+          maxLength: 3
+          pattern: '^[A-Z][A-Z0-9]{2}$'
