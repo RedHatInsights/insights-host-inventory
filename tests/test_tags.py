@@ -376,18 +376,4 @@ def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, ena
     response_status, response_data = api_get(url, identity_type="System")
 
     assert_response_status(response_status, 200)
-
-# TODO: REmove
-def test_get_hosts_sap_system_true(db_create_host, patch_xjoin_post, api_get):
-    from tests.helpers.api_utils import build_hosts_url
-    true_host = db_create_host(extra_data={"system_profile_facts": {"sap_system": True}})
-    false_host = db_create_host(extra_data={"system_profile_facts": {"sap_system": False}})
-    nil_host = db_create_host()
-
-    url = build_hosts_url(query=f"?filter[system_profile][sap_system]=false")
-    print(url)
-    response_status, response_data = api_get(url)
-
-    assert_response_status(response_status, 200)
-    assert response_data["total"] == 1
     
