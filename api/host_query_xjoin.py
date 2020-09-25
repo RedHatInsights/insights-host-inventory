@@ -111,9 +111,9 @@ def _params_to_order(param_order_by=None, param_order_how=None):
 
 def _sap_system_filters(sap_system):
     if sap_system == "nil":
-        return ({"NOT": {"OR": [{"spf_sap_system": {"is": True}}, {"spf_sap_system": {"is": False}}]}},)
+        return ({"spf_sap_system": {"is": None}},)
     elif sap_system == "not_nil":
-        return ({"OR": [{"spf_sap_system": {"is": True}}, {"spf_sap_system": {"is": False}}]},)
+        return ({"NOT": {"spf_sap_system": {"is": None}}},)
     else:
         return ({"spf_sap_system": {"is": (sap_system == "true")}},)
 
