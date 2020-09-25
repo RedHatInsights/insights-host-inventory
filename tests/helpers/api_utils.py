@@ -53,6 +53,7 @@ READ_ALLOWED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-read-only.json",
     "utils/rbac-mock-data/inv-admin.json",
     "utils/rbac-mock-data/inv-hosts-splat.json",
+    "utils/rbac-mock-data/inv-star-read.json",
 )
 READ_PROHIBITED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-none.json",

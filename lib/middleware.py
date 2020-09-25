@@ -71,11 +71,14 @@ def rbac(required_permission):
 
             rbac_data = get_rbac_permissions()
 
+            permission_type = required_permission.value.split(":")[2]
+
             for rbac_permission in rbac_data:
                 if (
-                    rbac_permission["permission"] == Permission.ADMIN.value
-                    or rbac_permission["permission"] == Permission.HOSTS_ALL.value
-                    or rbac_permission["permission"] == required_permission.value
+                    rbac_permission["permission"] == Permission.ADMIN.value # inventory:*:*
+                    or rbac_permission["permission"] == Permission.HOSTS_ALL.value # inventory:hosts:*
+                    or rbac_permission["permission"] == f"inventory:*:{permission_type}" # inventory:*:(read | write)
+                    or rbac_permission["permission"] == required_permission.value # inventory:hosts:(read | write)
                 ):
                     return func(*args, **kwargs)
 
