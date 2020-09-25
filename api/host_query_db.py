@@ -54,7 +54,7 @@ def get_host_list(
         query = find_hosts_with_insights_enabled(query)
 
     if filter:
-        flask.abort(404)
+        flask.abort(400)
 
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)
