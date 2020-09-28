@@ -132,9 +132,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/CreateCheckIn'
+              $ref: '#/components/schemas/CreateCheckIn'
       responses:
         '201':
           description: Successfully created check-in record.
@@ -682,7 +680,7 @@ components:
           description: A set of canonical_facts belonging to the host.
           type: array
           items:
-            $ref: '#/components/schemas/FactSet'
+            $ref: '#/components/schemas/Facts'
         staleness_interval:
           description: Defines how far in the future the host becomes stale (in minutes).
           type: integer
