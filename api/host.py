@@ -201,7 +201,7 @@ def get_host_list(
 
 
 @api_operation
-@rbac(Permission.WRITE)
+@rbac(Permission.DELETE)
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)

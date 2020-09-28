@@ -38,9 +38,10 @@ SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 
 class Permission(Enum):
-    READ = "inventory:hosts:read"
-    WRITE = "inventory:hosts:write"
-    ADMIN = "inventory:*:*"
+    DELETE    = "inventory:hosts:delete"
+    READ      = "inventory:hosts:read"
+    WRITE     = "inventory:hosts:write"
+    ADMIN     = "inventory:*:*"
     HOSTS_ALL = "inventory:hosts:*"
 
 
@@ -53,6 +54,7 @@ def initialize_metrics(config):
 
     rbac_access_denied.labels(required_permission=Permission.READ.value)
     rbac_access_denied.labels(required_permission=Permission.WRITE.value)
+    rbac_access_denied.labels(required_permission=Permission.DELETE.value)
 
 
 def render_exception(exception):

@@ -147,7 +147,7 @@ paths:
       description: >-
         Delete hosts by IDs
         <br /><br />
-        Required permissions: inventory:hosts:write
+        Required permissions: inventory:hosts:delete
       operationId: api.host.delete_by_id
       security:
         - ApiKeyAuth: []

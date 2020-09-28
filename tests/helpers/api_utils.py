@@ -73,6 +73,22 @@ WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-star-read.json",
 )
 
+DELETE_ALLOWED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-host-delete.json",
+    "utils/rbac-mock-data/inv-admin.json",
+    "utils/rbac-mock-data/inv-hosts-splat.json"
+)
+
+DELETE_PROHIBITED_RBAC_RESPONSE_FILES = (
+    "utils/rbac-mock-data/inv-write-only.json",
+    "utils/rbac-mock-data/inv-none.json",
+    "utils/rbac-mock-data/inv-read-only.json",
+    "utils/rbac-mock-data/inv-read-write.json",
+    "utils/rbac-mock-data/inv-star-read.json",
+    "utils/rbac-mock-data/inv-star-write.json",
+    "utils/rbac-mock-data/inv-write-only.json"
+)
+
 
 def do_request(
     func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
