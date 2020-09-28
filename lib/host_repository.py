@@ -5,7 +5,9 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 
 from app import inventory_config
+from app.culling import _Config as CullingConfig
 from app.culling import staleness_to_conditions
+from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -65,10 +67,11 @@ def update_host_staleness(account_number, canonical_facts, staleness_offset):
     and canonical facts.
     """
 
-    existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
+    existing_host = find_existing_host(account_number, canonical_facts)
     input_host = deepcopy(existing_host)
-    # TODO: Update timestamps
-    new_host = update_existing_host(existing_host, input_host, None, False, DEFAULT_FIELDS)
+    # TODO: Update timestamps with minutes, not days
+    config = CullingConfig(stale_warning_offset_days=staleness_offset, culled_offset_days=staleness_offset * 2)
+    new_host = update_existing_host(existing_host, input_host, Timestamps(config), False, DEFAULT_FIELDS)
     return new_host
 
 
