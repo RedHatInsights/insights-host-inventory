@@ -80,7 +80,6 @@ DELETE_ALLOWED_RBAC_RESPONSE_FILES = (
 )
 
 DELETE_PROHIBITED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-write-only.json",
     "utils/rbac-mock-data/inv-none.json",
     "utils/rbac-mock-data/inv-read-only.json",
     "utils/rbac-mock-data/inv-read-write.json",
