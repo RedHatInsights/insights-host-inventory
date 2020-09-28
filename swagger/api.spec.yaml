@@ -110,6 +110,55 @@ paths:
                     host: Input host data
         '400':
           description: Invalid request.
+  /hosts/checkin:
+    post:
+      operationId: api.host.add_host_checkin
+      tags:
+        - hosts
+      summary: Create a host check-in record to update staleness timestamps
+      description: >-
+        Create a check-in record to update a host's staleness timestamps.
+        It uses the supplied canonical facts to determine which host to update.
+        By default, the staleness timestamp is set to 1 hour from when the request is received;
+        however, this can be overridden by supplying the interval.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: A list of host objects to be added to the host list
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateCheckIn'
+      responses:
+        '201':
+          description: Successfully created check-in record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkHostOut'
+              examples:
+                update:
+                  value:
+                    status: 200
+                    host: Host details
+                create:
+                  value:
+                    status: 201
+                    host: Host details
+                error:
+                  value:
+                    status: 400
+                    title: Invalid Request
+                    detail: Could not process request
+                    host: Input host data
+        '400':
+          description: Invalid request.
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -621,6 +670,26 @@ components:
       required:
         - namespace
         - facts
+    CreateCheckIn:
+      title: Check-in data
+      description: >-
+        Data required to create a check-in record for a host.
+      type: object
+      required:
+        - canonical_facts
+      properties:
+        canonical_facts:
+          description: A set of canonical_facts belonging to the host.
+          type: array
+          items:
+            $ref: '#/components/schemas/FactSet'
+        staleness_interval:
+          description: Defines how far in the future the host becomes stale (in minutes).
+          type: integer
+          minimum: 1
+          maximum: 1440
+          default: 60
+          example: 45
     CreateHostIn:
       title: Host data
       description: >-

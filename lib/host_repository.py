@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 
 from sqlalchemy import and_
@@ -15,6 +16,7 @@ from lib.db import session_guard
 
 __all__ = (
     "add_host",
+    "update_host_staleness",
     "canonical_fact_host_query",
     "canonical_facts_host_query",
     "create_new_host",
@@ -55,6 +57,19 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
             return create_new_host(input_host, staleness_offset, fields)
+
+
+def update_host_staleness(account_number, canonical_facts, staleness_offset):
+    """
+    Updates the staleness timestamp for a host with the specified account number
+    and canonical facts.
+    """
+
+    existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
+    input_host = deepcopy(existing_host)
+    # TODO: Update timestamps
+    new_host = update_existing_host(existing_host, input_host, None, False, DEFAULT_FIELDS)
+    return new_host
 
 
 @metrics.host_dedup_processing_time.time()

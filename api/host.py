@@ -44,6 +44,7 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
 from lib.host_repository import find_non_culled_hosts
+from lib.host_repository import update_host_staleness
 from lib.middleware import rbac
 
 
@@ -438,3 +439,13 @@ def _build_serialized_tags(host_list, search):
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = build_collection_response(tags_list, page, per_page, total)
     return flask_json_response(json_output)
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def add_host_checkin(body):
+    # Get fields from body
+    facts = body.get("canonical_facts")
+    staleness_offset = 60
+    return update_host_staleness(current_identity.account_number, facts, staleness_offset)
