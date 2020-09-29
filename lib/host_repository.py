@@ -1,4 +1,4 @@
-from copy import deepcopy
+from datetime import timedelta
 from enum import Enum
 
 from sqlalchemy import and_
@@ -68,10 +68,11 @@ def update_host_staleness(account_number, canonical_facts, staleness_offset):
     """
 
     existing_host = find_existing_host(account_number, canonical_facts)
-    input_host = deepcopy(existing_host)
-    # TODO: Update timestamps with minutes, not days
-    config = CullingConfig(stale_warning_offset_days=staleness_offset, culled_offset_days=staleness_offset * 2)
-    new_host = update_existing_host(existing_host, input_host, Timestamps(config), False, DEFAULT_FIELDS)
+    config = CullingConfig(
+        stale_warning_offset_delta=timedelta(minutes=staleness_offset),
+        culled_offset_delta=inventory_config().culled_offset_delta,
+    )
+    new_host = update_existing_host(existing_host, existing_host, Timestamps(config), False, DEFAULT_FIELDS)
     return new_host
 
 

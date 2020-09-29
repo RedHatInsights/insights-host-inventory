@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from enum import Enum
 
 from app.common import get_build_version
@@ -86,6 +87,14 @@ class Config:
 
         self.culling_stale_warning_offset_days = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7"))
         self.culling_culled_offset_days = int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14"))
+        self.culling_stale_warning_offset_minutes = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_MINUTES", "0"))
+        self.culling_culled_offset_minutes = int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0"))
+        self.culling_stale_warning_offset_delta = timedelta(
+            days=self.culling_stale_warning_offset_days, minutes=self.culling_stale_warning_offset_minutes
+        )
+        self.culling_culled_offset_delta = timedelta(
+            days=self.culling_culled_offset_days, minutes=self.culling_culled_offset_minutes
+        )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
         self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))

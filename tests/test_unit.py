@@ -1203,7 +1203,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
         expected = {
             **canonical_facts,
@@ -1222,10 +1222,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
             "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
             "stale_warning_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
             ),
             "culled_timestamp": self._timestamp_to_str(
-                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_days)
+                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
         }
         self.assertEqual(expected, actual)
@@ -1239,7 +1239,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        config = CullingConfig(stale_warning_offset_days=7, culled_offset_days=14)
+        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         actual = serialize_host(host, Timestamps(config), DEFAULT_FIELDS + ("tags",))
         expected = {
             **host_init_data["canonical_facts"],
@@ -1276,7 +1276,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
                     setattr(host, k, v)
 
-                config = CullingConfig(stale_warning_offset_days, culled_offset_days)
+                config = CullingConfig(timedelta(days=stale_warning_offset_days), timedelta(days=culled_offset_days))
                 serialized = serialize_host(host, Timestamps(config))
                 self.assertEqual(
                     self._timestamp_to_str(self._add_days(stale_timestamp, stale_warning_offset_days)),
