@@ -74,7 +74,7 @@ WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 DELETE_ALLOWED_RBAC_RESPONSE_FILES = (
-    "utils/rbac-mock-data/inv-host-delete.json",
+    "utils/rbac-mock-data/inv-delete-only.json",
     "utils/rbac-mock-data/inv-admin.json",
     "utils/rbac-mock-data/inv-hosts-splat.json"
 )
