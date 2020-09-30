@@ -146,20 +146,19 @@ This is the Base64 encoding of the following JSON document:
 {"identity": {"account_number": "0000001", "type": "User", "internal": {"org_id": "000001"}}}
 ```
 
-The above one is an example with type "User", it's possible to use "System" as a parameter
-instead of "User":
+The above header has the "User" identity `type`, it's possible to use a "System" `type` header as well.
 
 ```
 x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlN5c3RlbSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0K
 ```
 
-This is the Base64 enconding the following JSON document:
+This is the Base64 encoding of the following JSON document:
 
 ```json
 {"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}
 ```
 
-If you want to encode other JSON document you can use command example bellow:
+If you want to encode other JSON documents you can use command below:
 
 ```shell
 echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64
