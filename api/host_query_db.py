@@ -32,6 +32,9 @@ def get_host_list(
     registered_with,
     filter,
 ):
+    if filter:
+        flask.abort(503)
+
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
     elif display_name:
@@ -52,9 +55,6 @@ def get_host_list(
 
     if registered_with:
         query = find_hosts_with_insights_enabled(query)
-
-    if filter:
-        flask.abort(400)
 
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)
