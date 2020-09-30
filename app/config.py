@@ -85,15 +85,13 @@ class Config:
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
 
-        self.culling_stale_warning_offset_days = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7"))
-        self.culling_culled_offset_days = int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14"))
-        self.culling_stale_warning_offset_minutes = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_MINUTES", "0"))
-        self.culling_culled_offset_minutes = int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0"))
         self.culling_stale_warning_offset_delta = timedelta(
-            days=self.culling_stale_warning_offset_days, minutes=self.culling_stale_warning_offset_minutes
+            days=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7")),
+            minutes=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_MINUTES", "0")),
         )
         self.culling_culled_offset_delta = timedelta(
-            days=self.culling_culled_offset_days, minutes=self.culling_culled_offset_minutes
+            days=int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14")),
+            minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")

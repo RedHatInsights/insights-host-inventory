@@ -265,8 +265,10 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.db_pool_size, 8)
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
-            self.assertEqual(conf.culling_stale_warning_offset_days, culling_stale_warning_offset_days)
-            self.assertEqual(conf.culling_culled_offset_days, culling_culled_offset_days)
+            self.assertEqual(
+                conf.culling_stale_warning_offset_delta, timedelta(days=culling_stale_warning_offset_days)
+            )
+            self.assertEqual(conf.culling_culled_offset_delta, timedelta(days=culling_culled_offset_days))
 
     def test_config_default_settings(self):
         expected_api_path = "/api/inventory/v1"
@@ -282,8 +284,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)
             self.assertEqual(conf.db_pool_size, 5)
-            self.assertEqual(conf.culling_stale_warning_offset_days, 7)
-            self.assertEqual(conf.culling_culled_offset_days, 14)
+            self.assertEqual(conf.culling_stale_warning_offset_delta, timedelta(days=7))
+            self.assertEqual(conf.culling_culled_offset_delta, timedelta(days=14))
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):

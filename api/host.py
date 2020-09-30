@@ -445,7 +445,6 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def add_host_checkin(body):
-    # Get fields from body
     facts = body.get("canonical_facts")
     staleness_offset = body.get("staleness_offset")
     return update_host_staleness(current_identity.account_number, facts, staleness_offset)
