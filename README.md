@@ -133,17 +133,36 @@ and provide the path to the certificate you'd like to use.
 ## Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
-service.  For testing purposes, it is possible to set the required identity
+service. For testing purposes, it is possible to set the required identity
 header to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0=
+x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlVzZXIiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICIwMDAwMDEifX19Cg==
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
+{"identity": {"account_number": "0000001", "type": "User", "internal": {"org_id": "000001"}}}
+```
+
+The above one is an example with type "User", it's possible to use "System" as a parameter
+instead of "User":
+
+```
+x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlN5c3RlbSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0K
+```
+
+This is the Base64 enconding the following JSON document:
+
+```json
+{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}
+```
+
+If you want to encode other JSON document you can use command example bellow:
+
+```shell
+echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64
 ```
 
 ## Using the legacy api
