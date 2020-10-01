@@ -33,6 +33,7 @@ INVALID_SYSTEM_PROFILES = (
     {"last_boot_time": ["x" * 51]},
     {"running_processes": ["x" * 1001]},
     {"subscription_status": ["x" * 101]},
+    {"subscription_auto_attach": ["x" * 101]},
     {"cloud_provider": ["x" * 101]},
     {"yum_repos": [{"id": "x" * 257}]},
     {"yum_repos": [{"name": "x" * 1025}]},
@@ -48,6 +49,10 @@ INVALID_SYSTEM_PROFILES = (
     {"installed_packages": ["x" * 513]},
     {"installed_services": ["x" * 513]},
     {"enabled_services": ["x" * 513]},
+    {"sap_sids": ["XXXX"]},
+    {"sap_sids": ["XX"]},
+    {"sap_sids": ["123"]},
+    {"sap_sids": ["abc"]},
 )
 
 
