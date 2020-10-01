@@ -146,7 +146,7 @@ This is the Base64 encoding of the following JSON document:
 {"identity": {"account_number": "0000001", "type": "User", "internal": {"org_id": "000001"}}}
 ```
 
-The above header has the "User" identity `type`, it's possible to use a "System" `type` header as well.
+The above header has the "User" identity type, but it's possible to use a "System" type header as well.
 
 ```
 x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlN5c3RlbSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0K
