@@ -75,6 +75,7 @@ def get_host_list(
     param_order_how,
     staleness,
     registered_with,
+    filter,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -84,7 +85,9 @@ def get_host_list(
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
+        "filter": _query_filters(
+            fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+        ),
     }
     response = graphql_query(QUERY, variables)["hosts"]
 
@@ -106,7 +109,16 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
+def _sap_system_filters(sap_system):
+    if sap_system == "nil":
+        return ({"spf_sap_system": {"is": None}},)
+    elif sap_system == "not_nil":
+        return ({"NOT": {"spf_sap_system": {"is": None}}},)
+    else:
+        return ({"spf_sap_system": {"is": (sap_system == "true")}},)
+
+
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -135,6 +147,14 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                if isinstance(filter["system_profile"]["sap_system"], str):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"])
+                elif filter["system_profile"]["sap_system"].get("eq"):
+                    query_filters += _sap_system_filters(filter["system_profile"]["sap_system"]["eq"])
 
     logger.debug(query_filters)
     return query_filters
