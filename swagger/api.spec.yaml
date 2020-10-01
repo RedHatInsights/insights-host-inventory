@@ -51,6 +51,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -513,7 +514,34 @@ components:
         type: string
         enum:
           - insights
-
+    filter_param:
+      in: query
+      name: filter
+      required: false
+      description: Filters hosts based on system_profile fields
+      style: deepObject
+      explode: true
+      schema:
+        type: object
+        additionalProperties:
+          type: object
+          description: System profile field values to filter with
+          additionalProperties:
+            oneOf:
+              - type: string
+                enum:
+                  - "true"
+                  - "false"
+                  - "nil"
+                  - "not_nil"
+              - type: object
+                additionalProperties:
+                  type: string
+                  enum:
+                    - "true"
+                    - "false"
+                    - "nil"
+                    - "not_nil"
 
   schemas:
     TagsOut:

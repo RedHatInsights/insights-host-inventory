@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import flask
 from sqlalchemy import and_
 from sqlalchemy import or_
 
@@ -29,7 +30,11 @@ def get_host_list(
     order_how,
     staleness,
     registered_with,
+    filter,
 ):
+    if filter:
+        flask.abort(503)
+
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
     elif display_name:
