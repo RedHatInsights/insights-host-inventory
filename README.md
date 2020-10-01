@@ -158,7 +158,7 @@ This is the Base64 encoding of the following JSON document:
 {"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}
 ```
 
-If you want to encode other JSON documents you can use command below:
+If you want to encode other JSON documents, you can use the following command:
 
 ```shell
 echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64
