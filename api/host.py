@@ -1,3 +1,4 @@
+from datetime import timedelta
 from enum import Enum
 
 import connexion
@@ -22,6 +23,8 @@ from app import inventory_config
 from app import Permission
 from app.auth import current_identity
 from app.config import BulkQuerySource
+from app.culling import _Config as CullingConfig
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -447,4 +450,13 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 def add_host_checkin(body):
     facts = body.get("canonical_facts")
     staleness_offset = body.get("staleness_offset")
-    return update_host_staleness(current_identity.account_number, facts, staleness_offset)
+    config = CullingConfig(
+        stale_warning_offset_delta=timedelta(minutes=staleness_offset),
+        culled_offset_delta=inventory_config().culling_culled_offset_delta,
+    )
+    timestamps = Timestamps(config)
+    serialized_host, host_id, insights_id, updated = update_host_staleness(
+        current_identity.account_number, facts, timestamps
+    )
+    _emit_patch_event(serialized_host, host_id, insights_id)
+    return serialized_host

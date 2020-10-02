@@ -1,13 +1,10 @@
-from datetime import timedelta
 from enum import Enum
 
 from sqlalchemy import and_
 from sqlalchemy import or_
 
 from app import inventory_config
-from app.culling import _Config as CullingConfig
 from app.culling import staleness_to_conditions
-from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -61,19 +58,14 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
             return create_new_host(input_host, staleness_offset, fields)
 
 
-def update_host_staleness(account_number, canonical_facts, staleness_offset):
+def update_host_staleness(account_number, canonical_facts, timestamps):
     """
-    Updates the staleness timestamp for a host with the specified account number
-    and canonical facts.
+    Updates the staleness timestamp for a host with matching canonical facts.
     """
 
-    existing_host = find_existing_host(account_number, canonical_facts)
-    config = CullingConfig(
-        stale_warning_offset_delta=timedelta(minutes=staleness_offset),
-        culled_offset_delta=inventory_config().culled_offset_delta,
-    )
-    new_host = update_existing_host(existing_host, existing_host, Timestamps(config), False, DEFAULT_FIELDS)
-    return new_host
+    with session_guard(db.session):
+        existing_host = find_existing_host(account_number, canonical_facts)
+        return update_existing_host(existing_host, existing_host, timestamps, False, DEFAULT_FIELDS)
 
 
 @metrics.host_dedup_processing_time.time()
