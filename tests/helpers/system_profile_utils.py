@@ -37,7 +37,7 @@ INVALID_SYSTEM_PROFILES = (
     {"cloud_provider": ["x" * 101]},
     {"yum_repos": [{"id": "x" * 257}]},
     {"yum_repos": [{"name": "x" * 1025}]},
-    {"yum_repos": [{"base_url": "x" * 2049}]},
+    {"yum_repos": [{"baseurl": "x" * 2049}]},
     {"dnf_modules": [{"name": "x" * 129}]},
     {"dnf_modules": [{"stream": "x" * 2049}]},
     {"installed_products": [{"name": "x" * 513}]},
