@@ -65,7 +65,10 @@ def update_host_staleness(account_number, canonical_facts, timestamps):
 
     with session_guard(db.session):
         existing_host = find_existing_host(account_number, canonical_facts)
-        return update_existing_host(existing_host, existing_host, timestamps, False, DEFAULT_FIELDS)
+        if existing_host:
+            return update_existing_host(existing_host, existing_host, timestamps, False, DEFAULT_FIELDS)
+        else:
+            return None, None, None, None
 
 
 @metrics.host_dedup_processing_time.time()

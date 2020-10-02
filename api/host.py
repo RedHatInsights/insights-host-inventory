@@ -458,5 +458,16 @@ def add_host_checkin(body):
     serialized_host, host_id, insights_id, updated = update_host_staleness(
         current_identity.account_number, facts, timestamps
     )
-    _emit_patch_event(serialized_host, host_id, insights_id)
-    return serialized_host
+    if serialized_host:
+        _emit_patch_event(serialized_host, host_id, insights_id)
+        return flask_json_response(serialized_host, 201)
+    else:
+        return flask_json_response(
+            {
+                "detail": "No hosts match the provided facts.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "about:blank",
+            },
+            status=400,
+        )
