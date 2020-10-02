@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 import pytest
 
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
+from tests.helpers.api_utils import build_host_checkin_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -17,6 +20,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import now
 
 
 @pytest.mark.parametrize(
@@ -40,6 +44,24 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
 
     for key in patch_doc:
         assert getattr(record, key) == patch_doc[key]
+
+
+@pytest.mark.parametrize("staleness_offset", [1, 60, 2400])
+@pytest.mark.system_culling
+def test_checkin(staleness_offset, event_producer_mock, db_create_host, db_get_host, api_put):
+    host = db_host()
+    created_host = db_create_host(host)
+
+    put_doc = {"canonical_facts": {"insights_id": f'"{created_host.id}"'}, "staleness_offset": staleness_offset}
+
+    url = build_host_checkin_url()
+    response_status, response_data = api_put(url, put_doc)
+
+    assert_response_status(response_status, expected_status=201)
+    record = db_get_host(created_host.id)
+    expected_stale_timestamp = now() + timedelta(minutes=staleness_offset)
+
+    assert record.stale_timestamp == expected_stale_timestamp
 
 
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):

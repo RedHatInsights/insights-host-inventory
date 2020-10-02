@@ -111,13 +111,13 @@ paths:
         '400':
           description: Invalid request.
   /hosts/checkin:
-    post:
-      operationId: api.host.add_host_checkin
+    put:
+      operationId: api.host.host_checkin
       tags:
         - hosts
-      summary: Create a host check-in record to update staleness timestamps
+      summary: Update staleness timestamps for a host matching the provided facts
       description: >-
-        Create a check-in record to update a host's staleness timestamps.
+        Finds a host and updates its staleness timestamps.
         It uses the supplied canonical facts to determine which host to update.
         By default, the staleness timestamp is set to 1 hour from when the request is received;
         however, this can be overridden by supplying the interval.
@@ -135,7 +135,7 @@ paths:
               $ref: '#/components/schemas/CreateCheckIn'
       responses:
         '201':
-          description: Successfully created check-in record.
+          description: Successfully updated host's timestamps.
           content:
             application/json:
               schema:
@@ -143,18 +143,8 @@ paths:
               examples:
                 update:
                   value:
-                    status: 200
-                    host: Host details
-                create:
-                  value:
                     status: 201
                     host: Host details
-                error:
-                  value:
-                    status: 400
-                    title: Invalid Request
-                    detail: Could not process request
-                    host: Input host data
         '400':
           description: Invalid request.
   '/hosts/{host_id_list}':

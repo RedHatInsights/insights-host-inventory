@@ -447,7 +447,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def add_host_checkin(body):
+def host_checkin(body):
     facts = body.get("canonical_facts")
     staleness_offset = body.get("staleness_offset")
     config = CullingConfig(
