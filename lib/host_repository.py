@@ -12,7 +12,6 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
-from tests.helpers.test_utils import now
 
 __all__ = (
     "add_host",
@@ -66,7 +65,7 @@ def update_host_staleness(account_number, canonical_facts, timestamps):
 
     existing_host = find_existing_host(account_number, canonical_facts)
     if existing_host:
-        updated_staleness = now() + timestamps.config.stale_warning_offset_delta
+        updated_staleness = existing_host.stale_timestamp + timestamps.config.stale_warning_offset_delta
         input_host = Host(
             {"insights_id": existing_host.canonical_facts["insights_id"]},
             stale_timestamp=updated_staleness,

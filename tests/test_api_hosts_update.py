@@ -53,8 +53,6 @@ def test_checkin(staleness_offset, event_producer_mock, db_create_host, db_get_h
     created_host = db_create_host(host)
     original_timestamp = created_host.stale_timestamp
 
-    print(f"Stale timestamp after creation: {original_timestamp}")
-
     put_doc = {
         "canonical_facts": {"insights_id": f"{created_host.canonical_facts['insights_id']}"},
         "staleness_offset": staleness_offset,
@@ -65,8 +63,6 @@ def test_checkin(staleness_offset, event_producer_mock, db_create_host, db_get_h
 
     assert_response_status(response_status, expected_status=201)
     record = db_get_host(created_host.id)
-
-    print(f"Stale timestamp after Check-In: {record.stale_timestamp}")
 
     expected_stale_timestamp = original_timestamp + timedelta(minutes=staleness_offset)
 
