@@ -52,7 +52,10 @@ def test_checkin(staleness_offset, event_producer_mock, db_create_host, db_get_h
     host = db_host()
     created_host = db_create_host(host)
 
-    put_doc = {"canonical_facts": {"insights_id": f'"{created_host.id}"'}, "staleness_offset": staleness_offset}
+    put_doc = {
+        "canonical_facts": {"insights_id": f"{created_host.canonical_facts['insights_id']}"},
+        "staleness_offset": staleness_offset,
+    }
 
     url = build_host_checkin_url()
     response_status, response_data = api_put(url, put_doc)

@@ -63,12 +63,11 @@ def update_host_staleness(account_number, canonical_facts, timestamps):
     Updates the staleness timestamp for a host with matching canonical facts.
     """
 
-    with session_guard(db.session):
-        existing_host = find_existing_host(account_number, canonical_facts)
-        if existing_host:
-            return update_existing_host(existing_host, existing_host, timestamps, False, DEFAULT_FIELDS)
-        else:
-            return None, None, None, None
+    existing_host = find_existing_host(account_number, canonical_facts)
+    if existing_host:
+        return update_existing_host(existing_host, existing_host, timestamps, False, DEFAULT_FIELDS)
+    else:
+        return None, None, None, None
 
 
 @metrics.host_dedup_processing_time.time()
