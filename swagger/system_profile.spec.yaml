@@ -44,7 +44,7 @@ $defs:
         type: boolean
       enabled:
         type: boolean
-      baseurl:
+      base_url:
         type: string
         format: uri
         maxLength: 2048
