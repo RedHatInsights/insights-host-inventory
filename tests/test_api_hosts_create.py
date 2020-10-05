@@ -23,6 +23,7 @@ from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SHARED_SECRET
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -953,6 +954,7 @@ def test_create_host_with_system_profile_with_invalid_data(api_create_or_update_
         "http://foo.com http://foo.com",
         "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch",
         "https://codecs.fedoraproject.org/openh264/$releasever/$basearch/debug/",
+        r"Something reałly bogus 🤯 !`@#$~^&*{}[]()<>≤≥\|-:?§;=",
     ],
 )
 def test_create_host_with_system_profile_with_different_yum_urls(api_create_or_update_host, api_get, yum_url):
@@ -984,6 +986,29 @@ def test_create_host_with_system_profile_with_different_yum_urls(api_create_or_u
 
 
 @pytest.mark.system_profile
+@pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
+def test_create_host_with_invalid_yum_url_field_name(api_create_or_update_host, api_get, baseurl):
+    yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
+
+    host = minimal_host(system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]})
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+    assert_response_status(multi_response_status, 207)
+
+    create_host_response = get_host_from_multi_response(multi_response_data)
+    assert_host_was_created(create_host_response)
+
+    created_host = create_host_response["host"]
+    assert "system_profile" not in created_host
+
+    response_status, response_data = api_get(f"{HOST_URL}/{created_host['id']}/system_profile")
+    assert_response_status(response_status, 200)
+
+    host_response = get_host_from_response(response_data)
+    assert host_response["id"] == created_host["id"]
+    assert host_response["system_profile"] == {"yum_repos": [yum_repo]}
+
+
+@pytest.mark.system_profile
 @pytest.mark.parametrize("cloud_provider", ["cumulonimbus", "cumulus", "c" * 100])
 def test_create_host_with_system_profile_with_different_cloud_providers(
     api_create_or_update_host, api_get, cloud_provider
@@ -1012,6 +1037,15 @@ def test_create_host_with_system_profile_with_different_cloud_providers(
 
     assert host_response["id"] == created_host["id"]
     assert host_response["system_profile"] == host.system_profile
+
+
+@pytest.mark.system_profile
+@pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
+def test_create_host_with_invalid_system_profile(api_create_or_update_host, api_get, system_profile):
+    host = minimal_host(system_profile=system_profile)
+
+    multi_response_status, multi_response_data = api_create_or_update_host([host])
+    assert_response_status(multi_response_status, 400)
 
 
 @pytest.mark.system_profile

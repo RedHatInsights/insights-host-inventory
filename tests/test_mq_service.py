@@ -366,6 +366,16 @@ def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_p
 
 
 @pytest.mark.system_profile
+@pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
+def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_get_host, baseurl):
+    yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
+    host_to_create = minimal_host(system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]})
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"yum_repos": [yum_repo]}
+
+
+@pytest.mark.system_profile
 def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_host):
     host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
     created_host_from_event = mq_create_or_update_host(host_to_create)
