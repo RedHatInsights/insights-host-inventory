@@ -69,6 +69,20 @@ def test_checkin(staleness_offset, event_producer_mock, db_create_host, db_get_h
     assert record.stale_timestamp == expected_stale_timestamp
 
 
+@pytest.mark.system_culling
+def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_put):
+    host = db_host(stale_timestamp=now().isoformat(), reporter="some reporter")
+    created_host = db_create_host(host)
+
+    put_doc = {
+        "canonical_facts": {"insights_id": f"nomatch_{created_host.canonical_facts['insights_id']}"},
+        "staleness_offset": 60,
+    }
+
+    response_status, response_data = api_put(build_host_checkin_url(), put_doc)
+    assert_response_status(response_status, expected_status=400)
+
+
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):
     patch_doc = {"display_name": "branch_id_test"}
 

@@ -673,8 +673,8 @@ components:
           description: Defines how far in the future the host becomes stale (in minutes).
           type: integer
           minimum: 1
-          maximum: 1440
-          default: 60
+          maximum: 2880
+          default: 1440
           example: 45
     CreateHostIn:
       title: Host data
