@@ -115,7 +115,7 @@ def _sap_system_filters(sap_system):
     elif sap_system == "not_nil":
         return {"NOT": {"spf_sap_system": {"is": None}}}
     else:
-        return {"spf_sap_system": {"is": (sap_system == "true")}}
+        return {"spf_sap_system": {"is": (sap_system.lower() == "true")}}
 
 
 def build_sap_system_filters(sap_system):
