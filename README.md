@@ -266,8 +266,7 @@ When a new pull request is opened the following checks are [run automatically](h
 
 Should any of these fail this is indicated directly on the pull request.
 
-When all of these checks pass and a reviewer approves the changes the pull request can be merged.
-Currently [@Glutexo](https://github.com/Glutexo) and [@jharting](https://github.com/jharting) are authorized to merge pull requests.
+When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from the [@RedHatInsights/host-based-inventory-committers ](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers) team.
 
 ## 2. Latest image and smoke tests
 

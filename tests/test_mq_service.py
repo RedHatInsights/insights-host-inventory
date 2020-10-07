@@ -1,6 +1,8 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 
 import marshmallow
 import pytest
@@ -9,14 +11,19 @@ from sqlalchemy import null
 from app import db
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.models import MqHostSchema
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from app.serialization import deserialize_host
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
+from tests.helpers.system_profile_utils import mock_system_profile_specification
+from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -340,13 +347,80 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host)
 
 
+@pytest.mark.system_profile
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
-    insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
-    host = minimal_host(insights_id=insights_id, system_profile=system_profile)
+    host = minimal_host(system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
+
+
+@pytest.mark.system_profile
+@pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
+def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
+    host = minimal_host(system_profile=system_profile)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+@pytest.mark.system_profile
+@pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
+def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_get_host, baseurl):
+    yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
+    host_to_create = minimal_host(system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]})
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"yum_repos": [yum_repo]}
+
+
+@pytest.mark.system_profile
+def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_host):
+    host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+
+    assert created_host_from_db.system_profile_facts == {"number_of_cpus": 1}
+
+
+@pytest.mark.system_profile
+def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_host):
+    host_to_create = minimal_host(
+        system_profile={
+            "number_of_cpus": 1,
+            "number_of_gpus": 2,
+            "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
+        }
+    )
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {
+        "number_of_cpus": 1,
+        "disk_devices": [{"options": {"uid": "0"}}],
+    }
+
+
+def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
+    mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
+    mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
+
+    host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+    mq_create_or_update_host(host_to_create)
+    mock.assert_called_once_with(mocker.ANY, MqHostSchema)
+
+    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
+
+
+def test_add_host_externalized_system_profile(mq_create_or_update_host):
+    orig_spec = system_profile_specification()
+    mock_spec = deepcopy(orig_spec)
+    mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+
+    with mock_system_profile_specification(mock_spec):
+        host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host_to_create)
 
 
 @pytest.mark.parametrize(
