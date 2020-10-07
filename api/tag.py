@@ -108,7 +108,8 @@ def get_tags(
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
-    variables["hostFilter"]["AND"] = hostfilter_and_variables
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(TAGS_QUERY, variables)
     data = response["hostTags"]
