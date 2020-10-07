@@ -669,7 +669,7 @@ components:
         canonical_facts:
           description: A set of canonical_facts belonging to the host.
           $ref: '#/components/schemas/Facts'
-        staleness_offset:
+        checkin_frequency:
           description: Defines how far in the future the host becomes stale (in minutes).
           type: integer
           minimum: 1
