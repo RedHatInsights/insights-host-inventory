@@ -30,15 +30,7 @@ def get_host_list(
     order_how,
     staleness,
     registered_with,
-<<<<<<< HEAD
-<<<<<<< HEAD
     filter,
-=======
-    filter
->>>>>>> c8ea837... fixes & more tests
-=======
-    filter,
->>>>>>> 73aeb16... style
 ):
     if filter:
         flask.abort(503)

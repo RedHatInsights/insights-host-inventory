@@ -354,6 +354,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: Tags
@@ -524,11 +525,6 @@ components:
       schema:
         type: object
         description: System profile field values to filter with
-        properties:
-          # sap_system:
-          #   $ref: '#/components/schemas/sap_system'
-          sap_sids:
-            $ref: '#/components/schemas/sap_sids'
 
   schemas:
     TagsOut:

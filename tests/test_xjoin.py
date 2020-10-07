@@ -1135,7 +1135,17 @@ def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, grap
     graphql_query_with_response.assert_not_called()
 
 
-def test_query_filter_spf_sap_system(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_filter_spf_sap_system(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    graphql_responses = (graphql_query_empty_response, graphql_tag_query_empty_response)
+    url_builders = (build_hosts_url, build_tags_url)
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
     values = ("true", "false", "nil", "not_nil")
     queries = (
@@ -1145,23 +1155,68 @@ def test_query_filter_spf_sap_system(mocker, subtests, query_source_xjoin, graph
         {"NOT": {"spf_sap_system": {"is": None}}},
     )
 
-    for path in filter_paths:
-        for value, query in zip(values, queries):
-            with subtests.test(value=value, path=path):
-                url = build_hosts_url(query=f"?filter{path}={value}")
+    for url_builder, graphql_response in zip(url_builders, graphql_responses):
+        for path in filter_paths:
+            for value, query in zip(values, queries):
+                with subtests.test(
+                    value=value, query=query, path=path, url_builder=url_builder, graphql_response=graphql_response
+                ):
+                    url = url_builder(query=f"?filter{path}={value}")
 
-                response_status, response_data = api_get(url)
+                    print(url)
 
-                assert response_status == 200
+                    response_status, response_data = api_get(url)
 
-                graphql_query_empty_response.assert_called_once_with(
-                    HOST_QUERY,
-                    {
-                        "order_by": mocker.ANY,
-                        "order_how": mocker.ANY,
-                        "limit": mocker.ANY,
-                        "offset": mocker.ANY,
-                        "filter": ({"OR": mocker.ANY}, query),
-                    },
-                )
-                graphql_query_empty_response.reset_mock()
+                    assert response_status == 200
+
+                    graphql_response.assert_called_once_with(
+                        HOST_QUERY,
+                        {
+                            "order_by": mocker.ANY,
+                            "order_how": mocker.ANY,
+                            "limit": mocker.ANY,
+                            "offset": mocker.ANY,
+                            "filter": ({"OR": mocker.ANY}, query),
+                        },
+                    )
+                    graphql_query_empty_response.reset_mock()
+
+
+def test_query_filter_spf_sap_sids(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, graphql_tag_query_empty_response, api_get
+):
+    graphql_responses = (graphql_query_empty_response, graphql_tag_query_empty_response)
+    url_builders = (build_hosts_url, build_tags_url)
+    filter_paths = ("[system_profile][sap_sids]", "[system_profile][sap_sids][eq]")
+    values = ("XQC", "ABC,A12", "M80,BEN")
+    queries = (
+        {"spf_sap_sids": {"eq": "XQC"}},
+        {"spf_sap_sids": {"eq": "ABC"}},
+        {"spf_sap_sids": {"eq": "A12"}},
+        {"spf_sap_sids": {"eq": "M80"}},
+        {"spf_sap_sids": {"eq": "BEN"}},
+    )
+
+    for url_builder, graphql_response in zip(url_builders, graphql_responses):
+        for path in filter_paths:
+            for value, query in zip(values, queries):
+                with subtests.test(
+                    value=value, query=query, path=path, url_builder=url_builder, graphql_response=graphql_response
+                ):
+                    url = url_builder(query=f"?filter{path}={value}")
+
+                    response_status, response_data = api_get(url)
+
+                    assert response_status == 200
+
+                    graphql_response.assert_called_once_with(
+                        HOST_QUERY,
+                        {
+                            "order_by": mocker.ANY,
+                            "order_how": mocker.ANY,
+                            "limit": mocker.ANY,
+                            "offset": mocker.ANY,
+                            "filter": ({"OR": mocker.ANY}, query),
+                        },
+                    )
+                    graphql_query_empty_response.reset_mock()
