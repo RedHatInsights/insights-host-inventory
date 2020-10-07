@@ -449,7 +449,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @metrics.api_request_time.time()
 def host_checkin(body):
     facts = body.get("canonical_facts")
-    checkin_frequency = body.get("checkin_frequency")
+    checkin_frequency = body.get("checkin_frequency") or 1440
     config = CullingConfig(
         stale_warning_offset_delta=timedelta(minutes=checkin_frequency),
         culled_offset_delta=inventory_config().culling_culled_offset_delta,
