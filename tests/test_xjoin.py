@@ -1163,8 +1163,6 @@ def test_query_filter_spf_sap_system(
                 ):
                     url = url_builder(query=f"?filter{path}={value}")
 
-                    print(url)
-
                     response_status, response_data = api_get(url)
 
                     assert response_status == 200
