@@ -1133,3 +1133,35 @@ def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, grap
     response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
+
+
+def test_query_filter_spf_sap_system(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+    filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
+    values = ("true", "false", "nil", "not_nil")
+    queries = (
+        {"spf_sap_system": {"is": True}},
+        {"spf_sap_system": {"is": False}},
+        {"spf_sap_system": {"is": None}},
+        {"NOT": {"spf_sap_system": {"is": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                )
+                graphql_query_empty_response.reset_mock()

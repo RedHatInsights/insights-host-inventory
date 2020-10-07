@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from base64 import b64encode
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -35,6 +36,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
 from app.queue.event_producer import Topic
@@ -56,6 +58,9 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from tests.helpers.mq_utils import expected_encoded_headers
+from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
+from tests.helpers.system_profile_utils import mock_system_profile_specification
+from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
 
 
@@ -276,7 +281,6 @@ class ConfigTestCase(TestCase):
 
         # Make sure the runtime_environment variables are not set
         with set_environment(None):
-
             conf = self._config()
 
             self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
@@ -289,7 +293,6 @@ class ConfigTestCase(TestCase):
 
     def test_config_development_settings(self):
         with set_environment({"INVENTORY_DB_POOL_TIMEOUT": "3"}):
-
             conf = self._config()
 
             self.assertEqual(conf.db_pool_timeout, 3)
@@ -1760,6 +1763,223 @@ class EventProducerTests(TestCase):
             headers,
             self.event_producer._kafka_producer.send.side_effect,
         )
+
+
+class ModelsSystemProfileNormalizerFilterKeysTestCase(TestCase):
+    def setUp(self):
+        self.normalizer = SystemProfileNormalizer()
+
+    def test_root_keys_are_kept(self):
+        original = {"number_of_cpus": 1}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_object_keys_are_kept(self):
+        original = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"]}]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_root_keys_are_removed(self):
+        payload = {"number_of_cpus": 1, "number_of_gpus": 2}
+        self.normalizer.filter_keys(payload)
+        expected = {"number_of_cpus": 1}
+        self.assertEqual(expected, payload)
+
+    def test_array_items_object_keys_removed(self):
+        payload = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"], "mac_addresses": ["aa:bb:cc:dd:ee:ff"]}]}
+        self.normalizer.filter_keys(payload)
+        expected = {"network_interfaces": [{"ipv4_addresses": ["10.0.0.1"]}]}
+        self.assertEqual(expected, payload)
+
+    def test_root_non_object_keys_without_type_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"] = {"properties": {"number_of_cpus": {"type": "integer"}}}
+        payload = {"number_of_gpus": 1}
+        original = deepcopy(payload)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_nested_non_object_keys_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["boot_options"] = {
+            "properties": {"enable_acpi": {"type": "boolean"}}
+        }
+        original = {"boot_options": {"safe_mode": False}}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_non_object_keys_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["hid_devices"] = {
+            "type": "array",
+            "items": {"properties": {"model": {"type": "string"}}},
+        }
+        original = {"hid_devices": [{"model": "Keyboard 3in1", "manufacturer": "Logitech"}]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_root_object_keys_without_properties_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"] = {"type": "object"}
+        payload = {"number_of_cpus": 1}
+        original = deepcopy(payload)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_nested_object_keys_without_properties_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["boot_options"] = {"type": "object"}
+        original = {"boot_options": {"enable_acpi": True}}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_object_keys_without_properties_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["hid_devices"] = {
+            "type": "array",
+            "items": {"type": "object"},
+        }
+        original = {"hid_devices": [{"model": "Keyboard 3in1", "manufacturer": "Logitech"}]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_nested_object_keys_without_properties_are_kept(self):
+        original = {"disk_devices": [{"options": {"uid": "0"}}, {"options": "uid=0"}]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_without_schema_are_kept(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["hid_devices"] = {"type": "array"}
+        original = {"hid_devices": [{"model": "Keyboard 3in1"}, "Keyboard 3in1"]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_additional_properties_are_ignored(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["additionalProperties"] = {"type": "integer"}
+        payload = {"number_of_gpus": "1"}
+        self.normalizer.filter_keys(payload)
+        self.assertEqual({}, payload)
+
+    def test_required_properties_are_ignored(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["required"] = ["number_of_gpus"]
+        payload = {"number_of_gpus": 1}
+        self.normalizer.filter_keys(payload)
+        self.assertEqual({}, payload)
+
+    def test_root_invalid_objects_are_ignored(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["boot_options"] = {
+            "type": "object",
+            "properties": {"enable_acpi": {"type": "boolean"}},
+        }
+        original = {"boot_options": "enable_acpi=1"}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_invalid_objects_are_ignored(self):
+        original = {"network_interfaces": ["eth0"]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_array_items_invalid_nested_objects_are_ignored(self):
+        self.normalizer.schema["$defs"]["DiskDevice"]["properties"]["mount_options"] = {
+            "type": "object",
+            "properties": {"uid": {"type": "integer"}},
+        }
+        original = {"disk_devices": [{"mount_options": "uid=0"}]}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+    def test_root_invalid_arrays_are_ignored(self):
+        self.normalizer.schema["$defs"]["SystemProfile"]["properties"]["boot_options"] = {
+            "type": "array",
+            "items": {"type": "string"},
+        }
+        original = {"boot_options": "enable_acpi=1"}
+        payload = deepcopy(original)
+        self.normalizer.filter_keys(payload)
+        self.assertEqual(original, payload)
+
+
+class ModelsSystemProfileTestCase(TestCase):
+    def _payload(self, system_profile):
+        return {
+            "account": "0000001",
+            "system_profile": system_profile,
+            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "reporter": "test",
+        }
+
+    def _assert_system_profile_is_invalid(self, load_result):
+        self.assertIn("system_profile", load_result.errors)
+        self.assertTrue(
+            any(
+                "System profile does not conform to schema." in message
+                for message in load_result.errors["system_profile"]
+            )
+        )
+
+    def test_invalid_values_are_rejected(self):
+        schema = MqHostSchema()
+        for system_profile in INVALID_SYSTEM_PROFILES:
+            with self.subTest(system_profile=system_profile):
+                payload = self._payload(system_profile)
+                result = schema.load(payload)
+                self._assert_system_profile_is_invalid(result)
+
+    def test_specification_file_is_used(self):
+        payload = self._payload({"number_of_cpus": 1})
+
+        orig_spec = system_profile_specification()
+        mock_spec = deepcopy(orig_spec)
+        mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+
+        with mock_system_profile_specification(mock_spec):
+            schema = MqHostSchema()
+            result = schema.load(payload)
+            self._assert_system_profile_is_invalid(result)
+
+    def test_types_are_coerced(self):
+        payload = self._payload({"number_of_cpus": "1"})
+        schema = MqHostSchema()
+        result = schema.load(payload)
+        self.assertEqual({"number_of_cpus": 1}, result.data["system_profile"])
+
+    def test_fields_are_filtered(self):
+        payload = self._payload(
+            {
+                "number_of_cpus": 1,
+                "number_of_gpus": 2,
+                "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"], "mac_addresses": ["aa:bb:cc:dd:ee:ff"]}],
+            }
+        )
+        schema = MqHostSchema()
+        result = schema.load(payload)
+        expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
+        self.assertEqual(expected, result.data["system_profile"])
+
+    @patch("app.models.jsonschema_validate")
+    def test_type_coercion_happens_before_loading(self, jsonschema_validate):
+        schema = MqHostSchema()
+        payload = self._payload({"number_of_cpus": "1"})
+        schema.load(payload)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_cpus": 1}, MqHostSchema.system_profile_normalizer.schema
+        )
+
+    @patch("app.models.jsonschema_validate")
+    def test_type_filtering_happens_after_loading(self, jsonschema_validate):
+        schema = MqHostSchema()
+        payload = self._payload({"number_of_gpus": 1})
+        result = schema.load(payload)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_gpus": 1}, MqHostSchema.system_profile_normalizer.schema
+        )
+        self.assertEqual({}, result.data["system_profile"])
 
 
 if __name__ == "__main__":

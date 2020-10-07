@@ -1,18 +1,29 @@
 import uuid
+from collections import namedtuple
+from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
+from enum import Enum
+from os.path import join
 
+from connexion.decorators.validation import coerce_type
 from flask_sqlalchemy import SQLAlchemy
+from jsonschema import RefResolver
+from jsonschema import validate as jsonschema_validate
+from jsonschema import ValidationError as JsonSchemaValidationError
 from marshmallow import fields
-from marshmallow import Schema
-from marshmallow import validate
+from marshmallow import post_load
+from marshmallow import pre_load
+from marshmallow import Schema as MarshmallowSchema
+from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
-from marshmallow import ValidationError
+from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy import Index
 from sqlalchemy import orm
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
+from yaml import safe_load
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -25,9 +36,12 @@ logger = get_logger(__name__)
 
 db = SQLAlchemy()
 
-TAG_NAMESPACE_VALIDATION = validate.Length(max=255)
-TAG_KEY_VALIDATION = validate.Length(min=1, max=255)
-TAG_VALUE_VALIDATION = validate.Length(max=255)
+TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
+TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
+TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
+
+SPECIFICATION_DIR = "./swagger/"
+SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 
 def _set_display_name_on_save(context):
@@ -43,6 +57,67 @@ def _set_display_name_on_save(context):
 
 def _time_now():
     return datetime.now(timezone.utc)
+
+
+class SystemProfileNormalizer:
+    class Schema(namedtuple("Schema", ("type", "properties", "items"))):
+        Types = Enum("SchemaTypes", ("array", "object"))
+
+        @classmethod
+        def from_dict(cls, schema, resolver):
+            if "$ref" in schema:
+                _, schema = resolver.resolve(schema["$ref"])
+
+            filtered = {key: schema.get(key) for key in cls._fields}
+            return cls(**filtered)
+
+        @property
+        def schema_type(self):
+            return self.Types.__members__.get(self.type)
+
+    SOME_ARBITRARY_STRING = "property"
+
+    def __init__(self):
+        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+        with open(specification) as file:
+            system_profile_spec = safe_load(file)
+
+        self.schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
+        self._resolver = RefResolver.from_schema(system_profile_spec)
+
+    def filter_keys(self, payload, schema_dict=None):
+        if schema_dict is None:
+            schema_dict = self._system_profile_definition()
+
+        schema_obj = self.Schema.from_dict(schema_dict, self._resolver)
+        if schema_obj.schema_type == self.Schema.Types.object:
+            self._object_filter(schema_obj, payload)
+        elif schema_obj.schema_type == self.Schema.Types.array:
+            self._array_filter(schema_obj, payload)
+
+    def coerce_types(self, payload, schema_dict=None):
+        if schema_dict is None:
+            schema_dict = self._system_profile_definition()
+        coerce_type(schema_dict, payload, self.SOME_ARBITRARY_STRING)
+
+    def _system_profile_definition(self):
+        return self.schema["$defs"]["SystemProfile"]
+
+    def _object_filter(self, schema, payload):
+        if not schema.properties or type(payload) is not dict:
+            return
+
+        for key in payload.keys() - schema.properties.keys():
+            del payload[key]
+        for key in payload:
+            self.filter_keys(payload[key], schema.properties[key])
+
+    def _array_filter(self, schema, payload):
+        if not schema.items or type(payload) is not list:
+            return
+
+        for value in payload:
+            self.filter_keys(value, schema.items)
 
 
 class Host(db.Model):
@@ -238,117 +313,131 @@ class Host(db.Model):
         )
 
 
-class DiskDeviceSchema(Schema):
-    device = fields.Str(validate=validate.Length(max=2048))
-    label = fields.Str(validate=validate.Length(max=1024))
+class DiskDeviceSchema(MarshmallowSchema):
+    device = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    label = fields.Str(validate=marshmallow_validate.Length(max=1024))
     options = fields.Dict(validate=check_empty_keys)
-    mount_point = fields.Str(validate=validate.Length(max=2048))
-    type = fields.Str(validate=validate.Length(max=256))
+    mount_point = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    type = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
-class YumRepoSchema(Schema):
-    id = fields.Str(validate=validate.Length(max=256))
-    name = fields.Str(validate=validate.Length(max=1024))
+class YumRepoSchema(MarshmallowSchema):
+    id = fields.Str(validate=marshmallow_validate.Length(max=256))
+    name = fields.Str(validate=marshmallow_validate.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Str(validate=validate.Length(max=2048))
+    base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
 
 
-class DnfModuleSchema(Schema):
-    name = fields.Str(validate=validate.Length(max=128))
-    stream = fields.Str(validate=validate.Length(max=128))
+class DnfModuleSchema(MarshmallowSchema):
+    name = fields.Str(validate=marshmallow_validate.Length(max=128))
+    stream = fields.Str(validate=marshmallow_validate.Length(max=128))
 
 
-class InstalledProductSchema(Schema):
-    name = fields.Str(validate=validate.Length(max=512))
-    id = fields.Str(validate=validate.Length(max=64))
-    status = fields.Str(validate=validate.Length(max=256))
+class InstalledProductSchema(MarshmallowSchema):
+    name = fields.Str(validate=marshmallow_validate.Length(max=512))
+    id = fields.Str(validate=marshmallow_validate.Length(max=64))
+    status = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
-class NetworkInterfaceSchema(Schema):
+class NetworkInterfaceSchema(MarshmallowSchema):
     ipv4_addresses = fields.List(fields.Str())
     ipv6_addresses = fields.List(fields.Str())
-    state = fields.Str(validate=validate.Length(max=25))
+    state = fields.Str(validate=marshmallow_validate.Length(max=25))
     mtu = fields.Int()
-    mac_address = fields.Str(validate=validate.Length(max=59))
-    name = fields.Str(validate=validate.Length(min=1, max=50))
-    type = fields.Str(validate=validate.Length(max=18))
+    mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
+    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    type = fields.Str(validate=marshmallow_validate.Length(max=18))
 
 
-class SystemProfileSchema(Schema):
+class SystemProfileSchema(MarshmallowSchema):
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
     system_memory_bytes = fields.Int()
-    infrastructure_type = fields.Str(validate=validate.Length(max=100))
-    infrastructure_vendor = fields.Str(validate=validate.Length(max=100))
+    infrastructure_type = fields.Str(validate=marshmallow_validate.Length(max=100))
+    infrastructure_vendor = fields.Str(validate=marshmallow_validate.Length(max=100))
     network_interfaces = fields.List(fields.Nested(NetworkInterfaceSchema()))
     disk_devices = fields.List(fields.Nested(DiskDeviceSchema()))
-    bios_vendor = fields.Str(validate=validate.Length(max=100))
-    bios_version = fields.Str(validate=validate.Length(max=100))
-    bios_release_date = fields.Str(validate=validate.Length(max=50))
-    cpu_flags = fields.List(fields.Str(validate=validate.Length(max=30)))
-    os_release = fields.Str(validate=validate.Length(max=100))
-    os_kernel_version = fields.Str(validate=validate.Length(max=100))
-    arch = fields.Str(validate=validate.Length(max=50))
-    kernel_modules = fields.List(fields.Str(validate=validate.Length(max=255)))
-    last_boot_time = fields.Str(validate=validate.Length(max=50))
-    running_processes = fields.List(fields.Str(validate=validate.Length(max=1000)))
-    subscription_status = fields.Str(validate=validate.Length(max=100))
-    subscription_auto_attach = fields.Str(validate=validate.Length(max=100))
+    bios_vendor = fields.Str(validate=marshmallow_validate.Length(max=100))
+    bios_version = fields.Str(validate=marshmallow_validate.Length(max=100))
+    bios_release_date = fields.Str(validate=marshmallow_validate.Length(max=50))
+    cpu_flags = fields.List(fields.Str(validate=marshmallow_validate.Length(max=30)))
+    os_release = fields.Str(validate=marshmallow_validate.Length(max=100))
+    os_kernel_version = fields.Str(validate=marshmallow_validate.Length(max=100))
+    arch = fields.Str(validate=marshmallow_validate.Length(max=50))
+    kernel_modules = fields.List(fields.Str(validate=marshmallow_validate.Length(max=255)))
+    last_boot_time = fields.Str(validate=marshmallow_validate.Length(max=50))
+    running_processes = fields.List(fields.Str(validate=marshmallow_validate.Length(max=1000)))
+    subscription_status = fields.Str(validate=marshmallow_validate.Length(max=100))
+    subscription_auto_attach = fields.Str(validate=marshmallow_validate.Length(max=100))
     katello_agent_running = fields.Bool()
     satellite_managed = fields.Bool()
-    cloud_provider = fields.Str(validate=validate.Length(max=100))
+    cloud_provider = fields.Str(validate=marshmallow_validate.Length(max=100))
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
     dnf_modules = fields.List(fields.Nested(DnfModuleSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))
-    insights_client_version = fields.Str(validate=validate.Length(max=50))
-    insights_egg_version = fields.Str(validate=validate.Length(max=50))
-    captured_date = fields.Str(validate=validate.Length(max=32))
-    installed_packages = fields.List(fields.Str(validate=validate.Length(max=512)))
-    installed_services = fields.List(fields.Str(validate=validate.Length(max=512)))
-    enabled_services = fields.List(fields.Str(validate=validate.Length(max=512)))
+    insights_client_version = fields.Str(validate=marshmallow_validate.Length(max=50))
+    insights_egg_version = fields.Str(validate=marshmallow_validate.Length(max=50))
+    captured_date = fields.Str(validate=marshmallow_validate.Length(max=32))
+    installed_packages = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
+    installed_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
+    enabled_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
     sap_system = fields.Bool()
-    sap_sids = fields.List(fields.Str(validate=validate.Length(max=3)))
+    sap_sids = fields.List(
+        fields.Str(
+            validate=[marshmallow_validate.Length(max=3), marshmallow_validate.Regexp(regex=r"^[A-Z][A-Z0-9]{2}$")]
+        )
+    )
 
 
-class FactsSchema(Schema):
+class FactsSchema(MarshmallowSchema):
     namespace = fields.Str()
     facts = fields.Dict(validate=check_empty_keys)
 
 
-class TagsSchema(Schema):
+class TagsSchema(MarshmallowSchema):
     namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
-class BaseHostSchema(Schema):
-    display_name = fields.Str(validate=validate.Length(min=1, max=200))
-    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
-    account = fields.Str(required=True, validate=validate.Length(min=1, max=10))
+class BaseHostSchema(MarshmallowSchema):
+    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
+    account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_satellite_id)
-    fqdn = fields.Str(validate=validate.Length(min=1, max=255))
+    fqdn = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
-    ip_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=255)), validate=validate.Length(min=1))
-    mac_addresses = fields.List(fields.Str(validate=validate.Length(min=1, max=59)), validate=validate.Length(min=1))
-    external_id = fields.Str(validate=validate.Length(min=1, max=500))
+    ip_addresses = fields.List(
+        fields.Str(validate=marshmallow_validate.Length(min=1, max=255)), validate=marshmallow_validate.Length(min=1)
+    )
+    mac_addresses = fields.List(
+        fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
+    )
+    external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     facts = fields.List(fields.Nested(FactsSchema))
-    system_profile = fields.Nested(SystemProfileSchema)
     stale_timestamp = fields.DateTime(required=True, timezone=True)
-    reporter = fields.Str(required=True, validate=validate.Length(min=1, max=255))
+    reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @validates("stale_timestamp")
     def has_timezone_info(self, timestamp):
         if timestamp.tzinfo is None:
-            raise ValidationError("Timestamp must contain timezone info")
+            raise MarshmallowValidationError("Timestamp must contain timezone info")
 
 
 class MqHostSchema(BaseHostSchema):
+    system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls = type(self)
+        if not hasattr(cls, "system_profile_normalizer"):
+            cls.system_profile_normalizer = SystemProfileNormalizer()
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -359,7 +448,7 @@ class MqHostSchema(BaseHostSchema):
         elif tags is None:
             return True
         else:
-            raise ValidationError("Tags must be either an object, an array or null.")
+            raise MarshmallowValidationError("Tags must be either an object, an array or null.")
 
     @staticmethod
     def _validate_tags_list(tags):
@@ -373,29 +462,57 @@ class MqHostSchema(BaseHostSchema):
             if ns_tags is None:
                 continue
             if not isinstance(ns_tags, dict):
-                raise ValidationError("Tags in a namespace must be an object or null.")
+                raise MarshmallowValidationError("Tags in a namespace must be an object or null.")
 
             for key, values in ns_tags.items():
                 TAG_KEY_VALIDATION(key)
                 if values is None:
                     continue
                 if not isinstance(values, list):
-                    raise ValidationError("Tag values must be an array or null.")
+                    raise MarshmallowValidationError("Tag values must be an array or null.")
 
                 for value in values:
                     if value is None:
                         continue
                     if not isinstance(value, str):
-                        raise ValidationError("Tag value must be a string or null.")
+                        raise MarshmallowValidationError("Tag value must be a string or null.")
                     TAG_VALUE_VALIDATION(value)
 
         return True
 
+    @staticmethod
+    def _normalize_system_profile(normalize, data):
+        if "system_profile" not in data:
+            return data
+
+        system_profile = deepcopy(data["system_profile"])
+        normalize(system_profile)
+        return {**data, "system_profile": system_profile}
+
+    @pre_load
+    def coerce_system_profile_types(self, data):
+        return self._normalize_system_profile(self.system_profile_normalizer.coerce_types, data)
+
+    @post_load
+    def filter_system_profile_keys(self, data):
+        return self._normalize_system_profile(self.system_profile_normalizer.filter_keys, data)
+
+    @validates("system_profile")
+    def system_profile_is_valid(self, system_profile):
+        try:
+            jsonschema_validate(system_profile, self.system_profile_normalizer.schema)
+        except JsonSchemaValidationError as error:
+            raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
+
+        for dd_i, disk_device in enumerate(system_profile.get("disk_devices", [])):
+            if not check_empty_keys(disk_device.get("options")):
+                raise MarshmallowValidationError(f"Empty key in /system_profile/disk_devices/{dd_i}/options.")
+
 
 class HttpHostSchema(BaseHostSchema):
-    pass
+    system_profile = fields.Nested(SystemProfileSchema)
 
 
-class PatchHostSchema(Schema):
-    ansible_host = fields.Str(validate=validate.Length(min=0, max=255))
-    display_name = fields.Str(validate=validate.Length(min=1, max=200))
+class PatchHostSchema(MarshmallowSchema):
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
+    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
