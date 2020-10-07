@@ -5,6 +5,7 @@ from sqlalchemy import or_
 
 from app import inventory_config
 from app.culling import staleness_to_conditions
+from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -58,20 +59,21 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
             return create_new_host(input_host, staleness_offset, fields)
 
 
-def update_host_staleness(account_number, canonical_facts, timestamps):
+def update_host_staleness(account_number, canonical_facts, staleness_offset):
     """
     Updates the staleness timestamp for a host with matching canonical facts.
     """
 
     existing_host = find_existing_host(account_number, canonical_facts)
     if existing_host:
-        updated_staleness = existing_host.stale_timestamp + timestamps.config.stale_warning_offset_delta
         input_host = Host(
             {"insights_id": existing_host.canonical_facts["insights_id"]},
-            stale_timestamp=updated_staleness,
+            stale_timestamp=existing_host.stale_timestamp + staleness_offset,
             reporter=existing_host.reporter,
         )
-        return update_existing_host(existing_host, input_host, timestamps, False, DEFAULT_FIELDS)
+        return update_existing_host(
+            existing_host, input_host, Timestamps.from_config(inventory_config()), False, DEFAULT_FIELDS
+        )
     else:
         return None, None, None, None
 
