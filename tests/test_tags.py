@@ -382,7 +382,7 @@ def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, ena
 def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_xjoin):
     patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
 
-    values = "true"
+    values = ("true", "false", "nil", "not_nil")
 
     for value in values:
         with subtests.test(value=value):
