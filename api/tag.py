@@ -111,7 +111,6 @@ def get_tags(
     variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(TAGS_QUERY, variables)
-    print(f"response: {response}")
     data = response["hostTags"]
 
     check_pagination(offset, data["meta"]["total"])
