@@ -1152,6 +1152,52 @@ def test_system_profile_sap_system_endpoint(
     )
 
 
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_system_profile_sap_system_endpoint_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url(query=f"?tags={quote(query_param)}")
+
+    response_status, response_data = api_get(url)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}
+    )
+
+
+def test_system_profile_sap_system_endpoint_registered_with_insights(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url(query="?registered_with=insights")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}
+    )
+
+
 def test_system_profile_sap_sids_endpoint(
     mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
@@ -1162,6 +1208,52 @@ def test_system_profile_sap_sids_endpoint(
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_system_profile_sap_sids_endpoint_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query=f"?tags={quote(query_param)}")
+
+    response_status, response_data = api_get(url)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}
+    )
+
+
+def test_system_profile_sap_sids_endpoint_registered_with_insights(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query="?registered_with=insights")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}
     )
 
 
