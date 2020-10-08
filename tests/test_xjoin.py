@@ -1,8 +1,12 @@
 import pytest
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
+from api.system_profile import SAP_SIDS_QUERY
+from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_system_profile_sap_sids_url
+from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
@@ -1133,6 +1137,32 @@ def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, grap
     response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
+
+
+def test_system_profile_sap_system_endpoint(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}
+    )
+
+
+def test_system_profile_sap_sids_endpoint(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url()
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}
+    )
 
 
 def test_query_filter_spf_sap_system(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):

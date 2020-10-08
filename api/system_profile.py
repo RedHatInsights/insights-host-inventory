@@ -47,7 +47,7 @@ logger = get_logger(__name__)
 #     }
 # """
 
-SYSTEM_PROFILE_QUERY = """
+SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
         $hostFilter: HostFilter
     ) {
@@ -68,7 +68,7 @@ SYSTEM_PROFILE_QUERY = """
     }
 """
 
-SYSTEM_PROFILE_QUERY = """
+SAP_SIDS_QUERY = """
     query hostSystemProfile (
         $hostFilter: HostFilter
     ) {
@@ -135,7 +135,7 @@ def get_sap_system(
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
-    response = graphql_query(SYSTEM_PROFILE_QUERY, variables)
+    response = graphql_query(SAP_SYSTEM_QUERY, variables)
 
     print(f"response: {response}")
 
@@ -170,7 +170,7 @@ def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
-    response = graphql_query(SYSTEM_PROFILE_QUERY, variables)
+    response = graphql_query(SAP_SIDS_QUERY, variables)
 
     print(f"response: {response}")
 
