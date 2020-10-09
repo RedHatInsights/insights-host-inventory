@@ -354,6 +354,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: Tags
@@ -381,8 +382,8 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: sap_system values and counts for account
@@ -410,8 +411,8 @@ paths:
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: sap_system values and counts for account
@@ -581,25 +582,7 @@ components:
       explode: true
       schema:
         type: object
-        additionalProperties:
-          type: object
-          description: System profile field values to filter with
-          additionalProperties:
-            oneOf:
-              - type: string
-                enum:
-                  - "true"
-                  - "false"
-                  - "nil"
-                  - "not_nil"
-              - type: object
-                additionalProperties:
-                  type: string
-                  enum:
-                    - "true"
-                    - "false"
-                    - "nil"
-                    - "not_nil"
+        description: System profile field values to filter with
 
   schemas:
     SystemProfileSapSystemOut:

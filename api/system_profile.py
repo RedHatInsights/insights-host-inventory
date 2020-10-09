@@ -5,6 +5,8 @@ from api import build_collection_response
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
+from api.host_query_xjoin import build_sap_sids_filter
+from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
@@ -68,7 +70,7 @@ def xjoin_enabled():
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None):
+def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -80,12 +82,23 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             "OR": list(staleness_filter(staleness))
         }
     }
+    hostfilter_and_variables = ()
 
     if tags:
-        variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
+            if filter["system_profile"].get("sap_sids"):
+                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SYSTEM_QUERY, variables)
 
@@ -101,7 +114,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered_with=None):
+def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -114,11 +127,23 @@ def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered
         }
     }
 
+    hostfilter_and_variables = ()
+
     if tags:
-        variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
+            if filter["system_profile"].get("sap_sids"):
+                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(SAP_SIDS_QUERY, variables)
 
