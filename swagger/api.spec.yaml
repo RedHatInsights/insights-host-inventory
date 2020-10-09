@@ -615,8 +615,21 @@ components:
           $ref: '#/components/schemas/Count'
         results:
           description: The list of sap_system values on the account
-          type: object
-          # TODO: Add more detail
+          type: array
+          items:
+            oneOf:
+              - type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+              - type: object
+                properties:
+                  value:
+                    type: boolean
+                  count:
+                    type: integer
     TagsOut:
       type: object
       properties:

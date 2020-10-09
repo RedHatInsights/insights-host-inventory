@@ -97,16 +97,7 @@ def xjoin_enabled():
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_system(
-    # search=None,
-    tags=None,
-    # order_by=None,
-    # order_how=None,
-    page=None,
-    per_page=None,
-    staleness=None,
-    registered_with=None,
-):
+def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -123,12 +114,6 @@ def get_sap_system(
         }
     }
 
-    # if search:
-    #     variables["filter"] = {
-    #         # Escaped so that the string literals are not interpretted as regex
-    #         "search": {"regex": f".*{re.escape(search)}.*"}
-    #     }
-
     if tags:
         variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
 
@@ -137,14 +122,12 @@ def get_sap_system(
 
     response = graphql_query(SAP_SYSTEM_QUERY, variables)
 
-    print(f"response: {response}")
-
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_system"]["meta"]["total"])
 
     return flask_json_response(
-        build_collection_response(data["sap_system"], page, per_page, data["sap_system"]["meta"]["total"])
+        build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
     )
 
 
@@ -172,12 +155,10 @@ def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered
 
     response = graphql_query(SAP_SIDS_QUERY, variables)
 
-    print(f"response: {response}")
-
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
     return flask_json_response(
-        build_collection_response(data["sap_sids"], page, per_page, data["sap_sids"]["meta"]["total"])
+        build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )
