@@ -6,8 +6,12 @@ import pytest
 
 from app.config import BulkQuerySource
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
+from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
+from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
+from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
+from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 
 
@@ -37,6 +41,28 @@ def graphql_tag_query_empty_response(graphql_query):
 @pytest.fixture(scope="function")
 def graphql_tag_query_with_response(graphql_query):
     return graphql_query(func="api.tag.graphql_query", return_value=XJOIN_TAGS_RESPONSE)
+
+
+@pytest.fixture(scope="function")
+def graphql_system_profile_sap_system_query_empty_response(graphql_query):
+    return graphql_query(
+        func="api.system_profile.graphql_query", return_value=SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
+    )
+
+
+@pytest.fixture(scope="function")
+def graphql_system_profile_sap_system_query_with_response(graphql_query):
+    return graphql_query(func="api.system_profile.graphql_query", return_value=XJOIN_SYSTEM_PROFILE_SAP_SYSTEM)
+
+
+@pytest.fixture(scope="function")
+def graphql_system_profile_sap_sids_query_empty_response(graphql_query):
+    return graphql_query(func="api.system_profile.graphql_query", return_value=SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE)
+
+
+@pytest.fixture(scope="function")
+def graphql_system_profile_sap_sids_query_with_response(graphql_query):
+    return graphql_query(func="api.system_profile.graphql_query", return_value=XJOIN_SYSTEM_PROFILE_SAP_SIDS)
 
 
 @pytest.fixture(scope="function")
