@@ -378,8 +378,6 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/tagsParam'
-        # - $ref: '#/components/parameters/tagsOrderBy'
-        # - $ref: '#/components/parameters/tagsOrderHow'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
@@ -409,8 +407,6 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/tagsParam'
-        # - $ref: '#/components/parameters/tagsOrderBy'
-        # - $ref: '#/components/parameters/tagsOrderHow'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
