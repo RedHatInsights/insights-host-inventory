@@ -389,6 +389,15 @@ class SystemProfileSchema(MarshmallowSchema):
             validate=[marshmallow_validate.Length(max=3), marshmallow_validate.Regexp(regex=r"^[A-Z][A-Z0-9]{2}$")]
         )
     )
+    sap_instance_number = fields.Str(
+        validate=[marshmallow_validate.Length(max=2), marshmallow_validate.Regexp(regex=r"(?!99)(?!98)^[0-9]{2}$")]
+    )
+    sap_version = fields.Str(
+        validate=[
+            marshmallow_validate.Length(max=22),
+            marshmallow_validate.Regexp(regex=r"^[0-9].[0-9]{2}.[0-9]{3}.[0-9]{2}.[0-9]{10}$"),
+        ]
+    )
     tuned_profile = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
