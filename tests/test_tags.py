@@ -401,7 +401,7 @@ def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_x
 def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjoin):
     patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
 
-    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("ABC",), ("BEN", "A72"), ("CDA", "MK2", "C2C"))
 
     for path in filter_paths:

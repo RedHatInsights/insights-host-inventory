@@ -1204,7 +1204,7 @@ def test_query_tags_filter_spf_sap_system(
 
 
 def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
-    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"spf_sap_sids": {"eq": "XQC"}},),
@@ -1237,7 +1237,7 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
 def test_query_tags_filter_spf_sap_sids(
     mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
-    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"spf_sap_sids": {"eq": "XQC"}},),

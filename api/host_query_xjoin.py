@@ -135,8 +135,8 @@ def _sap_sids_filters(sap_sids):
 def build_sap_sids_filter(sap_sids):
     if isinstance(sap_sids, list):
         return _sap_sids_filters(sap_sids)
-    elif sap_sids.get("eq"):
-        return _sap_sids_filters(sap_sids["eq"])
+    elif sap_sids.get("contains"):
+        return _sap_sids_filters(sap_sids["contains"])
 
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
