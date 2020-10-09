@@ -1204,8 +1204,8 @@ def test_query_tags_filter_spf_sap_system(
 
 
 def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
-    filter_paths = ("[system_profile][sap_sids]", "[system_profile][sap_sids][eq]")
-    values = ("XQC", "ABC,A12", "M80,BEN")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"spf_sap_sids": {"eq": "XQC"}},),
         ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
@@ -1213,10 +1213,10 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
     )
 
     for path in filter_paths:
-        for value, query in zip(values, queries):
-            with subtests.test(value=value, query=query, path=path):
+        for values, query in zip(value_sets, queries):
+            with subtests.test(values=values, query=query, path=path):
                 graphql_query_empty_response.reset_mock()
-                url = build_hosts_url(query=f"?filter{path}={value}")
+                url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
                 response_status, response_data = api_get(url)
 
@@ -1237,8 +1237,8 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
 def test_query_tags_filter_spf_sap_sids(
     mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
-    filter_paths = ("[system_profile][sap_sids]", "[system_profile][sap_sids][eq]")
-    values = ("XQC", "ABC,A12", "M80,BEN")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
         ({"spf_sap_sids": {"eq": "XQC"}},),
         ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
@@ -1246,9 +1246,9 @@ def test_query_tags_filter_spf_sap_sids(
     )
 
     for path in filter_paths:
-        for value, query in zip(values, queries):
-            with subtests.test(value=value, query=query, path=path):
-                url = build_tags_url(query=f"?filter{path}={value}")
+        for values, query in zip(value_sets, queries):
+            with subtests.test(values=values, query=query, path=path):
+                url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
                 response_status, response_data = api_get(url)
 

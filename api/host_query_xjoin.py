@@ -127,13 +127,13 @@ def build_sap_system_filters(sap_system):
 
 def _sap_sids_filters(sap_sids):
     sap_sids_filters = ()
-    for sap_sid in sap_sids.split(","):
+    for sap_sid in sap_sids:
         sap_sids_filters += ({"spf_sap_sids": {"eq": sap_sid}},)
     return sap_sids_filters
 
 
 def build_sap_sids_filter(sap_sids):
-    if isinstance(sap_sids, str):
+    if isinstance(sap_sids, list):
         return _sap_sids_filters(sap_sids)
     elif sap_sids.get("eq"):
         return _sap_sids_filters(sap_sids["eq"])
@@ -172,7 +172,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if filter:
         if filter.get("system_profile"):
             if filter["system_profile"].get("sap_system"):
-                query_filters += build_sap_system_filters(filter["system_profile"].get("sap_system"))
+                query_filters += build_sap_system_filters(filter["system_profile"]["sap_system"])
             if filter["system_profile"].get("sap_sids"):
                 query_filters += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 

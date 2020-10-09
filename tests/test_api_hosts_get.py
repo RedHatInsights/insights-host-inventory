@@ -931,20 +931,18 @@ def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests, query_source_
 def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjoin):
     patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
 
-    values = ("ABC", "BEN,TMZ", "CDA,MK2,C2C")
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][eq][]")
+    value_sets = (("ABC",), ("BEN", "A72"), ("CDA", "MK2", "C2C"))
 
-    for value in values:
-        with subtests.test(value=value):
-            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_sids]={value}")
-            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_sids][eq]={value}")
+    for path in filter_paths:
+        for values in value_sets:
+            with subtests.test(values=values, path=path):
+                url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url)
-            eq_response_status, eq_response_data = api_get(eq_url)
+                response_status, response_data = api_get(url)
 
-            assert_response_status(implicit_response_status, 200)
-            assert_response_status(eq_response_status, 200)
-            assert implicit_response_data["total"] == 1
-            assert eq_response_data["total"] == 1
+                assert_response_status(response_status, 200)
+                assert response_data["total"] == 1
 
 
 # DISABLED. Query validation will be added back in a future PR
