@@ -17,35 +17,6 @@ from lib.middleware import rbac
 
 logger = get_logger(__name__)
 
-# TAGS_QUERY = """
-#     query hostTags (
-#         $hostFilter: HostFilter,
-#         $filter: TagAggregationFilter,
-#         $order_by: HOST_TAGS_ORDER_BY,
-#         $order_how: ORDER_DIR,
-#         $limit: Int,
-#         $offset: Int
-#     ) {
-#         hostTags (
-#             hostFilter: $hostFilter,
-#             filter: $filter,
-#             order_by: $order_by,
-#             order_how: $order_how,
-#             limit: $limit,
-#             offset: $offset
-#         ) {
-#             meta {
-#                 total
-#             }
-#             data {
-#                 tag {
-#                     namespace, key, value
-#                 },
-#                 count
-#             }
-#         }
-#     }
-# """
 
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
@@ -104,10 +75,6 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     limit, offset = pagination_params(page, per_page)
 
     variables = {
-        # "order_by": order_by,
-        # "order_how": order_how,
-        # "limit": limit,
-        # "offset": offset,
         "hostFilter": {
             # we're not indexing null timestamps in ES
             "OR": list(staleness_filter(staleness))
