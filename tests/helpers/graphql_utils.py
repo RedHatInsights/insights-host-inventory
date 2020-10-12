@@ -3,6 +3,12 @@ from tests.helpers.api_utils import get_valid_auth_header
 
 EMPTY_HOSTS_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
 TAGS_EMPTY_RESPONSE = {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
+SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE = {
+    "hostSystemProfile": {"sap_system": {"meta": {"total": 0, "count": 0}, "data": []}}
+}
+SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE = {
+    "hostSystemProfile": {"sap_sids": {"meta": {"total": 0, "count": 0}, "data": []}}
+}
 
 XJOIN_HOSTS_RESPONSE = {
     "hosts": {
@@ -59,6 +65,30 @@ XJOIN_TAGS_RESPONSE = {
             {"tag": {"namespace": "insights-client", "key": "database", "value": None}, "count": 2},
             {"tag": {"namespace": "insights-client", "key": "os", "value": "fedora"}, "count": 2},
         ],
+    }
+}
+
+XJOIN_SYSTEM_PROFILE_SAP_SYSTEM = {
+    "hostSystemProfile": {
+        "sap_system": {
+            "meta": {"total": 2, "count": 2},
+            "data": [{"value": False, "count": 1}, {"value": True, "count": 2}],
+        }
+    }
+}
+
+XJOIN_SYSTEM_PROFILE_SAP_SIDS = {
+    "hostSystemProfile": {
+        "sap_sids": {
+            "meta": {"total": 5, "count": 5},
+            "data": [
+                {"value": "AEB", "count": 2},
+                {"value": "C2C", "count": 1},
+                {"value": "KLL", "count": 1},
+                {"value": "M1P", "count": 1},
+                {"value": "XQC", "count": 1},
+            ],
+        }
     }
 }
 
