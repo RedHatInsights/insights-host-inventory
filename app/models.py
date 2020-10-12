@@ -390,6 +390,8 @@ class SystemProfileSchema(MarshmallowSchema):
         )
     )
     tuned_profile = fields.Str(validate=marshmallow_validate.Length(max=256))
+    selinux_current_mode = fields.Str(validate=marshmallow_validate.OneOf(["enforcing", "permissive", "disabled"]))
+    selinux_config_file = fields.Str(validate=marshmallow_validate.OneOf(["enforcing", "permissive", "disabled"]))
 
 
 class FactsSchema(MarshmallowSchema):

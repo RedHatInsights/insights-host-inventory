@@ -250,3 +250,15 @@ $defs:
         maxLength: 256
         description: Current profile resulting from command tuned-adm active
         example: 'desktop'
+      selinux_current_mode:
+        type: string
+        enum: [enforcing, permissive, disabled]
+        description: The current SELinux mode, either enforcing, permissive, or disabled
+        maxLength: 10
+        example: 'enforcing'
+      selinux_config_file:
+        type: string
+        enum: [enforcing, permissive, disabled]
+        description: The SELinux mode provided in the config file
+        maxLength: 10
+        example: 'permissive'
