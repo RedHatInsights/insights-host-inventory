@@ -391,6 +391,7 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: Tags
@@ -398,6 +399,64 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/ActiveTags'
+        '400':
+            description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/sap_system:
+    get:
+      tags:
+        - sap_system
+      summary: get sap system values
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.system_profile.get_sap_system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+            description: sap_system values and counts for account
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SystemProfileSapSystemOut'
+        '400':
+            description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/sap_sids:
+    get:
+      tags:
+        - sap_system
+      summary: get sap system values
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.system_profile.get_sap_sids
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+            description: sap_system values and counts for account
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SystemProfileSapSystemOut'
         '400':
             description: Invalid request.
         '404':
@@ -560,27 +619,33 @@ components:
       explode: true
       schema:
         type: object
-        additionalProperties:
-          type: object
-          description: System profile field values to filter with
-          additionalProperties:
-            oneOf:
-              - type: string
-                enum:
-                  - "true"
-                  - "false"
-                  - "nil"
-                  - "not_nil"
-              - type: object
-                additionalProperties:
-                  type: string
-                  enum:
-                    - "true"
-                    - "false"
-                    - "nil"
-                    - "not_nil"
+        description: System profile field values to filter with
 
   schemas:
+    SystemProfileSapSystemOut:
+      type: object
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        results:
+          description: The list of sap_system values on the account
+          type: array
+          items:
+            oneOf:
+              - type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+              - type: object
+                properties:
+                  value:
+                    type: boolean
+                  count:
+                    type: integer
     TagsOut:
       type: object
       properties:

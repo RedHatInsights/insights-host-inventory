@@ -7,6 +7,8 @@ from api import build_collection_response
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
+from api.host_query_xjoin import build_sap_sids_filter
+from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
@@ -16,6 +18,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+
 
 logger = get_logger(__name__)
 
@@ -66,6 +69,7 @@ def get_tags(
     per_page=None,
     staleness=None,
     registered_with=None,
+    filter=None,
 ):
     if not xjoin_enabled():
         flask.abort(503)
@@ -83,6 +87,8 @@ def get_tags(
         },
     }
 
+    hostfilter_and_variables = ()
+
     if search:
         variables["filter"] = {
             # Escaped so that the string literals are not interpretted as regex
@@ -90,10 +96,20 @@ def get_tags(
         }
 
     if tags:
-        variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
+            if filter["system_profile"].get("sap_sids"):
+                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
 
     response = graphql_query(TAGS_QUERY, variables)
     data = response["hostTags"]

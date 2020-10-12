@@ -11,6 +11,7 @@ from prance.util.resolver import RESOLVE_FILES
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
+from api.parsing import customURIParser
 from app import payload_tracker
 from app.config import Config
 from app.exceptions import InventoryException
@@ -71,7 +72,7 @@ def inventory_config():
 
 
 def create_app(runtime_environment):
-    connexion_options = {"swagger_ui": True}
+    connexion_options = {"swagger_ui": True, "uri_parser_class": customURIParser}
     # This feels like a hack but it is needed.  The logging configuration
     # needs to be setup before the flask app is initialized.
     configure_logging()

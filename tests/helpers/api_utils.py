@@ -19,6 +19,7 @@ from tests.helpers.test_utils import ACCOUNT
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
+SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -353,6 +354,14 @@ def build_tags_url(query=None):
 
 def build_system_profile_url(host_list_or_id, query=None):
     return _build_url(path="/system_profile", host_list_or_id=host_list_or_id, query=query)
+
+
+def build_system_profile_sap_system_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_system", query=query)
+
+
+def build_system_profile_sap_sids_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_sids", query=query)
 
 
 def build_facts_url(host_list_or_id, namespace, query=None):
