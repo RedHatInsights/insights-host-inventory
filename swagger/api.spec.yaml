@@ -768,7 +768,7 @@ components:
           minimum: 1
           maximum: 2880
           default: 1440
-          example: 45
+          example: 1440
     CreateHostIn:
       title: Host data
       description: >-

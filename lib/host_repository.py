@@ -69,7 +69,7 @@ def update_host_staleness(account_number, canonical_facts, staleness_offset):
     existing_host = find_existing_host(account_number, canonical_facts)
     if existing_host:
         input_host = Host(
-            {"insights_id": existing_host.canonical_facts["insights_id"]},
+            existing_host.canonical_facts,
             stale_timestamp=datetime.now(timezone.utc) + staleness_offset,
             reporter=existing_host.reporter,
         )
