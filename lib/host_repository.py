@@ -74,7 +74,7 @@ def update_host_staleness(account_number, canonical_facts, staleness_offset):
             reporter=existing_host.reporter,
         )
         return update_existing_host(
-            existing_host, input_host, Timestamps.from_config(inventory_config()), False, DEFAULT_FIELDS
+            existing_host, input_host, Timestamps.from_config(inventory_config()), True, DEFAULT_FIELDS
         )
     else:
         return None, None, None, None
