@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone
 from enum import Enum
 
 from sqlalchemy import and_
@@ -68,7 +70,7 @@ def update_host_staleness(account_number, canonical_facts, staleness_offset):
     if existing_host:
         input_host = Host(
             {"insights_id": existing_host.canonical_facts["insights_id"]},
-            stale_timestamp=existing_host.stale_timestamp + staleness_offset,
+            stale_timestamp=datetime.now(timezone.utc) + staleness_offset,
             reporter=existing_host.reporter,
         )
         return update_existing_host(

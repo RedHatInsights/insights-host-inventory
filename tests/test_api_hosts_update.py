@@ -64,7 +64,9 @@ def test_checkin(checkin_frequency, event_producer_mock, db_create_host, db_get_
     record = db_get_host(created_host.id)
     expected_stale_timestamp = original_timestamp + timedelta(minutes=checkin_frequency)
 
-    assert record.stale_timestamp == expected_stale_timestamp
+    assert (record.stale_timestamp > expected_stale_timestamp) and (
+        record.stale_timestamp < expected_stale_timestamp + timedelta(seconds=1)
+    )
 
 
 @pytest.mark.system_culling
