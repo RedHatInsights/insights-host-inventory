@@ -1,5 +1,3 @@
-from datetime import datetime
-from datetime import timezone
 from enum import Enum
 
 from sqlalchemy import and_
@@ -7,7 +5,6 @@ from sqlalchemy import or_
 
 from app import inventory_config
 from app.culling import staleness_to_conditions
-from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -18,7 +15,6 @@ from lib.db import session_guard
 
 __all__ = (
     "add_host",
-    "update_host_staleness",
     "canonical_fact_host_query",
     "canonical_facts_host_query",
     "create_new_host",
@@ -59,25 +55,6 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
             return create_new_host(input_host, staleness_offset, fields)
-
-
-def update_host_staleness(account_number, canonical_facts, staleness_offset):
-    """
-    Updates the staleness timestamp for a host with matching canonical facts.
-    """
-
-    existing_host = find_existing_host(account_number, canonical_facts)
-    if existing_host:
-        input_host = Host(
-            existing_host.canonical_facts,
-            stale_timestamp=datetime.now(timezone.utc) + staleness_offset,
-            reporter=existing_host.reporter,
-        )
-        return update_existing_host(
-            existing_host, input_host, Timestamps.from_config(inventory_config()), True, DEFAULT_FIELDS
-        )
-    else:
-        return None, None, None, None
 
 
 @metrics.host_dedup_processing_time.time()

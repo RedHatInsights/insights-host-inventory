@@ -1,4 +1,6 @@
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -44,8 +46,8 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
+from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
-from lib.host_repository import update_host_staleness
 from lib.middleware import rbac
 
 
@@ -450,11 +452,13 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 def host_checkin(body):
     facts = body.get("canonical_facts")
     staleness_offset = timedelta(minutes=body.get("checkin_frequency") or 1440)
-    serialized_host, host_id, insights_id, updated = update_host_staleness(
-        current_identity.account_number, facts, staleness_offset
-    )
-    if serialized_host:
-        _emit_patch_event(serialized_host, host_id, insights_id)
+    existing_host = find_existing_host(current_identity.account_number, facts)
+
+    if existing_host:
+        existing_host._update_stale_timestamp(datetime.now(timezone.utc) + staleness_offset, "checkin")
+        db.session.commit()
+        serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
         return flask_json_response(serialized_host, 201)
     else:
         return flask_json_response(
