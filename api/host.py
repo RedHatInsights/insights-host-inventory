@@ -307,10 +307,11 @@ def patch_by_id(host_id_list, body):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
-        _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
-    db.session.commit()
+        if db.session.is_modified(host):
+            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+            db.session.commit()
+            _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     return 200
 

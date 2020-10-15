@@ -1,4 +1,6 @@
+import time
 from datetime import timedelta
+from threading import Thread
 
 import pytest
 
@@ -404,3 +406,45 @@ def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, even
     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
 
     assert_response_status(response_status, 200)
+
+
+def test_update_delete_race(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
+    mocker.patch.object(event_producer, "write_event")
+
+    # slow down the execution of update_display_name so that it's more likely we hit the race condition
+    def sleep(data):
+        time.sleep(1)
+
+    mocker.patch("app.models.Host.update_display_name", wraps=sleep)
+
+    host = db_create_host()
+
+    def patch_host():
+        url = build_hosts_url(host_list_or_id=host.id)
+        api_patch(url, {"ansible_host": "localhost.localdomain"})
+
+    # run PATCH asynchronously
+    patchThread = Thread(target=patch_host)
+    patchThread.start()
+
+    # as PATCH is running, concurrently delete the host
+    response_status, response_data = api_delete_host(host.id)
+    assert_response_status(response_status, expected_status=200)
+
+    # wait for PATCH to finish
+    patchThread.join()
+
+    # the host should be deleted and the last message to be produced should be the delete message
+    assert not db_get_host(host.id)
+    assert event_producer.write_event.call_args_list[-1][0][2]["event_type"] == "delete"
+
+
+def test_no_event_on_noop(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
+    mocker.patch.object(event_producer, "write_event")
+
+    host = db_create_host()
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    api_patch(url, {})
+
+    assert event_producer.write_event.call_count == 0
