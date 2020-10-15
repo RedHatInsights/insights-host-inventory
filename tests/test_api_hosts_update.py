@@ -48,30 +48,36 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
 
 @pytest.mark.parametrize("checkin_frequency", [1, 60, 1440])
 @pytest.mark.system_culling
-def test_checkin(checkin_frequency, event_producer_mock, db_create_host, db_get_host, api_put):
-    host = db_host(stale_timestamp=now().isoformat(), reporter="some reporter")
+def test_checkin(checkin_frequency, event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_put):
+    host = db_host()
     created_host = db_create_host(host)
-    original_timestamp = created_host.stale_timestamp
 
     put_doc = {
         "canonical_facts": {"insights_id": f"{created_host.canonical_facts['insights_id']}"},
         "checkin_frequency": checkin_frequency,
     }
 
-    response_status, response_data = api_put(build_host_checkin_url(), put_doc)
+    expected_stale_timestamp = now() + timedelta(minutes=checkin_frequency)
+    response_status, response_data = api_put(
+        build_host_checkin_url(), put_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
 
     assert_response_status(response_status, expected_status=201)
     record = db_get_host(created_host.id)
-    expected_stale_timestamp = original_timestamp + timedelta(minutes=checkin_frequency)
 
     assert (record.stale_timestamp > expected_stale_timestamp) and (
         record.stale_timestamp < expected_stale_timestamp + timedelta(seconds=1)
     )
 
+    assert event_producer_mock.key == str(host.id)
+    assert_patch_event_is_valid(
+        host, event_producer_mock, "123456", event_datetime_mock, host.display_name, record.stale_timestamp, "checkin"
+    )
+
 
 @pytest.mark.system_culling
 def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_put):
-    host = db_host(stale_timestamp=now().isoformat(), reporter="some reporter")
+    host = db_host()
     created_host = db_create_host(host)
 
     put_doc = {
@@ -81,6 +87,8 @@ def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_ho
 
     response_status, response_data = api_put(build_host_checkin_url(), put_doc)
     assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.key is None
+    assert event_producer_mock.event is None
 
 
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):
