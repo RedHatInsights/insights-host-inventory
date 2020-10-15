@@ -1,4 +1,5 @@
 import time
+from datetime import timedelta
 from threading import Thread
 
 import pytest
@@ -6,6 +7,7 @@ import pytest
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
+from tests.helpers.api_utils import build_host_checkin_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -20,6 +22,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import now
 
 
 @pytest.mark.parametrize(
@@ -43,6 +46,51 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
 
     for key in patch_doc:
         assert getattr(record, key) == patch_doc[key]
+
+
+@pytest.mark.parametrize("checkin_frequency", [1, 60, 1440])
+@pytest.mark.system_culling
+def test_checkin(checkin_frequency, event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_put):
+    host = db_host()
+    created_host = db_create_host(host)
+
+    put_doc = {
+        "canonical_facts": {"insights_id": f"{created_host.canonical_facts['insights_id']}"},
+        "checkin_frequency": checkin_frequency,
+    }
+
+    expected_stale_timestamp = now() + timedelta(minutes=checkin_frequency)
+    response_status, response_data = api_put(
+        build_host_checkin_url(), put_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=201)
+    record = db_get_host(created_host.id)
+
+    assert (record.stale_timestamp > expected_stale_timestamp) and (
+        record.stale_timestamp < expected_stale_timestamp + timedelta(seconds=1)
+    )
+
+    assert event_producer_mock.key == str(host.id)
+    assert_patch_event_is_valid(
+        host, event_producer_mock, "123456", event_datetime_mock, host.display_name, record.stale_timestamp, "checkin"
+    )
+
+
+@pytest.mark.system_culling
+def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_put):
+    host = db_host()
+    created_host = db_create_host(host)
+
+    put_doc = {
+        "canonical_facts": {"insights_id": f"nomatch_{created_host.canonical_facts['insights_id']}"},
+        "checkin_frequency": 60,
+    }
+
+    response_status, response_data = api_put(build_host_checkin_url(), put_doc)
+    assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.key is None
+    assert event_producer_mock.event is None
 
 
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):
