@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -43,6 +46,7 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
+from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.middleware import rbac
 
@@ -303,10 +307,11 @@ def patch_by_id(host_id_list, body):
 
     for host in hosts_to_update:
         host.patch(validated_patch_host_data)
-        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
-        _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
-    db.session.commit()
+        if db.session.is_modified(host):
+            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+            db.session.commit()
+            _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     return 200
 
@@ -440,3 +445,29 @@ def _build_serialized_tags(host_list, search):
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
     json_output = build_collection_response(tags_list, page, per_page, total)
     return flask_json_response(json_output)
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def host_checkin(body):
+    facts = body.get("canonical_facts")
+    staleness_offset = timedelta(minutes=body.get("checkin_frequency") or 1440)
+    existing_host = find_existing_host(current_identity.account_number, facts)
+
+    if existing_host:
+        existing_host._update_stale_timestamp(datetime.now(timezone.utc) + staleness_offset, "checkin")
+        db.session.commit()
+        serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+        _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
+        return flask_json_response(serialized_host, 201)
+    else:
+        return flask_json_response(
+            {
+                "detail": "No hosts match the provided facts.",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "about:blank",
+            },
+            status=400,
+        )
