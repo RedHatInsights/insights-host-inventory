@@ -6,10 +6,10 @@ from datetime import timezone
 __all__ = ("Conditions", "staleness_to_conditions", "Timestamps")
 
 
-class _Config(namedtuple("_Config", ("stale_warning_offset_days", "culled_offset_days"))):
+class _Config(namedtuple("_Config", ("stale_warning_offset_delta", "culled_offset_delta"))):
     @classmethod
     def from_config(cls, config):
-        return cls(config.culling_stale_warning_offset_days, config.culling_culled_offset_days)
+        return cls(config.culling_stale_warning_offset_delta, config.culling_culled_offset_delta)
 
 
 class _WithConfig:
@@ -24,17 +24,17 @@ class _WithConfig:
 
 class Timestamps(_WithConfig):
     @staticmethod
-    def _add_days(timestamp, days):
-        return timestamp + timedelta(days=days)
+    def _add_time(timestamp, delta):
+        return timestamp + delta
 
     def stale_timestamp(self, stale_timestamp):
-        return self._add_days(stale_timestamp, 0)
+        return self._add_time(stale_timestamp, timedelta(days=0))
 
     def stale_warning_timestamp(self, stale_timestamp):
-        return self._add_days(stale_timestamp, self.config.stale_warning_offset_days)
+        return self._add_time(stale_timestamp, self.config.stale_warning_offset_delta)
 
     def culled_timestamp(self, stale_timestamp):
-        return self._add_days(stale_timestamp, self.config.culled_offset_days)
+        return self._add_time(stale_timestamp, self.config.culled_offset_delta)
 
 
 class Conditions(_WithConfig):
@@ -43,8 +43,8 @@ class Conditions(_WithConfig):
         self.now = datetime.now(timezone.utc)
 
     @staticmethod
-    def _sub_days(timestamp, days):
-        return timestamp - timedelta(days=days)
+    def _sub_time(timestamp, delta):
+        return timestamp - delta
 
     def fresh(self):
         return self.now, None
@@ -59,11 +59,11 @@ class Conditions(_WithConfig):
         return None, self._culled_timestamp()
 
     def _stale_warning_timestamp(self):
-        offset = timedelta(days=self.config.stale_warning_offset_days)
+        offset = self.config.stale_warning_offset_delta
         return self.now - offset
 
     def _culled_timestamp(self):
-        offset = timedelta(days=self.config.culled_offset_days)
+        offset = self.config.culled_offset_delta
         return self.now - offset
 
 
