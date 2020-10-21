@@ -254,10 +254,17 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
 
 
 @pytest.mark.parametrize("culling_stale_warning_offset_days", (1, 7, 12))
+@pytest.mark.parametrize("culling_stale_warning_offset_minutes", (0, 45, 90))
 def test_stale_warning_timestamp(
-    culling_stale_warning_offset_days, inventory_config, mq_create_or_update_host, api_get
+    culling_stale_warning_offset_days,
+    culling_stale_warning_offset_minutes,
+    inventory_config,
+    mq_create_or_update_host,
+    api_get,
 ):
-    inventory_config.culling_stale_warning_offset_days = culling_stale_warning_offset_days
+    inventory_config.culling_stale_warning_offset_delta = timedelta(
+        days=culling_stale_warning_offset_days, minutes=culling_stale_warning_offset_minutes
+    )
 
     stale_timestamp = now() + timedelta(hours=1)
     host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
@@ -267,13 +274,20 @@ def test_stale_warning_timestamp(
     response_status, response_data = api_get(url)
     assert response_status == 200
 
-    stale_warning_timestamp = stale_timestamp + timedelta(days=culling_stale_warning_offset_days)
+    stale_warning_timestamp = stale_timestamp + timedelta(
+        days=culling_stale_warning_offset_days, minutes=culling_stale_warning_offset_minutes
+    )
     assert stale_warning_timestamp.isoformat() == response_data["results"][0]["stale_warning_timestamp"]
 
 
 @pytest.mark.parametrize("culling_culled_offset_days", (8, 14, 20))
-def test_culled_timestamp(culling_culled_offset_days, inventory_config, mq_create_or_update_host, api_get):
-    inventory_config.culling_culled_offset_days = culling_culled_offset_days
+@pytest.mark.parametrize("culling_culled_offset_minutes", (0, 45, 90))
+def test_culled_timestamp(
+    culling_culled_offset_days, culling_culled_offset_minutes, inventory_config, mq_create_or_update_host, api_get
+):
+    inventory_config.culling_culled_offset_delta = timedelta(
+        days=culling_culled_offset_days, minutes=culling_culled_offset_minutes
+    )
 
     stale_timestamp = now() + timedelta(hours=1)
     host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
@@ -283,7 +297,9 @@ def test_culled_timestamp(culling_culled_offset_days, inventory_config, mq_creat
     response_status, response_data = api_get(url)
     assert response_status == 200
 
-    culled_timestamp = stale_timestamp + timedelta(days=culling_culled_offset_days)
+    culled_timestamp = stale_timestamp + timedelta(
+        days=culling_culled_offset_days, minutes=culling_culled_offset_minutes
+    )
     assert culled_timestamp.isoformat() == response_data["results"][0]["culled_timestamp"]
 
 
@@ -328,10 +344,10 @@ def test_non_culled_host_is_not_removed(
         created_host = db_create_host(host)
         created_hosts.append(created_host)
 
-    created_host_ids = [host.id for host in created_hosts]
+    created_host_ids = sorted([host.id for host in created_hosts])
     retrieved_hosts = db_get_hosts(created_host_ids)
 
-    assert created_host_ids == [host.id for host in retrieved_hosts]
+    assert created_host_ids == sorted([host.id for host in retrieved_hosts])
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
@@ -344,7 +360,7 @@ def test_non_culled_host_is_not_removed(
 
     retrieved_hosts = db_get_hosts(created_host_ids)
 
-    assert created_host_ids == [host.id for host in retrieved_hosts]
+    assert created_host_ids == sorted([host.id for host in retrieved_hosts])
     assert event_producer_mock.event is None
 
 
