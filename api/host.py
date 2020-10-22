@@ -421,12 +421,12 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     # expect one page because tags are fetched on per host basis
     query = query.paginate(1, per_page, True)
 
-    tags = _build_paginate_tags(query.items, search, page, per_page)
+    tags = _build_paginated_tags(query.items, search, page, per_page)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, tags)
 
 
-def _build_paginate_tags(host_list, search, page, per_page):
+def _build_paginated_tags(host_list, search, page, per_page):
     response_tags = {}
 
     for host in host_list:
