@@ -418,15 +418,15 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     else:
         query = query.order_by(*order_by)
 
-    # expect one page for because tags are fetched on per host basis
+    # expect one page because tags are fetched on per host basis
     query = query.paginate(1, per_page, True)
 
-    tags = _build_serialized_tags(query.items, search, page, per_page)
+    tags = _build_paginate_tags(query.items, search, page, per_page)
 
     return _build_paginated_host_tags_response(query.total, page, per_page, tags)
 
 
-def _build_serialized_tags(host_list, search, page, per_page):
+def _build_paginate_tags(host_list, search, page, per_page):
     response_tags = {}
 
     for host in host_list:
@@ -435,19 +435,7 @@ def _build_serialized_tags(host_list, search, page, per_page):
         else:
             tags = Tag.filter_tags(Tag.create_tags_from_nested(host.tags), search)
 
-        i = 1 # tag counter
-        j = 1 # page counter
-        paginated_tags = list()
-        for item in tags:
-            if j == page and len(paginated_tags) < per_page:
-                paginated_tags.append(item)
-            elif i == per_page*j:
-                i+=1
-                j+=1
-            else:
-                i+=1
-
-        tags = paginated_tags
+        tags = tags[(page-1)*per_page:page*per_page]
 
         tag_dictionaries = []
         for tag in tags:
