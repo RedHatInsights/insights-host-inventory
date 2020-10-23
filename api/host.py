@@ -384,8 +384,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
     counts = _count_tags(query.items)
 
-    return _build_paginated_host_tags_response(query.total, page, per_page, counts)
+    return _build_paginated_host_tags_count(query.total, page, per_page, counts)
 
+def _build_paginated_host_tags_count(total, page, per_page, tags_list):
+    json_output = {"tag_counts": tags_list}
+    return flask_json_response(json_output)
 
 # returns counts in format [{id: count}, {id: count}]
 def _count_tags(host_list):
@@ -404,6 +407,9 @@ def _count_tags(host_list):
 
     return counts
 
+def _build_paginated_host_tags_response(total, page, per_page, counts):
+    json_output = build_collection_response(tags_list, page, per_page, total)
+    return flask_json_response(json_output)
 
 @api_operation
 @rbac(Permission.READ)
@@ -421,10 +427,9 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     # expect one page because tags are fetched on per host basis
     query = query.paginate(1, per_page, True)
 
-    tags = _build_paginated_tags(query.items, search, page, per_page)
+    tags, all_tags_count, tags_returned = _build_paginated_tags(query.items, search, page, per_page)
 
-    return _build_paginated_host_tags_response(query.total, page, per_page, tags)
-
+    return _build_paginated_host_tags_response(all_tags_count, tags_returned, page, per_page, tags)
 
 def _build_paginated_tags(host_list, search, page, per_page):
     response_tags = {}
@@ -435,20 +440,26 @@ def _build_paginated_tags(host_list, search, page, per_page):
         else:
             tags = Tag.filter_tags(Tag.create_tags_from_nested(host.tags), search)
 
+        all_tags_count = len(tags)
+        logger.debug("All tags count: {}".format(all_tags_count))
+
         tags = tags[(page-1)*per_page:page*per_page]
 
+        tags_returned = len(tags)
         tag_dictionaries = []
         for tag in tags:
             tag_dictionaries.append(tag.data())
 
         response_tags[str(host.id)] = tag_dictionaries
 
-    return response_tags
+    return response_tags, all_tags_count, tags_returned
 
-
-def _build_paginated_host_tags_response(total, page, per_page, tags_list):
-    json_output = build_collection_response(tags_list, page, per_page, total)
+def _build_paginated_host_tags_response(total, tags_returned, page, per_page, tags_list):
+    json_output = _build_collection_response(tags_list, tags_returned, page, per_page, total)
     return flask_json_response(json_output)
+
+def _build_collection_response(data, tags_returned, page, per_page, total):
+    return {"total": total, "count": tags_returned, "page": page, "max_per_page": per_page, "results": data}
 
 
 @api_operation
