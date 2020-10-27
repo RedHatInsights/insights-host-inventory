@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -451,12 +448,12 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-    facts = body.get("canonical_facts")
-    staleness_offset = timedelta(minutes=body.get("checkin_frequency") or 1440)
-    existing_host = find_existing_host(current_identity.account_number, facts)
+    # Deserialize host data and find existing host
+    input_host = deserialize_host_http(body)
+    existing_host = find_existing_host(current_identity.account_number, input_host.canonical_facts)
 
     if existing_host:
-        existing_host._update_stale_timestamp(datetime.now(timezone.utc) + staleness_offset, "checkin")
+        existing_host._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
@@ -464,7 +461,7 @@ def host_checkin(body):
     else:
         return flask_json_response(
             {
-                "detail": "No hosts match the provided facts.",
+                "detail": "No hosts match the provided canonical facts.",
                 "status": 400,
                 "title": "Bad Request",
                 "type": "about:blank",

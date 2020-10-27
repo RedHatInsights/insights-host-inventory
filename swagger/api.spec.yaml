@@ -133,7 +133,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateCheckIn'
+              $ref: '#/components/schemas/CreateHostIn'
       responses:
         '201':
           description: Successfully updated host's timestamps.
@@ -751,24 +751,6 @@ components:
       required:
         - namespace
         - facts
-    CreateCheckIn:
-      title: Check-in data
-      description: >-
-        Data required to create a check-in record for a host.
-      type: object
-      required:
-        - canonical_facts
-      properties:
-        canonical_facts:
-          description: A set of canonical_facts belonging to the host.
-          $ref: '#/components/schemas/Facts'
-        checkin_frequency:
-          description: Defines how far in the future the host becomes stale (in minutes).
-          type: integer
-          minimum: 1
-          maximum: 2880
-          default: 1440
-          example: 1440
     CreateHostIn:
       title: Host data
       description: >-
