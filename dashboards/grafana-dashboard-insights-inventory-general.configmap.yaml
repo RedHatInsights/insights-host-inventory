@@ -124,7 +124,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_ingress_message_parsing_failures_total{cause=\"error\", kubernetes_namespace='platform-$namespace'}[$__range])) OR vector(0)",
+              "expr": "sum(increase(inventory_ingress_message_parsing_failures_total{cause=\"error\", kubernetes_namespace='host-inventory-$namespace'}[$__range])) OR vector(0)",
               "interval": "5m",
               "refId": "A"
             }
