@@ -215,9 +215,7 @@ def assert_tags_response(host_id, response_data, expected_response):
 
 
 def assert_tag_counts(response_data, expected_response):
-    assert len(response_data["results"].keys()) == len(expected_response.keys())
-    for host_id, tag_count in expected_response.items():
-        assert response_data["results"][host_id] == tag_count
+    assert len(response_data["tag_counts"]) == len(expected_response)
 
 
 def assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages, host_id=None):
@@ -240,6 +238,11 @@ def api_per_page_test(api_get, subtests, url, per_page, num_pages):
         with subtests.test(page=page, per_page=per_page):
             response_status, response_data = api_get(url, query_parameters={"page": page, "per_page": per_page})
             yield response_status, response_data
+
+
+def api_per_page_tag_count_test(api_get, subtests, url):
+    response_status, response_data = api_get(url)
+    return response_status, response_data
 
 
 def api_pagination_invalid_parameters_test(api_get, subtests, url):
@@ -278,6 +281,20 @@ def api_base_pagination_test(
                 response_match_func(response_data, expected_response)
 
 
+def api_base_pagination_tag_count_test(
+    api_get,
+    subtests,
+    url,
+    expected_total,
+    expected_per_page=1,
+    expected_responses=None,
+    response_match_func=None,
+):
+    response_status, response_data = api_per_page_tag_count_test(api_get, subtests, url)
+    assert_response_status(response_status, expected_status=200)
+    assert len(expected_responses) == len(response_data["tag_counts"])
+
+
 def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
     api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page)
     api_pagination_invalid_parameters_test(api_get, subtests, url)
@@ -296,7 +313,7 @@ def api_tags_pagination_test(
 def api_tags_count_pagination_test(
     api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None
 ):
-    api_base_pagination_test(
+    api_base_pagination_tag_count_test(
         api_get, subtests, url, expected_total, expected_per_page, expected_responses, assert_tag_counts
     )
 

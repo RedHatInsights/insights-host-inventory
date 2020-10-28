@@ -286,30 +286,20 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
     simple test to check pagination works for /tags
     """
     created_hosts = mq_create_four_specific_hosts
+    expected_responses_1_per_page = [{host.id: len(host.tags)} for host in created_hosts]
 
-    for host in created_hosts:
-        # expected_responses_1_per_page = [{host.id: len(host.tags)} for host in created_hosts]
-        expected_responses_1_per_page = [[tag] for tag in host.tags]
+    url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
 
-        url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    # 1 per page test
+    api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
 
-        # 1 per page test
-        api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
-        # api_tags_pagination_test(
-        #     api_get, subtests, url, created_host.id, len(host.tags), 1, expected_responses_1_per_page
-        # )
+    # expected_responses_2_per_page = [
+    #     {created_hosts[0].id: len(created_hosts[0].tags), created_hosts[1].id: len(created_hosts[1].tags)},
+    #     {created_hosts[2].id: len(created_hosts[2].tags), created_hosts[3].id: len(created_hosts[3].tags)},
+    # ]
 
-        # expected_responses_2_per_page = [
-        #     {created_hosts[0].id: len(created_hosts[0].tags), created_hosts[1].id: len(created_hosts[1].tags)},
-        #     {created_hosts[2].id: len(created_hosts[2].tags), created_hosts[3].id: len(created_hosts[3].tags)},
-        # ]
-
-        expected_responses_2_per_page = [
-            [host.tags[0], host.tags[1]],
-            [host.tags[2], host.tags[3]],
-        ]
-        # 2 per page test
-        api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
+    # # 2 per page test
+    # api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
 
 
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
