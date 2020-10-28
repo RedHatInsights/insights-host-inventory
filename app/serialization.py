@@ -71,6 +71,10 @@ def deserialize_host_mq(raw_data):
     return deserialize_host(raw_data, MqHostSchema)
 
 
+def deserialize_canonical_facts(raw_data):
+    return _deserialize_canonical_facts(raw_data)
+
+
 def deserialize_host_xjoin(data):
     host = Host(
         canonical_facts=data["canonical_facts"],

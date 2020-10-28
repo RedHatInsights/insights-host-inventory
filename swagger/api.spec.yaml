@@ -853,7 +853,7 @@ components:
             reporter:
               description: Reporting source of the host. Used when updating the stale_timestamp.
               type: string
-          required:
+        - required:
             - account
             - stale_timestamp
             - reporter
