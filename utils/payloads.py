@@ -507,7 +507,7 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "0000001")
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
@@ -516,10 +516,21 @@ def build_host_chunk():
         "fqdn": fqdn,
         "display_name": fqdn,
         "tags": [
-            {"namespace": "SPECIAL", "key": "key", "value": "val"},
-            {"namespace": "NS3", "key": "key3", "value": "val3"},
+            # {"namespace": "SPECIAL", "key": "key", "value": "val"},
+            # {"namespace": "Sat", "key": "prod", "value": None},
             {"namespace": "NS1", "key": "key3", "value": "val3"},
-            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "NS2", "key": "key2", "value": "val2"},
+            {"namespace": "NS3", "key": "key3", "value": "val3"},
+            {"namespace": "NS4", "key": "key4", "value": "val4"},
+            {"namespace": "NS5", "key": "key5", "value": "val5"},
+            {"namespace": "NS6", "key": "key6", "value": "val6"},
+            {"namespace": "NS7", "key": "key7", "value": "val7"},
+            {"namespace": "NS8", "key": "key8", "value": "val8"},
+            # {"namespace": "NS9", "key": "key9", "value": "val9"},
+            # {"namespace": "NS10", "key": "key10", "value": "val10"},
+            # {"namespace": "NS11", "key": "key11", "value": "val11"},
+            # {"namespace": "NS12", "key": "key12", "value": "val12"},
+            # {"namespace": "NS13", "key": "key13", "value": "val13"},
         ],
         # "tags": {
         #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},

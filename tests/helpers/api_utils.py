@@ -208,10 +208,10 @@ def assert_error_response(
     _verify_value("type", expected_type)
 
 
-def assert_tags_response(response_data, expected_response):
-    assert len(response_data["results"].keys()) == len(expected_response.keys())
-    for host_id, tags in expected_response.items():
-        assert len(response_data["results"][host_id]) == len(tags)
+def assert_tags_response(host_id, response_data, expected_response):
+    response_tags = response_data["results"][host_id]
+    expected_tags = expected_response
+    assert response_tags == expected_tags
 
 
 def assert_tag_counts(response_data, expected_response):
@@ -220,7 +220,7 @@ def assert_tag_counts(response_data, expected_response):
         assert response_data["results"][host_id] == tag_count
 
 
-def assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages):
+def assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages, host_id=None):
     # Check if it is the last page to calculate the correct number of returned items
     if response_data["page"] == num_pages:
         last_page_per_page = expected_total % expected_per_page
@@ -229,7 +229,10 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
 
     assert response_data["total"] == expected_total
     assert response_data["count"] == expected_per_page
-    assert len(response_data["results"]) == expected_per_page
+    if host_id:
+        assert len(response_data["results"][host_id]) == expected_per_page
+    else:
+        assert len(response_data["results"]) == expected_per_page
 
 
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):
@@ -247,21 +250,32 @@ def api_pagination_invalid_parameters_test(api_get, subtests, url):
 
 
 def api_pagination_index_test(api_get, url, expected_total):
+    # non-existent page returns zero tags
     non_existent_page = expected_total + 1
     response_status, response_data = api_get(url, query_parameters={"page": non_existent_page, "per_page": 1})
-    assert response_status == 404
+    assert response_status == 200
 
 
 def api_base_pagination_test(
-    api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None, response_match_func=None
+    api_get,
+    subtests,
+    url,
+    expected_total,
+    expected_per_page=1,
+    expected_responses=None,
+    response_match_func=None,
+    host_id=None,
 ):
     num_pages = math.ceil(expected_total / expected_per_page)
     for response_status, response_data in api_per_page_test(api_get, subtests, url, expected_per_page, num_pages):
         assert_response_status(response_status, expected_status=200)
-        assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages)
+        assert_paginated_response_counts(response_data, expected_per_page, expected_total, num_pages, host_id)
         if expected_responses and callable(response_match_func):
             expected_response = expected_responses[response_data["page"] - 1]
-            response_match_func(response_data, expected_response)
+            if host_id:
+                response_match_func(host_id, response_data, expected_response)
+            else:
+                response_match_func(response_data, expected_response)
 
 
 def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
@@ -271,9 +285,11 @@ def api_pagination_test(api_get, subtests, url, expected_total, expected_per_pag
         api_pagination_index_test(api_get, url, expected_total)
 
 
-def api_tags_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None):
+def api_tags_pagination_test(
+    api_get, subtests, url, host_id, expected_total, expected_per_page=1, expected_responses=None
+):
     api_base_pagination_test(
-        api_get, subtests, url, expected_total, expected_per_page, expected_responses, assert_tags_response
+        api_get, subtests, url, expected_total, expected_per_page, expected_responses, assert_tags_response, host_id
     )
 
 

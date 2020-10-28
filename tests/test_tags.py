@@ -13,8 +13,9 @@ from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import TAGS
 from tests.helpers.db_utils import update_host_in_db
-
+from tests.helpers.test_utils import minimal_host
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
     """
@@ -41,9 +42,12 @@ def test_get_tag_count_of_multiple_hosts(mq_create_four_specific_hosts, api_get,
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(expected_response) == len(response_data["results"])
+    assert len(expected_response) == len(response_data["tag_counts"])
+    assert expected_response == response_data["tag_counts"]
 
-    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response))
+    # verify each host
+    for key in expected_response:
+        assert expected_response[key] == response_data["tag_counts"][key]
 
 
 def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_get):
@@ -54,8 +58,7 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
     url = build_host_tags_url(host_id)
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert {} == response_data["results"]
+    assert response_status == 500
 
 
 def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -175,7 +178,7 @@ def test_get_tags_count_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {} == response_data["results"]
+    assert {} == response_data["tag_counts"]
 
 
 def test_get_tags_from_host_with_no_tags(mq_create_four_specific_hosts, api_get):
@@ -221,7 +224,7 @@ def test_get_tags_count_from_host_with_null_tags(tags, mq_create_four_specific_h
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_id: 0} == response_data["results"]
+    assert {host_id: 0} == response_data["tag_counts"]
 
 
 def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, api_get):
@@ -235,7 +238,7 @@ def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, ap
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_with_no_tags.id: 0} == response_data["results"]
+    assert {host_with_no_tags.id: 0} == response_data["tag_counts"]
 
 
 def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific_hosts, api_get):
@@ -249,28 +252,33 @@ def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_with_valueless_tag.id: 4} == response_data["results"]
+    assert {host_with_valueless_tag.id: 4} == response_data["tag_counts"]
 
 
-def test_tags_pagination(mq_create_four_specific_hosts, api_get, subtests):
+def test_tags_pagination(mq_create_or_update_host, api_get, subtests):
     """
     simple test to check pagination works for /tags
     """
-    created_hosts = mq_create_four_specific_hosts
-    expected_responses_1_per_page = [{host.id: host.tags} for host in created_hosts]
+    host         = minimal_host(tags=TAGS[0])
+    created_host = mq_create_or_update_host(host)
 
-    url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    expected_responses_1_per_page = [[tag] for tag in created_host.tags]
+    url = build_host_tags_url(host_list_or_id=created_host.id, query="?order_by=updated&order_how=ASC")
 
     # 1 per page test
-    api_tags_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
+    api_tags_pagination_test(
+        api_get, subtests, url, created_host.id, len(created_host.tags), 1, expected_responses_1_per_page
+    )
 
     expected_responses_2_per_page = [
-        {created_hosts[0].id: created_hosts[0].tags, created_hosts[1].id: created_hosts[1].tags},
-        {created_hosts[2].id: created_hosts[2].tags, created_hosts[3].id: created_hosts[3].tags},
+        [created_host.tags[0], created_host.tags[1]],
+        [created_host.tags[2], created_host.tags[3]],
     ]
 
     # 2 per page test
-    api_tags_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
+    api_tags_pagination_test(
+        api_get, subtests, url, created_host.id, len(created_host.tags), 2, expected_responses_2_per_page
+    )
 
 
 def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests):
@@ -278,20 +286,30 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
     simple test to check pagination works for /tags
     """
     created_hosts = mq_create_four_specific_hosts
-    expected_responses_1_per_page = [{host.id: len(host.tags)} for host in created_hosts]
 
-    url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
+    for host in created_hosts:
+        # expected_responses_1_per_page = [{host.id: len(host.tags)} for host in created_hosts]
+        expected_responses_1_per_page = [[tag] for tag in host.tags]
 
-    # 1 per page test
-    api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
+        url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
 
-    expected_responses_2_per_page = [
-        {created_hosts[0].id: len(created_hosts[0].tags), created_hosts[1].id: len(created_hosts[1].tags)},
-        {created_hosts[2].id: len(created_hosts[2].tags), created_hosts[3].id: len(created_hosts[3].tags)},
-    ]
+        # 1 per page test
+        api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
+        # api_tags_pagination_test(
+        #     api_get, subtests, url, created_host.id, len(host.tags), 1, expected_responses_1_per_page
+        # )
 
-    # 2 per page test
-    api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
+        # expected_responses_2_per_page = [
+        #     {created_hosts[0].id: len(created_hosts[0].tags), created_hosts[1].id: len(created_hosts[1].tags)},
+        #     {created_hosts[2].id: len(created_hosts[2].tags), created_hosts[3].id: len(created_hosts[3].tags)},
+        # ]
+
+        expected_responses_2_per_page = [
+            [host.tags[0], host.tags[1]],
+            [host.tags[2], host.tags[3]],
+        ]
+        # 2 per page test
+        api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
 
 
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
@@ -346,9 +364,12 @@ def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, 
             response_status, response_data = api_get(url)
 
             assert response_status == 200
-            assert len(expected_response) == len(response_data["results"])
+            assert len(expected_response) == len(response_data["tag_counts"])
+            assert expected_response == response_data["tag_counts"]
+            # verify each host
+            for key in expected_response:
+                assert expected_response[key] == response_data["tag_counts"][key]
 
-            api_pagination_test(api_get, subtests, url, expected_total=len(expected_response))
 
 
 def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
