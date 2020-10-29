@@ -42,12 +42,12 @@ def test_get_tag_count_of_multiple_hosts(mq_create_four_specific_hosts, api_get,
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(expected_response) == len(response_data["tag_counts"])
-    assert expected_response == response_data["tag_counts"]
+    assert len(expected_response) == len(response_data["tags_count"])
+    assert expected_response == response_data["tags_count"]
 
     # verify each host
     for key in expected_response:
-        assert expected_response[key] == response_data["tag_counts"][key]
+        assert expected_response[key] == response_data["tags_count"][key]
 
 
 def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_get):
@@ -178,7 +178,7 @@ def test_get_tags_count_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {} == response_data["tag_counts"]
+    assert {} == response_data["tags_count"]
 
 
 def test_get_tags_from_host_with_no_tags(mq_create_four_specific_hosts, api_get):
@@ -224,7 +224,7 @@ def test_get_tags_count_from_host_with_null_tags(tags, mq_create_four_specific_h
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_id: 0} == response_data["tag_counts"]
+    assert {host_id: 0} == response_data["tags_count"]
 
 
 def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, api_get):
@@ -238,7 +238,7 @@ def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, ap
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_with_no_tags.id: 0} == response_data["tag_counts"]
+    assert {host_with_no_tags.id: 0} == response_data["tags_count"]
 
 
 def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific_hosts, api_get):
@@ -252,7 +252,7 @@ def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert {host_with_valueless_tag.id: 4} == response_data["tag_counts"]
+    assert {host_with_valueless_tag.id: 4} == response_data["tags_count"]
 
 
 def test_tags_pagination(mq_create_or_update_host, api_get, subtests):
@@ -346,11 +346,11 @@ def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, 
             response_status, response_data = api_get(url)
 
             assert response_status == 200
-            assert len(expected_response) == len(response_data["tag_counts"])
-            assert expected_response == response_data["tag_counts"]
+            assert len(expected_response) == len(response_data["tags_count"])
+            assert expected_response == response_data["tags_count"]
             # verify each host
             for key in expected_response:
-                assert expected_response[key] == response_data["tag_counts"][key]
+                assert expected_response[key] == response_data["tags_count"][key]
 
 
 

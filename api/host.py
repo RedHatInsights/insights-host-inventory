@@ -382,12 +382,12 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
         query = query.order_by(*order_by)
     query = query.paginate(page, per_page, True)
 
-    counts = _count_tags(query.items)
+    tags_count = _count_tags(query.items)
 
-    return _build_paginated_host_tags_count(query.total, page, per_page, counts)
+    return _build_paginated_host_tags_count(tags_count)
 
-def _build_paginated_host_tags_count(total, page, per_page, tags_list):
-    json_output = {"tag_counts": tags_list}
+def _build_paginated_host_tags_count(tags_count):
+    json_output = {"tags_count": tags_count}
     return flask_json_response(json_output)
 
 # returns counts in format [{id: count}, {id: count}]
@@ -407,9 +407,6 @@ def _count_tags(host_list):
 
     return counts
 
-def _build_paginated_host_tags_response(total, page, per_page, counts):
-    json_output = build_collection_response(tags_list, page, per_page, total)
-    return flask_json_response(json_output)
 
 @api_operation
 @rbac(Permission.READ)
