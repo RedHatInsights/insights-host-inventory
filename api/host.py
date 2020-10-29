@@ -386,9 +386,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 
     return _build_paginated_host_tags_count(tags_count)
 
+
 def _build_paginated_host_tags_count(tags_count):
     json_output = {"tags_count": tags_count}
     return flask_json_response(json_output)
+
 
 # returns counts in format [{id: count}, {id: count}]
 def _count_tags(host_list):
@@ -428,6 +430,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
 
     return _build_paginated_host_tags_response(all_tags_count, tags_returned, page, per_page, tags)
 
+
 def _build_paginated_tags(host_list, search, page, per_page):
     response_tags = {}
 
@@ -438,9 +441,12 @@ def _build_paginated_tags(host_list, search, page, per_page):
             tags = Tag.filter_tags(Tag.create_tags_from_nested(host.tags), search)
 
         all_tags_count = len(tags)
-        logger.debug("All tags count: {}".format(all_tags_count))
+        logger.debug(f"All tags count: {all_tags_count}")
 
-        tags = tags[(page-1)*per_page:page*per_page]
+        # vars to get flake8
+        start = (page - 1) * per_page
+        end = page * per_page
+        tags = tags[start:end]
 
         tags_returned = len(tags)
         tag_dictionaries = []
@@ -451,9 +457,11 @@ def _build_paginated_tags(host_list, search, page, per_page):
 
     return response_tags, all_tags_count, tags_returned
 
+
 def _build_paginated_host_tags_response(total, tags_returned, page, per_page, tags_list):
     json_output = _build_collection_response(tags_list, tags_returned, page, per_page, total)
     return flask_json_response(json_output)
+
 
 def _build_collection_response(data, tags_returned, page, per_page, total):
     return {"total": total, "count": tags_returned, "page": page, "max_per_page": per_page, "results": data}

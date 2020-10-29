@@ -289,13 +289,7 @@ def api_base_pagination_test(
 
 
 def api_base_pagination_tag_count_test(
-    api_get,
-    subtests,
-    url,
-    expected_total,
-    expected_per_page=1,
-    expected_responses=None,
-    response_match_func=None,
+    api_get, subtests, url, expected_total, expected_per_page=1, expected_responses=None, response_match_func=None
 ):
     response_status, response_data = api_per_page_tag_count_test(api_get, subtests, url)
     assert_response_status(response_status, expected_status=200)
@@ -307,6 +301,7 @@ def api_pagination_test(api_get, subtests, url, expected_total, expected_per_pag
     api_pagination_invalid_parameters_test(api_get, subtests, url)
     if expected_total > 0:
         api_pagination_index_test(api_get, url, expected_total)
+
 
 def api_tag_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
     api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page)

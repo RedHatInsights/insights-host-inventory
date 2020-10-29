@@ -17,6 +17,7 @@ from tests.helpers.api_utils import TAGS
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import minimal_host
 
+
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
     """
     Send a request for the tag count of 1 host and check
@@ -259,7 +260,7 @@ def test_tags_pagination(mq_create_or_update_host, api_get, subtests):
     """
     simple test to check pagination works for /tags
     """
-    host         = minimal_host(tags=TAGS[0])
+    host = minimal_host(tags=TAGS[0])
     created_host = mq_create_or_update_host(host)
 
     expected_responses_1_per_page = [[tag] for tag in created_host.tags]
@@ -351,7 +352,6 @@ def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, 
             # verify each host
             for key in expected_response:
                 assert expected_response[key] == response_data["tags_count"][key]
-
 
 
 def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
