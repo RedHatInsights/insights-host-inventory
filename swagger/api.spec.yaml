@@ -59,60 +59,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
-    post:
-      deprecated: true
-      operationId: api.host.add_host_list
-      tags:
-        - hosts
-      summary: Create/update multiple host and add them to the host list
-      description: >-
-        Create a new host and add it to the host list or update an existing
-        hosts. A host is updated if there is already one with the same
-        canonicals facts and belonging to the same account.
-        <br /><br />
-        Required permissions: inventory:hosts:write
-        <br /><br />
-        NOTICE: This operation is deprecated. The explicit creation of hosts is
-        no longer supported. Hosts are created automatically based on uploads
-        processed by the [payload ingress service](/docs/api/ingress#operations-default-post_upload) instead.
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: A list of host objects to be added to the host list
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/CreateHostIn'
-      responses:
-        '207':
-          description: Successfully created a host.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BulkHostOut'
-              examples:
-                update:
-                  value:
-                    status: 200
-                    host: Host details
-                create:
-                  value:
-                    status: 201
-                    host: Host details
-                error:
-                  value:
-                    status: 400
-                    title: Invalid Request
-                    detail: Could not process request
-                    host: Input host data
-        '400':
-          description: Invalid request.
   /hosts/checkin:
-    put:
+    post:
       operationId: api.host.host_checkin
       tags:
         - hosts
@@ -751,7 +699,10 @@ components:
       required:
         - namespace
         - facts
-    CanonicalFacts:
+    CreateCheckIn:
+      title: Check-in data
+      description: >-
+        Data required to create a check-in record for a host.
       type: object
       properties:
         insights_id:
@@ -815,63 +766,13 @@ components:
             OpenStack, etc. This field is considered to be a canonical fact.
           type: string
           example: i-05d2313e6b9a42b16
-    CreateHostIn:
-      title: Host data
-      description: >-
-        Data of a single host belonging to an account. Represents the hosts
-        without its Inventory metadata.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/CanonicalFacts'
-        - properties:
-            display_name:
-              description: >-
-                A host’s human-readable display name, e.g. in a form of a domain
-                name.
-              type: string
-              example: host1.mydomain.com
-            ansible_host:
-              description: >-
-                The ansible host name for remediations
-              type: string
-              example: host1.mydomain.com
-            account:
-              description: A Red Hat Account number that owns the host.
-              type: string
-              example: '000102'
-            facts:
-              description: A set of facts belonging to the host.
-              type: array
-              items:
-                $ref: '#/components/schemas/FactSet'
-            system_profile:
-              $ref: '#/components/schemas/SystemProfile'
-            stale_timestamp:
-              description: Timestamp from which the host is considered stale.
-              type: string
-              format: date-time
-            reporter:
-              description: Reporting source of the host. Used when updating the stale_timestamp.
-              type: string
-        - required:
-            - account
-            - stale_timestamp
-            - reporter
-    CreateCheckIn:
-      title: Check-in data
-      description: >-
-        Data required to create a check-in record for a host.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/CanonicalFacts'
-        - properties:
-            checkin_frequency:
-              description: Defines how far in the future the host becomes stale (in minutes).
-              type: integer
-              minimum: 1
-              maximum: 2880
-              default: 1440
-              example: 1440
+        checkin_frequency:
+          description: How long from now to expect another check-in (in minutes).
+          type: integer
+          minimum: 1
+          maximum: 2880
+          default: 1440
+          example: 1440
     CreateHostOut:
       title: Create Host Out
       description: >-
