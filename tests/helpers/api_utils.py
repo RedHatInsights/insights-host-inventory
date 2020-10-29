@@ -256,6 +256,13 @@ def api_pagination_index_test(api_get, url, expected_total):
     # non-existent page returns zero tags
     non_existent_page = expected_total + 1
     response_status, response_data = api_get(url, query_parameters={"page": non_existent_page, "per_page": 1})
+    assert response_status == 404
+
+
+def api_tag_pagination_index_test(api_get, url, expected_total):
+    # non-existent page returns zero tags
+    non_existent_page = expected_total + 1
+    response_status, response_data = api_get(url, query_parameters={"page": non_existent_page, "per_page": 1})
     assert response_status == 200
 
 
@@ -300,6 +307,12 @@ def api_pagination_test(api_get, subtests, url, expected_total, expected_per_pag
     api_pagination_invalid_parameters_test(api_get, subtests, url)
     if expected_total > 0:
         api_pagination_index_test(api_get, url, expected_total)
+
+def api_tag_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
+    api_base_pagination_test(api_get, subtests, url, expected_total, expected_per_page)
+    api_pagination_invalid_parameters_test(api_get, subtests, url)
+    if expected_total > 0:
+        api_tag_pagination_index_test(api_get, url, expected_total)
 
 
 def api_tags_pagination_test(

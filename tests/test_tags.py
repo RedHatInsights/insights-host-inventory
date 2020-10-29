@@ -3,7 +3,7 @@ from sqlalchemy import null
 
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import find_non_culled_hosts
-from tests.helpers.api_utils import api_pagination_test
+from tests.helpers.api_utils import api_tag_pagination_test
 from tests.helpers.api_utils import api_tags_count_pagination_test
 from tests.helpers.api_utils import api_tags_pagination_test
 from tests.helpers.api_utils import assert_response_status
@@ -31,7 +31,7 @@ def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subt
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
 
-    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response))
+    api_tag_pagination_test(api_get, subtests, url, expected_total=len(expected_response))
 
 
 def test_get_tag_count_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -292,14 +292,6 @@ def test_tags_count_pagination(mq_create_four_specific_hosts, api_get, subtests)
 
     # 1 per page test
     api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 1, expected_responses_1_per_page)
-
-    # expected_responses_2_per_page = [
-    #     {created_hosts[0].id: len(created_hosts[0].tags), created_hosts[1].id: len(created_hosts[1].tags)},
-    #     {created_hosts[2].id: len(created_hosts[2].tags), created_hosts[3].id: len(created_hosts[3].tags)},
-    # ]
-
-    # # 2 per page test
-    # api_tags_count_pagination_test(api_get, subtests, url, len(created_hosts), 2, expected_responses_2_per_page)
 
 
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):

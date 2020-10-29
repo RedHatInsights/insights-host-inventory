@@ -134,7 +134,7 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
+    assert created_hosts["culled"].id not in tuple(response_data["tag_counts"].keys())
 
 
 def test_get_system_profile_ignores_culled(mq_create_hosts_in_all_states, api_get):
