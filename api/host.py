@@ -464,7 +464,7 @@ def _build_paginated_host_tags_response(total, tags_returned, page, per_page, ta
 
 
 def _build_collection_response(data, tags_returned, page, per_page, total):
-    return {"total": total, "count": tags_returned, "page": page, "max_per_page": per_page, "results": data}
+    return {"total": total, "count": tags_returned, "page": page, "per_page": per_page, "results": data}
 
 
 @api_operation
