@@ -225,7 +225,6 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
         if last_page_per_page > 0:
             expected_per_page = last_page_per_page
 
-    assert response_data["total"] == expected_total
     assert response_data["count"] == expected_per_page
     if host_id:
         assert len(response_data["results"][host_id]) == expected_per_page
@@ -293,7 +292,7 @@ def api_base_pagination_tag_count_test(
 ):
     response_status, response_data = api_per_page_tag_count_test(api_get, subtests, url)
     assert_response_status(response_status, expected_status=200)
-    assert len(expected_responses) == len(response_data["tags_count"])
+    assert len(expected_responses) == len(response_data["results"])
 
 
 def api_pagination_test(api_get, subtests, url, expected_total, expected_per_page=1):
