@@ -84,7 +84,7 @@ paths:
               $ref: '#/components/schemas/CreateCheckIn'
       responses:
         '201':
-          description: Successfully updated host's timestamps.
+          description: Successfully checked in Host.
           content:
             application/json:
               schema:
