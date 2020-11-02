@@ -451,7 +451,6 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-    # checkin_frequency = timedelta(minutes=body.get("checkin_frequency") or 1440)
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
