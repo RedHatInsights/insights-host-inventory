@@ -12,7 +12,7 @@ from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.culling import staleness_to_conditions
 
-__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "url")
+__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "string_contains_lc", "url")
 
 logger = getLogger("graphql")
 outbound_http_metric = outbound_http_response_time.labels("xjoin")
@@ -54,6 +54,10 @@ def staleness_filter(staleness):
 
 def string_contains(string):
     return {"matches": f"*{string}*"}
+
+
+def string_contains_lc(string):
+    return {"matches_lc": f"*{string}*"}
 
 
 def url():
