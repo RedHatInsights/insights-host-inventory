@@ -8,6 +8,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains
+from app.xjoin import string_contains_lc
 
 __all__ = ("get_host_list",)
 
@@ -143,10 +144,11 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
-        query_filters = ({"display_name": string_contains(display_name)},)
+        query_filters = ({"display_name": string_contains_lc(display_name)},)
     elif hostname_or_id:
         contains = string_contains(hostname_or_id)
-        hostname_or_id_filters = ({"display_name": contains}, {"fqdn": contains})
+        contains_lc = string_contains_lc(hostname_or_id)
+        hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": contains})
         try:
             id = UUID(hostname_or_id)
         except ValueError:
