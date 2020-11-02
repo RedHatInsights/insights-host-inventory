@@ -75,9 +75,7 @@ def xjoin_enabled():
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_system(
-    search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None
-):
+def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -96,12 +94,6 @@ def get_sap_system(
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
-
-    if search:
-        variables["filter"] = {
-            # Escaped so that the string literals are not interpretted as regex
-            "search": {"regex": f".*{re.escape(search)}.*"}
-        }
 
     if filter:
         if filter.get("system_profile"):
@@ -127,7 +119,7 @@ def get_sap_system(
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
+def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -147,6 +139,12 @@ def get_sap_sids(tags=None, page=None, per_page=None, staleness=None, registered
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if search:
+        variables["filter"] = {
+            # Escaped so that the string literals are not interpretted as regex
+            "search": {"regex": f".*{re.escape(search)}.*"}
+        }
 
     if filter:
         if filter.get("system_profile"):
