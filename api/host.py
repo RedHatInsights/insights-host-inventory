@@ -464,8 +464,8 @@ def host_checkin(body):
         return flask_json_response(
             {
                 "detail": "No hosts match the provided canonical facts.",
-                "status": 400,
-                "title": "Bad Request",
+                "status": 404,
+                "title": "Not Found",
                 "type": "about:blank",
             },
             status=400,
