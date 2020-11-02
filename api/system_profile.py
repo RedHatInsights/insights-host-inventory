@@ -1,3 +1,5 @@
+import re
+
 import flask
 
 from api import api_operation
@@ -44,12 +46,15 @@ SAP_SYSTEM_QUERY = """
 SAP_SIDS_QUERY = """
     query hostSystemProfile (
         $hostFilter: HostFilter
+        $filter: SapSidFilter
     ) {
         hostSystemProfile (
             hostFilter: $hostFilter
         ) {
-            sap_sids {
-                meta{
+            sap_sids (
+                filter: $filter
+            ) {
+                meta {
                     total
                     count
                 }
@@ -70,7 +75,9 @@ def xjoin_enabled():
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
+def get_sap_system(
+    search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None
+):
     if not xjoin_enabled():
         flask.abort(503)
 
@@ -89,6 +96,12 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if search:
+        variables["filter"] = {
+            # Escaped so that the string literals are not interpretted as regex
+            "search": {"regex": f".*{re.escape(search)}.*"}
+        }
 
     if filter:
         if filter.get("system_profile"):

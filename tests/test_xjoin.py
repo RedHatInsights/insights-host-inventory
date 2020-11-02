@@ -1443,3 +1443,17 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
                 graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
                     SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}
                 )
+
+
+def test_query_system_profile_sap_sids_with_search(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query="?search=C2")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}}
+    )
