@@ -142,7 +142,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     if search:
         variables["filter"] = {
-            # Escaped so that the string literals are not interpretted as regex
+            # Escaped so that the string literals are not interpreted as regex
             "search": {"regex": f".*{re.escape(search)}.*"}
         }
 

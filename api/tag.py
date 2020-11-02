@@ -91,7 +91,7 @@ def get_tags(
 
     if search:
         variables["filter"] = {
-            # Escaped so that the string literals are not interpretted as regex
+            # Escaped so that the string literals are not interpreted as regex
             "search": {"regex": f".*{re.escape(search)}.*"}
         }
 
