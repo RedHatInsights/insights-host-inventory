@@ -417,10 +417,7 @@ class TagsSchema(MarshmallowSchema):
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
-class BaseHostSchema(MarshmallowSchema):
-    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
-    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
-    account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
+class CanonicalFactsSchema(MarshmallowSchema):
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
@@ -434,6 +431,12 @@ class BaseHostSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+
+
+class BaseHostSchema(CanonicalFactsSchema):
+    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
+    account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
     facts = fields.List(fields.Nested(FactsSchema))
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
