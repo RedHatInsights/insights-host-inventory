@@ -255,6 +255,9 @@ class Host(db.Model):
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
+    def _update_modified_date(self):
+        self.modified_on = datetime.now(timezone.utc)
+
     def replace_facts_in_namespace(self, namespace, facts_dict):
         self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")

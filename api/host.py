@@ -1,5 +1,3 @@
-from datetime import datetime
-from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -455,7 +453,7 @@ def host_checkin(body):
     existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
     if existing_host:
-        existing_host.modified_on = datetime.now(timezone.utc)
+        existing_host._update_modified_date()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
