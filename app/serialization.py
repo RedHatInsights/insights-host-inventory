@@ -7,7 +7,6 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
 from app.models import Host as Host
-from app.models import HttpHostSchema
 from app.models import MqHostSchema
 from app.utils import Tag
 
@@ -62,10 +61,6 @@ def deserialize_host(raw_data, schema):
         validated_data["stale_timestamp"],
         validated_data["reporter"],
     )
-
-
-def deserialize_host_http(raw_data):
-    return deserialize_host(raw_data, HttpHostSchema)
 
 
 def deserialize_host_mq(raw_data):
