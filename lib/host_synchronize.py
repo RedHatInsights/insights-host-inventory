@@ -17,23 +17,26 @@ from datetime import timedelta
 __all__ = ("synchronize_hosts",)
 
 def synchronize_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
-    # check into using Chunk size for query.
-    host_list = select_query.all()
-    for host in host_list:
-        host_id     = host.id
-        sync_up     = _should_synchronize(host)
-        if sync_up:
-            serialized_host = serialize_host(host, _staleness_timestamps(), EGRESS_HOST_FIELDS)
-            event           = build_event(EventType.updated, serialized_host)
-            insights_id     = host.canonical_facts.get("insights_id")
-            headers         = message_headers(EventType.updated, insights_id)
-            # incase of a failed update event, event_producer logs the message.
-            event_producer.write_event(event, str(serialized_host), headers, Topic.events, wait=True)
-            synchronize_host_count.inc()
+    start = 0
+    print("Total number: {}".format(select_query.count()))
+    while select_query.offset(start).limit(chunk_size).count():
+        host_list = select_query.offset(start).limit(chunk_size)
+        for host in host_list:
+            host_id     = host.id
+            sync_up     = _should_synchronize(host)
+            if sync_up:
+                serialized_host = serialize_host(host, _staleness_timestamps(), EGRESS_HOST_FIELDS)
+                event           = build_event(EventType.updated, serialized_host)
+                insights_id     = host.canonical_facts.get("insights_id")
+                headers         = message_headers(EventType.updated, insights_id)
+                # incase of a failed update event, event_producer logs the message.
+                event_producer.write_event(event, str(serialized_host), headers, Topic.events, wait=True)
+                synchronize_host_count.inc()
 
-        yield host_id, sync_up
+            yield host_id, sync_up
+        start += chunk_size
 
-        # forced stoppage if needed.
+        # forced stop if needed.
         if interrupt():
             return
 

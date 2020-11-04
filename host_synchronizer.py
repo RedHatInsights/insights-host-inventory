@@ -61,7 +61,7 @@ def _prometheus_job(namespace):
 
 
 def _excepthook(logger, type, value, traceback):
-    logger.exception("Host reaper failed", exc_info=value)
+    logger.exception("Host synchronizer failed", exc_info=value)
 
 
 # TODO question, do we need a counter
@@ -73,7 +73,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
     query = session.query(Host)
 
     update_count = 1
-    events = synchronize_hosts(query, event_producer, "1000", shutdown_handler.shut_down)
+    events = synchronize_hosts(query, event_producer, 1000, shutdown_handler.shut_down)
     for host_id, synchronize in events:
         if synchronize:
             logger.info("Synchronized host: %s", host_id)
@@ -90,9 +90,9 @@ def main(logger):
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)
-    job = _prometheus_job(config.kubernetes_namespace)
-    prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
-    register_shutdown(prometheus_shutdown, "Pushing metrics")
+    # job = _prometheus_job(config.kubernetes_namespace)
+    # prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
+    # register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
     session = Session()
