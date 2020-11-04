@@ -4,7 +4,6 @@ from json import dumps
 from app.auth.identity import Identity
 from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.test_utils import set_environment
 
 
 def valid_identity():
@@ -53,16 +52,3 @@ def test_validate_invalid_token_on_get(flask_client):
     auth_header = build_token_auth_header("NotTheSuperSecretValue")
     response = flask_client.get(HOST_URL, headers=auth_header)
     assert 401 == response.status_code
-
-
-def test_validate_invalid_token_on_post(flask_client):
-    auth_header = build_token_auth_header("NotTheSuperSecretValue")
-    response = flask_client.post(HOST_URL, headers=auth_header)
-    assert 401 == response.status_code
-
-
-def test_validate_token_on_post_shared_secret_not_set(flask_client):
-    with set_environment({}):
-        auth_header = build_token_auth_header()
-        response = flask_client.post(HOST_URL, headers=auth_header)
-        assert 401 == response.status_code
