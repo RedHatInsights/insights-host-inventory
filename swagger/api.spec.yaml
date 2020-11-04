@@ -59,58 +59,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
-    post:
-      deprecated: true
-      operationId: api.host.add_host_list
-      tags:
-        - hosts
-      summary: Create/update multiple host and add them to the host list
-      description: >-
-        Create a new host and add it to the host list or update an existing
-        hosts. A host is updated if there is already one with the same
-        canonicals facts and belonging to the same account.
-        <br /><br />
-        Required permissions: inventory:hosts:write
-        <br /><br />
-        NOTICE: This operation is deprecated. The explicit creation of hosts is
-        no longer supported. Hosts are created automatically based on uploads
-        processed by the [payload ingress service](/docs/api/ingress#operations-default-post_upload) instead.
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: A list of host objects to be added to the host list
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/CreateHostIn'
-      responses:
-        '207':
-          description: Successfully created a host.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BulkHostOut'
-              examples:
-                update:
-                  value:
-                    status: 200
-                    host: Host details
-                create:
-                  value:
-                    status: 201
-                    host: Host details
-                error:
-                  value:
-                    status: 400
-                    title: Invalid Request
-                    detail: Could not process request
-                    host: Input host data
-        '400':
-          description: Invalid request.
   /hosts/checkin:
     put:
       operationId: api.host.host_checkin
