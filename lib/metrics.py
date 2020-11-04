@@ -21,3 +21,7 @@ delete_host_processing_time = Summary(
     "inventory_delete_host_commit_seconds", "Time spent deleting hosts from the database"
 )
 host_reaper_fail_count = Counter("inventory_reaper_fail_count", "The total amount of Host Reaper failures.")
+
+# synchronization counter
+synchronize_host_count = Counter("inventory_synchronize_host_count", "The total amount of hosts synchronized")
+synchronize_fail_count = Counter("inventory_synchronize_fail_count", "The total amount of synchronization failures.")
