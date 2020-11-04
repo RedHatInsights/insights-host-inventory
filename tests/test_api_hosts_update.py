@@ -60,30 +60,25 @@ def test_checkin(event_datetime_mock, event_producer_mock, db_create_host, db_ge
     record = db_get_host(created_host.id)
 
     assert record.modified_on > updated_time
+    assert record.stale_timestamp == created_host.stale_timestamp
+    assert record.reporter == created_host.reporter
 
-    assert event_producer_mock.key == str(created_host.id)
     assert_patch_event_is_valid(
-        created_host,
-        event_producer_mock,
-        "123456",
-        event_datetime_mock,
-        created_host.display_name,
-        record.stale_timestamp,
+        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name
     )
 
 
-@pytest.mark.system_culling
 def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_post):
     created_host = db_create_host()
 
     post_doc = created_host.canonical_facts
-    post_doc["insights_id"] = f"nomatch_{created_host.canonical_facts['insights_id']}"
+    post_doc["insights_id"] = generate_uuid()
 
     response_status, response_data = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
 
-    assert_response_status(response_status, expected_status=400)
+    assert_response_status(response_status, expected_status=404)
     assert event_producer_mock.key is None
     assert event_producer_mock.event is None
 
