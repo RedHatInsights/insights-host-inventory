@@ -21,6 +21,16 @@ def api_create_or_update_host(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_post(flask_client):
+    def _api_post(
+        url, host_data, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
+    ):
+        return do_request(flask_client.post, url, host_data, query_parameters, extra_headers, auth_type, identity_type)
+
+    return _api_post
+
+
+@pytest.fixture(scope="function")
 def api_patch(flask_client):
     def _api_patch(url, host_data, query_parameters=None, extra_headers=None, identity_type="User"):
         return do_request(
