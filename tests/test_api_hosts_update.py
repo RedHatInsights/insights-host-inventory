@@ -69,10 +69,7 @@ def test_checkin(event_datetime_mock, event_producer_mock, db_create_host, db_ge
 
 
 def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_post):
-    created_host = db_create_host()
-
-    post_doc = created_host.canonical_facts
-    post_doc["insights_id"] = generate_uuid()
+    post_doc = {"insights_id": generate_uuid()}
 
     response_status, response_data = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
