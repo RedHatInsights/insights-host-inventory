@@ -648,34 +648,6 @@ components:
           type: object
           additionalProperties:
             type: integer
-    BulkHostOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        errors:
-          type: integer
-          description: Number of items in the "data" list that contain errors.
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/BulkHostOutDetails'
-          description: 'List of hosts that were created, updated or failed to be processed.'
-    BulkHostOutDetails:
-      type: object
-      properties:
-        status:
-          type: integer
-          description: HTTP status code of the results of the host create/update process
-        host:
-          $ref: '#/components/schemas/CreateHostOut'
-        title:
-          type: string
-          description: Short description of why a host failed to be created or updated.
-        detail:
-          type: string
-          description: Details about why a host failed to be created or updated.
     Facts:
       title: Host facts
       description: A set of string facts about a host.
