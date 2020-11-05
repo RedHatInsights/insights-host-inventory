@@ -90,6 +90,8 @@ def main(logger):
     registry = CollectorRegistry()
     for metric in COLLECTED_METRICS:
         registry.register(metric)
+
+    # TODO enable prometheus by uncommenting the following 3 lines.
     # job = _prometheus_job(config.kubernetes_namespace)
     # prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
     # register_shutdown(prometheus_shutdown, "Pushing metrics")

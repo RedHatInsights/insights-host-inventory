@@ -1,0 +1,45 @@
+from datetime import timedelta
+from unittest import mock
+
+import pytest
+from kafka.errors import KafkaError
+
+from app import db
+from app import threadctx
+from app import UNKNOWN_REQUEST_ID_VALUE
+from host_synchronizer import run as host_synchronizer_run
+from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.mq_utils import assert_synchronize_event_is_valid
+from tests.helpers.test_utils import get_staleness_timestamps
+
+from tests.helpers.api_utils import build_facts_url
+from tests.helpers.api_utils import build_host_tags_url
+from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_system_profile_url
+from tests.helpers.api_utils import build_tags_count_url
+from tests.helpers.api_utils import HOST_URL
+
+@pytest.mark.host_synchronizer
+def test_synchronize_single_host( 
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+):
+    staleness_timestamps = get_staleness_timestamps()
+
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter")
+    created_host = db_create_host(host)
+
+    assert db_get_host(created_host.id)
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_synchronizer_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
+
+    # check if host exist thought event synchronizer must find it to produce an update event.
+    assert db_get_host(created_host.id)
+
+    assert_synchronize_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
