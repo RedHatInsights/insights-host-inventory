@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -36,6 +33,7 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
+from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -377,12 +375,11 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-    facts = body.get("canonical_facts")
-    staleness_offset = timedelta(minutes=body.get("checkin_frequency") or 1440)
-    existing_host = find_existing_host(current_identity.account_number, facts)
+    canonical_facts = deserialize_canonical_facts(body)
+    existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
     if existing_host:
-        existing_host._update_stale_timestamp(datetime.now(timezone.utc) + staleness_offset, "checkin")
+        existing_host._update_modified_date()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
@@ -390,10 +387,10 @@ def host_checkin(body):
     else:
         return flask_json_response(
             {
-                "detail": "No hosts match the provided facts.",
-                "status": 400,
-                "title": "Bad Request",
+                "detail": "No hosts match the provided canonical facts.",
+                "status": 404,
+                "title": "Not Found",
                 "type": "about:blank",
             },
-            status=400,
+            status=404,
         )
