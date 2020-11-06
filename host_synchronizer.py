@@ -1,3 +1,4 @@
+# import json
 import sys
 from functools import partial
 
@@ -8,27 +9,22 @@ from sqlalchemy.orm import sessionmaker
 
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
-from app.culling import Conditions
 from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.queue.metrics import event_producer_failure
 from app.queue.event_producer import EventProducer
+from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
-from lib.host_delete import delete_hosts
 from lib.host_synchronize import synchronize_hosts
-from lib.host_repository import stale_timestamp_filter
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
 from lib.metrics import synchronize_fail_count
-
-import json
 
 __all__ = ("main", "run")
 
@@ -64,7 +60,6 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host synchronizer failed", exc_info=value)
 
 
-# TODO question, do we need a counter
 @synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
 
@@ -75,7 +70,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
     for host_id, synchronize in events:
         if synchronize:
             logger.info("Synchronized host: %s", host_id)
-            logger.info("Number of hosts synchronized: {}".format(update_count))
+            logger.info(f"Number of hosts synchronized: {update_count}")
             update_count += 1
         else:
             logger.info("Host %s already synchronized. Synchronize event not emitted.", host_id)
@@ -105,6 +100,7 @@ def main(logger):
 
     with session_guard(session):
         run(config, logger, session, event_producer, shutdown_handler)
+
 
 if __name__ == "__main__":
     configure_logging()
