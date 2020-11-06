@@ -67,8 +67,6 @@ def _excepthook(logger, type, value, traceback):
 # TODO question, do we need a counter
 @synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
-    conditions = Conditions.from_config(config)
-    query_filter = stale_timestamp_filter(*conditions.culled())
 
     query = session.query(Host)
 
@@ -91,10 +89,9 @@ def main(logger):
     for metric in COLLECTED_METRICS:
         registry.register(metric)
 
-    # TODO enable prometheus by uncommenting the following 3 lines.
-    # job = _prometheus_job(config.kubernetes_namespace)
-    # prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
-    # register_shutdown(prometheus_shutdown, "Pushing metrics")
+    job = _prometheus_job(config.kubernetes_namespace)
+    prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
+    register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
     session = Session()

@@ -9,6 +9,7 @@ from app import threadctx
 from app import UNKNOWN_REQUEST_ID_VALUE
 from host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
+# from tests.helpers.mq_utils import assert_synchronize_multiple_hosts
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
 
@@ -18,9 +19,11 @@ from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import HOST_URL
+from host_reaper import run as host_reaper_run
+
 
 @pytest.mark.host_synchronizer
-def test_synchronize_single_host( 
+def test_synchronize_host_event( 
     event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
 ):
     staleness_timestamps = get_staleness_timestamps()
@@ -43,3 +46,42 @@ def test_synchronize_single_host(
     assert db_get_host(created_host.id)
 
     assert_synchronize_event_is_valid(event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock)
+
+
+@pytest.mark.host_synchronizer
+@pytest.mark.parametrize(
+    "send_side_effects",
+    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+)
+def test_synchrnize_after_kafka_producer_error(
+    send_side_effects,
+    kafka_producer,
+    event_producer,
+    event_datetime_mock,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    inventory_config,
+):
+    event_producer._kafka_producer.send.side_effect = send_side_effects
+
+    staleness_timestamps = get_staleness_timestamps()
+
+    host_count = 3
+    created_hosts = db_create_multiple_hosts( how_many=host_count )
+    created_host_ids = [str(host.id) for host in created_hosts]
+
+    hosts = db_get_hosts(created_host_ids)
+    assert hosts.count() == host_count
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+
+    with pytest.raises(KafkaError):
+        host_synchronizer_run(
+            inventory_config,
+            mock.Mock(),
+            db.session,
+            event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        )
+
+    assert event_producer._kafka_producer.send.call_count == 2
