@@ -14,6 +14,9 @@ from lib.metrics import synchronize_host_count
 
 __all__ = ("synchronize_hosts",)
 
+WARN_DAYS_AFTER = 7
+DELETE_DAYS_AFTER = 14
+
 
 def synchronize_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
     start = 0
@@ -21,7 +24,6 @@ def synchronize_hosts(select_query, event_producer, chunk_size, interrupt=lambda
     while select_query.offset(start).limit(chunk_size).count():
         host_list = select_query.offset(start).limit(chunk_size)
         for host in host_list:
-            host_id = host.id
             sync_up = _should_synchronize(host)
             if sync_up:
                 serialized_host = serialize_host(host, _staleness_timestamps(), EGRESS_HOST_FIELDS)
@@ -32,7 +34,7 @@ def synchronize_hosts(select_query, event_producer, chunk_size, interrupt=lambda
                 event_producer.write_event(event, str(serialized_host), headers, Topic.events, wait=True)
                 synchronize_host_count.inc()
 
-            yield host_id, sync_up
+            yield host.id, sync_up
         start += chunk_size
 
         # forced stop if needed.
@@ -53,5 +55,8 @@ def _should_synchronize(host):
 
 
 def _staleness_timestamps():
-    cullingConfig = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
+    cullingConfig = CullingConfig(
+        stale_warning_offset_delta=timedelta(days=WARN_DAYS_AFTER),
+        culled_offset_delta=timedelta(days=DELETE_DAYS_AFTER),
+    )
     return Timestamps(cullingConfig)
