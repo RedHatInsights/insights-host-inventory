@@ -94,8 +94,8 @@ paths:
                   value:
                     status: 201
                     host: Host details
-        '400':
-          description: Invalid request.
+        '404':
+          description: Not Found.
   '/hosts/{host_id_list}':
     get:
       tags:
