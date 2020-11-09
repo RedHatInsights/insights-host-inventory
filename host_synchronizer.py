@@ -22,17 +22,15 @@ from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_synchronize import synchronize_hosts
-from lib.metrics import delete_host_count
-from lib.metrics import delete_host_processing_time
 from lib.metrics import synchronize_fail_count
+from lib.metrics import synchronize_host_count
 
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-synchronizer"
 LOGGER_NAME = "inventory_synchronizer"
 COLLECTED_METRICS = (
-    delete_host_count,
-    delete_host_processing_time,
+    synchronize_host_count,
     synchronize_fail_count,
     event_producer_failure,
     event_producer_success,
@@ -79,8 +77,8 @@ def run(config, logger, session, event_producer, shutdown_handler):
 def main(logger):
 
     config = _init_config()
-
     registry = CollectorRegistry()
+
     for metric in COLLECTED_METRICS:
         registry.register(metric)
 
