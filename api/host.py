@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 from enum import Enum
 
 import connexion
@@ -18,15 +15,12 @@ from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
-from api.metrics import rest_post_request_count
-from api.metrics import tags_ignored_from_http_count
 from app import db
 from app import inventory_config
 from app import Permission
 from app.auth import current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
-from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -39,7 +33,7 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
-from app.serialization import deserialize_host_http
+from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -58,76 +52,6 @@ XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
-
-
-@api_operation
-@rbac(Permission.WRITE)
-@metrics.api_request_time.time()
-def add_host_list(body):
-    if not inventory_config().rest_post_enabled:
-        return flask_json_response(
-            {
-                "detail": "The method is not allowed for the requested URL.",
-                "status": 405,
-                "title": "Method Not Allowed",
-                "type": "about:blank",
-            },
-            status=405,
-        )
-    reporter = None
-
-    response_host_list = []
-    number_of_errors = 0
-
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
-
-    with PayloadTrackerContext(
-        payload_tracker, received_status_message="add host operation", current_operation="add host"
-    ):
-
-        for host in body:
-            try:
-                with PayloadTrackerProcessingContext(
-                    payload_tracker,
-                    processing_status_message="adding/updating host",
-                    current_operation="adding/updating host",
-                ) as payload_tracker_processing_ctx:
-                    if host.get("tags"):
-                        tags_ignored_from_http_count.inc()
-                        logger.info("Tags from an HTTP request were ignored")
-
-                    input_host = deserialize_host_http(host)
-                    output_host, host_id, _, add_result = _add_host(input_host)
-                    status_code = _convert_host_results_to_http_status(add_result)
-                    response_host_list.append({"status": status_code, "host": output_host})
-                    payload_tracker_processing_ctx.inventory_id = host_id
-
-                    reporter = host.get("reporter")
-            except ValidationException as e:
-                number_of_errors += 1
-                logger.exception("Input validation error while adding host", extra={"host": host})
-                response_host_list.append({**e.to_json(), "title": "Bad Request", "host": host})
-            except InventoryException as e:
-                number_of_errors += 1
-                logger.exception("Error adding host", extra={"host": host})
-                response_host_list.append({**e.to_json(), "host": host})
-            except Exception:
-                number_of_errors += 1
-                logger.exception("Error adding host", extra={"host": host})
-                response_host_list.append(
-                    {
-                        "status": 500,
-                        "title": "Error",
-                        "type": "unknown",
-                        "detail": "Could not complete operation",
-                        "host": host,
-                    }
-                )
-
-        rest_post_request_count.labels(reporter=reporter).inc()
-
-        response = {"total": len(response_host_list), "errors": number_of_errors, "data": response_host_list}
-        return flask_json_response(response, status=207)
 
 
 def _convert_host_results_to_http_status(result):
@@ -451,12 +375,11 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
-    facts = body.get("canonical_facts")
-    staleness_offset = timedelta(minutes=body.get("checkin_frequency") or 1440)
-    existing_host = find_existing_host(current_identity.account_number, facts)
+    canonical_facts = deserialize_canonical_facts(body)
+    existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
     if existing_host:
-        existing_host._update_stale_timestamp(datetime.now(timezone.utc) + staleness_offset, "checkin")
+        existing_host._update_modified_date()
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), EGRESS_HOST_FIELDS)
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
@@ -464,10 +387,10 @@ def host_checkin(body):
     else:
         return flask_json_response(
             {
-                "detail": "No hosts match the provided facts.",
-                "status": 400,
-                "title": "Bad Request",
+                "detail": "No hosts match the provided canonical facts.",
+                "status": 404,
+                "title": "Not Found",
                 "type": "about:blank",
             },
-            status=400,
+            status=404,
         )
