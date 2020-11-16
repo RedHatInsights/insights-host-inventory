@@ -324,6 +324,12 @@ class DiskDeviceSchema(MarshmallowSchema):
     type = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
+class OperatingSystemSchema(MarshmallowSchema):
+    major = fields.Int()
+    minor = fields.Int()
+    name = fields.Str(validate=marshmallow_validate.Length(max=4))
+
+
 class YumRepoSchema(MarshmallowSchema):
     id = fields.Str(validate=marshmallow_validate.Length(max=256))
     name = fields.Str(validate=marshmallow_validate.Length(max=1024))
@@ -366,6 +372,7 @@ class SystemProfileSchema(MarshmallowSchema):
     bios_version = fields.Str(validate=marshmallow_validate.Length(max=100))
     bios_release_date = fields.Str(validate=marshmallow_validate.Length(max=50))
     cpu_flags = fields.List(fields.Str(validate=marshmallow_validate.Length(max=30)))
+    operating_system = fields.List(fields.Nested(OperatingSystemSchema()))
     os_release = fields.Str(validate=marshmallow_validate.Length(max=100))
     os_kernel_version = fields.Str(validate=marshmallow_validate.Length(max=100))
     arch = fields.Str(validate=marshmallow_validate.Length(max=50))
