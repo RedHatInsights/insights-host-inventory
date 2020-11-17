@@ -74,4 +74,4 @@ def test_synchrnize_after_kafka_producer_error(
             shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
         )
 
-    assert event_producer._kafka_producer.send.call_count == 2
+    assert event_producer._kafka_producer.send.call_count == (host_count - 1)
