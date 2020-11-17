@@ -9,6 +9,7 @@ from lib.metrics import synchronize_host_count
 
 __all__ = ("synchronize_hosts",)
 
+
 def synchronize_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
     start = 0
     while True:
