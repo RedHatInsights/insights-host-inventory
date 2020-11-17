@@ -18,7 +18,6 @@ DELETE_DAYS_AFTER = 14
 
 def synchronize_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
     start = 0
-    print("Total number: {}".format(select_query.count()))
     while True:
         host_list = select_query.offset(start).limit(chunk_size)
         if host_list.count() <= 0:
