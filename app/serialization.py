@@ -55,6 +55,7 @@ def deserialize_host(raw_data, schema):
         validated_data.get("display_name"),
         validated_data.get("ansible_host"),
         validated_data.get("account"),
+        validated_data.get("owner"),
         facts,
         tags,
         validated_data.get("system_profile", {}),
