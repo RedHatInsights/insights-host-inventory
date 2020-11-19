@@ -373,6 +373,7 @@ def rpm_list():
 
 def create_system_profile():
     return {
+        "owner_id": random_uuid(),
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
@@ -511,7 +512,7 @@ def build_host_chunk():
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
-        "owner": "goofy",
+        "owner_id": random_uuid(),
         "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,

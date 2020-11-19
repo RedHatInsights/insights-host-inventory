@@ -104,7 +104,7 @@ def add_host(host_data):
                 extra={
                     "input_host": {
                         "account": input_host.account,
-                        "owner": input_host.owner,
+                        "owner_id": input_host.owner_id,
                         "display_name": input_host.display_name,
                         "canonical_facts": input_host.canonical_facts,
                         "reporter": input_host.reporter,

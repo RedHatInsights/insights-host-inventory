@@ -121,6 +121,9 @@ $defs:
     description: Representation of the system profile fields
     type: object
     properties:
+      owner_id:
+        type: string
+        pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
       number_of_cpus:
         type: integer
       number_of_sockets:
