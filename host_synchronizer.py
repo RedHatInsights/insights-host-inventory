@@ -63,7 +63,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
     query = session.query(Host)
 
     update_count = 0
-    events = synchronize_hosts(query, event_producer, 1000, config, shutdown_handler.shut_down)
+    events = synchronize_hosts(query, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down)
     for host_id in events:
         logger.info("Synchronized host: %s", host_id)
         update_count += 1
