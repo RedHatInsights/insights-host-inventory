@@ -22,7 +22,7 @@ def upgrade():
         "hosts",
         sa.Column("id", postgresql.UUID(), nullable=False),
         sa.Column("account", sa.String(length=10), nullable=True),
-        sa.Column("owner_id", postgresql.UUID(), nullable=True),
+        # sa.Column("owner_id", postgresql.UUID(), nullable=True),
         sa.Column("display_name", sa.String(length=200), nullable=True),
         sa.Column("created_on", sa.DateTime(), nullable=True),
         sa.Column("modified_on", sa.DateTime(), nullable=True),
