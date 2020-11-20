@@ -68,6 +68,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
         logger.info("Synchronized host: %s", host_id)
         update_count += 1
     logger.info(f"Number of hosts synchronized: {update_count}")
+    return update_count
 
 
 def main(logger):

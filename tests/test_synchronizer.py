@@ -41,6 +41,27 @@ def test_synchronize_host_event(
 
 
 @pytest.mark.host_synchronizer
+def test_synchronize_multiple_host_events(event_producer, kafka_producer, db_create_multiple_hosts, inventory_config):
+    host_count = 25
+
+    db_create_multiple_hosts(how_many=host_count)
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    inventory_config.script_chunk_size = 3
+
+    event_count = host_synchronizer_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
+
+    assert event_count == host_count
+    assert event_producer._kafka_producer.send.call_count == host_count
+
+
+@pytest.mark.host_synchronizer
 @pytest.mark.parametrize(
     "send_side_effects",
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
