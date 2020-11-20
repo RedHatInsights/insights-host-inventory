@@ -1,4 +1,5 @@
 from app.culling import Timestamps
+from app.models import Host
 from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
@@ -11,23 +12,20 @@ __all__ = ("synchronize_hosts",)
 
 
 def synchronize_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
-    start = 0
-    while True:
-        host_list = select_query.offset(start).limit(chunk_size)
-        if host_list.count() <= 0:
-            break
+    query = select_query.order_by(Host.id)
+    host_list = query.limit(chunk_size).all()
+
+    while len(host_list) > 0 and not interrupt():
         for host in host_list:
             serialized_host = serialize_host(host, Timestamps.from_config(config), EGRESS_HOST_FIELDS)
             event = build_event(EventType.updated, serialized_host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.updated, insights_id)
-            # incase of a failed update event, event_producer logs the message.
+            # in case of a failed update event, event_producer logs the message.
             event_producer.write_event(event, str(serialized_host), headers, Topic.events)
             synchronize_host_count.inc()
 
             yield host.id
-        start += chunk_size
 
-        # forced stop if needed.
-        if interrupt():
-            return
+        # load next chunk using keyset pagination
+        host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
