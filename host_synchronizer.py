@@ -64,12 +64,9 @@ def run(config, logger, session, event_producer, shutdown_handler):
 
     update_count = 0
     events = synchronize_hosts(query, event_producer, 1000, config, shutdown_handler.shut_down)
-    for host_id, synchronize in events:
-        if synchronize:
-            logger.info("Synchronized host: %s", host_id)
-            update_count += 1
-        else:
-            logger.info("Host %s already synchronized. Synchronize event not emitted.", host_id)
+    for host_id in events:
+        logger.info("Synchronized host: %s", host_id)
+        update_count += 1
     logger.info(f"Number of hosts synchronized: {update_count}")
 
 
