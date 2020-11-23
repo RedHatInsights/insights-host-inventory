@@ -512,7 +512,6 @@ def build_host_chunk():
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
-        "owner_id": random_uuid(),
         "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
