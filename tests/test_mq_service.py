@@ -423,6 +423,17 @@ def test_add_host_externalized_system_profile(mq_create_or_update_host):
             mq_create_or_update_host(host_to_create)
 
 
+def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that owner_id in the system profile is ingested properly
+    """
+    owner_id = generate_uuid()
+    host = minimal_host(system_profile={"owner_id": owner_id})
+    created_host_from_event = mq_create_or_update_host(host)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"owner_id": owner_id}
+
+
 @pytest.mark.parametrize(
     "facts",
     (
