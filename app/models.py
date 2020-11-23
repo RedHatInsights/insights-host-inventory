@@ -133,7 +133,6 @@ class Host(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    # owner_id = db.Column(UUID(as_uuid=True), primary_key=False, default=uuid.uuid4)
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
@@ -151,7 +150,6 @@ class Host(db.Model):
         display_name=None,
         ansible_host=None,
         account=None,
-        # owner_id=None,
         facts=None,
         tags=None,
         system_profile_facts=None,
@@ -314,9 +312,7 @@ class Host(db.Model):
 
     def __repr__(self):
         return (
-            # TODO should the owner_id be included in the object representation?
-            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' " 
-                # \ owner_id='{self.owner_id}' "
+            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
 
@@ -442,7 +438,6 @@ class BaseHostSchema(CanonicalFactsSchema):
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
-    # owner_id = fields.Str(required=False, validate=marshmallow_validate.Length(min=1, max=36))
     facts = fields.List(fields.Nested(FactsSchema))
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
