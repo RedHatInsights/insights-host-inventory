@@ -376,6 +376,11 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @metrics.api_request_time.time()
 def host_checkin(body):
     canonical_facts = deserialize_canonical_facts(body)
+    if not canonical_facts:
+        return flask_json_response(
+            {"detail": "No canonical facts provided.", "status": 400, "title": "Bad Request", "type": "about:blank"},
+            status=400,
+        )
     existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
     if existing_host:
