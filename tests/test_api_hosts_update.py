@@ -80,6 +80,16 @@ def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_ho
     assert event_producer_mock.event is None
 
 
+def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post):
+    response_status, response_data = api_post(
+        build_host_checkin_url(), {}, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.key is None
+    assert event_producer_mock.event is None
+
+
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):
     patch_doc = {"display_name": "branch_id_test"}
 
