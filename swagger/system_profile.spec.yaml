@@ -30,6 +30,28 @@ $defs:
         example: "ext3"
         type: string
         maxLength: 256
+  OperatingSystem:
+    description: Object for OS details
+    type: object
+    properties:
+      major:
+        description: Major release of OS (aka the x version)
+        example: 6
+        type: integer
+        minimum: 0
+        maximum: 99
+      minor:
+        description: Minor release of OS (aka the y version)
+        example: 8
+        type: integer
+        minimum: 0
+        maximum: 99
+      name:
+        description: Name of the distro/os
+        example: "RHEL"
+        type: string
+        maxLength: 4
+        enum: ["RHEL"]
   YumRepo:
     description: Representation of one yum repository
     type: object
@@ -161,6 +183,9 @@ $defs:
           type: string
           maxLength: 30
         type: array
+      operating_system:
+        type: object
+        $ref: '#/$defs/OperatingSystem'
       os_release:
         type: string
         maxLength: 100

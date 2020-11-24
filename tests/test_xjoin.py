@@ -1,3 +1,5 @@
+from re import escape
+
 import pytest
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
@@ -912,7 +914,8 @@ def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_
 
 
 def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query=f"?search={quote('Δwithčhar!/~|+ ')}")
+    query = "Δwithčhar!/~|+ "
+    url = build_tags_url(query=f"?search={quote(query)}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -924,7 +927,7 @@ def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_que
             "order_how": "ASC",
             "limit": 50,
             "offset": 0,
-            "filter": {"search": {"regex": ".*\\Δwith\\čhar\\!\\/\\~\\|\\+\\ .*"}},
+            "filter": {"search": {"regex": f".*{escape(query)}.*"}},
             "hostFilter": {"OR": mocker.ANY},
         },
     )
