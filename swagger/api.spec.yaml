@@ -669,7 +669,107 @@ components:
       required:
         - namespace
         - facts
-    CanonicalFacts:
+    CanonicalFactsIn:
+      type: object
+      anyOf:
+        - type: object
+          required:
+          - insights_id
+          properties:
+            insights_id:
+              description: >-
+                An ID defined in /etc/insights-client/machine-id. This field is
+                considered a canonical fact.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+        - type: object
+          required:
+          - rhel_machine_id
+          properties:
+            rhel_machine_id:
+              description: >-
+                A Machine ID of a RHEL host.  This field is considered to be a
+                canonical fact.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+        - type: object
+          required:
+          - subscription_manager_id
+          properties:
+            subscription_manager_id:
+              description: >-
+                A Red Hat Subcription Manager ID of a RHEL host.  This field is
+                considered to be a canonical fact.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+        - type: object
+          required:
+          - satellite_id
+          properties:
+            satellite_id:
+              description: >-
+                A Red Hat Satellite ID of a RHEL host.  This field is considered to
+                be a canonical fact.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+        - type: object
+          required:
+          - bios_uuid
+          properties:
+            bios_uuid:
+              description: >-
+                A UUID of the host machine BIOS.  This field is considered to be a
+                canonical fact.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+        - type: object
+          required:
+          - ip_addresses
+          properties:
+            ip_addresses:
+              description: >-
+                Host’s network IP addresses.  This field is considered to be a
+                canonical fact.
+              type: array
+              items:
+                type: string
+              example:
+                - 10.10.0.1
+                - 10.0.0.2
+        - type: object
+          required:
+          - fqdn
+          properties:
+            fqdn:
+              description: >-
+                A host’s Fully Qualified Domain Name.  This field is considered to
+                be a canonical fact.
+              type: string
+              example: my.host.example.com
+        - type: object
+          required:
+          - mac_addresses
+          properties:
+            mac_addresses:
+              description: >-
+                Host’s network interfaces MAC addresses.  This field is considered
+                to be a canonical fact.
+              type: array
+              items:
+                type: string
+              example:
+                - 'c2:00:d0:c8:61:01'
+        - type: object
+          required:
+          - external_id
+          properties:
+            external_id:
+              description: >-
+                Host’s reference in the external source e.g. AWS EC2, Azure,
+                OpenStack, etc. This field is considered to be a canonical fact.
+              type: string
+              example: i-05d2313e6b9a42b16
+    CanonicalFactsOut:
       type: object
       properties:
         insights_id:
@@ -748,7 +848,7 @@ components:
         Data required to create a check-in record for a host.
       type: object
       allOf:
-        - $ref: '#/components/schemas/CanonicalFacts'
+        - $ref: '#/components/schemas/CanonicalFactsIn'
         - properties:
             checkin_frequency:
               description: How long from now to expect another check-in (in minutes).
@@ -764,7 +864,7 @@ components:
         without its Inventory metadata.
       type: object
       allOf:
-        - $ref: '#/components/schemas/CanonicalFacts'
+        - $ref: '#/components/schemas/CanonicalFactsOut'
         - properties:
             display_name:
               description: >-
