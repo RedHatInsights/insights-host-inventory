@@ -377,10 +377,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 def host_checkin(body):
     canonical_facts = deserialize_canonical_facts(body)
     if not canonical_facts:
-        return flask_json_response(
-            {"detail": "No canonical facts provided.", "status": 400, "title": "Bad Request", "type": "about:blank"},
-            status=400,
-        )
+        flask.abort(400, "No canonical facts provided.")
     existing_host = find_existing_host(current_identity.account_number, canonical_facts)
 
     if existing_host:
@@ -390,12 +387,4 @@ def host_checkin(body):
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
         return flask_json_response(serialized_host, 201)
     else:
-        return flask_json_response(
-            {
-                "detail": "No hosts match the provided canonical facts.",
-                "status": 404,
-                "title": "Not Found",
-                "type": "about:blank",
-            },
-            status=404,
-        )
+        flask.abort(404, "No hosts match the provided canonical facts.")
