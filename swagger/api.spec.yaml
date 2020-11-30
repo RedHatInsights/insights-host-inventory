@@ -748,8 +748,7 @@ components:
     CanonicalFactsIn:
       allOf:
       - $ref: "#/components/schemas/CanonicalFactsOut"
-      - type: object
-        properties:
+      - properties:
           insights_id:
             $ref: "#/components/schemas/NonNullableString"
           rhel_machine_id:
@@ -768,6 +767,25 @@ components:
             $ref: "#/components/schemas/NonNullableArray"
           external_id:
             $ref: "#/components/schemas/NonNullableString"
+      - oneOf:
+        - required:
+          - insights_id
+        - required:
+          - rhel_machine_id
+        - required:
+          - subscription_manager_id
+        - required:
+          - satellite_id
+        - required:
+          - bios_uuid
+        - required:
+          - ip_addresses
+        - required:
+          - fqdn
+        - required:
+          - mac_addresses
+        - required:
+          - external_id
     CanonicalFactsOut:
       type: object
       properties:
