@@ -136,6 +136,7 @@ class Config:
         self.bulk_query_source_beta = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE_BETA", "db"))
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
+        self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "1000"))
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
