@@ -746,44 +746,28 @@ components:
       nullable: true
       example: i-05d2313e6b9a42b16
     CanonicalFactsIn:
-      type: object
-      properties:
-        insights_id:
-          allOf:
-          - $ref: "#/components/schemas/InsightsId"
-          - $ref: "#/components/schemas/NonNullableString"
-        rhel_machine_id:
-          allOf:
-          - $ref: "#/components/schemas/RhelMachineId"
-          - $ref: "#/components/schemas/NonNullableString"
-        subscription_manager_id:
-          allOf:
-          - $ref: "#/components/schemas/SubscriptionManagerId"
-          - $ref: "#/components/schemas/NonNullableString"
-        satellite_id:
-          allOf:
-          - $ref: "#/components/schemas/SatelliteId"
-          - $ref: "#/components/schemas/NonNullableString"
-        bios_uuid:
-          allOf:
-          - $ref: "#/components/schemas/BiosUuid"
-          - $ref: "#/components/schemas/NonNullableString"
-        ip_addresses:
-          allOf:
-          - $ref: "#/components/schemas/IpAddresses"
-          - $ref: "#/components/schemas/NonNullableArray"
-        fqdn:
-          allOf:
-          - $ref: "#/components/schemas/Fqdn"
-          - $ref: "#/components/schemas/NonNullableString"
-        mac_addresses:
-          allOf:
-          - $ref: "#/components/schemas/MacAddresses"
-          - $ref: "#/components/schemas/NonNullableArray"
-        external_id:
-          allOf:
-          - $ref: "#/components/schemas/ExternalId"
-          - $ref: "#/components/schemas/NonNullableString"
+      allOf:
+      - $ref: "#/components/schemas/CanonicalFactsOut"
+      - type: object
+        properties:
+          insights_id:
+            $ref: "#/components/schemas/NonNullableString"
+          rhel_machine_id:
+            $ref: "#/components/schemas/NonNullableString"
+          subscription_manager_id:
+            $ref: "#/components/schemas/NonNullableString"
+          satellite_id:
+            $ref: "#/components/schemas/NonNullableString"
+          bios_uuid:
+            $ref: "#/components/schemas/NonNullableString"
+          ip_addresses:
+            $ref: "#/components/schemas/NonNullableArray"
+          fqdn:
+            $ref: "#/components/schemas/NonNullableString"
+          mac_addresses:
+            $ref: "#/components/schemas/NonNullableArray"
+          external_id:
+            $ref: "#/components/schemas/NonNullableString"
     CanonicalFactsOut:
       type: object
       properties:
