@@ -1,0 +1,286 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-host-inventory
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: host-inventory
+  spec:
+    envName: ${ENV_NAME}
+    pods:
+    - name: service
+      minReplicas: ${{REPLICAS_SVC}}
+      image: ${IMAGE}:${IMAGE_TAG}
+      initContainers:
+      - command:
+        - /opt/app-root/bin/python
+        - manage.py
+        - db
+        - upgrade
+        inheritEnv: true
+      command:
+      - gunicorn
+      - --workers=4
+      - --threads=8
+      - --worker-tmp-dir=/gunicorn
+      - -c
+      - gunicorn.conf.py
+      - -b
+      - 0.0.0.0:8000
+      - -t
+      - '60'
+      - run
+      env:
+      - name: APP_NAME
+        value: ${APP_NAME}
+      - name: PATH_PREFIX
+        value: ${PATH_PREFIX}
+      - name: INVENTORY_LEGACY_API_URL
+        value: /r/insights/platform/inventory/v1/
+      - name: prometheus_multiproc_dir
+        value: /tmp/inventory/prometheus
+      - name: INVENTORY_LOG_LEVEL
+        value: ${LOG_LEVEL}
+      - name: URLLIB3_LOG_LEVEL
+        value: ${URLLIB3_LOG_LEVEL}
+      - name: INVENTORY_DB_SSL_MODE
+        value: ${INVENTORY_DB_SSL_MODE}
+      - name: KAFKA_GROUP
+        value: inventory
+      - name: PAYLOAD_TRACKER_SERVICE_NAME
+        value: inventory
+      - name: PAYLOAD_TRACKER_ENABLED
+        value: 'true'
+      - name: XJOIN_GRAPHQL_URL
+        value: ${XJOIN_SEARCH_URL}
+      - name: BULK_QUERY_SOURCE
+        value: ${BULK_QUERY_SOURCE}
+      - name: BULK_QUERY_SOURCE_BETA
+        value: ${BULK_QUERY_SOURCE_BETA}
+      - name: REST_POST_ENABLED
+        value: ${REST_POST_ENABLED}
+      - name: RBAC_ENFORCED
+        value: ${RBAC_ENFORCED}
+      - name: KAFKA_PRODUCER_ACKS
+        value: ${KAFKA_PRODUCER_ACKS}
+      - name: KAFKA_PRODUCER_RETRIES
+        value: ${KAFKA_PRODUCER_RETRIES}
+      - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+        value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+      - name: CLOWDER_ENABLED
+        value: "true"
+      resources:
+        limits:
+          cpu: ${CPU_LIMIT}
+          memory: ${MEMORY_LIMIT}
+        requests:
+          cpu: 200m
+          memory: 256Mi
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: 8000
+          scheme: HTTP
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 60
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: 8000
+          scheme: HTTP
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 60
+      web: true
+      volumeMounts:
+      - mountPath: /tmp/inventory/prometheus
+        name: prometheus-volume
+      - mountPath: /gunicorn
+        name: gunicorn-worker-dir
+      volumes:
+      - emptyDir: {}
+        name: prometheus-volume
+      - emptyDir:
+          medium: Memory
+        name: gunicorn-worker-dir
+    - name: inventory-mq-pmin
+      command:
+      - python
+      - inv_mq_service.py
+      minReplicas: ${{REPLICAS_PMIN}}
+      env:
+      - name: INVENTORY_LOG_LEVEL
+        value: ${LOG_LEVEL}
+      - name: INVENTORY_DB_SSL_MODE
+        value: ${INVENTORY_DB_SSL_MODE}
+      - name: INVENTORY_DB_SSL_CERT
+        value: ${INVENTORY_DB_SSL_CERT}
+      - name: KAFKA_GROUP
+        value: inventory
+      - name: KAFKA_HOST_INGRESS_TOPIC
+        value: platform.inventory.host-ingress
+      - name: KAFKA_HOST_INGRESS_GROUP
+        value: inventory-mq
+      - name: KAFKA_SECONDARY_TOPIC_ENABLED
+        value: ${SECONDARY_TOPIC_ENABLED}
+      - name: PAYLOAD_TRACKER_SERVICE_NAME
+        value: inventory-mq-service
+      - name: PAYLOAD_TRACKER_ENABLED
+        value: 'true'
+      - name: KAFKA_PRODUCER_ACKS
+        value: ${KAFKA_PRODUCER_ACKS}
+      - name: KAFKA_PRODUCER_RETRIES
+        value: ${KAFKA_PRODUCER_RETRIES}
+      - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+        value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+      - name: CLOWDER_ENABLED
+        value: "true"
+      image: ${IMAGE}:${IMAGE_TAG}
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /
+          port: 9000
+          scheme: HTTP
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 5
+      readinessProbe:
+        tcpSocket:
+          port: 9000
+      resources:
+        limits:
+          cpu: ${CPU_LIMIT}
+          memory: ${MEMORY_LIMIT}
+        requests:
+          cpu: 200m
+          memory: 256Mi
+    - name: inventory-mq-p1
+      command:
+      - python
+      - inv_mq_service.py
+      minReplicas: ${{REPLICAS_P1}}
+      env:
+      - name: INVENTORY_LOG_LEVEL
+        value: ${LOG_LEVEL}
+      - name: INVENTORY_DB_SSL_MODE
+        value: ${INVENTORY_DB_SSL_MODE}
+      - name: INVENTORY_DB_SSL_CERT
+        value: ${INVENTORY_DB_SSL_CERT}
+      - name: KAFKA_GROUP
+        value: inventory
+      - name: KAFKA_HOST_INGRESS_TOPIC
+        value: platform.inventory.host-ingress-p1
+      - name: KAFKA_HOST_INGRESS_GROUP
+        value: inventory-mq
+      - name: KAFKA_SECONDARY_TOPIC_ENABLED
+        value: ${SECONDARY_TOPIC_ENABLED}
+      - name: PAYLOAD_TRACKER_SERVICE_NAME
+        value: inventory-mq-service
+      - name: PAYLOAD_TRACKER_ENABLED
+        value: 'true'
+      - name: KAFKA_PRODUCER_ACKS
+        value: ${KAFKA_PRODUCER_ACKS}
+      - name: KAFKA_PRODUCER_RETRIES
+        value: ${KAFKA_PRODUCER_RETRIES}
+      - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+        value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+      - name: CLOWDER_ENABLED
+        value: "true"
+      image: ${IMAGE}:${IMAGE_TAG}
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /
+          port: 9000
+          scheme: HTTP
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 5
+      readinessProbe:
+        tcpSocket:
+          port: 9000
+      resources:
+        limits:
+          cpu: ${CPU_LIMIT}
+          memory: ${MEMORY_LIMIT}
+        requests:
+          cpu: 200m
+          memory: 256Mi
+    database:
+      name: host-inventory
+    kafkaTopics:
+      - topicName: platform.system-profile
+        partitions: 1
+      - topicName: platform.payload-status
+        partitions: 1
+      - topicName: platform.inventory.events
+        partitions: 1
+      - topicName: platform.inventory.host-ingress
+        partitions: 1
+      - topicName: platform.inventory.host-ingress-p1
+        partitions: 1
+      - topicName: platform.inventory.events
+        partitions: 1
+parameters:
+- name: LOG_LEVEL
+  value: INFO
+- description: Cpu limit of service
+  name: CPU_LIMIT
+  value: 500m
+- description: memory limit of service
+  name: MEMORY_LIMIT
+  value: 512Mi
+- description: Replica count for p1 consumer
+  name: REPLICAS_P1
+  value: "1"
+- description: Replica count for pmin consumer
+  name: REPLICAS_PMIN
+  value: "1"
+- description: Replica count for webservice
+  name: REPLICAS_SVC
+  value: "1"
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: Image NAME
+  name: IMAGE
+  required: true
+  value: quay.io/klape/insights-host-inventory
+- description : ClowdEnvironment name
+  name: ENV_NAME
+  required: true
+- name: APP_NAME
+  value: inventory
+- name: PATH_PREFIX
+  value: api
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: XJOIN_SEARCH_URL
+  value: 'False'
+- name: BULK_QUERY_SOURCE
+  value: db
+- name: BULK_QUERY_SOURCE_BETA
+  value: db
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: If creating/updating hosts through the REST API is enabled
+  name: REST_POST_ENABLED
+  value: 'true'
+- description: activate RBAC middleware
+  name: RBAC_ENFORCED
+  value: 'false'
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
