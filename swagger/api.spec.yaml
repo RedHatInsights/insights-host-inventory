@@ -91,8 +91,6 @@ paths:
                 $ref: '#/components/schemas/CreateHostOut'
         '404':
           description: Not Found.
-        '400':
-          description: Bad Request.
   '/hosts/{host_id_list}':
     get:
       tags:
