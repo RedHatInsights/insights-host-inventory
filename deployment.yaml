@@ -221,7 +221,7 @@ objects:
         partitions: 1
       - topicName: platform.payload-status
         partitions: 1
-      - topicName: platform.inventory.host-egress
+      - topicName: platform.inventory.events
         partitions: 1
       - topicName: platform.inventory.host-ingress
         partitions: 1

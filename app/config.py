@@ -39,7 +39,7 @@ class Config:
 
         requested_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_topic = topic(requested_ingress_topic)
-        self.host_egress_topic = topic("platform.inventory.host-egress")
+        self.host_egress_topic = topic("platform.inventory.events")
         self.system_profile_topic = topic("platform.system-profile")
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
