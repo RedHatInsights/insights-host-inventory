@@ -669,179 +669,142 @@ components:
       required:
         - namespace
         - facts
+    NonNullableString:
+      type: string
+      nullable: false
+    NonNullableArray:
+      type: array
+      nullable: false
+    InsightsId:
+      description: >-
+        An ID defined in /etc/insights-client/machine-id. This field is
+        considered a canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    RhelMachineId:
+      description: >-
+        A Machine ID of a RHEL host.  This field is considered to be a
+        canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    SubscriptionManagerId:
+      description: >-
+        A Red Hat Subcription Manager ID of a RHEL host.  This field is
+        considered to be a canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    SatelliteId:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host.  This field is considered to
+        be a canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    BiosUuid:
+      description: >-
+        A UUID of the host machine BIOS.  This field is considered to be a
+        canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    IpAddresses:
+      description: >-
+        Host’s network IP addresses.  This field is considered to be a
+        canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+      - 10.10.0.1
+      - 10.0.0.2
+    Fqdn:
+      description: >-
+        A host’s Fully Qualified Domain Name.  This field is considered to
+        be a canonical fact.
+      type: string
+      nullable: true
+      example: my.host.example.com
+    MacAddresses:
+      description: >-
+        Host’s network interfaces MAC addresses.  This field is considered
+        to be a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+      - 'c2:00:d0:c8:61:01'
+    ExternalId:
+      description: >-
+        Host’s reference in the external source e.g. AWS EC2, Azure,
+        OpenStack, etc. This field is considered to be a canonical fact.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
     CanonicalFactsIn:
       type: object
-      anyOf:
-        - type: object
-          required:
-          - insights_id
-          properties:
-            insights_id:
-              description: >-
-                An ID defined in /etc/insights-client/machine-id. This field is
-                considered a canonical fact.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-        - type: object
-          required:
-          - rhel_machine_id
-          properties:
-            rhel_machine_id:
-              description: >-
-                A Machine ID of a RHEL host.  This field is considered to be a
-                canonical fact.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-        - type: object
-          required:
-          - subscription_manager_id
-          properties:
-            subscription_manager_id:
-              description: >-
-                A Red Hat Subcription Manager ID of a RHEL host.  This field is
-                considered to be a canonical fact.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-        - type: object
-          required:
-          - satellite_id
-          properties:
-            satellite_id:
-              description: >-
-                A Red Hat Satellite ID of a RHEL host.  This field is considered to
-                be a canonical fact.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-        - type: object
-          required:
-          - bios_uuid
-          properties:
-            bios_uuid:
-              description: >-
-                A UUID of the host machine BIOS.  This field is considered to be a
-                canonical fact.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-        - type: object
-          required:
-          - ip_addresses
-          properties:
-            ip_addresses:
-              description: >-
-                Host’s network IP addresses.  This field is considered to be a
-                canonical fact.
-              type: array
-              items:
-                type: string
-              example:
-                - 10.10.0.1
-                - 10.0.0.2
-        - type: object
-          required:
-          - fqdn
-          properties:
-            fqdn:
-              description: >-
-                A host’s Fully Qualified Domain Name.  This field is considered to
-                be a canonical fact.
-              type: string
-              example: my.host.example.com
-        - type: object
-          required:
-          - mac_addresses
-          properties:
-            mac_addresses:
-              description: >-
-                Host’s network interfaces MAC addresses.  This field is considered
-                to be a canonical fact.
-              type: array
-              items:
-                type: string
-              example:
-                - 'c2:00:d0:c8:61:01'
-        - type: object
-          required:
-          - external_id
-          properties:
-            external_id:
-              description: >-
-                Host’s reference in the external source e.g. AWS EC2, Azure,
-                OpenStack, etc. This field is considered to be a canonical fact.
-              type: string
-              example: i-05d2313e6b9a42b16
+      properties:
+        insights_id:
+          allOf:
+          - $ref: "#/components/schemas/InsightsId"
+          - $ref: "#/components/schemas/NonNullableString"
+        rhel_machine_id:
+          allOf:
+          - $ref: "#/components/schemas/RhelMachineId"
+          - $ref: "#/components/schemas/NonNullableString"
+        subscription_manager_id:
+          allOf:
+          - $ref: "#/components/schemas/SubscriptionManagerId"
+          - $ref: "#/components/schemas/NonNullableString"
+        satellite_id:
+          allOf:
+          - $ref: "#/components/schemas/SatelliteId"
+          - $ref: "#/components/schemas/NonNullableString"
+        bios_uuid:
+          allOf:
+          - $ref: "#/components/schemas/BiosUuid"
+          - $ref: "#/components/schemas/NonNullableString"
+        ip_addresses:
+          allOf:
+          - $ref: "#/components/schemas/IpAddresses"
+          - $ref: "#/components/schemas/NonNullableArray"
+        fqdn:
+          allOf:
+          - $ref: "#/components/schemas/Fqdn"
+          - $ref: "#/components/schemas/NonNullableString"
+        mac_addresses:
+          allOf:
+          - $ref: "#/components/schemas/MacAddresses"
+          - $ref: "#/components/schemas/NonNullableArray"
+        external_id:
+          allOf:
+          - $ref: "#/components/schemas/ExternalId"
+          - $ref: "#/components/schemas/NonNullableString"
     CanonicalFactsOut:
       type: object
       properties:
         insights_id:
-          description: >-
-            An ID defined in /etc/insights-client/machine-id. This field is
-            considered a canonical fact.
-          type: string
-          nullable: true
-          example: 3f01b55457674041b75e41829bcee1dc
+          $ref: "#/components/schemas/InsightsId"
         rhel_machine_id:
-          description: >-
-            A Machine ID of a RHEL host.  This field is considered to be a
-            canonical fact.
-          type: string
-          nullable: true
-          example: 3f01b55457674041b75e41829bcee1dc
+          $ref: "#/components/schemas/RhelMachineId"
         subscription_manager_id:
-          description: >-
-            A Red Hat Subcription Manager ID of a RHEL host.  This field is
-            considered to be a canonical fact.
-          type: string
-          nullable: true
-          example: 3f01b55457674041b75e41829bcee1dc
+          $ref: "#/components/schemas/SubscriptionManagerId"
         satellite_id:
-          description: >-
-            A Red Hat Satellite ID of a RHEL host.  This field is considered to
-            be a canonical fact.
-          type: string
-          nullable: true
-          example: 3f01b55457674041b75e41829bcee1dc
+          $ref: "#/components/schemas/SatelliteId"
         bios_uuid:
-          description: >-
-            A UUID of the host machine BIOS.  This field is considered to be a
-            canonical fact.
-          type: string
-          nullable: true
-          example: 3f01b55457674041b75e41829bcee1dc
+          $ref: "#/components/schemas/BiosUuid"
         ip_addresses:
-          description: >-
-            Host’s network IP addresses.  This field is considered to be a
-            canonical fact.
-          type: array
-          nullable: true
-          items:
-            type: string
-          example:
-            - 10.10.0.1
-            - 10.0.0.2
-        fqdn:
-          description: >-
-            A host’s Fully Qualified Domain Name.  This field is considered to
-            be a canonical fact.
-          type: string
-          nullable: true
-          example: my.host.example.com
+          $ref: "#/components/schemas/IpAddresses"
+        Fqdn:
+          $ref: "#/components/schemas/Fqdn"
         mac_addresses:
-          description: >-
-            Host’s network interfaces MAC addresses.  This field is considered
-            to be a canonical fact.
-          type: array
-          nullable: true
-          items:
-            type: string
-          example:
-            - 'c2:00:d0:c8:61:01'
+          $ref: "#/components/schemas/MacAddresses"
         external_id:
-          description: >-
-            Host’s reference in the external source e.g. AWS EC2, Azure,
-            OpenStack, etc. This field is considered to be a canonical fact.
-          type: string
-          nullable: true
-          example: i-05d2313e6b9a42b16
+          $ref: "#/components/schemas/ExternalId"
     CreateCheckIn:
       title: Check-in data
       description: >-
