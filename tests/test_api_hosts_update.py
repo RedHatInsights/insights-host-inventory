@@ -46,8 +46,16 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
         assert getattr(record, key) == patch_doc[key]
 
 
-def test_checkin(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post):
-    created_host = db_create_host()
+@pytest.mark.parametrize(
+    "canonical_facts",
+    [
+        {"insights_id": generate_uuid()},
+        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid()},
+        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid(), "fqdn": generate_uuid()},
+    ],
+)
+def test_checkin(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts):
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
 
     post_doc = created_host.canonical_facts
     updated_time = created_host.modified_on

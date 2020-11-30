@@ -765,7 +765,7 @@ components:
             $ref: "#/components/schemas/NonNullableArray"
           external_id:
             $ref: "#/components/schemas/NonNullableString"
-      - oneOf:
+      - anyOf:
         - required:
           - insights_id
         - required:
