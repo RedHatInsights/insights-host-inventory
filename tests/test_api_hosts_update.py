@@ -3,6 +3,7 @@ from threading import Thread
 
 import pytest
 
+from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
@@ -78,6 +79,36 @@ def test_checkin_canonical_facts(
     )
 
 
+def test_checkin_checkin_frequency_valid(event_producer_mock, db_create_host, api_post, mocker):
+    canonical_facts = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    deserialize_canonical_facts_mock = mocker.patch(
+        "api.host.deserialize_canonical_facts", wraps=deserialize_canonical_facts
+    )
+
+    post_doc = {**created_host.canonical_facts, "checkin_frequency": 720}
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=201)
+    deserialize_canonical_facts_mock.assert_called_once_with(post_doc)
+
+
+@pytest.mark.parametrize(("checkin_frequency",), ((-1,), (0,), (2881,), ("not a number",)))
+def test_checkin_checkin_frequency_invalid(event_producer_mock, db_create_host, api_post, mocker, checkin_frequency):
+    canonical_facts = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    post_doc = {**created_host.canonical_facts, "checkin_frequency": checkin_frequency}
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=400)
+
+
 def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_post):
     post_doc = {"insights_id": generate_uuid()}
 
@@ -90,8 +121,8 @@ def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_ho
     assert event_producer_mock.event is None
 
 
-def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post):
-    post_doc = {}
+@pytest.mark.parametrize(("post_doc",), (({},), ({"checkin_frequency": "720"},)))
+def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post, post_doc):
     response_status, response_data = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
