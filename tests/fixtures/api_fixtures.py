@@ -10,22 +10,11 @@ def flask_client(flask_app):
 
 
 @pytest.fixture(scope="function")
-def api_create_or_update_host(flask_client):
-    def _api_create_or_update_host(
-        host_data, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
-    ):
-        data = [item.data() for item in host_data]
-        return do_request(flask_client.post, HOST_URL, data, query_parameters, extra_headers, auth_type, identity_type)
-
-    return _api_create_or_update_host
-
-
-@pytest.fixture(scope="function")
 def api_post(flask_client):
-    def _api_post(
-        url, host_data, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
-    ):
-        return do_request(flask_client.post, url, host_data, query_parameters, extra_headers, auth_type, identity_type)
+    def _api_post(url, host_data, query_parameters=None, extra_headers=None, identity_type="User"):
+        return do_request(
+            flask_client.post, url, host_data, query_parameters, extra_headers, identity_type=identity_type
+        )
 
     return _api_post
 
