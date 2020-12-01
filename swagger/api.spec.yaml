@@ -818,7 +818,6 @@ components:
               type: integer
               minimum: 1
               maximum: 2880
-              default: 1440
               example: 1440
     CreateHostOut:
       title: Create Host Out
