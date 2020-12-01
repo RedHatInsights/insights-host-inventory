@@ -81,7 +81,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateCheckIn'
+              $ref: '#/components/schemas/CanonicalFactsIn'
       responses:
         '201':
           description: Successfully checked in Host.
@@ -805,20 +805,6 @@ components:
           $ref: "#/components/schemas/MacAddresses"
         external_id:
           $ref: "#/components/schemas/ExternalId"
-    CreateCheckIn:
-      title: Check-in data
-      description: >-
-        Data required to create a check-in record for a host.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/CanonicalFactsIn'
-        - properties:
-            checkin_frequency:
-              description: How long from now to expect another check-in (in minutes).
-              type: integer
-              minimum: 1
-              maximum: 2880
-              example: 1440
     CreateHostOut:
       title: Create Host Out
       description: >-
