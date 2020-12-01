@@ -423,7 +423,7 @@ def test_add_host_externalized_system_profile(mq_create_or_update_host):
             mq_create_or_update_host(host_to_create)
 
 
-def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
+def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests that operating_system in the system profile is ingested properly
     """
@@ -434,7 +434,7 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
     assert created_host_from_db.system_profile_facts == {"operating_system": operating_system}
 
 
-def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests that operating_system in the system profile is rejected if it's in the wrong format
     """
