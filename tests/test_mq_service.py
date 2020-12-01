@@ -425,7 +425,7 @@ def test_add_host_externalized_system_profile(mq_create_or_update_host):
 
 def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
-    Tests that owner_id in the system profile is ingested properly
+    Tests that operating_system in the system profile is ingested properly
     """
     operating_system = {"major": 5, "minor": 1, "name": "RHEL"}
     host = minimal_host(system_profile={"operating_system": operating_system})
@@ -436,7 +436,7 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
 
 def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
-    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    Tests that operating_system in the system profile is rejected if it's in the wrong format
     """
     operating_system = {"major": "bananas", "minor": 1, "name": "RHEL"}
     host = minimal_host(system_profile={"operating_system": operating_system})
