@@ -436,7 +436,7 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
 
 def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
-    Tests that owner_id in the system profile is ingested properly
+    Tests that owner_id in the system profile is rejected if it's in the wrong format
     """
     owner_id = "Mike Wazowski"
     host = minimal_host(system_profile={"owner_id": owner_id})
