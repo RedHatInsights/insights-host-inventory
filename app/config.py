@@ -15,6 +15,7 @@ class Config:
 
     def clowder_config(self):
         import app_common_python
+
         cfg = app_common_python.LoadedConfig
 
         self.metrics_port = cfg.metricsPort

@@ -38,6 +38,7 @@ def configure_logging():
 
 def clowder_config():
     import app_common_python
+
     cfg = app_common_python.LoadedConfig
 
     if cfg.logging:
