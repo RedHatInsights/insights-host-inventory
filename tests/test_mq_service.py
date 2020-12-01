@@ -434,6 +434,16 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
     assert created_host_from_db.system_profile_facts == {"owner_id": owner_id}
 
 
+def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that owner_id in the system profile is ingested properly
+    """
+    owner_id = "Mike Wazowski"
+    host = minimal_host(system_profile={"owner_id": owner_id})
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
 @pytest.mark.parametrize(
     "facts",
     (
