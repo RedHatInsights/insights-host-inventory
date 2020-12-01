@@ -88,9 +88,10 @@ def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_ho
     assert event_producer_mock.event is None
 
 
-def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post):
+@pytest.mark.parametrize(("post_doc",), (({},), ({"checkin_frequency": "720"},)))
+def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post, post_doc):
     response_status, response_data = api_post(
-        build_host_checkin_url(), {}, extra_headers={"x-rh-insights-request-id": "123456"}
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
 
     assert_response_status(response_status, expected_status=400)
