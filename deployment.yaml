@@ -256,7 +256,7 @@ parameters:
   value: quay.io/klape/insights-host-inventory
 - description : ClowdEnvironment name
   name: ENV_NAME
-  required: true
+  value: stage
 - name: APP_NAME
   value: inventory
 - name: PATH_PREFIX
