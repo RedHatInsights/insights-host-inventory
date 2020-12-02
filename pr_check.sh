@@ -7,7 +7,7 @@ APP_NAME="host-inventory"  # name of app-sre "application" folder this component
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 IMAGE="quay.io/cloudservices/insights-inventory"
 
-IQE_PLUGINS="host-inventory"
+IQE_PLUGINS="host_inventory"
 IQE_MARKER_EXPRESSION="smoke"
 IQE_FILTER_EXPRESSION=""
 
