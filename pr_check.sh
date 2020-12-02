@@ -1,6 +1,19 @@
 #!/bin/bash
 
 # --------------------------------------------
+# Pre-commit checks
+# --------------------------------------------
+
+cat /etc/redhat-release
+
+python3.6 -m venv .
+source bin/activate
+pip install pipenv
+pipenv install --dev
+pre-commit run --all-files
+deactivate
+
+# --------------------------------------------
 # Options that must be configured by app owner
 # --------------------------------------------
 APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
