@@ -15,7 +15,6 @@ pip install pipenv
 pipenv install --dev
 pre-commit run --all-files
 deactivate
-rm -rf venv
 
 # --------------------------------------------
 # Options that must be configured by app owner
@@ -39,4 +38,18 @@ curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
 source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 
 source deploy_ephemeral_env.sh
-source smoke_test.sh
+
+cd ../..
+
+oc create -f pod.yml
+oc expose pod/host-inventory-db
+oc port-forward svc/host-inventory-db -n $NAMESPACE &
+port_forward_pid=$!
+
+venv/bin/pipenv run python -m pytest --cov=. -sv
+oc delete pod host-inventory-db
+kill $port_forward_pid
+
+bonfire/.venv/bin/bonfire namespace release $NAMESPACE
+
+# source smoke_test.sh
