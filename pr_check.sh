@@ -9,12 +9,13 @@ export LANG=en_US.utf-8
 
 cat /etc/redhat-release
 
-python3.6 -m venv .
-source bin/activate
+python3.6 -m venv venv
+source venv/bin/activate
 pip install pipenv
 pipenv install --dev
 pre-commit run --all-files
 deactivate
+rm -rf venv
 
 # --------------------------------------------
 # Options that must be configured by app owner
