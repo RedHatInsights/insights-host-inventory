@@ -670,8 +670,10 @@ components:
     NonNullableString:
       type: string
       nullable: false
-    NonNullableArray:
+    NonNullableStringArray:
       type: array
+      items:
+        type: string
       nullable: false
     InsightsId:
       description: >-
@@ -758,11 +760,11 @@ components:
           bios_uuid:
             $ref: "#/components/schemas/NonNullableString"
           ip_addresses:
-            $ref: "#/components/schemas/NonNullableArray"
+            $ref: "#/components/schemas/NonNullableStringArray"
           fqdn:
             $ref: "#/components/schemas/NonNullableString"
           mac_addresses:
-            $ref: "#/components/schemas/NonNullableArray"
+            $ref: "#/components/schemas/NonNullableStringArray"
           external_id:
             $ref: "#/components/schemas/NonNullableString"
       - anyOf:
