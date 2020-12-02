@@ -438,10 +438,15 @@ def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq
     """
     Tests that operating_system in the system profile is rejected if it's in the wrong format
     """
-    operating_system = {"major": "bananas", "minor": 1, "name": "RHEL"}
-    host = minimal_host(system_profile={"operating_system": operating_system})
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+    operating_system_list = [
+        {"major": "bananas", "minor": 1, "name": "RHEL"},
+        {"major": 1, "minor": "oranges", "name": "RHEL"},
+        {"major": 1, "minor": 1, "name": "UBUNTU"},
+    ]
+    for operating_system in operating_system_list:
+        host = minimal_host(system_profile={"operating_system": operating_system})
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize(
