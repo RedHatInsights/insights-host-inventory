@@ -253,7 +253,7 @@ parameters:
 - description: Image NAME
   name: IMAGE
   required: true
-  value: quay.io/klape/insights-host-inventory
+  value: quay.io/cloudservices/insights-inventory
 - description : ClowdEnvironment name
   name: ENV_NAME
   value: stage
