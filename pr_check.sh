@@ -39,10 +39,11 @@ source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 
 source deploy_ephemeral_env.sh
 
+deactivate
 cd ../..
 
-oc create -f pod.yml
-oc expose pod/host-inventory-db
+oc create -f pod.yml -n $NAMESPACE
+oc expose pod/host-inventory-db -n $NAMESPACE
 oc port-forward svc/host-inventory-db -n $NAMESPACE &
 port_forward_pid=$!
 
@@ -50,6 +51,7 @@ venv/bin/pipenv run python -m pytest --cov=. -sv
 oc delete pod host-inventory-db
 kill $port_forward_pid
 
-bonfire/.venv/bin/bonfire namespace release $NAMESPACE
+source bonfire/.venv/bin/activate
+cd bonfire/cicd
 
 # source smoke_test.sh
