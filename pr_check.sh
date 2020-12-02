@@ -43,12 +43,13 @@ deactivate
 cd ../..
 
 oc create -f pod.yml -n $NAMESPACE
-oc expose pod/host-inventory-db -n $NAMESPACE
-oc port-forward svc/host-inventory-db -n $NAMESPACE &
+oc expose pod/unit-test-db -n $NAMESPACE
+oc port-forward svc/unit-test-db -n $NAMESPACE &
 port_forward_pid=$!
 
 venv/bin/pipenv run python -m pytest --cov=. -sv
-oc delete pod host-inventory-db
+oc delete pod unit-test-db
+oc delete svc unit-test-db
 kill $port_forward_pid
 
 source bonfire/.venv/bin/activate

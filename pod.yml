@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: host-inventory-db
+  name: unit-test-db
   labels:
     test: db
 spec:
