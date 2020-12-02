@@ -44,10 +44,11 @@ cd ../..
 
 oc create -f pod.yml -n $NAMESPACE
 oc expose pod/unit-test-db -n $NAMESPACE
+sleep 10
 oc port-forward svc/unit-test-db 5432 -n $NAMESPACE &
 port_forward_pid=$!
 
-venv/bin/pipenv run python -m pytest --cov=. -sv
+venv/bin/pytest --cov=. -sv
 oc delete pod unit-test-db
 oc delete svc unit-test-db
 kill $port_forward_pid
