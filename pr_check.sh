@@ -36,24 +36,5 @@ source build_deploy.sh
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
 source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
-
 source deploy_ephemeral_env.sh
-
-deactivate
-cd ../..
-
-oc create -f pod.yml -n $NAMESPACE
-oc expose pod/unit-test-db -n $NAMESPACE
-sleep 10
-oc port-forward svc/unit-test-db 5432 -n $NAMESPACE &
-port_forward_pid=$!
-
-venv/bin/pytest --cov=. -sv
-oc delete pod unit-test-db
-oc delete svc unit-test-db
-kill $port_forward_pid
-
-source bonfire/.venv/bin/activate
-cd bonfire/cicd
-
 # source smoke_test.sh
