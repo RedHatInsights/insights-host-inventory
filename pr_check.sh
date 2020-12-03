@@ -41,6 +41,6 @@ source deploy_ephemeral_env.sh
 # Need to make a dummy results file to make tests pass
 cd ../..
 mkdir -p artifacts
-touch artifacts/junit.xml
+touch artifacts/junit-dummy.xml
 
 # source smoke_test.sh
