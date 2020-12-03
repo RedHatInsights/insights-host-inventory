@@ -1,4 +1,4 @@
-FROM centos/python-36-centos7
+FROM registry.centos.org/centos/python-36-centos7
 
 USER root
 RUN yum -y install centos-release-scl-rh
