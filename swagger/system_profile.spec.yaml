@@ -121,6 +121,12 @@ $defs:
     description: Representation of the system profile fields
     type: object
     properties:
+      owner_id:
+        description: A UUID associated with the host's RHSM certificate
+        type: string
+        pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        maxLength: 36
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
       number_of_cpus:
         type: integer
       number_of_sockets:
