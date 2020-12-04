@@ -65,6 +65,7 @@ def minimal_host(**values):
 
 def valid_system_profile():
     return {
+        "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
