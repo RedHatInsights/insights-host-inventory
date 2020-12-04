@@ -443,7 +443,7 @@ def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
 
-        
+
 def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests that operating_system in the system profile is ingested properly
