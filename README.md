@@ -72,7 +72,7 @@ variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 This project uses Sonar for static code analysis. To set up sonar-scanner on your machine, [download the CLI](https://sonarqube.corp.redhat.com/documentation/analysis/scan/sonarscanner/) and set the `SONAR_PATH` env var like this:
 
 ``` sh
-SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-${SONAR_CLI_VERSION_NUMBER}.jar
+export SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-${SONAR_CLI_VERSION_NUMBER}.jar
 ```
 
 Then, run `sh sonar_scan.sh` to generate the `.sonar/sonar-scanner.properties` file. Replace the `$token$` placeholder at the bottom of the file with your own personal Sonar token. Instructions on how to do this are located [here](https://source.redhat.com/groups/public/cloud-services-platform-cloudredhatcom/cloudredhatcom_wiki/setting_up_sonarqube_scanner_for_vulnerability_scanning_of_code#).
