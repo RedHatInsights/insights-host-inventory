@@ -1,7 +1,7 @@
 # Error out if sonar scanner isn't installed and configured properly
 if [[ -z "${SONAR_PATH}" ]]
 then
-    echo "Scanner jar required! Download it from here https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.5.0.2216.zip, and then set the env var with SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-4.5.0.2216.jar"
+    echo "Scanner jar required! Download it from here https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.5.0.2216.zip, and then set the env var with `export SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-4.5.0.2216.jar`"
     exit 1
 fi
 
