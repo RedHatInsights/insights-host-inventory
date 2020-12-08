@@ -53,6 +53,7 @@ INVALID_SYSTEM_PROFILES = (
     {"sap_sids": ["XX"]},
     {"sap_sids": ["123"]},
     {"sap_sids": ["abc"]},
+    {"sap_sids": ["ABC", "ABC"]},
 )
 
 

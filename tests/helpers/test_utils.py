@@ -121,4 +121,5 @@ def valid_system_profile():
         "installed_packages": ["rpm1-0:0.0.1.el7.i686", "rpm1-2:0.0.1.el7.i686"],
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
+        "sap_sids": ["ABC", "DEF", "GHI"],
     }
