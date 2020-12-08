@@ -5,6 +5,7 @@ from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
+from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -12,8 +13,24 @@ from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import valid_system_profile
 
 
+# /system_profile tests
+def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
+    system_profile = valid_system_profile()
+    host = minimal_host(system_profile=system_profile)
+    created_host = mq_create_or_update_host(host)
+
+    url = build_system_profile_url(host_list_or_id=created_host.id)
+
+    response_status, response_data = api_get(url)
+    assert response_data["results"][0]["system_profile"] == system_profile
+    assert response_status == 200
+
+
+# sap endpoint tests
 def test_system_profile_sap_system_endpoint_response(
     mocker, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
 ):
