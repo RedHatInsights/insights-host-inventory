@@ -360,6 +360,7 @@ class NetworkInterfaceSchema(MarshmallowSchema):
 
 
 class SystemProfileSchema(MarshmallowSchema):
+    owner_id = fields.Str(validate=verify_uuid_format)
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
