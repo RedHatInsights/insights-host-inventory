@@ -266,6 +266,7 @@ $defs:
       sap_sids:
         type: array
         description: List of SAP SIDs
+        uniqueItems: true
         items:
           description: The SAP system ID (SID)
           type: string
