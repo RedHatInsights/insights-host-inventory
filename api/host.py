@@ -150,10 +150,10 @@ def delete_by_id(host_id_list):
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
-                log_host_deleted(logger, host_id, current_identity)
+                log_host_deleted(logger, host_id)
                 tracker_message = "deleted host"
             else:
-                log_host_not_deleted(logger, host_id, current_identity)
+                log_host_not_deleted(logger, host_id)
                 tracker_message = "not deleted host"
 
             with PayloadTrackerProcessingContext(
@@ -178,7 +178,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    log_host_list_get_succeded(logger, query_results.items, current_identity)
+    log_host_list_get_succeded(logger, query_results.items)
 
     json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
     return flask_json_response(json_data)

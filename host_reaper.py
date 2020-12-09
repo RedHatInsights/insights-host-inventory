@@ -73,9 +73,9 @@ def run(config, logger, session, event_producer, shutdown_handler):
     events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
     for host_id, deleted in events:
         if deleted:
-            log_host_deleted(logger, host_id, None)
+            log_host_deleted(logger, host_id)
         else:
-            log_host_not_deleted(logger, host_id, None)
+            log_host_not_deleted(logger, host_id)
 
 
 def main(logger):

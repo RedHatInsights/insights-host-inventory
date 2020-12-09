@@ -1,3 +1,5 @@
+from flask import g
+
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import rbac_access_denied
@@ -38,33 +40,28 @@ def message_not_produced(logger, topic, value, key, headers, error):
     event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
-def _identity_to_permission_handler(identity):
-    if identity.identity_type == "User":
-        return "RBAC"
-    elif identity.identity_type == "System":
-        return "Authenticated Systems"
+def _control_rule():
+    if hasattr(g, "access_control_rule"):
+        return g.access_control_rule
+    else:
+        return "None"
 
 
-def log_host_deleted(logger, host_id, identity):
-    logger.info(
-        "Deleted host: %s", host_id, extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)}
-    )
+def log_host_deleted(logger, host_id):
+    logger.info("Deleted host: %s", host_id, extra={"Access Control Rule Invoked": _control_rule()})
 
 
-def log_host_not_deleted(logger, host_id, identity):
+def log_host_not_deleted(logger, host_id):
     logger.info(
         "Hostidentity %s already deleted. Delete event not emitted.",
         host_id,
-        extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)},
+        extra={"Access Control Rule Invoked": _control_rule()},
     )
 
 
-def log_host_list_get_succeded(logger, results_list, identity):
-    logger.debug(
-        "Found hosts: %s",
-        results_list,
-        extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)},
-    )
+def log_host_list_get_succeded(logger, results_list):
+    logger.debug("Found hosts: %s", results_list, extra={"Access Control Rule Invoked": _control_rule()})
+    logger.debug("rule used REMOVE: %s", _control_rule())
 
 
 def rbac_failure(logger, error_message=None):
