@@ -17,6 +17,7 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from app import payload_tracker
 from app.config import Config
+from app.custom_validator import VALIDATOR_MAP
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -88,7 +89,7 @@ def create_app(runtime_environment):
     # Read the swagger.yml file to configure the endpoints
     parser = ResolvingParser(SPECIFICATION_FILE, resolve_types=RESOLVE_FILES | RESOLVE_INTERNAL, resolve_method=TRANSLATE_EXTERNAL, recursion_limit_handler=lambda x,y,z: {})
     parser.parse()
-    # print(parser.specification)
+
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
@@ -98,6 +99,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=True,
                 base_path=api_url,
+                validator_map = VALIDATOR_MAP
             )
             logger.info("Listening on API: %s", api_url)
 
