@@ -8,7 +8,10 @@ from flask import jsonify
 from flask import request
 from prance import ResolvingParser
 from prance.util.resolver import RESOLVE_FILES
+from prance.util.resolver import RESOLVE_INTERNAL
+from prance.util.resolver import TRANSLATE_EXTERNAL
 from prometheus_flask_exporter import PrometheusMetrics
+from jsonschema import Draft7Validator
 
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
@@ -83,9 +86,9 @@ def create_app(runtime_environment):
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     # Read the swagger.yml file to configure the endpoints
-    parser = ResolvingParser(SPECIFICATION_FILE, resolve_types=RESOLVE_FILES)
+    parser = ResolvingParser(SPECIFICATION_FILE, resolve_types=RESOLVE_FILES | RESOLVE_INTERNAL, resolve_method=TRANSLATE_EXTERNAL, recursion_limit_handler=lambda x,y,z: {})
     parser.parse()
-
+    # print(parser.specification)
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
