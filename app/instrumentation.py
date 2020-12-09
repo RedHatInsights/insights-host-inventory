@@ -38,6 +38,35 @@ def message_not_produced(logger, topic, value, key, headers, error):
     event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
+def _identity_to_permission_handler(identity):
+    if identity.identity_type == "User":
+        return "RBAC"
+    elif identity.identity_type == "System":
+        return "Authenticated Systems"
+
+
+def log_host_deleted(logger, host_id, identity):
+    logger.info(
+        "Deleted host: %s", host_id, extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)}
+    )
+
+
+def log_host_not_deleted(logger, host_id, identity):
+    logger.info(
+        "Hostidentity %s already deleted. Delete event not emitted.",
+        host_id,
+        extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)},
+    )
+
+
+def log_host_list_get_succeded(logger, results_list, identity):
+    logger.debug(
+        "Found hosts: %s",
+        results_list,
+        extra={"Access Control Rule Invoked": _identity_to_permission_handler(identity)},
+    )
+
+
 def rbac_failure(logger, error_message=None):
     logger.error("Failed to fetch RBAC permissions: %s", error_message)
     rbac_fetching_failure.inc()
