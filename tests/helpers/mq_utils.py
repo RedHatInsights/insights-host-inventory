@@ -3,6 +3,7 @@ import os
 from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import Mock
 
 from app.utils import Tag
 
@@ -17,6 +18,8 @@ class MockEventProducer:
         self.headers = None
         self.topic = None
         self.wait = None
+        self._kafka_producer = Mock()
+        self._kafka_producer.flush = Mock(return_value=True)
 
     def write_event(self, event, key, headers, topic, wait=False):
         self.event = event
