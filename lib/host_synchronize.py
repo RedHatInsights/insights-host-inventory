@@ -1,3 +1,5 @@
+from kafka.errors import KafkaTimeoutError
+
 from app.culling import Timestamps
 from app.models import Host
 from app.queue.event_producer import Topic
@@ -26,6 +28,12 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             synchronize_host_count.inc()
 
             yield host.id
+
+        try:
+            # pace the events production speed as flush completes sending all buffered records.
+            event_producer._kafka_producer.flush(300)
+        except KafkaTimeoutError:
+            raise KafkaTimeoutError(f"KafkaTimeoutError: failure to flush {chunk_size} records within 300 seconds")
 
         # load next chunk using keyset pagination
         host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
