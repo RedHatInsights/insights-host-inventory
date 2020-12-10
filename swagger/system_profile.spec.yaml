@@ -3,8 +3,8 @@ $id: system_profile.spec.yaml
 $schema: http://json-schema.org/draft-07/schema#
 $defs:
   NestedObject:
-    type: object
     description: An arbitrary object that doesn’t allow empty string keys.
+    # type: object
     x-propertyNames:
       minLength: 1
     additionalProperties:
@@ -26,6 +26,7 @@ $defs:
         example:
           uid: "0"
           ro: true
+        type: object
         "$ref": "#/$defs/NestedObject"
       mount_point:
         description: The mount point

@@ -11,7 +11,6 @@ from prance.util.resolver import RESOLVE_FILES
 from prance.util.resolver import RESOLVE_INTERNAL
 from prance.util.resolver import TRANSLATE_EXTERNAL
 from prometheus_flask_exporter import PrometheusMetrics
-from jsonschema import Draft7Validator
 
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
