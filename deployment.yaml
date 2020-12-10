@@ -229,6 +229,11 @@ objects:
         partitions: 1
       - topicName: platform.inventory.events
         partitions: 1
+    optionalDependencies:
+    - ingress
+    - puptoo
+    - engine
+    - rbac
 parameters:
 - name: LOG_LEVEL
   value: INFO
