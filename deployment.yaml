@@ -231,7 +231,6 @@ objects:
         partitions: 1
     optionalDependencies:
     - ingress
-    - engine
     - rbac
 parameters:
 - name: LOG_LEVEL
