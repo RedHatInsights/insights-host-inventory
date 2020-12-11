@@ -231,7 +231,6 @@ objects:
         partitions: 1
     optionalDependencies:
     - ingress
-    - puptoo
     - engine
     - rbac
 parameters:
