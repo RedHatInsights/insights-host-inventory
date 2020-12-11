@@ -62,7 +62,6 @@ def get_host_list(
     query_results = query.paginate(page, per_page, True)
 
     log_host_list_get_succeded(logger, query_results.items)
-    # logger.debug("Found hosts: %s", query_results.items)
 
     return query_results.items, query_results.total
 
