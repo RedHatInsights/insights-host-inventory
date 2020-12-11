@@ -274,6 +274,7 @@ $defs:
         description: Indicates if SAP is installed on the system
       sap_sids:
         type: array
+        description: List of SAP SIDs
         uniqueItems: true
         items:
           description: The SAP system ID (SID)
