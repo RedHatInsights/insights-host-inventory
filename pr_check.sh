@@ -20,7 +20,7 @@ deactivate
 # Options that must be configured by app owner
 # --------------------------------------------
 APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
-COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+COMPONENT_NAME="inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 IMAGE="quay.io/cloudservices/insights-inventory"
 
 IQE_PLUGINS="host_inventory"
