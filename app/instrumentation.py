@@ -64,12 +64,10 @@ def log_host_not_deleted(logger, host_id):
 # get host
 def log_host_list_get_succeded(logger, results_list):
     logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
-    logger.debug("rule used REMOVE: %s", _control_rule())
 
 
-def log_host_list_get_failed(logger, results_list):
-    logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
-    logger.debug("rule used REMOVE: %s", _control_rule())
+def log_host_list_get_failed(logger):
+    logger.debug("hosts not found", extra={"access_rule": _control_rule()})
 
 
 # add host
@@ -101,6 +99,15 @@ def log_add_update_host_success(logger, add_result, host_data, output_host):
             "access_rule": _control_rule(),
         },
     )
+
+
+# patch host
+def log_patch_host_success(logger, host_id_list):
+    logger.info("Patched hosts- hosts: %s", host_id_list)
+
+
+def log_patch_host_failed(logger, host_id_list):
+    logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
 
 
 def log_add_host_failure(logger, host_data):

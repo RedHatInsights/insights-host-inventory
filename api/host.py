@@ -22,8 +22,11 @@ from app.auth import current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
 from app.instrumentation import log_host_deleted
+from app.instrumentation import log_host_list_get_failed
 from app.instrumentation import log_host_list_get_succeded
 from app.instrumentation import log_host_not_deleted
+from app.instrumentation import log_patch_host_failed
+from app.instrumentation import log_patch_host_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -126,6 +129,7 @@ def get_host_list(
             filter,
         )
     except ValueError as e:
+        log_host_list_get_failed(logger)
         flask.abort(400, str(e))
 
     json_data = build_paginated_host_list_response(total, page, per_page, host_list)
@@ -228,7 +232,7 @@ def patch_by_id(host_id_list, body):
     hosts_to_update = query.all()
 
     if not hosts_to_update:
-        logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
+        log_patch_host_failed(logger, host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     for host in hosts_to_update:
@@ -239,6 +243,7 @@ def patch_by_id(host_id_list, body):
             db.session.commit()
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
+    log_patch_host_success(logger, host_id_list)
     return 200
 
 
