@@ -30,28 +30,6 @@ $defs:
         example: "ext3"
         type: string
         maxLength: 256
-  OperatingSystem:
-    description: Object for OS details
-    type: object
-    properties:
-      major:
-        description: Major release of OS (aka the x version)
-        example: 6
-        type: integer
-        minimum: 0
-        maximum: 99
-      minor:
-        description: Minor release of OS (aka the y version)
-        example: 8
-        type: integer
-        minimum: 0
-        maximum: 99
-      name:
-        description: Name of the distro/os
-        example: "RHEL"
-        type: string
-        maxLength: 4
-        enum: ["RHEL"]
   YumRepo:
     description: Representation of one yum repository
     type: object
@@ -143,6 +121,12 @@ $defs:
     description: Representation of the system profile fields
     type: object
     properties:
+      owner_id:
+        description: A UUID associated with the host's RHSM certificate
+        type: string
+        pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        maxLength: 36
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
       number_of_cpus:
         type: integer
       number_of_sockets:
@@ -182,7 +166,25 @@ $defs:
         type: array
       operating_system:
         type: object
-        $ref: '#/$defs/OperatingSystem'
+        properties:
+          major:
+            description: Major release of OS (aka the x version)
+            example: 6
+            type: integer
+            minimum: 0
+            maximum: 99
+          minor:
+            description: Minor release of OS (aka the y version)
+            example: 8
+            type: integer
+            minimum: 0
+            maximum: 99
+          name:
+            description: Name of the distro/os
+            example: "RHEL"
+            type: string
+            maxLength: 4
+            enum: [RHEL]
       os_release:
         type: string
         maxLength: 100
@@ -264,6 +266,7 @@ $defs:
       sap_sids:
         type: array
         description: List of SAP SIDs
+        uniqueItems: true
         items:
           description: The SAP system ID (SID)
           type: string

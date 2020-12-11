@@ -898,7 +898,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum_over_time(inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-platform-prod\"}[$__range:59m])",
+              "expr": "sum_over_time(inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}[$__range:59m])",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -1260,7 +1260,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "increase(inventory_reaper_fail_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-platform-prod\"}[$__range])",
+              "expr": "increase(inventory_reaper_fail_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}[$__range])",
               "interval": "5m",
               "refId": "A"
             }
@@ -2900,7 +2900,7 @@ data:
               "steppedLine": false,
               "targets": [
                 {
-                  "expr": "inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-platform-prod\"}",
+                  "expr": "inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}",
                   "interval": "1m",
                   "legendFormat": "{{exported_job}}",
                   "refId": "A"

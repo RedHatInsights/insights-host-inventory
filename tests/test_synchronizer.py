@@ -35,7 +35,7 @@ def test_synchronize_host_event(
     assert db_get_host(created_host.id)
 
     assert_synchronize_event_is_valid(
-        event_producer=event_producer_mock, host=created_host, timestamp=event_datetime_mock
+        event_producer=event_producer_mock, key=str(created_host.id), host=created_host, timestamp=event_datetime_mock
     )
 
 

@@ -7,3 +7,7 @@ pyvenv.cfg
 tags
 .coverage
 .pytest_cache/
+/.sonar/sonar-scanner.properties
+/.scannerwork/
+
+coverage.xml

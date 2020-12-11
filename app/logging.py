@@ -36,15 +36,37 @@ def configure_logging():
             logging.getLogger(component).setLevel(level.upper())
 
 
-def cloudwatch_handler():
+def clowder_config():
+    import app_common_python
+
+    cfg = app_common_python.LoadedConfig
+
+    if cfg.logging:
+        cw = cfg.logging.cloudwatch
+        return cw.accessKeyId, cw.secretAccessKey, cw.region, cw.logGroup, False
+    else:
+        return None, None, None, None, None
+
+
+def non_clowder_config():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
+    aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
+    create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
+    return aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, create_log_group
+
+
+def cloudwatch_handler():
+    if os.environ.get("CLOWDER_ENABLED", "").lower() == "true":
+        f = clowder_config
+    else:
+        f = non_clowder_config
+
+    aws_access_key_id, aws_secret_access_key, aws_region_name, aws_log_group, create_log_group = f()
 
     if all((aws_access_key_id, aws_secret_access_key, aws_region_name)):
-        aws_log_group = os.getenv("AWS_LOG_GROUP", "platform")
         aws_log_stream = os.getenv("AWS_LOG_STREAM", _get_hostname())
-        create_log_group = str(os.getenv("AWS_CREATE_LOG_GROUP")).lower() == "true"
         print(f"Configuring watchtower logging (log_group={aws_log_group}, stream_name={aws_log_stream})")
         boto3_session = Session(
             aws_access_key_id=aws_access_key_id,

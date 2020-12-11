@@ -392,12 +392,4 @@ def host_checkin(body):
         _emit_patch_event(serialized_host, existing_host.id, existing_host.canonical_facts.get("insights_id"))
         return flask_json_response(serialized_host, 201)
     else:
-        return flask_json_response(
-            {
-                "detail": "No hosts match the provided canonical facts.",
-                "status": 404,
-                "title": "Not Found",
-                "type": "about:blank",
-            },
-            status=404,
-        )
+        flask.abort(404, "No hosts match the provided canonical facts.")

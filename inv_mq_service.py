@@ -17,9 +17,8 @@ logger = get_logger("mq_service")
 
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
-    start_http_server(9126)
-
     config = application.config["INVENTORY_CONFIG"]
+    start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
         config.host_ingress_topic,
