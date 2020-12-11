@@ -174,10 +174,11 @@ def expected_encoded_headers(event_type, request_id, insights_id):
 
 
 def assert_synchronize_event_is_valid(
-    event_producer, host, timestamp, expected_request_id=None, expected_metadata=None
+    event_producer, key, host, timestamp, expected_request_id=None, expected_metadata=None
 ):
     event = json.loads(event_producer.event)
 
+    assert key == event_producer.key
     assert isinstance(event, dict)
     expected_keys = {"metadata", "timestamp", "host", "platform_metadata", "type"}
 
