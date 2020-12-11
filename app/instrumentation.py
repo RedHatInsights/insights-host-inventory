@@ -1,5 +1,8 @@
+import json
+
 from flask import g
 
+from app.queue import metrics
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import rbac_access_denied
@@ -47,21 +50,62 @@ def _control_rule():
         return "None"
 
 
+# delete host
 def log_host_deleted(logger, host_id):
-    logger.info("Deleted host: %s", host_id, extra={"Access Control Rule Invoked": _control_rule()})
+    logger.info("Deleted host: %s", host_id, extra={"access_rule": _control_rule()})
 
 
 def log_host_not_deleted(logger, host_id):
     logger.info(
-        "Hostidentity %s already deleted. Delete event not emitted.",
-        host_id,
-        extra={"Access Control Rule Invoked": _control_rule()},
+        "Hostidentity %s already deleted. Delete event not emitted.", host_id, extra={"access_rule": _control_rule()}
     )
 
 
+# get host
 def log_host_list_get_succeded(logger, results_list):
-    logger.debug("Found hosts: %s", results_list, extra={"Access Control Rule Invoked": _control_rule()})
+    logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
     logger.debug("rule used REMOVE: %s", _control_rule())
+
+
+def log_host_list_get_failed(logger, results_list):
+    logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
+    logger.debug("rule used REMOVE: %s", _control_rule())
+
+
+# add host
+def log_add_host_attempt(logger, input_host):
+    logger.info(
+        "Attempting to add host",
+        extra={
+            "input_host": {
+                "account": input_host.account,
+                "display_name": input_host.display_name,
+                "canonical_facts": input_host.canonical_facts,
+                "reporter": input_host.reporter,
+                "stale_timestamp": input_host.stale_timestamp.isoformat(),
+                "tags": json.dumps(input_host.tags),
+            },
+            "access_rule": _control_rule(),
+        },
+    )
+
+
+def log_add_update_host_success(logger, add_result, host_data, output_host):
+    metrics.add_host_success.labels(add_result.name, host_data.get("reporter", "null")).inc()  # created vs updated
+    # log all the incoming host data except facts and system_profile b/c they can be quite large
+    logger.info(
+        "Host %s",
+        add_result.name,
+        extra={
+            "host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")},
+            "access_rule": _control_rule(),
+        },
+    )
+
+
+def log_add_host_failure(logger, host_data):
+    logger.exception("Error adding host ", extra={"host": host_data})
+    metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
 def rbac_failure(logger, error_message=None):
