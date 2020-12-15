@@ -4,9 +4,12 @@ from jsonschema.exceptions import ValidationError
 from jsonschema.validators import extend
 
 
-def validate_property_names(validator, property_length, instance, schema):
-    # Todo
-    yield ValidationError(f"error {property_length}, {instance}")
+def validate_property_names(validator, prop_length, instance, schema):
+    if not validator.is_type(instance, "object"):
+        return
+
+    if len(min(instance.keys())) < prop_length:
+        yield ValidationError(f"{instance!r} key length is less than {prop_length!r}")
 
 
 Draft7RequestValidator = extend(Draft7Validator, {"x-propertyNames": validate_property_names})
