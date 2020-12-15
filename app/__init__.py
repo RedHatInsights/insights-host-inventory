@@ -90,6 +90,7 @@ def create_app(runtime_environment):
         SPECIFICATION_FILE,
         resolve_types=RESOLVE_FILES | RESOLVE_INTERNAL,
         resolve_method=TRANSLATE_EXTERNAL,
+        recursion_limit=1,
         recursion_limit_handler=lambda x, y, z: {},
     )
     parser.parse()

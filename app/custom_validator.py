@@ -8,7 +8,7 @@ def validate_property_names(validator, prop_length, instance, schema):
     if not validator.is_type(instance, "object"):
         return
 
-    if len(min(instance.keys())) < prop_length:
+    if any(len(key) < prop_length for key in instance.keys()):
         yield ValidationError(f"{instance!r} key length is less than {prop_length!r}")
 
 
