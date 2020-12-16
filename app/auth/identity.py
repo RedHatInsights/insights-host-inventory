@@ -16,7 +16,7 @@ SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 def from_auth_header(base64):
     json = b64decode(base64)
     identity_dict = loads(json)
-    return Identity(identity_dict["identity"]["account_number"], identity_dict["identity"]["type"])
+    return Identity(identity_dict["identity"])
 
 
 def from_bearer_token(token):
@@ -24,27 +24,41 @@ def from_bearer_token(token):
 
 
 class Identity:
-    def __init__(self, account_number=None, identity_type=None, token=None):
+    def __init__(self, obj=None, token=None):
         """
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
         """
-        if not account_number and not token:
+        if not obj and not token:
             raise ValueError("Neither the account_number or token has been set")
+        elif obj:
+            self.is_trusted_system = False
+            self.account_number = obj["account_number"]
 
-        self.is_trusted_system = False
-        self.account_number = account_number
-        self.identity_type = identity_type
+            # This check may change to if "auth_type" in obj.keys()
+            # and then basic-auth and cert-auth.`
+            if obj["type"] == "User":
+                self.identity_type = obj["type"]
+                self.user = obj["user"]
+            elif obj["type"] == "System":
+                self.identity_type = obj["type"]
+                self.system = obj["system"]
 
-        threadctx.account_number = account_number
+            # ensure account number availability
+            if obj['account_number'] == None or obj['account_number'] == '':
+                raise ValueError("Authentication type unknown")
 
-        if token:
+            threadctx.account_number = obj["account_number"]
+        else:
             self.token = token
             self.is_trusted_system = True
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
-        return {"account_number": self.account_number, "type": self.identity_type}
+        if self.identity_type == "User":
+            return {"account_number": self.account_number, "type": self.identity_type, "user": self.user}
+        if self.identity_type == "System":
+            return {"account_number": self.account_number, "type": self.identity_type, "system": self.system}
 
     def __eq__(self, other):
         return self.account_number == other.account_number

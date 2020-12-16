@@ -30,10 +30,10 @@ from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
-from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -285,7 +285,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
 
-    mock.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
+    mock.assert_called_once_with(USER_IDENTITY["account_number"], "fqdn", fqdn)
 
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
@@ -296,7 +296,7 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?insights_id={insights_id}")
     api_get(url)
 
-    mock.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
+    mock.assert_called_once_with(USER_IDENTITY["account_number"], "insights_id", insights_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
@@ -900,8 +900,9 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             find_hosts_by_staleness_mock.assert_not_called()
 
 
+# TODO: This test is valid until a system with "owner_id" is used.
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url, identity_type="System")

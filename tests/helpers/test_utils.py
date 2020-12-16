@@ -14,7 +14,8 @@ from app.utils import HostWrapper
 NS = "testns"
 ID = "whoabuddy"
 
-ACCOUNT = "000501"
+SYSTEM_IDENTITY = {'account_number': 'test', 'auth_type': 'cert-auth', 'internal': {'auth_time': 6300, 'org_id': '3340851'}, 'system': {'cert_type': 'system', 'cn': '1b36b20f-7fa0-4454-a...8294e06378'}, 'type': 'System'}
+USER_IDENTITY = {"account_number": "test", "auth_type": "basic-auth", "type": "User", "user": {"email": "tuser@redhat.com", "first_name": "test"}}
 
 
 def generate_uuid():
@@ -52,7 +53,7 @@ def set_environment(new_env=None):
 
 def minimal_host(**values):
     data = {
-        "account": ACCOUNT,
+        "account": USER_IDENTITY["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),

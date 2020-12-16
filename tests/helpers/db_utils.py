@@ -9,9 +9,9 @@ from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
 from lib.host_repository import find_existing_host
-from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import USER_IDENTITY
 
 DB_FACTS_NAMESPACE = "ns1"
 DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
@@ -35,7 +35,7 @@ def clean_tables():
 
 def minimal_db_host(**values):
     data = {
-        "account": ACCOUNT,
+        "account": USER_IDENTITY["account_number"],
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test-reporter",
@@ -46,7 +46,7 @@ def minimal_db_host(**values):
 
 def db_host(**values):
     data = {
-        "account": ACCOUNT,
+        "account": USER_IDENTITY["account_number"],
         "display_name": "test-display-name",
         "ansible_host": "test-ansible-host",
         "canonical_facts": {
@@ -96,7 +96,7 @@ def get_expected_facts_after_update(method, namespace, facts, new_facts):
     return facts
 
 
-def assert_host_exists_in_db(host_id, search_canonical_facts, account=ACCOUNT):
+def assert_host_exists_in_db(host_id, search_canonical_facts, account=USER_IDENTITY["account_number"]):
     found_host = find_existing_host(account, search_canonical_facts)
 
     assert host_id == found_host.id

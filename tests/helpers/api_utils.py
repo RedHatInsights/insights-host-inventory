@@ -15,7 +15,8 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -97,8 +98,8 @@ def do_request(
 
 
 def get_valid_auth_header(auth_type="account_number", identity_type="User"):
-    if auth_type == "account_number":
-        return build_account_auth_header(identity_type=identity_type)
+    if identity_type == "User" or identity_type == "System":
+        return build_account_auth_header(auth_type, identity_type)
 
     return build_token_auth_header()
 
@@ -110,9 +111,14 @@ def get_required_headers(auth_type="account_number", identity_type="User"):
     return headers
 
 
-def build_account_auth_header(account=ACCOUNT, identity_type="User"):
-    identity = Identity(account_number=account, identity_type=identity_type)
+def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
+    if identity_type == "User":
+        identity = Identity(USER_IDENTITY)
+    else:
+        identity = Identity(SYSTEM_IDENTITY)
+
     dict_ = {"identity": identity._asdict()}
+
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
     return auth_header

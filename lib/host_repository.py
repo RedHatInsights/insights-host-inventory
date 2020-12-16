@@ -13,6 +13,7 @@ from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
 
+
 __all__ = (
     "add_host",
     "canonical_fact_host_query",
@@ -79,10 +80,11 @@ def _find_host_by_elevated_ids(account_number, canonical_facts):
     return None
 
 
-def canonical_fact_host_query(account_number, canonical_fact, value):
+def canonical_fact_host_query(current_identity, canonical_fact, value):
     query = Host.query.filter(
-        (Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value)
+        (Host.account == current_identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
+    query = update_query_for_owner_id(current_identity, query)
     return find_non_culled_hosts(query)
 
 
@@ -94,6 +96,7 @@ def canonical_facts_host_query(account_number, canonical_facts):
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
+    query = update_query_for_owner_id(current_identity, query)
     return find_non_culled_hosts(query)
 
 

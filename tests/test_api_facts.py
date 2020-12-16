@@ -27,7 +27,8 @@ def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts
 
     expected_facts = get_expected_facts_after_update("replace", DB_FACTS_NAMESPACE, DB_FACTS, DB_NEW_FACTS)
 
-    assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
+    for host in db_get_hosts(host_id_list):
+        assert host.facts == expected_facts
 
 
 def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_multiple_hosts, db_get_hosts, api_put):
@@ -37,6 +38,7 @@ def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_mu
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -124,6 +126,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_put(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -163,10 +166,13 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
             assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
+# TODO: This test is not valid until a system with "owner_id" is used.
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
-    host = db_create_host(extra_data={"facts": DB_FACTS})
+    host = db_create_host(extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": generate_uuid()}})
+    # host = db_create_host(extra_data={"facts": DB_FACTS})
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
+    # setting identity type to User does not help.
     response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
 
     assert_response_status(response_status, 200)

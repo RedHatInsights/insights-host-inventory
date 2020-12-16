@@ -11,11 +11,17 @@ from app.utils import Tag
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
 
-__all__ = ("get_host_list", "params_to_order_by")
+__all__ = ("get_host_list", "params_to_order_by", "update_query_for_owner_id")
 
 NULL = None
 
 logger = get_logger(__name__)
+
+def update_query_for_owner_id(identity, query):
+    if identity.identity_type == "System" and identity.system["cert_type"] == "system":
+        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == current_identity.system["cn"]) )
+    else:
+        return query
 
 
 def get_host_list(
@@ -102,11 +108,12 @@ def _order_how(column, order_how):
 
 
 def _find_all_hosts():
-    return Host.query.filter(Host.account == current_identity.account_number)
+    query = Host.query.filter(Host.account == current_identity.account_number)
+    return update_query_for_owner_id(current_identity, query)
 
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
-    return canonical_fact_host_query(current_identity.account_number, canonical_fact, value)
+    return canonical_fact_host_query(current_identity, canonical_fact, value)
 
 
 def _find_hosts_by_tag(string_tags, query):

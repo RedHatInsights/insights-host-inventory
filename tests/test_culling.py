@@ -171,7 +171,8 @@ def test_patch_facts_ignores_culled(mq_create_hosts_in_all_states, api_patch):
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
     response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
 
-    assert response_status == 400
+    # before CRUD permissions, anybody could change but now non-existent hosts are ignored.
+    assert response_status == 200
 
 
 def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
@@ -187,9 +188,11 @@ def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
+
     response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"})
 
-    assert response_status == 400
+    # before CRUD permissions, anybody could change but now non-existent hosts are ignored.
+    assert response_status == 200
 
 
 def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):

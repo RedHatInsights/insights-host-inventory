@@ -14,6 +14,7 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
+from api.host_query_db import update_query_for_owner_id
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
 from app import inventory_config
@@ -71,6 +72,10 @@ def _add_host(input_host):
 
     return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
+
+def _get_host_list_by_id_list(current_identity, host_id_list):
+    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
 
 def get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
@@ -139,7 +144,7 @@ def delete_by_id(host_id_list):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+        query = _get_host_list_by_id_list(current_identity, host_id_list)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
@@ -166,7 +171,7 @@ def delete_by_id(host_id_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -182,15 +187,11 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
     return flask_json_response(json_data)
 
 
-def _get_host_list_by_id_list(account_number, host_id_list):
-    return find_non_culled_hosts(Host.query.filter((Host.account == account_number) & Host.id.in_(host_id_list)))
-
-
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -221,7 +222,7 @@ def patch_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     hosts_to_update = query.all()
 
@@ -260,13 +261,13 @@ def merge_facts(host_id_list, namespace, body):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-    hosts_to_update = find_non_culled_hosts(
-        Host.query.filter(
-            (Host.account == current_identity.account_number)
-            & Host.id.in_(host_id_list)
-            & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
-        )
-    ).all()
+    query = Host.query.filter(
+                (Host.account == current_identity.account_number)
+                & Host.id.in_(host_id_list)
+                & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
+            )
+
+    hosts_to_update = find_non_culled_hosts((update_query_for_owner_id(current_identity, query))).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -296,7 +297,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -333,7 +334,7 @@ def _count_tags(host_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-    query = _get_host_list_by_id_list(current_identity.account_number, host_id_list)
+    query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -377,6 +378,8 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 def host_checkin(body):
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity.account_number, canonical_facts)
+
+    existing_host = _get_current_owner_hosts([existing_host])
 
     if existing_host:
         existing_host._update_modified_date()
