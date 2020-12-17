@@ -3,8 +3,10 @@ $id: system_profile.spec.yaml
 $schema: http://json-schema.org/draft-07/schema#
 $defs:
   NestedObject:
-    description: An arbitrary object that doesn’t allow empty string keys.
     type: object
+    description: An arbitrary object that doesn’t allow empty string keys.
+    # openapi spec does not support propertyNames, we will use a custom validator
+    # to validate x-propertyNames as propertyNames
     x-propertyNames:
       minLength: 1
     additionalProperties:
@@ -276,7 +278,6 @@ $defs:
         description: Indicates if SAP is installed on the system
       sap_sids:
         type: array
-        description: List of SAP SIDs
         uniqueItems: true
         items:
           description: The SAP system ID (SID)
