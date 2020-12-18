@@ -9,7 +9,7 @@ from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
-from app.instrumentation import log_add_update_host_success
+from app.instrumentation import log_add_update_host_succeeded
 from app.logging import get_logger
 from app.logging import threadctx
 from app.payload_tracker import get_payload_tracker
@@ -106,7 +106,7 @@ def add_host(host_data):
             output_host, host_id, insights_id, add_result = host_repository.add_host(
                 input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
-            log_add_update_host_success(logger, add_result, host_data, output_host)
+            log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
         except InventoryException:

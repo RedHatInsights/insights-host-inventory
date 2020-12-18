@@ -98,7 +98,7 @@ def log_get_sap_sids_failed(logger):
 
 
 # add host
-def _succeeded(logger, input_host):
+def log_add_host_attempt(logger, input_host):
     logger.info(
         "Attempting to add host",
         extra={
@@ -115,7 +115,7 @@ def _succeeded(logger, input_host):
     )
 
 
-def log_add_update_host_success(logger, add_result, host_data, output_host):
+def log_add_update_host_succeeded(logger, add_result, host_data, output_host):
     metrics.add_host_success.labels(add_result.name, host_data.get("reporter", "null")).inc()  # created vs updated
     # log all the incoming host data except facts and system_profile b/c they can be quite large
     logger.info(
@@ -128,8 +128,10 @@ def log_add_update_host_success(logger, add_result, host_data, output_host):
     )
 
 
-# def log_add_update_host_failure(logger, add_result, host_data, output_host):
-#     pass
+def log_add_host_failure(logger, host_data):
+    logger.exception("Error adding host ", extra={"host": host_data})
+    metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
+
 
 # patch host
 def log_patch_host_success(logger, host_id_list):
@@ -138,11 +140,6 @@ def log_patch_host_success(logger, host_id_list):
 
 def log_patch_host_failed(logger, host_id_list):
     logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
-
-
-def log_add_host_failure(logger, host_data):
-    logger.exception("Error adding host ", extra={"host": host_data})
-    metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
 def rbac_failure(logger, error_message=None):
