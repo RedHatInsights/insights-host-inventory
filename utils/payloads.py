@@ -395,7 +395,7 @@ def create_system_profile():
             {
                 "device": "/dev/sdb1",
                 "label": "home drive",
-                "options": {"uid": "0", "ro": True, "nested": {"beans": 12}},
+                "options": {"uid": "0", "ro": True},
                 "mount_point": "/home",
                 "type": "ext3",
             }
