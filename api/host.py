@@ -14,7 +14,7 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
-from api.host_query_db import update_query_for_owner_id
+from lib.host_repository import update_query_for_owner_id
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
 from app import inventory_config
@@ -377,9 +377,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @metrics.api_request_time.time()
 def host_checkin(body):
     canonical_facts = deserialize_canonical_facts(body)
-    existing_host = find_existing_host(current_identity.account_number, canonical_facts)
-
-    existing_host = _get_current_owner_hosts([existing_host])
+    existing_host = find_existing_host(current_identity, canonical_facts)
 
     if existing_host:
         existing_host._update_modified_date()

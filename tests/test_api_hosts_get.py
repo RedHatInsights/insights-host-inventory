@@ -4,6 +4,7 @@ from itertools import chain
 
 import pytest
 
+from app.auth.identity import Identity
 from app.utils import HostWrapper
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
@@ -34,6 +35,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import USER_IDENTITY
+from app.auth.identity import Identity
 
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -285,8 +287,8 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
 
-    mock.assert_called_once_with(USER_IDENTITY["account_number"], "fqdn", fqdn)
-
+    identity = Identity(USER_IDENTITY)
+    mock.assert_called_once_with(identity, "fqdn", fqdn)
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
@@ -296,7 +298,8 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?insights_id={insights_id}")
     api_get(url)
 
-    mock.assert_called_once_with(USER_IDENTITY["account_number"], "insights_id", insights_id)
+    userid = Identity(USER_IDENTITY)
+    mock.assert_called_once_with(userid, "insights_id", insights_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):

@@ -10,18 +10,13 @@ from app.models import Host
 from app.utils import Tag
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import update_query_for_owner_id
 
-__all__ = ("get_host_list", "params_to_order_by", "update_query_for_owner_id")
+__all__ = ("get_host_list", "params_to_order_by")
 
 NULL = None
 
 logger = get_logger(__name__)
-
-def update_query_for_owner_id(identity, query):
-    if identity.identity_type == "System" and identity.system["cert_type"] == "system":
-        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == current_identity.system["cn"]) )
-    else:
-        return query
 
 
 def get_host_list(

@@ -3,6 +3,7 @@ from random import randint
 
 from sqlalchemy.exc import InvalidRequestError
 
+from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.models import db
 from app.models import Host
@@ -96,7 +97,8 @@ def get_expected_facts_after_update(method, namespace, facts, new_facts):
     return facts
 
 
-def assert_host_exists_in_db(host_id, search_canonical_facts, account=USER_IDENTITY["account_number"]):
-    found_host = find_existing_host(account, search_canonical_facts)
+def assert_host_exists_in_db(host_id, search_canonical_facts, account=USER_IDENTITY):
+    identity = Identity(account)
+    found_host = find_existing_host(identity, search_canonical_facts)
 
     assert host_id == found_host.id
