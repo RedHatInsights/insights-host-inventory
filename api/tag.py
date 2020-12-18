@@ -12,13 +12,14 @@ from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
+from app.instrumentation import log_get_tags_failed
+from app.instrumentation import log_get_tags_succeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
-
 
 logger = get_logger(__name__)
 
@@ -111,9 +112,10 @@ def get_tags(
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    response = graphql_query(TAGS_QUERY, variables)
+    response = graphql_query(TAGS_QUERY, variables, log_get_tags_failed)
     data = response["hostTags"]
 
     check_pagination(offset, data["meta"]["total"])
 
+    log_get_tags_succeded(logger, data)
     return flask_json_response(build_collection_response(data["data"], page, per_page, data["meta"]["total"]))

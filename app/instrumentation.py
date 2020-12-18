@@ -62,12 +62,39 @@ def log_host_not_deleted(logger, host_id):
 
 
 # get host
-def log_host_list_get_succeded(logger, results_list):
+def log_get_host_list_succeded(logger, results_list):
     logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
 
 
-def log_host_list_get_failed(logger):
+def log_get_host_list_failed(logger):
     logger.debug("hosts not found", extra={"access_rule": _control_rule()})
+
+
+# get tags
+def log_get_tags_succeded(logger, data):
+    logger.debug("Found tags: %s", data, extra={"access_rule": _control_rule()})
+
+
+def log_get_tags_failed(logger):
+    logger.debug("tags not found", extra={"access_rule": _control_rule()})
+
+
+# get sap_system
+def log_get_sap_system_succeded(logger, data):
+    logger.debug("Found sap_system: %s", data, extra={"access_rule": _control_rule()})
+
+
+def log_get_sap_system_failed(logger):
+    logger.debug("sap_system not found", extra={"access_rule": _control_rule()})
+
+
+# get sap_sids
+def log_get_sap_sids_succeded(logger, data):
+    logger.debug("Found sap_sids: %s", data, extra={"access_rule": _control_rule()})
+
+
+def log_get_sap_sids_failed(logger):
+    logger.debug("sap_sids not found", extra={"access_rule": _control_rule()})
 
 
 # add host
@@ -100,6 +127,9 @@ def log_add_update_host_success(logger, add_result, host_data, output_host):
         },
     )
 
+
+# def log_add_update_host_failure(logger, add_result, host_data, output_host):
+#     pass
 
 # patch host
 def log_patch_host_success(logger, host_id_list):
