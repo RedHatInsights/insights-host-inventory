@@ -13,7 +13,7 @@ from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
 from app.instrumentation import log_get_tags_failed
-from app.instrumentation import log_get_tags_succeded
+from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
@@ -117,5 +117,5 @@ def get_tags(
 
     check_pagination(offset, data["meta"]["total"])
 
-    log_get_tags_succeded(logger, data)
+    log_get_tags_succeeded(logger, data)
     return flask_json_response(build_collection_response(data["data"], page, per_page, data["meta"]["total"]))

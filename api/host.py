@@ -22,9 +22,9 @@ from app.auth import current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
 from app.instrumentation import log_get_host_list_failed
-from app.instrumentation import log_get_host_list_succeded
-from app.instrumentation import log_host_deleted
-from app.instrumentation import log_host_not_deleted
+from app.instrumentation import log_get_host_list_succeeded
+from app.instrumentation import log_host_delete_failed
+from app.instrumentation import log_host_delete_succeeded
 from app.instrumentation import log_patch_host_failed
 from app.instrumentation import log_patch_host_success
 from app.logging import get_logger
@@ -154,10 +154,10 @@ def delete_by_id(host_id_list):
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
-                log_host_deleted(logger, host_id)
+                log_host_delete_succeeded(logger, host_id)
                 tracker_message = "deleted host"
             else:
-                log_host_not_deleted(logger, host_id)
+                log_host_delete_failed(logger, host_id)
                 tracker_message = "not deleted host"
 
             with PayloadTrackerProcessingContext(
@@ -182,7 +182,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    log_get_host_list_succeded(logger, query_results.items)
+    log_get_host_list_succeeded(logger, query_results.items)
 
     json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
     return flask_json_response(json_data)

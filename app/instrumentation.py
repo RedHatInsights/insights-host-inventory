@@ -51,18 +51,18 @@ def _control_rule():
 
 
 # delete host
-def log_host_deleted(logger, host_id):
+def log_host_delete_succeeded(logger, host_id):
     logger.info("Deleted host: %s", host_id, extra={"access_rule": _control_rule()})
 
 
-def log_host_not_deleted(logger, host_id):
+def log_host_delete_failed(logger, host_id):
     logger.info(
         "Hostidentity %s already deleted. Delete event not emitted.", host_id, extra={"access_rule": _control_rule()}
     )
 
 
 # get host
-def log_get_host_list_succeded(logger, results_list):
+def log_get_host_list_succeeded(logger, results_list):
     logger.debug("Found hosts: %s", results_list, extra={"access_rule": _control_rule()})
 
 
@@ -71,7 +71,7 @@ def log_get_host_list_failed(logger):
 
 
 # get tags
-def log_get_tags_succeded(logger, data):
+def log_get_tags_succeeded(logger, data):
     logger.debug("Found tags: %s", data, extra={"access_rule": _control_rule()})
 
 
@@ -80,7 +80,7 @@ def log_get_tags_failed(logger):
 
 
 # get sap_system
-def log_get_sap_system_succeded(logger, data):
+def log_get_sap_system_succeeded(logger, data):
     logger.debug("Found sap_system: %s", data, extra={"access_rule": _control_rule()})
 
 
@@ -89,7 +89,7 @@ def log_get_sap_system_failed(logger):
 
 
 # get sap_sids
-def log_get_sap_sids_succeded(logger, data):
+def log_get_sap_sids_succeeded(logger, data):
     logger.debug("Found sap_sids: %s", data, extra={"access_rule": _control_rule()})
 
 
@@ -98,7 +98,7 @@ def log_get_sap_sids_failed(logger):
 
 
 # add host
-def log_add_host_attempt(logger, input_host):
+def _succeeded(logger, input_host):
     logger.info(
         "Attempting to add host",
         extra={

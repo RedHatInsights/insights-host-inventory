@@ -13,9 +13,9 @@ from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
 from app.instrumentation import log_get_sap_sids_failed
-from app.instrumentation import log_get_sap_sids_succeded
+from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_failed
-from app.instrumentation import log_get_sap_system_succeded
+from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
@@ -115,7 +115,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     check_pagination(offset, data["sap_system"]["meta"]["total"])
 
-    log_get_sap_system_succeded(logger, data)
+    log_get_sap_system_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
     )
@@ -167,7 +167,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
-    log_get_sap_sids_succeded(logger, data)
+    log_get_sap_sids_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )
