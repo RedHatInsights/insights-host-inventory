@@ -278,7 +278,7 @@ $defs:
         description: The instance number of the SAP HANA system
         example: '42'
         maxLength: 2
-        pattern: '(?!99)(?!98)^[0-9]{2}$'
+        pattern: '^[0-9]{2}$'
       sap_version:
         type: string
         description: The version of the SAP HANA lifecycle management program
