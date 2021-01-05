@@ -401,7 +401,7 @@ class SystemProfileSchema(MarshmallowSchema):
         )
     )
     sap_instance_number = fields.Str(
-        validate=[marshmallow_validate.Length(max=2), marshmallow_validate.Regexp(regex=r"(?!99)(?!98)^[0-9]{2}$")]
+        validate=[marshmallow_validate.Length(max=2), marshmallow_validate.Regexp(regex=r"^[0-9]{2}$")]
     )
     sap_version = fields.Str(
         validate=[
