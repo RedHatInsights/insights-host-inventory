@@ -35,7 +35,6 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import USER_IDENTITY
-from app.auth.identity import Identity
 
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -289,6 +288,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
 
     identity = Identity(USER_IDENTITY)
     mock.assert_called_once_with(identity, "fqdn", fqdn)
+
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)

@@ -24,6 +24,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
+
 @pytest.mark.parametrize(
     "patch_doc",
     [
@@ -443,7 +444,7 @@ def test_patch_host_with_RBAC_denied(
 # TODO: This test is valid until a system with "owner_id" is used.
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
     # host = db_create_host()
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY['system']['cn']}})
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")

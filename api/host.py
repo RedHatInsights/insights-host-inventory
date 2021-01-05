@@ -14,7 +14,6 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
-from lib.host_repository import update_query_for_owner_id
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
 from app import inventory_config
@@ -43,6 +42,7 @@ from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
+from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
 
@@ -76,6 +76,7 @@ def _add_host(input_host):
 def _get_host_list_by_id_list(current_identity, host_id_list):
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
+
 
 def get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
@@ -262,12 +263,12 @@ def merge_facts(host_id_list, namespace, body):
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     query = Host.query.filter(
-                (Host.account == current_identity.account_number)
-                & Host.id.in_(host_id_list)
-                & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
-            )
+        (Host.account == current_identity.account_number)
+        & Host.id.in_(host_id_list)
+        & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
+    )
 
-    hosts_to_update = find_non_culled_hosts((update_query_for_owner_id(current_identity, query))).all()
+    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 

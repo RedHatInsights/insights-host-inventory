@@ -16,6 +16,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
+
 def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db_get_hosts, api_put):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
@@ -168,7 +169,9 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
 
 # TODO: This test is not valid until a system with "owner_id" is used.
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
-    host = db_create_host(extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY['system']['cn']}})
+    host = db_create_host(
+        extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
     # setting identity type to User does not help.

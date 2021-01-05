@@ -36,7 +36,7 @@ class Identity:
             self.account_number = obj["account_number"]
 
             # This check may change to if "auth_type" in obj.keys()
-            # and then basic-auth and cert-auth.`
+            # and then basic-auth and cert-auth.
             if obj["type"] == "User":
                 self.identity_type = obj["type"]
                 self.user = obj["user"]
@@ -45,7 +45,7 @@ class Identity:
                 self.system = obj["system"]
 
             # ensure account number availability
-            if obj['account_number'] == None or obj['account_number'] == '':
+            if obj["account_number"] is None or obj["account_number"] == "":
                 raise ValueError("Authentication type unknown")
 
             threadctx.account_number = obj["account_number"]
@@ -62,6 +62,10 @@ class Identity:
 
     def __eq__(self, other):
         return self.account_number == other.account_number
+
+    # def __eq__(self, other):
+    #     # return self == other
+    #     return False
 
 
 def validate(identity):

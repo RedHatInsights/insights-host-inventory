@@ -14,8 +14,19 @@ from app.utils import HostWrapper
 NS = "testns"
 ID = "whoabuddy"
 
-SYSTEM_IDENTITY = {'account_number': 'test', 'auth_type': 'cert-auth', 'internal': {'auth_time': 6300, 'org_id': '3340851'}, 'system': {'cert_type': 'system', 'cn': '1b36b20f-7fa0-4454-a...8294e06378'}, 'type': 'System'}
-USER_IDENTITY = {"account_number": "test", "auth_type": "basic-auth", "type": "User", "user": {"email": "tuser@redhat.com", "first_name": "test"}}
+SYSTEM_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "cert-auth",
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a...8294e06378"},
+    "type": "System",
+}
+USER_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "basic-auth",
+    "type": "User",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
 
 
 def generate_uuid():

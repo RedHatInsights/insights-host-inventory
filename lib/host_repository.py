@@ -12,8 +12,6 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
-from tests.helpers.test_utils import USER_IDENTITY
-from app.auth.identity import Identity
 
 
 __all__ = (
@@ -44,7 +42,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
+def add_host(input_host, identity, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
     """
     Add or update a host
 
@@ -54,10 +52,8 @@ def add_host(input_host, staleness_offset, update_system_profile=True, fields=DE
     """
 
     with session_guard(db.session):
-        # TODO: fix identity issue.  Used this for running tests.
-        USER_IDENTITY["account_number"] = input_host.account
-        identity = Identity(USER_IDENTITY)
         existing_host = find_existing_host(identity, input_host.canonical_facts)
+
         if existing_host:
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
@@ -189,7 +185,11 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def update_query_for_owner_id(identity, query):
-    if identity.identity_type == "System" and identity.system["cert_type"] == "system":
-        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]) )
+    if identity:
+        if identity.identity_type == "System" and identity.system["cert_type"] == "system":
+            return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+        else:
+            # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
+            return query
     else:
         return query

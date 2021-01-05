@@ -65,7 +65,6 @@ from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import USER_IDENTITY
 
 
-
 class ApiOperationTestCase(TestCase):
     """
     Test the API operation decorator that increments the request counter with every
@@ -236,7 +235,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_account_number_is_not_set_for_trusted_system(self):
         identity = self._build_id()
 
-        self.assertFalse(hasattr(identity, 'account_number'))
+        self.assertFalse(hasattr(identity, "account_number"))
 
 
 class ConfigTestCase(TestCase):

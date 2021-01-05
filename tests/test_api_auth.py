@@ -4,9 +4,8 @@ from json import dumps
 from app.auth.identity import Identity
 from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
-from tests.helpers.api_utils import USER_IDENTITY
 from tests.helpers.api_utils import SYSTEM_IDENTITY
-
+from tests.helpers.api_utils import USER_IDENTITY
 
 
 def valid_identity(identity_type):
@@ -52,6 +51,7 @@ def test_validate_valid_user_identity(flask_client):
     payload = valid_payload("User")
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
+
 
 def test_validate_valid_system_identity(flask_client):
     """

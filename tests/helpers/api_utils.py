@@ -1,5 +1,6 @@
 import json
 import math
+import unittest.mock as mock
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -15,8 +16,8 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -410,3 +411,33 @@ def create_mock_rbac_response(permissions_response_file):
     with open(permissions_response_file, "r") as rbac_response:
         resp_data = json.load(rbac_response)
         return resp_data["data"]
+
+
+# this is WIP
+ClassMock = mock.MagicMock
+
+
+class MockUserIdentity(ClassMock):
+    def __init__(self):
+        super().__init__()
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "User"
+        self.user = {"email": "tuser@redhat.com", "first_name": "test"}
+
+    def patch(self, mocker, method, expectation):
+        return mocker.patch(method, wraps=expectation)
+
+    def assert_called_once_with(param, value):
+        super.assert_called_once_with(param, value)
+
+
+class MockSystemIdentity:
+    def __init__(self):
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "System"
+        self.system = {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a...8294e06378"}
+
+    def assert_called_once_with(self, identity, param, value):
+        return True
