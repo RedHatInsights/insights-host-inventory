@@ -441,7 +441,6 @@ def test_patch_host_with_RBAC_denied(
             assert not db_get_host(host.id).display_name == new_display_name
 
 
-# TODO: This test is valid until a system with "owner_id" is used.
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
     # host = db_create_host()
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})

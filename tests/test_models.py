@@ -243,7 +243,6 @@ def test_update_host_with_no_tags(db_create_host):
     assert existing_host.tags == old_tags
 
 
-# TODO: Create hosts with "User" and "System" identity_type
 def test_host_model_assigned_values(db_create_host, db_get_host):
     values = {
         "account": USER_IDENTITY["account_number"],

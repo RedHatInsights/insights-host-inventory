@@ -72,7 +72,6 @@ def xjoin_enabled():
     return get_bulk_query_source() == BulkQuerySource.xjoin
 
 
-# TODO: Check owner_id
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
@@ -117,7 +116,6 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     )
 
 
-# TODO: Check owner_id
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()

@@ -167,7 +167,6 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
             assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
-# TODO: This test is not valid until a system with "owner_id" is used.
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
     host = db_create_host(
         extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
