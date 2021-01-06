@@ -360,6 +360,7 @@ class NetworkInterfaceSchema(MarshmallowSchema):
 
 
 class SystemProfileSchema(MarshmallowSchema):
+    owner_id = fields.Str(validate=verify_uuid_format)
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
@@ -400,7 +401,7 @@ class SystemProfileSchema(MarshmallowSchema):
         )
     )
     sap_instance_number = fields.Str(
-        validate=[marshmallow_validate.Length(max=2), marshmallow_validate.Regexp(regex=r"(?!99)(?!98)^[0-9]{2}$")]
+        validate=[marshmallow_validate.Length(max=2), marshmallow_validate.Regexp(regex=r"^[0-9]{2}$")]
     )
     sap_version = fields.Str(
         validate=[

@@ -3,6 +3,7 @@ import os
 from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import Mock
 
 from app.utils import Tag
 
@@ -17,6 +18,8 @@ class MockEventProducer:
         self.headers = None
         self.topic = None
         self.wait = None
+        self._kafka_producer = Mock()
+        self._kafka_producer.flush = Mock(return_value=True)
 
     def write_event(self, event, key, headers, topic, wait=False):
         self.event = event
@@ -171,10 +174,11 @@ def expected_encoded_headers(event_type, request_id, insights_id):
 
 
 def assert_synchronize_event_is_valid(
-    event_producer, host, timestamp, expected_request_id=None, expected_metadata=None
+    event_producer, key, host, timestamp, expected_request_id=None, expected_metadata=None
 ):
     event = json.loads(event_producer.event)
 
+    assert key == event_producer.key
     assert isinstance(event, dict)
     expected_keys = {"metadata", "timestamp", "host", "platform_metadata", "type"}
 

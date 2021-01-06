@@ -235,8 +235,8 @@ def patch_by_id(host_id_list, body):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
             db.session.commit()
+            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     return 200
