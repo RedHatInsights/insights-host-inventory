@@ -407,7 +407,7 @@ paths:
           $ref: '#/components/responses/PageOutOfBounds'
 
   /system_profile/validate_schema:
-    get:
+    post:
       summary: validate system profile schema
       description: >-
         Required permissions: inventory:hosts:read
