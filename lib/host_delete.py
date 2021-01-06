@@ -12,6 +12,11 @@ __all__ = ("delete_hosts",)
 
 
 def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
+    # Check if Kafka is up here, return 500 if it's down
+    # else continue
+    # check kafka by querying the topics on Kafka
+    # if not event_producer.kafka_up():
+    #     flask.abort(500)
     while select_query.count():
         for host in select_query.limit(chunk_size):
             host_id = host.id

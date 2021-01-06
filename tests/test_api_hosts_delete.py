@@ -264,6 +264,22 @@ def test_delete_stops_after_kafka_producer_error(
     assert event_producer._kafka_producer.send.call_count == 2
 
 
+def test_delete_returns_500_when_kafka_is_down(
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host
+):
+    # Find a way to mock Kafka being down
+
+    host = db_create_host()
+
+    response_status, response_data = api_delete_host(host.id)
+
+    assert_response_status(response_status, expected_status=200)
+
+    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+    assert not db_get_host(host.id)
+
+
 class DeleteHostsMock:
     @classmethod
     def create_mock(cls, hosts_ids_to_delete):
