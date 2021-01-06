@@ -1,6 +1,13 @@
+import json
 import re
+from datetime import datetime
+from datetime import timedelta
 
 import flask
+from kafka import KafkaConsumer
+from kafka.common import TopicPartition
+from requests import get
+from yaml import safe_load
 
 from api import api_operation
 from api import build_collection_response
@@ -12,7 +19,11 @@ from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from app import Permission
 from app.config import BulkQuerySource
+from app.config import Config
+from app.environment import RuntimeEnvironment
 from app.logging import get_logger
+from app.queue.queue import OperationSchema
+from app.serialization import deserialize_host_mq
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
@@ -165,3 +176,78 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )
+
+
+class TestResult:
+    def __init__(self):
+        self.pass_count = 0
+        self.fail_count = 0
+
+
+def validate_host_list(host_list, repo_branch):
+    system_profile_spec = safe_load(
+        get(
+            (
+                "https://raw.githubusercontent.com/RedHatInsights/inventory-schemas/"
+                f"{repo_branch}/schemas/system_profile/v1.yaml"
+            ),
+            verify=False,
+        ).content.decode("utf-8")
+    )
+
+    print(f"Validating host against {repo_branch} schema...")
+    test_results = {}
+
+    for host in host_list:
+        if host["reporter"] not in test_results.keys():
+            test_results[host["reporter"]] = TestResult()
+        try:
+            deserialize_host_mq(host, system_profile_spec)
+            test_results[host["reporter"]].pass_count += 1
+        except Exception as e:
+            test_results[host["reporter"]].fail_count += 1
+            logger.exception(e)
+
+    return test_results
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def validate_schema(repo_branch="master", days=14):
+    config = Config(RuntimeEnvironment.SERVICE)
+
+    consumer = KafkaConsumer(
+        group_id=config.host_ingress_consumer_group,
+        bootstrap_servers=config.bootstrap_servers,
+        api_version=(0, 10, 1),
+        value_deserializer=lambda m: m.decode(),
+        **config.kafka_consumer,
+    )
+
+    tp = TopicPartition(config.host_ingress_topic, 0)
+    consumer.assign([tp])
+
+    seek_date = datetime.now() + timedelta(days=(-1 * days))
+    seek_position = max(consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset, 0)
+
+    consumer.seek_to_beginning(tp)
+    consumer.seek(tp, seek_position)
+    msgs = consumer.poll(timeout_ms=10000, max_records=10000)
+    hosts_parsed = 0
+    parsed_hosts = []
+
+    for topic_partition, messages in msgs.items():
+        for message in messages:
+            parsed_message = json.loads(message.value)
+            parsed_operation = OperationSchema(strict=True).load(parsed_message).data
+            parsed_hosts.append(parsed_operation["data"])
+            hosts_parsed += 1
+
+    logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
+
+    response_data = {}
+    for branch in ["master", repo_branch]:
+        response_data[branch] = validate_host_list(parsed_hosts, repo_branch)
+
+    return flask_json_response(response_data)

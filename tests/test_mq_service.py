@@ -407,7 +407,7 @@ def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_hos
 
     host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
     mq_create_or_update_host(host_to_create)
-    mock.assert_called_once_with(mocker.ANY, MqHostSchema)
+    mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
 
     assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
 

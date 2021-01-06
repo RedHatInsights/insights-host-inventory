@@ -406,6 +406,30 @@ paths:
         '404':
           $ref: '#/components/responses/PageOutOfBounds'
 
+  /system_profile/validate_schema:
+    get:
+      summary: validate system profile schema
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.system_profile.validate_schema
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: repo_branch
+          schema:
+            type: string
+          description: The branch of the schema repo to validate against
+          required: true
+        - in: query
+          name: days
+          schema:
+            type: integer
+          description: How many days worth of kafka messages to validate.
+      responses:
+        '200':
+            description: Host validation results
+
 
 components:
   securitySchemes:
