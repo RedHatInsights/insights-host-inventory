@@ -392,6 +392,7 @@ class SystemProfileSchema(MarshmallowSchema):
     insights_egg_version = fields.Str(validate=marshmallow_validate.Length(max=50))
     captured_date = fields.Str(validate=marshmallow_validate.Length(max=32))
     installed_packages = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
+    installed_packages_delta = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
     installed_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
     enabled_services = fields.List(fields.Str(validate=marshmallow_validate.Length(max=512)))
     sap_system = fields.Bool()
