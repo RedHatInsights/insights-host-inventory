@@ -1,11 +1,12 @@
 import connexion
-from werkzeug.local import LocalProxy
 
 from api.metrics import login_failure_count
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import validate
 from app.logging import get_logger
+
+# from werkzeug.local import LocalProxy
 
 __all__ = ("authentication_header_handler", "bearer_token_handler")
 
@@ -40,4 +41,4 @@ def get_current_identity():
     return connexion.context["user"]
 
 
-current_identity = LocalProxy(get_current_identity)
+# current_identity = LocalProxy(get_current_identity)
