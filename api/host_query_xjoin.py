@@ -190,5 +190,4 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
 
 def owner_id_filter():
-    #add check for owner_id value being alright
-    return ({"spf_sap_system": {"eq": get_current_identity().owner_id}},)
+    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
