@@ -27,7 +27,7 @@ INVALID_SYSTEM_PROFILES = (
     {"bios_release_date": "x" * 51},
     {"cpu_flags": ["x" * 31]},
     {"os_release": "x" * 101},
-    {"os_kernel_version": "x" * 101},
+    {"os_kernel_version": "x" * 21},
     {"arch": "x" * 51},
     {"kernel_modules": ["x" * 256]},
     {"last_boot_time": ["x" * 51]},
