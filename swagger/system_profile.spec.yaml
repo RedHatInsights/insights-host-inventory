@@ -190,7 +190,10 @@ $defs:
         maxLength: 100
       os_kernel_version:
         type: string
-        maxLength: 100
+        maxLength: 20
+        pattern: '^\d+\.\d+\.\d+(\.\d+)?$'
+        description: The kernel version represented with a three, optionally four, number scheme.
+        example: '3.10.0'
       arch:
         type: string
         maxLength: 50
