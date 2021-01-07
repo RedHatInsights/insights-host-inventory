@@ -121,6 +121,16 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
     assert_response_status(response_status, 200)
 
 
+def test_get_system_profile_sap_system_with_system_identity_owner_id_no_match(
+    query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get, 
+):
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)
+
+
 def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
     query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
 ):
