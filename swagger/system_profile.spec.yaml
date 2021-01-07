@@ -190,7 +190,10 @@ $defs:
         maxLength: 100
       os_kernel_version:
         type: string
-        maxLength: 100
+        maxLength: 20
+        pattern: '^\d+\.\d+\.\d+(\.\d+)?$'
+        description: The kernel version represented with a three, optionally four, number scheme.
+        example: '3.10.0'
       arch:
         type: string
         maxLength: 50
@@ -278,7 +281,7 @@ $defs:
         description: The instance number of the SAP HANA system
         example: '42'
         maxLength: 2
-        pattern: '(?!99)(?!98)^[0-9]{2}$'
+        pattern: '^[0-9]{2}$'
       sap_version:
         type: string
         description: The version of the SAP HANA lifecycle management program

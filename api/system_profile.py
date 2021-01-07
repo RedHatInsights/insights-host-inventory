@@ -21,6 +21,10 @@ from app import Permission
 from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
+from app.instrumentation import log_get_sap_sids_failed
+from app.instrumentation import log_get_sap_sids_succeeded
+from app.instrumentation import log_get_sap_system_failed
+from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
 from app.queue.queue import OperationSchema
 from app.serialization import deserialize_host_mq
@@ -116,12 +120,13 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SYSTEM_QUERY, variables)
+    response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
 
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_system"]["meta"]["total"])
 
+    log_get_sap_system_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
     )
@@ -167,12 +172,13 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SIDS_QUERY, variables)
+    response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
 
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
+    log_get_sap_sids_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )

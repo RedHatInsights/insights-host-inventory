@@ -121,6 +121,7 @@ def assert_graph_query_single_call_with_staleness(mocker, graphql_query, stalene
             "offset": mocker.ANY,
             "filter": ({"OR": conditions},),
         },
+        mocker.ANY,
     )
 
 

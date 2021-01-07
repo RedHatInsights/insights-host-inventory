@@ -10,6 +10,8 @@ from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.culling import Conditions
 from app.environment import RuntimeEnvironment
+from app.instrumentation import log_host_delete_failed
+from app.instrumentation import log_host_delete_succeeded
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
@@ -71,9 +73,9 @@ def run(config, logger, session, event_producer, shutdown_handler):
     events = delete_hosts(query, event_producer, config.host_delete_chunk_size, shutdown_handler.shut_down)
     for host_id, deleted in events:
         if deleted:
-            logger.info("Deleted host: %s", host_id)
+            log_host_delete_succeeded(logger, host_id)
         else:
-            logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+            log_host_delete_failed(logger, host_id)
 
 
 def main(logger):
