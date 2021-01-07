@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.auth import current_identity
+from app.auth import get_current_identity
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
 from app.utils import Tag
@@ -86,6 +86,7 @@ def get_host_list(
         fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
     )
 
+    current_identity = get_current_identity()
     if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
         all_filters += owner_id_filter()
 
@@ -190,4 +191,4 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
 def owner_id_filter():
     #add check for owner_id value being alright
-    return ({"spf_sap_system": {"eq": current_identity.owner_id}},)
+    return ({"spf_sap_system": {"eq": get_current_identity().owner_id}},)
