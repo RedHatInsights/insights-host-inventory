@@ -5,6 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 
 from app.auth import get_current_identity
+from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
@@ -61,7 +62,7 @@ def get_host_list(
     query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    logger.debug("Found hosts: %s", query_results.items)
+    log_get_host_list_succeeded(logger, query_results.items)
 
     return query_results.items, query_results.total
 

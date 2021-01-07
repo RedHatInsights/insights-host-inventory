@@ -1,6 +1,7 @@
 from functools import wraps
 
 from flask import abort
+from flask import g
 from flask import request
 from flask_api import status
 from requests import Session
@@ -68,6 +69,10 @@ def rbac(required_permission):
 
             if get_current_identity().identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
+
+            # track that RBAC is being used to control access
+            g.access_control_rule = "RBAC"
+            logger.debug("access_control_rule set")
 
             rbac_data = get_rbac_permissions()
 

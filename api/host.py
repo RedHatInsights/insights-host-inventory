@@ -21,6 +21,12 @@ from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
+from app.instrumentation import log_get_host_list_failed
+from app.instrumentation import log_get_host_list_succeeded
+from app.instrumentation import log_host_delete_failed
+from app.instrumentation import log_host_delete_succeeded
+from app.instrumentation import log_patch_host_failed
+from app.instrumentation import log_patch_host_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
@@ -44,7 +50,6 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
-
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -131,6 +136,7 @@ def get_host_list(
             filter,
         )
     except ValueError as e:
+        log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
     json_data = build_paginated_host_list_response(total, page, per_page, host_list)
@@ -156,10 +162,10 @@ def delete_by_id(host_id_list):
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
-                logger.info("Deleted host: %s", host_id)
+                log_host_delete_succeeded(logger, host_id)
                 tracker_message = "deleted host"
             else:
-                logger.info("Host %s already deleted. Delete event not emitted.", host_id)
+                log_host_delete_failed(logger, host_id)
                 tracker_message = "not deleted host"
 
             with PayloadTrackerProcessingContext(
@@ -185,7 +191,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    logger.debug("Found hosts: %s", query_results.items)
+    log_get_host_list_succeeded(logger, query_results.items)
 
     json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
     return flask_json_response(json_data)
@@ -233,7 +239,7 @@ def patch_by_id(host_id_list, body):
     hosts_to_update = query.all()
 
     if not hosts_to_update:
-        logger.debug("Failed to find hosts during patch operation - hosts: %s", host_id_list)
+        log_patch_host_failed(logger, host_id_list)
         return flask.abort(status.HTTP_404_NOT_FOUND)
 
     for host in hosts_to_update:
@@ -244,6 +250,7 @@ def patch_by_id(host_id_list, body):
             serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
+    log_patch_host_success(logger, host_id_list)
     return 200
 
 
