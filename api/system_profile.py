@@ -111,8 +111,6 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    
-
     response = graphql_query(SAP_SYSTEM_QUERY, variables)
 
     data = response["hostSystemProfile"]

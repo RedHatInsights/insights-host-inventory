@@ -29,7 +29,6 @@ def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, sub
     assert response_data["results"][0]["system_profile"] == system_profile
     assert response_status == 200
 
-
 # sap endpoint tests
 def test_system_profile_sap_system_endpoint_response(
     mocker, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
