@@ -904,6 +904,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
 
             find_hosts_by_staleness_mock.assert_not_called()
 
+
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
@@ -922,6 +923,7 @@ def test_get_hosts_with_system_identity_owner_id_no_match(subtests, mocker, db_c
     assert_response_status(response_status, 200)
     assert len(response_data["results"]) == 0
 
+
 def test_get_hosts_with_system_identity_owner_id_match(subtests, mocker, db_create_host, api_get):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}})
 
@@ -933,7 +935,6 @@ def test_get_hosts_with_system_identity_owner_id_match(subtests, mocker, db_crea
     # TODO: make this not intentionally fail here
     assert_response_status(response_status, 200)
     assert len(response_data["results"]) == 1
-
 
 
 def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests, query_source_xjoin):

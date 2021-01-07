@@ -371,6 +371,26 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             find_non_culled_hosts_mock.assert_not_called()
 
 
+def test_get_host_tags_with_system_identity_owner_id_no_match(subtests, mocker, db_create_host, api_get, enable_rbac):
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+
+    url = build_host_tags_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)
+    assert len(response_data["results"]) == 0
+
+
+def test_get_host_tags_with_system_identity_owner_id_match(subtests, mocker, db_create_host, api_get):
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}})
+
+    url = build_host_tags_url(host_list_or_id=host.id)
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert_response_status(response_status, 200)
+    assert len(response_data["results"]) == 1
+
+
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
