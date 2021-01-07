@@ -25,6 +25,8 @@ def check_pagination(offset, total):
 
 def graphql_query(query_string, variables):
     url_ = url()
+    # TODO: remove
+    print("variables: %s", variables)
     logger.info("QUERY: URL %s; query %s, variables %s", url_, query_string, variables)
     payload = {"query": query_string, "variables": variables}
 

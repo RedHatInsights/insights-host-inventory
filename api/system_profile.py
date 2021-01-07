@@ -18,6 +18,8 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+from api.host_query_xjoin import owner_id_filter
+from app.auth import current_identity
 
 logger = get_logger(__name__)
 
@@ -102,8 +104,13 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
+    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+        hostfilter_and_variables += owner_id_filter()
+
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
+
+    
 
     response = graphql_query(SAP_SYSTEM_QUERY, variables)
 
