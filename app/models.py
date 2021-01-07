@@ -375,7 +375,9 @@ class SystemProfileSchema(MarshmallowSchema):
     cpu_flags = fields.List(fields.Str(validate=marshmallow_validate.Length(max=30)))
     operating_system = fields.Nested(OperatingSystemSchema())
     os_release = fields.Str(validate=marshmallow_validate.Length(max=100))
-    os_kernel_version = fields.Str(validate=marshmallow_validate.Length(max=100))
+    os_kernel_version = fields.Str(
+        validate=[marshmallow_validate.Length(max=20), marshmallow_validate.Regexp(regex=r"^\d+\.\d+\.\d+(\.\d+)?$")]
+    )
     arch = fields.Str(validate=marshmallow_validate.Length(max=50))
     kernel_modules = fields.List(fields.Str(validate=marshmallow_validate.Length(max=255)))
     last_boot_time = fields.Str(validate=marshmallow_validate.Length(max=50))
