@@ -18,7 +18,7 @@ from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from app import db
 from app import inventory_config
 from app import Permission
-from app.auth import current_identity
+from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
 from app.logging import get_logger
@@ -63,6 +63,7 @@ def _convert_host_results_to_http_status(result):
 
 
 def _add_host(input_host):
+    current_identity = get_current_identity()
     if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
         raise InventoryException(
             title="Invalid request",
@@ -140,6 +141,7 @@ def get_host_list(
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
+    current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
     with PayloadTrackerContext(
@@ -172,6 +174,7 @@ def delete_by_id(host_id_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    current_identity = get_current_identity()
     query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
@@ -192,6 +195,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+    current_identity = get_current_identity()
     query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
@@ -223,6 +227,7 @@ def patch_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
+    current_identity = get_current_identity()
     query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     hosts_to_update = query.all()
@@ -262,6 +267,8 @@ def merge_facts(host_id_list, namespace, body):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
+
+    current_identity = get_current_identity()  # TODO: parameter
     query = Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
@@ -298,6 +305,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+
+    current_identity = get_current_identity()
     query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
@@ -335,6 +344,8 @@ def _count_tags(host_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
+
+    current_identity = get_current_identity()
     query = _get_host_list_by_id_list(current_identity, host_id_list)
 
     try:
@@ -377,6 +388,8 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def host_checkin(body):
+
+    current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
     existing_host = find_existing_host(current_identity, canonical_facts)
 
