@@ -36,8 +36,8 @@ def bearer_token_handler(token):
     return {"uid": identity}
 
 
-def _get_identity():
+def get_current_identity():
     return connexion.context["user"]
 
 
-current_identity = LocalProxy(_get_identity)
+current_identity = LocalProxy(get_current_identity)
