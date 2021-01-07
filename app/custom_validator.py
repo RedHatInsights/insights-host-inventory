@@ -1,20 +1,19 @@
-from connexion.decorators.validation import RequestBodyValidator
-from jsonschema import Draft7Validator
+from connexion.decorators.response import ResponseValidator
+from connexion.json_schema import Draft4ResponseValidator
 from jsonschema.validators import extend
 
+CustomDraft4ResponseValidator = extend(Draft4ResponseValidator, {"x-propertyNames": Draft4ResponseValidator.VALIDATORS.get("propertyNames")})
 
-Draft7RequestValidator = extend(Draft7Validator, {"x-propertyNames": Draft7Validator.VALIDATORS.get("propertyNames")})
 
-
-class CustomRequestBodyValidator(RequestBodyValidator):
+class CustomResponseValidator(ResponseValidator):
     """
-    Extends the connexion RequestBodyValidator with enforcing defaults
+    Extends the connexion ResponseValidator with x-propertyNames
     See https://connexion.readthedocs.io/en/latest/request.html#custom-validators
     See https://github.com/zalando/connexion/blob/master/examples/swagger2/enforcedefaults/enforcedefaults.py
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, validator=Draft7RequestValidator, **kwargs)
+        super().__init__(*args, validator=CustomDraft4ResponseValidator, **kwargs)
 
 
-VALIDATOR_MAP = {"body": CustomRequestBodyValidator}
+VALIDATOR_MAP = {"response": CustomResponseValidator}
