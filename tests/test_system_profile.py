@@ -164,6 +164,7 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_hos
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
 
+
 def test_get_host_with_invalid_system_profile(api_get, db_create_host):
     # create a host with invalid system_profile in the db
     host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": {"options": {"": "invalid"}}}})
