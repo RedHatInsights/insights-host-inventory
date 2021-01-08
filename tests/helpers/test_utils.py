@@ -18,7 +18,7 @@ SYSTEM_IDENTITY = {
     "account_number": "test",
     "auth_type": "cert-auth",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a...8294e06378"},
+    "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}, 
     "type": "System",
 }
 USER_IDENTITY = {

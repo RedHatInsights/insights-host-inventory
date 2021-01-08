@@ -17,7 +17,7 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
 
 
-# /system_profile tests
+# system_profile tests
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
     host = minimal_host(system_profile=system_profile)

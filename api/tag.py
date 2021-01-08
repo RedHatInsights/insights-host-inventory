@@ -20,6 +20,9 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+from app.auth import get_current_identity
+from api.host_query_xjoin import owner_id_filter
+
 
 logger = get_logger(__name__)
 
@@ -108,6 +111,10 @@ def get_tags(
                 hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+        hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables

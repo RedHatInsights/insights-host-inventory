@@ -437,7 +437,7 @@ class MockSystemIdentity:
         self.is_trusted_system = False
         self.account_number = "test"
         self.identity_type = "System"
-        self.system = {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a...8294e06378"}
+        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
 
     def assert_called_once_with(self, identity, param, value):
         return True
