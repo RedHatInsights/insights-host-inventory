@@ -63,10 +63,6 @@ class Identity:
     def __eq__(self, other):
         return self.account_number == other.account_number
 
-    # def __eq__(self, other):
-    #     # return self == other
-    #     return False
-
 
 def validate(identity):
     if identity.is_trusted_system:

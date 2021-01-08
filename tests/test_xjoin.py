@@ -78,6 +78,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "offset": mocker.ANY,
             "filter": ({"fqdn": {"eq": fqdn}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -98,6 +99,7 @@ def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_
             "offset": mocker.ANY,
             "filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -126,6 +128,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
                 mocker.ANY,
             ),
         },
+        mocker.ANY,
     )
 
 
@@ -155,6 +158,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
                 mocker.ANY,
             ),
         },
+        mocker.ANY,
     )
 
 
@@ -175,6 +179,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
             "offset": mocker.ANY,
             "filter": ({"insights_id": {"eq": insights_id}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -192,6 +197,7 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
             "offset": mocker.ANY,
             "filter": (mocker.ANY,),
         },
+        mocker.ANY,
     )
 
 
@@ -221,6 +227,7 @@ def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, gr
             "offset": mocker.ANY,
             "filter": ({filter_: mocker.ANY}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -260,6 +267,7 @@ def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, gra
             "offset": mocker.ANY,
             "filter": tag_filters + (mocker.ANY,),
         },
+        mocker.ANY,
     )
 
 
@@ -284,6 +292,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
             "offset": mocker.ANY,
             "filter": (search_any, tag_filter, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -302,6 +311,7 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
             "offset": mocker.ANY,
             "filter": (mocker.ANY, {"NOT": {"insights_id": {"eq": None}}}),
         },
+        mocker.ANY,
     )
 
 
@@ -321,6 +331,7 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
             "order_how": direction,
             "filter": mocker.ANY,
         },
+        mocker.ANY,
     )
 
 
@@ -351,6 +362,7 @@ def test_query_variables_ordering_by(
             "order_how": default_xjoin_order_how,
             "filter": mocker.ANY,
         },
+        mocker.ANY,
     )
 
 
@@ -391,6 +403,7 @@ def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, gr
     graphql_query_empty_response.assert_called_once_with(
         HOST_QUERY,
         {"order_by": mocker.ANY, "order_how": mocker.ANY, "limit": limit, "offset": offset, "filter": mocker.ANY},
+        mocker.ANY,
     )
 
 
@@ -410,7 +423,9 @@ def test_query_variables_default_except_staleness(mocker, query_source_xjoin, gr
     assert response_status == 200
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY, {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": mocker.ANY}
+        HOST_QUERY,
+        {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": mocker.ANY},
+        mocker.ANY,
     )
 
 
@@ -500,6 +515,7 @@ def test_query_variables_staleness_with_search(
             "offset": mocker.ANY,
             "filter": (search_any, staleness_any),
         },
+        mocker.ANY,
     )
 
 
@@ -633,7 +649,9 @@ def test_tags_query_variables_default_except_staleness(
     assert response_status == 200
 
     graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}}
+        TAGS_QUERY,
+        {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -663,6 +681,7 @@ def test_tags_query_variables_default_staleness(
                 ]
             },
         },
+        mocker.ANY,
     )
 
 
@@ -675,7 +694,7 @@ def test_tags_query_variables_default_staleness(
     ),
 )
 def test_tags_query_variables_staleness(
-    staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
 ):
     url = build_tags_url(query=f"?staleness={staleness}")
     response_status, response_data = api_get(url)
@@ -691,11 +710,12 @@ def test_tags_query_variables_staleness(
             "offset": 0,
             "hostFilter": {"OR": [{"stale_timestamp": expected}]},
         },
+        mocker.ANY,
     )
 
 
 def test_tags_multiple_query_variables_staleness(
-    culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
 ):
     staleness = "fresh,stale_warning"
     url = build_tags_url(query=f"?staleness={staleness}")
@@ -722,6 +742,7 @@ def test_tags_multiple_query_variables_staleness(
                 ]
             },
         },
+        mocker.ANY,
     )
 
 
@@ -745,6 +766,7 @@ def test_query_variables_tags_simple(mocker, query_source_xjoin, graphql_tag_que
                 ),
             },
         },
+        mocker.ANY,
     )
 
 
@@ -769,6 +791,7 @@ def test_query_variables_tags_with_special_characters_unescaped(
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -799,6 +822,7 @@ def test_query_variables_tags_with_special_characters_escaped(
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -823,6 +847,7 @@ def test_query_variables_tags_collection_multi(mocker, query_source_xjoin, graph
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -847,6 +872,7 @@ def test_query_variables_tags_collection_csv(mocker, query_source_xjoin, graphql
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -868,6 +894,7 @@ def test_query_variables_tags_without_namespace(mocker, query_source_xjoin, grap
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -889,6 +916,7 @@ def test_query_variables_tags_without_value(mocker, query_source_xjoin, graphql_
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -910,6 +938,7 @@ def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -930,6 +959,7 @@ def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_que
             "filter": {"search": {"regex": f".*{escape(query)}.*"}},
             "hostFilter": {"OR": mocker.ANY},
         },
+        mocker.ANY,
     )
 
 
@@ -945,6 +975,7 @@ def test_tags_query_variables_ordering_dir(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -960,6 +991,7 @@ def test_tags_query_variables_ordering_by(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -975,6 +1007,7 @@ def test_tags_response_pagination(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -1001,6 +1034,7 @@ def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphq
             "offset": mocker.ANY,
             "hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}},
         },
+        mocker.ANY,
     )
 
 
@@ -1036,7 +1070,9 @@ def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphq
     assert response_status == 404
 
     graphql_tag_query_with_response.assert_called_once_with(
-        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": mocker.ANY}}
+        TAGS_QUERY,
+        {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -1151,7 +1187,7 @@ def test_system_profile_sap_system_endpoint(
 
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
-        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
     )
 
 
@@ -1184,7 +1220,7 @@ def test_system_profile_sap_system_endpoint_tags(
     tag_filters = tuple({"tag": item} for item in tags)
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
-        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}, mocker.ANY
     )
 
 
@@ -1197,7 +1233,7 @@ def test_system_profile_sap_system_endpoint_registered_with_insights(
 
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
-        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}, mocker.ANY
     )
 
 
@@ -1210,7 +1246,7 @@ def test_system_profile_sap_sids_endpoint(
 
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
     )
 
 
@@ -1243,7 +1279,7 @@ def test_system_profile_sap_sids_endpoint_tags(
     tag_filters = tuple({"tag": item} for item in tags)
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}, mocker.ANY
     )
 
 
@@ -1256,7 +1292,7 @@ def test_system_profile_sap_sids_endpoint_registered_with_insights(
 
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}, mocker.ANY
     )
 
 
@@ -1290,6 +1326,7 @@ def test_query_hosts_filter_spf_sap_system(
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
                     },
+                    mocker.ANY,
                 )
                 graphql_query_empty_response.reset_mock()
 
@@ -1325,6 +1362,7 @@ def test_query_tags_filter_spf_sap_system(
                         "offset": mocker.ANY,
                         "hostFilter": {"OR": mocker.ANY, "AND": query},
                     },
+                    mocker.ANY,
                 )
 
 
@@ -1351,7 +1389,7 @@ def test_query_system_profile_sap_system_filter_spf_sap_sids(
                 assert response_status == 200
 
                 graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
-                    SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}
+                    SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}, mocker.ANY
                 )
 
 
@@ -1383,6 +1421,7 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, *query),
                     },
+                    mocker.ANY,
                 )
 
 
@@ -1415,6 +1454,7 @@ def test_query_tags_filter_spf_sap_sids(
                         "offset": mocker.ANY,
                         "hostFilter": {"OR": mocker.ANY, "AND": query},
                     },
+                    mocker.ANY,
                 )
                 graphql_tag_query_empty_response.reset_mock()
 
@@ -1444,7 +1484,7 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
                 assert response_status == 200
 
                 graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
-                    SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}
+                    SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}, mocker.ANY
                 )
 
 
@@ -1458,7 +1498,7 @@ def test_query_system_profile_sap_sids_with_search(
     assert response_status == 200
 
     graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}}
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}}, mocker.ANY
     )
 
 def test_query_hosts_system_identity(

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.auth import get_current_identity
+from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
 from app.utils import Tag
@@ -97,7 +98,7 @@ def get_host_list(
         "order_how": xjoin_order_how,
         "filter": all_filters,
     }
-    response = graphql_query(QUERY, variables)["hosts"]
+    response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
 
     total = response["meta"]["total"]
     check_pagination(offset, total)
