@@ -1501,9 +1501,8 @@ def test_query_system_profile_sap_sids_with_search(
         SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}}, mocker.ANY
     )
 
-def test_query_hosts_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
-):
+
+def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
     response_status, response_data = api_get(url, identity_type="System")
@@ -1517,15 +1516,13 @@ def test_query_hosts_system_identity(
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}}),
         },
-        mocker.ANY
+        mocker.ANY,
     )
 
 
-def test_query_tags_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url()
 
     response_status, response_data = api_get(url, identity_type="System")
@@ -1539,9 +1536,12 @@ def test_query_tags_system_identity(
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)},
+            "hostFilter": {
+                "OR": mocker.ANY,
+                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
+            },
         },
-        mocker.ANY
+        mocker.ANY,
     )
 
 
@@ -1557,7 +1557,7 @@ def test_query_system_profile_sap_sids_system_identity(
     graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
         SAP_SIDS_QUERY,
         {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
-        mocker.ANY
+        mocker.ANY,
     )
 
 
@@ -1573,5 +1573,5 @@ def test_query_system_profile_sap_system_system_identity(
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
         {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
-        mocker.ANY
+        mocker.ANY,
     )

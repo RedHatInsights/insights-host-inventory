@@ -10,7 +10,9 @@ from api.host import get_bulk_query_source
 from api.host_query_xjoin import build_sap_sids_filter
 from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
+from api.host_query_xjoin import owner_id_filter
 from app import Permission
+from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import log_get_sap_sids_failed
 from app.instrumentation import log_get_sap_sids_succeeded
@@ -22,8 +24,6 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
-from api.host_query_xjoin import owner_id_filter
-from app.auth import get_current_identity
 
 logger = get_logger(__name__)
 
