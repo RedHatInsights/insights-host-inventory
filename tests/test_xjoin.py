@@ -1519,6 +1519,7 @@ def test_query_hosts_system_identity(
             "offset": mocker.ANY,
             "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
         },
+        mocker.ANY
     )
 
 
@@ -1540,6 +1541,7 @@ def test_query_tags_system_identity(
             "offset": mocker.ANY,
             "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)},
         },
+        mocker.ANY
     )
 
 
@@ -1553,7 +1555,9 @@ def test_query_system_profile_sap_sids_system_identity(
     assert response_status == 200
 
     graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}}
+        SAP_SIDS_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
+        mocker.ANY
     )
 
 
@@ -1567,5 +1571,7 @@ def test_query_system_profile_sap_system_system_identity(
     assert response_status == 200
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
-        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}}
+        SAP_SYSTEM_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
+        mocker.ANY
     )
