@@ -303,7 +303,7 @@ class DeleteQueryWrapper:
         self.query = None
         self.mocker = mocker
 
-    def mock_get_host_list_by_id_list(self, acc_num, host_list):
-        self.query = _get_host_list_by_id_list(acc_num, host_list)
+    def mock_get_host_list_by_id_list(self, host_id_list):
+        self.query = _get_host_list_by_id_list(host_id_list)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query
