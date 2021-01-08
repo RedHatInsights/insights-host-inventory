@@ -155,7 +155,7 @@ def delete_by_id(host_id_list):
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
-                log_host_delete_succeeded(logger, host_id, get_control_rule)
+                log_host_delete_succeeded(logger, host_id, get_control_rule())
                 tracker_message = "deleted host"
             else:
                 log_host_delete_failed(logger, host_id)
