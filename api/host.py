@@ -21,6 +21,7 @@ from app import Permission
 from app.auth import current_identity
 from app.config import BulkQuerySource
 from app.exceptions import InventoryException
+from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -154,7 +155,7 @@ def delete_by_id(host_id_list):
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
-                log_host_delete_succeeded(logger, host_id)
+                log_host_delete_succeeded(logger, host_id, get_control_rule)
                 tracker_message = "deleted host"
             else:
                 log_host_delete_failed(logger, host_id)
