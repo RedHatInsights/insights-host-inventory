@@ -105,7 +105,6 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        # return Identity(account_number="some acct")
         return Identity(USER_IDENTITY)
 
 

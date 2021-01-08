@@ -413,7 +413,6 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-# this is WIP
 ClassMock = mock.MagicMock
 
 

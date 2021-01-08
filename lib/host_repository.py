@@ -185,11 +185,8 @@ def stale_timestamp_filter(gt=None, lte=None):
 
 
 def update_query_for_owner_id(identity, query):
-    if identity:
-        if identity.identity_type == "System" and identity.system["cert_type"] == "system":
-            return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
-        else:
-            # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
-            return query
+    # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
+    if identity and identity.identity_type == "System" and identity.system["cert_type"] == "system":
+        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
     else:
         return query

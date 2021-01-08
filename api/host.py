@@ -275,7 +275,7 @@ def merge_facts(host_id_list, namespace, body):
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
-    current_identity = get_current_identity()  # TODO: parameter
+    current_identity = get_current_identity()
     query = Host.query.filter(
         (Host.account == current_identity.account_number)
         & Host.id.in_(host_id_list)
