@@ -14,6 +14,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -371,7 +372,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_host_tags_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url, identity_type="System")

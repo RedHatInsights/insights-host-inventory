@@ -5,6 +5,7 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 
 from app import inventory_config
+from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.instrumentation import log_add_host_attempt
@@ -28,6 +29,12 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
+USER_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "basic-auth",
+    "type": "User",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
 
 
 class OperationSchema(Schema):
@@ -92,7 +99,7 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def add_host(host_data):
+def add_host(host_data, identity):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -104,7 +111,7 @@ def add_host(host_data):
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
+                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
@@ -123,6 +130,9 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
+    # create a dummy identity for working around the identity requirement for CRUD operations
+    identity = Identity(USER_IDENTITY)
+
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
 
@@ -131,7 +141,7 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"])
+        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 

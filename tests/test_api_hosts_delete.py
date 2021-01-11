@@ -13,6 +13,7 @@ from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_delete_non_existent_host(api_delete_host):
@@ -214,7 +215,7 @@ def test_delete_host_with_RBAC_denied(
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
 ):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     response_status, response_data = api_delete_host(host.id, identity_type="System")
 
@@ -302,7 +303,7 @@ class DeleteQueryWrapper:
         self.query = None
         self.mocker = mocker
 
-    def mock_get_host_list_by_id_list(self, acc_num, host_list):
-        self.query = _get_host_list_by_id_list(acc_num, host_list)
+    def mock_get_host_list_by_id_list(self, host_id_list):
+        self.query = _get_host_list_by_id_list(host_id_list)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query
