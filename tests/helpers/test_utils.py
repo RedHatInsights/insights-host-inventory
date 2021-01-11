@@ -97,7 +97,7 @@ def valid_system_profile():
         "bios_release_date": "10/31/2013",
         "cpu_flags": ["flag1", "flag2"],
         "os_release": "Red Hat EL 7.0.1",
-        "os_kernel_version": "Linux 2.0.1",
+        "os_kernel_version": "3.10.0",
         "arch": "x86-64",
         "last_boot_time": "12:25 Mar 19, 2019",
         "kernel_modules": ["i915", "e1000e"],
