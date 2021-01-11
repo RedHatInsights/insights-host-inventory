@@ -17,7 +17,7 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
 
 
-# /system_profile tests
+# system_profile tests
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
     host = minimal_host(system_profile=system_profile)
@@ -163,6 +163,15 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_hos
 
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
+
+
+def test_get_host_with_invalid_system_profile(api_get, db_create_host):
+    # create a host with invalid system_profile in the db
+    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}})
+
+    response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+
+    assert_response_status(response_status, 500)
 
 
 def test_get_system_profile_of_host_that_does_not_exist(api_get):

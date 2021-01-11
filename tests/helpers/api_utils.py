@@ -1,5 +1,6 @@
 import json
 import math
+import unittest.mock as mock
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -15,7 +16,8 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -97,8 +99,8 @@ def do_request(
 
 
 def get_valid_auth_header(auth_type="account_number", identity_type="User"):
-    if auth_type == "account_number":
-        return build_account_auth_header(identity_type=identity_type)
+    if identity_type == "User" or identity_type == "System":
+        return build_account_auth_header(auth_type, identity_type)
 
     return build_token_auth_header()
 
@@ -110,9 +112,14 @@ def get_required_headers(auth_type="account_number", identity_type="User"):
     return headers
 
 
-def build_account_auth_header(account=ACCOUNT, identity_type="User"):
-    identity = Identity(account_number=account, identity_type=identity_type)
+def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
+    if identity_type == "User":
+        identity = Identity(USER_IDENTITY)
+    else:
+        identity = Identity(SYSTEM_IDENTITY)
+
     dict_ = {"identity": identity._asdict()}
+
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
     return auth_header
@@ -404,3 +411,32 @@ def create_mock_rbac_response(permissions_response_file):
     with open(permissions_response_file, "r") as rbac_response:
         resp_data = json.load(rbac_response)
         return resp_data["data"]
+
+
+ClassMock = mock.MagicMock
+
+
+class MockUserIdentity(ClassMock):
+    def __init__(self):
+        super().__init__()
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "User"
+        self.user = {"email": "tuser@redhat.com", "first_name": "test"}
+
+    def patch(self, mocker, method, expectation):
+        return mocker.patch(method, wraps=expectation)
+
+    def assert_called_once_with(param, value):
+        super.assert_called_once_with(param, value)
+
+
+class MockSystemIdentity:
+    def __init__(self):
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "System"
+        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
+
+    def assert_called_once_with(self, identity, param, value):
+        return True
