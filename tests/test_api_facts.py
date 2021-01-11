@@ -173,7 +173,6 @@ def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_
     )
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    # setting identity type to User does not help.
     response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
 
     assert_response_status(response_status, 200)
