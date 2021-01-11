@@ -23,7 +23,7 @@ def check_pagination(offset, total):
         abort(404)  # Analogous to flask_sqlalchemy.BaseQuery.paginate
 
 
-def graphql_query(query_string, variables):
+def graphql_query(query_string, variables, failure_logger):
     url_ = url()
     logger.info("QUERY: URL %s; query %s, variables %s", url_, query_string, variables)
     payload = {"query": query_string, "variables": variables}
@@ -33,6 +33,7 @@ def graphql_query(query_string, variables):
 
     status = response.status_code
     if status != 200:
+        failure_logger(logger)
         logger.error("xjoin-search returned status: %s", status)
         abort(500, "Error, request could not be completed")
 

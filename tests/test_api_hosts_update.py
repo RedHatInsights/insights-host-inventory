@@ -1,3 +1,4 @@
+import json
 import time
 from threading import Thread
 
@@ -22,6 +23,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -342,6 +344,7 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -397,6 +400,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -439,7 +443,7 @@ def test_patch_host_with_RBAC_denied(
 
 
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
@@ -487,3 +491,19 @@ def test_no_event_on_noop(event_producer, db_create_host, db_get_host, api_patch
     api_patch(url, {})
 
     assert event_producer.write_event.call_count == 0
+
+
+def test_patch_updated_timestamp(event_producer, db_create_host, api_get, api_patch, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    host = db_create_host()
+    patch_doc = {"display_name": "update_test"}
+    url = build_hosts_url(host_list_or_id=host.id)
+    patch_response_status, patch_response_data = api_patch(url, patch_doc)
+
+    assert_response_status(patch_response_status, expected_status=200)
+
+    get_response_status, get_response_data = api_get(build_hosts_url(host_list_or_id=host.id))
+
+    updated_timestamp_from_event = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]["updated"]
+
+    assert updated_timestamp_from_event == get_response_data["results"][0]["updated"]

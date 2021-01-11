@@ -10,8 +10,14 @@ from api.host import get_bulk_query_source
 from api.host_query_xjoin import build_sap_sids_filter
 from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
+from api.host_query_xjoin import owner_id_filter
 from app import Permission
+from app.auth import get_current_identity
 from app.config import BulkQuerySource
+from app.instrumentation import log_get_sap_sids_failed
+from app.instrumentation import log_get_sap_sids_succeeded
+from app.instrumentation import log_get_sap_system_failed
+from app.instrumentation import log_get_sap_system_succeeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
@@ -102,15 +108,20 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
+    current_identity = get_current_identity()
+    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+        hostfilter_and_variables += owner_id_filter()
+
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SYSTEM_QUERY, variables)
+    response = graphql_query(SAP_SYSTEM_QUERY, variables, log_get_sap_system_failed)
 
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_system"]["meta"]["total"])
 
+    log_get_sap_system_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_system"]["data"], page, per_page, data["sap_system"]["meta"]["total"])
     )
@@ -153,15 +164,20 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
+    current_identity = get_current_identity()
+    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+        hostfilter_and_variables += owner_id_filter()
+
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
-    response = graphql_query(SAP_SIDS_QUERY, variables)
+    response = graphql_query(SAP_SIDS_QUERY, variables, log_get_sap_sids_failed)
 
     data = response["hostSystemProfile"]
 
     check_pagination(offset, data["sap_sids"]["meta"]["total"])
 
+    log_get_sap_sids_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )
