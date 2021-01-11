@@ -6,8 +6,6 @@ from app.auth.identity import from_bearer_token
 from app.auth.identity import validate
 from app.logging import get_logger
 
-# from werkzeug.local import LocalProxy
-
 __all__ = ("authentication_header_handler", "bearer_token_handler")
 
 logger = get_logger(__name__)
