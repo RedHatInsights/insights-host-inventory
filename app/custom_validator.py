@@ -1,9 +1,10 @@
 from connexion.decorators.response import ResponseValidator
 from connexion.json_schema import Draft4ResponseValidator
+from jsonschema import Draft7Validator
 from jsonschema.validators import extend
 
 CustomDraft4ResponseValidator = extend(
-    Draft4ResponseValidator, {"x-propertyNames": Draft4ResponseValidator.VALIDATORS.get("propertyNames")}
+    Draft4ResponseValidator, {"x-propertyNames": Draft7Validator.VALIDATORS.get("propertyNames")}
 )
 
 

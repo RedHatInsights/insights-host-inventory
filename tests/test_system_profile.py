@@ -167,7 +167,7 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_hos
 
 def test_get_host_with_invalid_system_profile(api_get, db_create_host):
     # create a host with invalid system_profile in the db
-    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": {"options": {"": "invalid"}}}})
+    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}})
 
     response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
 
