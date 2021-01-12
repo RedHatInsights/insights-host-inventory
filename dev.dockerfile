@@ -1,6 +1,7 @@
 FROM registry.centos.org/centos/python-36-centos7
 
 USER root
+RUN yum update -y
 RUN yum -y install centos-release-scl-rh
 RUN yum -y install rh-postgresql10-postgresql
 RUN sed -i 's/source scl_\(.*\)$/source scl_\1 rh-postgresql10/' /opt/app-root/etc/scl_enable
