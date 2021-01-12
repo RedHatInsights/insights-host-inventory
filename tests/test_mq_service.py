@@ -9,7 +9,6 @@ import pytest
 from sqlalchemy import null
 
 from app import db
-from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import MqHostSchema
@@ -28,7 +27,6 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -196,9 +194,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
-            add_host.assert_called_once_with(
-                {"display_name": f"{operation_raw}{operation_raw}"}, Identity(USER_IDENTITY)
-            )
+            add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
