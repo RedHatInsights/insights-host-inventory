@@ -23,6 +23,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -343,6 +344,7 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -398,6 +400,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -440,7 +443,7 @@ def test_patch_host_with_RBAC_denied(
 
 
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")

@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -82,14 +83,20 @@ def get_host_list(
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
 
+    all_filters = _query_filters(
+        fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+    )
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+        all_filters += owner_id_filter()
+
     variables = {
         "limit": limit,
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(
-            fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
-        ),
+        "filter": all_filters,
     }
     response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
 
@@ -181,3 +188,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
     logger.debug(query_filters)
     return query_filters
+
+
+def owner_id_filter():
+    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
