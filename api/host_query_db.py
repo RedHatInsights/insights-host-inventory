@@ -4,14 +4,13 @@ import flask
 from sqlalchemy import and_
 from sqlalchemy import or_
 
-from app.auth import get_current_identity
+from app.auth import current_identity
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
 from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
-from lib.host_repository import update_query_for_owner_id
 
 __all__ = ("get_host_list", "params_to_order_by")
 
@@ -104,13 +103,11 @@ def _order_how(column, order_how):
 
 
 def _find_all_hosts():
-    identity = get_current_identity()
-    query = Host.query.filter(Host.account == identity.account_number)
-    return update_query_for_owner_id(identity, query)
+    return Host.query.filter(Host.account == current_identity.account_number)
 
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
-    return canonical_fact_host_query(get_current_identity(), canonical_fact, value)
+    return canonical_fact_host_query(current_identity.account_number, canonical_fact, value)
 
 
 def _find_hosts_by_tag(string_tags, query):
@@ -127,7 +124,6 @@ def _find_hosts_by_tag(string_tags, query):
 
 
 def _find_hosts_by_hostname_or_id(hostname):
-    current_identity = get_current_identity()
     logger.debug("_find_hosts_by_hostname_or_id(%s)", hostname)
 
     filter_list = [
@@ -148,8 +144,6 @@ def _find_hosts_by_hostname_or_id(hostname):
 
 
 def _find_hosts_by_display_name(display_name):
-
-    current_identity = get_current_identity()
     logger.debug("find_hosts_by_display_name(%s)", display_name)
     return Host.query.filter(
         and_(Host.account == current_identity.account_number, Host.display_name.comparator.contains(display_name))

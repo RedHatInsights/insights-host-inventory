@@ -13,7 +13,6 @@ from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
 
-
 __all__ = (
     "add_host",
     "canonical_fact_host_query",
@@ -25,7 +24,6 @@ __all__ = (
     "find_non_culled_hosts",
     "stale_timestamp_filter",
     "update_existing_host",
-    "update_query_for_owner_id",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -42,7 +40,7 @@ NULL = None
 logger = get_logger(__name__)
 
 
-def add_host(input_host, identity, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
+def add_host(input_host, staleness_offset, update_system_profile=True, fields=DEFAULT_FIELDS):
     """
     Add or update a host
 
@@ -52,8 +50,7 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
     """
 
     with session_guard(db.session):
-        existing_host = find_existing_host(identity, input_host.canonical_facts)
-
+        existing_host = find_existing_host(input_host.account, input_host.canonical_facts)
         if existing_host:
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
@@ -61,54 +58,52 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
 
 
 @metrics.host_dedup_processing_time.time()
-def find_existing_host(identity, canonical_facts):
-    existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
+def find_existing_host(account_number, canonical_facts):
+    existing_host = _find_host_by_elevated_ids(account_number, canonical_facts)
 
     if not existing_host:
-        existing_host = find_host_by_canonical_facts(identity, canonical_facts)
+        existing_host = find_host_by_canonical_facts(account_number, canonical_facts)
 
     return existing_host
 
 
 @metrics.find_host_using_elevated_ids.time()
-def _find_host_by_elevated_ids(identity, canonical_facts):
+def _find_host_by_elevated_ids(account_number, canonical_facts):
     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
-            existing_host = find_host_by_canonical_fact(identity, elevated_cf_name, cf_value)
+            existing_host = find_host_by_canonical_fact(account_number, elevated_cf_name, cf_value)
             if existing_host:
                 return existing_host
 
     return None
 
 
-def canonical_fact_host_query(identity, canonical_fact, value):
+def canonical_fact_host_query(account_number, canonical_fact, value):
     query = Host.query.filter(
-        (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
+        (Host.account == account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
-    query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query)
 
 
-def canonical_facts_host_query(identity, canonical_facts):
+def canonical_facts_host_query(account_number, canonical_facts):
     query = Host.query.filter(
-        (Host.account == identity.account_number)
+        (Host.account == account_number)
         & (
             Host.canonical_facts.comparator.contains(canonical_facts)
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
-    query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query)
 
 
-def find_host_by_canonical_fact(identity, canonical_fact, value):
+def find_host_by_canonical_fact(account_number, canonical_fact, value):
     """
     Returns first match for a host containing given canonical facts
     """
     logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
 
-    host = canonical_fact_host_query(identity, canonical_fact, value).first()
+    host = canonical_fact_host_query(account_number, canonical_fact, value).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -116,13 +111,13 @@ def find_host_by_canonical_fact(identity, canonical_fact, value):
     return host
 
 
-def find_host_by_canonical_facts(identity, canonical_facts):
+def find_host_by_canonical_facts(account_number, canonical_facts):
     """
     Returns first match for a host containing given canonical facts
     """
     logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
 
-    host = canonical_facts_host_query(identity, canonical_facts).first()
+    host = canonical_facts_host_query(account_number, canonical_facts).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -182,11 +177,3 @@ def stale_timestamp_filter(gt=None, lte=None):
     if lte:
         filter_ += (Host.stale_timestamp <= lte,)
     return and_(*filter_)
-
-
-def update_query_for_owner_id(identity, query):
-    # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
-    if identity and identity.identity_type == "System" and identity.system["cert_type"] == "system":
-        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
-    else:
-        return query
