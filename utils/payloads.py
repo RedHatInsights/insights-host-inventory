@@ -373,7 +373,7 @@ def rpm_list():
 
 def create_system_profile():
     return {
-        "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        "owner_id": random_uuid(),
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,

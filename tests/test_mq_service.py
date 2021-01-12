@@ -9,7 +9,6 @@ import pytest
 from sqlalchemy import null
 
 from app import db
-from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import MqHostSchema
@@ -28,7 +27,6 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 

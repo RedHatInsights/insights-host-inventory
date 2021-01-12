@@ -10,9 +10,7 @@ from api.host import get_bulk_query_source
 from api.host_query_xjoin import build_sap_sids_filter
 from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
-from api.host_query_xjoin import owner_id_filter
 from app import Permission
-from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import log_get_sap_sids_failed
 from app.instrumentation import log_get_sap_sids_succeeded
@@ -108,10 +106,6 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
-        hostfilter_and_variables += owner_id_filter()
-
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
 
@@ -163,10 +157,6 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
                 hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
-
-    current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
-        hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables

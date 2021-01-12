@@ -187,7 +187,6 @@ def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
-
     response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"})
 
     assert response_status == 400
