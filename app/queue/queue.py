@@ -133,6 +133,9 @@ def handle_message(message, event_producer):
     # create a dummy identity for working around the identity requirement for CRUD operations
     identity = Identity(USER_IDENTITY)
 
+    # set account_number in dummy idenity to the actual account_number received in the payload
+    identity.account_number = validated_operation_msg["data"]["account"]
+
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
 

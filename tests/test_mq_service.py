@@ -186,10 +186,11 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     operation_escaped = json.dumps(operation_raw)[1:-1]
 
     messages = (
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}","account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}", "account": "test"}}}}',
     )
+
     for message in messages:
         with subtests.test(message=message):
             host_id = generate_uuid()
@@ -197,7 +198,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
             add_host.assert_called_once_with(
-                {"display_name": f"{operation_raw}{operation_raw}"}, Identity(USER_IDENTITY)
+                {"display_name": f"{operation_raw}{operation_raw}", "account": "test"}, Identity(USER_IDENTITY)
             )
 
 
