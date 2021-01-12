@@ -25,11 +25,8 @@ class TestResult:
 def _validate_host_list(host_list, repo_branch):
     system_profile_spec = safe_load(
         get(
-            (
-                "https://raw.githubusercontent.com/RedHatInsights/inventory-schemas/"
-                f"{repo_branch}/schemas/system_profile/v1.yaml"
-            ),
-            verify=False,
+            "https://raw.githubusercontent.com/RedHatInsights/inventory-schemas/"
+            f"{repo_branch}/schemas/system_profile/v1.yaml"
         ).content.decode("utf-8")
     )
 
@@ -82,7 +79,7 @@ def validate_sp_for_branch(config, repo_branch="master", days=14):
     logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
 
     validation_results = {}
-    for branch in ["master", repo_branch]:
-        validation_results[branch] = _validate_host_list(parsed_hosts, repo_branch)
+    for branch in [repo_branch, "master"]:
+        validation_results[branch] = _validate_host_list(parsed_hosts, branch)
 
     return validation_results
