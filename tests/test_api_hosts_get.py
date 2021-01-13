@@ -28,9 +28,11 @@ from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import UUID_1
 from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
+from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 
@@ -971,3 +973,22 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 
 #     assert_response_status(implicit_response_status, 400)
 #     assert_response_status(eq_response_status, 400)
+
+
+def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host):
+    host = minimal_host(subscription_manager_id=generate_uuid())
+    host.account = "dummy"
+
+    created_host = mq_create_or_update_host(host)
+    assert db_get_host(created_host.id)
+
+
+def test_host_account_using_db(db_create_host, db_get_host):
+    staleness_timestamps = get_staleness_timestamps()
+
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"].isoformat(), reporter="some reporter")
+    host.account = "dummy"
+    created_host = db_create_host(host)
+
+    assert db_get_host(created_host.id)
+    assert created_host.account == "dummy"
