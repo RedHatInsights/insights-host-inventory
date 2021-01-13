@@ -992,6 +992,7 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
     # update_existing_host() resturns the same host but with updated timestamp.
     created_host.updated = same_host.updated
 
+    assert created_host.__dict__ == same_host.__dict__
     assert len(first_batch.all()) == len(second_batch.all())
 
 
