@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import null
 
 from app import db
+from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.models import MqHostSchema
@@ -27,6 +28,7 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -184,17 +186,20 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     operation_escaped = json.dumps(operation_raw)[1:-1]
 
     messages = (
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}","account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}", "account": "test"}}}}',
     )
+
     for message in messages:
         with subtests.test(message=message):
             host_id = generate_uuid()
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
-            add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+            add_host.assert_called_once_with(
+                {"display_name": f"{operation_raw}{operation_raw}", "account": "test"}, Identity(USER_IDENTITY)
+            )
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1013,3 +1018,47 @@ def test_invalid_string_is_found_in_list_item(obj):
 def test_other_values_are_ignored(value):
     _validate_json_object_for_utf8(value)
     assert True
+
+
+def test_handle_message_with_different_account(mocker, flask_app, subtests):
+    mocker.patch("app.queue.queue.build_event")
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
+
+    operation_raw = "🧜🏿‍♂️"
+    messages = (
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
+    )
+
+    identity = Identity(USER_IDENTITY)
+    identity.account_number = "dummy"
+
+    for message in messages:
+        with subtests.test(message=message):
+            host_id = generate_uuid()
+            add_host.reset_mock()
+            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+            handle_message(message, mocker.Mock())
+            add_host.assert_called_once_with(
+                {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
+            )
+
+
+def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
+    host = minimal_host(fqdn="d44533.foo.redhat.co")
+    host.account = "dummy"
+
+    created_host = mq_create_or_update_host(host)
+    assert db_get_host(created_host.id).account == "dummy"
+
+    first_batch = db_get_hosts([created_host.id])
+
+    # verify that the two hosts vars are pointing to the same resource.
+    same_host = mq_create_or_update_host(host)
+
+    second_batch = db_get_hosts([created_host.id, same_host.id])
+
+    # update_existing_host() resturns the same host but with updated timestamp.
+    created_host.updated = same_host.updated
+
+    assert created_host.__dict__ == same_host.__dict__
+    assert len(first_batch.all()) == len(second_batch.all())
