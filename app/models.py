@@ -468,8 +468,10 @@ class MqHostSchema(BaseHostSchema):
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls = type(self)
-        if not hasattr(cls, "system_profile_normalizer") or system_profile_schema:
-            cls.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema)
+        if not hasattr(cls, "system_profile_normalizer"):
+            cls.system_profile_normalizer = SystemProfileNormalizer()
+        if system_profile_schema:
+            self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
 
     @validates("tags")
     def validate_tags(self, tags):
