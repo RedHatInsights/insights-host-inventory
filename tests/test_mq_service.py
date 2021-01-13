@@ -1025,13 +1025,8 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
 
     operation_raw = "🧜🏿‍♂️"
-    operation_escaped = json.dumps(operation_raw)[1:-1]
-
-    # account_name = "hbi_test_aaccount"
     messages = (
         f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}","account":"dummy"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}", "account": "dummy"}}}}',
     )
 
     identity = Identity(USER_IDENTITY)
