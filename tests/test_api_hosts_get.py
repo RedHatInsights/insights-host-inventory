@@ -167,6 +167,18 @@ def test_query_host_id_without_hyphens(mq_create_three_specific_hosts, api_get, 
             api_query_test(api_get, subtests, url, original_host_list)
 
 
+def test_query_host_id_with_incorrect_formats(api_get, subtests):
+    host_id = "6a2f41a3-c54c-fce8-32d2-0324e1c32e22"
+
+    bad_host_ids = (f" {host_id}", f"{{{host_id}", f"{host_id}-")
+
+    for bad_host_id in bad_host_ids:
+        with subtests.test():
+            url = build_hosts_url(host_list_or_id=bad_host_id)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+
+
 def test_query_with_branch_id_parameter(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     # branch_id parameter is accepted, but doesn’t affect results.
