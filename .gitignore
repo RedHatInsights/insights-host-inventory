@@ -9,5 +9,6 @@ tags
 .pytest_cache/
 /.sonar/sonar-scanner.properties
 /.scannerwork/
+swagger/system_profile.spec.yaml
 
 coverage.xml

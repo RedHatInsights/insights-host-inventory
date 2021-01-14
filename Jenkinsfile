@@ -61,6 +61,7 @@ def runStages() {
                         scmVars = checkout scm
                         runPipenvInstall(scmVars: scmVars)
                         sh "${pipelineVars.userPath}/pipenv run python manage.py db upgrade"
+                        sh "${pipelineVars.userPath}/get_schema.sh"
                     }
                 }
 
