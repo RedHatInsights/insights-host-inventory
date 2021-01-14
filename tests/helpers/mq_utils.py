@@ -21,12 +21,27 @@ class MockEventProducer:
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
 
-    def write_event(self, event, key, headers, topic, wait=False):
+    def write_event(
+        self,
+        event,
+        key,
+        headers,
+        topic,
+        wait=False,
+        extra_callback=None,
+        extra_callback_parameters=None,
+        extra_errback=None,
+        extra_errback_parameters=None,
+    ):
         self.event = event
         self.key = key
         self.headers = headers
         self.topic = topic
         self.wait = wait
+        # if extra_callback:
+        #     self.extra_callback = extra_callback
+        # if extra_errback:
+        #     self.extra_errback = extra_callback
 
 
 class MockFuture:

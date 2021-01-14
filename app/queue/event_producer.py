@@ -21,7 +21,19 @@ class EventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
         self.topics = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
 
-    def write_event(self, event, key, headers, topic, *, wait=False, optionalCallback=None):
+    def write_event(
+        self,
+        event,
+        key,
+        headers,
+        topic,
+        *,
+        wait=False,
+        extra_callback=None,
+        extra_callback_parameters=None,
+        extra_errback=None,
+        extra_errback_parameters=None,
+    ):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
@@ -34,10 +46,13 @@ class EventProducer:
             message_not_produced(logger, self.topics[topic], event, key, headers, error)
             raise error
         else:
+            if extra_callback:
+                logger.debug("hey there, extra callback")
+                send_future.add_callback(extra_callback, **extra_callback_parameters)
+            if extra_errback:
+                send_future.add_errback(extra_errback, **extra_errback_parameters)
             send_future.add_callback(message_produced, logger, event, key, headers)
             send_future.add_errback(message_not_produced, logger, self.topics[topic], event, key, headers)
-            if optionalCallback:
-                send_future.add_callback(optionalCallback)
 
             if wait:
                 send_future.get()
