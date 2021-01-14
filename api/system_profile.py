@@ -189,6 +189,6 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def validate_schema(repo_branch="master", days=14):
+def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     config = Config(RuntimeEnvironment.SERVICE)
-    return flask_json_response(validate_sp_for_branch(config, repo_branch, days))
+    return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))

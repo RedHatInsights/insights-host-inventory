@@ -22,15 +22,15 @@ class TestResult:
         self.fail_count = 0
 
 
-def _validate_host_list(host_list, repo_branch):
+def _validate_host_list(host_list, repo_config):
     system_profile_spec = safe_load(
         get(
-            "https://raw.githubusercontent.com/RedHatInsights/inventory-schemas/"
-            f"{repo_branch}/schemas/system_profile/v1.yaml"
+            f"https://raw.githubusercontent.com/{repo_config['fork']}/inventory-schemas/"
+            f"{repo_config['branch']}/schemas/system_profile/v1.yaml"
         ).content.decode("utf-8")
     )
 
-    logger.info(f"Validating host against {repo_branch} schema...")
+    logger.info(f"Validating host against {repo_config['fork']}/{repo_config['branch']} schema...")
     test_results = {}
 
     for host in host_list:
@@ -46,7 +46,7 @@ def _validate_host_list(host_list, repo_branch):
     return test_results
 
 
-def validate_sp_for_branch(config, repo_branch="master", days=14):
+def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="master", days=14):
     consumer = KafkaConsumer(
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
@@ -79,7 +79,7 @@ def validate_sp_for_branch(config, repo_branch="master", days=14):
     logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
 
     validation_results = {}
-    for branch in [repo_branch, "master"]:
-        validation_results[branch] = _validate_host_list(parsed_hosts, branch)
+    for item in [{"fork": repo_fork, "branch": repo_branch}, {"fork": "RedHatInsights", "branch": "master"}]:
+        validation_results[f"{item['fork']}/{item['branch']}"] = _validate_host_list(parsed_hosts, item)
 
     return validation_results
