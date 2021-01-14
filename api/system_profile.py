@@ -83,7 +83,7 @@ def xjoin_enabled():
 
 @api_operation
 @rbac(Permission.READ)
-@metrics.api_request_time.time()
+@metrics.schema_validation_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
