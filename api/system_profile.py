@@ -14,6 +14,8 @@ from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
+from app.config import Config
+from app.environment import RuntimeEnvironment
 from app.instrumentation import log_get_sap_sids_failed
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_failed
@@ -24,6 +26,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
 
@@ -181,3 +184,11 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
     )
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.schema_validation_time.time()
+def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
+    config = Config(RuntimeEnvironment.SERVICE)
+    return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))

@@ -77,10 +77,13 @@ class SystemProfileNormalizer:
 
     SOME_ARBITRARY_STRING = "property"
 
-    def __init__(self):
-        specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
-        with open(specification) as file:
-            system_profile_spec = safe_load(file)
+    def __init__(self, system_profile_schema=None):
+        if system_profile_schema:
+            system_profile_spec = system_profile_schema
+        else:
+            specification = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
+            with open(specification) as file:
+                system_profile_spec = safe_load(file)
 
         self.schema = {**system_profile_spec, "$ref": "#/$defs/SystemProfile"}
         self._resolver = RefResolver.from_schema(system_profile_spec)
@@ -462,11 +465,13 @@ class MqHostSchema(BaseHostSchema):
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls = type(self)
         if not hasattr(cls, "system_profile_normalizer"):
             cls.system_profile_normalizer = SystemProfileNormalizer()
+        if system_profile_schema:
+            self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -541,7 +546,13 @@ class MqHostSchema(BaseHostSchema):
 class HttpHostSchema(BaseHostSchema):
     system_profile = fields.Nested(SystemProfileSchema)
 
+    def __init__(self, system_profile_schema=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
 
 class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+
+    def __init__(self, system_profile_schema=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
