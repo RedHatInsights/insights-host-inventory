@@ -149,25 +149,25 @@ service. For testing purposes, it is possible to set the required identity
 header to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlVzZXIiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICIwMDAwMDEifX19Cg==
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity": {"account_number": "0000001", "type": "User", "internal": {"org_id": "000001"}}}
+{"identity":{"account_number":"test","type":"User","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
 ```
 
 The above header has the "User" identity type, but it's possible to use a "System" type header as well.
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJ0eXBlIjogIlN5c3RlbSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0K
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6ICJ0ZXN0IiwgImF1dGhfdHlwZSI6ICJjZXJ0LWF1dGgiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICIzMzQwODUxIn0sICJzeXN0ZW0iOiB7ImNlcnRfdHlwZSI6ICJzeXN0ZW0iLCAiY24iOiAicGx4aTEzeTEtOTl1dC0zcmRmLWJjMTAtODRvcGY5MDRsZmFkIn0sInR5cGUiOiAiU3lzdGVtIn19
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}
+{"identity":{"account_number": "test", "auth_type": "cert-auth", "internal": {"org_id": "3340851"}, "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},"type": "System"}}
 ```
 
 If you want to encode other JSON documents, you can use the following command:
