@@ -46,7 +46,7 @@ def _validate_host_list(host_list, repo_config):
     return test_results
 
 
-def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="master", days=14):
+def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="master", days=1):
     consumer = KafkaConsumer(
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
@@ -58,14 +58,19 @@ def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="mast
     tp = TopicPartition(config.host_ingress_topic, 0)
     consumer.assign([tp])
 
-    seek_date = datetime.now() + timedelta(days=(-1 * days))
-    seek_position = max(consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset, 0)
-
+    seek_position = 0
+    msgs = {}
     consumer.seek_to_beginning(tp)
-    consumer.seek(tp, seek_position)
-    msgs = consumer.poll(timeout_ms=10000, max_records=10000)
-    consumer.close()
+    seek_date = datetime.now() + timedelta(days=(-1 * days))
 
+    try:
+        seek_position = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset
+        consumer.seek(tp, seek_position)
+        msgs = consumer.poll(timeout_ms=10000, max_records=10000)
+    except AttributeError:
+        logger.error("No data available at the provided date.")
+
+    consumer.close()
     hosts_parsed = 0
     parsed_hosts = []
 
@@ -80,6 +85,8 @@ def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="mast
 
     validation_results = {}
     for item in [{"fork": repo_fork, "branch": repo_branch}, {"fork": "RedHatInsights", "branch": "master"}]:
-        validation_results[f"{item['fork']}/{item['branch']}"] = _validate_host_list(parsed_hosts, item)
+        validation_results[f"{item['fork']}/{item['branch']}"] = (
+            _validate_host_list(parsed_hosts, item) if hosts_parsed > 0 else {}
+        )
 
     return validation_results
