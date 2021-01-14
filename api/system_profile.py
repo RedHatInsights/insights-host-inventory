@@ -83,7 +83,7 @@ def xjoin_enabled():
 
 @api_operation
 @rbac(Permission.READ)
-@metrics.schema_validation_time.time()
+@metrics.api_request_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
         flask.abort(503)
@@ -188,7 +188,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
 @api_operation
 @rbac(Permission.READ)
-@metrics.api_request_time.time()
+@metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     config = Config(RuntimeEnvironment.SERVICE)
     return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))
