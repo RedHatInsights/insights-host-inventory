@@ -8,6 +8,24 @@ from tests.helpers.api_utils import SYSTEM_IDENTITY
 from tests.helpers.api_utils import USER_IDENTITY
 
 
+def invalid_identities(identity_type):
+    if identity_type == "System":
+        return (
+            Identity(SYSTEM_IDENTITY)._asdict()["system"].pop("cert_type", None),
+            Identity(SYSTEM_IDENTITY)._asdict()["system"].pop("cn", None),
+            Identity(SYSTEM_IDENTITY)._asdict().pop("system", None),
+        )
+
+
+def invalid_payloads(identity_type):
+    if identity_type == "System":
+        payloads = ()
+        for identity in invalid_identities("System"):
+            json = dumps(identity)
+            payloads += (b64encode(json.encode()),)
+        return payloads
+
+
 def valid_identity(identity_type):
     """
     Provides a valid Identity object.
@@ -60,6 +78,18 @@ def test_validate_valid_system_identity(flask_client):
     payload = valid_payload("System")
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
+
+
+def test_validate_valid_invalid_system_identities(flask_client, subtests):
+    """
+    Identity header is valid – non-empty in this case
+    """
+    payloads = invalid_payloads("System")
+
+    for payload in payloads:
+        with subtests.test():
+            response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
+            assert 401 == response.status_code  # Bad identity
 
 
 def test_validate_invalid_token_on_get(flask_client):

@@ -78,3 +78,9 @@ def validate(identity):
         # Ensure the account number is present.
         if not identity.account_number:
             raise ValueError("The account_number is mandatory.")
+
+        elif identity.identity_type == "System":
+            if not identity.system["cert_type"]:
+                raise ValueError("The cert_type field is mandatory.")
+            if not identity.system["cn"]:
+                raise ValueError("The cn field is mandatory.")
