@@ -80,7 +80,7 @@ def test_validate_valid_system_identity(flask_client):
     assert 200 == response.status_code  # OK
 
 
-def test_validate_valid_invalid_system_identities(flask_client, subtests):
+def test_invalid_system_identities(flask_client, subtests):
     """
     Identity header is valid – non-empty in this case
     """
