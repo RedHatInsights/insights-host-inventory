@@ -10,11 +10,16 @@ from tests.helpers.api_utils import USER_IDENTITY
 
 def invalid_identities(identity_type):
     if identity_type == "System":
-        return (
-            Identity(SYSTEM_IDENTITY)._asdict()["system"].pop("cert_type", None),
-            Identity(SYSTEM_IDENTITY)._asdict()["system"].pop("cn", None),
-            Identity(SYSTEM_IDENTITY)._asdict().pop("system", None),
-        )
+        no_cert_type = Identity(SYSTEM_IDENTITY)._asdict()
+        no_cert_type["system"].pop("cert_type", None)
+
+        no_cn = Identity(SYSTEM_IDENTITY)._asdict()
+        no_cn["system"].pop("cn", None)
+
+        no_system = Identity(SYSTEM_IDENTITY)._asdict()
+        no_system.pop("system", None)
+
+        return (no_cert_type, no_cn, no_system)
 
 
 def invalid_payloads(identity_type):
@@ -81,9 +86,6 @@ def test_validate_valid_system_identity(flask_client):
 
 
 def test_invalid_system_identities(flask_client, subtests):
-    """
-    Identity header is valid – non-empty in this case
-    """
     payloads = invalid_payloads("System")
 
     for payload in payloads:
