@@ -56,9 +56,9 @@ class Identity:
 
     def _asdict(self):
         if self.identity_type == "User":
-            return {"account_number": self.account_number, "type": self.identity_type, "user": self.user}
+            return {"account_number": self.account_number, "type": self.identity_type, "user": self.user.copy()}
         if self.identity_type == "System":
-            return {"account_number": self.account_number, "type": self.identity_type, "system": self.system}
+            return {"account_number": self.account_number, "type": self.identity_type, "system": self.system.copy()}
 
     def __eq__(self, other):
         return self.account_number == other.account_number
