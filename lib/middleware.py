@@ -14,7 +14,7 @@ from app import inventory_config
 from app import Permission
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth import current_identity
+from app.auth import get_current_identity
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
@@ -67,7 +67,7 @@ def rbac(required_permission):
             if not inventory_config().rbac_enforced:
                 return func(*args, **kwargs)
 
-            if current_identity.identity_type != CHECKED_TYPE:
+            if get_current_identity().identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
 
             # track that RBAC is being used to control access

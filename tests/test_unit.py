@@ -62,6 +62,7 @@ from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 class ApiOperationTestCase(TestCase):
@@ -104,7 +105,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(account_number="some acct")
+        return Identity(USER_IDENTITY)
 
 
 class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
@@ -176,18 +177,20 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(account_number="some acct")
+            identity = Identity(USER_IDENTITY)
             validate(identity)
             self.assertTrue(True)
         except ValueError:
             self.fail()
 
     def test_invalid(self):
+        test_identity = deepcopy(USER_IDENTITY)
         account_numbers = [None, ""]
         for account_number in account_numbers:
             with self.subTest(account_number=account_number):
+                test_identity["account_number"] = account_number
                 with self.assertRaises(ValueError):
-                    Identity(account_number=account_number)
+                    Identity(test_identity)
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -231,7 +234,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_account_number_is_not_set_for_trusted_system(self):
         identity = self._build_id()
 
-        self.assertEqual(identity.account_number, None)
+        self.assertFalse(hasattr(identity, "account_number"))
 
 
 class ConfigTestCase(TestCase):
@@ -1136,7 +1139,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema = MagicMock()
         deserialize_host(host_input, host_schema)
 
-        host_schema.assert_called_once_with(strict=True)
+        host_schema.assert_called_once_with(strict=True, system_profile_schema=None)
         host_schema.return_value.load.assert_called_with(host_input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
