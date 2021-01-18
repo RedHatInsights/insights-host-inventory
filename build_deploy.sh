@@ -18,7 +18,9 @@ docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOK
 docker --config="$DOCKER_CONF" build -f dev.dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
 
-if [ "${PUSH_TO_LATEST:=true}" == "true" ]; then
-    docker --config="$DOCKER_CONF" tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:${SMOKE_TEST_TAG}"
-    docker --config="$DOCKER_CONF" push "${IMAGE}:${SMOKE_TEST_TAG}"
-fi
+# To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
+docker --config="$DOCKER_CONF" tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
+docker --config="$DOCKER_CONF" push "${IMAGE}:latest"
+docker --config="$DOCKER_CONF" tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
+docker --config="$DOCKER_CONF" push "${IMAGE}:qa"
+
