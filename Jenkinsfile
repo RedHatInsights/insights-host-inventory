@@ -39,7 +39,7 @@ def runStages() {
         ),
         containerTemplate(
             name: 'postgres',
-            image: 'postgres:10.6',
+            image: 'postgres:12.5',
             ttyEnabled: true,
             envVars: [
                 containerEnvVar(key: 'POSTGRES_USER', value: 'insights'),
