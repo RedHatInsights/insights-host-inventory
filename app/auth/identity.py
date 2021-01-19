@@ -34,6 +34,7 @@ class Identity:
         elif obj:
             self.is_trusted_system = False
             self.account_number = obj["account_number"]
+            self.auth_type = obj["auth_type"]
 
             # This check may change to if "auth_type" in obj.keys()
             # and then basic-auth and cert-auth.
@@ -56,9 +57,19 @@ class Identity:
 
     def _asdict(self):
         if self.identity_type == "User":
-            return {"account_number": self.account_number, "type": self.identity_type, "user": self.user.copy()}
+            return {
+                "account_number": self.account_number,
+                "type": self.identity_type,
+                "auth_type": self.auth_type,
+                "user": self.user.copy(),
+            }
         if self.identity_type == "System":
-            return {"account_number": self.account_number, "type": self.identity_type, "system": self.system.copy()}
+            return {
+                "account_number": self.account_number,
+                "type": self.identity_type,
+                "auth_type": self.auth_type,
+                "system": self.system.copy(),
+            }
 
     def __eq__(self, other):
         return self.account_number == other.account_number
@@ -79,7 +90,7 @@ def validate(identity):
         if not identity.account_number:
             raise ValueError("The account_number is mandatory.")
 
-        elif identity.identity_type == "System":
+        elif identity.identity_type == "System" and identity.auth_type != "classic-proxy":
             if not identity.system["cert_type"]:
                 raise ValueError("The cert_type field is mandatory.")
             if not identity.system["cn"]:

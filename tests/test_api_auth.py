@@ -6,6 +6,7 @@ from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_IDENTITY
 from tests.helpers.api_utils import USER_IDENTITY
+from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 
 
 def invalid_identities(identity_type):
@@ -37,8 +38,10 @@ def valid_identity(identity_type):
     """
     if identity_type == "User":
         return Identity(USER_IDENTITY)
-    else:
+    elif identity_type == "System":
         return Identity(SYSTEM_IDENTITY)
+    elif identity_type == "Classic":
+        return Identity(INSIGHTS_CLASSIC_IDENTITY)
 
 
 def valid_payload(identity_type):
@@ -92,6 +95,13 @@ def test_invalid_system_identities(flask_client, subtests):
         with subtests.test():
             response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
             assert 401 == response.status_code  # Bad identity
+
+
+# TODO: Remove when workaround is no longer needed
+def test_insights_classic_workaround(flask_client):
+    payload = valid_payload("Classic")
+    response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
+    assert 200 == response.status_code  # OK
 
 
 def test_validate_invalid_token_on_get(flask_client):
