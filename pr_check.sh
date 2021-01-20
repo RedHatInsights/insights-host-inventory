@@ -3,7 +3,7 @@
 # --------------------------------------------
 # Pre-commit checks
 # --------------------------------------------
-
+IMAGE="quay.io/cloudservices/insights-inventory"
 export LC_ALL=en_US.utf-8
 export LANG=en_US.utf-8
 
@@ -20,13 +20,45 @@ pre-commit run --all-files
 # Unit testing Django
 # --------------------------------------------
 
-oc apply -f unit-db.yml
-oc wait --for=condition=Ready pod/django-unit-db
+cleanup() {
+  echo "Caught signal, kill port forward"
+  kill %1
+}
+
+NAMESPACE=$(bonfire namespace reserve)
+oc project $NAMESPACE
+
+cat << EOF > config.yaml
+envName: env-$NAMESPACE
+apps:
+- name: host-inventory 
+  host: local
+  repo: $PWD
+  path: deployment.yaml
+  parameters:
+    IMAGE: $IMAGE
+EOF
+
+bonfire config get -l -a host-inventory | oc apply -f -
+sleep 5
+
+#
+# Grab DB creds
+#
+
+oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+
+export DATABASE_NAME=$(jq -r .name < db-creds.json)
+export DATABASE_HOST=$(jq -r .hostname < db-creds.json)
+export DATABASE_PORT=$(jq -r .port < db-creds.json)
+export POSTGRESQL_USER=$(jq -r .username < db-creds.json)
+export POSTGRESQL_PASSWORD=$(jq -r .password < db-creds.json)
+export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
+
 oc port-forward svc/django-unit-db 5432 & 
+trap cleanup EXIT SIGINT SIGKILL
 python manage.py db upgrade
 make test
-kill %1
-oc delete -f unit-db.yml
 deactivate
 
 # --------------------------------------------
