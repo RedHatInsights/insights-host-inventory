@@ -25,9 +25,21 @@ cleanup() {
   kill %1
 }
 
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
-source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
+#
+# Install Bonfire and dev virtualenv
+#
+
+if [ ! -d bonfire ]; then
+    git clone https://github.com/RedHatInsights/bonfire.git
+fi
+
+if [ ! -d venv ]; then
+    python3 -m venv venv
+fi
+
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
+pip install ./bonfire
 
 NAMESPACE=$(bonfire namespace reserve)
 oc project $NAMESPACE
@@ -81,6 +93,10 @@ IQE_FILTER_EXPRESSION=""
 # ---------------------------
 
 source build_deploy.sh
+
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
+source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 source deploy_ephemeral_env.sh
 
 # Need to make a dummy results file to make tests pass
