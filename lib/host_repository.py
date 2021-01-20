@@ -188,8 +188,6 @@ def update_query_for_owner_id(identity, query):
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
     # TODO: 'identity.auth_type is not 'classic-proxy' is a temporary fix. Remove when workaround is no longer needed
     logger.info("identity auth type: %s", identity.auth_type)
-    # if identity.auth_type == "classic-proxy":
-    #     return query
     if (
         identity
         and identity.identity_type == "System"
