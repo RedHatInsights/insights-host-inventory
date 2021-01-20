@@ -71,10 +71,11 @@ export POSTGRESQL_USER=$(jq -r .username < db-creds.json)
 export POSTGRESQL_PASSWORD=$(jq -r .password < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
-oc port-forward svc/django-unit-db 5432 &
+oc port-forward svc/host-inventory-db 5432 &
 trap cleanup EXIT SIGINT SIGKILL
 python manage.py db upgrade
 make test
+bonfire namespace release $NAMESPACE
 deactivate
 
 # --------------------------------------------
