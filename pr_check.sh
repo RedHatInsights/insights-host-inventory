@@ -14,6 +14,16 @@ source venv/bin/activate
 pip install pipenv
 pipenv install --dev
 pre-commit run --all-files
+
+
+# --------------------------------------------
+# Unit testing Django
+# --------------------------------------------
+
+oc apply -f unit-db.yml
+python manage.py django-unit-db upgrade
+make test
+oc delete -f unit-db.yml
 deactivate
 
 # --------------------------------------------
