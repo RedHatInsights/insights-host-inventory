@@ -91,7 +91,7 @@ def validate(identity):
             raise ValueError("The account_number is mandatory.")
 
         elif identity.identity_type == "System" and identity.auth_type != "classic-proxy":
-            if not identity.system["cert_type"]:
+            if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
-            if not identity.system["cn"]:
+            if not identity.system.get("cn"):
                 raise ValueError("The cn field is mandatory.")
