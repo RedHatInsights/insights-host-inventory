@@ -15,7 +15,6 @@ pip install pipenv
 pipenv install --dev
 pre-commit run --all-files
 
-
 # --------------------------------------------
 # Unit testing Django
 # --------------------------------------------
@@ -23,12 +22,13 @@ pre-commit run --all-files
 cleanup() {
   echo "Caught signal, kill port forward"
   kill %1
+  echo "Release bonfire namespace"
+  bonfire namespace release $NAMESPACE
 }
 
 #
 # Install Bonfire and dev virtualenv
 #
-
 if [ ! -d bonfire ]; then
     git clone https://github.com/RedHatInsights/bonfire.git
 fi
@@ -40,6 +40,10 @@ fi
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
 pip install ./bonfire
+
+#
+# Deploy ClowdApp to get DB instance
+#
 
 NAMESPACE=$(bonfire namespace reserve)
 oc project $NAMESPACE
@@ -53,7 +57,6 @@ apps:
   path: deployment.yaml
   parameters:
     IMAGE: $IMAGE
-    CLOWDER_ENABLED: true
 EOF
 
 bonfire config get -l -a host-inventory | oc apply -f -
@@ -63,9 +66,11 @@ sleep 5
 # Grab DB creds
 #
 
+oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq > cdappconfig.json
+
 oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
-export DATABASE_NAME=$(jq -r .name < db-creds.json)
+
 export DATABASE_HOST=$(jq -r .hostname < db-creds.json)
 export DATABASE_PORT=$(jq -r .port < db-creds.json)
 export POSTGRESQL_USER=$(jq -r .username < db-creds.json)
@@ -74,8 +79,8 @@ export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/host-inventory-db 5432 &
 trap cleanup EXIT SIGINT SIGKILL
-make test
-bonfire namespace release $NAMESPACE
+CLOWDER_ENABLED="true" python manage.py db upgrade
+CLOWDER_ENABLED="true" make test
 deactivate
 
 # --------------------------------------------
