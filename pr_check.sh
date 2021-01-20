@@ -25,13 +25,17 @@ cleanup() {
   kill %1
 }
 
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
+source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
+
 NAMESPACE=$(bonfire namespace reserve)
 oc project $NAMESPACE
 
 cat << EOF > config.yaml
 envName: env-$NAMESPACE
 apps:
-- name: host-inventory 
+- name: host-inventory
   host: local
   repo: $PWD
   path: deployment.yaml
@@ -55,7 +59,7 @@ export POSTGRESQL_USER=$(jq -r .username < db-creds.json)
 export POSTGRESQL_PASSWORD=$(jq -r .password < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
-oc port-forward svc/django-unit-db 5432 & 
+oc port-forward svc/django-unit-db 5432 &
 trap cleanup EXIT SIGINT SIGKILL
 python manage.py db upgrade
 make test
@@ -77,10 +81,6 @@ IQE_FILTER_EXPRESSION=""
 # ---------------------------
 
 source build_deploy.sh
-
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
-source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 source deploy_ephemeral_env.sh
 
 # Need to make a dummy results file to make tests pass
