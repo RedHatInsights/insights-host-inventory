@@ -153,3 +153,7 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
         extra={"required_permission": required_permission, "user_permissions": user_permissions},
     )
     rbac_access_denied.labels(required_permission=required_permission).inc()
+
+
+def log_db_access_failure(logger, message):
+    logger.error("Error adding host ", message)

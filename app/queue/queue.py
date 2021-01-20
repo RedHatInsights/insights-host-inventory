@@ -1,8 +1,10 @@
 import json
+import sys
 
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
+from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app.auth.identity import Identity
@@ -11,6 +13,7 @@ from app.exceptions import InventoryException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
+from app.instrumentation import log_db_access_failure
 from app.logging import get_logger
 from app.logging import threadctx
 from app.payload_tracker import get_payload_tracker
@@ -119,6 +122,9 @@ def add_host(host_data, identity):
         except InventoryException:
             log_add_host_failure(logger, host_data)
             raise
+        except OperationalError as oe:
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}")
+            raise oe
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
@@ -166,6 +172,13 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                     try:
                         handler(message.value, event_producer)
                         metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """ sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
                     except Exception:
                         metrics.ingress_message_handler_failure.inc()
                         logger.exception("Unable to process message")
