@@ -21,7 +21,8 @@ pre-commit run --all-files
 # --------------------------------------------
 
 oc apply -f unit-db.yml
-python manage.py django-unit-db upgrade
+oc wait --for=condition=Ready pod/django-unit-db
+python manage.py db upgrade
 make test
 oc delete -f unit-db.yml
 deactivate

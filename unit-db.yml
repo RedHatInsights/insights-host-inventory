@@ -3,6 +3,9 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: django-unit-db
+  labels:
+    app: django-unit-db
+    service: db
 spec:
   imagePullSecrets:
     - name: quay-cloudservices-pull
@@ -49,7 +52,7 @@ apiVersion: v1
 metadata:
   name: django-unit-db
   labels:
-    app: inventory
+    app: django-unit-db
     service: db
 spec:
   ports:
@@ -58,5 +61,5 @@ spec:
       port: 5432
       targetPort: 5432
   selector:
-    app: inventory
+    app: django-unit-db
     service: db
