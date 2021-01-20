@@ -22,8 +22,10 @@ pre-commit run --all-files
 
 oc apply -f unit-db.yml
 oc wait --for=condition=Ready pod/django-unit-db
+oc port-forward svc/django-unit-db 5432 & 
 python manage.py db upgrade
 make test
+kill %1
 oc delete -f unit-db.yml
 deactivate
 
