@@ -66,16 +66,7 @@ sleep 5
 # Grab DB creds
 #
 
-oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq > cdappconfig.json
-
-oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
-
-
-export DATABASE_HOST=$(jq -r .hostname < db-creds.json)
-export DATABASE_PORT=$(jq -r .port < db-creds.json)
-export POSTGRESQL_USER=$(jq -r .username < db-creds.json)
-export POSTGRESQL_PASSWORD=$(jq -r .password < db-creds.json)
-export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
+oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq . > cdappconfig.json
 
 oc port-forward svc/host-inventory-db 5432 &
 trap cleanup EXIT SIGINT SIGKILL
