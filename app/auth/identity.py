@@ -34,7 +34,11 @@ class Identity:
         elif obj:
             self.is_trusted_system = False
             self.account_number = obj["account_number"]
-            self.auth_type = obj["auth_type"]
+
+            if obj.get("auth_type"):
+                self.auth_type = obj["auth_type"]
+            else:
+                self.auth_type = None
 
             # This check may change to if "auth_type" in obj.keys()
             # and then basic-auth and cert-auth.
