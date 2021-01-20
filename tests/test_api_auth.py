@@ -27,7 +27,8 @@ def invalid_payloads(identity_type):
     if identity_type == "System":
         payloads = ()
         for identity in invalid_identities("System"):
-            json = dumps(identity)
+            dict_ = {"identity": identity}
+            json = dumps(dict_)
             payloads += (b64encode(json.encode()),)
         return payloads
 
@@ -40,8 +41,12 @@ def valid_identity(identity_type):
         return Identity(USER_IDENTITY)
     elif identity_type == "System":
         return Identity(SYSTEM_IDENTITY)
-    elif identity_type == "Classic":
-        return Identity(INSIGHTS_CLASSIC_IDENTITY)
+
+
+def create_identity_payload(identity):
+    dict_ = {"identity": identity._asdict()}
+    json = dumps(dict_)
+    return b64encode(json.encode())
 
 
 def valid_payload(identity_type):
@@ -49,9 +54,7 @@ def valid_payload(identity_type):
     Builds a valid HTTP header payload – Base64 encoded JSON string with valid data.
     """
     identity = valid_identity(identity_type)
-    dict_ = {"identity": identity._asdict()}
-    json = dumps(dict_)
-    return b64encode(json.encode())
+    return create_identity_payload(identity)
 
 
 def test_validate_missing_identity(flask_client):
@@ -99,7 +102,7 @@ def test_invalid_system_identities(flask_client, subtests):
 
 # TODO: Remove when workaround is no longer needed
 def test_insights_classic_workaround(flask_client):
-    payload = valid_payload("Classic")
+    payload = create_identity_payload(Identity(INSIGHTS_CLASSIC_IDENTITY))
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 
