@@ -53,6 +53,7 @@ apps:
   path: deployment.yaml
   parameters:
     IMAGE: $IMAGE
+    CLOWDER_ENABLED: true
 EOF
 
 bonfire config get -l -a host-inventory | oc apply -f -
@@ -73,7 +74,6 @@ export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/host-inventory-db 5432 &
 trap cleanup EXIT SIGINT SIGKILL
-python manage.py db upgrade
 make test
 bonfire namespace release $NAMESPACE
 deactivate
