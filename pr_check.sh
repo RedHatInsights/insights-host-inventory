@@ -84,7 +84,7 @@ oc port-forward svc/host-inventory-db 5432 &
 BG_PID=$!
 trap cleanup EXIT SIGINT SIGKILL TERM
 
-make test
+python -m pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 deactivate
 
 # --------------------------------------------
