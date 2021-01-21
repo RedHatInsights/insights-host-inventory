@@ -14,6 +14,7 @@ python3.6 -m venv venv
 source venv/bin/activate
 pip install pipenv "sqlalchemy-utils==0.36.5"
 pipenv install --dev
+pip freeze
 
 if ! (pre-commit run --all-files); then
   echo "pre-commit ecountered an issue"
@@ -33,19 +34,13 @@ cleanup() {
 }
 
 #
-# Install Bonfire and dev virtualenv
+# Install Bonfire
 #
-if [ ! -d bonfire ]; then
+if ! (which bonfire >/dev/null); then
     git clone https://github.com/RedHatInsights/bonfire.git
+    pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
+    pip install ./bonfire
 fi
-
-if [ ! -d venv ]; then
-    python3 -m venv venv
-fi
-
-source venv/bin/activate
-pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
-pip install ./bonfire
 
 #
 # Deploy ClowdApp to get DB instance
@@ -80,11 +75,13 @@ export INVENTORY_DB_USER=$(jq -r .username < db-creds.json)
 export INVENTORY_DB_PASS=$(jq -r .password < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
+env | grep INVENTORY
+
 oc port-forward svc/host-inventory-db 5432 &
 BG_PID=$!
 trap cleanup EXIT SIGINT SIGKILL TERM
 
-python -m pytest --cov=. --junitxml=junit.xml --cov-report html -sv
+pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 deactivate
 
 # --------------------------------------------
