@@ -4,6 +4,7 @@
 # Pre-commit checks
 # --------------------------------------------
 IMAGE="quay.io/cloudservices/insights-inventory"
+BG_PID=1010101
 export LC_ALL=en_US.utf-8
 export LANG=en_US.utf-8
 
@@ -11,7 +12,7 @@ cat /etc/redhat-release
 
 python3.6 -m venv venv
 source venv/bin/activate
-pip install pipenv
+pip install pipenv "sqlalchemy-utils==0.36.5"
 pipenv install --dev
 
 if ! (pre-commit run --all-files); then
@@ -26,7 +27,7 @@ fi
 
 cleanup() {
   echo "Caught signal, kill port forward"
-  kill %1
+  kill $BG_PID
   echo "Release bonfire namespace"
   bonfire namespace release $NAMESPACE
 }
@@ -80,6 +81,7 @@ export INVENTORY_DB_PASS=$(jq -r .password < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/host-inventory-db 5432 &
+BG_PID=$!
 trap cleanup EXIT SIGINT SIGKILL TERM
 
 make test
