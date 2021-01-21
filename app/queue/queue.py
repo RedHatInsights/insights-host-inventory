@@ -123,7 +123,7 @@ def add_host(host_data, identity):
             log_add_host_failure(logger, host_data)
             raise
         except OperationalError as oe:
-            log_db_access_failure(logger, f"Could not access DB {str(oe)}")
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
