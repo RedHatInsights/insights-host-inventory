@@ -10,8 +10,10 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
+from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import valid_system_profile
@@ -192,3 +194,20 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
 
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
+
+
+def test_validate_sp_for_branch(api_post, mocker, mq_create_three_specific_hosts):
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    mock_schema = system_profile_specification()
+    get_schema_from_url_mock.return_value = mock_schema
+
+    # TODO: This isn't generating host events in the way I'd hoped.
+    mq_create_three_specific_hosts
+
+    response_status, response_data = api_post(
+        url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=5", host_data=None
+    )
+
+    assert_response_status(response_status=response_status, expected_status=200)
+    for reporter in response_data["RedHatInsights/master"]:
+        assert response_data["RedHatInsights/master"][reporter]["pass_count"] > 0

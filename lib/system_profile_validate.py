@@ -22,12 +22,14 @@ class TestResult:
         self.fail_count = 0
 
 
+def _get_schema_from_url(url):
+    return safe_load(get(url).content.decode("utf-8"))
+
+
 def _validate_host_list(host_list, repo_config):
-    system_profile_spec = safe_load(
-        get(
-            f"https://raw.githubusercontent.com/{repo_config['fork']}/inventory-schemas/"
-            f"{repo_config['branch']}/schemas/system_profile/v1.yaml"
-        ).content.decode("utf-8")
+    system_profile_spec = _get_schema_from_url(
+        f"https://raw.githubusercontent.com/{repo_config['fork']}/inventory-schemas/"
+        f"{repo_config['branch']}/schemas/system_profile/v1.yaml"
     )
 
     logger.info(f"Validating host against {repo_config['fork']}/{repo_config['branch']} schema...")
