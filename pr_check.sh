@@ -13,7 +13,12 @@ python3.6 -m venv venv
 source venv/bin/activate
 pip install pipenv
 pipenv install --dev
-pre-commit run --all-files
+
+if ! (pre-commit run --all-files); then
+  echo "pre-commit ecountered an issue"
+  exit 1
+fi
+
 
 # --------------------------------------------
 # Unit testing Django
@@ -60,18 +65,24 @@ apps:
 EOF
 
 bonfire config get -l -a host-inventory | oc apply -f -
-sleep 5
+sleep 10
 
 #
 # Grab DB creds
 #
 
-oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq . > cdappconfig.json
+oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+
+export INVENTORY_DB_NAME=$(jq -r .name < db-creds.json)
+export INVENTORY_DB_HOST=$(jq -r .hostname < db-creds.json)
+export INVENTORY_DB_USER=$(jq -r .username < db-creds.json)
+export INVENTORY_DB_PASS=$(jq -r .password < db-creds.json)
+export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/host-inventory-db 5432 &
-trap cleanup EXIT SIGINT SIGKILL
-CLOWDER_ENABLED="true" python manage.py db upgrade
-CLOWDER_ENABLED="true" make test
+trap cleanup EXIT SIGINT SIGKILL TERM
+
+make test
 deactivate
 
 # --------------------------------------------
@@ -79,7 +90,6 @@ deactivate
 # --------------------------------------------
 APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
-IMAGE="quay.io/cloudservices/insights-inventory"
 
 IQE_PLUGINS="host_inventory"
 IQE_MARKER_EXPRESSION="smoke"
