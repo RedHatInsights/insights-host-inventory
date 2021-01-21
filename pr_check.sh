@@ -12,7 +12,7 @@ cat /etc/redhat-release
 
 python3.6 -m venv venv
 source venv/bin/activate
-pip install pipenv "sqlalchemy-utils==0.36.5"
+pip install pipenv "sqlalchemy-utils==0.36.7"
 pipenv install --dev
 pip freeze
 
