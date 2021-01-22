@@ -21,7 +21,7 @@ pip freeze
 if ! (pre-commit run --all-files); then
   echo "pre-commit ecountered an issue"
   exit 1
-fi 
+fi
 
 # --------------------------------------------
 # Unit testing Django
