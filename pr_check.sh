@@ -100,9 +100,8 @@ trap nsrelease SIGINT SIGKILL TERM
 python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 
-cd ../..
-mkdir -p artifacts
-cat << EOF > artifacts/junit-dummy.xml
+mkdir -p $WORKSPACE/artifacts
+cat << EOF > ${WORKSPACE}/artifacts/junit-dummy.xml
 <testsuite tests="1">
     <testcase classname="dummy" name="dummytest"/>
 </testsuite>
@@ -128,10 +127,4 @@ nsrelease
 # source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 # source build.sh
 # source deploy_ephemeral_env.sh
-mkdir -p artifacts
-cat << EOF > artifacts/junit-dummy.xml
-<testsuite tests="1">
-    <testcase classname="dummy" name="dummytest"/>
-</testsuite>
-EOF
 # source smoke_test.sh
