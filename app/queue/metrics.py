@@ -41,3 +41,8 @@ rbac_fetching_failure = Counter("inventory_rbac_fetching_failures", "Total amoun
 rbac_access_denied = Counter(
     "inventory_rbac_access_denied", "Total amount of failures authorizing with RBAC", ["required_permission"]
 )
+db_communication_error = Counter(
+    "inventory_mq_db_communication_error",
+    "Total number of connection errors between inventory-mq and the DB",
+    ["id", "reporter"],
+)
