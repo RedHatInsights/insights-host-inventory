@@ -103,22 +103,22 @@ deactivate
 # --------------------------------------------
 # Options that must be configured by app owner
 # --------------------------------------------
-COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+# COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 
-IQE_PLUGINS="host_inventory"
-IQE_MARKER_EXPRESSION="smoke"
-IQE_FILTER_EXPRESSION=""
+# IQE_PLUGINS="host_inventory"
+# IQE_MARKER_EXPRESSION="smoke"
+# IQE_FILTER_EXPRESSION=""
 
 # ---------------------------
 # We'll take it from here ...
 # ---------------------------
 
 
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
-source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
-source build.sh
-source deploy_ephemeral_env.sh
+# CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+# curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
+# source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
+# source build.sh
+# source deploy_ephemeral_env.sh
 
 # Need to make a dummy results file to make tests pass
 cd ../..
