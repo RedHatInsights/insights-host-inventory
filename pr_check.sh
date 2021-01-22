@@ -95,7 +95,7 @@ export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/${APP_NAME}-db $RANDOM_PORT:5432 &
 BG_PID=$!
-trap killbg SIGINT SIGKILL TERM
+trap killbg EXIT SIGINT SIGKILL TERM
 trap nsrelease SIGINT SIGKILL TERM
 
 python manage.py db upgrade
@@ -125,4 +125,12 @@ nsrelease
 # drop in junit results to publish
 mkdir -p artifacts
 cp junit.xml artifacts/junit.xml
+cd ../..
+mkdir -p artifacts
+cp junit.xml artifacts/junit.xml
+cat << EOF > artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
+EOF
 # source smoke_test.sh
