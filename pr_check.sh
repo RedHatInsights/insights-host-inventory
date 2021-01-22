@@ -121,8 +121,11 @@ nsrelease
 # source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 # source build.sh
 # source deploy_ephemeral_env.sh
-
-# drop in junit results to publish
-mkdir -p ../../artifacts
-cp junit.xml ../../artifacts/junit.xml
+cd ../..
+mkdir -p artifacts
+cat << EOF > artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
+EOF
 # source smoke_test.sh
