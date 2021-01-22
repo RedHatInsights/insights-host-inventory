@@ -27,9 +27,12 @@ fi
 # Unit testing Django
 # --------------------------------------------
 
-function cleanup {
+function killbg {
   echo "Caught signal, kill port forward"
   kill $BG_PID
+}
+
+function nsrelease {
   echo "Release bonfire namespace"
   bonfire namespace release $NAMESPACE
 }
@@ -91,11 +94,12 @@ export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/${APP_NAME}-db $RANDOM_PORT:5432 &
 BG_PID=$!
-trap cleanup EXIT SIGINT SIGKILL TERM
+trap killbg EXIT SIGINT SIGKILL TERM
 
 python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 deactivate
+nsrelease
 
 # --------------------------------------------
 # Options that must be configured by app owner
