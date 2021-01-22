@@ -123,14 +123,6 @@ nsrelease
 # source deploy_ephemeral_env.sh
 
 # drop in junit results to publish
-mkdir -p artifacts
-cp junit.xml artifacts/junit.xml
-cd ../..
-mkdir -p artifacts
-cp junit.xml artifacts/junit.xml
-cat << EOF > artifacts/junit-dummy.xml
-<testsuite tests="1">
-    <testcase classname="dummy" name="dummytest"/>
-</testsuite>
-EOF
+mkdir -p ../../artifacts
+cp junit.xml ../../artifacts/junit.xml
 # source smoke_test.sh
