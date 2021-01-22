@@ -1,6 +1,13 @@
-import pytest
+import json
+from types import SimpleNamespace
 
+import pytest
+from kafka.common import TopicPartition
+
+from app.config import Config
+from app.environment import RuntimeEnvironment
 from lib.host_repository import find_hosts_by_staleness
+from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -10,9 +17,9 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
-from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
+from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -196,18 +203,25 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
-def test_validate_sp_for_branch(api_post, mocker, mq_create_three_specific_hosts):
+def test_validate_sp_for_branch(api_post, mocker, db_create_multiple_hosts):
+    # Mock schema fetch
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
     mock_schema = system_profile_specification()
     get_schema_from_url_mock.return_value = mock_schema
 
-    # TODO: This isn't generating host events in the way I'd hoped.
-    mq_create_three_specific_hosts
+    # Mock Kafka consumer
+    fake_consumer = mocker.Mock()
+    config = Config(RuntimeEnvironment.SERVICE)
+    tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.poll.return_value = {
+        tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
+    }
+    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace(offset=0)}
 
-    response_status, response_data = api_post(
-        url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=5", host_data=None
+    validation_results = validate_sp_for_branch(
+        config, fake_consumer, repo_fork="test_repo", repo_branch="test_branch", days=3
     )
 
-    assert_response_status(response_status=response_status, expected_status=200)
-    for reporter in response_data["RedHatInsights/master"]:
-        assert response_data["RedHatInsights/master"][reporter]["pass_count"] > 0
+    assert "test_repo/test_branch" in validation_results
+    for reporter in validation_results["test_repo/test_branch"]:
+        assert validation_results["test_repo/test_branch"][reporter]["pass_count"] > 0

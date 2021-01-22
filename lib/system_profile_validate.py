@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from datetime import timedelta
 
-from kafka import KafkaConsumer
 from kafka.common import TopicPartition
 from requests import get
 from yaml import safe_load
@@ -48,15 +47,7 @@ def _validate_host_list(host_list, repo_config):
     return test_results
 
 
-def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="master", days=1):
-    consumer = KafkaConsumer(
-        group_id=config.host_ingress_consumer_group,
-        bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10, 1),
-        value_deserializer=lambda m: m.decode(),
-        **config.kafka_consumer,
-    )
-
+def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_branch="master", days=1):
     tp = TopicPartition(config.host_ingress_topic, 0)
     consumer.assign([tp])
 
@@ -69,8 +60,8 @@ def validate_sp_for_branch(config, repo_fork="RedHatInsights", repo_branch="mast
         seek_position = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset
         consumer.seek(tp, seek_position)
         msgs = consumer.poll(timeout_ms=10000, max_records=10000)
-    except AttributeError:
-        logger.error("No data available at the provided date.")
+    except AttributeError as ae:
+        logger.error(f"No data available at the provided date. {str(ae)}")
 
     consumer.close()
     hosts_parsed = 0

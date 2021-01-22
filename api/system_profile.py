@@ -1,6 +1,7 @@
 import re
 
 import flask
+from kafka import KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response
@@ -191,4 +192,11 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     config = Config(RuntimeEnvironment.SERVICE)
-    return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))
+    consumer = KafkaConsumer(
+        group_id=config.host_ingress_consumer_group,
+        bootstrap_servers=config.bootstrap_servers,
+        api_version=(0, 10, 1),
+        value_deserializer=lambda m: m.decode(),
+        **config.kafka_consumer,
+    )
+    return flask_json_response(validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days))
