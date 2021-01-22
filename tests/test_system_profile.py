@@ -224,4 +224,4 @@ def test_validate_sp_for_branch(api_post, mocker, db_create_multiple_hosts):
 
     assert "test_repo/test_branch" in validation_results
     for reporter in validation_results["test_repo/test_branch"]:
-        assert validation_results["test_repo/test_branch"][reporter]["pass_count"] > 0
+        assert validation_results["test_repo/test_branch"][reporter].pass_count > 0
