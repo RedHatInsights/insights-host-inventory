@@ -122,13 +122,7 @@ nsrelease
 # source build.sh
 # source deploy_ephemeral_env.sh
 
-# Need to make a dummy results file to make tests pass
-# cd ../..
-# mkdir -p artifacts
-# cat << EOF > artifacts/junit-dummy.xml
-# <testsuite tests="1">
-#     <testcase classname="dummy" name="dummytest"/>
-# </testsuite>
-# EOF
-
+# drop in junit results to publish
+mkdir -p artifacts
+cp junit.xml artifacts/junit.xml
 # source smoke_test.sh
