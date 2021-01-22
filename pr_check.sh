@@ -3,8 +3,10 @@
 # --------------------------------------------
 # Pre-commit checks
 # --------------------------------------------
+APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
 IMAGE="quay.io/cloudservices/insights-inventory"
 BG_PID=1010101
+RANDOM_PORT=65000
 export LC_ALL=en_US.utf-8
 export LANG=en_US.utf-8
 
@@ -26,11 +28,21 @@ fi
 # Unit testing Django
 # --------------------------------------------
 
-cleanup() {
+function cleanup {
   echo "Caught signal, kill port forward"
   kill $BG_PID
   echo "Release bonfire namespace"
   bonfire namespace release $NAMESPACE
+}
+
+function random_unused_port {
+    local port=$(shuf -i 2000-65000 -n 1)
+    netstat -lat | grep $port > /dev/null
+    if [[ $? == 1 ]] ; then
+        RANDOM_PORT=$port
+    else
+        random_unused_port
+    fi
 }
 
 #
@@ -67,27 +79,30 @@ sleep 10
 # Grab DB creds
 #
 
-oc get secret host-inventory -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+random_unused_port
+
+oc get secret ${APP_NAME} -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
 export INVENTORY_DB_NAME=$(jq -r .name < db-creds.json)
-export INVENTORY_DB_HOST=$(jq -r .hostname < db-creds.json)
+export INVENTORY_DB_HOST=localhost
+export INVENTORY_DB_PORT=$RANDOM_PORT
 export INVENTORY_DB_USER=$(jq -r .username < db-creds.json)
 export INVENTORY_DB_PASS=$(jq -r .password < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 env | grep INVENTORY
 
-oc port-forward svc/host-inventory-db 5432 &
+oc port-forward svc/${APP_NAME}-db $RANDOM_PORT:5432 &
 BG_PID=$!
 trap cleanup EXIT SIGINT SIGKILL TERM
 
+python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 deactivate
 
 # --------------------------------------------
 # Options that must be configured by app owner
 # --------------------------------------------
-APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 
 IQE_PLUGINS="host_inventory"
@@ -98,11 +113,11 @@ IQE_FILTER_EXPRESSION=""
 # We'll take it from here ...
 # ---------------------------
 
-source build_deploy.sh
 
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
 curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
 source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
+source build.sh
 source deploy_ephemeral_env.sh
 
 # Need to make a dummy results file to make tests pass

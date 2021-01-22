@@ -10,13 +10,21 @@ from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import set_environment
 
 
 @pytest.fixture(scope="session")
 def database_name():
-    # config._db name is not exposed here, so use the default
-    # if env is not set
-    yield os.getenv("INVENTORY_DB_NAME", "insights")
+    db_data = {
+        "INVENTORY_DB_NAME": os.getenv("INVENTORY_DB_NAME", "insights"),
+        "INVENTORY_DB_PASS": os.getenv("INVENTORY_DB_PASS", "insights"),
+        "INVENTORY_DB_USER": os.getenv("INVENTORY_DB_USER", "insights"),
+        "INVENTORY_DB_HOST": os.getenv("INVENTORY_DB_HOST", "localhost"),
+        "INVENTORY_DB_PORT": os.getenv("INVENTORY_DB_PORT", "5432"),
+    }
+    db_data["INVENTORY_DB_NAME"] += "_test"
+    with set_environment(db_data):
+        yield
 
 
 @pytest.fixture(scope="session")
