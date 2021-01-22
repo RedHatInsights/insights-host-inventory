@@ -199,4 +199,7 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
         value_deserializer=lambda m: m.decode(),
         **config.kafka_consumer,
     )
-    return flask_json_response(validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days))
+    try:
+        return flask_json_response(validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days))
+    except ValueError as e:
+        flask.abort(400, str(e))

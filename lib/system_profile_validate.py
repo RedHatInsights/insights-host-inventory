@@ -22,6 +22,9 @@ class TestResult:
 
 
 def _get_schema_from_url(url):
+    response = get(url)
+    if response.status_code != 200:
+        raise ValueError(f"Schema not found at URL: {url}")
     return safe_load(get(url).content.decode("utf-8"))
 
 

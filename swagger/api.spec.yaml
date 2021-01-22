@@ -430,7 +430,7 @@ paths:
           name: days
           schema:
             type: integer
-            minimum: 0
+            minimum: 1
           description: How many days worth of kafka messages to validate
       responses:
         '200':

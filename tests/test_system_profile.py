@@ -17,6 +17,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.mq_utils import wrap_message
@@ -203,7 +204,7 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
-def test_validate_sp_for_branch(api_post, mocker, db_create_multiple_hosts):
+def test_validate_sp_for_branch(mocker):
     # Mock schema fetch
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
     mock_schema = system_profile_specification()
@@ -225,3 +226,22 @@ def test_validate_sp_for_branch(api_post, mocker, db_create_multiple_hosts):
     assert "test_repo/test_branch" in validation_results
     for reporter in validation_results["test_repo/test_branch"]:
         assert validation_results["test_repo/test_branch"][reporter].pass_count > 0
+
+
+def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")
+
+    response_status, response_data = api_post(
+        url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_fork=foo&repo_branch=bar&days=3", host_data=None
+    )
+
+    assert response_status == 400
+
+
+def test_validate_sp_for_invalid_days(api_post):
+    response_status, response_data = api_post(
+        url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=0", host_data=None
+    )
+
+    assert response_status == 400
