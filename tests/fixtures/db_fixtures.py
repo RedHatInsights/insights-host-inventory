@@ -22,7 +22,7 @@ def database_name():
         "INVENTORY_DB_HOST": os.getenv("INVENTORY_DB_HOST", "localhost"),
         "INVENTORY_DB_PORT": os.getenv("INVENTORY_DB_PORT", "5432"),
     }
-    db_data["INVENTORY_DB_NAME"] += "_test"
+    db_data["INVENTORY_DB_NAME"] += "-test"
     with set_environment(db_data):
         yield
 

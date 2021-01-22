@@ -14,15 +14,14 @@ cat /etc/redhat-release
 
 python3.6 -m venv venv
 source venv/bin/activate
-pip install pipenv "sqlalchemy-utils==0.36.7"
+pip install pipenv
 pipenv install --dev
 pip freeze
 
 if ! (pre-commit run --all-files); then
   echo "pre-commit ecountered an issue"
   exit 1
-fi
-
+fi 
 
 # --------------------------------------------
 # Unit testing Django
@@ -72,8 +71,8 @@ apps:
     IMAGE: $IMAGE
 EOF
 
-bonfire config get -l -a host-inventory | oc apply -f -
-sleep 10
+bonfire config get -l -a ${APP_NAME} | oc apply -f -
+oc rollout status -w deployment/${APP_NAME}-db
 
 #
 # Grab DB creds
@@ -86,11 +85,9 @@ oc get secret ${APP_NAME} -o json | jq -r '.data["cdappconfig.json"]' | base64 -
 export INVENTORY_DB_NAME=$(jq -r .name < db-creds.json)
 export INVENTORY_DB_HOST=localhost
 export INVENTORY_DB_PORT=$RANDOM_PORT
-export INVENTORY_DB_USER=$(jq -r .username < db-creds.json)
-export INVENTORY_DB_PASS=$(jq -r .password < db-creds.json)
+export INVENTORY_DB_USER=$(jq -r .adminUsername < db-creds.json)
+export INVENTORY_DB_PASS=$(jq -r .adminPassword < db-creds.json)
 export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
-
-env | grep INVENTORY
 
 oc port-forward svc/${APP_NAME}-db $RANDOM_PORT:5432 &
 BG_PID=$!
