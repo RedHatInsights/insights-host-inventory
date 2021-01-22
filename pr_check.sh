@@ -35,6 +35,7 @@ function killbg {
 function nsrelease {
   echo "Release bonfire namespace"
   bonfire namespace release $NAMESPACE
+  deactivate
 }
 
 function random_unused_port {
@@ -94,11 +95,11 @@ export PGPASSWORD=$(jq -r .adminPassword < db-creds.json)
 
 oc port-forward svc/${APP_NAME}-db $RANDOM_PORT:5432 &
 BG_PID=$!
-trap killbg EXIT SIGINT SIGKILL TERM
+trap killbg SIGINT SIGKILL TERM
+trap nsrelease SIGINT SIGKILL TERM
 
 python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
-deactivate
 nsrelease
 
 # --------------------------------------------
@@ -122,12 +123,12 @@ nsrelease
 # source deploy_ephemeral_env.sh
 
 # Need to make a dummy results file to make tests pass
-cd ../..
-mkdir -p artifacts
-cat << EOF > artifacts/junit-dummy.xml
-<testsuite tests="1">
-    <testcase classname="dummy" name="dummytest"/>
-</testsuite>
-EOF
+# cd ../..
+# mkdir -p artifacts
+# cat << EOF > artifacts/junit-dummy.xml
+# <testsuite tests="1">
+#     <testcase classname="dummy" name="dummytest"/>
+# </testsuite>
+# EOF
 
 # source smoke_test.sh
