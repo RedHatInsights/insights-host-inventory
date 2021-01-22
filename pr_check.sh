@@ -38,8 +38,7 @@ function nsrelease {
   deactivate
 }
 
-function random_unused_port {
-    local port=$(shuf -i 2000-65000 -n 1)
+function random_unused_port { local port=$(shuf -i 2000-65000 -n 1)
     netstat -lat | grep $port > /dev/null
     if [[ $? == 1 ]] ; then
         RANDOM_PORT=$port
@@ -100,6 +99,14 @@ trap nsrelease SIGINT SIGKILL TERM
 
 python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
+
+cd ../..
+mkdir -p artifacts
+cat << EOF > artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
+EOF
 nsrelease
 
 # --------------------------------------------
