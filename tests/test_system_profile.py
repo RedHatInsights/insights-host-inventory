@@ -228,15 +228,32 @@ def test_validate_sp_for_branch(mocker):
         assert validation_results["test_repo/test_branch"][reporter].pass_count > 0
 
 
-def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
-    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
-    get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")
-
+def test_validate_sp_no_data(api_post, mocker):
     response_status, response_data = api_post(
         url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_fork=foo&repo_branch=bar&days=3", host_data=None
     )
 
     assert response_status == 400
+    assert "No data available at the provided date." in response_data["detail"]
+
+
+def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
+    # Mock schema fetch
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")
+
+    # Mock Kafka consumer
+    fake_consumer = mocker.Mock()
+    config = Config(RuntimeEnvironment.SERVICE)
+    tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.poll.return_value = {
+        tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
+    }
+    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace(offset=0)}
+
+    with pytest.raises(expected_exception=ValueError) as excinfo:
+        validate_sp_for_branch(config, fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+    assert "Schema not found at URL" in str(excinfo.value)
 
 
 def test_validate_sp_for_invalid_days(api_post):

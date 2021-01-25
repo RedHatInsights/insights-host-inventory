@@ -64,7 +64,7 @@ def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_br
         consumer.seek(tp, seek_position)
         msgs = consumer.poll(timeout_ms=10000, max_records=10000)
     except AttributeError as ae:
-        logger.error(f"No data available at the provided date. {str(ae)}")
+        raise ValueError(f"No data available at the provided date. {str(ae)}")
 
     consumer.close()
     hosts_parsed = 0
