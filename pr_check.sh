@@ -114,7 +114,7 @@ IQE_FILTER_EXPRESSION=""
 # We'll take it from here ...
 # ---------------------------
 
-# doing this since bonfire was cloned earlier 
+# doing this since bonfire was cloned earlier
 # and doesn't check if that's already done
 cd bonfire/cicd
 source build.sh
