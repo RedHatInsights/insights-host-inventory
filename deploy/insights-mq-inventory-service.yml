@@ -431,4 +431,3 @@ parameters:
 - description: Image tag
   name: IMAGE_TAG
   required: true
-
