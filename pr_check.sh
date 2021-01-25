@@ -120,9 +120,9 @@ IQE_FILTER_EXPRESSION=""
 # We'll take it from here ...
 # ---------------------------
 
-# doing this since bonfire was cloned earlier
-# and doesn't check if that's already done
-cd bonfire/cicd
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
+source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
 source build.sh
 source deploy_ephemeral_env.sh
 # source smoke_test.sh
