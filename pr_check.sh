@@ -99,6 +99,12 @@ trap nsrelease SIGINT SIGKILL TERM
 python manage.py db upgrade
 pytest --cov=. --junitxml=junit.xml --cov-report html -sv
 
+mkdir -p $WORKSPACE/artifacts
+cat << EOF > ${WORKSPACE}/artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
+EOF
 nsrelease
 
 # --------------------------------------------
