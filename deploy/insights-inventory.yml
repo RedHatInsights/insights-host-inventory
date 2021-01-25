@@ -1,0 +1,302 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-inventory
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    minReadySeconds: 15
+    progressDeadlineSeconds: 600
+    replicas: ${{MIN_REPLICAS}}
+    revisionHistoryLimit: 9
+    selector:
+      matchLabels:
+        app: insights-inventory
+    strategy:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 1
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+          prometheus.io/path: /metrics
+          prometheus.io/port: '8080'
+          prometheus.io/scrape: 'true'
+        creationTimestamp: null
+        labels:
+          app: insights-inventory
+      spec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - insights-inventory
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+              weight: 100
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - insights-inventory
+                topologyKey: kubernetes.io/hostname
+              weight: 99
+        containers:
+        - command:
+          - gunicorn
+          - --workers=4
+          - --threads=8
+          - --worker-tmp-dir=/gunicorn
+          - -c
+          - gunicorn.conf.py
+          - -b
+          - 0.0.0.0:8080
+          - -t
+          - '60'
+          - run
+          env:
+          - name: INVENTORY_DB_HOST
+            valueFrom:
+              secretKeyRef:
+                key: db.host
+                name: host-inventory-db
+          - name: INVENTORY_DB_USER
+            valueFrom:
+              secretKeyRef:
+                key: db.user
+                name: host-inventory-db
+          - name: INVENTORY_DB_PASS
+            valueFrom:
+              secretKeyRef:
+                key: db.password
+                name: host-inventory-db
+          - name: INVENTORY_DB_NAME
+            value: insights
+          - name: APP_NAME
+            value: ${APP_NAME}
+          - name: PATH_PREFIX
+            value: ${PATH_PREFIX}
+          - name: INVENTORY_LEGACY_API_URL
+            value: /r/insights/platform/inventory/v1/
+          - name: prometheus_multiproc_dir
+            value: /tmp/inventory/prometheus
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: URLLIB3_LOG_LEVEL
+            value: ${URLLIB3_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSLCERT}
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: aws_access_key_id
+                name: cloudwatch
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: aws_secret_access_key
+                name: cloudwatch
+          - name: AWS_REGION_NAME
+            valueFrom:
+              secretKeyRef:
+                key: aws_region
+                name: cloudwatch
+          - name: AWS_LOG_GROUP
+            valueFrom:
+              secretKeyRef:
+                key: log_group_name
+                name: cloudwatch
+          - name: KAFKA_TOPIC
+            value: platform.system-profile
+          - name: KAFKA_GROUP
+            value: inventory
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: XJOIN_GRAPHQL_URL
+            value: ${XJOIN_SEARCH_URL}
+          - name: BULK_QUERY_SOURCE
+            value: ${BULK_QUERY_SOURCE}
+          - name: BULK_QUERY_SOURCE_BETA
+            value: ${BULK_QUERY_SOURCE_BETA}
+          - name: REST_POST_ENABLED
+            value: ${REST_POST_ENABLED}
+          - name: RBAC_ENDPOINT
+            value: http://${RBAC_HOST}:8080
+          - name: RBAC_ENFORCED
+            value: ${RBAC_ENFORCED}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          image: quay.io/cloudservices/insights-inventory:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 60
+          name: insights-inventory
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 60
+          resources:
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          securityContext: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /tmp/inventory/prometheus
+            name: prometheus-volume
+          - mountPath: /etc/inventory/cert
+            name: rds-client-ca
+            readOnly: true
+          - mountPath: /gunicorn
+            name: gunicorn-worker-dir
+        dnsPolicy: ClusterFirst
+        imagePullSecrets:
+        - name: quay-cloudservices-pull
+        - name: rh-registry-pull
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: rds-client-ca
+          secret:
+            secretName: rds-client-ca
+        - emptyDir: {}
+          name: prometheus-volume
+        - emptyDir:
+            medium: Memory
+          name: gunicorn-worker-dir
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    ports:
+    - name: port-8080
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: insights-inventory
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    maxReplicas: ${{MAX_REPLICAS}}
+    minReplicas: ${{MIN_REPLICAS}}
+    scaleTargetRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: insights-inventory
+    targetCPUUtilizationPercentage: 50
+parameters:
+- name: APP_NAME
+  value: inventory
+- name: PATH_PREFIX
+  value: api
+- description: Kafka broker servers host
+  name: KAFKA_BOOTSTRAP_HOST
+  value: mq-kafka
+- description: Kafka broker servers port
+  name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: LOG_LEVEL
+  value: INFO
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- description: Cpu limit of service
+  name: CPU_LIMIT
+  value: 500m
+- description: memory limit of service
+  name: MEMORY_LIMIT
+  value: 512Mi
+- description: min pod count for deployment
+  name: MIN_REPLICAS
+  value: '1'
+- description: max pod count for deployment
+  name: MAX_REPLICAS
+  value: '1'
+- name: XJOIN_SEARCH_URL
+  value: 'False'
+- name: BULK_QUERY_SOURCE
+  value: db
+- name: BULK_QUERY_SOURCE_BETA
+  value: db
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: Location of the CA cert.  Only relevant if INVENTORY_DB_SSL_MODE=verify-{full,ca}
+  name: INVENTORY_DB_SSL_CERT
+  value: /etc/inventory/cert/rds-cacert
+- description: If creating/updating hosts through the REST API is enabled
+  name: REST_POST_ENABLED
+  value: 'true'
+- description: RBAC endpoint base url
+  name: RBAC_HOST
+  value: rbac.rbac-prod.svc.cluster.local
+- description: activate RBAC middleware
+  name: RBAC_ENFORCED
+  value: 'false'
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- description: Image tag
+  name: IMAGE_TAG
+  required: true

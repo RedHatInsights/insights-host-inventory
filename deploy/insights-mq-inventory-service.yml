@@ -1,0 +1,434 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-inventory-mq-service
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: inventory-mq
+    name: inventory-mq-pmin
+  spec:
+    minReadySeconds: 15
+    progressDeadlineSeconds: 600
+    replicas: ${{REPLICAS}}
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: inventory-mq
+        service: inventory-mq-pmin
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+          prometheus.io/path: /
+          prometheus.io/port: '9126'
+          prometheus.io/scrape: 'true'
+        creationTimestamp: null
+        labels:
+          app: inventory-mq
+          service: inventory-mq-pmin
+      spec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - inventory-mq
+                  - key: service
+                    operator: In
+                    values:
+                    - inventory-mq-pmin
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+              weight: 100
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - inventory-mq
+                  - key: service
+                    operator: In
+                    values:
+                    - inventory-mq-pmin
+                topologyKey: kubernetes.io/hostname
+              weight: 99
+        containers:
+        - command:
+          - python
+          - inv_mq_service.py
+          env:
+          - name: INVENTORY_DB_HOST
+            valueFrom:
+              secretKeyRef:
+                key: db.host
+                name: host-inventory-db
+          - name: INVENTORY_DB_USER
+            valueFrom:
+              secretKeyRef:
+                key: db.user
+                name: host-inventory-db
+          - name: INVENTORY_DB_PASS
+            valueFrom:
+              secretKeyRef:
+                key: db.password
+                name: host-inventory-db
+          - name: INVENTORY_DB_NAME
+            value: insights
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: aws_access_key_id
+                name: cloudwatch
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: aws_secret_access_key
+                name: cloudwatch
+          - name: AWS_REGION_NAME
+            valueFrom:
+              secretKeyRef:
+                key: aws_region
+                name: cloudwatch
+          - name: AWS_LOG_GROUP
+            valueFrom:
+              secretKeyRef:
+                key: log_group_name
+                name: cloudwatch
+          - name: KAFKA_TOPIC
+            value: platform.system-profile
+          - name: KAFKA_GROUP
+            value: inventory
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: platform.inventory.host-ingress
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: inventory-mq
+          - name: KAFKA_SECONDARY_TOPIC_ENABLED
+            value: ${SECONDARY_TOPIC_ENABLED}
+          - name: KAFKA_HOST_EGRESS_TOPIC
+            value: ${KAFKA_HOST_EGRESS_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          image: quay.io/cloudservices/insights-inventory:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 9126
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: inventory-mq-pmin
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 9126
+          resources:
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          securityContext: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/inventory/cert
+            name: rds-client-ca
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        imagePullSecrets: &id001
+        - name: quay-cloudservices-pull
+        - name: rh-registry-pull
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: rds-client-ca
+          secret:
+            secretName: rds-client-ca
+- apiVersion: apps.openshift.io/v1
+  kind: DeploymentConfig
+  metadata:
+    annotations: null
+    generation: 1
+    labels:
+      app: inventory-mq
+    name: inventory-mq-p1
+  spec:
+    replicas: ${{REPLICAS_P1}}
+    revisionHistoryLimit: 10
+    selector:
+      app: inventory-mq
+      service: inventory-mq-p1
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        mid:
+          execNewPod:
+            command:
+            - /opt/app-root/bin/python
+            - manage.py
+            - db
+            - upgrade
+            containerName: inventory-mq-p1
+            env:
+            - name: SQLALCHEMY_ENGINE_LOG_LEVEL
+              value: INFO
+            volumes:
+            - rds-client-ca
+          failurePolicy: Abort
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+          prometheus.io/path: /
+          prometheus.io/port: '9126'
+          prometheus.io/scrape: 'true'
+        creationTimestamp: null
+        labels:
+          app: inventory-mq
+          service: inventory-mq-p1
+      spec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - inventory-mq
+                  - key: service
+                    operator: In
+                    values:
+                    - inventory-mq-p1
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+              weight: 100
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - inventory-mq
+                  - key: service
+                    operator: In
+                    values:
+                    - inventory-mq-p1
+                topologyKey: kubernetes.io/hostname
+              weight: 99
+        containers:
+        - command:
+          - python
+          - inv_mq_service.py
+          env:
+          - name: INVENTORY_DB_HOST
+            valueFrom:
+              secretKeyRef:
+                key: db.host
+                name: host-inventory-db
+          - name: INVENTORY_DB_USER
+            valueFrom:
+              secretKeyRef:
+                key: db.user
+                name: host-inventory-db
+          - name: INVENTORY_DB_PASS
+            valueFrom:
+              secretKeyRef:
+                key: db.password
+                name: host-inventory-db
+          - name: INVENTORY_DB_NAME
+            value: insights
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                key: aws_access_key_id
+                name: cloudwatch
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: aws_secret_access_key
+                name: cloudwatch
+          - name: AWS_REGION_NAME
+            valueFrom:
+              secretKeyRef:
+                key: aws_region
+                name: cloudwatch
+          - name: AWS_LOG_GROUP
+            valueFrom:
+              secretKeyRef:
+                key: log_group_name
+                name: cloudwatch
+          - name: KAFKA_TOPIC
+            value: platform.system-profile
+          - name: KAFKA_GROUP
+            value: inventory
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: platform.inventory.host-ingress-p1
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: inventory-mq
+          - name: KAFKA_SECONDARY_TOPIC_ENABLED
+            value: ${SECONDARY_TOPIC_ENABLED}
+          - name: KAFKA_HOST_EGRESS_TOPIC
+            value: ${KAFKA_HOST_EGRESS_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          image: quay.io/cloudservices/insights-inventory:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 9126
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: inventory-mq-p1
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 9126
+          resources:
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          securityContext: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/inventory/cert
+            name: rds-client-ca
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        imagePullSecrets: *id001
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: rds-client-ca
+          secret:
+            secretName: rds-client-ca
+    test: false
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: inventory-mq
+    name: inventory-mq
+  spec:
+    ports:
+    - name: port-9126
+      port: 9126
+      protocol: TCP
+      targetPort: 9126
+    selector:
+      app: inventory-mq
+    sessionAffinity: None
+    type: ClusterIP
+parameters:
+- description: Kafka broker servers host
+  name: KAFKA_BOOTSTRAP_HOST
+  value: mq-kafka
+- description: Kafka broker servers port
+  name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: LOG_LEVEL
+  value: INFO
+- description: Number of pods for inventory-mq-pmin
+  name: REPLICAS
+  value: '1'
+- description: Number of pods for inventory-mq-p1
+  name: REPLICAS_P1
+  value: '1'
+- description: Cpu limit of service
+  name: CPU_LIMIT
+  value: '1'
+- description: memory limit of service
+  name: MEMORY_LIMIT
+  value: 750Mi
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: Location of the CA cert.  Only relevant if INVENTORY_DB_SSL_MODE=verify-{full,ca}
+  name: INVENTORY_DB_SSL_CERT
+  value: /etc/inventory/cert/rds-cacert
+- description: Enable sending add/update events to platform.inventory.events topic
+  name: SECONDARY_TOPIC_ENABLED
+  value: 'true'
+- name: KAFKA_HOST_EGRESS_TOPIC
+  value: platform.inventory.host-egress
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+

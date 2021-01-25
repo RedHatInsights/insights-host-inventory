@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-inventory
+objects:
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    annotations: {}
+    name: inventory-reaper
+  spec:
+    concurrencyPolicy: ${CONCURRENCY_POLICY}
+    failedJobsHistoryLimit: 10
+    jobTemplate:
+      spec:
+        template:
+          metadata:
+            labels:
+              parent: inventory-reaper
+          spec:
+            containers:
+            - command:
+              - python
+              - host_reaper.py
+              env:
+              - name: INVENTORY_DB_HOST
+                valueFrom:
+                  secretKeyRef:
+                    key: db.host
+                    name: host-inventory-db
+              - name: INVENTORY_DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    key: db.user
+                    name: host-inventory-db
+              - name: INVENTORY_DB_PASS
+                valueFrom:
+                  secretKeyRef:
+                    key: db.password
+                    name: host-inventory-db
+              - name: INVENTORY_DB_NAME
+                value: insights
+              - name: INVENTORY_LOG_LEVEL
+                value: ${LOG_LEVEL}
+              - name: INVENTORY_DB_SSL_MODE
+                value: ${INVENTORY_DB_SSL_MODE}
+              - name: INVENTORY_DB_SSL_CERT
+                value: ${INVENTORY_DB_SSL_CERT}
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    key: aws_access_key_id
+                    name: cloudwatch
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: aws_secret_access_key
+                    name: cloudwatch
+              - name: AWS_REGION_NAME
+                valueFrom:
+                  secretKeyRef:
+                    key: aws_region
+                    name: cloudwatch
+              - name: AWS_LOG_GROUP
+                valueFrom:
+                 secretKeyRef:
+                    key: log_group_name
+                    name: cloudwatch
+              - name: KAFKA_BOOTSTRAP_SERVERS
+                value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+              - name: KAFKA_GROUP
+                value: inventory
+              - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+                value: platform.payload-status
+              - name: PAYLOAD_TRACKER_SERVICE_NAME
+                value: inventory-mq-service
+              - name: PAYLOAD_TRACKER_ENABLED
+                value: 'true'
+              - name: PROMETHEUS_PUSHGATEWAY
+                value: ${PROMETHEUS_PUSHGATEWAY}
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: KAFKA_PRODUCER_ACKS
+                value: ${KAFKA_PRODUCER_ACKS}
+              - name: KAFKA_PRODUCER_RETRIES
+                value: ${KAFKA_PRODUCER_RETRIES}
+              - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+                value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+              image: quay.io/cloudservices/insights-inventory:${IMAGE_TAG}
+              imagePullPolicy: Always
+              name: inventory-reaper
+              resources:
+                limits:
+                  cpu: ${CPU_LIMIT}
+                  memory: ${MEMORY_LIMIT}
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+              volumeMounts:
+              - mountPath: /etc/inventory/cert
+                name: rds-client-ca
+                readOnly: true
+            imagePullSecrets:
+            - name: quay-cloudservices-pull
+            - name: rh-registry-pull
+            restartPolicy: Never
+            volumes:
+            - name: rds-client-ca
+              secret:
+                secretName: rds-client-ca
+    schedule: '@hourly'
+    startingDeadlineSeconds: 300
+    successfulJobsHistoryLimit: 3
+    suspend: ${{REAPER_SUSPEND}}
+parameters:
+- description: Kafka broker servers host
+  name: KAFKA_BOOTSTRAP_HOST
+  value: mq-kafka
+- description: Kafka broker servers port
+  name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: LOG_LEVEL
+  value: INFO
+- description: Cpu limit of service
+  name: CPU_LIMIT
+  value: 500m
+- description: memory limit of service
+  name: MEMORY_LIMIT
+  value: 2Gi
+- name: REAPER_SUSPEND
+  value: 'true'
+- name: PROMETHEUS_PUSHGATEWAY
+  value: http://prometheus-push.mnm-ci.svc.cluster.local:9091
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: Location of the CA cert.  Only relevant if INVENTORY_DB_SSL_MODE=verify-{full,ca}
+  name: INVENTORY_DB_SSL_CERT
+  value: /etc/inventory/cert/rds-cacert
+- name: CONCURRENCY_POLICY
+  value: Forbid
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+ 
