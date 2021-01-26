@@ -38,6 +38,11 @@ objects:
                   secretKeyRef:
                     key: db.password
                     name: host-inventory-db
+              - name: INVENTORY_DB_PORT
+                valueFrom:
+                  secretKeyRef:
+                    key: db.port
+                    name: host-inventory-db
               - name: INVENTORY_DB_NAME
                 value: insights
               - name: INVENTORY_LOG_LEVEL
@@ -63,7 +68,7 @@ objects:
                     name: cloudwatch
               - name: AWS_LOG_GROUP
                 valueFrom:
-                 secretKeyRef:
+                  secretKeyRef:
                     key: log_group_name
                     name: cloudwatch
               - name: KAFKA_BOOTSTRAP_SERVERS

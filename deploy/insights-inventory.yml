@@ -83,6 +83,11 @@ objects:
               secretKeyRef:
                 key: db.password
                 name: host-inventory-db
+          - name: INVENTORY_DB_PORT
+            valueFrom:
+              secretKeyRef:
+                key: db.port
+                name: host-inventory-db
           - name: INVENTORY_DB_NAME
             value: insights
           - name: APP_NAME
@@ -100,7 +105,7 @@ objects:
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSLCERT}
+            value: ${INVENTORY_DB_SSL_CERT}
           - name: AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:

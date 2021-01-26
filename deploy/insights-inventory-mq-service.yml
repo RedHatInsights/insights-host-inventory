@@ -81,6 +81,11 @@ objects:
               secretKeyRef:
                 key: db.password
                 name: host-inventory-db
+          - name: INVENTORY_DB_PORT
+            valueFrom:
+              secretKeyRef:
+                key: db.port
+                name: host-inventory-db
           - name: INVENTORY_DB_NAME
             value: insights
           - name: INVENTORY_LOG_LEVEL
@@ -273,6 +278,11 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: db.password
+                name: host-inventory-db
+          - name: INVENTORY_DB_PORT
+            valueFrom:
+              secretKeyRef:
+                key: db.port
                 name: host-inventory-db
           - name: INVENTORY_DB_NAME
             value: insights
