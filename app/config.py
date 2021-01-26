@@ -22,7 +22,6 @@ class Config:
         self._db_user = cfg.database.username
         self._db_password = cfg.database.password
         self._db_host = cfg.database.hostname
-        self._db_port = cfg.database.port
         self._db_name = cfg.database.name
         if cfg.database.rdsCa:
             self._db_ssl_cert = cfg.rds_ca()
@@ -51,7 +50,6 @@ class Config:
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
@@ -161,7 +159,7 @@ class Config:
             db_user = "xxxx"
             db_password = "XXXX"
 
-        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}:{self._db_port}/{self._db_name}"
+        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}/{self._db_name}"
         if ssl_mode == self.SSL_VERIFY_FULL:
             db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
         return db_uri

@@ -255,7 +255,6 @@ class ConfigTestCase(TestCase):
             "INVENTORY_DB_USER": "fredflintstone",
             "INVENTORY_DB_PASS": "bedrock1234",
             "INVENTORY_DB_HOST": "localhost",
-            "INVENTORY_DB_PORT": "5432",
             "INVENTORY_DB_NAME": "SlateRockAndGravel",
             "INVENTORY_DB_POOL_TIMEOUT": "3",
             "INVENTORY_DB_POOL_SIZE": "8",
@@ -269,7 +268,7 @@ class ConfigTestCase(TestCase):
         with set_environment(new_env):
             conf = self._config()
 
-            self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost:5432/SlateRockAndGravel")
+            self.assertEqual(conf.db_uri, "postgresql://fredflintstone:bedrock1234@localhost/SlateRockAndGravel")
             self.assertEqual(conf.db_pool_timeout, 3)
             self.assertEqual(conf.db_pool_size, 8)
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
@@ -287,7 +286,7 @@ class ConfigTestCase(TestCase):
         with set_environment(None):
             conf = self._config()
 
-            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost:5432/insights")
+            self.assertEqual(conf.db_uri, "postgresql://insights:insights@localhost/insights")
             self.assertEqual(conf.api_url_path_prefix, expected_api_path)
             self.assertEqual(conf.mgmt_url_path_prefix, expected_mgmt_url_path_prefix)
             self.assertEqual(conf.db_pool_timeout, 5)

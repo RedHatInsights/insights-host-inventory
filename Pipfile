@@ -28,7 +28,7 @@ boto3 = "~=1.9.183"
 kafka-python = "~=1.4.7"
 prometheus-flask-exporter = "~=0.11.0"
 python-dateutil = "~=2.8.1"
-prance = "==0.20.0"
+prance = "~=0.20.0"
 app-common-python = "~=0.1.2"
 
 [dev-packages]
@@ -44,7 +44,7 @@ pre-commit-hooks = "~=2.2.3"
 black = "==19.3b0"  # Pre-release, not semver
 pre-commit = "~=1.18.1"
 ttictoc = "~=0.4.1"
-sqlalchemy-utils = "==0.36.7"
+sqlalchemy-utils = "~=0.36.5"
 
 [requires]
 python_version = "3.6"

@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
@@ -15,15 +13,7 @@ from tests.helpers.test_utils import set_environment
 
 @pytest.fixture(scope="session")
 def database_name():
-    db_data = {
-        "INVENTORY_DB_NAME": os.getenv("INVENTORY_DB_NAME", "insights"),
-        "INVENTORY_DB_PASS": os.getenv("INVENTORY_DB_PASS", "insights"),
-        "INVENTORY_DB_USER": os.getenv("INVENTORY_DB_USER", "insights"),
-        "INVENTORY_DB_HOST": os.getenv("INVENTORY_DB_HOST", "localhost"),
-        "INVENTORY_DB_PORT": os.getenv("INVENTORY_DB_PORT", "5432"),
-    }
-    db_data["INVENTORY_DB_NAME"] += "-test"
-    with set_environment(db_data):
+    with set_environment({"INVENTORY_DB_NAME": "insights_test"}):
         yield
 
 
