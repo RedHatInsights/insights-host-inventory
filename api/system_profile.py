@@ -113,7 +113,11 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+    if (
+        current_identity.identity_type == "System"
+        and current_identity.system["cert_type"] == "system"
+        and current_identity.auth_type != "classic-proxy"
+    ):
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
@@ -169,7 +173,11 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
+    if (
+        current_identity.identity_type == "System"
+        and current_identity.system["cert_type"] == "system"
+        and current_identity.auth_type != "classic-proxy"
+    ):
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
