@@ -67,7 +67,7 @@ apps:
 - name: host-inventory
   host: local
   repo: $PWD
-  path: deployment.yaml
+  path: deploy/deployment.yml
   parameters:
     IMAGE: $IMAGE
 EOF
