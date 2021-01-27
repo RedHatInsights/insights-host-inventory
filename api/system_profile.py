@@ -208,7 +208,9 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
         **config.kafka_consumer,
     )
     try:
-        return flask_json_response(validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days))
+        response = validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days)
+        consumer.close()
+        return flask_json_response(response)
     except (ValueError, AttributeError) as e:
         consumer.close()
         flask.abort(400, str(e))
