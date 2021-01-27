@@ -67,6 +67,18 @@ pytest test_json_validators.py
 Depending on the environment, it might be necessary to set the DB related environment
 variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
+## Sonar Integration
+
+This project uses Sonar for static code analysis. To set up sonar-scanner on your machine, [download the CLI](https://sonarqube.corp.redhat.com/documentation/analysis/scan/sonarscanner/) and set the `SONAR_PATH` env var like this:
+
+``` sh
+export SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-${SONAR_CLI_VERSION_NUMBER}.jar
+```
+
+Then, run `sh sonar_scan.sh` to generate the `.sonar/sonar-scanner.properties` file. Replace the `$token$` placeholder at the bottom of the file with your own personal Sonar token. Instructions on how to do this are located [here](https://source.redhat.com/groups/public/cloud-services-platform-cloudredhatcom/cloudredhatcom_wiki/setting_up_sonarqube_scanner_for_vulnerability_scanning_of_code#).
+
+After making that replacement, run `sh sonar_scan.sh` again. It should run and upload to Red Hat's SonarQube instance, providing you a link to the results.
+
 ## Contributing
 
 This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
@@ -133,17 +145,35 @@ and provide the path to the certificate you'd like to use.
 ## Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the
-service.  For testing purposes, it is possible to set the required identity
+service. For testing purposes, it is possible to set the required identity
 header to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjAwMDAwMSJ9fX0=
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
+{"identity":{"account_number":"test","type":"User","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
+```
+
+The above header has the "User" identity type, but it's possible to use a "System" type header as well.
+
+```
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6ICJ0ZXN0IiwgImF1dGhfdHlwZSI6ICJjZXJ0LWF1dGgiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICIzMzQwODUxIn0sICJzeXN0ZW0iOiB7ImNlcnRfdHlwZSI6ICJzeXN0ZW0iLCAiY24iOiAicGx4aTEzeTEtOTl1dC0zcmRmLWJjMTAtODRvcGY5MDRsZmFkIn0sInR5cGUiOiAiU3lzdGVtIn19
+```
+
+This is the Base64 encoding of the following JSON document:
+
+```json
+{"identity":{"account_number": "test", "auth_type": "cert-auth", "internal": {"org_id": "3340851"}, "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},"type": "System"}}
+```
+
+If you want to encode other JSON documents, you can use the following command:
+
+```shell
+echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64
 ```
 
 ## Using the legacy api
@@ -248,8 +278,7 @@ When a new pull request is opened the following checks are [run automatically](h
 
 Should any of these fail this is indicated directly on the pull request.
 
-When all of these checks pass and a reviewer approves the changes the pull request can be merged.
-Currently [@Glutexo](https://github.com/Glutexo) and [@jharting](https://github.com/jharting) are authorized to merge pull requests.
+When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from the [@RedHatInsights/host-based-inventory-committers ](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers) team.
 
 ## 2. Latest image and smoke tests
 

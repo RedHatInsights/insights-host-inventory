@@ -7,15 +7,22 @@ from api import build_collection_response
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
+from api.host_query_xjoin import build_sap_sids_filter
+from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
+from api.host_query_xjoin import owner_id_filter
 from app import Permission
+from app.auth import get_current_identity
 from app.config import BulkQuerySource
+from app.instrumentation import log_get_tags_failed
+from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+
 
 logger = get_logger(__name__)
 
@@ -66,6 +73,7 @@ def get_tags(
     per_page=None,
     staleness=None,
     registered_with=None,
+    filter=None,
 ):
     if not xjoin_enabled():
         flask.abort(503)
@@ -83,21 +91,42 @@ def get_tags(
         },
     }
 
+    hostfilter_and_variables = ()
+
     if search:
         variables["filter"] = {
-            # Escaped so that the string literals are not interpretted as regex
+            # Escaped so that the string literals are not interpreted as regex
             "search": {"regex": f".*{re.escape(search)}.*"}
         }
 
     if tags:
-        variables["hostFilter"]["AND"] = build_tag_query_dict_tuple(tags)
+        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
-    response = graphql_query(TAGS_QUERY, variables)
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                hostfilter_and_variables += build_sap_system_filters(filter["system_profile"].get("sap_system"))
+            if filter["system_profile"].get("sap_sids"):
+                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
+    current_identity = get_current_identity()
+    if (
+        current_identity.identity_type == "System"
+        and current_identity.system["cert_type"] == "system"
+        and current_identity.auth_type != "classic-proxy"
+    ):
+        hostfilter_and_variables += owner_id_filter()
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
+
+    response = graphql_query(TAGS_QUERY, variables, log_get_tags_failed)
     data = response["hostTags"]
 
     check_pagination(offset, data["meta"]["total"])
 
+    log_get_tags_succeeded(logger, data)
     return flask_json_response(build_collection_response(data["data"], page, per_page, data["meta"]["total"]))

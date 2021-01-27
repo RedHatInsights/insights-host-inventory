@@ -1,8 +1,14 @@
+from re import escape
+
 import pytest
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
+from api.system_profile import SAP_SIDS_QUERY
+from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_system_profile_sap_sids_url
+from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
@@ -72,6 +78,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "offset": mocker.ANY,
             "filter": ({"fqdn": {"eq": fqdn}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -90,8 +97,9 @@ def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"display_name": {"matches": f"*{display_name}*"}}, mocker.ANY),
+            "filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -113,13 +121,14 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
             "filter": (
                 {
                     "OR": (
-                        {"display_name": {"matches": f"*{hostname_or_id}*"}},
+                        {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
                         {"fqdn": {"matches": f"*{hostname_or_id}*"}},
                     )
                 },
                 mocker.ANY,
             ),
         },
+        mocker.ANY,
     )
 
 
@@ -141,7 +150,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
             "filter": (
                 {
                     "OR": (
-                        {"display_name": {"matches": f"*{hostname_or_id}*"}},
+                        {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
                         {"fqdn": {"matches": f"*{hostname_or_id}*"}},
                         {"id": {"eq": hostname_or_id}},
                     )
@@ -149,6 +158,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
                 mocker.ANY,
             ),
         },
+        mocker.ANY,
     )
 
 
@@ -169,6 +179,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
             "offset": mocker.ANY,
             "filter": ({"insights_id": {"eq": insights_id}}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -186,6 +197,7 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
             "offset": mocker.ANY,
             "filter": (mocker.ANY,),
         },
+        mocker.ANY,
     )
 
 
@@ -215,6 +227,7 @@ def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, gr
             "offset": mocker.ANY,
             "filter": ({filter_: mocker.ANY}, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -254,6 +267,7 @@ def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, gra
             "offset": mocker.ANY,
             "filter": tag_filters + (mocker.ANY,),
         },
+        mocker.ANY,
     )
 
 
@@ -278,6 +292,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
             "offset": mocker.ANY,
             "filter": (search_any, tag_filter, mocker.ANY),
         },
+        mocker.ANY,
     )
 
 
@@ -296,6 +311,7 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
             "offset": mocker.ANY,
             "filter": (mocker.ANY, {"NOT": {"insights_id": {"eq": None}}}),
         },
+        mocker.ANY,
     )
 
 
@@ -315,6 +331,7 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
             "order_how": direction,
             "filter": mocker.ANY,
         },
+        mocker.ANY,
     )
 
 
@@ -345,6 +362,7 @@ def test_query_variables_ordering_by(
             "order_how": default_xjoin_order_how,
             "filter": mocker.ANY,
         },
+        mocker.ANY,
     )
 
 
@@ -385,6 +403,7 @@ def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, gr
     graphql_query_empty_response.assert_called_once_with(
         HOST_QUERY,
         {"order_by": mocker.ANY, "order_how": mocker.ANY, "limit": limit, "offset": offset, "filter": mocker.ANY},
+        mocker.ANY,
     )
 
 
@@ -404,7 +423,9 @@ def test_query_variables_default_except_staleness(mocker, query_source_xjoin, gr
     assert response_status == 200
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY, {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": mocker.ANY}
+        HOST_QUERY,
+        {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": mocker.ANY},
+        mocker.ANY,
     )
 
 
@@ -494,6 +515,7 @@ def test_query_variables_staleness_with_search(
             "offset": mocker.ANY,
             "filter": (search_any, staleness_any),
         },
+        mocker.ANY,
     )
 
 
@@ -627,7 +649,9 @@ def test_tags_query_variables_default_except_staleness(
     assert response_status == 200
 
     graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}}
+        TAGS_QUERY,
+        {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -657,6 +681,7 @@ def test_tags_query_variables_default_staleness(
                 ]
             },
         },
+        mocker.ANY,
     )
 
 
@@ -669,7 +694,7 @@ def test_tags_query_variables_default_staleness(
     ),
 )
 def test_tags_query_variables_staleness(
-    staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
 ):
     url = build_tags_url(query=f"?staleness={staleness}")
     response_status, response_data = api_get(url)
@@ -685,11 +710,12 @@ def test_tags_query_variables_staleness(
             "offset": 0,
             "hostFilter": {"OR": [{"stale_timestamp": expected}]},
         },
+        mocker.ANY,
     )
 
 
 def test_tags_multiple_query_variables_staleness(
-    culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
 ):
     staleness = "fresh,stale_warning"
     url = build_tags_url(query=f"?staleness={staleness}")
@@ -716,6 +742,7 @@ def test_tags_multiple_query_variables_staleness(
                 ]
             },
         },
+        mocker.ANY,
     )
 
 
@@ -739,6 +766,7 @@ def test_query_variables_tags_simple(mocker, query_source_xjoin, graphql_tag_que
                 ),
             },
         },
+        mocker.ANY,
     )
 
 
@@ -763,6 +791,7 @@ def test_query_variables_tags_with_special_characters_unescaped(
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -793,6 +822,7 @@ def test_query_variables_tags_with_special_characters_escaped(
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -817,6 +847,7 @@ def test_query_variables_tags_collection_multi(mocker, query_source_xjoin, graph
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -841,6 +872,7 @@ def test_query_variables_tags_collection_csv(mocker, query_source_xjoin, graphql
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -862,6 +894,7 @@ def test_query_variables_tags_without_namespace(mocker, query_source_xjoin, grap
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -883,6 +916,7 @@ def test_query_variables_tags_without_value(mocker, query_source_xjoin, graphql_
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
@@ -904,11 +938,13 @@ def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_
                 "OR": mocker.ANY,
             },
         },
+        mocker.ANY,
     )
 
 
 def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query=f"?search={quote('Δwithčhar!/~|+ ')}")
+    query = "Δwithčhar!/~|+ "
+    url = build_tags_url(query=f"?search={quote(query)}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -920,9 +956,10 @@ def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_que
             "order_how": "ASC",
             "limit": 50,
             "offset": 0,
-            "filter": {"search": {"regex": ".*\\Δwith\\čhar\\!\\/\\~\\|\\+\\ .*"}},
+            "filter": {"search": {"regex": f".*{escape(query)}.*"}},
             "hostFilter": {"OR": mocker.ANY},
         },
+        mocker.ANY,
     )
 
 
@@ -938,6 +975,7 @@ def test_tags_query_variables_ordering_dir(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": direction, "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -953,6 +991,7 @@ def test_tags_query_variables_ordering_by(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": ordering, "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -968,6 +1007,7 @@ def test_tags_response_pagination(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": "ASC", "limit": limit, "offset": offset, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -994,6 +1034,7 @@ def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphq
             "offset": mocker.ANY,
             "hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}},
         },
+        mocker.ANY,
     )
 
 
@@ -1029,7 +1070,9 @@ def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphq
     assert response_status == 404
 
     graphql_tag_query_with_response.assert_called_once_with(
-        TAGS_QUERY, {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": mocker.ANY}}
+        TAGS_QUERY,
+        {"order_by": "tag", "order_how": "ASC", "limit": 2, "offset": 4, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
     )
 
 
@@ -1133,3 +1176,476 @@ def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, grap
     response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
+
+
+def test_system_profile_sap_system_endpoint(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_system_profile_sap_system_endpoint_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url(query=f"?tags={quote(query_param)}")
+
+    response_status, response_data = api_get(url)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}, mocker.ANY
+    )
+
+
+def test_system_profile_sap_system_endpoint_registered_with_insights(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    url = build_system_profile_sap_system_url(query="?registered_with=insights")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}, mocker.ANY
+    )
+
+
+def test_system_profile_sap_sids_endpoint(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url()
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_system_profile_sap_sids_endpoint_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query=f"?tags={quote(query_param)}")
+
+    response_status, response_data = api_get(url)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}}, mocker.ANY
+    )
+
+
+def test_system_profile_sap_sids_endpoint_registered_with_insights(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query="?registered_with=insights")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}}, mocker.ANY
+    )
+
+
+def test_query_hosts_filter_spf_sap_system(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
+    values = ("true", "false", "nil", "not_nil")
+    queries = (
+        {"spf_sap_system": {"is": True}},
+        {"spf_sap_system": {"is": False}},
+        {"spf_sap_system": {"is": None}},
+        {"NOT": {"spf_sap_system": {"is": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_tags_filter_spf_sap_system(
+    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
+    values = ("true", "false", "nil", "not_nil")
+    queries = (
+        ({"spf_sap_system": {"is": True}},),
+        ({"spf_sap_system": {"is": False}},),
+        ({"spf_sap_system": {"is": None}},),
+        ({"NOT": {"spf_sap_system": {"is": None}}},),
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                graphql_tag_query_empty_response.reset_mock()
+                url = build_tags_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_tag_query_empty_response.assert_called_once_with(
+                    TAGS_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "hostFilter": {"OR": mocker.ANY, "AND": query},
+                    },
+                    mocker.ANY,
+                )
+
+
+def test_query_system_profile_sap_system_filter_spf_sap_sids(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
+    values = ("true", "false", "nil", "not_nil")
+    queries = (
+        ({"spf_sap_system": {"is": True}},),
+        ({"spf_sap_system": {"is": False}},),
+        ({"spf_sap_system": {"is": None}},),
+        ({"NOT": {"spf_sap_system": {"is": None}}},),
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                graphql_system_profile_sap_system_query_empty_response.reset_mock()
+                url = build_system_profile_sap_system_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+                    SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}, mocker.ANY
+                )
+
+
+def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
+    value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
+    queries = (
+        ({"spf_sap_sids": {"eq": "XQC"}},),
+        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
+        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+    )
+
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
+            with subtests.test(values=values, query=query, path=path):
+                graphql_query_empty_response.reset_mock()
+                url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, *query),
+                    },
+                    mocker.ANY,
+                )
+
+
+def test_query_tags_filter_spf_sap_sids(
+    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
+):
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
+    value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
+    queries = (
+        ({"spf_sap_sids": {"eq": "XQC"}},),
+        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
+        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+    )
+
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
+            with subtests.test(values=values, query=query, path=path):
+                url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_tag_query_empty_response.assert_called_once_with(
+                    TAGS_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "hostFilter": {"OR": mocker.ANY, "AND": query},
+                    },
+                    mocker.ANY,
+                )
+                graphql_tag_query_empty_response.reset_mock()
+
+
+def test_query_system_profile_sap_sids_filter_spf_sap_sids(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
+    value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
+    queries = (
+        ({"spf_sap_sids": {"eq": "XQC"}},),
+        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
+        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+    )
+
+    for path in filter_paths:
+        for values, query in zip(value_sets, queries):
+            with subtests.test(values=values, query=query, path=path):
+                graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+                url = build_system_profile_sap_sids_url(
+                    query="?" + "".join([f"filter{path}={value}&" for value in values])
+                )
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+                    SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": query}}, mocker.ANY
+                )
+
+
+def test_query_system_profile_sap_sids_with_search(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+):
+    url = build_system_profile_sap_sids_url(query="?search=C2")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}}, mocker.ANY
+    )
+
+
+def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+    url = build_hosts_url()
+
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}}),
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get):
+    url = build_tags_url()
+
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert response_status == 200
+
+    graphql_tag_query_empty_response.assert_called_once_with(
+        TAGS_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "hostFilter": {
+                "OR": mocker.ANY,
+                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
+            },
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_system_profile_sap_sids_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+):
+    url = build_system_profile_sap_sids_url()
+
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
+        SAP_SIDS_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
+        mocker.ANY,
+    )
+
+
+def test_query_system_profile_sap_system_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
+):
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url, identity_type="System")
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},)}},
+        mocker.ANY,
+    )
+
+
+# TODO: Remove the tests related to insights classic workaround (the next 4 below)
+# once we no longer need it
+def test_query_hosts_insights_classic_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url()
+
+    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY},),
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_tags_insights_classic_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
+):
+    url = build_tags_url()
+
+    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+
+    assert response_status == 200
+
+    graphql_tag_query_empty_response.assert_called_once_with(
+        TAGS_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "hostFilter": {"OR": mocker.ANY},
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_system_profile_sap_sids_insights_classic_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+):
+    url = build_system_profile_sap_sids_url()
+
+    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
+    )
+
+
+def test_query_system_profile_sap_system_insights_classic_system_identity(
+    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
+):
+    url = build_system_profile_sap_system_url()
+
+    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+
+    assert response_status == 200
+
+    graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
+    )

@@ -1,5 +1,6 @@
 import json
 import math
+import unittest.mock as mock
 from base64 import b64encode
 from datetime import datetime
 from datetime import timedelta
@@ -15,10 +16,13 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
-from tests.helpers.test_utils import ACCOUNT
+from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
+SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
 
 SHARED_SECRET = "SuperSecretStuff"
 
@@ -53,20 +57,24 @@ READ_ALLOWED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-read-only.json",
     "utils/rbac-mock-data/inv-admin.json",
     "utils/rbac-mock-data/inv-hosts-splat.json",
+    "utils/rbac-mock-data/inv-star-read.json",
 )
 READ_PROHIBITED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-none.json",
     "utils/rbac-mock-data/inv-write-only.json",
+    "utils/rbac-mock-data/inv-star-write.json",
 )
 WRITE_ALLOWED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-read-write.json",
     "utils/rbac-mock-data/inv-write-only.json",
     "utils/rbac-mock-data/inv-admin.json",
     "utils/rbac-mock-data/inv-hosts-splat.json",
+    "utils/rbac-mock-data/inv-star-write.json",
 )
 WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
     "utils/rbac-mock-data/inv-none.json",
     "utils/rbac-mock-data/inv-read-only.json",
+    "utils/rbac-mock-data/inv-star-read.json",
 )
 
 
@@ -75,6 +83,9 @@ def do_request(
 ):
     url = inject_qs(url, **query_parameters) if query_parameters else url
     headers = get_required_headers(auth_type, identity_type)
+
+    print("Required Headers: %s", headers)
+
     if extra_headers:
         headers = {**headers, **extra_headers}
 
@@ -92,8 +103,8 @@ def do_request(
 
 
 def get_valid_auth_header(auth_type="account_number", identity_type="User"):
-    if auth_type == "account_number":
-        return build_account_auth_header(identity_type=identity_type)
+    if identity_type == "User" or identity_type == "System" or identity_type == "Insights_Classic_System":
+        return build_account_auth_header(auth_type, identity_type)
 
     return build_token_auth_header()
 
@@ -105,9 +116,18 @@ def get_required_headers(auth_type="account_number", identity_type="User"):
     return headers
 
 
-def build_account_auth_header(account=ACCOUNT, identity_type="User"):
-    identity = Identity(account_number=account, identity_type=identity_type)
+def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
+    if identity_type == "User":
+        identity = Identity(USER_IDENTITY)
+    elif identity_type == "System":
+        identity = Identity(SYSTEM_IDENTITY)
+    elif identity_type == "Insights_Classic_System":
+        identity = Identity(INSIGHTS_CLASSIC_IDENTITY)
+    else:
+        raise ValueError("unrecognized identity type")
+
     dict_ = {"identity": identity._asdict()}
+
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}
     return auth_header
@@ -331,6 +351,10 @@ def build_hosts_url(host_list_or_id=None, query=None):
     return _build_url(host_list_or_id=host_list_or_id, query=query)
 
 
+def build_host_checkin_url():
+    return _build_url(base_url=HOST_URL, path="/checkin")
+
+
 def build_host_tags_url(host_list_or_id, query=None):
     return _build_url(path="/tags", host_list_or_id=host_list_or_id, query=query)
 
@@ -345,6 +369,14 @@ def build_tags_url(query=None):
 
 def build_system_profile_url(host_list_or_id, query=None):
     return _build_url(path="/system_profile", host_list_or_id=host_list_or_id, query=query)
+
+
+def build_system_profile_sap_system_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_system", query=query)
+
+
+def build_system_profile_sap_sids_url(query=None):
+    return _build_url(base_url=SYSTEM_PROFILE_URL, path="/sap_sids", query=query)
 
 
 def build_facts_url(host_list_or_id, namespace, query=None):
@@ -387,3 +419,32 @@ def create_mock_rbac_response(permissions_response_file):
     with open(permissions_response_file, "r") as rbac_response:
         resp_data = json.load(rbac_response)
         return resp_data["data"]
+
+
+ClassMock = mock.MagicMock
+
+
+class MockUserIdentity(ClassMock):
+    def __init__(self):
+        super().__init__()
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "User"
+        self.user = {"email": "tuser@redhat.com", "first_name": "test"}
+
+    def patch(self, mocker, method, expectation):
+        return mocker.patch(method, wraps=expectation)
+
+    def assert_called_once_with(param, value):
+        super.assert_called_once_with(param, value)
+
+
+class MockSystemIdentity:
+    def __init__(self):
+        self.is_trusted_system = False
+        self.account_number = "test"
+        self.identity_type = "System"
+        self.system = {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}
+
+    def assert_called_once_with(self, identity, param, value):
+        return True

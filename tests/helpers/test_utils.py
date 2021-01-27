@@ -14,7 +14,26 @@ from app.utils import HostWrapper
 NS = "testns"
 ID = "whoabuddy"
 
-ACCOUNT = "000501"
+SYSTEM_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "cert-auth",
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
+    "type": "System",
+}
+USER_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "basic-auth",
+    "type": "User",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
+INSIGHTS_CLASSIC_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "classic-proxy",
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {"cert_type": "system"},
+    "type": "System",
+}
 
 
 def generate_uuid():
@@ -52,7 +71,7 @@ def set_environment(new_env=None):
 
 def minimal_host(**values):
     data = {
-        "account": ACCOUNT,
+        "account": USER_IDENTITY["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
@@ -65,6 +84,7 @@ def minimal_host(**values):
 
 def valid_system_profile():
     return {
+        "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
@@ -96,7 +116,7 @@ def valid_system_profile():
         "bios_release_date": "10/31/2013",
         "cpu_flags": ["flag1", "flag2"],
         "os_release": "Red Hat EL 7.0.1",
-        "os_kernel_version": "Linux 2.0.1",
+        "os_kernel_version": "3.10.0",
         "arch": "x86-64",
         "last_boot_time": "12:25 Mar 19, 2019",
         "kernel_modules": ["i915", "e1000e"],
@@ -120,4 +140,5 @@ def valid_system_profile():
         "installed_packages": ["rpm1-0:0.0.1.el7.i686", "rpm1-2:0.0.1.el7.i686"],
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
+        "sap_sids": ["ABC", "DEF", "GHI"],
     }

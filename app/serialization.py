@@ -5,8 +5,8 @@ from marshmallow import ValidationError
 
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
+from app.models import CanonicalFactsSchema
 from app.models import Host as Host
-from app.models import HttpHostSchema
 from app.models import MqHostSchema
 from app.utils import Tag
 
@@ -41,9 +41,9 @@ DEFAULT_FIELDS = (
 )
 
 
-def deserialize_host(raw_data, schema):
+def deserialize_host(raw_data, schema, system_profile_spec=None):
     try:
-        validated_data = schema(strict=True).load(raw_data).data
+        validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
 
@@ -63,12 +63,16 @@ def deserialize_host(raw_data, schema):
     )
 
 
-def deserialize_host_http(raw_data):
-    return deserialize_host(raw_data, HttpHostSchema)
+def deserialize_host_mq(raw_data, system_profile_spec=None):
+    return deserialize_host(raw_data, MqHostSchema, system_profile_spec)
 
 
-def deserialize_host_mq(raw_data):
-    return deserialize_host(raw_data, MqHostSchema)
+def deserialize_canonical_facts(raw_data):
+    try:
+        validated_data = CanonicalFactsSchema(strict=True).load(raw_data).data
+    except ValidationError as e:
+        raise ValidationException(str(e.messages)) from None
+    return _deserialize_canonical_facts(validated_data)
 
 
 def deserialize_host_xjoin(data):

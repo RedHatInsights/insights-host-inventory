@@ -1,6 +1,7 @@
 from functools import wraps
 
 from flask import abort
+from flask import g
 from flask import request
 from flask_api import status
 from requests import Session
@@ -13,7 +14,7 @@ from app import inventory_config
 from app import Permission
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth import current_identity
+from app.auth import get_current_identity
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
@@ -66,16 +67,23 @@ def rbac(required_permission):
             if not inventory_config().rbac_enforced:
                 return func(*args, **kwargs)
 
-            if current_identity.identity_type != CHECKED_TYPE:
+            if get_current_identity().identity_type != CHECKED_TYPE:
                 return func(*args, **kwargs)
+
+            # track that RBAC is being used to control access
+            g.access_control_rule = "RBAC"
+            logger.debug("access_control_rule set")
 
             rbac_data = get_rbac_permissions()
 
+            permission_type = required_permission.value.split(":")[2]
+
             for rbac_permission in rbac_data:
                 if (
-                    rbac_permission["permission"] == Permission.ADMIN.value
-                    or rbac_permission["permission"] == Permission.HOSTS_ALL.value
-                    or rbac_permission["permission"] == required_permission.value
+                    rbac_permission["permission"] == Permission.ADMIN.value  # inventory:*:*
+                    or rbac_permission["permission"] == Permission.HOSTS_ALL.value  # inventory:hosts:*
+                    or rbac_permission["permission"] == f"inventory:*:{permission_type}"  # inventory:*:(read | write)
+                    or rbac_permission["permission"] == required_permission.value  # inventory:hosts:(read | write)
                 ):
                     return func(*args, **kwargs)
 

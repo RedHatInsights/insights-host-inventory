@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from app.auth import get_current_identity
+from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
 from app.utils import Tag
@@ -8,6 +10,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains
+from app.xjoin import string_contains_lc
 
 __all__ = ("get_host_list",)
 
@@ -75,18 +78,31 @@ def get_host_list(
     param_order_how,
     staleness,
     registered_with,
+    filter,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
+
+    all_filters = _query_filters(
+        fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+    )
+
+    current_identity = get_current_identity()
+    if (
+        current_identity.identity_type == "System"
+        and current_identity.system["cert_type"] == "system"
+        and current_identity.auth_type != "classic-proxy"
+    ):
+        all_filters += owner_id_filter()
 
     variables = {
         "limit": limit,
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
-        "filter": _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with),
+        "filter": all_filters,
     }
-    response = graphql_query(QUERY, variables)["hosts"]
+    response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
 
     total = response["meta"]["total"]
     check_pagination(offset, total)
@@ -106,14 +122,45 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with):
+def _sap_system_filters(sap_system):
+    if sap_system == "nil":
+        return {"spf_sap_system": {"is": None}}
+    elif sap_system == "not_nil":
+        return {"NOT": {"spf_sap_system": {"is": None}}}
+    else:
+        return {"spf_sap_system": {"is": (sap_system.lower() == "true")}}
+
+
+def build_sap_system_filters(sap_system):
+    if isinstance(sap_system, str):
+        return (_sap_system_filters(sap_system),)
+    elif sap_system.get("eq"):
+        return (_sap_system_filters(sap_system["eq"]),)
+
+
+def _sap_sids_filters(sap_sids):
+    sap_sids_filters = ()
+    for sap_sid in sap_sids:
+        sap_sids_filters += ({"spf_sap_sids": {"eq": sap_sid}},)
+    return sap_sids_filters
+
+
+def build_sap_sids_filter(sap_sids):
+    if isinstance(sap_sids, list):
+        return _sap_sids_filters(sap_sids)
+    elif sap_sids.get("contains"):
+        return _sap_sids_filters(sap_sids["contains"])
+
+
+def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
-        query_filters = ({"display_name": string_contains(display_name)},)
+        query_filters = ({"display_name": string_contains_lc(display_name)},)
     elif hostname_or_id:
         contains = string_contains(hostname_or_id)
-        hostname_or_id_filters = ({"display_name": contains}, {"fqdn": contains})
+        contains_lc = string_contains_lc(hostname_or_id)
+        hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": contains})
         try:
             id = UUID(hostname_or_id)
         except ValueError:
@@ -136,5 +183,16 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
 
+    if filter:
+        if filter.get("system_profile"):
+            if filter["system_profile"].get("sap_system"):
+                query_filters += build_sap_system_filters(filter["system_profile"]["sap_system"])
+            if filter["system_profile"].get("sap_sids"):
+                query_filters += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+
     logger.debug(query_filters)
     return query_filters
+
+
+def owner_id_filter():
+    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)

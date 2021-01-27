@@ -1,12 +1,19 @@
 import json
+import sys
 
 from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
+from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
+from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.instrumentation import log_add_host_attempt
+from app.instrumentation import log_add_host_failure
+from app.instrumentation import log_add_update_host_succeeded
+from app.instrumentation import log_db_access_failure
 from app.logging import get_logger
 from app.logging import threadctx
 from app.payload_tracker import get_payload_tracker
@@ -25,6 +32,12 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
+USER_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "basic-auth",
+    "type": "User",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
 
 
 class OperationSchema(Schema):
@@ -89,7 +102,7 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def add_host(host_data):
+def add_host(host_data, identity):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -99,37 +112,19 @@ def add_host(host_data):
         try:
             input_host = deserialize_host_mq(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            logger.info(
-                "Attempting to add host",
-                extra={
-                    "input_host": {
-                        "account": input_host.account,
-                        "display_name": input_host.display_name,
-                        "canonical_facts": input_host.canonical_facts,
-                        "reporter": input_host.reporter,
-                        "stale_timestamp": input_host.stale_timestamp.isoformat(),
-                        "tags": input_host.tags,
-                    }
-                },
-            )
+            log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, staleness_timestamps, fields=EGRESS_HOST_FIELDS
+                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
-            metrics.add_host_success.labels(
-                add_result.name, host_data.get("reporter", "null")
-            ).inc()  # created vs updated
-            # log all the incoming host data except facts and system_profile b/c they can be quite large
-            logger.info(
-                "Host %s",
-                add_result.name,
-                extra={"host": {i: output_host[i] for i in output_host if i not in ("facts", "system_profile")}},
-            )
+            log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
         except InventoryException:
-            logger.exception("Error adding host ", extra={"host": host_data})
-            metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
+            log_add_host_failure(logger, host_data)
             raise
+        except OperationalError as oe:
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+            raise oe
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
@@ -141,6 +136,12 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
+    # create a dummy identity for working around the identity requirement for CRUD operations
+    identity = Identity(USER_IDENTITY)
+
+    # set account_number in dummy idenity to the actual account_number received in the payload
+    identity.account_number = validated_operation_msg["data"]["account"]
+
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
 
@@ -149,7 +150,7 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"])
+        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
@@ -171,6 +172,13 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                     try:
                         handler(message.value, event_producer)
                         metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """ sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
                     except Exception:
                         metrics.ingress_message_handler_failure.inc()
                         logger.exception("Unable to process message")

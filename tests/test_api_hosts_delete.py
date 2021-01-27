@@ -1,3 +1,8 @@
+from unittest import mock
+
+import pytest
+from kafka.errors import KafkaError
+
 from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
@@ -8,6 +13,7 @@ from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_delete_non_existent_host(api_delete_host):
@@ -209,7 +215,7 @@ def test_delete_host_with_RBAC_denied(
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
 ):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     response_status, response_data = api_delete_host(host.id, identity_type="System")
 
@@ -229,13 +235,34 @@ def test_delete_hosts_chunk_size(
     mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
 
     hosts = db_create_multiple_hosts(how_many=2)
-    host_id_list = [str(hosts[0].id), str(hosts[1].id)]
+    host_id_list = [str(host.id) for host in hosts]
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
     query_wraper.query.limit.assert_called_with(5)
+
+
+@pytest.mark.parametrize(
+    "send_side_effects",
+    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+)
+def test_delete_stops_after_kafka_producer_error(
+    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+):
+    event_producer._kafka_producer.send.side_effect = send_side_effects
+
+    hosts = db_create_multiple_hosts(how_many=3)
+    host_id_list = [str(host.id) for host in hosts]
+
+    response_status, response_data = api_delete_host(",".join(host_id_list))
+
+    assert_response_status(response_status, expected_status=500)
+
+    remaining_hosts = db_get_hosts(host_id_list)
+    assert remaining_hosts.count() == 1
+    assert event_producer._kafka_producer.send.call_count == 2
 
 
 class DeleteHostsMock:
@@ -276,7 +303,7 @@ class DeleteQueryWrapper:
         self.query = None
         self.mocker = mocker
 
-    def mock_get_host_list_by_id_list(self, acc_num, host_list):
-        self.query = _get_host_list_by_id_list(acc_num, host_list)
+    def mock_get_host_list_by_id_list(self, host_id_list):
+        self.query = _get_host_list_by_id_list(host_id_list)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query

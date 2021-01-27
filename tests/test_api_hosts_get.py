@@ -30,7 +30,6 @@ from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
-from tests.helpers.test_utils import ACCOUNT
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -168,6 +167,18 @@ def test_query_host_id_without_hyphens(mq_create_three_specific_hosts, api_get, 
             api_query_test(api_get, subtests, url, original_host_list)
 
 
+def test_query_host_id_with_incorrect_formats(api_get, subtests):
+    host_id = "6a2f41a3-c54c-fce8-32d2-0324e1c32e22"
+
+    bad_host_ids = (f" {host_id}", f"{{{host_id}", f"{host_id}-")
+
+    for bad_host_id in bad_host_ids:
+        with subtests.test():
+            url = build_hosts_url(host_list_or_id=bad_host_id)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+
+
 def test_query_with_branch_id_parameter(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     # branch_id parameter is accepted, but doesn’t affect results.
@@ -277,18 +288,15 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
     assert response_status == 200
 
 
-def test_query_using_fqdn_not_subset_match(mocker, api_get):
+def test_query_using_fqdn_not_subset_match(mocker, api_get, user_identity_mock):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
-
     fqdn = "some fqdn"
-
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
+    mock.assert_called_once_with(user_identity_mock, "fqdn", fqdn)
 
-    mock.assert_called_once_with(ACCOUNT, "fqdn", fqdn)
 
-
-def test_query_using_insights_id_not_subset_match(mocker, api_get):
+def test_query_using_insights_id_not_subset_match(mocker, api_get, user_identity_mock):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
 
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
@@ -296,7 +304,7 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?insights_id={insights_id}")
     api_get(url)
 
-    mock.assert_called_once_with(ACCOUNT, "insights_id", insights_id)
+    mock.assert_called_once_with(user_identity_mock, "insights_id", insights_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
@@ -901,9 +909,77 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
 
 
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url, identity_type="System")
 
     assert_response_status(response_status, 200)
+
+
+def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
+
+    values = ("true", "false", "nil", "not_nil")
+
+    for value in values:
+        with subtests.test(value=value):
+            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
+            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
+
+            assert_response_status(implicit_response_status, 200)
+            assert_response_status(eq_response_status, 200)
+            assert implicit_response_data["total"] == 1
+            assert eq_response_data["total"] == 1
+
+
+def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1}, "data": []}}})
+
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
+    value_sets = (("ABC",), ("BEN", "A72"), ("CDA", "MK2", "C2C"))
+
+    for path in filter_paths:
+        for values in value_sets:
+            with subtests.test(values=values, path=path):
+                url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
+
+                response_status, response_data = api_get(url)
+
+                assert_response_status(response_status, 200)
+                assert response_data["total"] == 1
+
+
+# DISABLED. Query validation will be added back in a future PR
+# def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+#     patch_xjoin_post(response={})
+
+#     values = ("True", "False", "Garfield")
+
+#     for value in values:
+#         with subtests.test(value=value):
+#             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
+#             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+
+#             implicit_response_status, implicit_response_data = api_get(implicit_url)
+#             eq_response_status, eq_response_data = api_get(eq_url)
+
+#             assert_response_status(implicit_response_status, 400)
+#             assert_response_status(eq_response_status, 400)
+
+
+# DISABLED. Query validation will be added back in a future PR
+# def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
+#     patch_xjoin_post(response={})
+
+#     implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
+#     eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
+
+#     implicit_response_status, implicit_response_data = api_get(implicit_url)
+#     eq_response_status, eq_response_data = api_get(eq_url)
+
+#     assert_response_status(implicit_response_status, 400)
+#     assert_response_status(eq_response_status, 400)

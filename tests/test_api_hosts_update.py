@@ -1,8 +1,14 @@
+import json
+import time
+from threading import Thread
+
 import pytest
 
+from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_facts_url
+from tests.helpers.api_utils import build_host_checkin_url
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -17,6 +23,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -40,6 +47,91 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
 
     for key in patch_doc:
         assert getattr(record, key) == patch_doc[key]
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    [
+        {"insights_id": generate_uuid()},
+        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid()},
+        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid(), "fqdn": generate_uuid()},
+    ],
+)
+def test_checkin_canonical_facts(
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts
+):
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    post_doc = created_host.canonical_facts
+    updated_time = created_host.modified_on
+
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=201)
+    record = db_get_host(created_host.id)
+
+    assert record.modified_on > updated_time
+    assert record.stale_timestamp == created_host.stale_timestamp
+    assert record.reporter == created_host.reporter
+
+    assert_patch_event_is_valid(
+        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name
+    )
+
+
+def test_checkin_checkin_frequency_valid(event_producer_mock, db_create_host, api_post, mocker):
+    canonical_facts = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    deserialize_canonical_facts_mock = mocker.patch(
+        "api.host.deserialize_canonical_facts", wraps=deserialize_canonical_facts
+    )
+
+    post_doc = {**created_host.canonical_facts, "checkin_frequency": 720}
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=201)
+    deserialize_canonical_facts_mock.assert_called_once_with(post_doc)
+
+
+@pytest.mark.parametrize(("checkin_frequency",), ((-1,), (0,), (2881,), ("not a number",)))
+def test_checkin_checkin_frequency_invalid(event_producer_mock, db_create_host, api_post, mocker, checkin_frequency):
+    canonical_facts = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    post_doc = {**created_host.canonical_facts, "checkin_frequency": checkin_frequency}
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=400)
+
+
+def test_checkin_no_matching_host(event_producer_mock, db_create_host, db_get_host, api_post):
+    post_doc = {"insights_id": generate_uuid()}
+
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=404)
+    assert event_producer_mock.key is None
+    assert event_producer_mock.event is None
+
+
+@pytest.mark.parametrize(("post_doc",), (({},), ({"checkin_frequency": "720"},)))
+def test_checkin_no_canonical_facts(event_producer_mock, db_create_host, db_get_host, api_post, post_doc):
+    response_status, response_data = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.key is None
+    assert event_producer_mock.event is None
 
 
 def test_patch_with_branch_id_parameter(event_producer_mock, db_create_multiple_hosts, api_patch):
@@ -252,6 +344,7 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
     facts_url = build_facts_url(host_list_or_id=url_host_id_list, namespace=DB_FACTS_NAMESPACE)
 
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -307,6 +400,7 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, db_get_hos
 
     # Try to replace the facts on a host that has been marked as culled
     response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+
     assert_response_status(response_status, expected_status=400)
 
 
@@ -349,9 +443,67 @@ def test_patch_host_with_RBAC_denied(
 
 
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
 
     assert_response_status(response_status, 200)
+
+
+def test_update_delete_race(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
+    mocker.patch.object(event_producer, "write_event")
+
+    # slow down the execution of update_display_name so that it's more likely we hit the race condition
+    def sleep(data):
+        time.sleep(1)
+
+    mocker.patch("app.models.Host.update_display_name", wraps=sleep)
+
+    host = db_create_host()
+
+    def patch_host():
+        url = build_hosts_url(host_list_or_id=host.id)
+        api_patch(url, {"ansible_host": "localhost.localdomain"})
+
+    # run PATCH asynchronously
+    patchThread = Thread(target=patch_host)
+    patchThread.start()
+
+    # as PATCH is running, concurrently delete the host
+    response_status, response_data = api_delete_host(host.id)
+    assert_response_status(response_status, expected_status=200)
+
+    # wait for PATCH to finish
+    patchThread.join()
+
+    # the host should be deleted and the last message to be produced should be the delete message
+    assert not db_get_host(host.id)
+    assert event_producer.write_event.call_args_list[-1][0][2]["event_type"] == "delete"
+
+
+def test_no_event_on_noop(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
+    mocker.patch.object(event_producer, "write_event")
+
+    host = db_create_host()
+
+    url = build_hosts_url(host_list_or_id=host.id)
+    api_patch(url, {})
+
+    assert event_producer.write_event.call_count == 0
+
+
+def test_patch_updated_timestamp(event_producer, db_create_host, api_get, api_patch, mocker):
+    mocker.patch.object(event_producer, "write_event")
+    host = db_create_host()
+    patch_doc = {"display_name": "update_test"}
+    url = build_hosts_url(host_list_or_id=host.id)
+    patch_response_status, patch_response_data = api_patch(url, patch_doc)
+
+    assert_response_status(patch_response_status, expected_status=200)
+
+    get_response_status, get_response_data = api_get(build_hosts_url(host_list_or_id=host.id))
+
+    updated_timestamp_from_event = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]["updated"]
+
+    assert updated_timestamp_from_event == get_response_data["results"][0]["updated"]

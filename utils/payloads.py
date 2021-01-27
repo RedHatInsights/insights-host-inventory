@@ -373,6 +373,7 @@ def rpm_list():
 
 def create_system_profile():
     return {
+        "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
@@ -404,7 +405,7 @@ def create_system_profile():
         "bios_release_date": "10/31/2013",
         "cpu_flags": ["flag1", "flag2"],
         "os_release": "Red Hat EL 7.0.1",
-        "os_kernel_version": "Linux 2.0.1",
+        "os_kernel_version": "3.10.0",
         "arch": "x86-64",
         "last_boot_time": "12:25 Mar 19, 2019",
         "kernel_modules": ["i915", "e1000e"],
@@ -494,7 +495,7 @@ def build_qpc_payload():
             "infrastructure_type": "virtualized",
             "arch": "x86_64",
             "os_release": "Red Hat Enterprise Linux Server release 7.5 (Maipo)",
-            "os_kernel_version": "7.5 (Maipo)",
+            "os_kernel_version": "3.10.0",
             "number_of_cpus": 2,
             "number_of_sockets": 2,
             "cores_per_socket": 1,
@@ -507,7 +508,7 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "0000001")
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
@@ -527,7 +528,8 @@ def build_host_chunk():
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
-        "subscription_manager_id": random_uuid(),
+        # "subscription_manager_id": random_uuid(),
+        "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "me",

@@ -9,10 +9,12 @@ from tests.helpers.api_utils import api_tags_pagination_test
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
+from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
+from tests.helpers.test_utils import generate_uuid
 
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -370,9 +372,45 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_host_tags_url(host_list_or_id=host.id)
     response_status, response_data = api_get(url, identity_type="System")
 
     assert_response_status(response_status, 200)
+
+
+def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
+
+    values = ("true", "false", "nil", "not_nil")
+
+    for value in values:
+        with subtests.test(value=value):
+            implicit_url = build_tags_url(query=f"?filter[system_profile][sap_system]={value}")
+            eq_url = build_tags_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
+
+            assert_response_status(implicit_response_status, 200)
+            assert_response_status(eq_response_status, 200)
+            assert implicit_response_data["total"] == 1
+            assert eq_response_data["total"] == 1
+
+
+def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
+
+    filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
+    value_sets = (("ABC",), ("BEN", "A72"), ("CDA", "MK2", "C2C"))
+
+    for path in filter_paths:
+        for values in value_sets:
+            with subtests.test(values=values, path=path):
+                url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
+
+                response_status, response_data = api_get(url)
+
+                assert_response_status(response_status, 200)
+                assert response_data["total"] == 1

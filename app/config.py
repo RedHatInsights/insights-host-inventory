@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from enum import Enum
 
 from app.common import get_build_version
@@ -12,17 +13,65 @@ PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 class Config:
     SSL_VERIFY_FULL = "verify-full"
 
+    def clowder_config(self):
+        import app_common_python
+
+        cfg = app_common_python.LoadedConfig
+
+        self.metrics_port = cfg.metricsPort
+        self._db_user = cfg.database.username
+        self._db_password = cfg.database.password
+        self._db_host = cfg.database.hostname
+        self._db_port = cfg.database.port
+        self._db_name = cfg.database.name
+        if cfg.database.rdsCa:
+            self._db_ssl_cert = cfg.rds_ca()
+
+        self.rbac_endpoint = ""
+        for endpoint in cfg.endpoints:
+            if endpoint.app == "rbac":
+                self.rbac_endpoint = f"http://{endpoint.hostname}:{endpoint.port}"
+                break
+
+        broker_cfg = cfg.kafka.brokers[0]
+        self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
+
+        def topic(t):
+            return app_common_python.KafkaTopics[t].name
+
+        requested_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+        self.host_ingress_topic = topic(requested_ingress_topic)
+        self.host_egress_topic = topic("platform.inventory.events")
+        self.system_profile_topic = topic("platform.system-profile")
+        self.event_topic = topic("platform.inventory.events")
+        self.payload_tracker_kafka_topic = topic("platform.payload-status")
+
+    def non_clowder_config(self):
+        self.metrics_port = 9126
+        self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
+        self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
+        self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
+        self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
+        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
+        self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+        self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
+        self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
+        self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
+        self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
+        self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
+        self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
+
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
         self._runtime_environment = runtime_environment
 
-        self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
-        self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
-        self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
-        self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
-        self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
-        self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
+        if os.getenv("CLOWDER_ENABLED", "").lower() == "true":
+            self.clowder_config()
+        else:
+            self.non_clowder_config()
 
+        self._db_ssl_mode = os.getenv("INVENTORY_DB_SSL_MODE", "")
         self.db_pool_timeout = int(os.getenv("INVENTORY_DB_POOL_TIMEOUT", "5"))
         self.db_pool_size = int(os.getenv("INVENTORY_DB_POOL_SIZE", "5"))
 
@@ -34,20 +83,13 @@ class Config:
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
-
         self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
-        self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
-        self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
-        self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
-        self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
-        self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
-        self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.secondary_topic_enabled = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "false").lower() == "true"
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
@@ -79,19 +121,25 @@ class Config:
             ),
         }
 
-        self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
 
-        self.culling_stale_warning_offset_days = int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7"))
-        self.culling_culled_offset_days = int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14"))
+        self.culling_stale_warning_offset_delta = timedelta(
+            days=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_DAYS", "7")),
+            minutes=int(os.environ.get("CULLING_STALE_WARNING_OFFSET_MINUTES", "0")),
+        )
+        self.culling_culled_offset_delta = timedelta(
+            days=int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "14")),
+            minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
+        )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
         self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))
         self.bulk_query_source_beta = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE_BETA", "db"))
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
+        self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "1000"))
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -113,7 +161,7 @@ class Config:
             db_user = "xxxx"
             db_password = "XXXX"
 
-        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}/{self._db_name}"
+        db_uri = f"postgresql://{db_user}:{db_password}@{self._db_host}:{self._db_port}/{self._db_name}"
         if ssl_mode == self.SSL_VERIFY_FULL:
             db_uri += f"?sslmode={self._db_ssl_mode}&sslrootcert={self._db_ssl_cert}"
         return db_uri

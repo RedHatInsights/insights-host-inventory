@@ -12,7 +12,7 @@ from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.culling import staleness_to_conditions
 
-__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "url")
+__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "string_contains_lc", "url")
 
 logger = getLogger("graphql")
 outbound_http_metric = outbound_http_response_time.labels("xjoin")
@@ -23,7 +23,7 @@ def check_pagination(offset, total):
         abort(404)  # Analogous to flask_sqlalchemy.BaseQuery.paginate
 
 
-def graphql_query(query_string, variables):
+def graphql_query(query_string, variables, failure_logger):
     url_ = url()
     logger.info("QUERY: URL %s; query %s, variables %s", url_, query_string, variables)
     payload = {"query": query_string, "variables": variables}
@@ -33,6 +33,7 @@ def graphql_query(query_string, variables):
 
     status = response.status_code
     if status != 200:
+        failure_logger(logger)
         logger.error("xjoin-search returned status: %s", status)
         abort(500, "Error, request could not be completed")
 
@@ -54,6 +55,10 @@ def staleness_filter(staleness):
 
 def string_contains(string):
     return {"matches": f"*{string}*"}
+
+
+def string_contains_lc(string):
+    return {"matches_lc": f"*{string}*"}
 
 
 def url():

@@ -1,25 +1,36 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 
 import marshmallow
 import pytest
 from sqlalchemy import null
+from sqlalchemy.exc import OperationalError
 
 from app import db
+from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.models import MqHostSchema
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from app.serialization import deserialize_host
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import wrap_message
+from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
+from tests.helpers.system_profile_utils import mock_system_profile_specification
+from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -177,17 +188,20 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     operation_escaped = json.dumps(operation_raw)[1:-1]
 
     messages = (
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}"}}}}',
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_escaped}{operation_escaped}","account": "test"}}}}',
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_escaped}", "account": "test"}}}}',
     )
+
     for message in messages:
         with subtests.test(message=message):
             host_id = generate_uuid()
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
-            add_host.assert_called_once_with({"display_name": f"{operation_raw}{operation_raw}"})
+            add_host.assert_called_once_with(
+                {"display_name": f"{operation_raw}{operation_raw}", "account": "test"}, Identity(USER_IDENTITY)
+            )
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -340,13 +354,127 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
         mq_create_or_update_host(host)
 
 
+@pytest.mark.system_profile
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
-    insights_id = generate_uuid()
     system_profile = {"disk_devices": [{"options": {"": "invalid"}}]}
-    host = minimal_host(insights_id=insights_id, system_profile=system_profile)
+    host = minimal_host(system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
+
+
+@pytest.mark.system_profile
+@pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
+def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
+    host = minimal_host(system_profile=system_profile)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+@pytest.mark.system_profile
+@pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
+def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_get_host, baseurl):
+    yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
+    host_to_create = minimal_host(system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]})
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"yum_repos": [yum_repo]}
+
+
+@pytest.mark.system_profile
+def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_host):
+    host_to_create = minimal_host(system_profile={"number_of_cpus": "1"})
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+
+    assert created_host_from_db.system_profile_facts == {"number_of_cpus": 1}
+
+
+@pytest.mark.system_profile
+def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_host):
+    host_to_create = minimal_host(
+        system_profile={
+            "number_of_cpus": 1,
+            "number_of_gpus": 2,
+            "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
+        }
+    )
+    created_host_from_event = mq_create_or_update_host(host_to_create)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {
+        "number_of_cpus": 1,
+        "disk_devices": [{"options": {"uid": "0"}}],
+    }
+
+
+def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
+    mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
+    mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
+
+    host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+    mq_create_or_update_host(host_to_create)
+    mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
+
+    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
+
+
+def test_add_host_externalized_system_profile(mq_create_or_update_host):
+    orig_spec = system_profile_specification()
+    mock_spec = deepcopy(orig_spec)
+    mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
+
+    with mock_system_profile_specification(mock_spec):
+        host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host_to_create)
+
+
+def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that owner_id in the system profile is ingested properly
+    """
+    owner_id = generate_uuid()
+    host = minimal_host(system_profile={"owner_id": owner_id})
+    created_host_from_event = mq_create_or_update_host(host)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"owner_id": owner_id}
+
+
+def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    """
+    owner_id = "Mike Wazowski"
+    host = minimal_host(system_profile={"owner_id": owner_id})
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that operating_system in the system profile is ingested properly
+    """
+    operating_system = {"major": 5, "minor": 1, "name": "RHEL"}
+    host = minimal_host(system_profile={"operating_system": operating_system})
+    created_host_from_event = mq_create_or_update_host(host)
+    created_host_from_db = db_get_host(created_host_from_event.id)
+    assert created_host_from_db.system_profile_facts == {"operating_system": operating_system}
+
+
+def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+    """
+    Tests that operating_system in the system profile is rejected if it's in the wrong format
+    """
+    operating_system_list = [
+        {"major": "bananas", "minor": 1, "name": "RHEL"},
+        {"major": 1, "minor": "oranges", "name": "RHEL"},
+        {"major": 1, "minor": 1, "name": "UBUNTU"},
+    ]
+    for operating_system in operating_system_list:
+        host = minimal_host(system_profile={"operating_system": operating_system})
+        with pytest.raises(ValidationException):
+            mq_create_or_update_host(host)
 
 
 @pytest.mark.parametrize(
@@ -892,3 +1020,62 @@ def test_invalid_string_is_found_in_list_item(obj):
 def test_other_values_are_ignored(value):
     _validate_json_object_for_utf8(value)
     assert True
+
+
+def test_handle_message_with_different_account(mocker, flask_app, subtests):
+    mocker.patch("app.queue.queue.build_event")
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
+
+    operation_raw = "🧜🏿‍♂️"
+    messages = (
+        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
+    )
+
+    identity = Identity(SYSTEM_IDENTITY)
+    identity.account_number = "dummy"
+
+    for message in messages:
+        with subtests.test(message=message):
+            host_id = generate_uuid()
+            add_host.reset_mock()
+            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+            handle_message(message, mocker.Mock())
+            add_host.assert_called_once_with(
+                {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
+            )
+
+
+def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
+    host = minimal_host(fqdn="d44533.foo.redhat.co")
+    host.account = "dummy"
+
+    created_host = mq_create_or_update_host(host)
+    assert db_get_host(created_host.id).account == "dummy"
+
+    first_batch = db_get_hosts([created_host.id])
+
+    # verify that the two hosts vars are pointing to the same resource.
+    same_host = mq_create_or_update_host(host)
+
+    second_batch = db_get_hosts([created_host.id, same_host.id])
+
+    # update_existing_host() resturns the same host but with updated timestamp.
+    created_host.updated = same_host.updated
+
+    assert created_host.__dict__ == same_host.__dict__
+    assert len(first_batch.all()) == len(second_batch.all())
+
+
+def test_handle_message_side_effect(mocker, flask_app):
+    fake_add_host = mocker.patch(
+        "lib.host_repository.add_host", side_effect=OperationalError("DB Problem", "fake_param", "fake_orig")
+    )
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id)
+
+    fake_add_host.reset_mock()
+    message = json.dumps(wrap_message(host.data()))
+
+    with pytest.raises(expected_exception=OperationalError):
+        handle_message(message, mocker.MagicMock())

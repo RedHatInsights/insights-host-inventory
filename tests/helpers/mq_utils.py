@@ -3,6 +3,7 @@ import os
 from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import Mock
 
 from app.utils import Tag
 
@@ -16,12 +17,16 @@ class MockEventProducer:
         self.key = None
         self.headers = None
         self.topic = None
+        self.wait = None
+        self._kafka_producer = Mock()
+        self._kafka_producer.flush = Mock(return_value=True)
 
-    def write_event(self, event, key, headers, topic):
+    def write_event(self, event, key, headers, topic, wait=False):
         self.event = event
         self.key = key
         self.headers = headers
         self.topic = topic
+        self.wait = wait
 
 
 class MockFuture:
@@ -95,7 +100,18 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
         assert event["metadata"] == expected_metadata
 
 
-def assert_patch_event_is_valid(host, event_producer, expected_request_id, expected_timestamp):
+def assert_patch_event_is_valid(
+    host,
+    event_producer,
+    expected_request_id,
+    expected_timestamp,
+    display_name="patch_event_test",
+    stale_timestamp=None,
+    reporter=None,
+):
+    stale_timestamp = stale_timestamp or host.stale_timestamp.astimezone(timezone.utc)
+    reporter = reporter or host.reporter
+
     event = json.loads(event_producer.event)
 
     assert isinstance(event, dict)
@@ -105,7 +121,7 @@ def assert_patch_event_is_valid(host, event_producer, expected_request_id, expec
         "host": {
             "id": str(host.id),
             "account": host.account,
-            "display_name": "patch_event_test",
+            "display_name": display_name,
             "ansible_host": host.ansible_host,
             "fqdn": host.canonical_facts.get("fqdn"),
             "insights_id": host.canonical_facts.get("insights_id"),
@@ -118,12 +134,10 @@ def assert_patch_event_is_valid(host, event_producer, expected_request_id, expec
             "system_profile": host.system_profile_facts,
             "external_id": None,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
-            "reporter": host.reporter,
-            "stale_timestamp": host.stale_timestamp.astimezone(timezone.utc).isoformat(),
-            "stale_warning_timestamp": (
-                host.stale_timestamp.astimezone(timezone.utc) + timedelta(weeks=1)
-            ).isoformat(),
-            "culled_timestamp": (host.stale_timestamp.astimezone(timezone.utc) + timedelta(weeks=2)).isoformat(),
+            "reporter": reporter,
+            "stale_timestamp": stale_timestamp.isoformat(),
+            "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
+            "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
             "created": host.created_on.astimezone(timezone.utc).isoformat(),
         },
         "platform_metadata": None,
@@ -157,3 +171,28 @@ def expected_encoded_headers(event_type, request_id, insights_id):
         ("producer", os.uname().nodename.encode("utf-8")),
         ("insights_id", insights_id.encode("utf-8")),
     ]
+
+
+def assert_synchronize_event_is_valid(
+    event_producer, key, host, timestamp, expected_request_id=None, expected_metadata=None
+):
+    event = json.loads(event_producer.event)
+
+    assert key == event_producer.key
+    assert isinstance(event, dict)
+    expected_keys = {"metadata", "timestamp", "host", "platform_metadata", "type"}
+
+    assert set(event.keys()) == expected_keys
+    assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
+    assert "updated" == event["type"]
+    assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
+    assert str(host.id) in event_producer.key
+    assert event_producer.headers == expected_headers(
+        "updated", event["metadata"]["request_id"], host.canonical_facts.get("insights_id")
+    )
+
+    if expected_request_id:
+        assert event["request_id"] == expected_request_id
+
+    if expected_metadata:
+        assert event["metadata"] == expected_metadata
