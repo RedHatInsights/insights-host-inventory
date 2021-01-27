@@ -4,7 +4,7 @@ $schema: http://json-schema.org/draft-04/schema#
 $defs:
   NestedObject:
     type: object
-    description: An arbitrary object that doesn’t allow empty string keys.
+    description: An arbitrary object that does not allow empty string keys.
     # openapi spec does not support propertyNames, we will use a custom validator
     # to validate x-propertyNames as propertyNames
     x-propertyNames:
@@ -267,7 +267,7 @@ $defs:
           type: string
           maxLength: 512
       installed_packages_delta:
-        type: array # sorted list, rest of packages not in installed_packages
+        type: array  # sorted list, rest of packages not in installed_packages
         items:
           description: A NEVRA string for a single installed package
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"
