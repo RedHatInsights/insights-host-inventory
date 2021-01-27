@@ -115,8 +115,8 @@ def get_tags(
     current_identity = get_current_identity()
     if (
         current_identity.identity_type == "System"
-        and current_identity.system["cert_type"] == "system"
         and current_identity.auth_type != "classic-proxy"
+        and current_identity.system["cert_type"] == "system"
     ):
         hostfilter_and_variables += owner_id_filter()
 
