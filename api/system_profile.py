@@ -210,4 +210,7 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     try:
         return flask_json_response(validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days))
     except (ValueError, AttributeError) as e:
+        consumer.close()
         flask.abort(400, str(e))
+    finally:
+        consumer.close()
