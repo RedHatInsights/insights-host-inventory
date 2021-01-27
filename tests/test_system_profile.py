@@ -229,12 +229,15 @@ def test_validate_sp_for_branch(mocker):
 
 
 def test_validate_sp_no_data(api_post, mocker):
-    response_status, response_data = api_post(
-        url=f"{SYSTEM_PROFILE_URL}/validate_schema?repo_fork=foo&repo_branch=bar&days=3", host_data=None
-    )
+    # Mock Kafka consumer
+    fake_consumer = mocker.Mock()
+    config = Config(RuntimeEnvironment.SERVICE)
+    tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace()}
 
-    assert response_status == 400
-    assert "No data available at the provided date." in response_data["detail"]
+    with pytest.raises(expected_exception=ValueError) as excinfo:
+        validate_sp_for_branch(config, fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+    assert "No data available at the provided date." in str(excinfo.value)
 
 
 def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
