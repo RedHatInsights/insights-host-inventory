@@ -31,7 +31,7 @@ INSIGHTS_CLASSIC_IDENTITY = {
     "account_number": "test",
     "auth_type": "classic-proxy",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system"},
+    "system": {},
     "type": "System",
 }
 

@@ -1,6 +1,7 @@
 import re
 
 import flask
+from kafka import KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response
@@ -114,8 +115,8 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     current_identity = get_current_identity()
     if (
         current_identity.identity_type == "System"
-        and current_identity.system["cert_type"] == "system"
         and current_identity.auth_type != "classic-proxy"
+        and current_identity.system["cert_type"] == "system"
     ):
         hostfilter_and_variables += owner_id_filter()
 
@@ -174,8 +175,8 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     current_identity = get_current_identity()
     if (
         current_identity.identity_type == "System"
-        and current_identity.system["cert_type"] == "system"
         and current_identity.auth_type != "classic-proxy"
+        and current_identity.system["cert_type"] == "system"
     ):
         hostfilter_and_variables += owner_id_filter()
 
@@ -199,4 +200,17 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     config = Config(RuntimeEnvironment.SERVICE)
-    return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))
+    consumer = KafkaConsumer(
+        group_id=config.host_ingress_consumer_group,
+        bootstrap_servers=config.bootstrap_servers,
+        api_version=(0, 10, 1),
+        value_deserializer=lambda m: m.decode(),
+        **config.kafka_consumer,
+    )
+    try:
+        response = validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days)
+        consumer.close()
+        return flask_json_response(response)
+    except (ValueError, AttributeError) as e:
+        consumer.close()
+        flask.abort(400, str(e))
