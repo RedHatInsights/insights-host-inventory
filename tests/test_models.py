@@ -9,6 +9,7 @@ from app import db
 from app.models import Host
 from app.models import HttpHostSchema
 from app.models import MqHostSchema
+from app.serialization import deserialize_host_mq
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -329,3 +330,29 @@ def test_host_model_constraints(field, value, db_create_host):
 
     with pytest.raises(DataError):
         db_create_host(host)
+
+
+def test_host_schema_tags_always_lowercase():
+    tags = [
+        {"namespace": "NaMEspaCE", "key": "env", "value": "prod"},
+        {"namespace": "OTHeRNaMeSPaCe", "key": "ALLCAPS", "value": "MixEd_CapS"},
+    ]
+    tags_lowercase_namespaces = {"namespace": {"env": ["prod"]}, "othernamespace": {"ALLCAPS": ["MixEd_CapS"]}}
+    host = {
+        "fqdn": "fred.flintstone.com",
+        "display_name": "display_name",
+        "account": USER_IDENTITY["account_number"],
+        "tags": tags,
+        "stale_timestamp": now().isoformat(),
+        "reporter": "test",
+        "system_profile": {
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+            "number_of_cpus": 1,
+            "number_of_sockets": 2,
+            "cores_per_socket": 4,
+        },
+        "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+    }
+
+    deserialized_host = deserialize_host_mq(host)
+    assert deserialized_host.tags == tags_lowercase_namespaces
