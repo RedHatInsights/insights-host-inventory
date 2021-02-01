@@ -2,6 +2,7 @@ import re
 
 from connexion.decorators.uri_parsing import OpenAPIURIParser
 
+from api.fields_parser import custom_fields_parser
 
 class customURIParser(OpenAPIURIParser):
     @staticmethod
@@ -15,6 +16,9 @@ class customURIParser(OpenAPIURIParser):
             return (k, v, False)
         key_path = re.findall(r"\[([^\[\]]*)\]", k)
         root = prev = node = {}
+
+        if root_key == 'fields':
+            return custom_fields_parser(root_key, key_path, v)
 
         prev_k = root_key
         for k in key_path:
