@@ -106,7 +106,7 @@ class AuthIdentityConstructorTestCase(TestCase):
 
     @staticmethod
     def _identity():
-        return Identity(USER_IDENTITY)
+        return Identity(USER_IDENTITY.get("identity"))
 
 
 class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
@@ -138,7 +138,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 
                 try:
                     actual_identity = from_auth_header(base64)
-                    self.assertEqual(expected_identity, actual_identity)
+                    self.assertEqual(expected_identity.__dict__, actual_identity.__dict__)
                 except (TypeError, ValueError):
                     self.fail()
 
@@ -178,14 +178,14 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(USER_IDENTITY)
+            identity = Identity(USER_IDENTITY.get("identity"))
             validate(identity)
             self.assertTrue(True)
         except ValueError:
             self.fail()
 
     def test_invalid(self):
-        test_identity = deepcopy(USER_IDENTITY)
+        test_identity = deepcopy(USER_IDENTITY.get("identity"))
         account_numbers = [None, ""]
         for account_number in account_numbers:
             with self.subTest(account_number=account_number):

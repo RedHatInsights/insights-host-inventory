@@ -18,8 +18,8 @@ def api_post(flask_client):
         host_data,
         query_parameters=None,
         extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
+        auth_type=USER_IDENTITY["identity"]["auth_type"],
+        identity_type=USER_IDENTITY["identity"]["type"],
     ):
         return do_request(
             flask_client.post,
@@ -41,8 +41,8 @@ def api_patch(flask_client):
         host_data,
         query_parameters=None,
         extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
+        auth_type=USER_IDENTITY["identity"]["auth_type"],
+        identity_type=USER_IDENTITY["identity"]["type"],
     ):
         return do_request(
             flask_client.patch,
@@ -64,8 +64,8 @@ def api_put(flask_client):
         host_data,
         query_parameters=None,
         extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
+        auth_type=USER_IDENTITY["identity"]["auth_type"],
+        identity_type=USER_IDENTITY["identity"]["type"],
     ):
         return do_request(
             flask_client.put,
@@ -86,8 +86,8 @@ def api_get(flask_client):
         url,
         query_parameters=None,
         extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
+        auth_type=USER_IDENTITY["identity"]["auth_type"],
+        identity_type=USER_IDENTITY["identity"]["type"],
     ):
         return do_request(
             flask_client.get,
@@ -107,8 +107,8 @@ def api_delete_host(flask_client):
         host_id,
         query_parameters=None,
         extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
+        auth_type=USER_IDENTITY["identity"]["auth_type"],
+        identity_type=USER_IDENTITY["identity"]["type"],
     ):
         url = f"{HOST_URL}/{host_id}"
         return do_request(

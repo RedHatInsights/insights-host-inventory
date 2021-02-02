@@ -26,6 +26,10 @@ from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+
+OWNER_ID = SYSTEM_IDENTITY["identity"]["system"]["cn"]
 
 
 def test_headers_forwarded(mocker, patch_xjoin_post, api_get):
@@ -1554,7 +1558,7 @@ def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graph
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}}),
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": OWNER_ID}}),
         },
         mocker.ANY,
     )
@@ -1574,10 +1578,7 @@ def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphq
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "hostFilter": {
-                "OR": mocker.ANY,
-                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
-            },
+            "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)},
         },
         mocker.ANY,
     )

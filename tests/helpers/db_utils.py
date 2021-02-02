@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from random import randint
 
@@ -19,8 +20,12 @@ DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
 DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
 
+log = logging.getLogger(__name__)
+
+
 def clean_tables():
     def _clean_tables():
+        log.warning("cleaning database tables")
         try:
             db.session.expire_all()
             for table in reversed(db.metadata.sorted_tables):
@@ -36,7 +41,7 @@ def clean_tables():
 
 def minimal_db_host(**values):
     data = {
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
@@ -47,7 +52,7 @@ def minimal_db_host(**values):
 
 def db_host(**values):
     data = {
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "display_name": "test-display-name",
         "ansible_host": "test-ansible-host",
         "canonical_facts": {
@@ -98,7 +103,7 @@ def get_expected_facts_after_update(method, namespace, facts, new_facts):
 
 
 def assert_host_exists_in_db(host_id, search_canonical_facts, account=USER_IDENTITY):
-    identity = Identity(account)
+    identity = Identity(account.get("identity"))
     found_host = find_existing_host(identity, search_canonical_facts)
 
     assert host_id == found_host.id

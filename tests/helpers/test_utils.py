@@ -1,4 +1,6 @@
+import base64
 import contextlib
+import json
 import os
 import string
 import unittest.mock
@@ -10,30 +12,21 @@ from random import choice
 from random import randint
 
 from app.utils import HostWrapper
+from lib.identity import get_system_cert_auth_identity
+from lib.identity import get_system_classic_identity
+from lib.identity import get_user_basic_auth_identity
 
 NS = "testns"
 ID = "whoabuddy"
 
-SYSTEM_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "cert-auth",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
-    "type": "System",
-}
-USER_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "basic-auth",
-    "type": "User",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
-}
-INSIGHTS_CLASSIC_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "classic-proxy",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {},
-    "type": "System",
-}
+SYSTEM_IDENTITY = get_system_cert_auth_identity()
+SYSTEM_API_KEY = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
+
+USER_IDENTITY = get_user_basic_auth_identity()
+USER_API_KEY = base64.b64encode(json.dumps(USER_IDENTITY).encode("utf-8"))
+
+INSIGHTS_CLASSIC_IDENTITY = get_system_classic_identity()
+CLASSIC_API_KEY = base64.b64encode(json.dumps(INSIGHTS_CLASSIC_IDENTITY).encode("utf-8"))
 
 
 def generate_uuid():
@@ -69,9 +62,35 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
+# owner_id needed for hosts owned by system accounts.
+def _set_owner_id(values):
+    if "system_profile" not in values.keys():
+        system_profile = {}
+        system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+        values["system_profile"] = system_profile
+    else:
+        if not values["system_profile"].get("owner_id"):
+            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+    return values
+
+
 def minimal_host(**values):
     data = {
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
+        "display_name": "test" + generate_random_string(),
+        "ip_addresses": ["10.10.0.1"],
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "reporter": "test" + generate_random_string(),
+        **values,
+    }
+
+    return HostWrapper(data)
+
+
+def minimal_host_owned_by_system(**values):
+    values = _set_owner_id(values)
+    data = {
+        "account": SYSTEM_IDENTITY["identity"]["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
@@ -145,3 +164,15 @@ def valid_system_profile():
         "enabled_services": ["ndb", "krb5"],
         "sap_sids": ["ABC", "DEF", "GHI"],
     }
+
+
+def get_platform_metadata_with_system_identity():
+    return {
+        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": SYSTEM_API_KEY.decode("ascii"),
+    }
+
+
+def get_encoded_idstr():
+    return SYSTEM_API_KEY.decode("ascii")

@@ -62,6 +62,7 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(identity, canonical_facts):
+    logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
     if not existing_host:
@@ -106,7 +107,7 @@ def find_host_by_canonical_fact(identity, canonical_fact, value):
     """
     Returns first match for a host containing given canonical facts
     """
-    logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
+    logger.debug("find_host_by_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
 
     host = canonical_fact_host_query(identity, canonical_fact, value).first()
 

@@ -20,12 +20,17 @@ from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
+
+
+OWNER_ID = SYSTEM_IDENTITY["identity"]["system"]["cn"]
 
 
 # system_profile tests
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
+    system_profile["owner_id"] = OWNER_ID
     host = minimal_host(system_profile=system_profile)
     created_host = mq_create_or_update_host(host)
 
