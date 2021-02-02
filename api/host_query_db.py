@@ -119,7 +119,11 @@ def _find_hosts_by_tag(string_tags, query):
     tags = []
 
     for string_tag in string_tags:
-        tags.append(Tag.from_string(string_tag))
+        tag = Tag.from_string(string_tag)
+        # Lowercase namespace
+        if tag.namespace:
+            tag.namespace = tag.namespace.lower()
+        tags.append()
 
     tags_to_find = Tag.create_nested_from_tags(tags)
 

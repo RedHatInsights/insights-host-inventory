@@ -59,6 +59,8 @@ def build_tag_query_dict_tuple(tags):
     for string_tag in tags:
         query_tag_dict = {}
         tag_dict = Tag.from_string(string_tag).data()
+        if tag_dict["namespace"]:
+            tag_dict["namespace"] = tag_dict["namespace"].lower()
         for key in tag_dict.keys():
             query_tag_dict[key] = {"eq": tag_dict[key]}
         query_tag_tuple += ({"tag": query_tag_dict},)

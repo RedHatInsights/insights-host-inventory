@@ -543,7 +543,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?display_name=host1&tags=NS1/key1=val1")
+    url = build_hosts_url(query="?display_name=host1&tags=ns1/key1=val1")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
