@@ -238,7 +238,7 @@ paths:
         Find one or more hosts by their ID and return the id and system profile
         <br /><br />
         Required permissions: inventory:hosts:read
-      operationId: api.host.get_host_system_profile_by_id
+      operationId: api.system_profile_host_list.get_host_system_profile_by_id
       security:
         - ApiKeyAuth: []
       parameters:

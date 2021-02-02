@@ -4,6 +4,7 @@ from connexion.decorators.uri_parsing import OpenAPIURIParser
 
 from api.fields_parser import custom_fields_parser
 
+
 class customURIParser(OpenAPIURIParser):
     @staticmethod
     def _make_deep_object(k, v):
@@ -17,7 +18,7 @@ class customURIParser(OpenAPIURIParser):
         key_path = re.findall(r"\[([^\[\]]*)\]", k)
         root = prev = node = {}
 
-        if root_key == 'fields':
+        if root_key == "fields":
             return custom_fields_parser(root_key, key_path, v)
 
         prev_k = root_key
