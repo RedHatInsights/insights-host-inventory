@@ -1,3 +1,4 @@
+import base64
 import json
 import sys
 
@@ -44,6 +45,33 @@ class OperationSchema(Schema):
     operation = fields.Str(required=True)
     platform_metadata = fields.Dict()
     data = fields.Dict(required=True)
+
+
+# input is a base64 encoded string and returns the identity dictionary
+def _get_identity(encoded_id):
+    base64_id = encoded_id
+    base64_bytes = base64_id.encode("ascii")
+    id_bytes = base64.b64decode(base64_bytes)
+    id = id_bytes.decode("ascii")
+    return json.loads(id)
+
+
+# test for no system_profile,
+def _set_owner(host, identity):
+    cn = identity["system"]["cn"]
+    # make sure system_profile exists in host
+    if "system_profile" not in host:
+        host["system_profile"] = {}
+        host["system_profile"]["owner_id"] = cn
+    elif "owner_id" not in host["system_profile"]:
+        host["system_profile"]["owner_id"] = cn
+    elif not host["system_profile"]["owner_id"]:
+        host["system_profile"]["owner_id"] = cn
+    else:
+        if host["system_profile"]["owner_id"] != cn:
+            log_add_host_failure(logger, host)
+            raise InventoryException("The owner in host does not match the owner in identity")
+    return host
 
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
@@ -137,10 +165,13 @@ def handle_message(message, event_producer):
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
     # create a dummy identity for working around the identity requirement for CRUD operations
-    identity = Identity(USER_IDENTITY)
+    # b64_identity = _get_identity(platform_metadata["b64_identity"])
+    identity = _get_identity(platform_metadata["b64_identity"])
+    # identity = json.loads(b64_identity)
+    host = validated_operation_msg["data"]
+    host = _set_owner(host, identity)
 
-    # set account_number in dummy idenity to the actual account_number received in the payload
-    identity.account_number = validated_operation_msg["data"]["account"]
+    identity = Identity(identity)
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
@@ -150,7 +181,8 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
+        # output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
+        output_host, host_id, insights_id, add_results = add_host(host, identity)
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 

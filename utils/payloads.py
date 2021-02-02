@@ -1,9 +1,21 @@
+import base64
 import json
 import os
 import uuid
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+
+
+SYSTEM_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "cert-auth",
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
+    "type": "System",
+}
+
+apiKey = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
 
 
 def rpm_list():
@@ -546,7 +558,12 @@ def build_host_payload(payload_builder=build_host_chunk):
 def build_mq_payload(payload_builder=build_host_chunk):
     message = {
         "operation": "add_host",
-        "platform_metadata": {"request_id": random_uuid(), "archive_url": "http://s3.aws.com/redhat/insights/1234567"},
+        "platform_metadata": {
+            "request_id": random_uuid(),
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+            # "b64_identity": SYSTEM_IDENTITY
+            "b64_identity": apiKey.decode("utf-8"),
+        },
         "data": build_host_payload(payload_builder),
     }
     return json.dumps(message).encode("utf-8")
