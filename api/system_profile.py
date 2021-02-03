@@ -1,6 +1,7 @@
 import re
 
 import flask
+from kafka import KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response
@@ -10,9 +11,7 @@ from api.host import get_bulk_query_source
 from api.host_query_xjoin import build_sap_sids_filter
 from api.host_query_xjoin import build_sap_system_filters
 from api.host_query_xjoin import build_tag_query_dict_tuple
-from api.host_query_xjoin import owner_id_filter
 from app import Permission
-from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -27,6 +26,9 @@ from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
 from lib.system_profile_validate import validate_sp_for_branch
+
+# from api.host_query_xjoin import owner_id_filter
+# from app.auth import get_current_identity
 
 logger = get_logger(__name__)
 
@@ -111,9 +113,14 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
-        hostfilter_and_variables += owner_id_filter()
+    # TODO enable owner_id filtering after all hosts've been updated with "owner_id"
+    # current_identity = get_current_identity()
+    # if (
+    #     current_identity.identity_type == "System"
+    #     and current_identity.auth_type != "classic-proxy"
+    #     and current_identity.system["cert_type"] == "system"
+    # ):
+    #     hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
@@ -167,9 +174,14 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             if filter["system_profile"].get("sap_sids"):
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
-        hostfilter_and_variables += owner_id_filter()
+    # TODO enable owner_id filtering after all hosts've been updated with "owner_id"
+    # current_identity = get_current_identity()
+    # if (
+    #     current_identity.identity_type == "System"
+    #     and current_identity.auth_type != "classic-proxy"
+    #     and current_identity.system["cert_type"] == "system"
+    # ):
+    #     hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
         variables["hostFilter"]["AND"] = hostfilter_and_variables
@@ -191,4 +203,17 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
     config = Config(RuntimeEnvironment.SERVICE)
-    return flask_json_response(validate_sp_for_branch(config, repo_fork, repo_branch, days))
+    consumer = KafkaConsumer(
+        group_id=config.host_ingress_consumer_group,
+        bootstrap_servers=config.bootstrap_servers,
+        api_version=(0, 10, 1),
+        value_deserializer=lambda m: m.decode(),
+        **config.kafka_consumer,
+    )
+    try:
+        response = validate_sp_for_branch(config, consumer, repo_fork, repo_branch, days)
+        consumer.close()
+        return flask_json_response(response)
+    except (ValueError, AttributeError) as e:
+        consumer.close()
+        flask.abort(400, str(e))

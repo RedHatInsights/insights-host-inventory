@@ -16,6 +16,7 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import Identity
+from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -82,6 +83,9 @@ def do_request(
 ):
     url = inject_qs(url, **query_parameters) if query_parameters else url
     headers = get_required_headers(auth_type, identity_type)
+
+    print("Required Headers: %s", headers)
+
     if extra_headers:
         headers = {**headers, **extra_headers}
 
@@ -99,7 +103,7 @@ def do_request(
 
 
 def get_valid_auth_header(auth_type="account_number", identity_type="User"):
-    if identity_type == "User" or identity_type == "System":
+    if identity_type == "User" or identity_type == "System" or identity_type == "Insights_Classic_System":
         return build_account_auth_header(auth_type, identity_type)
 
     return build_token_auth_header()
@@ -115,8 +119,12 @@ def get_required_headers(auth_type="account_number", identity_type="User"):
 def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
     if identity_type == "User":
         identity = Identity(USER_IDENTITY)
-    else:
+    elif identity_type == "System":
         identity = Identity(SYSTEM_IDENTITY)
+    elif identity_type == "Insights_Classic_System":
+        identity = Identity(INSIGHTS_CLASSIC_IDENTITY)
+    else:
+        raise ValueError("unrecognized identity type")
 
     dict_ = {"identity": identity._asdict()}
 
