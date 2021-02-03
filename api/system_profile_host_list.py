@@ -16,6 +16,7 @@ from app.serialization import serialize_host_system_profile
 from app.serialization import serialize_host_system_profile_xjoin
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
+from app.xjoin import hosts_order_by_params
 from app.xjoin import pagination_params
 from lib.middleware import rbac
 
@@ -64,6 +65,11 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 
         limit, offset = pagination_params(page, per_page)
 
+        try:
+            order_by, order_how = hosts_order_by_params(order_by, order_how)
+        except ValueError as e:
+            flask.abort(400, str(e))
+
         if fields.get("system_profile"):
             host_ids = [{"id": {"eq": host_id}} for host_id in host_id_list]
             system_profile_fields = list(fields.get("system_profile").keys())
@@ -77,6 +83,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
                     "order_how": order_how,
                 }
                 response = graphql_query(SYSTEM_PROFILE_QUERY, variables, log_get_sparse_system_profile_failed)
+
                 response_data = response["hosts"]
 
                 check_pagination(offset, response_data["meta"]["total"])
