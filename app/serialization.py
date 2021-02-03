@@ -141,6 +141,10 @@ def serialize_host_system_profile(host):
     return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
 
+def serialize_host_system_profile_xjoin(host_data):
+    return {"id": _serialize_uuid(host_data["id"]), "system_profile": host_data.get("system_profile_facts") or {}}
+
+
 def _deserialize_canonical_facts(data):
     return {field: data[field] for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
 
