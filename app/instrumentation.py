@@ -153,3 +153,8 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
         extra={"required_permission": required_permission, "user_permissions": user_permissions},
     )
     rbac_access_denied.labels(required_permission=required_permission).inc()
+
+
+def log_db_access_failure(logger, message, host_data):
+    logger.error("Error adding host ", f"{host_data['insights_id']}: {message}")
+    metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()

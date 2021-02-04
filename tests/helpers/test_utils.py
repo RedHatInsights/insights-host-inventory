@@ -27,6 +27,13 @@ USER_IDENTITY = {
     "type": "User",
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
+INSIGHTS_CLASSIC_IDENTITY = {
+    "account_number": "test",
+    "auth_type": "classic-proxy",
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {},
+    "type": "System",
+}
 
 
 def generate_uuid():

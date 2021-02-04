@@ -89,9 +89,14 @@ def get_host_list(
         fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
     )
 
-    current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.system["cert_type"] == "system":
-        all_filters += owner_id_filter()
+    # TODO enable owner_id filtering after all hosts've been updated with "owner_id"
+    # current_identity = get_current_identity()
+    # if (
+    #     current_identity.identity_type == "System"
+    #     and current_identity.auth_type != "classic-proxy"
+    #     and current_identity.system["cert_type"] == "system"
+    # ):
+    #     all_filters += owner_id_filter()
 
     variables = {
         "limit": limit,
@@ -192,5 +197,6 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     return query_filters
 
 
+# TODO enable after all hosts've been updated with "owner_id"
 def owner_id_filter():
     return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)

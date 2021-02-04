@@ -7,6 +7,7 @@ from functools import partial
 import marshmallow
 import pytest
 from sqlalchemy import null
+from sqlalchemy.exc import OperationalError
 
 from app import db
 from app.auth.identity import Identity
@@ -28,6 +29,7 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
@@ -940,7 +942,7 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
         f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
     )
 
-    identity = Identity(USER_IDENTITY)
+    identity = Identity(SYSTEM_IDENTITY)
     identity.account_number = "dummy"
 
     for message in messages:
@@ -973,3 +975,18 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
 
     assert created_host.__dict__ == same_host.__dict__
     assert len(first_batch.all()) == len(second_batch.all())
+
+
+def test_handle_message_side_effect(mocker, flask_app):
+    fake_add_host = mocker.patch(
+        "lib.host_repository.add_host", side_effect=OperationalError("DB Problem", "fake_param", "fake_orig")
+    )
+
+    expected_insights_id = generate_uuid()
+    host = minimal_host(insights_id=expected_insights_id)
+
+    fake_add_host.reset_mock()
+    message = json.dumps(wrap_message(host.data()))
+
+    with pytest.raises(expected_exception=OperationalError):
+        handle_message(message, mocker.MagicMock())
