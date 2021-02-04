@@ -600,12 +600,12 @@ components:
       in: query
       name: fields
       required: false
-      description: Filters hosts based on system_profile fields
+      description: Fetches only mentioned system_profile fields
       style: deepObject
       explode: true
       schema:
         type: object
-        description: System profile field values to filter with
+        description: System profile field values to fetch
 
   schemas:
     SystemProfileSapSystemOut:

@@ -56,9 +56,9 @@ def hosts_order_by_params(order_by, order_how):
         )
 
     if not order_by:
-        order_by = "display_name"
+        order_by = "updated"
     if not order_how:
-        order_how = "ASC"
+        order_how = "DESC"
 
     if order_by not in ["display_name", "updated"]:
         raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
