@@ -510,7 +510,8 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "sysaccount")
+    # account = os.environ.get("INVENTORY_HOST_ACCOUNT", "usraccount")
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
