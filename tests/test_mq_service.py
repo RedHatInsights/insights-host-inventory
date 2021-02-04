@@ -299,17 +299,11 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
     """
     expected_insights_id = generate_uuid()
     expected_tags = [
-        {"namespace": "NS1", "key": "key3", "value": "val3"},
-        {"namespace": "NS3", "key": "key2", "value": "val2"},
-        {"namespace": "Sat", "key": "prod", "value": None},
-        {"namespace": "Sat", "key": "dev", "value": ""},
-        {"namespace": "Sat", "key": "test"},
-        {"namespace": None, "key": "key", "value": "val1"},
-        {"namespace": "", "key": "key", "value": "val4"},
-        {"namespace": "null", "key": "key", "value": "val5"},
-        {"namespace": None, "key": "only_key", "value": None},
-        {"key": "just_key"},
-        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        {"namespace": "insights-client", "key": "key3", "value": "val3"},
+        {"namespace": "satellite", "key": "prod", "value": None},
+        {"namespace": "satellite", "key": "dev", "value": ""},
+        {"namespace": "satellite", "key": "test"},
+        {"namespace": "satellite", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
     timestamp_iso = event_datetime_mock.isoformat()
 
@@ -537,14 +531,11 @@ def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_in
 def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
     tags = [
-        {"namespace": "namespace 1", "key": "key 1", "value": "value 1"},
-        {"namespace": "namespace 1", "key": "key 2", "value": None},
-        {"namespace": "namespace 2", "key": "key 1", "value": None},
-        {"namespace": "namespace 2", "key": "key 1", "value": ""},
-        {"namespace": "namespace 2", "key": "key 1", "value": "value 2"},
-        {"namespace": "", "key": "key 3", "value": "value 3"},
-        {"namespace": None, "key": "key 3", "value": "value 4"},
-        {"namespace": "null", "key": "key 3", "value": "value 5"},
+        {"namespace": "satellite", "key": "key 1", "value": "value 1"},
+        {"namespace": "satellite", "key": "key 2", "value": None},
+        {"namespace": "insights-client", "key": "key 1", "value": None},
+        {"namespace": "insights-client", "key": "key 1", "value": ""},
+        {"namespace": "insights-client", "key": "key 1", "value": "value 2"},
     ]
 
     host = minimal_host(insights_id=insights_id, tags=tags)
@@ -553,22 +544,14 @@ def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insight
 
     record = db_get_host_by_insights_id(insights_id)
 
-    assert record.tags == {
-        "namespace 1": {"key 1": ["value 1"], "key 2": []},
-        "namespace 2": {"key 1": ["value 2"]},
-        "null": {"key 3": ["value 3", "value 4", "value 5"]},
-    }
+    assert record.tags == {"satellite": {"key 1": ["value 1"], "key 2": []}, "insights-client": {"key 1": ["value 2"]}}
 
 
 def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
     tags = {
-        "namespace 1": {"key 1": ["value 1"], "key 2": [], "key 3": None},
-        "namespace 2": {"key 1": ["value 2", "", None]},
-        "namespace 3": None,
-        "namespace 4": {},
-        "null": {"key 4": ["value 3"]},
-        "": {"key 4": ["value 4"]},
+        "satellite": {"key 1": ["value 1"], "key 2": [], "key 3": None, "key 4": ["value 2", "", None]},
+        "insights-client": None,
     }
     host = minimal_host(insights_id=insights_id, tags=tags)
 
@@ -576,11 +559,7 @@ def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insight
 
     record = db_get_host_by_insights_id(insights_id)
 
-    assert record.tags == {
-        "namespace 1": {"key 1": ["value 1"], "key 2": [], "key 3": []},
-        "namespace 2": {"key 1": ["value 2"]},
-        "null": {"key 4": ["value 3", "value 4"]},
-    }
+    assert record.tags == {"satellite": {"key 1": ["value 1"], "key 2": [], "key 3": [], "key 4": ["value 2"]}}
 
 
 @pytest.mark.parametrize(
@@ -652,10 +631,10 @@ def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insig
     # Can't use parametrize here due to the data cleanup on each test run
     for message_tags, expected_tags in (
         ([], {}),
-        ([{"namespace": "namespace 1", "key": "key 1", "value": "value 1"}], {"namespace 1": {"key 1": ["value 1"]}}),
+        ([{"namespace": "satellite", "key": "key 1", "value": "value 1"}], {"satellite": {"key 1": ["value 1"]}}),
         (
-            [{"namespace": "namespace 2", "key": "key 1", "value": "value 2"}],
-            {"namespace 1": {"key 1": ["value 1"]}, "namespace 2": {"key 1": ["value 2"]}},
+            [{"namespace": "insights-client", "key": "key 1", "value": "value 2"}],
+            {"satellite": {"key 1": ["value 1"]}, "insights-client": {"key 1": ["value 2"]}},
         ),
     ):
         with subtests.test(tags=message_tags):
@@ -673,10 +652,10 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
     # Can't use parametrize here due to the data cleanup on each test run
     for message_tags, expected_tags in (
         ({}, {}),
-        ({"namespace 1": {"key 1": ["value 1"]}}, {"namespace 1": {"key 1": ["value 1"]}}),
+        ({"satellite": {"key 1": ["value 1"]}}, {"satellite": {"key 1": ["value 1"]}}),
         (
-            {"namespace 2": {"key 1": ["value 2"]}},
-            {"namespace 1": {"key 1": ["value 1"]}, "namespace 2": {"key 1": ["value 2"]}},
+            {"insights-client": {"key 1": ["value 2"]}},
+            {"satellite": {"key 1": ["value 1"]}, "insights-client": {"key 1": ["value 2"]}},
         ),
     ):
         with subtests.test(tags=message_tags):
@@ -716,47 +695,14 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
         ([], {}),
         (
             [
-                {"namespace": "namespace 1", "key": "key 1", "value": "value 1"},
-                {"namespace": "namespace 2", "key": "key 2", "value": "value 2"},
-                {"namespace": "null", "key": "key 3", "value": "value 3"},
+                {"namespace": "satellite", "key": "key 1", "value": "value 1"},
+                {"namespace": "insights-client", "key": "key 2", "value": "value 2"},
             ],
-            {
-                "namespace 1": {"key 1": ["value 1"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 3": ["value 3"]},
-            },
+            {"satellite": {"key 1": ["value 1"]}, "insights-client": {"key 2": ["value 2"]}},
         ),
         (
-            [{"namespace": "namespace 1", "key": "key 4", "value": "value 4"}],
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 3": ["value 3"]},
-            },
-        ),
-        (
-            [{"key": "key 5", "value": "value 5"}],
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 5": ["value 5"]},
-            },
-        ),
-        (
-            [{"namespace": None, "key": "key 6", "value": "value 6"}],
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 6": ["value 6"]},
-            },
-        ),
-        (
-            [{"namespace": "", "key": "key 7", "value": "value 7"}],
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 7": ["value 7"]},
-            },
+            [{"namespace": "satellite", "key": "key 4", "value": "value 4"}],
+            {"satellite": {"key 4": ["value 4"]}, "insights-client": {"key 2": ["value 2"]}},
         ),
     ):
         with subtests.test(tags=message_tags):
@@ -775,32 +721,12 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
     for message_tags, expected_tags in (
         ({}, {}),
         (
-            {
-                "namespace 1": {"key 1": ["value 1"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 3": ["value 3"]},
-            },
-            {
-                "namespace 1": {"key 1": ["value 1"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 3": ["value 3"]},
-            },
+            {"satellite": {"key 1": ["value 1"]}, "insights-client": {"key 2": ["value 2"]}},
+            {"satellite": {"key 1": ["value 1"]}, "insights-client": {"key 2": ["value 2"]}},
         ),
         (
-            {"namespace 1": {"key 4": ["value 4"]}},
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 3": ["value 3"]},
-            },
-        ),
-        (
-            {"": {"key 5": ["value 5"]}},
-            {
-                "namespace 1": {"key 4": ["value 4"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "null": {"key 5": ["value 5"]},
-            },
+            {"satellite": {"key 4": ["value 4"]}},
+            {"satellite": {"key 4": ["value 4"]}, "insights-client": {"key 2": ["value 2"]}},
         ),
     ):
         with subtests.test(tags=message_tags):
@@ -817,11 +743,11 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
 
     # Can't use parametrize here due to the data cleanup on each test run
     for message_tags, expected_tags in (
-        ({"tags": {"namespace 1": {"key 1": ["value 1"]}}}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({"tags": None}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({"tags": []}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({"tags": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
+        ({"tags": {"satellite": {"key 1": ["value 1"]}}}, {"satellite": {"key 1": ["value 1"]}}),
+        ({}, {"satellite": {"key 1": ["value 1"]}}),
+        ({"tags": None}, {"satellite": {"key 1": ["value 1"]}}),
+        ({"tags": []}, {"satellite": {"key 1": ["value 1"]}}),
+        ({"tags": {}}, {"satellite": {"key 1": ["value 1"]}}),
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, **message_tags)
@@ -851,26 +777,11 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
     for message_tags, expected_tags in (
         ({}, {}),
         (
-            {
-                "namespace 1": {"key 1": ["value 1"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "namespace 3": {"key 3": ["value 3"]},
-                "null": {"key 4": ["value 4"]},
-            },
-            {
-                "namespace 1": {"key 1": ["value 1"]},
-                "namespace 2": {"key 2": ["value 2"]},
-                "namespace 3": {"key 3": ["value 3"]},
-                "null": {"key 4": ["value 4"]},
-            },
+            {"satellite": {"key 1": ["val1"], "key 2": ["val2"]}, "insights-client": {"key 3": ["val3"]}},
+            {"satellite": {"key 1": ["val1"], "key 2": ["val2"]}, "insights-client": {"key 3": ["val3"]}},
         ),
-        (
-            {"namespace 2": None, "namespace 3": {}},
-            {"namespace 1": {"key 1": ["value 1"]}, "null": {"key 4": ["value 4"]}},
-        ),
-        ({"null": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({"null": {"key 5": ["value 5"]}}, {"namespace 1": {"key 1": ["value 1"]}, "null": {"key 5": ["value 5"]}}),
-        ({"": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
+        ({"insights-client": None}, {"satellite": {"key 1": ["val1"], "key 2": ["val2"]}}),
+        ({"satellite": {}}, {}),
     ):
         with subtests.test(tags=message_tags):
             host = minimal_host(insights_id=insights_id, tags=message_tags)

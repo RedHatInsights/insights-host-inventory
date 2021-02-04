@@ -28,22 +28,20 @@ SHARED_SECRET = "SuperSecretStuff"
 FACTS = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 TAGS = [
     [
-        {"namespace": "NS1", "key": "key1", "value": "val1"},
-        {"namespace": "NS1", "key": "key2", "value": "val1"},
-        {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-        {"namespace": "no", "key": "key", "value": None},
+        {"namespace": "satellite", "key": "key1", "value": "val1"},
+        {"namespace": "satellite", "key": "key2", "value": "val1"},
+        {"namespace": "insights-client", "key": "tag", "value": "ToFind"},
+        {"namespace": "insights-client", "key": "key", "value": None},
     ],
     [
-        {"namespace": "NS1", "key": "key1", "value": "val1"},
-        {"namespace": "NS2", "key": "key2", "value": "val2"},
-        {"namespace": "NS3", "key": "key3", "value": "val3"},
+        {"namespace": "satellite", "key": "key1", "value": "val1"},
+        {"namespace": "satellite", "key": "key3", "value": "val3"},
+        {"namespace": "insights-client", "key": "key3", "value": "val3"},
     ],
     [
-        {"namespace": "NS2", "key": "key2", "value": "val2"},
-        {"namespace": "NS3", "key": "key3", "value": "val3"},
-        {"namespace": "NS1", "key": "key3", "value": "val3"},
-        {"namespace": None, "key": "key4", "value": "val4"},
-        {"namespace": None, "key": "key5", "value": None},
+        {"namespace": "insights-client", "key": "key2", "value": "val2"},
+        {"namespace": "satellite", "key": "key3", "value": "val3"},
+        {"namespace": "satellite", "key": "key5", "value": "val5"},
     ],
 ]
 

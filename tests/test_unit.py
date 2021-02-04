@@ -671,8 +671,8 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "ansible_host": "some ansible host",
             "account": "some acct",
             "tags": {
-                "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-                "another namespace": {"key": ["value"]},
+                "insights-client": {"some key": ["some value", "another value"], "another key": ["value"]},
+                "satellite": {"key": ["value"]},
             },
             "reporter": "puptoo",
         }
@@ -841,8 +841,8 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
     def test_with_tags(self):
         tags = {
-            "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
-            "another namespace": {"key": ["value"]},
+            "insights-client": {"some key": ["some value", "another value"], "another key": ["value"]},
+            "satellite": {"key": ["value"]},
         }
         host = deserialize_host(
             {

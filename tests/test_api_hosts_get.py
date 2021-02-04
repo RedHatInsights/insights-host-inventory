@@ -327,7 +327,7 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0], created_hosts[1]]
 
-    url = build_hosts_url(query="?tags=NS1/key1=val1&order_by=updated&order_how=ASC")
+    url = build_hosts_url(query="?tags=satellite/key1=val1&order_by=updated&order_how=ASC")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -347,7 +347,7 @@ def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subt
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[1]]
 
-    url = build_hosts_url(query="?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3")
+    url = build_hosts_url(query="?tags=satellite/key1=val1,satellite/key2=val2,insights-clients/key3=val3")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -366,7 +366,7 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[1]]
 
-    url = build_hosts_url(query="?tags=NS1/key1=val1,NS3/key3=val3")
+    url = build_hosts_url(query="?tags=satellite/key1=val1,insights-client/key3=val3")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -385,7 +385,7 @@ def test_get_host_with_different_tags_same_namespace(mq_create_three_specific_ho
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?tags=NS1/key1=val1,NS1/key2=val1")
+    url = build_hosts_url(query="?tags=satellite/key1=val1,satellite/key2=val1")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -402,7 +402,7 @@ def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific
     Don’t get a host with two tags in the same namespace, from which only one match. This is a
     regression test.
     """
-    url = build_hosts_url(query="?tags=NS1/key1=val2,NS1/key2=val1")
+    url = build_hosts_url(query="?tags=satellite/key1=val2,satellite/key2=val1")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -416,7 +416,7 @@ def test_get_host_with_same_tags_different_namespaces(mq_create_three_specific_h
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[2]]
 
-    url = build_hosts_url(query="?tags=NS3/key3=val3,NS1/key3=val3")
+    url = build_hosts_url(query="?tags=insights-client/key2=val2,satellite/key3=val3")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -454,7 +454,7 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?tags=NS1/key2")
+    url = build_hosts_url(query="?tags=satellite/key2")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -473,7 +473,7 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[2]]
 
-    url = build_hosts_url(query="?tags=key4=val4")
+    url = build_hosts_url(query="?tags=key3=val3")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -523,7 +523,7 @@ def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_ge
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?tags=NS1/key1=val1&display_name=host1")
+    url = build_hosts_url(query="?tags=satellite/key1=val1&display_name=host1")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -543,7 +543,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?display_name=host1&tags=ns1/key1=val1")
+    url = build_hosts_url(query="?display_name=host1&tags=satellite/key1=val1")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -577,11 +577,11 @@ def test_get_host_tag_part_too_long(tag_query, part_name, mq_create_three_specif
     )
 
 
-@pytest.mark.parametrize("tag_query", (";?:@&+$/-_.!~*'()'=#", " \t\n\r\f\v/ \t\n\r\f\v= \t\n\r\f\v"))
+@pytest.mark.parametrize("tag_query", ("satellite/-_.!~*'()'=#", "satellite/ \t\n\r\f\v= \t\n\r\f\v"))
 def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_update_host, api_get, subtests):
     tags = [
-        {"namespace": ";?:@&+$", "key": "-_.!~*'()'", "value": "#"},
-        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        {"namespace": "satellite", "key": "-_.!~*'()'", "value": "#"},
+        {"namespace": "satellite", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
 
     host = minimal_host(tags=tags)
@@ -596,18 +596,18 @@ def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_upda
 
 
 @pytest.mark.parametrize(
-    "namespace,key,value", ((";,/?:@&=+$", "-_.!~*'()", "#"), (" \t\n\r\f\v", " \t\n\r\f\v", " \t\n\r\f\v"))
+    "namespace,key,value", (("satellite", "-_.!~*'()", "#"), ("satellite", " \t\n\r\f\v", " \t\n\r\f\v"))
 )
 def test_get_host_with_escaped_special_characters(namespace, key, value, mq_create_or_update_host, api_get):
     tags = [
-        {"namespace": ";,/?:@&=+$", "key": "-_.!~*'()", "value": "#"},
-        {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
+        {"namespace": "satellite", "key": "-_.!~*'()", "value": "#"},
+        {"namespace": "satellite", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
 
     host = minimal_host(tags=tags)
     created_host = mq_create_or_update_host(host)
 
-    tags_query = quote(f"{quote_everything(namespace)}/{quote_everything(key)}={quote_everything(value)}")
+    tags_query = quote(f"{namespace}/{quote_everything(key)}={quote_everything(value)}")
     url = build_hosts_url(query=f"?tags={tags_query}")
     response_status, response_data = api_get(url)
 

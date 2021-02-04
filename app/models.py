@@ -36,7 +36,7 @@ logger = get_logger(__name__)
 
 db = SQLAlchemy()
 
-TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
+TAG_NAMESPACE_VALIDATION = marshmallow_validate.OneOf(["insights-client", "satellite"])
 TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
 TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 

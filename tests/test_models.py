@@ -129,8 +129,11 @@ def test_create_host_with_system_profile(db_create_host):
 @pytest.mark.parametrize(
     "tags",
     [
-        [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
-        [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+        [
+            {"namespace": "satellite", "key": "env", "value": "prod"},
+            {"namespace": "insights-client", "key": "env", "value": "ci"},
+        ],
+        [{"namespace": "satellite", "key": "env"}, {"namespace": "insights-client", "key": "env"}],
     ],
 )
 def test_host_schema_valid_tags(tags):
@@ -162,7 +165,7 @@ def test_host_schema_ignored_tags(tags):
     assert "tags" not in validated_host.data
 
 
-@pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
+@pytest.mark.parametrize("tags", [[{"namespace": "satellite"}], [{"value": "bad_tag"}]])
 def test_host_schema_invalid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
@@ -198,8 +201,11 @@ def test_host_schema_timezone_enforced(schema):
 @pytest.mark.parametrize(
     "tags",
     [
-        [{"namespace": "Sat", "key": "env", "value": "prod"}, {"namespace": "AWS", "key": "env", "value": "ci"}],
-        [{"namespace": "Sat", "key": "env"}, {"namespace": "AWS", "key": "env"}],
+        [
+            {"namespace": "satellite", "key": "env", "value": "prod"},
+            {"namespace": "insights-client", "key": "env", "value": "ci"},
+        ],
+        [{"namespace": "satellitez", "key": "env"}, {"namespace": "insights-client", "key": "env"}],
     ],
 )
 def test_create_host_with_tags(tags, db_create_host):
@@ -250,7 +256,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "display_name": "display_name",
         "ansible_host": "ansible_host",
         "facts": [{"namespace": "namespace", "facts": {"key": "value"}}],
-        "tags": {"namespace": {"key": ["value"]}},
+        "tags": {"satellite": {"key": ["value"]}},
         "canonical_facts": {"fqdn": "fqdn"},
         "system_profile_facts": {"number_of_cpus": 1},
         "stale_timestamp": now(),
@@ -334,10 +340,10 @@ def test_host_model_constraints(field, value, db_create_host):
 
 def test_host_schema_tags_always_lowercase():
     tags = [
-        {"namespace": "NaMEspaCE", "key": "env", "value": "prod"},
-        {"namespace": "OTHeRNaMeSPaCe", "key": "ALLCAPS", "value": "MixEd_CapS"},
+        {"namespace": "SatEllIte", "key": "env", "value": "prod"},
+        {"namespace": "INsIghTs-ClIenT", "key": "ALLCAPS", "value": "MixEd_CapS"},
     ]
-    tags_lowercase_namespaces = {"namespace": {"env": ["prod"]}, "othernamespace": {"ALLCAPS": ["MixEd_CapS"]}}
+    tags_lowercase_namespaces = {"SatEllIte": {"env": ["prod"]}, "INsIghTs-ClIenT": {"ALLCAPS": ["MixEd_CapS"]}}
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
