@@ -99,11 +99,11 @@ def log_get_sap_sids_failed(logger):
 
 # sparse system_profile
 def log_get_sparse_system_profile_succeeded(logger, data):
-    logger.debug("Found system_profile: %s", data, extra={"access_rule": get_control_rule()})
+    logger.debug("Found sparse system_profile: %s", data, extra={"access_rule": get_control_rule()})
 
 
 def log_get_sparse_system_profile_failed(logger):
-    logger.debug("system_profil not found", extra={"access_rule": get_control_rule()})
+    logger.debug("Sparse system_profile not found", extra={"access_rule": get_control_rule()})
 
 
 # add host
