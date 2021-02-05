@@ -37,7 +37,7 @@ def clean_tables():
 def minimal_db_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
-        "canonical_facts": {"insights_id": generate_uuid()},
+        # "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test-reporter",
         **values,
