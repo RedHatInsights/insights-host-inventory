@@ -92,27 +92,8 @@ XJOIN_SYSTEM_PROFILE_SAP_SIDS = {
     }
 }
 
-XJOIN_SPARSE_SYSTEM_PROFILE_RESPONSE = {
-    "hosts": {
-      "meta": {"count": 2,"total": 2},
-      "data": [
-        {
-          "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-          "system_profile_facts": {
-            "os_release": "7.4",
-            "bios_version": "VirtualBox",
-            "number_of_cpus": 1
-          }
-        },
-        {
-          "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
-          "system_profile_facts": {}
-        }
-      ]
-    }
-}
+XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE = {"hosts": {"meta": {"count": 2, "total": 2}, "data": []}}
 
-XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE = {"hosts": {"meta": {"count": 2,"total": 2},"data": []}}
 
 def xjoin_host_response(timestamp):
     return {

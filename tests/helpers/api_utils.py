@@ -23,7 +23,9 @@ from tests.helpers.test_utils import USER_IDENTITY
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
 SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
-HOST_LIST_SYSTEM_PROFILE_URL = "/api/inventory/v1/hosts/6e7b6317-0a2d-4552-a2f2-b7da0aece49d,22cd8e39-13bb-4d02-8316-84b850dc5136/system_profile"
+HOST_LIST_SYSTEM_PROFILE_URL = (
+    "/api/inventory/v1/hosts/6e7b6317-0a2d-4552-a2f2-b7da0aece49d,22cd8e39-13bb-4d02-8316-84b850dc5136/system_profile"
+)
 
 SHARED_SECRET = "SuperSecretStuff"
 
