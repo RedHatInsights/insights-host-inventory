@@ -33,11 +33,13 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-USER_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "basic-auth",
-    "type": "User",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+RHSM_IDENTITY = {
+    "account_number": "sysaccount",
+    "type": "System",
+    "auth_type": "cert-auth",
+    # "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
+    "system": {"cert_type": "system", "cn": ""},
+    "internal": {"org_id": "3340851", "auth_time": 6300},
 }
 
 
@@ -48,7 +50,7 @@ class OperationSchema(Schema):
 
 
 # input is a base64 encoded string and returns the identity dictionary
-def _get_identity(encoded_id):
+def _decode_id(encoded_id):
     base64_id = encoded_id
     base64_bytes = base64_id.encode("ascii")
     id_bytes = base64.b64decode(base64_bytes)
@@ -56,16 +58,30 @@ def _get_identity(encoded_id):
     return json.loads(id)
 
 
-# test for no system_profile,
+def _get_identity(host, metadata):
+    identity = None
+    # check the reporter
+    if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
+        raise "Missing identity and the reporter"
+
+    # rhsm report does not provide identity
+    if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
+        RHSM_IDENTITY["account_number"] = host.get("account")
+        RHSM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
+        identity = RHSM_IDENTITY
+    else:
+        identity = _decode_id(metadata.get("b64_identity"))
+
+    return identity
+
+
+# test for no system_profile or no owner_id,
 def _set_owner(host, identity):
     cn = identity["system"]["cn"]
-    # make sure system_profile exists in host
     if "system_profile" not in host:
         host["system_profile"] = {}
         host["system_profile"]["owner_id"] = cn
-    elif "owner_id" not in host["system_profile"]:
-        host["system_profile"]["owner_id"] = cn
-    elif not host["system_profile"]["owner_id"]:
+    elif not host["system_profile"].get("owner_id"):
         host["system_profile"]["owner_id"] = cn
     else:
         if host["system_profile"]["owner_id"] != cn:
@@ -164,11 +180,11 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
-    # create a dummy identity for working around the identity requirement for CRUD operations
-    # b64_identity = _get_identity(platform_metadata["b64_identity"])
-    identity = _get_identity(platform_metadata["b64_identity"])
-    # identity = json.loads(b64_identity)
+    identity = _get_identity(validated_operation_msg.get("data"), platform_metadata)
+
     host = validated_operation_msg["data"]
+
+    # for new hosts, set the owner from identity if missing from the system_profile
     host = _set_owner(host, identity)
 
     identity = Identity(identity)
@@ -181,7 +197,6 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        # output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
         output_host, host_id, insights_id, add_results = add_host(host, identity)
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)

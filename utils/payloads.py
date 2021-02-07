@@ -8,7 +8,7 @@ from datetime import timezone
 
 
 SYSTEM_IDENTITY = {
-    "account_number": "test",
+    "account_number": "sysaccount",
     "auth_type": "cert-auth",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
     "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
@@ -446,7 +446,7 @@ def create_system_profile():
 
 def build_rhsm_payload():
     return {
-        "account": "939054",
+        "account": "rhsaccount",
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -481,6 +481,8 @@ def build_rhsm_payload():
             "D6:58:86:AA:AA:40",
         ],
         "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
+        "reporter": "rhsm-conduit",
+        "system_profile": create_system_profile(),
     }
 
 
@@ -528,8 +530,8 @@ def build_host_chunk():
     payload = {
         "account": account,
         # "insights_id": random_uuid(),
-        # "bios_uuid": random_uuid(),
-        # "fqdn": fqdn,
+        "bios_uuid": random_uuid(),
+        "fqdn": fqdn,
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
@@ -544,9 +546,10 @@ def build_host_chunk():
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
         # "subscription_manager_id": random_uuid(),
-        # "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        # "subscription_manager_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        # "reporter": "rhsm-conduit",
         "reporter": "me",
     }
     return payload
@@ -556,6 +559,7 @@ def build_host_payload(payload_builder=build_host_chunk):
     return payload_builder()
 
 
+# for testing rhsm-conduit, comment out b64_identity and provide subscription_manager_id in host.
 def build_mq_payload(payload_builder=build_host_chunk):
     message = {
         "operation": "add_host",
