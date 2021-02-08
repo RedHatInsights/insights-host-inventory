@@ -220,7 +220,20 @@ of the payload will only be logged as an "error" if the entire delete operation 
 ## Integrating with Cross Join (xjoin)
 
 1. Clone [xjoin-kstreams](https://github.com/RedHatInsights/xjoin-kstreams/)
-1. Follow the instructions for local development in the xjoin-kstreams README. Stop after you run dev/start.sh. This will create a docker-compose environment with a HBI database, kafka, Kafka Connect, ElasticSearch, etc.
+1. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
+    | Service | Port on localhost |
+    | ------- | ----------------- |
+    | Inventory DB | 5432 |
+    | Advisor DB | 5433 |
+    | Vulnerability DB | 5434 |
+    | Zookeeper | 2181 |
+    | Kafka | 29092 |
+    | Kafka Connect | 8083 |
+    | Kafka Schema Registry | 8081 |
+    | xjoin-search | 4000 |
+    | ElasticSearch | 9200, 9300 |
+
+1. `cd` into the root of this project (host inventory)
 1. Run the inventory-mq-service
 ```
 make run_inv_mq_service
