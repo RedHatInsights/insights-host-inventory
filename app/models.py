@@ -492,7 +492,7 @@ class MqHostSchema(BaseHostSchema):
     @staticmethod
     def _validate_tags_dict(tags):
         for namespace, ns_tags in tags.items():
-            TAG_NAMESPACE_VALIDATION(namespace)
+            TAG_NAMESPACE_VALIDATION(namespace.lower())
             if ns_tags is None:
                 continue
             if not isinstance(ns_tags, dict):
