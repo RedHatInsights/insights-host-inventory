@@ -33,13 +33,13 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-RHSM_IDENTITY = {
+SYSTEM_IDENTITY = {
     "account_number": "sysaccount",
-    "type": "System",
     "auth_type": "cert-auth",
-    # "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-    "system": {"cert_type": "system", "cn": ""},
-    "internal": {"org_id": "3340851", "auth_time": 6300},
+    "internal": {"auth_time": 6300, "org_id": "3340851"},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
+    # "system": {"cert_type": "system", "cn": ""},
+    "type": "System",
 }
 
 
@@ -62,13 +62,13 @@ def _get_identity(host, metadata):
     identity = None
     # check the reporter
     if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
-        raise "Missing identity and the reporter"
+        raise ValueError("Missing identity and the reporter")
 
-    # rhsm report does not provide identity
+    # rhsm report does not provide identity.  Use "cert_tupe" because that's what is expected to get used by REST API
     if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
-        RHSM_IDENTITY["account_number"] = host.get("account")
-        RHSM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
-        identity = RHSM_IDENTITY
+        SYSTEM_IDENTITY["account_number"] = host.get("account")
+        SYSTEM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
+        identity = SYSTEM_IDENTITY
     else:
         identity = _decode_id(metadata.get("b64_identity"))
 

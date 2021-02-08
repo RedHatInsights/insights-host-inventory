@@ -1,3 +1,4 @@
+# import base64
 import json
 from copy import deepcopy
 from datetime import datetime
@@ -1079,3 +1080,66 @@ def test_handle_message_side_effect(mocker, flask_app):
 
     with pytest.raises(expected_exception=OperationalError):
         handle_message(message, mocker.MagicMock())
+
+
+# Adding a host requires identity or rhsm-conduit reporter, which does not have identity
+def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
+    expected_insights_id = generate_uuid()
+    host_id = generate_uuid()
+    # timestamp_iso = event_datetime_mock.isoformat()
+
+    mocker.patch(
+        "app.queue.queue.add_host",
+        return_value=(
+            {"id": host_id, "insights_id": expected_insights_id},
+            host_id,
+            expected_insights_id,
+            AddHostResult.created,
+        ),
+    )
+    mock_event_producer = mocker.Mock()
+
+    host = minimal_host(insights_id=expected_insights_id)
+    message = wrap_message(host.data())
+
+    with pytest.raises(ValueError):
+        handle_message(json.dumps(message), mock_event_producer)
+
+
+# Adding a host requires identity or rhsm-conduit reporter, which does not have identity
+# def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
+#     expected_insights_id = generate_uuid()
+#     host_id = generate_uuid()
+#     timestamp_iso = event_datetime_mock.isoformat()
+
+#     mocker.patch(
+#         "app.queue.queue.add_host",
+#         return_value=(
+#             {"id": host_id, "insights_id": expected_insights_id},
+#             host_id,
+#             expected_insights_id,
+#             AddHostResult.created,
+#         ),
+#     )
+#     mock_event_producer = mocker.Mock()
+
+#     # place identity into platform_metadata
+#     apiKey = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
+#     metadata = {
+#         "request_id": generate_uuid(),
+#         "archive_url": "https://some.url",
+#         "b64_identity": apiKey.decode("ascii"),
+#     }
+
+#     host = minimal_host(insights_id=expected_insights_id, reporter="rhsm-conduit")
+#     message = wrap_message(host.data(), platform_metadata=metadata)
+
+#     mock_event_producer.write_event.assert_called_once()
+
+#     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
+#         "timestamp": timestamp_iso,
+#         "type": "created",
+#         "host": {"id": host_id, "insights_id": expected_insights_id},
+#         "platform_metadata": {},
+#         "metadata": {"request_id": "-1"},
+#     }
