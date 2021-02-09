@@ -77,7 +77,7 @@ def _get_identity(host, metadata):
 
 # test for no system_profile or no owner_id,
 def _set_owner(host, identity):
-    cn = identity["system"]["cn"]
+    cn = identity["identity"]["system"]["cn"]
     if "system_profile" not in host:
         host["system_profile"] = {}
         host["system_profile"]["owner_id"] = cn
@@ -187,7 +187,7 @@ def handle_message(message, event_producer):
     # for new hosts, set the owner from identity if missing from the system_profile
     host = _set_owner(host, identity)
 
-    identity = Identity(identity)
+    identity = Identity(identity.get("identity"))
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)

@@ -8,12 +8,15 @@ from datetime import timezone
 
 
 SYSTEM_IDENTITY = {
-    "account_number": "sysaccount",
-    "auth_type": "cert-auth",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-    "type": "System",
+    "identity": {
+        "account_number": "sysaccount",
+        "type": "System",
+        "auth_type": "cert-auth",
+        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+        "internal": {"org_id": "3340851", "auth_time": 6300},
+    }
 }
+
 
 apiKey = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
 
@@ -524,7 +527,7 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "sysaccount")
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
     # account = os.environ.get("INVENTORY_HOST_ACCOUNT", "usraccount")
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
