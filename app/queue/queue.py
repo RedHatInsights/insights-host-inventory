@@ -184,8 +184,9 @@ def handle_message(message, event_producer):
 
     host = validated_operation_msg["data"]
 
-    # for new hosts, set the owner from identity if missing from the system_profile
-    host = _set_owner(host, identity)
+    # basic-auth does not need owner_id
+    if identity.auth_type != "basic-auth":
+        host = _set_owner(host, identity)
 
     identity = Identity(identity.get("identity"))
 
