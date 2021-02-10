@@ -1,14 +1,17 @@
 import logging
 import os
 
-import payloads
+import rhsm_payloads as payloads
 from kafka import KafkaProducer
 from ttictoc import TicToc
+
+# import payloads
+# import user_payloads as payloads
 
 
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
-NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 1))
+NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 10))
 
 
 def main():

@@ -34,12 +34,13 @@ logger = get_logger(__name__)
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
 SYSTEM_IDENTITY = {
-    "account_number": "sysaccount",
-    "auth_type": "cert-auth",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-    # "system": {"cert_type": "system", "cn": ""},
-    "type": "System",
+    "identity": {
+        "account_number": "sysaccount",
+        "auth_type": "cert-auth",
+        "internal": {"auth_time": 6300, "org_id": "3340851"},
+        "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
+        "type": "System",
+    }
 }
 
 
@@ -66,8 +67,8 @@ def _get_identity(host, metadata):
 
     # rhsm report does not provide identity.  Use "cert_tupe" because that's what is expected to get used by REST API
     if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
-        SYSTEM_IDENTITY["account_number"] = host.get("account")
-        SYSTEM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
+        SYSTEM_IDENTITY["identity"]["account_number"] = host.get("account")
+        SYSTEM_IDENTITY["identity"]["system"]["cn"] = host.get("subscription_manager_id")
         identity = SYSTEM_IDENTITY
     else:
         identity = _decode_id(metadata.get("b64_identity"))
@@ -185,7 +186,7 @@ def handle_message(message, event_producer):
     host = validated_operation_msg["data"]
 
     # basic-auth does not need owner_id
-    if identity.auth_type != "basic-auth":
+    if identity["identity"].get("type") == "System":
         host = _set_owner(host, identity)
 
     identity = Identity(identity.get("identity"))
