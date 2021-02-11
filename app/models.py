@@ -432,7 +432,6 @@ class TagsSchema(MarshmallowSchema):
 
     @pre_load
     def lowercase_namespace(self, in_data, **kwargs):
-        print(in_data)
         if isinstance(in_data, dict) and isinstance(in_data.get("namespace"), str):
             in_data["namespace"] = in_data["namespace"].lower()
         else:

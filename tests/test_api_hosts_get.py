@@ -311,7 +311,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?tags=SPECIAL/tag=ToFind")
+    url = build_hosts_url(query="?tags=insights-client/tag=ToFind")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -345,9 +345,9 @@ def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subt
     which both have some, but not all of the tags we query for.
     """
     created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[1]]
+    expected_response_list = [created_hosts[2]]
 
-    url = build_hosts_url(query="?tags=satellite/key1=val1,satellite/key2=val2,insights-clients/key3=val3")
+    url = build_hosts_url(query="?tags=insights-client/key2=val2,satellite/key3=val3,satellite/key5=val5")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -435,7 +435,7 @@ def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_g
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[0]]
 
-    url = build_hosts_url(query="?tags=no/key")
+    url = build_hosts_url(query="?tags=insights-client/key")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -473,7 +473,7 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     created_hosts = mq_create_three_specific_hosts
     expected_response_list = [created_hosts[2]]
 
-    url = build_hosts_url(query="?tags=key3=val3")
+    url = build_hosts_url(query="?tags=key5=val5")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
