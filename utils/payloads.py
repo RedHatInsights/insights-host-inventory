@@ -530,7 +530,7 @@ def build_host_chunk():
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
         # "subscription_manager_id": random_uuid(),
-        "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        # "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "me",

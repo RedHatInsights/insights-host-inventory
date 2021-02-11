@@ -329,3 +329,12 @@ $defs:
         maxLength: 10
         description: The SELinux mode provided in the config file
         example: 'permissive'
+      rhsm:
+        description: Object for subscription-manager details
+        type: object
+        properties:
+          version:
+            description: System release set by subscription-manager
+            example: "8.1"
+            type: string
+            maxLength: 255
