@@ -466,44 +466,6 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
 
 
-def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get, subtests):
-    """
-    Attempt to find host with a tag with no namespace.
-    """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[2]]
-
-    url = build_hosts_url(query="?tags=key5=val5")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
-
-    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-
-
-def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, subtests):
-    """
-    Attempt to find host with a tag with no namespace.
-    """
-    created_hosts = mq_create_three_specific_hosts
-    expected_response_list = [created_hosts[2]]
-
-    url = build_hosts_url(query="?tags=key5")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(expected_response_list) == len(response_data["results"])
-
-    for host, result in zip(expected_response_list, response_data["results"]):
-        assert host.id == result["id"]
-
-    api_pagination_test(api_get, subtests, url, expected_total=len(expected_response_list))
-
-
 def test_get_host_with_invalid_tag_no_key(mq_create_three_specific_hosts, api_get):
     """
     Attempt to find host with an incomplete tag (no key).

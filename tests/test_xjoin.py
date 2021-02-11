@@ -272,27 +272,28 @@ def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, gra
     )
 
 
-# def test_query_variables_tags_namespace_always_lowercase(query_param, mocker,
-# query_source_xjoin, graphql_query_empty_response, api_get):
-#     query_param =
-#     url = build_hosts_url(query=f"?tags={quote(query_param)}")
-#     response_status, response_data = api_get(url)
+def test_query_variables_tags_namespace_always_lowercase(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    query_param = "SaTEllITE/key5=val5"
+    url = build_hosts_url(query=f"?tags={quote(query_param)}")
+    response_status, response_data = api_get(url)
 
-#     assert response_status == 200
+    assert response_status == 200
 
-#     tag_filters = tuple({"tag": item} for item in tags)
+    tag_filters = ({"tag": {"namespace": {"eq": "satellite"}, "key": {"eq": "key5"}, "value": {"eq": "val5"}}},)
 
-#     graphql_query_empty_response.assert_called_once_with(
-#         HOST_QUERY,
-#         {
-#             "order_by": mocker.ANY,
-#             "order_how": mocker.ANY,
-#             "limit": mocker.ANY,
-#             "offset": mocker.ANY,
-#             "filter": tag_filters + (mocker.ANY,),
-#         },
-#         mocker.ANY,
-#     )
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": tag_filters + (mocker.ANY,),
+        },
+        mocker.ANY,
+    )
 
 
 @pytest.mark.parametrize("field", ("fqdn", "display_name", "hostname_or_id", "insights_id"))
