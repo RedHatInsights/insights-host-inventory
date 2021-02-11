@@ -430,6 +430,16 @@ class TagsSchema(MarshmallowSchema):
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
+    @pre_load
+    def lowercase_namespace(self, in_data, **kwargs):
+        print(in_data)
+        if isinstance(in_data, dict) and isinstance(in_data.get("namespace"), str):
+            in_data["namespace"] = in_data["namespace"].lower()
+        else:
+            raise MarshmallowValidationError("tags in wrong format")
+        print(in_data)
+        return in_data
+
 
 class CanonicalFactsSchema(MarshmallowSchema):
     insights_id = fields.Str(validate=verify_uuid_format)
@@ -492,7 +502,7 @@ class MqHostSchema(BaseHostSchema):
     @staticmethod
     def _validate_tags_dict(tags):
         for namespace, ns_tags in tags.items():
-            TAG_NAMESPACE_VALIDATION(namespace.lower())
+            TAG_NAMESPACE_VALIDATION(namespace)
             if ns_tags is None:
                 continue
             if not isinstance(ns_tags, dict):

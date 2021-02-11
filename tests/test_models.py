@@ -180,7 +180,6 @@ def test_host_schema_invalid_tags(tags):
 
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
-    assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
 @pytest.mark.parametrize("schema", [MqHostSchema, HttpHostSchema])
@@ -343,7 +342,8 @@ def test_host_schema_tags_always_lowercase():
         {"namespace": "SatEllIte", "key": "env", "value": "prod"},
         {"namespace": "INsIghTs-ClIenT", "key": "ALLCAPS", "value": "MixEd_CapS"},
     ]
-    tags_lowercase_namespaces = {"SatEllIte": {"env": ["prod"]}, "INsIghTs-ClIenT": {"ALLCAPS": ["MixEd_CapS"]}}
+    tags_lowercase_namespaces = {"satellite": {"env": ["prod"]}, "insights-client": {"ALLCAPS": ["MixEd_CapS"]}}
+
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",

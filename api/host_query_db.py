@@ -120,7 +120,7 @@ def _find_hosts_by_tag(string_tags, query):
 
     for string_tag in string_tags:
         tag = Tag.from_string(string_tag)
-        # Lowercase namespace
+        # # Lowercase namespace
         if tag.namespace:
             tag.namespace = tag.namespace.lower()
         tags.append(tag)
