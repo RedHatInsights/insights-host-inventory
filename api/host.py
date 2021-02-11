@@ -20,7 +20,6 @@ from app import inventory_config
 from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
-from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -45,7 +44,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
-from lib.host_repository import add_host
 from lib.host_repository import AddHostResult
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -66,18 +64,6 @@ def _convert_host_results_to_http_status(result):
         return 201
     else:
         return 200
-
-
-def _add_host(input_host):
-    current_identity = get_current_identity()
-    if not current_identity.is_trusted_system and current_identity.account_number != input_host.account:
-        raise InventoryException(
-            title="Invalid request",
-            detail="The account number associated with the user does not match the account number associated with the "
-            "host",
-        )
-
-    return add_host(input_host, staleness_timestamps(), update_system_profile=False)
 
 
 def _get_host_list_by_id_list(host_id_list):
@@ -167,7 +153,7 @@ def delete_by_id(host_id_list):
                 log_host_delete_succeeded(logger, host_id, get_control_rule())
                 tracker_message = "deleted host"
             else:
-                log_host_delete_failed(logger, host_id)
+                log_host_delete_failed(logger, host_id, get_control_rule())
                 tracker_message = "not deleted host"
 
             with PayloadTrackerProcessingContext(
