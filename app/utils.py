@@ -335,7 +335,7 @@ class Tag:
         """
         replaces the null string used in the database with None
         """
-        return "null" if value in cls.NULL_NAMESPACES else value.lower()
+        return "null" if value in cls.NULL_NAMESPACES else value
 
     @staticmethod
     def filter_tags(tags, searchTerm):

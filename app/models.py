@@ -252,7 +252,7 @@ class Host(db.Model):
                 return
 
             for input_namespace, input_facts in facts_dict.items():
-                self.replace_facts_in_namespace(input_namespace.lower(), input_facts)
+                self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
         self.stale_timestamp = stale_timestamp
