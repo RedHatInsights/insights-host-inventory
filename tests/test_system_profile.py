@@ -214,6 +214,9 @@ def test_validate_sp_for_branch(mocker):
     fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
     tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.topics.return_value = {"platform.inventory.test-topic"}
+    fake_consumer.partitions_for_topic.return_value = {0}
+    fake_consumer.assignment.return_value = {tp}
     fake_consumer.poll.return_value = {
         tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
     }
@@ -224,8 +227,46 @@ def test_validate_sp_for_branch(mocker):
     )
 
     assert "test_repo/test_branch" in validation_results
+
+    pass_count = 0
     for reporter in validation_results["test_repo/test_branch"]:
-        assert validation_results["test_repo/test_branch"][reporter].pass_count > 0
+        pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
+
+    assert pass_count == 5
+
+
+def test_validate_sp_for_branch_multiple_partitions(mocker):
+    # Mock schema fetch
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    mock_schema = system_profile_specification()
+    get_schema_from_url_mock.return_value = mock_schema
+
+    # Mock Kafka consumer
+    fake_consumer = mocker.Mock()
+    config = Config(RuntimeEnvironment.SERVICE)
+    tp1 = TopicPartition(config.host_ingress_topic, 0)
+    tp2 = TopicPartition(config.host_ingress_topic, 1)
+
+    fake_consumer.topics.return_value = {config.host_ingress_topic}
+    fake_consumer.partitions_for_topic.return_value = {0, 1}
+    fake_consumer.assignment.return_value = {tp1, tp2}
+    fake_consumer.poll.return_value = {
+        tp1: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)],
+        tp2: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(10)],
+    }
+    fake_consumer.offsets_for_times.return_value = {tp1: SimpleNamespace(offset=0), tp2: SimpleNamespace(offset=0)}
+
+    validation_results = validate_sp_for_branch(
+        config, fake_consumer, repo_fork="test_repo", repo_branch="test_branch", days=3
+    )
+
+    assert "test_repo/test_branch" in validation_results
+
+    pass_count = 0
+    for reporter in validation_results["test_repo/test_branch"]:
+        pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
+
+    assert pass_count == 15
 
 
 def test_validate_sp_no_data(api_post, mocker):
@@ -233,7 +274,11 @@ def test_validate_sp_no_data(api_post, mocker):
     fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
     tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.topics.return_value = {config.host_ingress_topic}
+    fake_consumer.partitions_for_topic.return_value = {0}
+    fake_consumer.assignment.return_value = {tp}
     fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace()}
+    fake_consumer.poll.return_value = {}
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(config, fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
@@ -249,6 +294,9 @@ def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
     fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
     tp = TopicPartition(config.host_ingress_topic, 0)
+    fake_consumer.topics.return_value = {config.host_ingress_topic}
+    fake_consumer.partitions_for_topic.return_value = {0}
+    fake_consumer.assignment.return_value = {tp}
     fake_consumer.poll.return_value = {
         tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
     }
