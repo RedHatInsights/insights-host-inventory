@@ -1,11 +1,11 @@
 import logging
 import os
 
-import rhsm_payloads as payloads
+import payloads
 from kafka import KafkaProducer
 from ttictoc import TicToc
 
-# import payloads
+# import rhsm_payloads as payloads
 # import user_payloads as payloads
 
 

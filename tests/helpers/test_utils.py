@@ -1,4 +1,6 @@
+import base64
 import contextlib
+import json
 import os
 import string
 import unittest.mock
@@ -15,25 +17,37 @@ NS = "testns"
 ID = "whoabuddy"
 
 SYSTEM_IDENTITY = {
-    "account_number": "sysaccount",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-    "internal": {"org_id": "3340851", "auth_time": 6300},
+    "identity": {
+        "account_number": "sysaccount",
+        "type": "System",
+        "auth_type": "cert-auth",
+        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+        "internal": {"org_id": "3340851", "auth_time": 6300},
+    }
 }
+
+SYSTEM_API_KEY = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
+
 USER_IDENTITY = {
-    "account_number": "usraccount",
-    "type": "User",
-    "auth_type": "basic-auth",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+    "identity": {
+        "account_number": "usraccount",
+        "type": "User",
+        "auth_type": "basic-auth",
+        "user": {"email": "tuser@redhat.com", "first_name": "test"},
+    }
 }
+USER_API_KEY = base64.b64encode(json.dumps(USER_IDENTITY).encode("utf-8"))
+
 INSIGHTS_CLASSIC_IDENTITY = {
-    "account_number": "classic",
-    "auth_type": "classic-proxy",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {},
-    "type": "System",
+    "identity": {
+        "account_number": "classic",
+        "auth_type": "classic-proxy",
+        "internal": {"auth_time": 6300, "org_id": "3340851"},
+        "system": {},
+        "type": "System",
+    }
 }
+CLASSIC_API_KEY = base64.b64encode(json.dumps(INSIGHTS_CLASSIC_IDENTITY).encode("utf-8"))
 
 
 def generate_uuid():
@@ -71,7 +85,7 @@ def set_environment(new_env=None):
 
 def minimal_host(**values):
     data = {
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
@@ -143,4 +157,12 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
         "sap_sids": ["ABC", "DEF", "GHI"],
+    }
+
+
+def get_platform_metadata_with_system_identity():
+    return {
+        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": SYSTEM_API_KEY.decode("ascii"),
     }

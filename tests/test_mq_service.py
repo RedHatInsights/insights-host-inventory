@@ -28,11 +28,15 @@ from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import get_platform_metadata_with_system_identity
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
+
+
+CN = SYSTEM_IDENTITY["identity"]["system"]["cn"]
 
 
 def test_event_loop_exception_handling(mocker, flask_app):
@@ -93,18 +97,21 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host(insights_id=expected_insights_id)
-    message = wrap_message(host.data())
+    expected_system_profile = valid_system_profile()
+    expected_system_profile["owner_id"] = CN
+    host = minimal_host(insights_id=expected_insights_id, system_profile=expected_system_profile)
+    message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
+
     handle_message(json.dumps(message), mock_event_producer)
 
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
+        "platform_metadata": get_platform_metadata_with_system_identity(),
         "timestamp": timestamp_iso,
         "type": "created",
         "host": {"id": host_id, "insights_id": expected_insights_id},
-        "platform_metadata": {},
-        "metadata": {"request_id": "-1"},
+        "metadata": {"request_id": get_platform_metadata_with_system_identity().get("request_id")},
     }
 
 
