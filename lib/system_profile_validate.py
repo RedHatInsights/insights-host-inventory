@@ -72,15 +72,15 @@ def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_br
 
     msgs = consumer.poll(timeout_ms=10000, max_records=10000)
 
-    if len(msgs) == 0:
-        raise ValueError("No data available at the provided date.")
-
     for topic_partition, messages in msgs.items():
         for message in messages:
             parsed_message = json.loads(message.value)
             parsed_operation = OperationSchema(strict=True).load(parsed_message).data
             parsed_hosts.append(parsed_operation["data"])
             hosts_parsed += 1
+
+    if hosts_parsed == 0:
+        raise ValueError("No data available at the provided date.")
 
     logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
 
