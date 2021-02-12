@@ -65,7 +65,7 @@ def _convert_host_results_to_http_status(result):
         return 200
 
 
-def _get_host_list_by_id_list(host_id_list):
+def get_host_list_by_id_list(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
