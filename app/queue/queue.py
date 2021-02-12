@@ -52,7 +52,6 @@ class OperationSchema(Schema):
 
 # input is a base64 encoded string and returns the identity dictionary
 def _decode_id(encoded_id):
-    # import pdb; pdb.set_trace()
     base64_id = encoded_id
     base64_bytes = base64_id.encode("ascii")
     id_bytes = base64.b64decode(base64_bytes)
@@ -61,7 +60,6 @@ def _decode_id(encoded_id):
 
 
 def _get_identity(host, metadata):
-    # import pdb; pdb.set_trace()
 
     identity = None
     # check the reporter

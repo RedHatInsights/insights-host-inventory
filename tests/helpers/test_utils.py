@@ -84,6 +84,14 @@ def set_environment(new_env=None):
 
 
 def minimal_host(**values):
+    if "system_profile" not in values.keys():
+        system_profile = {}
+        system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+        values["system_profile"] = system_profile
+    else:
+        if not values["system_profile"].get("owner_id"):
+            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+
     data = {
         "account": USER_IDENTITY["identity"]["account_number"],
         "display_name": "test" + generate_random_string(),
@@ -166,3 +174,7 @@ def get_platform_metadata_with_system_identity():
         "archive_url": "http://s3.aws.com/redhat/insights/1234567",
         "b64_identity": SYSTEM_API_KEY.decode("ascii"),
     }
+
+
+def get_encoded_idstr():
+    return SYSTEM_API_KEY.decode("ascii")

@@ -78,6 +78,9 @@ class Identity:
     def __eq__(self, other):
         return self.account_number == other.account_number
 
+    def __repr__(self):
+        return f"Identity({self._asdict()!r})"
+
 
 def validate(identity):
     if identity.is_trusted_system:
