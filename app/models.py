@@ -327,6 +327,10 @@ class DiskDeviceSchema(MarshmallowSchema):
     type = fields.Str(validate=marshmallow_validate.Length(max=256))
 
 
+class RhsmSchema(MarshmallowSchema):
+    version = fields.Str(validate=marshmallow_validate.Length(max=255))
+
+
 class OperatingSystemSchema(MarshmallowSchema):
     major = fields.Int()
     minor = fields.Int()
@@ -364,6 +368,7 @@ class NetworkInterfaceSchema(MarshmallowSchema):
 
 class SystemProfileSchema(MarshmallowSchema):
     owner_id = fields.Str(validate=verify_uuid_format)
+    cpu_model = fields.Str(validate=marshmallow_validate.Length(max=100))
     number_of_cpus = fields.Int()
     number_of_sockets = fields.Int()
     cores_per_socket = fields.Int()
@@ -390,6 +395,7 @@ class SystemProfileSchema(MarshmallowSchema):
     katello_agent_running = fields.Bool()
     satellite_managed = fields.Bool()
     cloud_provider = fields.Str(validate=marshmallow_validate.Length(max=100))
+    rhsm = fields.Nested(RhsmSchema())
     yum_repos = fields.List(fields.Nested(YumRepoSchema()))
     dnf_modules = fields.List(fields.Nested(DnfModuleSchema()))
     installed_products = fields.List(fields.Nested(InstalledProductSchema()))

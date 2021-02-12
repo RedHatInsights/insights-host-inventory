@@ -374,6 +374,7 @@ def rpm_list():
 def create_system_profile():
     return {
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        "cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
         "cores_per_socket": 4,
@@ -529,7 +530,7 @@ def build_host_chunk():
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
         # "subscription_manager_id": random_uuid(),
-        "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        # "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "reporter": "me",
