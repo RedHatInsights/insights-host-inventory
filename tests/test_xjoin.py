@@ -5,10 +5,12 @@ import pytest
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
+from api.system_profile_host_list import SYSTEM_PROFILE_QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
+from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
@@ -24,6 +26,7 @@ from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 
 
 def test_headers_forwarded(mocker, patch_xjoin_post, api_get):
@@ -1654,3 +1657,94 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}}, mocker.ANY
     )
+
+
+@pytest.mark.parametrize(
+    "variables,query",
+    (
+        (
+            {
+                "fields": ["field_1", "field_2", "field_3"],
+                "limit": 50,
+                "offset": 0,
+                "order_by": "modified_on",
+                "order_how": "DESC",
+            },
+            "?fields[system_profile]=field_1,field_2,field_3",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 2,
+                "offset": 0,
+                "order_by": "modified_on",
+                "order_how": "DESC",
+            },
+            "?fields[system_profile]=field_1,field_2&per_page=2",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 1,
+                "offset": 1,
+                "order_by": "modified_on",
+                "order_how": "DESC",
+            },
+            "?fields[system_profile]=field_1,field_2&per_page=1&page=2",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 50,
+                "offset": 0,
+                "order_by": "display_name",
+                "order_how": "ASC",
+            },
+            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 1,
+                "offset": 1,
+                "order_by": "display_name",
+                "order_how": "ASC",
+            },
+            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC&per_page=1&page=2",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 1,
+                "offset": 1,
+                "order_by": "modified_on",
+                "order_how": "DESC",
+            },
+            "?fields[system_profile]=field_1,field_2&order_by=updated&order_how=DESC&per_page=1&page=2",
+        ),
+        (
+            {
+                "fields": ["field_1", "field_2", "field_3", "field_4"],
+                "limit": 1,
+                "offset": 1,
+                "order_by": "display_name",
+                "order_how": "ASC",
+            },
+            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC&per_page=1\
+                &fields[system_profile]=field_3,field_4&page=2",
+        ),
+    ),
+)
+def test_sp_sparse_xjoin_query_translation(
+    variables, query, mocker, query_source_xjoin, graphql_sparse_system_profile_empty_response, api_get
+):
+    host_one_id, host_two_id = generate_uuid(), generate_uuid()
+
+    hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
+
+    variables["host_ids"] = [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]
+
+    response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
+
+    assert response_status == 200
+    graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)

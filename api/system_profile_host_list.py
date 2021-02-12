@@ -1,4 +1,5 @@
 import flask
+from flask_api import status
 
 from api import api_operation
 from api import build_collection_response
@@ -60,6 +61,9 @@ def xjoin_enabled():
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     if fields:
+        if not fields.get("system_profile"):
+            flask.abort(400, status.HTTP_400_BAD_REQUEST)
+
         if not xjoin_enabled():
             flask.abort(503)
 
@@ -70,29 +74,28 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
         except ValueError as e:
             flask.abort(400, str(e))
 
-        if fields.get("system_profile"):
-            host_ids = [{"id": {"eq": host_id}} for host_id in host_id_list]
-            system_profile_fields = list(fields.get("system_profile").keys())
-            if len(system_profile_fields) > 0:
-                variables = {
-                    "host_ids": host_ids,
-                    "fields": system_profile_fields,
-                    "limit": limit,
-                    "offset": offset,
-                    "order_by": order_by,
-                    "order_how": order_how,
-                }
-                response = graphql_query(SYSTEM_PROFILE_QUERY, variables, log_get_sparse_system_profile_failed)
+        host_ids = [{"id": {"eq": host_id}} for host_id in host_id_list]
+        system_profile_fields = list(fields.get("system_profile").keys())
+        if len(system_profile_fields) > 0:
+            variables = {
+                "host_ids": host_ids,
+                "fields": system_profile_fields,
+                "limit": limit,
+                "offset": offset,
+                "order_by": order_by,
+                "order_how": order_how,
+            }
+            response = graphql_query(SYSTEM_PROFILE_QUERY, variables, log_get_sparse_system_profile_failed)
 
-                response_data = response["hosts"]
+            response_data = response["hosts"]
 
-                check_pagination(offset, response_data["meta"]["total"])
+            check_pagination(offset, response_data["meta"]["total"])
 
-                total = response_data["meta"]["total"]
+            total = response_data["meta"]["total"]
 
-                response_list = [serialize_host_system_profile_xjoin(host_data) for host_data in response_data["data"]]
+            response_list = [serialize_host_system_profile_xjoin(host_data) for host_data in response_data["data"]]
 
-                log_get_sparse_system_profile_succeeded(logger, response_data)
+            log_get_sparse_system_profile_succeeded(logger, response_data)
     else:
         query = get_host_list_by_id_list(host_id_list)
         try:
