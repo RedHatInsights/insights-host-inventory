@@ -1079,10 +1079,10 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
     host = minimal_host(fqdn="d44533.foo.redhat.co")
-    host.account = "dummy"
+    host.account = SYSTEM_IDENTITY["identity"]["account_number"] # TODO: dummy identity that passes over
 
     created_host = mq_create_or_update_host(host)
-    assert db_get_host(created_host.id).account == "dummy"
+    assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["identity"]["account_number"]
 
     first_batch = db_get_hosts([created_host.id])
 
@@ -1091,10 +1091,10 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
 
     second_batch = db_get_hosts([created_host.id, same_host.id])
 
-    # update_existing_host() resturns the same host but with updated timestamp.
+    # update_existing_host() returns the same host but with updated timestamp.
     created_host.updated = same_host.updated
 
-    assert created_host.__dict__ == same_host.__dict__
+    assert created_host == same_host
     assert len(first_batch.all()) == len(second_batch.all())
 
 
