@@ -1,6 +1,8 @@
 import os
 import sys
 
+from app.utils import HostWrapper
+
 # Make test helpers available to be imported
 sys.path.append(os.path.join(os.path.dirname(__file__), "helpers"))
 
@@ -13,3 +15,12 @@ pytest_plugins = [
     "tests.fixtures.mq_fixtures",
     "tests.fixtures.tracker_fixtures",
 ]
+
+
+def pytest_assertrepr_compare(config,  op, left, right):
+    """
+    until pytest diffs multiline repr: https://github.com/pytest-dev/pytest/issues/8346
+    """
+    if isinstance(left, HostWrapper) and isinstance(right, HostWrapper) and op == "==":
+        res = config.hook.pytest_assertrepr_compare(config=config, op=op, left=repr(left), right=repr(right))
+        return res[0]
