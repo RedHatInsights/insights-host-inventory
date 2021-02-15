@@ -54,6 +54,7 @@ INVALID_SYSTEM_PROFILES = (
     {"sap_sids": ["123"]},
     {"sap_sids": ["abc"]},
     {"sap_sids": ["ABC", "ABC"]},
+    {"cpu_model": "x" * 101},
 )
 
 
