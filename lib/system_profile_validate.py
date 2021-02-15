@@ -51,23 +51,26 @@ def _validate_host_list(host_list, repo_config):
 
 
 def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_branch="master", days=1):
-    tp = TopicPartition(config.host_ingress_topic, 0)
-    consumer.assign([tp])
-
-    seek_position = 0
     msgs = {}
-    consumer.seek_to_beginning(tp)
-    seek_date = datetime.now() + timedelta(days=(-1 * days))
-
-    try:
-        seek_position = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset
-        consumer.seek(tp, seek_position)
-        msgs = consumer.poll(timeout_ms=10000, max_records=10000)
-    except AttributeError as ae:
-        raise ValueError(f"No data available at the provided date. {str(ae)}")
-
+    partitions = []
     hosts_parsed = 0
     parsed_hosts = []
+    seek_date = datetime.now() + timedelta(days=(-1 * days))
+
+    for topic in consumer.topics():
+        for partition_id in consumer.partitions_for_topic(topic):
+            partitions.append(TopicPartition(topic, partition_id))
+
+    consumer.assign(partitions)
+
+    for tp in consumer.assignment():
+        try:
+            seek_position = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset
+            consumer.seek(tp, seek_position)
+        except AttributeError:
+            logger.debug("No data in partition for the given date.")
+
+    msgs = consumer.poll(timeout_ms=10000, max_records=10000)
 
     for topic_partition, messages in msgs.items():
         for message in messages:
@@ -75,6 +78,9 @@ def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_br
             parsed_operation = OperationSchema(strict=True).load(parsed_message).data
             parsed_hosts.append(parsed_operation["data"])
             hosts_parsed += 1
+
+    if hosts_parsed == 0:
+        raise ValueError("No data available at the provided date.")
 
     logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
 

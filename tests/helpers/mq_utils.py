@@ -3,9 +3,13 @@ import os
 from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
+from types import SimpleNamespace
 from unittest.mock import Mock
 
+from kafka.common import TopicPartition
+
 from app.utils import Tag
+from tests.helpers.test_utils import minimal_host
 
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
@@ -196,3 +200,29 @@ def assert_synchronize_event_is_valid(
 
     if expected_metadata:
         assert event["metadata"] == expected_metadata
+
+
+def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_per_partition):
+    fake_consumer = mocker.Mock()
+    mock_poll = {}
+    mock_offsets = {}
+    partitions = []
+
+    fake_consumer.topics.return_value = {config.host_ingress_topic}
+
+    for partition_id in range(number_of_partitions):
+        partitions.append(TopicPartition(config.host_ingress_topic, partition_id))
+
+    fake_consumer.partitions_for_topic.return_value = set(range(number_of_partitions))
+    fake_consumer.assignment.return_value = set(partitions)
+
+    for partition in partitions:
+        mock_poll[partition] = [
+            SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
+            for _ in range(messages_per_partition)
+        ]
+        mock_offsets[partition] = SimpleNamespace(offset=0)
+
+    fake_consumer.poll.return_value = mock_poll
+    fake_consumer.offsets_for_times.return_value = mock_offsets
+    return fake_consumer
