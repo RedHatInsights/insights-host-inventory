@@ -17,7 +17,7 @@ pytest_plugins = [
 ]
 
 
-def pytest_assertrepr_compare(config,  op, left, right):
+def pytest_assertrepr_compare(config, op, left, right):
     """
     until pytest diffs multiline repr: https://github.com/pytest-dev/pytest/issues/8346
     """

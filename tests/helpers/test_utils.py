@@ -104,6 +104,27 @@ def minimal_host(**values):
     return HostWrapper(data)
 
 
+def minimal_host_owned_by_system(**values):
+    if "system_profile" not in values.keys():
+        system_profile = {}
+        system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+        values["system_profile"] = system_profile
+    else:
+        if not values["system_profile"].get("owner_id"):
+            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+
+    data = {
+        "account": SYSTEM_IDENTITY["identity"]["account_number"],
+        "display_name": "test" + generate_random_string(),
+        "ip_addresses": ["10.10.0.1"],
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "reporter": "test" + generate_random_string(),
+        **values,
+    }
+
+    return HostWrapper(data)
+
+
 def valid_system_profile():
     return {
         "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",

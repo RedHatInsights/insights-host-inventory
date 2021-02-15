@@ -31,6 +31,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata_with_system_identity
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import minimal_host_owned_by_system
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
@@ -649,10 +650,10 @@ def test_add_host_with_invalid_tags_2(tags, mq_create_or_update_host):
 def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
 
-    host = minimal_host(display_name="test_host", insights_id=insights_id)
+    host = minimal_host_owned_by_system(display_name="test_host", insights_id=insights_id)
     mq_create_or_update_host(host)
 
-    host = minimal_host(display_name="better_test_host", insights_id=insights_id)
+    host = minimal_host_owned_by_system(display_name="better_test_host", insights_id=insights_id)
     mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
@@ -668,10 +669,10 @@ def test_display_name_ignored_for_blacklisted_reporters(
     Tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
     """
     insights_id = generate_uuid()
-    host = minimal_host(display_name="test_host", insights_id=insights_id, reporter="puptoo")
+    host = minimal_host_owned_by_system(display_name="test_host", insights_id=insights_id, reporter="puptoo")
     mq_create_or_update_host(host)
 
-    host = minimal_host(display_name="yupana_test_host", insights_id=insights_id, reporter=reporter)
+    host = minimal_host_owned_by_system(display_name="yupana_test_host", insights_id=insights_id, reporter=reporter)
     mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
@@ -693,7 +694,7 @@ def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insig
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, tags=message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -714,7 +715,7 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, tags=message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -726,7 +727,7 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
 def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_get_host_by_insights_id, flask_app):
     # FIXME: Remove this test after migration to NOT NULL.
     insights_id = generate_uuid()
-    host = minimal_host(insights_id=insights_id)
+    host = minimal_host_owned_by_system(insights_id=insights_id)
     mq_create_or_update_host(host)
 
     created_host = db_get_host_by_insights_id(insights_id)
@@ -794,7 +795,7 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, tags=message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -838,7 +839,7 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, tags=message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -858,7 +859,7 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
         ({"tags": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, **message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, **message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -907,7 +908,7 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
         ({"": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host(insights_id=insights_id, tags=message_tags)
+            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -1059,11 +1060,16 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
 
     operation_raw = "🧜🏿‍♂️"
-    messages = (
-        f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
-    )
 
-    identity = Identity(SYSTEM_IDENTITY)
+    host1 = minimal_host(insights_id=f"{operation_raw}{operation_raw}")
+
+    messages = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
+
+    # messages = (
+    #     f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
+    # )
+
+    identity = Identity(SYSTEM_IDENTITY.get("identity"))
     identity.account_number = "dummy"
 
     for message in messages:
@@ -1071,15 +1077,16 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
             host_id = generate_uuid()
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-            handle_message(message, mocker.Mock())
-            add_host.assert_called_once_with(
-                {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
-            )
+            handle_message(json.dumps(message), mocker.Mock())
+            # add_host.assert_called_once_with(
+            #     {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
+            # )
+            add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
     host = minimal_host(fqdn="d44533.foo.redhat.co")
-    host.account = SYSTEM_IDENTITY["identity"]["account_number"] # TODO: dummy identity that passes over
+    host.account = SYSTEM_IDENTITY["identity"]["account_number"]
 
     created_host = mq_create_or_update_host(host)
     assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["identity"]["account_number"]
