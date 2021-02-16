@@ -345,6 +345,7 @@ def _count_tags(host_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
+
     query = _get_host_list_by_id_list(host_id_list)
 
     try:

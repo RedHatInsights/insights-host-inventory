@@ -41,7 +41,6 @@ SYSTEM_PROFILE_QUERY = """
 """
 
 
-
 def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields):
     if not fields.get("system_profile"):
         flask.abort(400, status.HTTP_400_BAD_REQUEST)
@@ -77,4 +76,3 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
         log_get_sparse_system_profile_succeeded(logger, response_data)
 
     return total, response_list
-
