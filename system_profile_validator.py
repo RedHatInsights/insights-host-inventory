@@ -69,7 +69,6 @@ def _post_git_results_comment(pr_number, control_results, test_results):
     )
     response = _post_git_response(f"/repos/{REPO_OWNER}/{REPO_NAME}/issues/{pr_number}/comments", content)
     logger.info(f"Posted a comment to PR #{pr_number}, with response status {response.status_code}")
-    logger.info(response.text)
 
 
 def _get_latest_commit_datetime_for_pr(owner, repo, pr_number):
