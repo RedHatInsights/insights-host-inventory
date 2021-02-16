@@ -15,6 +15,7 @@ from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
+from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
 from app import inventory_config
 from app import Permission
@@ -41,6 +42,7 @@ from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
+from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import AddHostResult
@@ -65,7 +67,7 @@ def _convert_host_results_to_http_status(result):
         return 200
 
 
-def get_host_list_by_id_list(host_id_list):
+def _get_host_list_by_id_list(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
@@ -140,7 +142,7 @@ def delete_by_id(host_id_list):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = get_host_list_by_id_list(host_id_list)
+        query = _get_host_list_by_id_list(host_id_list)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
@@ -167,7 +169,7 @@ def delete_by_id(host_id_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -181,6 +183,34 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 
     json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
     return flask_json_response(json_data)
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+    if fields:
+        if not get_bulk_query_source() == BulkQuerySource.xjoin:
+            flask.abort(503)
+
+        total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
+    else:
+        query = _get_host_list_by_id_list(host_id_list)
+
+        try:
+            order_by = params_to_order_by(order_by, order_how)
+        except ValueError as e:
+            flask.abort(400, str(e))
+        else:
+            query = query.order_by(*order_by)
+        query_results = query.paginate(page, per_page, True)
+
+        total = query_results.total
+
+        response_list = [serialize_host_system_profile(host) for host in query_results.items]
+
+    json_output = build_collection_response(response_list, page, per_page, total)
+    return flask_json_response(json_output)
 
 
 def _emit_patch_event(serialized_host, host_id, insights_id):
@@ -199,7 +229,7 @@ def patch_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(host_id_list)
 
     hosts_to_update = query.all()
 
@@ -278,7 +308,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
 
-    query = get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)
@@ -315,8 +345,7 @@ def _count_tags(host_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
-
-    query = get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list(host_id_list)
 
     try:
         order_by = params_to_order_by(order_by, order_how)

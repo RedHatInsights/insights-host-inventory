@@ -69,7 +69,8 @@ def graphql_system_profile_sap_sids_query_with_response(graphql_query):
 @pytest.fixture(scope="function")
 def graphql_sparse_system_profile_empty_response(graphql_query):
     return graphql_query(
-        func="api.system_profile_host_list.graphql_query", return_value=XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE
+        func="api.sparse_host_list_system_profile.graphql_query",
+        return_value=XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE,
     )
 
 

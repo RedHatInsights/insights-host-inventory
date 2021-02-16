@@ -3,9 +3,9 @@ from re import escape
 import pytest
 
 from api.host_query_xjoin import QUERY as HOST_QUERY
+from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
-from api.system_profile_host_list import SYSTEM_PROFILE_QUERY
 from api.tag import TAGS_QUERY
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
