@@ -169,10 +169,14 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
 
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
     host = db_create_host(
-        extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+        extra_data={
+            "facts": DB_FACTS,
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["identity"]["system"].get("cn")},
+        }
     )
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
+    response_status, response_data = api_put(url, DB_NEW_FACTS, SYSTEM_IDENTITY)
 
-    assert_response_status(response_status, 200)
+    # with the use of identity, response_status 400 is the expected one.
+    assert_response_status(response_status, 400)
