@@ -33,6 +33,7 @@ from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -288,15 +289,15 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
     assert response_status == 200
 
 
-def test_query_using_fqdn_not_subset_match(mocker, api_get, user_identity_mock):
+def test_query_using_fqdn_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
     fqdn = "some fqdn"
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
-    mock.assert_called_once_with(user_identity_mock, "fqdn", fqdn)
+    mock.assert_called_once_with(USER_IDENTITY, "fqdn", fqdn)
 
 
-def test_query_using_insights_id_not_subset_match(mocker, api_get, user_identity_mock):
+def test_query_using_insights_id_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
 
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
@@ -304,7 +305,7 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get, user_identity
     url = build_hosts_url(query=f"?insights_id={insights_id}")
     api_get(url)
 
-    mock.assert_called_once_with(user_identity_mock, "insights_id", insights_id)
+    mock.assert_called_once_with(USER_IDENTITY, "insights_id", insights_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
@@ -908,6 +909,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             find_hosts_by_staleness_mock.assert_not_called()
 
 
+# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 

@@ -371,6 +371,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             find_non_culled_hosts_mock.assert_not_called()
 
 
+# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 

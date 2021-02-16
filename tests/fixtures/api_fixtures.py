@@ -122,6 +122,28 @@ def api_delete_host(flask_client):
 
     return _api_delete_host
 
+    # @pytest.fixture(scope="function")
+    # def api_delete_host(flask_client):
+    #     def _api_delete_host(
+    #         host_id,
+    #         identity,
+    #         query_parameters=None,
+    #         extra_headers=None,
+    #         # auth_type=USER_IDENTITY["identity"]["auth_type"],
+    #         # identity_type=USER_IDENTITY["identity"]["type"],
+    #     ):
+    #         url = f"{HOST_URL}/{host_id}"
+    #         return do_request(
+    #             flask_client.delete,
+    #             url,
+    #             query_parameters=query_parameters,
+    #             extra_headers=extra_headers,
+    #             auth_type=identity["identity"].get("auth_type"),
+    #             identity_type=identity["identity"].get("identity_type"),
+    #         )
+
+    return _api_delete_host
+
 
 @pytest.fixture(scope="function")
 def disable_rest_api_post(inventory_config):

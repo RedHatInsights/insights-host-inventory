@@ -136,7 +136,7 @@ def test_host_schema_valid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
@@ -151,7 +151,7 @@ def test_host_schema_ignored_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
@@ -166,7 +166,7 @@ def test_host_schema_invalid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
@@ -184,7 +184,7 @@ def test_host_schema_timezone_enforced(schema):
     host = {
         "fqdn": "scooby.doo.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "stale_timestamp": now().replace(tzinfo=None).isoformat(),
         "reporter": "test",
     }
@@ -245,7 +245,7 @@ def test_update_host_with_no_tags(db_create_host):
 
 def test_host_model_assigned_values(db_create_host, db_get_host):
     values = {
-        "account": USER_IDENTITY["account_number"],
+        "account": USER_IDENTITY["identity"]["account_number"],
         "display_name": "display_name",
         "ansible_host": "ansible_host",
         "facts": [{"namespace": "namespace", "facts": {"key": "value"}}],
@@ -265,14 +265,14 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
 
 
 def test_host_model_default_id(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(account=USER_IDENTITY["identity"]["account_number"], canonical_facts={"fqdn": "fqdn"})
     db_create_host(host)
 
     assert isinstance(host.id, uuid.UUID)
 
 
 def test_host_model_default_timestamps(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(account=USER_IDENTITY["identity"]["account_number"], canonical_facts={"fqdn": "fqdn"})
 
     before_commit = now()
     db_create_host(host)
@@ -285,7 +285,7 @@ def test_host_model_default_timestamps(db_create_host):
 
 
 def test_host_model_updated_timestamp(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(account=USER_IDENTITY["identity"]["account_number"], canonical_facts={"fqdn": "fqdn"})
 
     before_insert_commit = now()
     db_create_host(host)
@@ -303,7 +303,7 @@ def test_host_model_updated_timestamp(db_create_host):
 
 def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
-        account=USER_IDENTITY["account_number"],
+        account=USER_IDENTITY["identity"]["account_number"],
         canonical_facts={"fqdn": "fqdn"},
         stale_timestamp=now(),
         reporter="ingress",
@@ -321,7 +321,11 @@ def test_host_model_timestamp_timezones(db_create_host):
     [("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)],
 )
 def test_host_model_constraints(field, value, db_create_host):
-    values = {"account": USER_IDENTITY["account_number"], "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
+    values = {
+        "account": USER_IDENTITY["identity"]["account_number"],
+        "canonical_facts": {"fqdn": "fqdn"},
+        **{field: value},
+    }
     if field == "reporter":
         values["stale_timestamp"] = now()
 

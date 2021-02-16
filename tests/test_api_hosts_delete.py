@@ -13,7 +13,9 @@ from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+# from tests.helpers.test_utils import SYSTEM_IDENTITY
+# from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_delete_non_existent_host(api_delete_host):
@@ -212,18 +214,21 @@ def test_delete_host_with_RBAC_denied(
             assert db_get_host(host.id)
 
 
-def test_delete_host_with_RBAC_bypassed_as_system(
-    api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
-):
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
+# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
+# def test_delete_host_with_RBAC_bypassed_as_system(
+#     api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
+# ):
+#     host = db_create_host(extra_data={"system_profile_facts": \
+# {"owner_id": SYSTEM_IDENTITY["identity"]["system"]["cn"]}})
 
-    response_status, response_data = api_delete_host(host.id, identity_type="System")
+#     # response_status, response_data = api_delete_host(host.id, identity_type="System")
+#     response_status, response_data = api_delete_host(host.id, USER_IDENTITY)
 
-    assert_response_status(response_status, 200)
+#     assert_response_status(response_status, 400)
 
-    assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+#     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
-    assert not db_get_host(host.id)
+#     assert not db_get_host(host.id)
 
 
 def test_delete_hosts_chunk_size(

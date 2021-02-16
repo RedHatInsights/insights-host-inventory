@@ -187,6 +187,7 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     add_host.assert_not_called()
 
 
+# TODO: affected by Idenity.__eq__
 def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     mocker.patch("app.queue.queue.build_event")
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
@@ -205,6 +206,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(json.dumps(message), mocker.Mock())
             add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
+            # add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY))
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1056,6 +1058,7 @@ def test_other_values_are_ignored(value):
     assert True
 
 
+# TODO: affected by Identity.__eq__
 def test_handle_message_with_different_account(mocker, flask_app, subtests):
     mocker.patch("app.queue.queue.build_event")
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
@@ -1083,6 +1086,7 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
             #     {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
             # )
             add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
+            # add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY))
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
