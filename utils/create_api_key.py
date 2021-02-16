@@ -4,7 +4,7 @@ import sys
 
 """
   Script to generate base64-encoded json and avoid forgetting or not
-  thinking about new-line character, which is add by default when using
+  thinking about new-line character, which is added by default when using
   "echo "asdfadsaf | base64".  The output to use is the generated in
   b'<generted_string>'.
 
