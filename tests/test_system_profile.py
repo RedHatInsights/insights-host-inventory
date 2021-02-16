@@ -122,7 +122,6 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoi
                 assert_response_status(response_status, 403)
 
 
-# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
 def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
     query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
 ):
@@ -133,7 +132,6 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
     assert_response_status(response_status, 200)
 
 
-# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
 def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
     query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
 ):

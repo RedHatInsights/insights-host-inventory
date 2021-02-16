@@ -23,8 +23,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
-
-# from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -443,15 +442,16 @@ def test_patch_host_with_RBAC_denied(
             assert not db_get_host(host.id).display_name == new_display_name
 
 
-# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
-# def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
-#     host = db_create_host(extra_data={"system_profile_facts": \
-# {"owner_id": SYSTEM_IDENTITY["identity"]["system"]["cn"]}})
+def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
+    host = db_create_host(
+        extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["identity"]["system"]["cn"]}}
+    )
+    host.account = "sysaccount"
 
-#     url = build_hosts_url(host_list_or_id=host.id)
-#     response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
+    url = build_hosts_url(host_list_or_id=host.id)
+    response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
 
-#     assert_response_status(response_status, 200)
+    assert_response_status(response_status, 200)
 
 
 def test_update_delete_race(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):

@@ -909,7 +909,6 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-# TODO these tests "*_with_RBAC_bypassed_as_system" are not valid with use of identity
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
