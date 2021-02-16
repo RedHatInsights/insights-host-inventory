@@ -84,6 +84,7 @@ class Identity:
         else:
             return self.account_number == other.account_number
 
+
 def validate(identity):
     if identity.is_trusted_system:
         # This needs to be moved.
