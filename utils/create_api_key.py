@@ -7,8 +7,39 @@ import sys
   thinking about new-line character, which is add by default when using
   "echo "asdfadsaf | base64".  The output to use is the generated in
   b'<generted_string>'.
+
+  Example: "python create_api_key.py basic"
 """
 VALID_AUTH_TYPES = ["basic", "cert", "classic"]
+
+SYSTEM_IDENTITY = {
+    "identity": {
+        "account_number": "sysaccount",
+        "type": "System",
+        "auth_type": "cert-auth",
+        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+        "internal": {"org_id": "3340851", "auth_time": 6300},
+    }
+}
+
+USER_IDENTITY = {
+    "identity": {
+        "account_number": "usraccount",
+        "type": "User",
+        "auth_type": "basic-auth",
+        "user": {"email": "tuser@redhat.com", "first_name": "test"},
+    }
+}
+
+INSIGHTS_CLASSIC_IDENTITY = {
+    "identity": {
+        "account_number": "classic",
+        "auth_type": "classic-proxy",
+        "internal": {"auth_time": 6300, "org_id": "3340851"},
+        "system": {},
+        "type": "System",
+    }
+}
 
 
 def main(argv):
@@ -24,33 +55,11 @@ def main(argv):
         exit(2)
 
     if auth_type == "basic":
-        data = {
-            "identity": {
-                "account_number": "usraccount",
-                "type": "User",
-                "auth_type": "basic-auth",
-                "user": {"email": "tuser@redhat.com", "first_name": "test"},
-            }
-        }
+        data = USER_IDENTITY
     elif auth_type == "cert":
-        data = {
-            "identity": {
-                "account_number": "sysaccount",
-                "type": "System",
-                "auth_type": "cert-auth",
-                "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-                "internal": {"org_id": "3340851", "auth_time": 6300},
-            }
-        }
-
+        data = SYSTEM_IDENTITY
     else:  # auth type is classic
-        data = {
-            "account_number": "classic",
-            "auth_type": "classic-proxy",
-            "internal": {"auth_time": 6300, "org_id": "3340851"},
-            "system": {},
-            "type": "System",
-        }
+        data = INSIGHTS_CLASSIC_IDENTITY
 
     # turns json dict into s string
     data_dict = json.dumps(data)
@@ -58,17 +67,13 @@ def main(argv):
     # base64.b64encode() needs bytes-like object NOT a string.
     apiKey = base64.b64encode(data_dict.encode("utf-8"))
 
-    print("")
-    print(f"For auth_type: {auth_type}: the encoded apiKey is:")
-    print("")
-    print(f"{apiKey}")
-    print("")
+    print(f"\nFor auth_type: {auth_type}: the encoded apiKey is:\n")
+    print(f"{apiKey}\n")
     print(json.dumps(data, indent=2))
-    print("")
 
 
 # end of the main
 
 if __name__ == "__main__":
     main(sys.argv)
-    print("Done!!!\n")
+    print("\nDone!!!\n")
