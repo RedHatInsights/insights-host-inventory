@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from datetime import timedelta
 
 import pytest
 from marshmallow import ValidationError
@@ -329,3 +330,43 @@ def test_host_model_constraints(field, value, db_create_host):
 
     with pytest.raises(DataError):
         db_create_host(host)
+
+
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
+    stale_timestamp = models_datetime_mock + timedelta(days=1)
+    # per_reporter_timestamp = {"yupana": {"last_check_in": now(), "stale_timestamp": n}}
+
+    input_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=stale_timestamp
+    )
+    created_host = db_create_host(input_host)
+
+    assert created_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
+
+
+def test_update_per_reporter_staleness(db_create_host):
+    # TODO: finish this test
+
+    # insights_id = str(uuid.uuid4())
+    # existing_host = db_create_host(
+    #     extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
+    # )
+
+    # assert existing_host.tags == old_tags
+
+    # # On update each namespace in the input host's tags should be updated.
+    # new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
+    # input_host = db_create_host(
+    #     extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags}
+    # )
+
+    # existing_host.update(input_host)
+
+    # assert existing_host.tags == new_tags
+    pass

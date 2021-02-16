@@ -10,6 +10,7 @@ from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
 
@@ -102,3 +103,9 @@ def db_create_host_in_unknown_state(db_create_host):
     host.stale_timestamp = None
     host.reporter = None
     return db_create_host(host)
+
+
+@pytest.fixture(scope="function")
+def models_datetime_mock(mocker):
+    mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
+    return mock.now.return_value
