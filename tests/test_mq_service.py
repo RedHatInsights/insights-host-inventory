@@ -187,7 +187,6 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     add_host.assert_not_called()
 
 
-# TODO: affected by Idenity.__eq__
 def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
     mocker.patch("app.queue.queue.build_event")
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
@@ -206,7 +205,6 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(json.dumps(message), mocker.Mock())
             add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
-            # add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY))
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1058,7 +1056,6 @@ def test_other_values_are_ignored(value):
     assert True
 
 
-# TODO: affected by Identity.__eq__
 def test_handle_message_with_different_account(mocker, flask_app, subtests):
     mocker.patch("app.queue.queue.build_event")
     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
@@ -1069,10 +1066,6 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
 
     messages = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
 
-    # messages = (
-    #     f'{{"operation": "", "data": {{"display_name": "{operation_raw}{operation_raw}", "account": "dummy"}}}}',
-    # )
-
     identity = Identity(SYSTEM_IDENTITY.get("identity"))
     identity.account_number = "dummy"
 
@@ -1082,11 +1075,7 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(json.dumps(message), mocker.Mock())
-            # add_host.assert_called_once_with(
-            #     {"display_name": f"{operation_raw}{operation_raw}", "account": "dummy"}, identity
-            # )
             add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
-            # add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY))
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
@@ -1129,7 +1118,6 @@ def test_handle_message_side_effect(mocker, flask_app):
 def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
-    # timestamp_iso = event_datetime_mock.isoformat()
 
     mocker.patch(
         "app.queue.queue.add_host",
@@ -1150,39 +1138,35 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-# def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
-#     expected_insights_id = generate_uuid()
-#     host_id = generate_uuid()
-#     timestamp_iso = event_datetime_mock.isoformat()
+def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
+    expected_insights_id = generate_uuid()
+    host_id = generate_uuid()
+    timestamp_iso = event_datetime_mock.isoformat()
 
-#     mocker.patch(
-#         "app.queue.queue.add_host",
-#         return_value=(
-#             {"id": host_id, "insights_id": expected_insights_id},
-#             host_id,
-#             expected_insights_id,
-#             AddHostResult.created,
-#         ),
-#     )
-#     mock_event_producer = mocker.Mock()
+    mocker.patch(
+        "app.queue.queue.add_host",
+        return_value=(
+            {"id": host_id, "insights_id": expected_insights_id},
+            host_id,
+            expected_insights_id,
+            AddHostResult.created,
+        ),
+    )
+    mock_event_producer = mocker.Mock()
 
-#     # place identity into platform_metadata
-#     apiKey = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
-#     metadata = {
-#         "request_id": generate_uuid(),
-#         "archive_url": "https://some.url",
-#         "b64_identity": apiKey.decode("ascii"),
-#     }
+    host = minimal_host_owned_by_system(
+        insights_id=expected_insights_id, reporter="rhsm-conduit", subscription_manager_id=OWNER_ID
+    )
+    message = wrap_message(host.data(), "add_host")
 
-#     host = minimal_host_owned_by_system(insights_id=expected_insights_id, reporter="rhsm-conduit")
-#     message = wrap_message(host.data(), platform_metadata=metadata)
+    handle_message(json.dumps(message), mock_event_producer)
 
-#     mock_event_producer.write_event.assert_called_once()
+    mock_event_producer.write_event.assert_called_once()
 
-#     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-#         "timestamp": timestamp_iso,
-#         "type": "created",
-#         "host": {"id": host_id, "insights_id": expected_insights_id},
-#         "platform_metadata": {},
-#         "metadata": {"request_id": "-1"},
-#     }
+    assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
+        "timestamp": timestamp_iso,
+        "type": "created",
+        "host": {"id": host_id, "insights_id": expected_insights_id},
+        "platform_metadata": {},
+        "metadata": {"request_id": "-1"},
+    }
