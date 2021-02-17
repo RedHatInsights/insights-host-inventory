@@ -83,7 +83,8 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
-def minimal_host(**values):
+# owner_id needed for hosts owned by system accounts.
+def _set_owner_id(values):
     if "system_profile" not in values.keys():
         system_profile = {}
         system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
@@ -91,7 +92,10 @@ def minimal_host(**values):
     else:
         if not values["system_profile"].get("owner_id"):
             values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+    return values
 
+
+def minimal_host(**values):
     data = {
         "account": USER_IDENTITY["identity"]["account_number"],
         "display_name": "test" + generate_random_string(),
@@ -105,14 +109,7 @@ def minimal_host(**values):
 
 
 def minimal_host_owned_by_system(**values):
-    if "system_profile" not in values.keys():
-        system_profile = {}
-        system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
-        values["system_profile"] = system_profile
-    else:
-        if not values["system_profile"].get("owner_id"):
-            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
-
+    values = _set_owner_id(values)
     data = {
         "account": SYSTEM_IDENTITY["identity"]["account_number"],
         "display_name": "test" + generate_random_string(),
