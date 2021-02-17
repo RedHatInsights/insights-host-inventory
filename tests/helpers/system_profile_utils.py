@@ -6,7 +6,7 @@ from unittest.mock import patch
 from yaml import safe_dump
 from yaml import safe_load
 
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.models import SPECIFICATION_DIR
 from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 
@@ -66,7 +66,7 @@ def system_profile_specification():
 
 def clear_schema_cache():
     try:
-        delattr(MqHostSchema, "system_profile_normalizer")
+        delattr(HostSchema, "system_profile_normalizer")
     except AttributeError:
         pass
 

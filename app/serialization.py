@@ -7,7 +7,7 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
 from app.models import Host as Host
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.utils import Tag
 
 
@@ -64,7 +64,7 @@ def deserialize_host(raw_data, schema, system_profile_spec=None):
 
 
 def deserialize_host_mq(raw_data, system_profile_spec=None):
-    return deserialize_host(raw_data, MqHostSchema, system_profile_spec)
+    return deserialize_host(raw_data, HostSchema, system_profile_spec)
 
 
 def deserialize_canonical_facts(raw_data):

@@ -13,7 +13,7 @@ from app import db
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
@@ -414,9 +414,9 @@ def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_hos
 
     host_to_create = minimal_host(system_profile={"number_of_cpus": 1})
     mq_create_or_update_host(host_to_create)
-    mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
+    mock.assert_called_once_with(mocker.ANY, HostSchema, None)
 
-    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
+    assert type(HostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
 
 
 def test_add_host_externalized_system_profile(mq_create_or_update_host):

@@ -8,7 +8,6 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
-from app.models import SystemProfileSchema
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -49,7 +48,7 @@ class HostSchema(Schema):
     culled_timestamp = fields.Str()
     reporter = fields.Str()
     tags = fields.List(fields.Nested(TagsSchema))
-    system_profile = fields.Nested(SystemProfileSchema)
+    system_profile = fields.Dict()
 
 
 class HostEventMetadataSchema(Schema):
