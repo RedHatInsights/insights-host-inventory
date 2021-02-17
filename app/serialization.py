@@ -41,7 +41,7 @@ DEFAULT_FIELDS = (
 )
 
 
-def deserialize_host(raw_data, schema, system_profile_spec=None):
+def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
         validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
     except ValidationError as e:
@@ -61,10 +61,6 @@ def deserialize_host(raw_data, schema, system_profile_spec=None):
         validated_data["stale_timestamp"],
         validated_data["reporter"],
     )
-
-
-def deserialize_host_mq(raw_data, system_profile_spec=None):
-    return deserialize_host(raw_data, HostSchema, system_profile_spec)
 
 
 def deserialize_canonical_facts(raw_data):

@@ -8,7 +8,7 @@ from yaml import safe_load
 
 from app.logging import get_logger
 from app.queue.queue import OperationSchema
-from app.serialization import deserialize_host_mq
+from app.serialization import deserialize_host
 
 __all__ = ("validate_sp_for_branch",)
 
@@ -41,7 +41,7 @@ def _validate_host_list(host_list, repo_config):
         if host["reporter"] not in test_results.keys():
             test_results[host["reporter"]] = TestResult()
         try:
-            deserialize_host_mq(host, system_profile_spec)
+            deserialize_host(host, system_profile_spec=system_profile_spec)
             test_results[host["reporter"]].pass_count += 1
         except Exception as e:
             test_results[host["reporter"]].fail_count += 1

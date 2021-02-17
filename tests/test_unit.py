@@ -693,7 +693,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        actual = deserialize_host(full_input, HostSchema)
+        actual = deserialize_host(full_input)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
@@ -719,8 +719,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                     "stale_timestamp": stale_timestamp.isoformat(),
                     "reporter": reporter,
                     **canonical_facts,
-                },
-                HostSchema,
+                }
             )
 
             self.assertIs(Host, type(host))
@@ -781,7 +780,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         for inp in inputs:
             with self.subTest(input=inp):
                 with self.assertRaises(ValidationException) as context:
-                    deserialize_host(inp, HostSchema)
+                    deserialize_host(inp)
 
                     expected_errors = HostSchema().load(inp).errors
                     self.assertEqual(str(expected_errors), str(context.exception))
@@ -824,7 +823,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         }
 
         with self.subTest(schema=HostSchema):
-            actual = deserialize_host(full_input, HostSchema)
+            actual = deserialize_host(full_input)
             expected = {
                 "canonical_facts": canonical_facts,
                 **unchanged_input,
@@ -849,8 +848,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "reporter": "puptoo",
                 "fqdn": "some fqdn",
                 "tags": tags,
-            },
-            HostSchema,
+            }
         )
 
         self.assertIs(Host, type(host))
@@ -864,8 +862,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "reporter": "puptoo",
                 "fqdn": "some fqdn",
                 "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
-            },
-            HostSchema,
+            }
         )
 
         self.assertIs(Host, type(host))
@@ -1716,7 +1713,7 @@ class EventProducerTests(TestCase):
             (
                 (EventType.created, self.basic_host),
                 (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host, HostSchema)),
+                (EventType.delete, deserialize_host(self.basic_host)),
             ),
         ):
             with self.subTest(topic=topic, event_type=event_type):
