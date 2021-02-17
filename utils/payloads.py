@@ -6,10 +6,6 @@ from datetime import timedelta
 from datetime import timezone
 
 
-def random_uuid():
-    return str(uuid.uuid4())
-
-
 def rpm_list():
     return [
         "rpm-python-4.11.3-32.el7.x86_64",
@@ -507,6 +503,10 @@ def build_qpc_payload():
             "cores_per_socket": 1,
         },
     }
+
+
+def random_uuid():
+    return str(uuid.uuid4())
 
 
 def build_host_chunk():
