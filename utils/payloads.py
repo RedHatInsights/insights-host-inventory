@@ -6,6 +6,10 @@ from datetime import timedelta
 from datetime import timezone
 
 
+def random_uuid():
+    return str(uuid.uuid4())
+
+
 def rpm_list():
     return [
         "rpm-python-4.11.3-32.el7.x86_64",
@@ -374,6 +378,7 @@ def rpm_list():
 def create_system_profile():
     return {
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
@@ -502,10 +507,6 @@ def build_qpc_payload():
             "cores_per_socket": 1,
         },
     }
-
-
-def random_uuid():
-    return str(uuid.uuid4())
 
 
 def build_host_chunk():
