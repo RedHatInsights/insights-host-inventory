@@ -12,41 +12,20 @@ from random import choice
 from random import randint
 
 from app.utils import HostWrapper
+from lib.identity import get_system_cert_auth_identity
+from lib.identity import get_system_classic_identity
+from lib.identity import get_user_basic_auth_identity
 
 NS = "testns"
 ID = "whoabuddy"
 
-SYSTEM_IDENTITY = {
-    "identity": {
-        "account_number": "sysaccount",
-        "type": "System",
-        "auth_type": "cert-auth",
-        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-        "internal": {"org_id": "3340851", "auth_time": 6300},
-    }
-}
-
+SYSTEM_IDENTITY = get_system_cert_auth_identity()
 SYSTEM_API_KEY = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
 
-USER_IDENTITY = {
-    "identity": {
-        "account_number": "usraccount",
-        "type": "User",
-        "auth_type": "basic-auth",
-        "user": {"email": "tuser@redhat.com", "first_name": "test"},
-    }
-}
+USER_IDENTITY = get_user_basic_auth_identity()
 USER_API_KEY = base64.b64encode(json.dumps(USER_IDENTITY).encode("utf-8"))
 
-INSIGHTS_CLASSIC_IDENTITY = {
-    "identity": {
-        "account_number": "classic",
-        "auth_type": "classic-proxy",
-        "internal": {"auth_time": 6300, "org_id": "3340851"},
-        "system": {},
-        "type": "System",
-    }
-}
+INSIGHTS_CLASSIC_IDENTITY = get_system_classic_identity()
 CLASSIC_API_KEY = base64.b64encode(json.dumps(INSIGHTS_CLASSIC_IDENTITY).encode("utf-8"))
 
 

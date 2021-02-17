@@ -28,20 +28,13 @@ from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host_mq
 from lib import host_repository
+from lib.identity import get_system_cert_auth_identity
 
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-SYSTEM_IDENTITY = {
-    "identity": {
-        "account_number": "sysaccount",
-        "auth_type": "cert-auth",
-        "internal": {"auth_time": 6300, "org_id": "3340851"},
-        "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-        "type": "System",
-    }
-}
+SYSTEM_IDENTITY = get_system_cert_auth_identity()
 
 
 class OperationSchema(Schema):
