@@ -196,15 +196,16 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
 
     host1 = minimal_host_owned_by_system(insights_id=f"{operation_raw}{operation_escaped}")
 
-    messages = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
+    message = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
 
-    for message in messages:
-        with subtests.test(message=message):
-            host_id = generate_uuid()
-            add_host.reset_mock()
-            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-            handle_message(json.dumps(message), mocker.Mock())
-            add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
+    # wrap_message returns a tuple
+    message = message[0]
+
+    host_id = generate_uuid()
+    add_host.reset_mock()
+    add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+    handle_message(json.dumps(message), mocker.Mock())
+    add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1064,18 +1065,19 @@ def test_handle_message_with_different_account(mocker, flask_app, subtests):
 
     host1 = minimal_host_owned_by_system(insights_id=f"{operation_raw}{operation_raw}")
 
-    messages = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
+    message = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
+
+    # wrap_message returns a tuple
+    message = message[0]
 
     identity = Identity(SYSTEM_IDENTITY.get("identity"))
     identity.account_number = "dummy"
 
-    for message in messages:
-        with subtests.test(message=message):
-            host_id = generate_uuid()
-            add_host.reset_mock()
-            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-            handle_message(json.dumps(message), mocker.Mock())
-            add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
+    host_id = generate_uuid()
+    add_host.reset_mock()
+    add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+    handle_message(json.dumps(message), mocker.Mock())
+    add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
