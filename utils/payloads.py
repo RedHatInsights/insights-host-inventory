@@ -6,11 +6,17 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-from lib.identity import get_system_cert_auth_identity
 
-
-SYSTEM_IDENTITY = get_system_cert_auth_identity()
-SYSTEM_API_KEY = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
+SYSTEM_IDENTITY = {
+    "identity": {
+        "account_number": "sysaccount",
+        "type": "System",
+        "auth_type": "cert-auth",
+        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+        "internal": {"org_id": "3340851", "auth_time": 6300},
+    }
+}
+apiKey = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
 
 
 def rpm_list():
@@ -560,7 +566,7 @@ def build_mq_payload(payload_builder=build_host_chunk):
         "platform_metadata": {
             "request_id": random_uuid(),
             "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-            "b64_identity": SYSTEM_API_KEY.decode("ascii"),
+            "b64_identity": apiKey.decode("ascii"),
         },
         "data": build_host_payload(payload_builder),
     }
