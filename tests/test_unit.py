@@ -854,20 +854,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         self.assertIs(Host, type(host))
         self.assertEqual(tags, host.tags)
 
-    def test_without_tags(self):
-        host = deserialize_host(
-            {
-                "account": "some acct",
-                "stale_timestamp": datetime.now(timezone.utc).isoformat(),
-                "reporter": "puptoo",
-                "fqdn": "some fqdn",
-                "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
-            }
-        )
-
-        self.assertIs(Host, type(host))
-        self.assertEqual({}, host.tags)
-
 
 @patch("app.serialization.Host")
 @patch("app.serialization._deserialize_tags")
