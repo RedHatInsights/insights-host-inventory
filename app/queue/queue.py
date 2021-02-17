@@ -59,7 +59,7 @@ def _get_identity(host, metadata):
     if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
         raise ValueError("Missing identity and the reporter")
 
-    # rhsm report does not provide identity.  Use "cert_tupe" because that's what is expected to get used by REST API
+    # rhsm report does not provide identity.  Set identity type to system for subsequent access
     if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
         SYSTEM_IDENTITY["identity"]["account_number"] = host.get("account")
         SYSTEM_IDENTITY["identity"]["system"]["cn"] = host.get("subscription_manager_id")
