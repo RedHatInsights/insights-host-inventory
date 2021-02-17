@@ -55,6 +55,8 @@ INVALID_SYSTEM_PROFILES = (
     {"sap_sids": ["abc"]},
     {"sap_sids": ["ABC", "ABC"]},
     {"cpu_model": "x" * 101},
+    {"rhc_client_id": "x" * 12},
+    {"rhc_client_id": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
 )
 
 
