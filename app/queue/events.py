@@ -23,7 +23,7 @@ def hostname():
 
 
 # Schemas
-class HostSchema(Schema):
+class SerializedHostSchema(Schema):
     id = fields.UUID()
     display_name = fields.Str()
     ansible_host = fields.Str()
@@ -37,10 +37,6 @@ class HostSchema(Schema):
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
     external_id = fields.Str()
-    # FIXME:
-    # created = fields.DateTime(format="iso8601")
-    # updated = fields.DateTime(format="iso8601")
-    # FIXME:
     created = fields.Str()
     updated = fields.Str()
     stale_timestamp = fields.Str()
@@ -57,7 +53,7 @@ class HostEventMetadataSchema(Schema):
 
 class HostCreateUpdateEvent(Schema):
     type = fields.Str()
-    host = fields.Nested(HostSchema())
+    host = fields.Nested(SerializedHostSchema())
     timestamp = fields.DateTime(format="iso8601")
     platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
