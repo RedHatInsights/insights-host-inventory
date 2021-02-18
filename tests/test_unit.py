@@ -20,6 +20,7 @@ from kafka.errors import KafkaError
 from api import api_operation
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
+from api.parsing import custom_fields_parser
 from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
@@ -1989,6 +1990,27 @@ class ModelsSystemProfileTestCase(TestCase):
             {"number_of_gpus": 1}, MqHostSchema.system_profile_normalizer.schema
         )
         self.assertEqual({}, result.data["system_profile"])
+
+
+class QueryParameterParsingTestCase(TestCase):
+    def test_custom_fields_parser(self):
+        for parser_input, output in (
+            (("fields", ["foo"], ["bar"]), [{"foo": {"bar": True}}]),
+            (("fields", ["foo"], ["bar,hello"]), [{"foo": {"bar": True, "hello": True}}]),
+            (("fields", ["foo"], ["bar", "hello"]), [{"foo": {"bar": True, "hello": True}}]),
+            (
+                ("anything", ["profile"], ["bar,hello", "baz"]),
+                [{"profile": {"bar": True, "hello": True, "baz": True}}],
+            ),
+            (
+                ("fields", ["system_profile"], ["os_version,arch,yum_repos"]),
+                [{"system_profile": {"os_version": True, "arch": True, "yum_repos": True}}],
+            ),
+        ):
+            root_key, response, is_deep_object = custom_fields_parser(*parser_input)
+            assert root_key == parser_input[0]
+            assert response == output
+            assert is_deep_object is True
 
 
 if __name__ == "__main__":

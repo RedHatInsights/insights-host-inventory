@@ -15,6 +15,7 @@ from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
+from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
 from app import inventory_config
 from app import Permission
@@ -187,19 +188,28 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(host_id_list)
+def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+    if fields:
+        if not get_bulk_query_source() == BulkQuerySource.xjoin:
+            flask.abort(503)
 
-    try:
-        order_by = params_to_order_by(order_by, order_how)
-    except ValueError as e:
-        flask.abort(400, str(e))
+        total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
     else:
-        query = query.order_by(*order_by)
-    query_results = query.paginate(page, per_page, True)
+        query = _get_host_list_by_id_list(host_id_list)
 
-    response_list = [serialize_host_system_profile(host) for host in query_results.items]
-    json_output = build_collection_response(response_list, page, per_page, query_results.total)
+        try:
+            order_by = params_to_order_by(order_by, order_how)
+        except ValueError as e:
+            flask.abort(400, str(e))
+        else:
+            query = query.order_by(*order_by)
+        query_results = query.paginate(page, per_page, True)
+
+        total = query_results.total
+
+        response_list = [serialize_host_system_profile(host) for host in query_results.items]
+
+    json_output = build_collection_response(response_list, page, per_page, total)
     return flask_json_response(json_output)
 
 

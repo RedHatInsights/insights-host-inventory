@@ -983,3 +983,87 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 
 #     assert_response_status(implicit_response_status, 400)
 #     assert_response_status(eq_response_status, 400)
+
+
+def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, query_source_xjoin, api_get):
+    host_one_id, host_two_id = generate_uuid(), generate_uuid()
+
+    hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
+
+    for query, xjoin_post in (
+        (
+            "?fields[system_profile]=os_kernel_version,arch,sap_sids",
+            [
+                {
+                    "id": host_one_id,
+                    "system_profile_facts": {
+                        "os_kernel_version": "3.10.0",
+                        "arch": "string",
+                        "sap_sids": ["H2O", "PH3", "CO2"],
+                    },
+                },
+                {"id": host_two_id, "system_profile_facts": {"os_kernel_version": "1.11.1", "arch": "host_arch"}},
+            ],
+        ),
+        (
+            "?fields[system_profile]=unknown_field",
+            [{"id": host_one_id, "system_profile_facts": {}}, {"id": host_two_id, "system_profile_facts": {}}],
+        ),
+        (
+            "?fields[system_profile]=os_kernel_version,arch&fields[system_profile]=sap_sids",
+            [
+                {
+                    "id": host_one_id,
+                    "system_profile_facts": {
+                        "os_kernel_version": "3.10.0",
+                        "arch": "string",
+                        "sap_sids": ["H2O", "PH3", "CO2"],
+                    },
+                },
+                {"id": host_two_id, "system_profile_facts": {"os_kernel_version": "1.11.1", "arch": "host_arch"}},
+            ],
+        ),
+    ):
+        patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 2, "count": 2}, "data": xjoin_post}}})
+        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+        assert response_data["count"] == 2
+        assert response_data["results"][0]["system_profile"] == xjoin_post[0]["system_profile_facts"]
+
+
+def test_sp_sparse_fields_xjoin_response_with_invalid_field(
+    patch_xjoin_post, query_source_xjoin, db_create_host, api_get
+):
+    host = minimal_host(id=generate_uuid())
+
+    xjoin_post = [
+        {
+            "id": str(host.id),
+            "invalid_key": {"os_kernel_version": "3.10.0", "arch": "string", "sap_sids": ["H2O", "PH3", "CO2"]},
+        }
+    ]
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1, "count": 1}, "data": xjoin_post}}})
+    response_status, response_data = api_get(
+        build_system_profile_url([host], query="?fields[system_profile]=os_kernel_version,arch,sap_sids")
+    )
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 1
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["system_profile"] == {}
+
+
+def test_validate_sp_sparse_fields_invalid_requests(query_source_xjoin, api_get):
+    for query in (
+        "?fields[system_profile]=os_kernel_version&order_how=ASC",
+        "?fields[system_profile]=os_kernel_version&order_by=modified",
+        "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
+        "?fields[foo]=bar",
+    ):
+        host_one_id, host_two_id = generate_uuid(), generate_uuid()
+        hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
+
+        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
+        assert response_status == 400
