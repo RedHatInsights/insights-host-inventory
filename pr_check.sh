@@ -73,7 +73,7 @@ apps:
 EOF
 
 bonfire config get -l -a ${APP_NAME} | oc apply -f -
-oc rollout status -w deployment/${APP_NAME}-db
+bonfire namespace wait-on-resources $NAMESPACE
 
 #
 # Grab DB creds
