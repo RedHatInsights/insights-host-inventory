@@ -73,7 +73,7 @@ def _post_git_results_comment(pr_number, control_results, test_results):
 
 def _get_latest_commit_datetime_for_pr(owner, repo, pr_number):
     pr_commits = _get_git_response(f"/repos/{owner}/{repo}/pulls/{pr_number}/commits")
-    latest_commit = pr_commits[len(pr_commits) - 1]
+    latest_commit = pr_commits[-1]
     return parser.isoparse(latest_commit["commit"]["author"]["date"])
 
 
