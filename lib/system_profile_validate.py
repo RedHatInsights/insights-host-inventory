@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 
 from kafka.common import TopicPartition
+from marshmallow import ValidationError
 from requests import get
 from yaml import safe_load
 
@@ -21,27 +22,20 @@ class TestResult:
         self.fail_count = 0
 
 
-def _get_schema_from_url(url):
+def get_schema_from_url(url):
     response = get(url)
     if response.status_code != 200:
         raise ValueError(f"Schema not found at URL: {url}")
     return safe_load(get(url).content.decode("utf-8"))
 
 
-def _validate_host_list(host_list, repo_config):
-    system_profile_spec = _get_schema_from_url(
-        f"https://raw.githubusercontent.com/{repo_config['fork']}/inventory-schemas/"
-        f"{repo_config['branch']}/schemas/system_profile/v1.yaml"
-    )
-
-    logger.info(f"Validating host against {repo_config['fork']}/{repo_config['branch']} schema...")
+def validate_host_list_against_spec(host_list, sp_spec):
     test_results = {}
-
     for host in host_list:
         if host["reporter"] not in test_results.keys():
             test_results[host["reporter"]] = TestResult()
         try:
-            deserialize_host_mq(host, system_profile_spec)
+            deserialize_host_mq(host, sp_spec)
             test_results[host["reporter"]].pass_count += 1
         except Exception as e:
             test_results[host["reporter"]].fail_count += 1
@@ -50,10 +44,19 @@ def _validate_host_list(host_list, repo_config):
     return test_results
 
 
-def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_branch="master", days=1):
+def _validate_host_list(host_list, repo_config):
+    system_profile_spec = get_schema_from_url(
+        f"https://raw.githubusercontent.com/{repo_config['fork']}/inventory-schemas/"
+        f"{repo_config['branch']}/schemas/system_profile/v1.yaml"
+    )
+
+    logger.info(f"Validating host against {repo_config['fork']}/{repo_config['branch']} schema...")
+    return validate_host_list_against_spec(host_list, system_profile_spec)
+
+
+def get_hosts_from_kafka_messages(consumer, days):
     msgs = {}
     partitions = []
-    hosts_parsed = 0
     parsed_hosts = []
     seek_date = datetime.now() + timedelta(days=(-1 * days))
 
@@ -74,20 +77,28 @@ def validate_sp_for_branch(config, consumer, repo_fork="RedHatInsights", repo_br
 
     for topic_partition, messages in msgs.items():
         for message in messages:
-            parsed_message = json.loads(message.value)
-            parsed_operation = OperationSchema(strict=True).load(parsed_message).data
-            parsed_hosts.append(parsed_operation["data"])
-            hosts_parsed += 1
+            try:
+                parsed_message = json.loads(message.value)
+                parsed_operation = OperationSchema(strict=True).load(parsed_message).data
+                parsed_hosts.append(parsed_operation["data"])
+            except ValidationError as e:
+                logger.info("Could not parse host!")
+                logger.error(e)
 
-    if hosts_parsed == 0:
+    if len(parsed_hosts) == 0:
         raise ValueError("No data available at the provided date.")
 
-    logger.info(f"Parsed {hosts_parsed} hosts from message queue.")
+    logger.info(f"Parsed {len(parsed_hosts)} of {len(list(msgs.values())[0])} hosts from message queue.")
+    return parsed_hosts
+
+
+def validate_sp_for_branch(consumer, repo_fork="RedHatInsights", repo_branch="master", days=1):
+    parsed_hosts = get_hosts_from_kafka_messages(consumer, days)
 
     validation_results = {}
     for item in [{"fork": repo_fork, "branch": repo_branch}, {"fork": "RedHatInsights", "branch": "master"}]:
         validation_results[f"{item['fork']}/{item['branch']}"] = (
-            _validate_host_list(parsed_hosts, item) if hosts_parsed > 0 else {}
+            _validate_host_list(parsed_hosts, item) if len(parsed_hosts) > 0 else {}
         )
 
     return validation_results
