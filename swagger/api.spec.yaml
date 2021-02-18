@@ -248,6 +248,7 @@ paths:
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
         - $ref: '#/components/parameters/branchId'
+        - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -595,6 +596,16 @@ components:
       schema:
         type: object
         description: System profile field values to filter with
+    fields_param:
+      in: query
+      name: fields
+      required: false
+      description: Fetches only mentioned system_profile fields
+      style: deepObject
+      explode: true
+      schema:
+        type: object
+        description: System profile field values to fetch
 
   schemas:
     SystemProfileSapSystemOut:
