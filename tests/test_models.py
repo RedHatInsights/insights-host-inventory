@@ -266,14 +266,24 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
 
 
 def test_host_model_default_id(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        canonical_facts={"fqdn": "fqdn"},
+        reporter="yupana",
+        stale_timestamp=now(),
+    )
     db_create_host(host)
 
     assert isinstance(host.id, uuid.UUID)
 
 
 def test_host_model_default_timestamps(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        canonical_facts={"fqdn": "fqdn"},
+        reporter="yupana",
+        stale_timestamp=now(),
+    )
 
     before_commit = now()
     db_create_host(host)
@@ -286,7 +296,12 @@ def test_host_model_default_timestamps(db_create_host):
 
 
 def test_host_model_updated_timestamp(db_create_host):
-    host = Host(account=USER_IDENTITY["account_number"], canonical_facts={"fqdn": "fqdn"})
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        canonical_facts={"fqdn": "fqdn"},
+        reporter="yupana",
+        stale_timestamp=now(),
+    )
 
     before_insert_commit = now()
     db_create_host(host)
@@ -322,9 +337,15 @@ def test_host_model_timestamp_timezones(db_create_host):
     [("account", "00000000102"), ("display_name", "x" * 201), ("ansible_host", "x" * 256), ("reporter", "x" * 256)],
 )
 def test_host_model_constraints(field, value, db_create_host):
-    values = {"account": USER_IDENTITY["account_number"], "canonical_facts": {"fqdn": "fqdn"}, **{field: value}}
-    if field == "reporter":
-        values["stale_timestamp"] = now()
+    values = {
+        "account": USER_IDENTITY["account_number"],
+        "canonical_facts": {"fqdn": "fqdn"},
+        "stale_timestamp": now(),
+        **{field: value},
+    }
+    # add reporter if it's missing because it is now required all the time
+    if not values.get("reporter"):
+        values["reporter"] = "yupana"
 
     host = Host(**values)
 
@@ -350,23 +371,55 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     }
 
 
-def test_update_per_reporter_staleness(db_create_host):
+def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     # TODO: finish this test
+    puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
+    input_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=puptoo_stale_timestamp
+    )
+    existing_host = db_create_host(input_host)
 
-    # insights_id = str(uuid.uuid4())
-    # existing_host = db_create_host(
-    #     extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
-    # )
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": puptoo_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
 
-    # assert existing_host.tags == old_tags
+    puptoo_stale_timestamp += timedelta(days=1)
 
-    # # On update each namespace in the input host's tags should be updated.
-    # new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
-    # input_host = db_create_host(
-    #     extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags}
-    # )
+    update_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=puptoo_stale_timestamp
+    )
+    existing_host.update(update_host)
 
-    # existing_host.update(input_host)
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": puptoo_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        }
+    }
 
-    # assert existing_host.tags == new_tags
-    pass
+    yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
+
+    update_host = Host(
+        {"fqdn": "fqdn"}, display_name="display_name", reporter="yupana", stale_timestamp=yupana_stale_timestamp
+    )
+    existing_host.update(update_host)
+
+    # datetime will not change because the datetime.now() method is patched
+    assert existing_host.per_reporter_staleness == {
+        "puptoo": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": puptoo_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        },
+        "yupana": {
+            "last_check_in": models_datetime_mock.isoformat(),
+            "stale_timestamp": yupana_stale_timestamp.isoformat(),
+            "check_in_succeeded": True,
+        },
+    }

@@ -167,7 +167,7 @@ class Host(db.Model):
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
 
-        if (not stale_timestamp and reporter) or (stale_timestamp and not reporter):
+        if not stale_timestamp or not reporter:
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
@@ -269,9 +269,11 @@ class Host(db.Model):
         if not self.per_reporter_staleness.get(reporter):
             self.per_reporter_staleness[reporter] = {}
 
-        self.per_reporter_staleness[reporter]["stale_timestamp"] = stale_timestamp.isoformat()
-        self.per_reporter_staleness[reporter]["last_check_in"] = datetime.now(timezone.utc).isoformat()
-        self.per_reporter_staleness[reporter]["check_in_succeeded"] = True
+        self.per_reporter_staleness[reporter].update(
+            stale_timestamp=stale_timestamp.isoformat(),
+            last_check_in=datetime.now(timezone.utc).isoformat(),
+            check_in_succeeded=True,
+        )
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)
