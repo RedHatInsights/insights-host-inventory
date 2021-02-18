@@ -88,7 +88,7 @@ def get_hosts_from_kafka_messages(consumer, days):
     if len(parsed_hosts) == 0:
         raise ValueError("No data available at the provided date.")
 
-    logger.info(f"Parsed {len(parsed_hosts)} hosts from message queue.")
+    logger.info(f"Parsed {len(parsed_hosts)} of {len(list(msgs.values())[0])} hosts from message queue.")
     return parsed_hosts
 
 
