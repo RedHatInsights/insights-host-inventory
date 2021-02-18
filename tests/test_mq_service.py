@@ -1172,3 +1172,54 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
         "platform_metadata": {},
         "metadata": {"request_id": "-1"},
     }
+
+
+def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
+    expected_insights_id = generate_uuid()
+    host_id = generate_uuid()
+
+    mocker.patch(
+        "app.queue.queue.add_host",
+        return_value=(
+            {"id": host_id, "insights_id": expected_insights_id},
+            host_id,
+            expected_insights_id,
+            AddHostResult.created,
+        ),
+    )
+    mock_event_producer = mocker.Mock()
+
+    host = minimal_host_owned_by_system(
+        insights_id=expected_insights_id, reporter="yee-haw", subscription_manager_id=OWNER_ID
+    )
+    message = wrap_message(host.data(), "add_host")
+
+    try:
+        handle_message(json.dumps(message), mock_event_producer)
+    except ValueError as ve:
+        print(str(ve))
+
+
+def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
+    expected_insights_id = generate_uuid()
+    host_id = generate_uuid()
+
+    mocker.patch(
+        "app.queue.queue.add_host",
+        return_value=(
+            {"id": host_id, "insights_id": expected_insights_id},
+            host_id,
+            expected_insights_id,
+            AddHostResult.created,
+        ),
+    )
+    mock_event_producer = mocker.Mock()
+
+    host = minimal_host_owned_by_system(
+        insights_id=expected_insights_id, system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"}
+    )
+
+    message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
+
+    with pytest.raises(InventoryException):
+        handle_message(json.dumps(message), mock_event_producer)

@@ -57,7 +57,7 @@ def _get_identity(host, metadata):
     identity = None
     # check the reporter
     if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
-        raise ValueError("Missing identity and the reporter")
+        raise ValueError("Missing identity and the rhsm-conduit reporter, which does not use identity")
 
     # rhsm report does not provide identity.  Set identity type to system for subsequent access
     if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
