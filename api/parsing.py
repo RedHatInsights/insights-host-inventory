@@ -3,6 +3,17 @@ import re
 from connexion.decorators.uri_parsing import OpenAPIURIParser
 
 
+def custom_fields_parser(root_key, key_path, val):
+    """ consumes values like ("a",["foo"],["baz,hello","world"])
+        returns (a, {"foo": {"baz": True, "hello": True, "world": True}}}, is_deep_object)
+    """
+    root = {key_path[0]: {}}
+    for v in val:
+        for fields in v.split(","):
+            root[key_path[0]][fields] = True
+    return (root_key, [root], True)
+
+
 class customURIParser(OpenAPIURIParser):
     @staticmethod
     def _make_deep_object(k, v):
@@ -15,6 +26,9 @@ class customURIParser(OpenAPIURIParser):
             return (k, v, False)
         key_path = re.findall(r"\[([^\[\]]*)\]", k)
         root = prev = node = {}
+
+        if root_key == "fields":
+            return custom_fields_parser(root_key, key_path, v)
 
         prev_k = root_key
         for k in key_path:
