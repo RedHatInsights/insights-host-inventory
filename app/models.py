@@ -263,6 +263,9 @@ class Host(db.Model):
         self.reporter = reporter
 
     def _update_per_reporter_staleness(self, stale_timestamp, reporter):
+        if not self.per_reporter_staleness:
+            self.per_reporter_staleness = {}
+
         if not self.per_reporter_staleness.get(reporter):
             self.per_reporter_staleness[reporter] = {}
 

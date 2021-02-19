@@ -17,9 +17,16 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("hosts", sa.Column("per_reporter_staleness", postgresql.JSONB(astext_type=sa.Text()), nullable=True))
-    op.execute("UPDATE hosts SET per_reporter_staleness = '{}'::jsonb WHERE per_reporter_staleness is NULL;")
-    op.alter_column("hosts", "per_reporter_staleness", nullable=False)
+    op.add_column(
+        "hosts",
+        sa.Column(
+            "per_reporter_staleness",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            default=dict,
+            server_default="{}",
+        ),
+    )
 
 
 def downgrade():
