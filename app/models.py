@@ -263,9 +263,6 @@ class Host(db.Model):
         self.reporter = reporter
 
     def _update_per_reporter_staleness(self, stale_timestamp, reporter):
-        if self.per_reporter_staleness is None:
-            self.per_reporter_staleness = {}
-
         if not self.per_reporter_staleness.get(reporter):
             self.per_reporter_staleness[reporter] = {}
 
@@ -274,6 +271,7 @@ class Host(db.Model):
             last_check_in=datetime.now(timezone.utc).isoformat(),
             check_in_succeeded=True,
         )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)

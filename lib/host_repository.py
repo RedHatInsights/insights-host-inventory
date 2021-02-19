@@ -149,7 +149,6 @@ def create_new_host(input_host, staleness_offset, fields):
     logger.debug("Creating a new host")
 
     input_host.save()
-    print(f"imput host: {input_host}")
     db.session.commit()
 
     metrics.create_host_count.inc()

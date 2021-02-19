@@ -27,7 +27,6 @@ from tests.helpers.test_utils import valid_system_profile
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
     host = minimal_host(system_profile=system_profile)
-    print(f"mh stale ts: {host.stale_timestamp}")
     created_host = mq_create_or_update_host(host)
 
     url = build_system_profile_url(host_list_or_id=created_host.id)

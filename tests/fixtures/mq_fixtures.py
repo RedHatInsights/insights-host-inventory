@@ -22,10 +22,8 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
         host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
     ):
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
-        print(f"message: {message}")
         handle_message(json.dumps(message), event_producer)
         event = json.loads(event_producer.event)
-        print(f"event: {event}")
 
         if return_all_data:
             return event_producer_mock.key, event, event_producer.headers
