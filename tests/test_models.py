@@ -355,7 +355,6 @@ def test_host_model_constraints(field, value, db_create_host):
 
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
     stale_timestamp = models_datetime_mock + timedelta(days=1)
-    # per_reporter_timestamp = {"yupana": {"last_check_in": now(), "stale_timestamp": n}}
 
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=stale_timestamp
@@ -372,7 +371,6 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
 
 
 def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
-    # TODO: finish this test
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=puptoo_stale_timestamp
