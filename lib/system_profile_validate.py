@@ -74,7 +74,7 @@ def get_hosts_from_kafka_messages(consumer, topics, days):
         except AttributeError:
             logger.debug("No data in partition for the given date.")
 
-    msgs = consumer.poll(timeout_ms=10000, max_records=10000)
+    msgs = consumer.poll(timeout_ms=60000, max_records=10000)
 
     for topic_partition, messages in msgs.items():
         for message in messages:
