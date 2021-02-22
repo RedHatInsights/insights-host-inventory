@@ -1,5 +1,6 @@
 import time
 from functools import wraps
+from functools import reduce
 
 import flask
 import ujson
@@ -11,6 +12,8 @@ __all__ = ["api_operation"]
 
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
+
+ESCAPE_CHARS = {'.','?','+','*','|','{','}','[',']','(',')','"','\\','#','@','&','<','>','~'}
 
 logger = get_logger(__name__)
 
@@ -64,3 +67,7 @@ def flask_json_response(json_data, status=200):
 
 def build_collection_response(data, page, per_page, total):
     return {"total": total, "count": len(data), "page": page, "per_page": per_page, "results": data}
+
+
+def custom_escape(expression):
+    return reduce(lambda x,y: x+'\\'+y if x in ESCAPE_CHARS else x+y, expression, '')

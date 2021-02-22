@@ -5,6 +5,7 @@ from kafka import KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response
+from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
@@ -162,7 +163,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     if search:
         variables["filter"] = {
             # Escaped so that the string literals are not interpreted as regex
-            "search": {"regex": f".*{re.escape(search)}.*"}
+            "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
     if filter:
