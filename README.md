@@ -144,7 +144,7 @@ and provide the path to the certificate you'd like to use.
 
 ## Generating API Keys
 
-For creating and accessing hosts in the insights-inventory database, it is important to know which api key was used to create a host.  There have been occasions when a considerable amount of time was spent to determine why the hosts in inventory database were not accessible using REST API.  The reason turned out was using wrong apikey for accessing hosts.  To avoid such problems, generate the same apiKey every time using the same input json for a desired authentication type:
+When accessing hosts the inventory API, it is important to know which API key was used to create the host. If you are not seeing the hosts you have created in responses from the API an API key mismatch may be the cause. To avoid such problems, generate the same API key every time using the same input JSON for a desired authentication type:
 ```
 python utils/create_api_key.py cert
 ```
