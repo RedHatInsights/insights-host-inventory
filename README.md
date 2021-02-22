@@ -142,6 +142,43 @@ python run_gunicorn.py
 To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
 and provide the path to the certificate you'd like to use.
 
+## Generating API Keys
+
+For creating and accessing hosts in the insights-inventory database, it is important to know which api key was used to create a host.  There have been occasions when a considerable amount of time was spent to determine why the hosts in inventory database were not accessible using REST API.  The reason turned out was using wrong apikey for accessing hosts.  To avoid such problems, generate the same apiKey every time using the same input json for a desired authentication type:
+```
+python utils/create_api_key.py cert
+```
+It outputs a base64-encode apiKey alongwith the json used for generating the key
+```
+For auth_type: cert: the encoded apiKey is:
+
+b'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAic3lzYWNjb3VudCIsICJ0eXBlIjogIlN5c3RlbSIsICJhdXRoX3R5cGUiOiAiY2VydC1hdXRoIiwgInN5c3RlbSI6IHsiY24iOiAiMWIzNmIyMGYtN2ZhMC00NDU0LWE2ZDItMDA4Mjk0ZTA2Mzc4IiwgImNlcnRfdHlwZSI6ICJzeXN0ZW0ifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiMzM0MDg1MSIsICJhdXRoX3RpbWUiOiA2MzAwfX19'
+
+{
+  "identity": {
+    "account_number": "sysaccount",
+    "type": "System",
+    "auth_type": "cert-auth",
+    "system": {
+      "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+      "cert_type": "system"
+    },
+    "internal": {
+      "org_id": "3340851",
+      "auth_time": 6300
+    }
+  }
+}
+
+Done!!!
+```
+
+To see what `auth_type` options are availale, run:
+```
+python create_api_key.py
+```
+
+
 ## Testing API Calls
 
 It is necessary to pass an authentication header along on each call to the

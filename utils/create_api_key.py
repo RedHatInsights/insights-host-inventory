@@ -3,12 +3,16 @@ import json
 import sys
 
 """
-  Script to generate base64-encoded json and avoid forgetting or not
-  thinking about new-line character, which is added by default when using
-  "echo "asdfadsaf | base64".  The output to use is the generated in
-  b'<generted_string>'.
+  This script is used to generate a base64-encoded apiKey using the same json input for a
+  desired identity.  There have been occasions when a considerable amount of time was spent
+  to determine why the hosts in DB were not accessible using REST API.  The reason turned
+  out was using a different apikey for accessing hosts than the one used for creating hosts.
 
-  Example: "python create_api_key.py basic"
+  To generate an apiKey, run:
+  "python create_api_key.py basic"
+
+  To see what `auth_type` options are available, run:
+  "python create_api_key"
 """
 VALID_AUTH_TYPES = ["basic", "cert", "classic"]
 
