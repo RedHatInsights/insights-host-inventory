@@ -148,7 +148,7 @@ When accessing hosts the inventory API, it is important to know which API key wa
 ```
 python utils/create_api_key.py cert
 ```
-It outputs a base64-encode apiKey alongwith the json used for generating the key
+This outputs a base64 encoded API key along with the JSON used for generating the key
 ```
 For auth_type: cert: the encoded apiKey is:
 
