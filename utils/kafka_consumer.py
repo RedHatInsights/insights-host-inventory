@@ -4,6 +4,9 @@ import os
 
 from kafka import KafkaConsumer
 
+# from app.models import Host
+# from app.models import SystemProfileSchema
+
 
 HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
 HOST_INGRESS_GROUP = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
@@ -14,6 +17,11 @@ def msg_handler(parsed):
     print("inside msg_handler()")
     print("type(parsed):", type(parsed))
     print("parsed:", parsed)
+    # id_ = parsed["id"]
+    # profile = SystemProfileSchema(strict=True).load(parsed["system_profile"])
+    # host = Host.query.get(id_)
+    # host._update_system_profile(profile)
+    # host.save()
 
 
 def main():
