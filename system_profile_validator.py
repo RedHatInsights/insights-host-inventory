@@ -134,7 +134,7 @@ def main(logger):
         parsed_hosts = get_hosts_from_kafka_messages(consumer, {config.host_ingress_topic}, VALIDATE_DAYS)
         consumer.close()
     except ValueError as ve:
-        logger.error(ve)
+        logger.exception(ve)
         consumer.close()
         sys.exit(1)
 

@@ -32,6 +32,8 @@ def get_schema_from_url(url):
 def validate_host_list_against_spec(host_list, sp_spec):
     test_results = {}
     for host in host_list:
+        if not host.get("reporter"):
+            host["reporter"] = "unknown_reporter"
         if host["reporter"] not in test_results.keys():
             test_results[host["reporter"]] = TestResult()
         try:
@@ -83,9 +85,12 @@ def get_hosts_from_kafka_messages(consumer, topics, days):
                 parsed_message = json.loads(message.value)
                 parsed_operation = OperationSchema(strict=True).load(parsed_message).data
                 parsed_hosts.append(parsed_operation["data"])
-            except ValidationError as e:
-                logger.info("Could not parse host!")
-                logger.error(e)
+            except json.JSONDecodeError:
+                logger.exception(
+                    "Unable to parse json message from message queue.", extra={"incoming_message": message}
+                )
+            except ValidationError:
+                logger.exception("Could not parse operation.", extra={"parsed_message": parsed_message})
 
     if len(parsed_hosts) == 0:
         raise ValueError("No data available at the provided date.")
