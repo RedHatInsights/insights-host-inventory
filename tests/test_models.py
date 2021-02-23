@@ -7,8 +7,7 @@ from sqlalchemy.exc import DataError
 
 from app import db
 from app.models import Host
-from app.models import HttpHostSchema
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -141,24 +140,9 @@ def test_host_schema_valid_tags(tags):
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
-    validated_host = MqHostSchema(strict=True).load(host)
+    validated_host = HostSchema(strict=True).load(host)
 
     assert validated_host.data["tags"] == tags
-
-
-@pytest.mark.parametrize("tags", [[{"key": "good_tag"}], [{"value": "bad_tag"}]])
-def test_host_schema_ignored_tags(tags):
-    host = {
-        "fqdn": "fred.flintstone.com",
-        "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
-        "tags": tags,
-        "stale_timestamp": now().isoformat(),
-        "reporter": "test",
-    }
-
-    validated_host = HttpHostSchema(strict=True).load(host)
-    assert "tags" not in validated_host.data
 
 
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
@@ -172,15 +156,14 @@ def test_host_schema_invalid_tags(tags):
         "reporter": "test",
     }
     with pytest.raises(ValidationError) as exception:
-        MqHostSchema(strict=True).load(host)
+        HostSchema(strict=True).load(host)
 
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("schema", [MqHostSchema, HttpHostSchema])
-def test_host_schema_timezone_enforced(schema):
+def test_host_schema_timezone_enforced():
     host = {
         "fqdn": "scooby.doo.com",
         "display_name": "display_name",
@@ -189,7 +172,7 @@ def test_host_schema_timezone_enforced(schema):
         "reporter": "test",
     }
     with pytest.raises(ValidationError) as exception:
-        schema(strict=True).load(host)
+        HostSchema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(exception.value)
 

@@ -25,7 +25,7 @@ from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
 from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
-from app.serialization import deserialize_host_mq
+from app.serialization import deserialize_host
 from lib import host_repository
 
 logger = get_logger(__name__)
@@ -110,7 +110,7 @@ def add_host(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
-            input_host = deserialize_host_mq(host_data)
+            input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
