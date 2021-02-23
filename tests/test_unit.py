@@ -18,6 +18,7 @@ from uuid import uuid4
 from kafka.errors import KafkaError
 
 from api import api_operation
+from api import custom_escape
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
@@ -2006,6 +2007,19 @@ class QueryParameterParsingTestCase(TestCase):
             assert root_key == parser_input[0]
             assert response == output
             assert is_deep_object is True
+
+
+class CustomRegexMethodTestCase(TestCase):
+    def test_custom_regex_escape(self):
+        for regex_input, output in (
+            (".?well+", "\\.\\?well\\+"),
+            ("&[^abc]~", "\\&\\[^abc\\]\\~"),
+            ("some|*#thing", "some\\|\\*\\#thing"),
+            ('.?+*|{}[]()"\\#@&<>~', '\\.\\?\\+\\*\\|\\{\\}\\[\\]\\(\\)\\"\\\\#\\@\\&\\<\\>\\~'),
+            ("\\", "\\\\"),
+        ):
+            result = custom_escape(regex_input)
+            assert result == output
 
 
 if __name__ == "__main__":

@@ -1,5 +1,3 @@
-import re
-
 import flask
 from kafka import KafkaConsumer
 

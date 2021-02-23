@@ -1,5 +1,3 @@
-import re
-
 import flask
 
 from api import api_operation

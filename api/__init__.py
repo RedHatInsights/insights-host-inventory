@@ -1,6 +1,6 @@
 import time
-from functools import wraps
 from functools import reduce
+from functools import wraps
 
 import flask
 import ujson
@@ -13,7 +13,7 @@ __all__ = ["api_operation"]
 STATUS_CODE = "status_code"
 PROCESSING_TIME = "processing_time"
 
-ESCAPE_CHARS = {'.','?','+','*','|','{','}','[',']','(',')','"','\\','#','@','&','<','>','~'}
+ESCAPE_CHARS = {c for c in '.?+*|{}[]()"\\#@&<>~'}
 
 logger = get_logger(__name__)
 
@@ -70,4 +70,4 @@ def build_collection_response(data, page, per_page, total):
 
 
 def custom_escape(expression):
-    return reduce(lambda x,y: x+'\\'+y if x in ESCAPE_CHARS else x+y, expression, '')
+    return reduce(lambda x, y: x + "\\" + y if y in ESCAPE_CHARS else x + y, expression, "")
