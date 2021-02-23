@@ -1994,9 +1994,9 @@ class CustomRegexMethodTestCase(TestCase):
             ('.?+*|{}[]()"\\#@&<>~', '\\.\\?\\+\\*\\|\\{\\}\\[\\]\\(\\)\\"\\\\\\#\\@\\&\\<\\>\\~'),
             ("\\", "\\\\"),
         ):
-        with self.subTest(regex_input=regex_input):
-            result = custom_escape(regex_input)
-            assert result == output
+            with self.subTest(regex_input=regex_input):
+                result = custom_escape(regex_input)
+                assert result == output
 
 
 if __name__ == "__main__":
