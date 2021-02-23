@@ -29,7 +29,7 @@ SP_SPEC_PATH = "schemas/system_profile/v1.yaml"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 GIT_USER = getenv("GIT_USER")
 GIT_TOKEN = getenv("GIT_TOKEN")
-VALIDATE_DAYS = getenv("VALIDATE_DAYS", 3)
+VALIDATE_DAYS = int(getenv("VALIDATE_DAYS", 3))
 
 
 def _init_config():
@@ -68,7 +68,10 @@ def _post_git_results_comment(pr_number, control_results, test_results):
         f"{_validation_results_plaintext(test_results)}\n```\n"
     )
     response = _post_git_response(f"/repos/{REPO_OWNER}/{REPO_NAME}/issues/{pr_number}/comments", content)
-    logger.info(f"Posted a comment to PR #{pr_number}, with response status {response.status_code}")
+    if response.status_code >= 400:
+        logger.error(f"Could not post a comment to PR #{pr_number}. Response: {response.text}")
+    else:
+        logger.info(f"Posted a comment to PR #{pr_number}, with response status {response.status_code}")
 
 
 def _get_latest_commit_datetime_for_pr(owner, repo, pr_number):
@@ -128,10 +131,10 @@ def main(logger):
     )
 
     try:
-        parsed_hosts = get_hosts_from_kafka_messages(consumer, VALIDATE_DAYS)
+        parsed_hosts = get_hosts_from_kafka_messages(consumer, {config.host_ingress_topic}, VALIDATE_DAYS)
         consumer.close()
     except ValueError as ve:
-        logger.error(ve)
+        logger.exception(ve)
         consumer.close()
         sys.exit(1)
 
