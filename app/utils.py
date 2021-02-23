@@ -192,10 +192,7 @@ class HostWrapper:
         return f"HostWrapper({json.dumps(self.__data, indent=2)})"
 
     def __eq__(self, other):
-        if isinstance(other, dict):
-            return self.__data == other
-        else:
-            return self.__data == other.__data
+        return self.__data == other.__data
 
 
 """

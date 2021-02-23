@@ -48,7 +48,7 @@ class OperationSchema(Schema):
 def _decode_id(encoded_id):
     decoded_id = None
     try:
-        id = base64.b64decode(encoded_id).decode("ascii")
+        id = base64.b64decode(encoded_id)
         decoded_id = json.loads(id)
     except json.JSONDecodeError as jde:
         raise json.JSONDecodeError(jde)
@@ -74,7 +74,7 @@ def _get_identity(host, metadata):
     return identity
 
 
-# test for no system_profile or no owner_id,
+# When identity_type is System, set owner_id if missing from the host system_profile
 def _set_owner(host, identity):
     cn = identity["identity"]["system"]["cn"]
     if "system_profile" not in host:
@@ -179,9 +179,8 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
-    identity = _get_identity(validated_operation_msg.get("data"), platform_metadata)
-
     host = validated_operation_msg["data"]
+    identity = _get_identity(host, platform_metadata)
 
     # basic-auth does not need owner_id
     if identity["identity"].get("type") == "System":

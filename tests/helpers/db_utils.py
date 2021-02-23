@@ -20,12 +20,12 @@ DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
 DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def clean_tables():
     def _clean_tables():
-        log.warning("cleaning database tables")
+        logger.warning("cleaning database tables")
         try:
             db.session.expire_all()
             for table in reversed(db.metadata.sorted_tables):
