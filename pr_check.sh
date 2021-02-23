@@ -3,10 +3,8 @@
 # --------------------------------------------
 # Pre-commit checks
 # --------------------------------------------
-APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
-IMAGE="quay.io/cloudservices/insights-inventory"
-BG_PID=1010101
-RANDOM_PORT=65000
+export APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
+export IMAGE="quay.io/cloudservices/insights-inventory"
 export LC_ALL=en_US.utf-8
 export LANG=en_US.utf-8
 export APP_ROOT=$(pwd)

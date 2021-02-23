@@ -1,7 +1,5 @@
 #!/bin/bash
 
-APP_NAME="host-inventory"  # name of app-sre "application" folder this component lives in
-IMAGE="quay.io/cloudservices/insights-inventory"
 BG_PID=1010101
 RANDOM_PORT=62212
 export LC_ALL=en_US.utf-8
@@ -29,15 +27,6 @@ function killbg {
 function nsrelease {
   echo "Release bonfire namespace"
   bonfire namespace release $NAMESPACE
-}
-
-function random_unused_port { local port=$(shuf -i 2000-65000 -n 1)
-    netstat -lat | grep $port > /dev/null
-    if [[ $? == 1 ]] ; then
-        RANDOM_PORT=$port
-    else
-        random_unused_port
-    fi
 }
 
 #
