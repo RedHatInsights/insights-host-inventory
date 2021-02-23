@@ -5,9 +5,6 @@ import payloads
 from kafka import KafkaProducer
 from ttictoc import TicToc
 
-# import rhsm_payloads as payloads
-# import user_payloads as payloads
-
 
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")

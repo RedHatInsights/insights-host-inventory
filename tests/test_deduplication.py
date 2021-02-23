@@ -4,14 +4,11 @@ from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
 
-# from tests.helpers.test_utils import USER_IDENTITY
-
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
     fqdn = "fred.flintstone.com"
     canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid(), "rhel_machine_id": generate_uuid()}
 
-    # host = minimal_db_host(identity=USER_IDENTITY["identity"], canonical_facts=canonical_facts)
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host)
 

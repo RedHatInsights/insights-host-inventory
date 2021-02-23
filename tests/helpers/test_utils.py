@@ -166,13 +166,13 @@ def valid_system_profile():
     }
 
 
+def get_encoded_idstr():
+    return SYSTEM_API_KEY.decode("ascii")
+
+
 def get_platform_metadata_with_system_identity():
     return {
         "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
         "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": SYSTEM_API_KEY.decode("ascii"),
+        "b64_identity": get_encoded_idstr(),
     }
-
-
-def get_encoded_idstr():
-    return SYSTEM_API_KEY.decode("ascii")

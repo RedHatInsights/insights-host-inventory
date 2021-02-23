@@ -43,21 +43,25 @@ class OperationSchema(Schema):
     data = fields.Dict(required=True)
 
 
-# input is a base64 encoded string and returns the identity dictionary
+# input is a base64 encoded utf-8 string. b64decode returns bytes, which
+# again needs decoding using ascii to get human readable dictionary
 def _decode_id(encoded_id):
-    base64_id = encoded_id
-    base64_bytes = base64_id.encode("ascii")
-    id_bytes = base64.b64decode(base64_bytes)
-    id = id_bytes.decode("ascii")
-    return json.loads(id)
+    decoded_id = None
+    try:
+        id = base64.b64decode(encoded_id).decode("ascii")
+        decoded_id = json.loads(id)
+    except json.JSONDecodeError as jde:
+        raise json.JSONDecodeError(jde)
+
+    return decoded_id
 
 
 def _get_identity(host, metadata):
-
     identity = None
-    # check the reporter
+
+    # Identity is required unless the reporter type is "rhsm-conduit"
     if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
-        raise ValueError("Missing identity and the rhsm-conduit reporter, which does not use identity")
+        raise ValueError("Provide identity or the reporter MUST be rhsm-conduit, which does not provide identity")
 
     # rhsm report does not provide identity.  Set identity type to system for subsequent access
     if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":

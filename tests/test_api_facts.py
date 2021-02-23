@@ -174,9 +174,10 @@ def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["identity"]["system"].get("cn")},
         }
     )
+
+    host.account = SYSTEM_IDENTITY["identity"]["account_number"]
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(url, DB_NEW_FACTS, SYSTEM_IDENTITY)
+    response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
 
-    # with the use of identity, response_status 400 is the expected one.
-    assert_response_status(response_status, 400)
+    assert_response_status(response_status, 200)

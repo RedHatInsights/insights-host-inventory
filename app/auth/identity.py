@@ -76,13 +76,7 @@ class Identity:
             }
 
     def __eq__(self, other):
-        if isinstance(other, dict):
-            if "identity" in other.keys():
-                return self.account_number == other["identity"].get("account_number")
-            else:
-                return self.account_number == other.get("account_number")
-        else:
-            return self.account_number == other.account_number
+        return self.account_number == other.account_number
 
 
 def validate(identity):
