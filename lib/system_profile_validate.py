@@ -54,13 +54,14 @@ def _validate_host_list(host_list, repo_config):
     return validate_host_list_against_spec(host_list, system_profile_spec)
 
 
-def get_hosts_from_kafka_messages(consumer, days):
+def get_hosts_from_kafka_messages(consumer, topics, days):
     msgs = {}
     partitions = []
     parsed_hosts = []
+    total_messages = 0
     seek_date = datetime.now() + timedelta(days=(-1 * days))
 
-    for topic in consumer.topics():
+    for topic in topics:
         for partition_id in consumer.partitions_for_topic(topic):
             partitions.append(TopicPartition(topic, partition_id))
 
@@ -73,27 +74,31 @@ def get_hosts_from_kafka_messages(consumer, days):
         except AttributeError:
             logger.debug("No data in partition for the given date.")
 
-    msgs = consumer.poll(timeout_ms=10000, max_records=10000)
+    msgs = consumer.poll(timeout_ms=60000, max_records=10000)
 
     for topic_partition, messages in msgs.items():
         for message in messages:
+            total_messages += 1
             try:
                 parsed_message = json.loads(message.value)
                 parsed_operation = OperationSchema(strict=True).load(parsed_message).data
                 parsed_hosts.append(parsed_operation["data"])
-            except ValidationError as e:
-                logger.info("Could not parse host!")
-                logger.error(e)
+            except json.JSONDecodeError:
+                logger.exception(
+                    "Unable to parse json message from message queue.", extra={"incoming_message": message}
+                )
+            except ValidationError:
+                logger.exception("Could not parse operation.", extra={"parsed_message": parsed_message})
 
     if len(parsed_hosts) == 0:
         raise ValueError("No data available at the provided date.")
 
-    logger.info(f"Parsed {len(parsed_hosts)} of {len(list(msgs.values())[0])} hosts from message queue.")
+    logger.info(f"Parsed {len(parsed_hosts)} of {total_messages} hosts from message queue.")
     return parsed_hosts
 
 
-def validate_sp_for_branch(consumer, repo_fork="RedHatInsights", repo_branch="master", days=1):
-    parsed_hosts = get_hosts_from_kafka_messages(consumer, days)
+def validate_sp_for_branch(consumer, topics, repo_fork="RedHatInsights", repo_branch="master", days=1):
+    parsed_hosts = get_hosts_from_kafka_messages(consumer, topics, days)
 
     validation_results = {}
     for item in [{"fork": repo_fork, "branch": repo_branch}, {"fork": "RedHatInsights", "branch": "master"}]:

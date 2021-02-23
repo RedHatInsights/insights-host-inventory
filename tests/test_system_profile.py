@@ -210,7 +210,7 @@ def test_validate_sp_for_branch(mocker, messages):
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, messages)
 
     validation_results = validate_sp_for_branch(
-        fake_consumer, repo_fork="test_repo", repo_branch="test_branch", days=3
+        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
     )
 
     assert "test_repo/test_branch" in validation_results
@@ -233,7 +233,7 @@ def test_validate_sp_for_branch_multiple_partitions(mocker, partitions, messages
     fake_consumer = create_kafka_consumer_mock(mocker, config, partitions, messages_per_partition)
 
     validation_results = validate_sp_for_branch(
-        fake_consumer, repo_fork="test_repo", repo_branch="test_branch", days=3
+        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
     )
 
     assert "test_repo/test_branch" in validation_results
@@ -250,7 +250,9 @@ def test_validate_sp_no_data(api_post, mocker):
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
-        validate_sp_for_branch(fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+        validate_sp_for_branch(
+            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+        )
     assert "No data available at the provided date." in str(excinfo.value)
 
 
@@ -262,7 +264,9 @@ def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 10)
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
-        validate_sp_for_branch(fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+        validate_sp_for_branch(
+            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+        )
     assert "Schema not found at URL" in str(excinfo.value)
 
 
