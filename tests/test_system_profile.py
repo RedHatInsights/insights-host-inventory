@@ -1,8 +1,4 @@
-import json
-from types import SimpleNamespace
-
 import pytest
-from kafka.common import TopicPartition
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -20,7 +16,7 @@ from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
-from tests.helpers.mq_utils import wrap_message
+from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -204,58 +200,73 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
-def test_validate_sp_for_branch(mocker):
+@pytest.mark.parametrize("messages", [10, 25, 50])
+def test_validate_sp_for_branch(mocker, messages):
     # Mock schema fetch
-    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
     mock_schema = system_profile_specification()
     get_schema_from_url_mock.return_value = mock_schema
-
-    # Mock Kafka consumer
-    fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
-    tp = TopicPartition(config.host_ingress_topic, 0)
-    fake_consumer.poll.return_value = {
-        tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
-    }
-    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace(offset=0)}
+    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, messages)
 
     validation_results = validate_sp_for_branch(
-        config, fake_consumer, repo_fork="test_repo", repo_branch="test_branch", days=3
+        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
     )
 
     assert "test_repo/test_branch" in validation_results
+
+    pass_count = 0
     for reporter in validation_results["test_repo/test_branch"]:
-        assert validation_results["test_repo/test_branch"][reporter].pass_count > 0
+        pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
+
+    assert pass_count == messages
+
+
+@pytest.mark.parametrize("partitions", [3, 10, 20])
+@pytest.mark.parametrize("messages_per_partition", [10, 25, 50])
+def test_validate_sp_for_branch_multiple_partitions(mocker, partitions, messages_per_partition):
+    # Mock schema fetch
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
+    mock_schema = system_profile_specification()
+    get_schema_from_url_mock.return_value = mock_schema
+    config = Config(RuntimeEnvironment.SERVICE)
+    fake_consumer = create_kafka_consumer_mock(mocker, config, partitions, messages_per_partition)
+
+    validation_results = validate_sp_for_branch(
+        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
+    )
+
+    assert "test_repo/test_branch" in validation_results
+
+    pass_count = 0
+    for reporter in validation_results["test_repo/test_branch"]:
+        pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
+
+    assert pass_count == partitions * messages_per_partition
 
 
 def test_validate_sp_no_data(api_post, mocker):
-    # Mock Kafka consumer
-    fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
-    tp = TopicPartition(config.host_ingress_topic, 0)
-    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace()}
+    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
-        validate_sp_for_branch(config, fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+        validate_sp_for_branch(
+            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+        )
     assert "No data available at the provided date." in str(excinfo.value)
 
 
 def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
     # Mock schema fetch
-    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate._get_schema_from_url")
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
     get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")
-
-    # Mock Kafka consumer
-    fake_consumer = mocker.Mock()
     config = Config(RuntimeEnvironment.SERVICE)
-    tp = TopicPartition(config.host_ingress_topic, 0)
-    fake_consumer.poll.return_value = {
-        tp: [SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data()))) for _ in range(5)]
-    }
-    fake_consumer.offsets_for_times.return_value = {tp: SimpleNamespace(offset=0)}
+    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 10)
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
-        validate_sp_for_branch(config, fake_consumer, repo_fork="foo", repo_branch="bar", days=3)
+        validate_sp_for_branch(
+            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+        )
     assert "Schema not found at URL" in str(excinfo.value)
 
 

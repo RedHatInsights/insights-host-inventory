@@ -48,6 +48,29 @@ def pagination_params(page, per_page):
     return limit, offset
 
 
+def hosts_order_by_params(order_by, order_how):
+    if order_how and not order_by:
+        raise ValueError(
+            "Providing ordering direction without a column is not supported. "
+            "Provide order_by={updated,display_name}."
+        )
+
+    if not order_by:
+        order_by = "updated"
+    if not order_how:
+        order_how = "DESC"
+
+    if order_by not in ["display_name", "updated"]:
+        raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
+    if order_how not in ["ASC", "DESC"]:
+        raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
+
+    if order_by == "updated":
+        order_by = "modified_on"
+
+    return order_by, order_how
+
+
 def staleness_filter(staleness):
     config = inventory_config()
     return staleness_to_conditions(config, staleness, _stale_timestamp_filter)

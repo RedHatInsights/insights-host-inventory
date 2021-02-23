@@ -139,6 +139,17 @@ $defs:
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
         example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      rhc_client_id:
+        description: A UUID associated with a cloud_connector
+        type: string
+        pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        maxLength: 36
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      cpu_model:
+        description: The cpu model name
+        type: string
+        maxLength: 100
+        example: 'Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz'
       number_of_cpus:
         type: integer
       number_of_sockets:
@@ -324,3 +335,12 @@ $defs:
         maxLength: 10
         description: The SELinux mode provided in the config file
         example: 'permissive'
+      rhsm:
+        description: Object for subscription-manager details
+        type: object
+        properties:
+          version:
+            description: System release set by subscription-manager
+            example: "8.1"
+            type: string
+            maxLength: 255

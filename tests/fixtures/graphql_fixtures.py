@@ -10,6 +10,7 @@ from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
+from tests.helpers.graphql_utils import XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
@@ -63,6 +64,14 @@ def graphql_system_profile_sap_sids_query_empty_response(graphql_query):
 @pytest.fixture(scope="function")
 def graphql_system_profile_sap_sids_query_with_response(graphql_query):
     return graphql_query(func="api.system_profile.graphql_query", return_value=XJOIN_SYSTEM_PROFILE_SAP_SIDS)
+
+
+@pytest.fixture(scope="function")
+def graphql_sparse_system_profile_empty_response(graphql_query):
+    return graphql_query(
+        func="api.sparse_host_list_system_profile.graphql_query",
+        return_value=XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE,
+    )
 
 
 @pytest.fixture(scope="function")

@@ -7,7 +7,7 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
 from app.models import Host as Host
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.utils import Tag
 
 
@@ -41,7 +41,7 @@ DEFAULT_FIELDS = (
 )
 
 
-def deserialize_host(raw_data, schema, system_profile_spec=None):
+def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
         validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
     except ValidationError as e:
@@ -61,10 +61,6 @@ def deserialize_host(raw_data, schema, system_profile_spec=None):
         validated_data["stale_timestamp"],
         validated_data["reporter"],
     )
-
-
-def deserialize_host_mq(raw_data, system_profile_spec=None):
-    return deserialize_host(raw_data, MqHostSchema, system_profile_spec)
 
 
 def deserialize_canonical_facts(raw_data):
@@ -139,6 +135,10 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
 
 def serialize_host_system_profile(host):
     return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+
+
+def serialize_host_system_profile_xjoin(host_data):
+    return {"id": _serialize_uuid(host_data["id"]), "system_profile": host_data.get("system_profile_facts") or {}}
 
 
 def _deserialize_canonical_facts(data):
