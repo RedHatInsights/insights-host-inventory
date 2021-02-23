@@ -32,6 +32,8 @@ def get_schema_from_url(url):
 def validate_host_list_against_spec(host_list, sp_spec):
     test_results = {}
     for host in host_list:
+        if not host.get("reporter"):
+            host["reporter"] = "unknown_reporter"
         if host["reporter"] not in test_results.keys():
             test_results[host["reporter"]] = TestResult()
         try:
