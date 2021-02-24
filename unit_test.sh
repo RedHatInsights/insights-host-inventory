@@ -65,10 +65,6 @@ bonfire namespace wait-on-resources $NAMESPACE || { echo 'App did not deploy pro
 # Grab DB creds
 #
 
-# Get a random port on the jenkins agent to forward
-echo "Getting a port to forward"
-# random_unused_port
-
 echo "Parsing secret details"
 oc get secret ${APP_NAME} -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
