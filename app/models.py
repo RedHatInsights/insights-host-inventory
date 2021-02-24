@@ -159,7 +159,6 @@ class Host(db.Model):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
-        per_reporter_staleness=None,
     ):
 
         if not canonical_facts:
