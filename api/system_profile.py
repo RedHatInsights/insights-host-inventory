@@ -1,10 +1,9 @@
-import re
-
 import flask
 from kafka import KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response
+from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
@@ -162,7 +161,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     if search:
         variables["filter"] = {
             # Escaped so that the string literals are not interpreted as regex
-            "search": {"regex": f".*{re.escape(search)}.*"}
+            "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
     if filter:
@@ -208,7 +207,7 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
         **config.kafka_consumer,
     )
     try:
-        response = validate_sp_for_branch(consumer, repo_fork, repo_branch, days)
+        response = validate_sp_for_branch(consumer, {config.host_ingress_topic}, repo_fork, repo_branch, days)
         consumer.close()
         return flask_json_response(response)
     except (ValueError, AttributeError) as e:

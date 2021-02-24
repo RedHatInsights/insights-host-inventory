@@ -18,6 +18,7 @@ from uuid import uuid4
 from kafka.errors import KafkaError
 
 from api import api_operation
+from api import custom_escape
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
@@ -35,8 +36,7 @@ from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
-from app.models import HttpHostSchema
-from app.models import MqHostSchema
+from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
@@ -695,7 +695,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        actual = deserialize_host(full_input, MqHostSchema)
+        actual = deserialize_host(full_input)
         expected = {
             "canonical_facts": canonical_facts,
             **unchanged_input,
@@ -714,28 +714,26 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
 
-        for schema in (MqHostSchema, HttpHostSchema):
-            with self.subTest(schema=schema):
-                host = deserialize_host(
-                    {
-                        "account": account,
-                        "stale_timestamp": stale_timestamp.isoformat(),
-                        "reporter": reporter,
-                        **canonical_facts,
-                    },
-                    schema,
-                )
+        with self.subTest(schema=HostSchema):
+            host = deserialize_host(
+                {
+                    "account": account,
+                    "stale_timestamp": stale_timestamp.isoformat(),
+                    "reporter": reporter,
+                    **canonical_facts,
+                }
+            )
 
-                self.assertIs(Host, type(host))
-                self.assertEqual(canonical_facts, host.canonical_facts)
-                self.assertIsNone(host.display_name)
-                self.assertIsNone(host.ansible_host)
-                self.assertEqual(account, host.account)
-                self.assertEqual(stale_timestamp, host.stale_timestamp)
-                self.assertEqual(reporter, host.reporter)
-                self.assertEqual({}, host.facts)
-                self.assertEqual({}, host.tags)
-                self.assertEqual({}, host.system_profile_facts)
+            self.assertIs(Host, type(host))
+            self.assertEqual(canonical_facts, host.canonical_facts)
+            self.assertIsNone(host.display_name)
+            self.assertIsNone(host.ansible_host)
+            self.assertEqual(account, host.account)
+            self.assertEqual(stale_timestamp, host.stale_timestamp)
+            self.assertEqual(reporter, host.reporter)
+            self.assertEqual({}, host.facts)
+            self.assertEqual({}, host.tags)
+            self.assertEqual({}, host.system_profile_facts)
 
     def test_with_invalid_input(self):
         stale_timestamp = datetime.now(timezone.utc).isoformat()
@@ -784,9 +782,9 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         for inp in inputs:
             with self.subTest(input=inp):
                 with self.assertRaises(ValidationException) as context:
-                    deserialize_host(inp, MqHostSchema)
+                    deserialize_host(inp)
 
-                    expected_errors = MqHostSchema().load(inp).errors
+                    expected_errors = HostSchema().load(inp).errors
                     self.assertEqual(str(expected_errors), str(context.exception))
 
     # Test that both of the host schemas will pass all of these fields
@@ -826,20 +824,19 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
         }
 
-        for schema in (MqHostSchema, HttpHostSchema):
-            with self.subTest(schema=schema):
-                actual = deserialize_host(full_input, schema)
-                expected = {
-                    "canonical_facts": canonical_facts,
-                    **unchanged_input,
-                    "stale_timestamp": stale_timestamp,
-                    "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-                    "system_profile_facts": full_input["system_profile"],
-                }
+        with self.subTest(schema=HostSchema):
+            actual = deserialize_host(full_input)
+            expected = {
+                "canonical_facts": canonical_facts,
+                **unchanged_input,
+                "stale_timestamp": stale_timestamp,
+                "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
+                "system_profile_facts": full_input["system_profile"],
+            }
 
-                self.assertIs(Host, type(actual))
-                for key, value in expected.items():
-                    self.assertEqual(value, getattr(actual, key))
+            self.assertIs(Host, type(actual))
+            for key, value in expected.items():
+                self.assertEqual(value, getattr(actual, key))
 
     def test_with_tags(self):
         tags = {
@@ -853,27 +850,11 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "reporter": "puptoo",
                 "fqdn": "some fqdn",
                 "tags": tags,
-            },
-            MqHostSchema,
+            }
         )
 
         self.assertIs(Host, type(host))
         self.assertEqual(tags, host.tags)
-
-    def test_without_tags(self):
-        host = deserialize_host(
-            {
-                "account": "some acct",
-                "stale_timestamp": datetime.now(timezone.utc).isoformat(),
-                "reporter": "puptoo",
-                "fqdn": "some fqdn",
-                "tags": [{"namespace": "namespace", "key": "key", "value": "value"}],
-            },
-            HttpHostSchema,
-        )
-
-        self.assertIs(Host, type(host))
-        self.assertEqual({}, host.tags)
 
 
 @patch("app.serialization.Host")
@@ -1725,7 +1706,7 @@ class EventProducerTests(TestCase):
             (
                 (EventType.created, self.basic_host),
                 (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host, MqHostSchema)),
+                (EventType.delete, deserialize_host(self.basic_host)),
             ),
         ):
             with self.subTest(topic=topic, event_type=event_type):
@@ -1934,7 +1915,7 @@ class ModelsSystemProfileTestCase(TestCase):
         )
 
     def test_invalid_values_are_rejected(self):
-        schema = MqHostSchema()
+        schema = HostSchema()
         for system_profile in INVALID_SYSTEM_PROFILES:
             with self.subTest(system_profile=system_profile):
                 payload = self._payload(system_profile)
@@ -1949,13 +1930,13 @@ class ModelsSystemProfileTestCase(TestCase):
         mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
 
         with mock_system_profile_specification(mock_spec):
-            schema = MqHostSchema()
+            schema = HostSchema()
             result = schema.load(payload)
             self._assert_system_profile_is_invalid(result)
 
     def test_types_are_coerced(self):
         payload = self._payload({"number_of_cpus": "1"})
-        schema = MqHostSchema()
+        schema = HostSchema()
         result = schema.load(payload)
         self.assertEqual({"number_of_cpus": 1}, result.data["system_profile"])
 
@@ -1967,28 +1948,24 @@ class ModelsSystemProfileTestCase(TestCase):
                 "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"], "mac_addresses": ["aa:bb:cc:dd:ee:ff"]}],
             }
         )
-        schema = MqHostSchema()
+        schema = HostSchema()
         result = schema.load(payload)
         expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
         self.assertEqual(expected, result.data["system_profile"])
 
     @patch("app.models.jsonschema_validate")
     def test_type_coercion_happens_before_loading(self, jsonschema_validate):
-        schema = MqHostSchema()
+        schema = HostSchema()
         payload = self._payload({"number_of_cpus": "1"})
         schema.load(payload)
-        jsonschema_validate.assert_called_once_with(
-            {"number_of_cpus": 1}, MqHostSchema.system_profile_normalizer.schema
-        )
+        jsonschema_validate.assert_called_once_with({"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema)
 
     @patch("app.models.jsonschema_validate")
     def test_type_filtering_happens_after_loading(self, jsonschema_validate):
-        schema = MqHostSchema()
+        schema = HostSchema()
         payload = self._payload({"number_of_gpus": 1})
         result = schema.load(payload)
-        jsonschema_validate.assert_called_once_with(
-            {"number_of_gpus": 1}, MqHostSchema.system_profile_normalizer.schema
-        )
+        jsonschema_validate.assert_called_once_with({"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema)
         self.assertEqual({}, result.data["system_profile"])
 
 
@@ -2011,6 +1988,20 @@ class QueryParameterParsingTestCase(TestCase):
             assert root_key == parser_input[0]
             assert response == output
             assert is_deep_object is True
+
+
+class CustomRegexMethodTestCase(TestCase):
+    def test_custom_regex_escape(self):
+        for regex_input, output in (
+            (".?well+", "\\.\\?well\\+"),
+            ("&[^abc]~", "\\&\\[^abc\\]\\~"),
+            ("some|*#thing", "some\\|\\*\\#thing"),
+            ('.?+*|{}[]()"\\#@&<>~', '\\.\\?\\+\\*\\|\\{\\}\\[\\]\\(\\)\\"\\\\\\#\\@\\&\\<\\>\\~'),
+            ("\\", "\\\\"),
+        ):
+            with self.subTest(regex_input=regex_input):
+                result = custom_escape(regex_input)
+                assert result == output
 
 
 if __name__ == "__main__":
