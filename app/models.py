@@ -146,6 +146,7 @@ class Host(db.Model):
     system_profile_facts = db.Column(JSONB)
     stale_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
+    per_reporter_staleness = db.Column(JSONB)
 
     def __init__(
         self,
@@ -165,7 +166,7 @@ class Host(db.Model):
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
 
-        if (not stale_timestamp and reporter) or (stale_timestamp and not reporter):
+        if not stale_timestamp or not reporter:
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
@@ -184,6 +185,7 @@ class Host(db.Model):
         self.system_profile_facts = system_profile_facts or {}
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
+        self._update_per_reporter_staleness(stale_timestamp, reporter)
 
     def save(self):
         self._cleanup_tags()
@@ -207,6 +209,7 @@ class Host(db.Model):
             self._update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
+        self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -257,6 +260,20 @@ class Host(db.Model):
     def _update_stale_timestamp(self, stale_timestamp, reporter):
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
+
+    def _update_per_reporter_staleness(self, stale_timestamp, reporter):
+        if not self.per_reporter_staleness:
+            self.per_reporter_staleness = {}
+
+        if not self.per_reporter_staleness.get(reporter):
+            self.per_reporter_staleness[reporter] = {}
+
+        self.per_reporter_staleness[reporter].update(
+            stale_timestamp=stale_timestamp.isoformat(),
+            last_check_in=datetime.now(timezone.utc).isoformat(),
+            check_in_succeeded=True,
+        )
+        orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_modified_date(self):
         self.modified_on = datetime.now(timezone.utc)

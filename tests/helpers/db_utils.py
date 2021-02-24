@@ -38,7 +38,7 @@ def minimal_db_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
         "canonical_facts": {"insights_id": generate_uuid()},
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }
@@ -62,7 +62,7 @@ def db_host(**values):
         },
         "facts": {"ns1": {"key1": "value1"}},
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
+        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }

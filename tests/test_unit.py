@@ -1222,8 +1222,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "account": None}
-        host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
+        unchanged_data = {"display_name": None, "account": None, "reporter": "yupana"}
+        host_init_data = {
+            "stale_timestamp": datetime.now(timezone.utc),
+            "canonical_facts": {"fqdn": "some fqdn"},
+            **unchanged_data,
+            "facts": {},
+        }
         host = Host(**host_init_data)
 
         host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
@@ -1249,10 +1254,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": None,
-            "stale_warning_timestamp": None,
-            "culled_timestamp": None,
-            "reporter": None,
+            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
+            ),
         }
         self.assertEqual(expected, actual)
 
@@ -1360,6 +1368,8 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
             system_profile_facts=system_profile_facts,
+            stale_timestamp=datetime.utcnow(),
+            reporter="yupana",
         )
         host.id = uuid4()
 
@@ -1368,7 +1378,12 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
-        host = Host(canonical_facts={"fqdn": "some fqdn"}, display_name="some display name")
+        host = Host(
+            canonical_facts={"fqdn": "some fqdn"},
+            display_name="some display name",
+            stale_timestamp=datetime.utcnow(),
+            reporter="yupana",
+        )
         host.id = uuid4()
         host.system_profile_facts = None
 
@@ -1559,16 +1574,6 @@ class SerializationSerializeUuid(TestCase):
 class HostUpdateStaleTimestamp(TestCase):
     def _make_host(self, **values):
         return Host(**{"canonical_facts": {"fqdn": "some fqdn"}, **values})
-
-    def test_updated_when_empty(self):
-        host = self._make_host()
-
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-        host._update_stale_timestamp(stale_timestamp, reporter)
-
-        self.assertEqual(stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
 
     def test_always_updated(self):
         old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
