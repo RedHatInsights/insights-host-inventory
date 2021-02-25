@@ -67,16 +67,22 @@ def get_hosts_from_kafka_messages(consumer, topics, days, max_messages=1000000):
             partitions.append(TopicPartition(topic, partition_id))
 
     consumer.assign(partitions)
+    partitions = consumer.assignment()
 
-    for tp in consumer.assignment():
+    start_offsets = consumer.offsets_for_times({tp: seek_date.timestamp() * 1000 for tp in partitions})
+    end_offsets = consumer.end_offsets(partitions)
+
+    for tp in partitions:
         try:
-            consumer.seek(tp, consumer.offsets_for_times({tp: seek_date.timestamp() * 1000})[tp].offset)
+            consumer.seek(tp, start_offsets[tp].offset)
         except AttributeError:
             logger.debug("No data in partition for the given date.")
 
     while total_message_count < max_messages:
         new_message_count = 0
-        for partition_messages in consumer.poll(timeout_ms=60000, max_records=10000).values():
+        for partition, partition_messages in consumer.poll(timeout_ms=60000, max_records=10000).items():
+            if consumer.position(partition) >= end_offsets[partition]:
+                continue
             new_message_count += len(partition_messages)
             for message in partition_messages:
                 try:
