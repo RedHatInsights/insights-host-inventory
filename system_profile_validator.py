@@ -123,15 +123,19 @@ def main(logger):
 
     # Get the list of parsed hosts from the last VALIDATE_DAYS worth of Kafka messages
     consumer = KafkaConsumer(
-        group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
-        **config.kafka_consumer,
+        **config.validator_kafka_consumer,
     )
 
     try:
-        parsed_hosts = get_hosts_from_kafka_messages(consumer, {config.host_ingress_topic}, VALIDATE_DAYS)
+        parsed_hosts = get_hosts_from_kafka_messages(
+            consumer,
+            {config.host_ingress_topic, config.additional_validation_topic},
+            VALIDATE_DAYS,
+            config.sp_validator_max_messages,
+        )
         consumer.close()
     except ValueError as ve:
         logger.exception(ve)

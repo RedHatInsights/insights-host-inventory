@@ -197,17 +197,23 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 @api_operation
 @rbac(Permission.READ)
 @metrics.schema_validation_time.time()
-def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1):
+def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
     config = Config(RuntimeEnvironment.SERVICE)
     consumer = KafkaConsumer(
-        group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
-        **config.kafka_consumer,
+        **config.validator_kafka_consumer,
     )
     try:
-        response = validate_sp_for_branch(consumer, {config.host_ingress_topic}, repo_fork, repo_branch, days)
+        response = validate_sp_for_branch(
+            consumer,
+            {config.host_ingress_topic, config.additional_validation_topic},
+            repo_fork,
+            repo_branch,
+            days,
+            max_messages,
+        )
         consumer.close()
         return flask_json_response(response)
     except (ValueError, AttributeError) as e:

@@ -432,7 +432,14 @@ paths:
           schema:
             type: integer
             minimum: 1
-          description: How many days worth of kafka messages to validate
+          description: How many days worth of data to validate
+        - in: query
+          name: max_messages
+          schema:
+            type: integer
+            minimum: 1
+            default: 10000
+          description: Stops polling when this number of messages has been collected
       responses:
         '200':
             description: Host validation results

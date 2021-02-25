@@ -39,8 +39,10 @@ class Config:
         def topic(t):
             return app_common_python.KafkaTopics[t].name
 
-        requested_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
-        self.host_ingress_topic = topic(requested_ingress_topic)
+        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress"))
+        self.additional_validation_topic = topic(
+            os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1")
+        )
         self.host_egress_topic = topic("platform.inventory.events")
         self.system_profile_topic = topic("platform.system-profile")
         self.event_topic = topic("platform.inventory.events")
@@ -55,6 +57,9 @@ class Config:
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+        self.additional_validation_topic = os.environ.get(
+            "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
+        )
         self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
@@ -91,6 +96,7 @@ class Config:
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.secondary_topic_enabled = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "false").lower() == "true"
+        self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "1000000"))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
@@ -104,6 +110,19 @@ class Config:
             "auto_offset_reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
             "auto_commit_interval_ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
             "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10")),
+            "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
+            "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+        }
+
+        self.validator_kafka_consumer = {
+            "group_id": "inventory-sp-validator",
+            "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
+            "max_in_flight_requests_per_connection": int(
+                os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
+            ),
+            "enable_auto_commit": False,
+            "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
