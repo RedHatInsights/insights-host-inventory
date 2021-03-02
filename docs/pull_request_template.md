@@ -3,6 +3,14 @@
 This PR is being created to address [this Jira](https://issues.redhat.com/browse/RHCLOUD-xxxxx).
 (A description of your PR's changes goes here.)
 
+## PR Checklist
+
+- [ ] Provide comments communicating "why" the code has been written this way
+- [ ] Documentation
+- [ ] Tests: happy path
+- [ ] Tests: failure path/scenarios
+- [ ] Tests: edge conditions.
+
 ## Secure Coding Practices Checklist GitHub Link
 
 - https://github.com/RedHatInsights/secure-coding-checklist
