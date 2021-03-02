@@ -146,6 +146,21 @@ def test_host_schema_valid_tags(tags):
     assert validated_host.data["tags"] == tags
 
 
+# @pytest.mark.parametrize("tags", [[{"key": "good_tag"}], [{"value": "bad_tag"}]])
+# def test_host_schema_ignored_tags(tags):
+#     host = {
+#         "fqdn": "fred.flintstone.com",
+#         "display_name": "display_name",
+#         "account": USER_IDENTITY["identity"]["account_number"],
+#         "tags": tags,
+#         "stale_timestamp": now().isoformat(),
+#         "reporter": "test",
+#     }
+
+#     validated_host = HttpHostSchema(strict=True).load(host)
+#     assert "tags" not in validated_host.data
+
+
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
 def test_host_schema_invalid_tags(tags):
     host = {

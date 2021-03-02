@@ -435,15 +435,15 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_
     }
 
 
-def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
-    mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
-    mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
+# def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
+#     mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
+#     mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
 
-    host_to_create = minimal_host_owned_by_system(system_profile={"number_of_cpus": 1})
-    mq_create_or_update_host(host_to_create)
-    mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
+#     host_to_create = minimal_host_owned_by_system(system_profile={"number_of_cpus": 1})
+#     mq_create_or_update_host(host_to_create)
+#     mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
 
-    assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
+#     assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
 
 
 def test_add_host_externalized_system_profile(mq_create_or_update_host):
@@ -1051,29 +1051,6 @@ def test_invalid_string_is_found_in_list_item(obj):
 def test_other_values_are_ignored(value):
     _validate_json_object_for_utf8(value)
     assert True
-
-
-# def test_handle_message_with_different_account(mocker, flask_app, subtests):
-#     mocker.patch("app.queue.queue.build_event")
-#     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
-
-#     operation_raw = "🧜🏿‍♂️"
-
-#     host1 = minimal_host_owned_by_system(insights_id=f"{operation_raw}{operation_raw}")
-
-#     message = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
-
-#     # wrap_message returns a tuple
-#     message = message[0]
-
-#     identity = Identity(SYSTEM_IDENTITY.get("identity"))
-#     identity.account_number = "dummy"
-
-#     host_id = generate_uuid()
-#     add_host.reset_mock()
-#     add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-#     handle_message(json.dumps(message), mocker.Mock())
-#     add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
