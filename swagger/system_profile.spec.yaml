@@ -335,6 +335,9 @@ $defs:
         maxLength: 10
         description: The SELinux mode provided in the config file
         example: 'permissive'
+      is_marketplace:
+        description: Indicates whether the host is part of a marketplace install from AWS, Azure, etc.
+        type: boolean
       rhsm:
         description: Object for subscription-manager details
         type: object
