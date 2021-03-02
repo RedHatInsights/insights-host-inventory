@@ -183,27 +183,6 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     add_host.assert_not_called()
 
 
-# def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
-#     mocker.patch("app.queue.queue.build_event")
-#     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
-
-#     operation_raw = "🧜🏿‍♂️"
-#     operation_escaped = json.dumps(operation_raw)[1:-1]
-
-#     host1 = minimal_host_owned_by_system(insights_id=f"{operation_raw}{operation_escaped}")
-
-#     message = (wrap_message(host1.data(), "add_host", get_platform_metadata_with_system_identity()),)
-
-#     # wrap_message returns a tuple
-#     message = message[0]
-
-#     host_id = generate_uuid()
-#     add_host.reset_mock()
-#     add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-#     handle_message(json.dumps(message), mocker.Mock())
-#     add_host.assert_called_once_with(host1, Identity(SYSTEM_IDENTITY.get("identity")))
-
-
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
