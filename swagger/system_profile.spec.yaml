@@ -344,3 +344,6 @@ $defs:
             example: "8.1"
             type: string
             maxLength: 255
+      smart_management_enabled:
+        type: boolean
+        description: Indicates whether Smart Management is enabled
