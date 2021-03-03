@@ -12,13 +12,13 @@ from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 
 def invalid_identities(identity_type):
     if identity_type == "System":
-        no_cert_type = Identity(SYSTEM_IDENTITY.get("identity"))._asdict()
+        no_cert_type = Identity(SYSTEM_IDENTITY)._asdict()
         no_cert_type["system"].pop("cert_type", None)
 
-        no_cn = Identity(SYSTEM_IDENTITY.get("identity"))._asdict()
+        no_cn = Identity(SYSTEM_IDENTITY)._asdict()
         no_cn["system"].pop("cn", None)
 
-        no_system = Identity(SYSTEM_IDENTITY.get("identity"))._asdict()
+        no_system = Identity(SYSTEM_IDENTITY)._asdict()
         no_system.pop("system", None)
 
         return (no_cert_type, no_cn, no_system)
@@ -39,9 +39,9 @@ def valid_identity(identity_type):
     Provides a valid Identity object.
     """
     if identity_type == "User":
-        return Identity(USER_IDENTITY.get("identity"))
+        return Identity(USER_IDENTITY)
     elif identity_type == "System":
-        return Identity(SYSTEM_IDENTITY.get("identity"))
+        return Identity(SYSTEM_IDENTITY)
 
 
 def create_identity_payload(identity):
@@ -126,7 +126,7 @@ def test_invalid_system_identities(flask_client, subtests):
 
 
 def test_insights_classic_workaround(flask_client):
-    payload = create_identity_payload(Identity(INSIGHTS_CLASSIC_IDENTITY.get("identity")))
+    payload = create_identity_payload(Identity(INSIGHTS_CLASSIC_IDENTITY))
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 

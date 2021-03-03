@@ -295,7 +295,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
     fqdn = "some fqdn"
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
-    mock.assert_called_once_with(Identity(USER_IDENTITY["identity"]), "fqdn", fqdn)
+    mock.assert_called_once_with(Identity(USER_IDENTITY), "fqdn", fqdn)
 
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
@@ -306,7 +306,7 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     url = build_hosts_url(query=f"?insights_id={insights_id}")
     api_get(url)
 
-    mock.assert_called_once_with(Identity(USER_IDENTITY["identity"]), "insights_id", insights_id)
+    mock.assert_called_once_with(Identity(USER_IDENTITY), "insights_id", insights_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):

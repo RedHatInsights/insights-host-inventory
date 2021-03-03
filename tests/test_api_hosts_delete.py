@@ -215,10 +215,8 @@ def test_delete_host_with_RBAC_denied(
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
 ):
-    host = db_create_host(
-        extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["identity"]["system"]["cn"]}}
-    )
-    host.account = SYSTEM_IDENTITY["identity"]["account_number"]
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
+    host.account = SYSTEM_IDENTITY["account_number"]
 
     response_status, response_data = api_delete_host(host.id, identity_type="System")
 

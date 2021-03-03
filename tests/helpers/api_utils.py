@@ -116,13 +116,13 @@ def get_required_headers(auth_type="account_number", identity_type="User"):
     return headers
 
 
-def build_account_auth_header(account=USER_IDENTITY["identity"]["account_number"], identity_type="User"):
+def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
     if identity_type == "User":
-        identity = Identity(USER_IDENTITY.get("identity"))
+        identity = Identity(USER_IDENTITY)
     elif identity_type == "System":
-        identity = Identity(SYSTEM_IDENTITY.get("identity"))
+        identity = Identity(SYSTEM_IDENTITY)
     elif identity_type == "Insights_Classic_System":
-        identity = Identity(INSIGHTS_CLASSIC_IDENTITY.get("identity"))
+        identity = Identity(INSIGHTS_CLASSIC_IDENTITY)
     else:
         raise ValueError("unrecognized identity type")
 

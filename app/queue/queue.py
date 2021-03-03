@@ -28,13 +28,17 @@ from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
-from lib.identity import get_system_cert_auth_identity
 
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-SYSTEM_IDENTITY = get_system_cert_auth_identity()
+SYSTEM_IDENTITY = {
+    "account_number": "sysaccount",
+    "auth_type": "cert-auth",
+    "system": {"cert_type": "system"},
+    "type": "System",
+}
 
 
 class OperationSchema(Schema):
@@ -53,7 +57,7 @@ def _decode_id(encoded_id):
     except json.JSONDecodeError as jde:
         raise json.JSONDecodeError(jde)
 
-    return decoded_id
+    return decoded_id.get("identity")
 
 
 def _get_identity(host, metadata):
@@ -62,8 +66,8 @@ def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if not metadata.get("b64_identity"):
         if host.get("reporter") == "rhsm-conduit":
-            SYSTEM_IDENTITY["identity"]["account_number"] = host.get("account")
-            SYSTEM_IDENTITY["identity"]["system"]["cn"] = host.get("subscription_manager_id")
+            SYSTEM_IDENTITY["account_number"] = host.get("account")
+            SYSTEM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
             identity = SYSTEM_IDENTITY
         else:
             raise ValueError(
@@ -77,7 +81,7 @@ def _get_identity(host, metadata):
 
 # When identity_type is System, set owner_id if missing from the host system_profile
 def _set_owner(host, identity):
-    cn = identity["identity"]["system"]["cn"]
+    cn = identity["system"]["cn"]
     if "system_profile" not in host:
         host["system_profile"] = {}
         host["system_profile"]["owner_id"] = cn
@@ -187,10 +191,10 @@ def handle_message(message, event_producer):
     identity = _get_identity(host, platform_metadata)
 
     # basic-auth does not need owner_id
-    if identity["identity"].get("type") == "System":
+    if identity.get("type") == "System":
         host = _set_owner(host, identity)
 
-    identity = Identity(identity.get("identity"))
+    identity = Identity(identity)
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)

@@ -29,7 +29,7 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-OWNER_ID = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 def test_headers_forwarded(mocker, patch_xjoin_post, api_get):

@@ -32,7 +32,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
-OWNER_ID = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 def test_event_loop_exception_handling(mocker, flask_app):
@@ -1034,10 +1034,10 @@ def test_other_values_are_ignored(value):
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
     host = minimal_host_owned_by_system(fqdn="d44533.foo.redhat.co")
-    host.account = SYSTEM_IDENTITY["identity"]["account_number"]
+    host.account = SYSTEM_IDENTITY["account_number"]
 
     created_host = mq_create_or_update_host(host)
-    assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["identity"]["account_number"]
+    assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
 
     first_batch = db_get_hosts([created_host.id])
 

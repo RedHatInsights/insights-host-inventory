@@ -24,7 +24,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
-OWNER_ID = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 # system_profile tests

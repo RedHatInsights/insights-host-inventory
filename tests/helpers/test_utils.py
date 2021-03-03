@@ -20,7 +20,6 @@ NS = "testns"
 ID = "whoabuddy"
 
 SYSTEM_IDENTITY = get_system_cert_auth_identity()
-SYSTEM_API_KEY = base64.b64encode(json.dumps(SYSTEM_IDENTITY).encode("utf-8"))
 
 USER_IDENTITY = get_user_basic_auth_identity()
 USER_API_KEY = base64.b64encode(json.dumps(USER_IDENTITY).encode("utf-8"))
@@ -66,17 +65,17 @@ def set_environment(new_env=None):
 def _set_owner_id(values):
     if "system_profile" not in values.keys():
         system_profile = {}
-        system_profile["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+        system_profile["owner_id"] = SYSTEM_IDENTITY["system"]["cn"]
         values["system_profile"] = system_profile
     else:
         if not values["system_profile"].get("owner_id"):
-            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["identity"]["system"]["cn"]
+            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["system"]["cn"]
     return values
 
 
 def minimal_host(**values):
     data = {
-        "account": USER_IDENTITY["identity"]["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
@@ -90,7 +89,7 @@ def minimal_host(**values):
 def minimal_host_owned_by_system(**values):
     values = _set_owner_id(values)
     data = {
-        "account": SYSTEM_IDENTITY["identity"]["account_number"],
+        "account": SYSTEM_IDENTITY["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
@@ -167,6 +166,9 @@ def valid_system_profile():
 
 
 def get_encoded_idstr():
+    id = {"identity": SYSTEM_IDENTITY}
+    SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
+
     return SYSTEM_API_KEY.decode("ascii")
 
 

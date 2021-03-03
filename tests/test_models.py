@@ -136,7 +136,7 @@ def test_host_schema_valid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["identity"]["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
@@ -151,7 +151,7 @@ def test_host_schema_invalid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["identity"]["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
@@ -168,7 +168,7 @@ def test_host_schema_timezone_enforced():
     host = {
         "fqdn": "scooby.doo.com",
         "display_name": "display_name",
-        "account": USER_IDENTITY["identity"]["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "stale_timestamp": now().replace(tzinfo=None).isoformat(),
         "reporter": "test",
     }
@@ -229,7 +229,7 @@ def test_update_host_with_no_tags(db_create_host):
 
 def test_host_model_assigned_values(db_create_host, db_get_host):
     values = {
-        "account": USER_IDENTITY["identity"]["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "display_name": "display_name",
         "ansible_host": "ansible_host",
         "facts": [{"namespace": "namespace", "facts": {"key": "value"}}],
@@ -302,7 +302,7 @@ def test_host_model_updated_timestamp(db_create_host):
 
 def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
-        account=USER_IDENTITY["identity"]["account_number"],
+        account=USER_IDENTITY["account_number"],
         canonical_facts={"fqdn": "fqdn"},
         stale_timestamp=now(),
         reporter="ingress",
