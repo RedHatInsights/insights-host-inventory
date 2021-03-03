@@ -59,15 +59,16 @@ def _decode_id(encoded_id):
 def _get_identity(host, metadata):
     identity = None
 
-    # Identity is required unless the reporter type is "rhsm-conduit"
-    if not metadata.get("b64_identity") and not host.get("reporter") == "rhsm-conduit":
-        raise ValueError("Provide identity or the reporter MUST be rhsm-conduit, which does not provide identity")
-
-    # rhsm report does not provide identity.  Set identity type to system for subsequent access
-    if not metadata.get("b64_identity") and host.get("reporter") == "rhsm-conduit":
-        SYSTEM_IDENTITY["identity"]["account_number"] = host.get("account")
-        SYSTEM_IDENTITY["identity"]["system"]["cn"] = host.get("subscription_manager_id")
-        identity = SYSTEM_IDENTITY
+    # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
+    if not metadata.get("b64_identity"):
+        if host.get("reporter") == "rhsm-conduit":
+            SYSTEM_IDENTITY["identity"]["account_number"] = host.get("account")
+            SYSTEM_IDENTITY["identity"]["system"]["cn"] = host.get("subscription_manager_id")
+            identity = SYSTEM_IDENTITY
+        else:
+            raise ValueError(
+                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id"
+            )
     else:
         identity = _decode_id(metadata.get("b64_identity"))
 
@@ -83,9 +84,12 @@ def _set_owner(host, identity):
     elif not host["system_profile"].get("owner_id"):
         host["system_profile"]["owner_id"] = cn
     else:
-        if host["system_profile"]["owner_id"] != cn:
-            log_add_host_failure(logger, host)
-            raise InventoryException("The owner in host does not match the owner in identity")
+        if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
+            host["system_profile"]["owner_id"] = host.get("subscription_manager_id")
+        else:
+            if host["system_profile"]["owner_id"] != cn:
+                log_add_host_failure(logger, host)
+                raise InventoryException("The owner in host does not match the owner in identity")
     return host
 
 
