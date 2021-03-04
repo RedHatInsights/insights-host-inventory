@@ -195,7 +195,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
 
 @api_operation
-@rbac(Permission.READ)
+@rbac(Permission.ADMIN)
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
     config = Config(RuntimeEnvironment.SERVICE)
