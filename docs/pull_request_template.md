@@ -6,7 +6,7 @@ This PR is being created to address [this Jira](https://issues.redhat.com/browse
 ## PR Checklist
 
 - [ ] Keep PR title short, ideally under 72 characters
-- [ ] Provide comments communicating "why" the code has been written this way
+- [ ] Descriptive comments provided in complex code blocks
 - [ ] Tests: validate optimal/expected output
 - [ ] Tests: validate exceptions and failure scenarios
 - [ ] Tests: edge cases.
