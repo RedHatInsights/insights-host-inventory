@@ -1,15 +1,17 @@
 ## Overview
 
 This PR is being created to address [this Jira](https://issues.redhat.com/browse/RHCLOUD-xxxxx).
-(A description of your PR's changes goes here.)
+(Provide as much context/info in the description as necessary to get the reviewer up to the same domain knowledge level as yourself)
 
 ## PR Checklist
 
+- [ ] Keep PR title short, ideally under 72 characters
 - [ ] Provide comments communicating "why" the code has been written this way
-- [ ] Documentation
-- [ ] Tests: happy path
-- [ ] Tests: failure path/scenarios
-- [ ] Tests: edge conditions.
+- [ ] Tests: validate optimal/expected output
+- [ ] Tests: validate exceptions and failure scenarios
+- [ ] Tests: edge cases.
+- [ ] Documentation change?  Applicable when this PR changes the way other services interact with host inventory
+- [ ] Links to related PRs
 
 ## Secure Coding Practices Checklist GitHub Link
 
