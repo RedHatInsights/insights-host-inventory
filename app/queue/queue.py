@@ -1,6 +1,7 @@
 import base64
 import json
 import sys
+from copy import deepcopy
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -33,12 +34,7 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-SYSTEM_IDENTITY = {
-    "account_number": "sysaccount",
-    "auth_type": "cert-auth",
-    "system": {"cert_type": "system"},
-    "type": "System",
-}
+SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
 class OperationSchema(Schema):
@@ -50,7 +46,6 @@ class OperationSchema(Schema):
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
 # again needs decoding using ascii to get human readable dictionary
 def _decode_id(encoded_id):
-    decoded_id = None
     try:
         id = base64.b64decode(encoded_id)
         decoded_id = json.loads(id)
@@ -66,9 +61,9 @@ def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if not metadata.get("b64_identity"):
         if host.get("reporter") == "rhsm-conduit":
-            SYSTEM_IDENTITY["account_number"] = host.get("account")
-            SYSTEM_IDENTITY["system"]["cn"] = host.get("subscription_manager_id")
-            identity = SYSTEM_IDENTITY
+            identity = deepcopy(SYSTEM_IDENTITY)
+            identity["account_number"] = host.get("account")
+            identity["system"]["cn"] = host.get("subscription_manager_id")
         else:
             raise ValueError(
                 "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id"
@@ -76,12 +71,12 @@ def _get_identity(host, metadata):
     else:
         identity = _decode_id(metadata.get("b64_identity"))
 
-    return identity
+    return Identity(identity)
 
 
 # When identity_type is System, set owner_id if missing from the host system_profile
 def _set_owner(host, identity):
-    cn = identity["system"]["cn"]
+    cn = identity.system.get("cn")
     if "system_profile" not in host:
         host["system_profile"] = {}
         host["system_profile"]["owner_id"] = cn
@@ -191,10 +186,8 @@ def handle_message(message, event_producer):
     identity = _get_identity(host, platform_metadata)
 
     # basic-auth does not need owner_id
-    if identity.get("type") == "System":
+    if identity.identity_type == "System":
         host = _set_owner(host, identity)
-
-    identity = Identity(identity)
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
