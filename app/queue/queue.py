@@ -12,6 +12,7 @@ from app import inventory_config
 from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
@@ -88,7 +89,7 @@ def _set_owner(host, identity):
         else:
             if host["system_profile"]["owner_id"] != cn:
                 log_add_host_failure(logger, host)
-                raise InventoryException("The owner in host does not match the owner in identity")
+                raise ValidationException("The owner in host does not match the owner in identity")
     return host
 
 

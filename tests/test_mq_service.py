@@ -232,16 +232,10 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     Tests adding a host with some simple data
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.isoformat()
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID})
 
-    expected_results = {
-        "host": {**host.data()},
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
-    }
+    expected_results = {"host": {**host.data()}}
 
     host_keys_to_check = ["display_name", "insights_id", "account"]
 
@@ -257,16 +251,10 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
     expected_system_profile["owner_id"] = OWNER_ID
-    timestamp_iso = event_datetime_mock.isoformat()
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=expected_system_profile)
 
-    expected_results = {
-        "host": {**host.data()},
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
-    }
+    expected_results = {"host": {**host.data()}}
 
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
@@ -281,22 +269,11 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
     """
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
-    timestamp_iso = event_datetime_mock.isoformat()
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=expected_system_profile)
 
-    expected_results = {
-        "host": {**host.data()},
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
-    }
-
-    host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
-
     with pytest.raises(InventoryException):
         key, event, headers = mq_create_or_update_host(host, return_all_data=True)
-        assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
 def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
@@ -317,16 +294,10 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
         {"key": "just_key"},
         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
-    timestamp_iso = event_datetime_mock.isoformat()
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, tags=expected_tags)
 
-    expected_results = {
-        "host": {**host.data()},
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
-    }
+    expected_results = {"host": {**host.data()}}
     host_keys_to_check = ["display_name", "insights_id", "account"]
 
     key, event, headers = mq_create_or_update_host(host, return_all_data=True)
@@ -414,17 +385,6 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_
     }
 
 
-# def test_add_host_not_marshmallow_system_profile(mocker, mq_create_or_update_host):
-#     mock_deserialize_host = partial(mocker.Mock, wraps=deserialize_host)
-#     mock = mocker.patch("app.serialization.deserialize_host", new_callable=mock_deserialize_host)
-
-#     host_to_create = minimal_host_owned_by_system(system_profile={"number_of_cpus": 1})
-#     mq_create_or_update_host(host_to_create)
-#     mock.assert_called_once_with(mocker.ANY, MqHostSchema, None)
-
-#     assert type(MqHostSchema._declared_fields["system_profile"]) is not marshmallow.fields.Nested
-
-
 def test_add_host_externalized_system_profile(mq_create_or_update_host):
     orig_spec = system_profile_specification()
     mock_spec = deepcopy(orig_spec)
@@ -452,7 +412,7 @@ def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_
     """
     owner_id = "Mike Wazowski"
     host = minimal_host_owned_by_system(system_profile={"owner_id": owner_id})
-    with pytest.raises(InventoryException):
+    with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
 
 
@@ -512,7 +472,6 @@ def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_upd
 
 def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host):
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.isoformat()
 
     system_profile = valid_system_profile()
     system_profile["sap_system"] = True
@@ -520,12 +479,7 @@ def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host)
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=system_profile)
 
-    expected_results = {
-        "host": {**host.data()},
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
-    }
+    expected_results = {"host": {**host.data()}}
 
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
@@ -899,7 +853,6 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
     and stale_timestamp set.
     """
     expected_insights_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.isoformat()
     stale_timestamp = now()
 
     host = minimal_host_owned_by_system(insights_id=expected_insights_id, stale_timestamp=stale_timestamp.isoformat())
@@ -909,10 +862,7 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
             **host.data(),
             "stale_warning_timestamp": (stale_timestamp + timedelta(weeks=1)).isoformat(),
             "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
-        },
-        "platform_metadata": {},
-        "timestamp": timestamp_iso,
-        "type": "created",
+        }
     }
 
     host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
@@ -1145,11 +1095,8 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         insights_id=expected_insights_id, reporter="yee-haw", subscription_manager_id=OWNER_ID
     )
     message = wrap_message(host.data(), "add_host")
-
-    try:
+    with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer)
-    except ValueError as ve:
-        print(str(ve))
 
 
 def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
