@@ -57,8 +57,6 @@ def _decode_id(encoded_id):
 
 
 def _get_identity(host, metadata):
-    identity = None
-
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if not metadata.get("b64_identity"):
         if host.get("reporter") == "rhsm-conduit":
