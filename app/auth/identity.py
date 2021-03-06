@@ -12,6 +12,9 @@ logger = get_logger(__name__)
 
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 
+cert_types = ["satellite", "system"]
+auth_types = ["basic-auth", "cert-auth", "classic-proxy"]
+
 
 def from_auth_header(base64):
     json = b64decode(base64)
@@ -52,6 +55,9 @@ class Identity:
             # ensure account number availability
             if obj["account_number"] is None or obj["account_number"] == "":
                 raise ValueError("Authentication type unknown")
+
+            # Check for bogus parameters
+            validate(self)
 
             threadctx.account_number = obj["account_number"]
         else:
@@ -94,8 +100,22 @@ def validate(identity):
         if not identity.account_number:
             raise ValueError("The account_number is mandatory.")
 
-        elif identity.identity_type == "System" and identity.auth_type != "classic-proxy":
+        elif identity.identity_type == "System":
+            if not identity.system:
+                raise ValueError("The identity.system is mandatory")
             if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
+            if identity.system.get("cert_type") not in cert_types:
+                raise ValueError("The cert_type is invalid.")
             if not identity.system.get("cn"):
                 raise ValueError("The cn field is mandatory.")
+            if not identity.auth_type:
+                raise ValueError("The auth_type field is mandatory.")
+            if identity.auth_type not in auth_types:
+                raise ValueError("The auth_type is invalid.")
+
+        elif identity.identity_type == "User":
+            if not identity.user:
+                raise ValueError("The identity.user is mandatory")
+            if not identity.user.get("email"):
+                raise ValueError("For basic-auth email is mandatory")

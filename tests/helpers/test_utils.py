@@ -28,7 +28,7 @@ INSIGHTS_CLASSIC_IDENTITY = {
     "account_number": "classic",
     "auth_type": "classic-proxy",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
     "type": "System",
 }
 
