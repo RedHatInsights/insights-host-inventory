@@ -843,7 +843,7 @@ components:
           $ref: "#/components/schemas/BiosUuid"
         ip_addresses:
           $ref: "#/components/schemas/IpAddresses"
-        Fqdn:
+        fqdn:
           $ref: "#/components/schemas/Fqdn"
         mac_addresses:
           $ref: "#/components/schemas/MacAddresses"
