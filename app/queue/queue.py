@@ -47,12 +47,8 @@ class OperationSchema(Schema):
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
 # again needs decoding using ascii to get human readable dictionary
 def _decode_id(encoded_id):
-    try:
-        id = base64.b64decode(encoded_id)
-        decoded_id = json.loads(id)
-    except json.JSONDecodeError as jde:
-        raise json.JSONDecodeError(jde)
-
+    id = base64.b64decode(encoded_id)
+    decoded_id = json.loads(id)
     return decoded_id.get("identity")
 
 
