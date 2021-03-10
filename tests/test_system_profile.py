@@ -21,6 +21,7 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -36,7 +37,7 @@ def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, sub
 
     url = build_system_profile_url(host_list_or_id=created_host.id)
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
     assert response_data["results"][0]["system_profile"] == system_profile
     assert response_status == 200
 
@@ -47,7 +48,7 @@ def test_system_profile_sap_system_endpoint_response(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SYSTEM["hostSystemProfile"]["sap_system"]["data"]
@@ -64,7 +65,7 @@ def test_system_profile_sap_sids_endpoint_response(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SIDS["hostSystemProfile"]["sap_sids"]["data"]
@@ -84,7 +85,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert_response_status(response_status, 200)
 
@@ -101,7 +102,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert_response_status(response_status, 200)
 
@@ -117,7 +118,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoi
             with subtests.test():
                 get_rbac_permissions_mock.return_value = mock_rbac_response
 
-                response_status, response_data = api_get(url, identity_type="User")
+                response_status, response_data = api_get(url, USER_IDENTITY)
 
                 assert_response_status(response_status, 403)
 
@@ -127,7 +128,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -137,7 +138,7 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -145,14 +146,14 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
 def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, db_create_host, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    host = db_create_host()
+    host = db_create_host(USER_IDENTITY)
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile", USER_IDENTITY)
 
             assert_response_status(response_status, 200)
 
@@ -163,14 +164,14 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_hos
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
     )
 
-    host = db_create_host()
+    host = db_create_host(USER_IDENTITY)
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile", USER_IDENTITY)
 
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
@@ -178,9 +179,11 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_hos
 
 def test_get_host_with_invalid_system_profile(api_get, db_create_host):
     # create a host with invalid system_profile in the db
-    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}})
+    host = db_create_host(
+        USER_IDENTITY, extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}}
+    )
 
-    response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+    response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile", USER_IDENTITY)
 
     assert_response_status(response_status, 500)
 
@@ -190,7 +193,7 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
     expected_total = 0
     host_id = generate_uuid()
 
-    response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
+    response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile", SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -200,7 +203,7 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
 
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
-    response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
+    response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile", SYSTEM_IDENTITY)
 
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 

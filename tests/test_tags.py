@@ -15,6 +15,8 @@ from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -26,7 +28,7 @@ def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subt
     expected_response = {host.id: host.tags for host in created_hosts}
 
     url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -39,7 +41,7 @@ def test_get_tag_count_of_multiple_hosts(mq_create_four_specific_hosts, api_get,
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
     url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -53,7 +55,7 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
     """
     host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
     url = build_host_tags_url(host_id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, USER_IDENTITY)
 
     assert response_status == 200
     assert {} == response_data["results"]
@@ -159,7 +161,7 @@ def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_h
     ):
         with subtests.test(search=search):
             url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?search={search}")
-            response_status, response_data = api_get(url)
+            response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
             assert response_status == 200
             assert len(results.keys()) == len(response_data["results"].keys())
@@ -173,7 +175,7 @@ def test_get_tags_count_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts
     """
     host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
     url = build_tags_count_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, USER_IDENTITY)
 
     assert response_status == 200
     assert {} == response_data["results"]
@@ -189,7 +191,7 @@ def test_get_tags_from_host_with_no_tags(mq_create_four_specific_hosts, api_get)
     expected_response = {host_with_no_tags.id: []}
 
     url = build_host_tags_url(host_list_or_id=host_with_no_tags.id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -204,7 +206,7 @@ def test_get_tags_from_host_with_null_tags(tags, mq_create_four_specific_hosts, 
     update_host_in_db(host_id, tags=tags)
 
     url = build_host_tags_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert {host_id: []} == response_data["results"]
@@ -219,7 +221,7 @@ def test_get_tags_count_from_host_with_null_tags(tags, mq_create_four_specific_h
     update_host_in_db(host_id, tags=tags)
 
     url = build_tags_count_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert {host_id: 0} == response_data["results"]
@@ -233,7 +235,7 @@ def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, ap
     host_with_no_tags = created_hosts[3]
 
     url = build_tags_count_url(host_list_or_id=host_with_no_tags.id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert {host_with_no_tags.id: 0} == response_data["results"]
@@ -247,7 +249,7 @@ def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific
     host_with_valueless_tag = created_hosts[0]
 
     url = build_tags_count_url(host_list_or_id=host_with_valueless_tag.id)
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
     assert {host_with_valueless_tag.id: 4} == response_data["results"]
@@ -303,10 +305,10 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_g
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host()
+            host = db_create_host(USER_IDENTITY)
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert_response_status(response_status, 200)
 
@@ -322,20 +324,21 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host()
+            host = db_create_host(SYSTEM_IDENTITY)
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert_response_status(response_status, 403)
 
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
+def test_get_host_tag_count_RBAC_allowed(db_create_host, mocker, api_get, subtests, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    created_hosts = mq_create_four_specific_hosts
+    created_hosts = [db_create_host(USER_IDENTITY)]
+
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -344,7 +347,7 @@ def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, 
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-            response_status, response_data = api_get(url)
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert response_status == 200
             assert len(expected_response) == len(response_data["results"])
@@ -364,7 +367,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-            response_status, response_data = api_get(url)
+            response_status, response_data = api_get(url, USER_IDENTITY)
 
             assert response_status == 403
 
@@ -372,10 +375,10 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_host_tags_url(host_list_or_id=host.id)
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -390,8 +393,8 @@ def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_x
             implicit_url = build_tags_url(query=f"?filter[system_profile][sap_system]={value}")
             eq_url = build_tags_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url)
-            eq_response_status, eq_response_data = api_get(eq_url)
+            implicit_response_status, implicit_response_data = api_get(implicit_url, SYSTEM_IDENTITY)
+            eq_response_status, eq_response_data = api_get(eq_url, SYSTEM_IDENTITY)
 
             assert_response_status(implicit_response_status, 200)
             assert_response_status(eq_response_status, 200)
@@ -410,7 +413,7 @@ def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjo
             with subtests.test(values=values, path=path):
                 url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-                response_status, response_data = api_get(url)
+                response_status, response_data = api_get(url, USER_IDENTITY)
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1

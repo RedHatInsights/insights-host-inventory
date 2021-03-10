@@ -12,6 +12,7 @@ from app.models import Host
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture(scope="session")
@@ -99,10 +100,10 @@ def db_create_multiple_hosts(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host_in_unknown_state(db_create_host):
-    host = minimal_db_host()
+    host = minimal_db_host(USER_IDENTITY)
     host.stale_timestamp = None
     host.reporter = None
-    return db_create_host(host)
+    return db_create_host(USER_IDENTITY, host)
 
 
 @pytest.fixture(scope="function")
