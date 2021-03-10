@@ -206,8 +206,7 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
 def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_poll, number_of_polls):
     # Mock schema fetch
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
-    mock_schema = system_profile_specification()
-    get_schema_from_url_mock.return_value = mock_schema
+    get_schema_from_url_mock.return_value = system_profile_specification()
     config = Config(RuntimeEnvironment.SERVICE)
     fake_consumer = create_kafka_consumer_mock(
         mocker, config, partitions, messages_per_partition_per_poll, number_of_polls
@@ -240,6 +239,8 @@ def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_p
 def test_validate_sp_no_data(api_post, mocker):
     config = Config(RuntimeEnvironment.SERVICE)
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
+    get_schema_from_url_mock.return_value = system_profile_specification()
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(
