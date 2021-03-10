@@ -250,20 +250,24 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):
     for page in range(1, num_pages):
         with subtests.test(page=page, per_page=per_page):
-            response_status, response_data = api_get(url, query_parameters={"page": page, "per_page": per_page})
+            response_status, response_data = api_get(
+                url, SYSTEM_IDENTITY, query_parameters={"page": page, "per_page": per_page}
+            )
             yield response_status, response_data
 
 
 def api_pagination_invalid_parameters_test(api_get, subtests, url):
     for parameter, invalid_value in product(("per_page", "page"), ("-1", "0", "notanumber")):
         with subtests.test(parameter=parameter, invalid_value=invalid_value):
-            response_status, response_data = api_get(url, query_parameters={parameter: invalid_value})
+            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={parameter: invalid_value})
             assert response_status == 400
 
 
 def api_pagination_index_test(api_get, url, expected_total):
     non_existent_page = expected_total + 1
-    response_status, response_data = api_get(url, query_parameters={"page": non_existent_page, "per_page": 1})
+    response_status, response_data = api_get(
+        url, SYSTEM_IDENTITY, query_parameters={"page": non_existent_page, "per_page": 1}
+    )
     assert response_status == 404
 
 
@@ -301,7 +305,7 @@ def api_tags_count_pagination_test(
 
 
 def api_query_test(api_get, subtests, url, expected_host_list):
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     total_expected = len(expected_host_list)
     host_data = build_expected_host_list(expected_host_list)

@@ -1,6 +1,7 @@
 from tempfile import TemporaryDirectory
 
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import USER_IDENTITY
 
 
 HEALTH_URL = "/health"
@@ -28,5 +29,5 @@ def test_metrics(flask_client):
 
 
 def test_version(api_get):
-    response_status, response_data = api_get(VERSION_URL)
+    response_status, response_data = api_get(VERSION_URL, USER_IDENTITY)
     assert response_data["version"] is not None

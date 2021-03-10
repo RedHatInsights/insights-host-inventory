@@ -36,22 +36,15 @@ def api_post(flask_client):
 
 @pytest.fixture(scope="function")
 def api_patch(flask_client):
-    def _api_patch(
-        url,
-        host_data,
-        query_parameters=None,
-        extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
-    ):
+    def _api_patch(url, host_data, identity=None, query_parameters=None, extra_headers=None):
         return do_request(
             flask_client.patch,
             url,
             host_data,
             query_parameters,
             extra_headers,
-            auth_type=auth_type,
-            identity_type=identity_type,
+            auth_type=identity["auth_type"],
+            identity_type=identity["type"],
         )
 
     return _api_patch
@@ -59,22 +52,15 @@ def api_patch(flask_client):
 
 @pytest.fixture(scope="function")
 def api_put(flask_client):
-    def _api_put(
-        url,
-        host_data,
-        query_parameters=None,
-        extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
-    ):
+    def _api_put(url, host_data, identity=None, query_parameters=None, extra_headers=None):
         return do_request(
             flask_client.put,
             url,
             host_data,
             query_parameters,
             extra_headers,
-            auth_type=auth_type,
-            identity_type=identity_type,
+            auth_type=identity["auth_type"],
+            identity_type=identity["type"],
         )
 
     return _api_put
@@ -82,20 +68,14 @@ def api_put(flask_client):
 
 @pytest.fixture(scope="function")
 def api_get(flask_client):
-    def _api_get(
-        url,
-        query_parameters=None,
-        extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
-    ):
+    def _api_get(url, identity, query_parameters=None, extra_headers=None):
         return do_request(
             flask_client.get,
             url,
             query_parameters=query_parameters,
             extra_headers=extra_headers,
-            auth_type=auth_type,
-            identity_type=identity_type,
+            auth_type=identity["auth_type"],
+            identity_type=identity["type"],
         )
 
     return _api_get
@@ -103,21 +83,15 @@ def api_get(flask_client):
 
 @pytest.fixture(scope="function")
 def api_delete_host(flask_client):
-    def _api_delete_host(
-        host_id,
-        query_parameters=None,
-        extra_headers=None,
-        auth_type=USER_IDENTITY["auth_type"],
-        identity_type=USER_IDENTITY["type"],
-    ):
+    def _api_delete_host(host_id, identity=None, query_parameters=None, extra_headers=None):
         url = f"{HOST_URL}/{host_id}"
         return do_request(
             flask_client.delete,
             url,
             query_parameters=query_parameters,
             extra_headers=extra_headers,
-            auth_type=auth_type,
-            identity_type=identity_type,
+            auth_type=identity["auth_type"],
+            identity_type=identity["type"],
         )
 
     return _api_delete_host

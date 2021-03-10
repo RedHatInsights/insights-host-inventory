@@ -184,7 +184,10 @@ def handle_message(message, event_producer):
     host = validated_operation_msg["data"]
     identity = _get_identity(host, platform_metadata)
 
+    if host.get("account") != identity.account_number:
+        raise "The account number in identity does not match the number in the host."
     # basic-auth does not need owner_id
+
     if identity.identity_type == "System":
         host = _set_owner(host, identity)
 

@@ -16,6 +16,7 @@ from tests.helpers.test_utils import get_platform_metadata_with_system_identity
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
@@ -27,6 +28,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
             platform_metadata = get_platform_metadata_with_system_identity()
         else:
             platform_metadata["b64_identity"] = get_encoded_idstr()
+        host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
         handle_message(json.dumps(message), event_producer)
         event = json.loads(event_producer.event)
@@ -41,7 +43,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
 
 
 @pytest.fixture(scope="function")
-def mq_create_three_specific_hosts(mq_create_or_update_host):
+def mq_create_three_specific_hosts(mq_create_or_update_host, identity=None):
     created_hosts = []
     for i in range(1, 4):
         fqdn = "host1.domain.test" if i in (1, 2) else f"host{i}.domain.test"
