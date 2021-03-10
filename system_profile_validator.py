@@ -15,9 +15,9 @@ from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
-from lib.system_profile_validate import get_hosts_from_kafka_messages
+from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
-from lib.system_profile_validate import validate_host_list_against_spec
+from lib.system_profile_validate import validate_sp_schemas
 
 
 __all__ = "main"
@@ -59,13 +59,13 @@ def _validation_results_plaintext(test_results):
     return text
 
 
-def _post_git_results_comment(pr_number, control_results, test_results):
+def _post_git_results_comment(pr_number, test_results):
     content = (
         f"Here are the System Profile validation results using the past {VALIDATE_DAYS} days of data.\n"
         f"Validating against the {REPO_OWNER}/{REPO_NAME} master spec:\n```\n"
-        f"{_validation_results_plaintext(control_results)}\n```\n"
+        f"{_validation_results_plaintext(test_results[f'{REPO_OWNER}/{REPO_NAME}'])}\n```\n"
         f"Validating against this PR's spec:\n```\n"
-        f"{_validation_results_plaintext(test_results)}\n```\n"
+        f"{_validation_results_plaintext(test_results['this'])}\n```\n"
     )
     response = _post_git_response(f"/repos/{REPO_OWNER}/{REPO_NAME}/issues/{pr_number}/comments", content)
     if response.status_code >= 400:
@@ -99,8 +99,10 @@ def _get_prs_that_require_validation(owner, repo):
             file["filename"] for file in _get_git_response(f"/repos/{owner}/{repo}/pulls/{pr_number}/files")
         ]
         logger.info(f"SP spec modified: {sp_spec_modified}")
-        if sp_spec_modified and (
-            latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime
+        if (
+            True
+            or sp_spec_modified
+            and (latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime)
         ):
             logger.info(f"- PR #{pr_number} requires validation!")
             prs_to_validate.append(pr_number)
@@ -129,21 +131,11 @@ def main(logger):
         **config.validator_kafka_consumer,
     )
 
-    try:
-        parsed_hosts = get_hosts_from_kafka_messages(
-            consumer,
-            {config.host_ingress_topic, config.additional_validation_topic},
-            VALIDATE_DAYS,
-            config.sp_validator_max_messages,
-        )
-        consumer.close()
-    except ValueError as ve:
-        logger.exception(ve)
-        consumer.close()
-        sys.exit(1)
-
     # For each PR in prs_to_validate, validate the parsed hosts and leave a comment on the PR
     for pr_number in prs_to_validate:
+
+        sp_spec = None
+
         # Get spec file from PR
         file_list = _get_git_response(f"/repos/{REPO_OWNER}/{REPO_NAME}/pulls/{pr_number}/files")
         for file in file_list:
@@ -152,15 +144,28 @@ def main(logger):
                 sp_spec = get_schema_from_url(file["raw_url"])
                 break
 
-        control_results = validate_host_list_against_spec(
-            parsed_hosts,
-            get_schema_from_url(
-                f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/" f"master/schemas/system_profile/v1.yaml"
-            ),
-        )
-        test_results = validate_host_list_against_spec(parsed_hosts, sp_spec)
+        # If the System Profile spec wasn't modified, skip to the next PR.
+        if not sp_spec:
+            continue
 
-        _post_git_results_comment(pr_number, control_results, test_results)
+        schemas = {f"{REPO_OWNER}/{REPO_NAME}": get_schema(REPO_OWNER, "master")}
+        schemas["this"] = sp_spec
+
+        try:
+            test_results = validate_sp_schemas(
+                consumer,
+                {config.host_ingress_topic, config.additional_validation_topic},
+                schemas,
+                VALIDATE_DAYS,
+                config.sp_validator_max_messages,
+            )
+            consumer.close()
+        except ValueError as ve:
+            logger.exception(ve)
+            consumer.close()
+            sys.exit(1)
+
+        _post_git_results_comment(pr_number, test_results)
 
     logger.info("The validator has finished. Bye!")
     sys.exit(0)
