@@ -1241,6 +1241,32 @@ def test_system_profile_sap_system_endpoint_registered_with_insights(
     )
 
 
+def test_system_profile_sap_system_endpoint_pagination(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+):
+    page, per_page = 1, 20
+    url = build_system_profile_sap_system_url(query=f"?page={page}&per_page={per_page}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": per_page, "offset": page - 1}, mocker.ANY
+    )
+
+
+def test_system_profile_sap_sids_endpoint_pagination(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+):
+    page, per_page = 1, 85
+    url = build_system_profile_sap_sids_url(query=f"?page={page}&per_page={per_page}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": per_page, "offset": page - 1}, mocker.ANY
+    )
+
+
 def test_system_profile_sap_sids_endpoint(
     mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
