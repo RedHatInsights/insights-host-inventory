@@ -444,8 +444,8 @@ paths:
       responses:
         '200':
             description: Host validation results
-        '401':
-            description: Not Authorized
+        '403':
+            description: Forbidden
 
 
 components:

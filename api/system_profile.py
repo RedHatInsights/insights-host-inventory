@@ -200,7 +200,7 @@ def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, ma
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
     if get_current_identity().user.get("username") not in config.sp_authorized_users:
-        flask.abort(401, "This endpoint is restricted to HBI Admins.")
+        flask.abort(403, "This endpoint is restricted to HBI Admins.")
 
     consumer = KafkaConsumer(
         bootstrap_servers=config.bootstrap_servers,
