@@ -997,64 +997,47 @@
             "description": "The list of sap_system values on the account",
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "oneOf": [
+                    {
                       "type": "string"
                     },
-                    "count": {
-                      "type": "integer"
-                    }
-                  }
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "value": {
+                    {
                       "type": "boolean"
-                    },
-                    "count": {
-                      "type": "integer"
                     }
-                  }
+                  ]
+                },
+                "count": {
+                  "type": "integer"
                 }
-              ]
+              }
             }
           }
         }
       },
       "TagsOut": {
-        "type": "object",
-        "properties": {
-          "total": {
-            "type": "integer",
-            "description": "Total number of items in the \"data\" list."
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
           },
-          "count": {
-            "description": "A number of entries on the current page.",
-            "type": "integer"
-          },
-          "page": {
-            "description": "A current page number.",
-            "type": "integer"
-          },
-          "per_page": {
-            "description": "A page size – a number of entries per single page.",
-            "type": "integer"
-          },
-          "results": {
-            "description": "The list of tags on the systems",
+          {
             "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/StructuredTag"
+            "properties": {
+              "results": {
+                "description": "The list of tags on the systems",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StructuredTag"
+                  }
+                }
               }
             }
           }
-        }
+        ]
       },
       "StructuredTag": {
         "type": "object",
@@ -1073,32 +1056,23 @@
         }
       },
       "TagCountOut": {
-        "type": "object",
-        "properties": {
-          "total": {
-            "type": "integer",
-            "description": "Total number of items in the \"data\" list."
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
           },
-          "count": {
-            "description": "A number of entries on the current page.",
-            "type": "integer"
-          },
-          "page": {
-            "description": "A current page number.",
-            "type": "integer"
-          },
-          "per_page": {
-            "description": "A page size – a number of entries per single page.",
-            "type": "integer"
-          },
-          "results": {
-            "description": "The list of tags on the systems",
+          {
             "type": "object",
-            "additionalProperties": {
-              "type": "integer"
+            "properties": {
+              "results": {
+                "description": "The list of tags on the systems",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              }
             }
           }
-        }
+        ]
       },
       "Facts": {
         "title": "Host facts",
@@ -1482,76 +1456,50 @@
       "HostQueryOutput": {
         "title": "A Host Inventory query result",
         "description": "A paginated host search query result with host entries and their Inventory metadata.",
-        "type": "object",
-        "required": [
-          "count",
-          "page",
-          "per_page",
-          "total",
-          "results"
-        ],
-        "properties": {
-          "count": {
-            "description": "A number of entries on the current page.",
-            "type": "integer"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
           },
-          "page": {
-            "description": "A current page number.",
-            "type": "integer"
-          },
-          "per_page": {
-            "description": "A page size – a number of entries per single page.",
-            "type": "integer"
-          },
-          "total": {
-            "description": "A total count of the found entries.",
-            "type": "integer"
-          },
-          "results": {
-            "description": "Actual host search query result entries.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HostOut"
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual host search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HostOut"
+                }
+              }
             }
           }
-        }
+        ]
       },
       "SystemProfileByHostOut": {
         "title": "A host system profile query result",
         "description": "Structure of the output of the host system profile query",
-        "type": "object",
-        "required": [
-          "count",
-          "page",
-          "per_page",
-          "total",
-          "results"
-        ],
-        "properties": {
-          "count": {
-            "description": "A number of entries on the current page.",
-            "type": "integer"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
           },
-          "page": {
-            "description": "A current page number.",
-            "type": "integer"
-          },
-          "per_page": {
-            "description": "A page size – a number of entries per single page.",
-            "type": "integer"
-          },
-          "total": {
-            "description": "A total count of the found entries.",
-            "type": "integer"
-          },
-          "results": {
-            "description": "Actual host search query result entries.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/HostSystemProfileOut"
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual host search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HostSystemProfileOut"
+                }
+              }
             }
           }
-        }
+        ]
       },
       "HostSystemProfileOut": {
         "title": "Structure of an individual host system profile output",
@@ -1562,464 +1510,7 @@
             "type": "string"
           },
           "system_profile": {
-            "description": "Representation of the system profile fields",
-            "type": "object",
-            "properties": {
-              "owner_id": {
-                "description": "A UUID associated with the host's RHSM certificate",
-                "type": "string",
-                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                "maxLength": 36,
-                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
-              },
-              "rhc_client_id": {
-                "description": "A UUID associated with a cloud_connector",
-                "type": "string",
-                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                "maxLength": 36,
-                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
-              },
-              "rhc_config_state": {
-                "description": "A UUID associated with the config manager state",
-                "type": "string",
-                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                "maxLength": 36,
-                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
-              },
-              "cpu_model": {
-                "description": "The cpu model name",
-                "type": "string",
-                "maxLength": 100,
-                "example": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz"
-              },
-              "number_of_cpus": {
-                "type": "integer"
-              },
-              "number_of_sockets": {
-                "type": "integer"
-              },
-              "cores_per_socket": {
-                "type": "integer"
-              },
-              "system_memory_bytes": {
-                "type": "integer",
-                "format": "int64"
-              },
-              "infrastructure_type": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "infrastructure_vendor": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "network_interfaces": {
-                "type": "array",
-                "items": {
-                  "description": "Representation of one network interface",
-                  "type": "object",
-                  "properties": {
-                    "ipv4_addresses": {
-                      "type": "array",
-                      "items": {
-                        "description": "The ipv4 address of the system",
-                        "example": "123.456.789.012",
-                        "type": "string",
-                        "format": "ipv4"
-                      }
-                    },
-                    "ipv6_addresses": {
-                      "type": "array",
-                      "items": {
-                        "description": "The ipv6 address of the system",
-                        "example": "0123:4567:89ab:cdef:0123:4567:89ab:cdef",
-                        "type": "string",
-                        "format": "ipv6"
-                      }
-                    },
-                    "mtu": {
-                      "description": "MTU (Maximum transmission unit)",
-                      "type": "integer"
-                    },
-                    "mac_address": {
-                      "description": "MAC address (with or without colons)",
-                      "example": "00:00:00:00:00:00",
-                      "type": "string",
-                      "maxLength": 59
-                    },
-                    "name": {
-                      "description": "Name of interface",
-                      "type": "string",
-                      "example": "eth0",
-                      "minLength": 1,
-                      "maxLength": 50
-                    },
-                    "state": {
-                      "description": "Interface state (UP, DOWN, UNKNOWN)",
-                      "type": "string",
-                      "example": "UP",
-                      "maxLength": 25
-                    },
-                    "type": {
-                      "description": "Interface type (ether, loopback)",
-                      "type": "string",
-                      "example": "ether",
-                      "maxLength": 18
-                    }
-                  }
-                }
-              },
-              "disk_devices": {
-                "type": "array",
-                "items": {
-                  "description": "Representation of one mounted device",
-                  "type": "object",
-                  "properties": {
-                    "device": {
-                      "example": "/dev/fdd0",
-                      "type": "string",
-                      "maxLength": 2048
-                    },
-                    "label": {
-                      "description": "User-defined mount label",
-                      "type": "string",
-                      "maxLength": 1024
-                    },
-                    "options": {
-                      "description": "Mount options for nested object",
-                      "example": {
-                        "uid": "0",
-                        "ro": true
-                      },
-                      "$ref": "#/paths/~1hosts~1%7Bhost_id_list%7D~1system_profile/get/responses/200/content/application~1json/schema/properties/results/items/properties/system_profile/properties/disk_devices/items/properties/options/additionalProperties/oneOf/0"
-                    },
-                    "mount_point": {
-                      "description": "The mount point",
-                      "example": "/mnt/remote_nfs_shares",
-                      "type": "string",
-                      "maxLength": 2048
-                    },
-                    "type": {
-                      "description": "The mount type",
-                      "example": "ext3",
-                      "type": "string",
-                      "maxLength": 256
-                    }
-                  }
-                }
-              },
-              "bios_vendor": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "bios_version": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "bios_release_date": {
-                "type": "string",
-                "maxLength": 50
-              },
-              "cpu_flags": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 30
-                }
-              },
-              "operating_system": {
-                "description": "Object for OS details",
-                "type": "object",
-                "properties": {
-                  "major": {
-                    "description": "Major release of OS (aka the x version)",
-                    "example": 6,
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 99
-                  },
-                  "minor": {
-                    "description": "Minor release of OS (aka the y version)",
-                    "example": 8,
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 99
-                  },
-                  "name": {
-                    "description": "Name of the distro/os",
-                    "example": "RHEL",
-                    "type": "string",
-                    "maxLength": 4,
-                    "enum": [
-                      "RHEL"
-                    ]
-                  }
-                }
-              },
-              "os_release": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "os_kernel_version": {
-                "type": "string",
-                "maxLength": 20,
-                "pattern": "^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
-                "description": "The kernel version represented with a three, optionally four, number scheme.",
-                "example": "3.10.0"
-              },
-              "arch": {
-                "type": "string",
-                "maxLength": 50
-              },
-              "kernel_modules": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 255
-                }
-              },
-              "last_boot_time": {
-                "type": "string",
-                "format": "date-time",
-                "maxLength": 50
-              },
-              "running_processes": {
-                "type": "array",
-                "items": {
-                  "description": "A single running process. This will be truncated to 1000 characters when saved.",
-                  "type": "string",
-                  "maxLength": 1000
-                }
-              },
-              "subscription_status": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "subscription_auto_attach": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "katello_agent_running": {
-                "type": "boolean"
-              },
-              "satellite_managed": {
-                "type": "boolean"
-              },
-              "cloud_provider": {
-                "type": "string",
-                "maxLength": 100
-              },
-              "yum_repos": {
-                "type": "array",
-                "items": {
-                  "description": "Representation of one yum repository",
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "maxLength": 256
-                    },
-                    "name": {
-                      "type": "string",
-                      "maxLength": 1024
-                    },
-                    "gpgcheck": {
-                      "type": "boolean"
-                    },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "base_url": {
-                      "type": "string",
-                      "format": "uri",
-                      "maxLength": 2048
-                    }
-                  }
-                }
-              },
-              "dnf_modules": {
-                "type": "array",
-                "items": {
-                  "description": "Representation of one DNF module",
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "maxLength": 128
-                    },
-                    "stream": {
-                      "type": "string",
-                      "maxLength": 2048
-                    }
-                  }
-                }
-              },
-              "installed_products": {
-                "type": "array",
-                "items": {
-                  "description": "Representation of one installed product",
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "maxLength": 512
-                    },
-                    "id": {
-                      "description": "The product ID",
-                      "example": "71",
-                      "type": "string",
-                      "maxLength": 64
-                    },
-                    "status": {
-                      "description": "Subscription status for product",
-                      "example": "Subscribed",
-                      "type": "string",
-                      "maxLength": 256
-                    }
-                  }
-                }
-              },
-              "insights_client_version": {
-                "type": "string",
-                "maxLength": 50
-              },
-              "insights_egg_version": {
-                "type": "string",
-                "maxLength": 50
-              },
-              "captured_date": {
-                "type": "string",
-                "maxLength": 32
-              },
-              "installed_packages": {
-                "type": "array",
-                "items": {
-                  "description": "A NEVRA string for a single installed package",
-                  "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
-                  "type": "string",
-                  "maxLength": 512
-                }
-              },
-              "installed_packages_delta": {
-                "type": "array",
-                "items": {
-                  "description": "A NEVRA string for a single installed package",
-                  "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
-                  "type": "string",
-                  "maxLength": 512
-                }
-              },
-              "gpg_pubkeys": {
-                "type": "array",
-                "items": {
-                  "description": "A package name string of a single imported GPG pubkey",
-                  "example": "gpg-pubkey-11111111-22222222",
-                  "type": "string",
-                  "maxLength": 512
-                }
-              },
-              "installed_services": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 512
-                }
-              },
-              "enabled_services": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 512
-                }
-              },
-              "sap_system": {
-                "type": "boolean",
-                "description": "Indicates if SAP is installed on the system"
-              },
-              "sap_sids": {
-                "type": "array",
-                "uniqueItems": true,
-                "items": {
-                  "description": "The SAP system ID (SID)",
-                  "type": "string",
-                  "example": "H2O",
-                  "maxLength": 3,
-                  "pattern": "^[A-Z][A-Z0-9]{2}$"
-                }
-              },
-              "sap_instance_number": {
-                "type": "string",
-                "description": "The instance number of the SAP HANA system (a two-digit number between 00 and 99)",
-                "example": "03",
-                "maxLength": 2,
-                "pattern": "^[0-9]{2}$"
-              },
-              "sap_version": {
-                "type": "string",
-                "description": "The version of the SAP HANA lifecycle management program",
-                "example": "1.00.122.04.1478575636",
-                "maxLength": 22,
-                "pattern": "^[0-9].[0-9]{2}.[0-9]{3}.[0-9]{2}.[0-9]{10}$"
-              },
-              "tuned_profile": {
-                "type": "string",
-                "maxLength": 256,
-                "description": "Current profile resulting from command tuned-adm active",
-                "example": "desktop"
-              },
-              "selinux_current_mode": {
-                "type": "string",
-                "enum": [
-                  "enforcing",
-                  "permissive",
-                  "disabled"
-                ],
-                "maxLength": 10,
-                "description": "The current SELinux mode, either enforcing, permissive, or disabled",
-                "example": "enforcing"
-              },
-              "selinux_config_file": {
-                "type": "string",
-                "maxLength": 128,
-                "description": "The SELinux mode provided in the config file",
-                "example": "permissive"
-              },
-              "is_marketplace": {
-                "description": "Indicates whether the host is part of a marketplace install from AWS, Azure, etc.",
-                "type": "boolean"
-              },
-              "host_type": {
-                "type": "string",
-                "enum": [
-                  "edge"
-                ],
-                "maxLength": 4,
-                "description": "Indicates the type of host.",
-                "example": "edge"
-              },
-              "greenboot_status": {
-                "type": "string",
-                "enum": [
-                  "red",
-                  "green"
-                ],
-                "maxLength": 5,
-                "description": "Indicates the greenboot status of an edge device.",
-                "example": "red"
-              },
-              "rhsm": {
-                "description": "Object for subscription-manager details",
-                "type": "object",
-                "properties": {
-                  "version": {
-                    "description": "System release set by subscription-manager",
-                    "example": "8.1",
-                    "type": "string",
-                    "maxLength": 255
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/schemas/SystemProfile"
           }
         }
       },
@@ -2042,50 +1533,41 @@
       },
       "ActiveTags": {
         "title": "Host data",
-        "type": "object",
-        "required": [
-          "total",
-          "count",
-          "page",
-          "per_page",
-          "results"
-        ],
-        "properties": {
-          "total": {
-            "$ref": "#/components/schemas/Total"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
           },
-          "count": {
-            "$ref": "#/components/schemas/Count"
-          },
-          "page": {
-            "$ref": "#/components/schemas/Page"
-          },
-          "per_page": {
-            "$ref": "#/components/schemas/PerPage"
-          },
-          "results": {
-            "type": "array",
-            "items": {
-              "title": "ActiveTag",
-              "description": "Information about a host tag",
-              "type": "object",
-              "required": [
-                "tag",
-                "count"
-              ],
-              "properties": {
-                "tag": {
-                  "$ref": "#/components/schemas/StructuredTag"
-                },
-                "count": {
-                  "description": "The number of hosts with the given tag. If the value is null this indicates that the count is unknown.",
-                  "type": "integer",
-                  "nullable": true
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "title": "ActiveTag",
+                  "description": "Information about a host tag",
+                  "type": "object",
+                  "required": [
+                    "tag",
+                    "count"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "$ref": "#/components/schemas/StructuredTag"
+                    },
+                    "count": {
+                      "description": "The number of hosts with the given tag. If the value is null this indicates that the count is unknown.",
+                      "type": "integer",
+                      "nullable": true
+                    }
+                  }
                 }
               }
             }
           }
-        },
+        ],
         "example": {
           "total": 3,
           "count": 3,
@@ -2117,6 +1599,523 @@
               "count": -1
             }
           ]
+        }
+      },
+      "SystemProfile": {
+        "description": "Representation of the system profile fields",
+        "type": "object",
+        "properties": {
+          "owner_id": {
+            "description": "A UUID associated with the host's RHSM certificate",
+            "type": "string",
+            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "maxLength": 36,
+            "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+          },
+          "rhc_client_id": {
+            "description": "A UUID associated with a cloud_connector",
+            "type": "string",
+            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "maxLength": 36,
+            "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+          },
+          "rhc_config_state": {
+            "description": "A UUID associated with the config manager state",
+            "type": "string",
+            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "maxLength": 36,
+            "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+          },
+          "cpu_model": {
+            "description": "The cpu model name",
+            "type": "string",
+            "maxLength": 100,
+            "example": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz"
+          },
+          "number_of_cpus": {
+            "type": "integer"
+          },
+          "number_of_sockets": {
+            "type": "integer"
+          },
+          "cores_per_socket": {
+            "type": "integer"
+          },
+          "system_memory_bytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "infrastructure_type": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "infrastructure_vendor": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "network_interfaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemProfileNetworkInterface"
+            }
+          },
+          "disk_devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemProfileDiskDevice"
+            }
+          },
+          "bios_vendor": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "bios_version": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "bios_release_date": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "cpu_flags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 30
+            }
+          },
+          "operating_system": {
+            "description": "Object for OS details",
+            "type": "object",
+            "properties": {
+              "major": {
+                "description": "Major release of OS (aka the x version)",
+                "example": 6,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "minor": {
+                "description": "Minor release of OS (aka the y version)",
+                "example": 8,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "name": {
+                "description": "Name of the distro/os",
+                "example": "RHEL",
+                "type": "string",
+                "maxLength": 4,
+                "enum": [
+                  "RHEL"
+                ]
+              }
+            }
+          },
+          "os_release": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "os_kernel_version": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
+            "description": "The kernel version represented with a three, optionally four, number scheme.",
+            "example": "3.10.0"
+          },
+          "arch": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "kernel_modules": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          "last_boot_time": {
+            "type": "string",
+            "format": "date-time",
+            "maxLength": 50
+          },
+          "running_processes": {
+            "type": "array",
+            "items": {
+              "description": "A single running process. This will be truncated to 1000 characters when saved.",
+              "type": "string",
+              "maxLength": 1000
+            }
+          },
+          "subscription_status": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "subscription_auto_attach": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "katello_agent_running": {
+            "type": "boolean"
+          },
+          "satellite_managed": {
+            "type": "boolean"
+          },
+          "cloud_provider": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "yum_repos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemProfileYumRepo"
+            }
+          },
+          "dnf_modules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemProfileDnfModule"
+            }
+          },
+          "installed_products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemProfileInstalledProduct"
+            }
+          },
+          "insights_client_version": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "insights_egg_version": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "captured_date": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "installed_packages": {
+            "type": "array",
+            "items": {
+              "description": "A NEVRA string for a single installed package",
+              "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "installed_packages_delta": {
+            "type": "array",
+            "items": {
+              "description": "A NEVRA string for a single installed package",
+              "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "gpg_pubkeys": {
+            "type": "array",
+            "items": {
+              "description": "A package name string of a single imported GPG pubkey",
+              "example": "gpg-pubkey-11111111-22222222",
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "installed_services": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "enabled_services": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "sap_system": {
+            "type": "boolean",
+            "description": "Indicates if SAP is installed on the system"
+          },
+          "sap_sids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "description": "The SAP system ID (SID)",
+              "type": "string",
+              "example": "H2O",
+              "maxLength": 3,
+              "pattern": "^[A-Z][A-Z0-9]{2}$"
+            }
+          },
+          "sap_instance_number": {
+            "type": "string",
+            "description": "The instance number of the SAP HANA system (a two-digit number between 00 and 99)",
+            "example": "03",
+            "maxLength": 2,
+            "pattern": "^[0-9]{2}$"
+          },
+          "sap_version": {
+            "type": "string",
+            "description": "The version of the SAP HANA lifecycle management program",
+            "example": "1.00.122.04.1478575636",
+            "maxLength": 22,
+            "pattern": "^[0-9].[0-9]{2}.[0-9]{3}.[0-9]{2}.[0-9]{10}$"
+          },
+          "tuned_profile": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Current profile resulting from command tuned-adm active",
+            "example": "desktop"
+          },
+          "selinux_current_mode": {
+            "type": "string",
+            "enum": [
+              "enforcing",
+              "permissive",
+              "disabled"
+            ],
+            "maxLength": 10,
+            "description": "The current SELinux mode, either enforcing, permissive, or disabled",
+            "example": "enforcing"
+          },
+          "selinux_config_file": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "The SELinux mode provided in the config file",
+            "example": "permissive"
+          },
+          "is_marketplace": {
+            "description": "Indicates whether the host is part of a marketplace install from AWS, Azure, etc.",
+            "type": "boolean"
+          },
+          "host_type": {
+            "type": "string",
+            "enum": [
+              "edge"
+            ],
+            "maxLength": 4,
+            "description": "Indicates the type of host.",
+            "example": "edge"
+          },
+          "greenboot_status": {
+            "type": "string",
+            "enum": [
+              "red",
+              "green"
+            ],
+            "maxLength": 5,
+            "description": "Indicates the greenboot status of an edge device.",
+            "example": "red"
+          },
+          "rhsm": {
+            "description": "Object for subscription-manager details",
+            "type": "object",
+            "properties": {
+              "version": {
+                "description": "System release set by subscription-manager",
+                "example": "8.1",
+                "type": "string",
+                "maxLength": 255
+              }
+            }
+          }
+        }
+      },
+      "SystemProfileNestedObject": {
+        "type": "object",
+        "description": "An arbitrary object that does not allow empty string keys.",
+        "x-propertyNames": {
+          "minLength": 1
+        },
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/SystemProfileNestedObject"
+            },
+            {
+              "not": {
+                "type": "object"
+              }
+            }
+          ]
+        }
+      },
+      "SystemProfileDiskDevice": {
+        "description": "Representation of one mounted device",
+        "type": "object",
+        "properties": {
+          "device": {
+            "example": "/dev/fdd0",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "label": {
+            "description": "User-defined mount label",
+            "type": "string",
+            "maxLength": 1024
+          },
+          "options": {
+            "description": "Mount options for nested object",
+            "example": {
+              "uid": "0",
+              "ro": true
+            },
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
+          },
+          "mount_point": {
+            "description": "The mount point",
+            "example": "/mnt/remote_nfs_shares",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "type": {
+            "description": "The mount type",
+            "example": "ext3",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "SystemProfileYumRepo": {
+        "description": "Representation of one yum repository",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "gpgcheck": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048
+          }
+        }
+      },
+      "SystemProfileDnfModule": {
+        "description": "Representation of one DNF module",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "stream": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      },
+      "SystemProfileInstalledProduct": {
+        "description": "Representation of one installed product",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "id": {
+            "description": "The product ID",
+            "example": "71",
+            "type": "string",
+            "maxLength": 64
+          },
+          "status": {
+            "description": "Subscription status for product",
+            "example": "Subscribed",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "SystemProfileNetworkInterface": {
+        "description": "Representation of one network interface",
+        "type": "object",
+        "properties": {
+          "ipv4_addresses": {
+            "type": "array",
+            "items": {
+              "description": "The ipv4 address of the system",
+              "example": "123.456.789.012",
+              "type": "string",
+              "format": "ipv4"
+            }
+          },
+          "ipv6_addresses": {
+            "type": "array",
+            "items": {
+              "description": "The ipv6 address of the system",
+              "example": "0123:4567:89ab:cdef:0123:4567:89ab:cdef",
+              "type": "string",
+              "format": "ipv6"
+            }
+          },
+          "mtu": {
+            "description": "MTU (Maximum transmission unit)",
+            "type": "integer"
+          },
+          "mac_address": {
+            "description": "MAC address (with or without colons)",
+            "example": "00:00:00:00:00:00",
+            "type": "string",
+            "maxLength": 59
+          },
+          "name": {
+            "description": "Name of interface",
+            "type": "string",
+            "example": "eth0",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "state": {
+            "description": "Interface state (UP, DOWN, UNKNOWN)",
+            "type": "string",
+            "example": "UP",
+            "maxLength": 25
+          },
+          "type": {
+            "description": "Interface type (ether, loopback)",
+            "type": "string",
+            "example": "ether",
+            "maxLength": 18
+          }
+        }
+      },
+      "PaginationOut": {
+        "type": "object",
+        "required": [
+          "count",
+          "page",
+          "per_page",
+          "total"
+        ],
+        "properties": {
+          "count": {
+            "$ref": "#/components/schemas/Count"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          },
+          "per_page": {
+            "$ref": "#/components/schemas/PerPage"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Total"
+          }
         }
       },
       "Total": {

@@ -30,6 +30,7 @@ repos:
     hooks:
     - id: swagger-validation
       files: swagger/.*\.yaml$
+      exclude: swagger/inventory-schemas/
 -   repo: https://github.com/APIDevTools/swagger-cli
     rev: v4.0.4
     hooks:
