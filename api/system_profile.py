@@ -105,7 +105,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
             "OR": list(staleness_filter(staleness))
         },
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
     hostfilter_and_variables = ()
 
@@ -160,7 +160,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             "OR": list(staleness_filter(staleness))
         },
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
 
     hostfilter_and_variables = ()
