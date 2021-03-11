@@ -30,6 +30,18 @@ from lib.system_profile_validate import validate_sp_for_branch
 
 logger = get_logger(__name__)
 
+# The list of users that are allowed to run the SP validator endpoint.
+# We may add the SP team if they find this endpoint useful.
+ADMIN_USERS = [
+    "aprice@redhat.com",
+    "tefaz@redhat.com",
+    "rfelton@redhat.com",
+    "aarif@redhat.com",
+    "gmccullo@redhat.com",
+    "rpfannsc@redhat.com",
+    "jusun@redhat.com",
+    "tuser@redhat.com",
+]
 
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
@@ -195,9 +207,13 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
 
 @api_operation
-@rbac(Permission.ADMIN)
+@rbac(Permission.READ)
 @metrics.schema_validation_time.time()
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
+    # Use the identity header to make sure the user is someone from our team.
+    if get_current_identity().user.get("username") not in ADMIN_USERS:
+        flask.abort(401, "This endpoint is restricted to HBI Admins.")
+
     config = Config(RuntimeEnvironment.SERVICE)
     consumer = KafkaConsumer(
         bootstrap_servers=config.bootstrap_servers,

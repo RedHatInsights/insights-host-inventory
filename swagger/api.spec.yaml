@@ -411,7 +411,8 @@ paths:
     post:
       summary: validate system profile schema
       description: >-
-        Required permissions: inventory:hosts:read
+        Validates System Profile data from recent Kafka messages against a given spec,
+        and compares it with the current one. Only HBI Admins can access this endpoint.
       operationId: api.system_profile.validate_schema
       security:
         - ApiKeyAuth: []
@@ -443,6 +444,8 @@ paths:
       responses:
         '200':
             description: Host validation results
+        '401':
+            description: Not Authorized
 
 
 components:
