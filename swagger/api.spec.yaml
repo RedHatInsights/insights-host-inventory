@@ -411,7 +411,8 @@ paths:
     post:
       summary: validate system profile schema
       description: >-
-        Required permissions: inventory:hosts:read
+        Validates System Profile data from recent Kafka messages against a given spec,
+        and compares it with the current one. Only HBI Admins can access this endpoint.
       operationId: api.system_profile.validate_schema
       security:
         - ApiKeyAuth: []
@@ -432,10 +433,19 @@ paths:
           schema:
             type: integer
             minimum: 1
-          description: How many days worth of kafka messages to validate
+          description: How many days worth of data to validate
+        - in: query
+          name: max_messages
+          schema:
+            type: integer
+            minimum: 1
+            default: 10000
+          description: Stops polling when this number of messages has been collected
       responses:
         '200':
             description: Host validation results
+        '403':
+            description: Forbidden
 
 
 components:
