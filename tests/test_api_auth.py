@@ -93,7 +93,7 @@ def test_validate_non_admin_user_identity(flask_client):
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
-    assert 401 == response.status_code  # OK
+    assert 403 == response.status_code  # User is not an HBI admin
 
 
 def test_validate_valid_system_identity(flask_client):
