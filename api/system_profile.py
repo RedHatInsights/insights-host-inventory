@@ -199,7 +199,8 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 def validate_schema(repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000):
     # Use the identity header to make sure the user is someone from our team.
     config = Config(RuntimeEnvironment.SERVICE)
-    if get_current_identity().user.get("username") not in config.sp_authorized_users:
+    identity = get_current_identity()
+    if not hasattr(identity, "user") or identity.user.get("username") not in config.sp_authorized_users:
         flask.abort(403, "This endpoint is restricted to HBI Admins.")
 
     consumer = KafkaConsumer(
