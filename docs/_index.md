@@ -623,7 +623,7 @@ If a tag defines no values then this is indicated as `insights-client/env`
 A tag with multiple values ( prod , stage ) is represented with multiple
 String instances (e.g. in case of HTTP query parameters)
 
-```http
+```text
 GET /hosts?tags=insights-client/env=prod&tags=insights-client/env=stage
 ```
 
@@ -719,7 +719,7 @@ Applications integrating with HBI that provide a tag-based filtering
 capability via a REST interface should implement an HTTP query parameter
 named `tags`.
 
-```http
+```text
 ?tags=insights-client/env=prod
 ```
 
@@ -727,7 +727,7 @@ Filtering by a combination of multiple tags or by a tag with multiple
 values should be supported by the tags parameter accepting multiple
 values.
 
-```http
+```text
 ?tags=insights-client/env=prod&tags=insights-client/http-server=cgi
 ```
 
@@ -763,25 +763,36 @@ syntax](https://github.com/RedHatInsights/insights-api-common-rails#usage).
 For example, to query for hosts with x86-64 architecture the query
 parameter should be defined as:
 
-```http
+```text
 ?filter[system_profile][arch]=x86-64
 ```
 
 or with explicit operator definition
 
-```http
+```text
 ?filter[system_profile][arch][eq]=x86-64
 ```
 
 To query for hosts whose operating system version major version is 8
 should be defined as:
 
-```http
+```text
 ?filter[system_profile][os_release][starts_with]=8
 ```
 
 See the [generic filter query parameter syntax](https://github.com/RedHatInsights/insights-api-common-rails#usage)
 for more details.
+
+### Fetching Sparse System Profile fieldsets
+
+When fetching system profile fields for a host or list of hosts, the user can restrict the system profile fields that get fetched using the sparse fieldsets functionality.
+HBI follows the sparse fieldsets query defined by the [JSON API specification](https://jsonapi.org/format/#fetching-sparse-fieldsets) and the functionality is currently supported for top-level fields only.
+
+For example, to only fetch the arch, yum_repos and os_kernel_version, the user needs to add the following query to the /hosts/{host_id_list}/system_profile endpoint:
+
+```text
+?fields[system_profile]=arch,yum_repos,os_kernel_version
+```
 
 ## Host Data Syndication (a.k.a. Project Cyndi)
 
