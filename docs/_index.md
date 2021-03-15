@@ -50,7 +50,7 @@ HBI expects the host ingress messages to comply with the following format.
 
 A single host object should be wrapped in an `operation` json document.
 
-```json
+```text
     {
        "operation": "add_host",
        "platform_metadata": "<json_doc>",
@@ -116,13 +116,13 @@ facts fields are:
 
 Host `tags` should be provided using [nested representation](#nested-representation):
 
->```json
+>```text
 >"tags": {"<namespace>": {"<key>": ["<value>", …], …}, …}
 >```
 >
 > This format can be used to delete a namespace by explicitly passing it with an empty object.
 >
->```json
+>```text
 >"tags": {"<namespace>": {}, …}
 >```
 
@@ -196,7 +196,7 @@ In addition, each kafka message defines a set of headers:
 The `created` event is produced any time a new host record is
 created.
 
-```json
+```text
     {
        "type": "created",
        "platform_metadata": "<metadata_json_doc>",
@@ -234,7 +234,7 @@ Host `tags` are formatted in the
 The `updated` event is produced any time changes are made to an
 existing host record.
 
-```json
+```text
     {
        "type": "updated",
        "platform_metadata": "<metadata_json_doc>",
@@ -265,7 +265,7 @@ change) is always sent. The format is identical to the
 The `delete` event is produced when a host record is removed from
 HBI.
 
-```json
+```text
     {
       "type": "delete",
       "id": "<host id>",
@@ -340,7 +340,7 @@ x-rh-identity: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMDAwMDAwMSIsICJpbnRlc
 
 This is the Base64 encoding of the following JSON document:
 
-```json
+```text
 {"identity": {"account_number": "0000001", "internal": {"org_id": "000001"}}}
 ```
 
@@ -506,7 +506,7 @@ exchange using REST or event interfaces.
 A tag is represented by one or more objects, each explicitly defining
 the namespace, key and value:
 
-```json
+```text
 {
     "namespace": "insights-client",
     "key": "env",
@@ -519,7 +519,7 @@ If a tag defines no values then this is indicated with `"value": null`.
 A tag with multiple values ( prod , stage ) is represented as two
 separate objects:
 
-```json
+```text
 [{
     "namespace": "insights-client",
     "key": "env",
@@ -537,7 +537,7 @@ In the nested representation the tags are represented as an object with
 three levels of nesting. These levels correspond to namespace, key and
 values, respectively.
 
-```json
+```text
 {
     "insights-client": {
         "env": [
@@ -550,7 +550,7 @@ values, respectively.
 If a tag defines no values then this is indicated with empty array on
 the third level:
 
-```json
+```text
 {
     "insights-client": {
         "env": []
@@ -561,7 +561,7 @@ the third level:
 A tag with multiple values (prod, stage) lists all the values in the
 third-level array:
 
-```json
+```text
     {
        "insights-client": {
           "env": [
