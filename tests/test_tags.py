@@ -16,7 +16,6 @@ from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -55,7 +54,7 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
     """
     host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
     url = build_host_tags_url(host_id)
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {} == response_data["results"]
@@ -175,7 +174,7 @@ def test_get_tags_count_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts
     """
     host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
     url = build_tags_count_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {} == response_data["results"]
@@ -305,10 +304,10 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_g
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(USER_IDENTITY)
+            host = db_create_host()
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -327,7 +326,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
             host = db_create_host(SYSTEM_IDENTITY)
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 403)
 
@@ -337,7 +336,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
 def test_get_host_tag_count_RBAC_allowed(db_create_host, mocker, api_get, subtests, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    created_hosts = [db_create_host(USER_IDENTITY)]
+    created_hosts = [db_create_host()]
 
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
@@ -347,7 +346,7 @@ def test_get_host_tag_count_RBAC_allowed(db_create_host, mocker, api_get, subtes
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert response_status == 200
             assert len(expected_response) == len(response_data["results"])
@@ -367,7 +366,7 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert response_status == 403
 
@@ -413,7 +412,7 @@ def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjo
             with subtests.test(values=values, path=path):
                 url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1

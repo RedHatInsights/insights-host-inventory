@@ -18,7 +18,7 @@ def test_synchronize_host_event(
 ):
     staleness_timestamps = get_staleness_timestamps()
 
-    host = minimal_db_host(USER_IDENTITY, stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
     created_host = db_create_host(USER_IDENTITY, host)
 
     assert db_get_host(created_host.id)

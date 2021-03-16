@@ -37,7 +37,7 @@ def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
 
 def test_create_host_with_display_name_and_fqdn_as_empty_str(db_create_host):
     # Verify that the display_name is populated from the id
-    created_host = db_create_host(USER_IDENTITY, extra_data={"canonical_facts": {"fqdn": ""}, "display_name": ""})
+    created_host = db_create_host(extra_data={"canonical_facts": {"fqdn": ""}, "display_name": ""})
 
     assert created_host.display_name == str(created_host.id)
 
@@ -47,8 +47,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
     insights_id = generate_uuid()
 
     existing_host = db_create_host(
-        USER_IDENTITY,
-        extra_data={"canonical_facts": {"fqdn": expected_fqdn, "insights_id": insights_id}, "display_name": None},
+        extra_data={"canonical_facts": {"fqdn": expected_fqdn, "insights_id": insights_id}, "display_name": None}
     )
 
     # Clear the display_name
@@ -67,7 +66,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
 
-    existing_host = db_create_host(USER_IDENTITY, extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": None})
+    existing_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": None})
 
     # Clear the display_name
     existing_host.display_name = None
@@ -112,9 +111,7 @@ def test_update_existing_host_dont_change_display_name(db_create_host):
     # Create an "existing" host
     fqdn = "host1.domain1.com"
     display_name = "foo"
-    existing_host = db_create_host(
-        USER_IDENTITY, extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": display_name}
-    )
+    existing_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": display_name})
 
     # Attempt to update the display name from Satellite reporter (shouldn't change)
     expected_fqdn = "different.domain1.com"
@@ -129,7 +126,7 @@ def test_create_host_without_system_profile(db_create_host):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
     created_host = db_create_host(
-        USER_IDENTITY, extra_data={"canonical_facts": {"fqdn": "fred.flintstone.com"}, "display_name": "fred"}
+        extra_data={"canonical_facts": {"fqdn": "fred.flintstone.com"}, "display_name": "fred"}
     )
     assert created_host.system_profile_facts == {}
 
@@ -220,8 +217,7 @@ def test_update_host_with_tags(db_create_host):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = db_create_host(
-        USER_IDENTITY,
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags},
+        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
     )
 
     assert existing_host.tags == old_tags
@@ -229,8 +225,7 @@ def test_update_host_with_tags(db_create_host):
     # On update each namespace in the input host's tags should be updated.
     new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
     input_host = db_create_host(
-        USER_IDENTITY,
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags},
+        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags}
     )
 
     existing_host.update(input_host)
@@ -242,14 +237,11 @@ def test_update_host_with_no_tags(db_create_host):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
     existing_host = db_create_host(
-        USER_IDENTITY,
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags},
+        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
     )
 
     # Updating a host should not remove any existing tags if tags are missing from the input host
-    input_host = db_create_host(
-        USER_IDENTITY, extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged"}
-    )
+    input_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged"})
     existing_host.update(input_host)
 
     assert existing_host.tags == old_tags

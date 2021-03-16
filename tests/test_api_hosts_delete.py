@@ -20,7 +20,7 @@ from tests.helpers.test_utils import USER_IDENTITY
 def test_delete_non_existent_host(api_delete_host):
     host_id = generate_uuid()
 
-    response_status, response_data = api_delete_host(host_id, USER_IDENTITY)
+    response_status, response_data = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=404)
 
@@ -28,15 +28,15 @@ def test_delete_non_existent_host(api_delete_host):
 def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
-    response_status, response_data = api_delete_host(host_id, USER_IDENTITY)
+    response_status, response_data = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=400)
 
 
 def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host):
-    host = db_create_host(USER_IDENTITY)
+    host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id, USER_IDENTITY)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -48,9 +48,9 @@ def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_
 def test_create_then_delete_with_branch_id(
     event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host
 ):
-    host = db_create_host(USER_IDENTITY)
+    host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id, USER_IDENTITY, query_parameters={"branch_id": "1234"})
+    response_status, response_data = api_delete_host(host.id, query_parameters={"branch_id": "1234"})
 
     assert_response_status(response_status, expected_status=200)
 
@@ -79,9 +79,9 @@ def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_
 def test_create_then_delete_without_request_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
-    host = db_create_host(USER_IDENTITY)
+    host = db_create_host()
 
-    response_status, response_data = api_delete_host(host.id, USER_IDENTITY)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -98,7 +98,7 @@ def test_create_then_delete_without_insights_id(
 
     db_create_host(USER_IDENTITY, host)
 
-    response_status, response_data = api_delete_host(host.id, USER_IDENTITY)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -150,7 +150,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
     # returning 200 OK.
-    response_status, response_data = api_delete_host(",".join(host_id_list), USER_IDENTITY)
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -165,7 +165,7 @@ def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multip
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
     # returning 200 OK.
-    response_status, response_data = api_delete_host(",".join(host_id_list), USER_IDENTITY)
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -189,9 +189,9 @@ def test_delete_host_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(USER_IDENTITY)
+            host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id, USER_IDENTITY)
+            response_status, response_data = api_delete_host(host.id)
 
             assert_response_status(response_status, 200)
 
@@ -210,7 +210,7 @@ def test_delete_host_with_RBAC_denied(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(USER_IDENTITY)
+            host = db_create_host()
 
             response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
 
@@ -246,7 +246,7 @@ def test_delete_hosts_chunk_size(
     hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=2)
     host_id_list = [str(host.id) for host in hosts]
 
-    response_status, response_data = api_delete_host(",".join(host_id_list), USER_IDENTITY)
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -265,7 +265,7 @@ def test_delete_stops_after_kafka_producer_error(
     hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=3)
     host_id_list = [str(host.id) for host in hosts]
 
-    response_status, response_data = api_delete_host(",".join(host_id_list), USER_IDENTITY)
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=500)
 

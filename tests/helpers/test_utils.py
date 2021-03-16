@@ -75,13 +75,7 @@ def set_environment(new_env=None):
 
 # owner_id needed for hosts owned by system accounts.
 def _set_owner_id(values):
-    if "system_profile" not in values.keys():
-        system_profile = {}
-        system_profile["owner_id"] = SYSTEM_IDENTITY["system"]["cn"]
-        values["system_profile"] = system_profile
-    else:
-        if not values["system_profile"].get("owner_id"):
-            values["system_profile"]["owner_id"] = SYSTEM_IDENTITY["system"]["cn"]
+    values.setdefault("system_profile", {}).setdefault("owner_id", SYSTEM_IDENTITY["system"]["cn"])
     return values
 
 
@@ -94,20 +88,8 @@ def minimal_host(**values):
         "reporter": "test" + generate_random_string(),
         **values,
     }
-
-    return HostWrapper(data)
-
-
-def minimal_host_owned_by_system(**values):
-    values = _set_owner_id(values)
-    data = {
-        "account": SYSTEM_IDENTITY["account_number"],
-        "display_name": "test" + generate_random_string(),
-        "ip_addresses": ["10.10.0.1"],
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
-        "reporter": "test" + generate_random_string(),
-        **values,
-    }
+    if "account" in values:
+        data["account"] = values.get("account")
 
     return HostWrapper(data)
 

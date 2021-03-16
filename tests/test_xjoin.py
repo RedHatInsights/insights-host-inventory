@@ -27,7 +27,6 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -38,7 +37,7 @@ def test_headers_forwarded(mocker, patch_xjoin_post, api_get):
 
     request_id = generate_uuid()
     response_status, response_data = api_get(
-        HOST_URL, USER_IDENTITY, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
+        HOST_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
     )
 
     assert response_status == 200
@@ -51,7 +50,7 @@ def test_host_request_xjoin_status_403(patch_xjoin_post, api_get):
     request_id = generate_uuid()
 
     response_status, response_data = api_get(
-        HOST_URL, USER_IDENTITY, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
+        HOST_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
     )
 
     assert response_status == 500
@@ -62,7 +61,7 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     request_id = generate_uuid()
 
     response_status, response_data = api_get(
-        HOST_URL, USER_IDENTITY, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
+        HOST_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
     )
 
     assert response_status == 200
@@ -72,7 +71,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
     fqdn = "host.domain.com"
 
     url = build_hosts_url(query=f"?fqdn={quote(fqdn)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -93,7 +92,7 @@ def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_
     display_name = "my awesome host uwu"
 
     url = build_hosts_url(query=f"?display_name={quote(display_name)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -114,7 +113,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
     hostname_or_id = "host.domain.com"
 
     url = build_hosts_url(query=f"?hostname_or_id={quote(hostname_or_id)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -143,7 +142,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
     hostname_or_id = generate_uuid()
 
     url = build_hosts_url(query=f"?hostname_or_id={quote(hostname_or_id)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -173,7 +172,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
     insights_id = generate_uuid()
 
     url = build_hosts_url(query=f"?insights_id={quote(insights_id)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -191,7 +190,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
 
 
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
 
@@ -221,7 +220,7 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
 )
 def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -259,7 +258,7 @@ def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, gr
 )
 def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?tags={quote(query_param)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -283,7 +282,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
     value = quote(generate_uuid())
 
     url = build_hosts_url(query=f"?{field}={value}&tags=a/b=c")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -305,7 +304,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
 
 def test_query_variables_registered_with_insights(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -325,7 +324,7 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
 @pytest.mark.parametrize("direction", ("ASC", "DESC"))
 def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?order_by=updated&order_how={quote(direction)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -356,7 +355,7 @@ def test_query_variables_ordering_by(
     api_get,
 ):
     url = build_hosts_url(query=f"?order_by={quote(params_order_by)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -375,7 +374,7 @@ def test_query_variables_ordering_by(
 
 def test_query_variables_ordering_by_invalid(query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_by=fqdn")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -384,7 +383,7 @@ def test_query_variables_ordering_by_invalid(query_source_xjoin, graphql_query_e
 
 def test_query_variables_ordering_dir_invalid(query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_by=updated&order_how=REVERSE")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -393,7 +392,7 @@ def test_query_variables_ordering_dir_invalid(query_source_xjoin, graphql_query_
 
 def test_query_variables_ordering_dir_without_by(query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_how=ASC")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -403,7 +402,7 @@ def test_query_variables_ordering_dir_without_by(query_source_xjoin, graphql_que
 @pytest.mark.parametrize("page,limit,offset", ((1, 2, 0), (2, 2, 2), (4, 50, 150)))
 def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?per_page={quote(limit)}&page={quote(page)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -417,7 +416,7 @@ def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, gr
 @pytest.mark.parametrize("page,per_page", ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)))
 def test_response_invalid_pagination(page, per_page, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?per_page={quote(per_page)}&page={quote(page)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -425,7 +424,7 @@ def test_response_invalid_pagination(page, per_page, query_source_xjoin, graphql
 
 
 def test_query_variables_default_except_staleness(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
 
@@ -439,7 +438,7 @@ def test_query_variables_default_except_staleness(mocker, query_source_xjoin, gr
 def test_query_variables_default_staleness(
     mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
 ):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
 
@@ -465,7 +464,7 @@ def test_query_variables_staleness(
     staleness, expected, mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
 ):
     url = build_hosts_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -478,7 +477,7 @@ def test_query_multiple_staleness(
     staleness = "fresh,stale_warning"
 
     url = build_hosts_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -506,7 +505,7 @@ def test_query_variables_staleness_with_search(
     field, value, mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
 ):
     url = build_hosts_url(query=f"?{field}={quote(value)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -527,7 +526,7 @@ def test_query_variables_staleness_with_search(
 
 
 def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
 
@@ -599,7 +598,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
 
 def test_response_pagination_index_error(query_source_xjoin, graphql_query_with_response, api_get):
     url = build_hosts_url(query="?per_page=2&page=3")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 404
 
@@ -610,7 +609,7 @@ def test_valid_without_decimal_part(query_source_xjoin, graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03Z")
 
     graphql_query(return_value=response)
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
     assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T08:07:03+00:00"
@@ -620,7 +619,7 @@ def test_valid_with_offset_timezone(query_source_xjoin, graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03.354307+01:00")
 
     graphql_query(return_value=response)
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
     assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T07:07:03.354307+00:00"
@@ -630,7 +629,7 @@ def test_invalid_without_timezone(query_source_xjoin, graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03.354307")
 
     graphql_query(return_value=response)
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 500
 
@@ -640,7 +639,7 @@ def test_tags_headers_forwarded(mocker, patch_xjoin_post, api_get):
 
     request_id = generate_uuid()
     response_status, response_data = api_get(
-        TAGS_URL, USER_IDENTITY, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
+        TAGS_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
     )
 
     assert response_status == 200
@@ -651,7 +650,7 @@ def test_tags_headers_forwarded(mocker, patch_xjoin_post, api_get):
 def test_tags_query_variables_default_except_staleness(
     mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
-    response_status, response_data = api_get(TAGS_URL, USER_IDENTITY)
+    response_status, response_data = api_get(TAGS_URL)
 
     assert response_status == 200
 
@@ -665,7 +664,7 @@ def test_tags_query_variables_default_except_staleness(
 def test_tags_query_variables_default_staleness(
     mocker, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
-    response_status, response_data = api_get(TAGS_URL, USER_IDENTITY)
+    response_status, response_data = api_get(TAGS_URL)
 
     assert response_status == 200
 
@@ -704,7 +703,7 @@ def test_tags_query_variables_staleness(
     staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
 ):
     url = build_tags_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -726,7 +725,7 @@ def test_tags_multiple_query_variables_staleness(
 ):
     staleness = "fresh,stale_warning"
     url = build_tags_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -755,7 +754,7 @@ def test_tags_multiple_query_variables_staleness(
 
 def test_query_variables_tags_simple(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=insights-client/os=fedora")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -782,7 +781,7 @@ def test_query_variables_tags_with_special_characters_unescaped(
 ):
     tags_query = quote(";?:@&+$/-_.!~*'()=#")
     url = build_tags_url(query=f"?tags={tags_query}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -811,7 +810,7 @@ def test_query_variables_tags_with_special_characters_escaped(
     tags_query = quote(f"{namespace}/{key}={value}")
 
     url = build_tags_url(query=f"?tags={tags_query}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -835,7 +834,7 @@ def test_query_variables_tags_with_special_characters_escaped(
 
 def test_query_variables_tags_collection_multi(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=Sat/env=prod&tags=insights-client/os=fedora")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -860,7 +859,7 @@ def test_query_variables_tags_collection_multi(mocker, query_source_xjoin, graph
 
 def test_query_variables_tags_collection_csv(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=Sat/env=prod,insights-client/os=fedora")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -885,7 +884,7 @@ def test_query_variables_tags_collection_csv(mocker, query_source_xjoin, graphql
 
 def test_query_variables_tags_without_namespace(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=env=prod")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -907,7 +906,7 @@ def test_query_variables_tags_without_namespace(mocker, query_source_xjoin, grap
 
 def test_query_variables_tags_without_value(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=Sat/env")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -929,7 +928,7 @@ def test_query_variables_tags_without_value(mocker, query_source_xjoin, graphql_
 
 def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?tags=env")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -952,7 +951,7 @@ def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_
 def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     query = "Δwithčhar!/~|+ "
     url = build_tags_url(query=f"?search={quote(query)}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -975,7 +974,7 @@ def test_tags_query_variables_ordering_dir(
     direction, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
     url = build_tags_url(query=f"?order_how={direction}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -991,7 +990,7 @@ def test_tags_query_variables_ordering_by(
     ordering, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
     url = build_tags_url(query=f"?order_by={ordering}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1007,7 +1006,7 @@ def test_tags_response_pagination(
     page, limit, offset, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
 ):
     url = build_tags_url(query=f"?per_page={limit}&page={page}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1021,14 +1020,14 @@ def test_tags_response_pagination(
 @pytest.mark.parametrize("page,per_page", [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)])
 def test_tags_response_invalid_pagination(page, per_page, api_get):
     url = build_tags_url(query=f"?per_page={per_page}&page={page}")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
 
 def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1047,7 +1046,7 @@ def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphq
 
 def test_tags_response_invalid_registered_with(api_get):
     url = build_tags_url(query="?registered_with=salad")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -1055,7 +1054,7 @@ def test_tags_response_invalid_registered_with(api_get):
 def test_tags_response_processed_properly(query_source_xjoin, graphql_tag_query_with_response, api_get):
     expected = XJOIN_TAGS_RESPONSE["hostTags"]
 
-    response_status, response_data = api_get(TAGS_URL, USER_IDENTITY)
+    response_status, response_data = api_get(TAGS_URL)
 
     assert response_status == 200
 
@@ -1072,7 +1071,7 @@ def test_tags_response_processed_properly(query_source_xjoin, graphql_tag_query_
 
 def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphql_tag_query_with_response, api_get):
     url = build_tags_url(query="?per_page=2&page=3")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 404
 
@@ -1094,7 +1093,7 @@ def test_tags_RBAC_allowed(
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_url(query="?registered_with=insights")
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert response_status == 200
 
@@ -1110,7 +1109,7 @@ def test_tags_RBAC_denied(
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
             url = build_tags_url(query="?registered_with=insights")
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert response_status == 403
 
@@ -1150,7 +1149,7 @@ def test_referer_not_beta(query_source_xjoin_beta_db, graphql_query_with_respons
 
 
 def test_no_header_env_var_xjoin(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     graphql_query_with_response.assert_called_once()
 
@@ -1188,7 +1187,7 @@ def test_referer_header_set_to_beta_2(query_source_db_beta_xjoin, graphql_query_
 
 
 def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, USER_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
 
@@ -1198,7 +1197,7 @@ def test_system_profile_sap_system_endpoint(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
@@ -1230,7 +1229,7 @@ def test_system_profile_sap_system_endpoint_tags(
 ):
     url = build_system_profile_sap_system_url(query=f"?tags={quote(query_param)}")
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     tag_filters = tuple({"tag": item} for item in tags)
     assert response_status == 200
@@ -1244,7 +1243,7 @@ def test_system_profile_sap_system_endpoint_registered_with_insights(
 ):
     url = build_system_profile_sap_system_url(query="?registered_with=insights")
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
@@ -1285,7 +1284,7 @@ def test_system_profile_sap_sids_endpoint(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
@@ -1317,7 +1316,7 @@ def test_system_profile_sap_sids_endpoint_tags(
 ):
     url = build_system_profile_sap_sids_url(query=f"?tags={quote(query_param)}")
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     tag_filters = tuple({"tag": item} for item in tags)
     assert response_status == 200
@@ -1331,7 +1330,7 @@ def test_system_profile_sap_sids_endpoint_registered_with_insights(
 ):
     url = build_system_profile_sap_sids_url(query="?registered_with=insights")
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
@@ -1358,7 +1357,7 @@ def test_query_hosts_filter_spf_sap_system(
             with subtests.test(value=value, query=query, path=path):
                 url = build_hosts_url(query=f"?filter{path}={value}")
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1394,7 +1393,7 @@ def test_query_tags_filter_spf_sap_system(
                 graphql_tag_query_empty_response.reset_mock()
                 url = build_tags_url(query=f"?filter{path}={value}")
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1429,7 +1428,7 @@ def test_query_system_profile_sap_system_filter_spf_sap_sids(
                 graphql_system_profile_sap_system_query_empty_response.reset_mock()
                 url = build_system_profile_sap_system_url(query=f"?filter{path}={value}")
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1455,7 +1454,7 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
                 graphql_query_empty_response.reset_mock()
                 url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1488,7 +1487,7 @@ def test_query_tags_filter_spf_sap_sids(
             with subtests.test(values=values, query=query, path=path):
                 url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1526,7 +1525,7 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
                     query="?" + "".join([f"filter{path}={value}&" for value in values])
                 )
 
-                response_status, response_data = api_get(url, USER_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert response_status == 200
 
@@ -1542,7 +1541,7 @@ def test_query_system_profile_sap_sids_with_search(
 ):
     url = build_system_profile_sap_sids_url(query="?search=C2")
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1646,7 +1645,7 @@ def test_query_hosts_insights_classic_system_identity(
 ):
     url = build_hosts_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1668,7 +1667,7 @@ def test_query_tags_insights_classic_system_identity(
 ):
     url = build_tags_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1690,7 +1689,7 @@ def test_query_system_profile_sap_sids_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1704,7 +1703,7 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -1798,7 +1797,7 @@ def test_sp_sparse_xjoin_query_translation(
 
     variables["host_ids"] = [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]
 
-    response_status, response_data = api_get(build_system_profile_url(hosts, query=query), USER_IDENTITY)
+    response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
 
     assert response_status == 200
     graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)

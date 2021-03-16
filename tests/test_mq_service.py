@@ -26,7 +26,7 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata_with_system_identity
-from tests.helpers.test_utils import minimal_host_owned_by_system
+from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
@@ -93,7 +93,7 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
 
@@ -132,7 +132,7 @@ def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled
     host_id = generate_uuid()
     insights_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(id=host_id, insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
 
     add_host = mocker.patch(
         "app.queue.queue.add_host", return_value=({"id": host_id}, host_id, insights_id, AddHostResult.created)
@@ -187,7 +187,7 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(id=host_id, insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
     metadata = {"request_id": generate_uuid(), "archive_url": "https://some.url", "b64_identity": get_encoded_idstr()}
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
@@ -199,7 +199,7 @@ def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_
     host_id = generate_uuid()
     insights_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(id=host_id, insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
     host_data = host.data()
 
     mocker.patch("app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created))
@@ -216,7 +216,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     insights_id = generate_uuid()
     request_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(id=host_id, insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
 
     mocker.patch("app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result))
 
@@ -233,7 +233,11 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     """
     expected_insights_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID})
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile={"owner_id": OWNER_ID},
+    )
 
     expected_results = {"host": {**host.data()}}
 
@@ -252,7 +256,11 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
     expected_system_profile = valid_system_profile()
     expected_system_profile["owner_id"] = OWNER_ID
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=expected_system_profile)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile=expected_system_profile,
+    )
 
     expected_results = {"host": {**host.data()}}
 
@@ -270,7 +278,11 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=expected_system_profile)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile=expected_system_profile,
+    )
 
     with pytest.raises(InventoryException):
         key, event, headers = mq_create_or_update_host(host, return_all_data=True)
@@ -295,7 +307,9 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
         {"namespace": " \t\n\r\f\v", "key": " \t\n\r\f\v", "value": " \t\n\r\f\v"},
     ]
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, tags=expected_tags)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, tags=expected_tags
+    )
 
     expected_results = {"host": {**host.data()}}
     host_keys_to_check = ["display_name", "insights_id", "account"]
@@ -323,7 +337,7 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
      Tests adding a host with message containing invalid tags
     """
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id, tags=[tag])
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=[tag])
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
@@ -332,7 +346,7 @@ def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
 @pytest.mark.system_profile
 def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
     system_profile = {"owner_id": OWNER_ID, "disk_devices": [{"options": {"": "invalid"}}]}
-    host = minimal_host_owned_by_system(system_profile=system_profile)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
@@ -341,7 +355,7 @@ def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
 @pytest.mark.system_profile
 @pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
 def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
-    host = minimal_host_owned_by_system(system_profile=system_profile)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
@@ -351,7 +365,9 @@ def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_p
 @pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
 def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_get_host, baseurl):
     yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
-    host_to_create = minimal_host_owned_by_system(system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]})
+    host_to_create = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], system_profile={"yum_repos": [{**yum_repo, "baseurl": baseurl}]}
+    )
     created_host_from_event = mq_create_or_update_host(host_to_create)
     created_host_from_db = db_get_host(created_host_from_event.id)
     assert created_host_from_db.system_profile_facts.get("yum_repos") == [yum_repo]
@@ -359,7 +375,7 @@ def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_
 
 @pytest.mark.system_profile
 def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_host):
-    host_to_create = minimal_host_owned_by_system(system_profile={"number_of_cpus": "1"})
+    host_to_create = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"number_of_cpus": "1"})
     created_host_from_event = mq_create_or_update_host(host_to_create)
     created_host_from_db = db_get_host(created_host_from_event.id)
 
@@ -368,13 +384,14 @@ def test_add_host_type_coercion_system_profile(mq_create_or_update_host, db_get_
 
 @pytest.mark.system_profile
 def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_host):
-    host_to_create = minimal_host_owned_by_system(
+    host_to_create = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
         system_profile={
             "owner_id": OWNER_ID,
             "number_of_cpus": 1,
             "number_of_gpus": 2,
             "disk_devices": [{"options": {"uid": "0"}, "mount_options": {"ro": True}}],
-        }
+        },
     )
     created_host_from_event = mq_create_or_update_host(host_to_create)
     created_host_from_db = db_get_host(created_host_from_event.id)
@@ -391,7 +408,7 @@ def test_add_host_externalized_system_profile(mq_create_or_update_host):
     mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
 
     with mock_system_profile_specification(mock_spec):
-        host_to_create = minimal_host_owned_by_system(system_profile={"number_of_cpus": 1})
+        host_to_create = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"number_of_cpus": 1})
         with pytest.raises(ValidationException):
             mq_create_or_update_host(host_to_create)
 
@@ -400,7 +417,7 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
     """
     Tests that owner_id in the system profile is ingested properly
     """
-    host = minimal_host_owned_by_system(system_profile={"owner_id": OWNER_ID})
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID})
     created_host_from_event = mq_create_or_update_host(host)
     created_host_from_db = db_get_host(created_host_from_event.id)
     assert created_host_from_db.system_profile_facts == {"owner_id": OWNER_ID}
@@ -411,7 +428,7 @@ def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_
     Tests that owner_id in the system profile is rejected if it's in the wrong format
     """
     owner_id = "Mike Wazowski"
-    host = minimal_host_owned_by_system(system_profile={"owner_id": owner_id})
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": owner_id})
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
 
@@ -421,7 +438,10 @@ def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update
     Tests that operating_system in the system profile is ingested properly
     """
     operating_system = {"major": 5, "minor": 1, "name": "RHEL"}
-    host = minimal_host_owned_by_system(system_profile={"operating_system": operating_system, "owner_id": OWNER_ID})
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        system_profile={"operating_system": operating_system, "owner_id": OWNER_ID},
+    )
     created_host_from_event = mq_create_or_update_host(host)
     created_host_from_db = db_get_host(created_host_from_event.id)
     assert created_host_from_db.system_profile_facts.get("operating_system") == operating_system
@@ -437,8 +457,9 @@ def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq
         {"major": 1, "minor": 1, "name": "UBUNTU"},
     ]
     for operating_system in operating_system_list:
-        host = minimal_host_owned_by_system(
-            system_profile={"operating_system": operating_system, "owner_id": OWNER_ID}
+        host = minimal_host(
+            account=SYSTEM_IDENTITY["account_number"],
+            system_profile={"operating_system": operating_system, "owner_id": OWNER_ID},
         )
         with pytest.raises(ValidationException):
             mq_create_or_update_host(host)
@@ -453,7 +474,12 @@ def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq
 )
 def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id, facts=facts, system_profile={"owner_id": OWNER_ID})
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=insights_id,
+        facts=facts,
+        system_profile={"owner_id": OWNER_ID},
+    )
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
@@ -462,8 +488,11 @@ def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
 def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_update_host):
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(
-        insights_id=insights_id, stale_timestamp=stale_timestamp, system_profile={"owner_id": OWNER_ID}
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=insights_id,
+        stale_timestamp=stale_timestamp,
+        system_profile={"owner_id": OWNER_ID},
     )
 
     with pytest.raises(ValidationException):
@@ -477,7 +506,9 @@ def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host)
     system_profile["sap_system"] = True
     system_profile["owner_id"] = OWNER_ID
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, system_profile=system_profile)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, system_profile=system_profile
+    )
 
     expected_results = {"host": {**host.data()}}
 
@@ -491,7 +522,7 @@ def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host)
 @pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))
 def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id, **tags)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, **tags)
 
     mq_create_or_update_host(host)
 
@@ -513,7 +544,7 @@ def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insight
         {"namespace": "null", "key": "key 3", "value": "value 5"},
     ]
 
-    host = minimal_host_owned_by_system(insights_id=insights_id, tags=tags)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=tags)
 
     mq_create_or_update_host(host)
 
@@ -536,7 +567,7 @@ def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insight
         "null": {"key 4": ["value 3"]},
         "": {"key 4": ["value 4"]},
     }
-    host = minimal_host_owned_by_system(insights_id=insights_id, tags=tags)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=tags)
 
     mq_create_or_update_host(host)
 
@@ -572,7 +603,7 @@ def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insight
 )
 def test_add_host_with_invalid_tags_2(tags, mq_create_or_update_host):
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id, tags=tags)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=tags)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
@@ -581,10 +612,12 @@ def test_add_host_with_invalid_tags_2(tags, mq_create_or_update_host):
 def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
 
-    host = minimal_host_owned_by_system(display_name="test_host", insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], display_name="test_host", insights_id=insights_id)
     mq_create_or_update_host(host)
 
-    host = minimal_host_owned_by_system(display_name="better_test_host", insights_id=insights_id)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], display_name="better_test_host", insights_id=insights_id
+    )
     mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
@@ -600,10 +633,17 @@ def test_display_name_ignored_for_blacklisted_reporters(
     Tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
     """
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(display_name="test_host", insights_id=insights_id, reporter="puptoo")
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], display_name="test_host", insights_id=insights_id, reporter="puptoo"
+    )
     mq_create_or_update_host(host)
 
-    host = minimal_host_owned_by_system(display_name="yupana_test_host", insights_id=insights_id, reporter=reporter)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name="yupana_test_host",
+        insights_id=insights_id,
+        reporter=reporter,
+    )
     mq_create_or_update_host(host)
 
     record = db_get_host_by_insights_id(insights_id)
@@ -625,7 +665,7 @@ def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insig
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -646,7 +686,7 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -658,7 +698,7 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
 def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_get_host_by_insights_id, flask_app):
     # FIXME: Remove this test after migration to NOT NULL.
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id)
     mq_create_or_update_host(host)
 
     created_host = db_get_host_by_insights_id(insights_id)
@@ -726,7 +766,7 @@ def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_i
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -770,7 +810,7 @@ def test_replace_host_tags_by_dict(mq_create_or_update_host, db_get_host_by_insi
         ),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -790,7 +830,7 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
         ({"tags": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, **message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, **message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -801,7 +841,7 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
 @pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))
 def test_add_host_default_empty_dict(tags, mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=insights_id, **tags)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, **tags)
 
     mq_create_or_update_host(host)
 
@@ -839,7 +879,7 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
         ({"": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
     ):
         with subtests.test(tags=message_tags):
-            host = minimal_host_owned_by_system(insights_id=insights_id, tags=message_tags)
+            host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=message_tags)
             mq_create_or_update_host(host)
 
             record = db_get_host_by_insights_id(insights_id)
@@ -855,7 +895,11 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
     expected_insights_id = generate_uuid()
     stale_timestamp = now()
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id, stale_timestamp=stale_timestamp.isoformat())
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        stale_timestamp=stale_timestamp.isoformat(),
+    )
 
     expected_results = {
         "host": {
@@ -878,7 +922,7 @@ def test_add_host_stale_timestamp_missing_culling_fields(field_to_remove, mq_cre
     tests to check the API will reject a host if it doesn’t have both
     culling fields. This should raise InventoryException.
     """
-    host = minimal_host_owned_by_system()
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
     delattr(host, field_to_remove)
 
     with pytest.raises(InventoryException):
@@ -900,7 +944,7 @@ def test_add_host_stale_timestamp_invalid_culling_fields(additional_data, mq_cre
     tests to check the API will reject a host if it doesn’t have both
     culling fields. This should raise InventoryException.
     """
-    host = minimal_host_owned_by_system(**additional_data)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], **additional_data)
 
     with pytest.raises(InventoryException):
         mq_create_or_update_host(host)
@@ -983,7 +1027,7 @@ def test_other_values_are_ignored(value):
 
 
 def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, db_get_hosts):
-    host = minimal_host_owned_by_system(fqdn="d44533.foo.redhat.co")
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], fqdn="d44533.foo.redhat.co")
     host.account = SYSTEM_IDENTITY["account_number"]
 
     created_host = mq_create_or_update_host(host)
@@ -1009,7 +1053,7 @@ def test_handle_message_side_effect(mocker, flask_app):
     )
 
     expected_insights_id = generate_uuid()
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
 
     fake_add_host.reset_mock()
     message = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity()))
@@ -1034,7 +1078,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host_owned_by_system(insights_id=expected_insights_id)
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
     message = wrap_message(host.data())
 
     with pytest.raises(ValueError):
@@ -1058,8 +1102,11 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host_owned_by_system(
-        insights_id=expected_insights_id, reporter="rhsm-conduit", subscription_manager_id=OWNER_ID
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        reporter="rhsm-conduit",
+        subscription_manager_id=OWNER_ID,
     )
     message = wrap_message(host.data(), "add_host")
 
@@ -1091,8 +1138,11 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host_owned_by_system(
-        insights_id=expected_insights_id, reporter="yee-haw", subscription_manager_id=OWNER_ID
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        reporter="yee-haw",
+        subscription_manager_id=OWNER_ID,
     )
     message = wrap_message(host.data(), "add_host")
     with pytest.raises(ValueError):
@@ -1114,8 +1164,10 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host_owned_by_system(
-        insights_id=expected_insights_id, system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"}
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=expected_insights_id,
+        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
     )
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())

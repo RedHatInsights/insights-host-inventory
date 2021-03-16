@@ -35,7 +35,8 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
+
+# from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
@@ -882,10 +883,10 @@ def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(USER_IDENTITY)
+            host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -904,7 +905,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
             host = db_create_host(SYSTEM_IDENTITY)
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, USER_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 403)
 
@@ -930,8 +931,8 @@ def test_get_hosts_sap_system(patch_xjoin_post, api_get, subtests, query_source_
             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url, USER_IDENTITY)
-            eq_response_status, eq_response_data = api_get(eq_url, USER_IDENTITY)
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
 
             assert_response_status(implicit_response_status, 200)
             assert_response_status(eq_response_status, 200)
@@ -1028,7 +1029,7 @@ def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, query_sou
         ),
     ):
         patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 2, "count": 2}, "data": xjoin_post}}})
-        response_status, response_data = api_get(build_system_profile_url(hosts, query=query), USER_IDENTITY)
+        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
 
         assert_response_status(response_status, 200)
         assert response_data["total"] == 2
@@ -1049,8 +1050,7 @@ def test_sp_sparse_fields_xjoin_response_with_invalid_field(
     ]
     patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 1, "count": 1}, "data": xjoin_post}}})
     response_status, response_data = api_get(
-        build_system_profile_url([host], query="?fields[system_profile]=os_kernel_version,arch,sap_sids"),
-        USER_IDENTITY,
+        build_system_profile_url([host], query="?fields[system_profile]=os_kernel_version,arch,sap_sids")
     )
 
     assert_response_status(response_status, 200)
@@ -1069,5 +1069,5 @@ def test_validate_sp_sparse_fields_invalid_requests(query_source_xjoin, api_get)
         host_one_id, host_two_id = generate_uuid(), generate_uuid()
         hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
-        response_status, response_data = api_get(build_system_profile_url(hosts, query=query), USER_IDENTITY)
+        response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
         assert response_status == 400

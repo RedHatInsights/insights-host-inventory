@@ -39,14 +39,17 @@ def clean_tables():
     _clean_tables()
 
 
-def minimal_db_host(identity, **values):
+def minimal_db_host(**values):
     data = {
-        "account": identity["account_number"],
+        "account": USER_IDENTITY["account_number"],
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }
+    if "account" in values:
+        data["account"] = values.get("account")
+
     return Host(**data)
 
 

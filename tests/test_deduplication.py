@@ -10,7 +10,7 @@ def test_find_host_using_subset_canonical_fact_match(db_create_host):
     fqdn = "fred.flintstone.com"
     canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid(), "rhel_machine_id": generate_uuid()}
 
-    host = minimal_db_host(USER_IDENTITY, canonical_facts=canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(USER_IDENTITY, host)
 
     # Create the subset of canonical facts to search by
@@ -27,7 +27,7 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
     superset_canonical_facts["rhel_machine_id"] = generate_uuid()
     superset_canonical_facts["satellite_id"] = generate_uuid()
 
-    host = minimal_db_host(USER_IDENTITY, canonical_facts=canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(USER_IDENTITY, host)
 
     assert_host_exists_in_db(created_host.id, superset_canonical_facts)
@@ -43,7 +43,7 @@ def test_find_host_using_insights_id_match(db_create_host):
         "insights_id": canonical_facts["insights_id"],
     }
 
-    host = minimal_db_host(USER_IDENTITY, canonical_facts=canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(USER_IDENTITY, host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -58,7 +58,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
         "subscription_manager_id": canonical_facts["subscription_manager_id"],
     }
 
-    host = minimal_db_host(USER_IDENTITY, canonical_facts=canonical_facts)
+    host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(USER_IDENTITY, host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -70,7 +70,7 @@ def test_find_host_using_elevated_ids_match(db_create_host, host_create_order, e
 
     created_hosts = []
     for host_canonical_facts in host_create_order:
-        host = minimal_db_host(USER_IDENTITY, canonical_facts=hosts_canonical_facts[host_canonical_facts])
+        host = minimal_db_host(canonical_facts=hosts_canonical_facts[host_canonical_facts])
         created_host = db_create_host(USER_IDENTITY, host)
         created_hosts.append(created_host)
 

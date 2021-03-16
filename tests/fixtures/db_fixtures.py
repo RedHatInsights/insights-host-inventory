@@ -66,9 +66,9 @@ def db_get_host_by_insights_id(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host(flask_app):
-    def _db_create_host(identity=None, host=None, extra_data=None):
+    def _db_create_host(identity=USER_IDENTITY, host=None, extra_data=None):
         extra_data = extra_data or {}
-        host = host or minimal_db_host(identity, **extra_data)
+        host = host or minimal_db_host(account=identity["account_number"], **extra_data)
         db.session.add(host)
         db.session.commit()
         return host
@@ -78,7 +78,7 @@ def db_create_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app):
-    def _db_create_multiple_hosts(identity, hosts=None, how_many=10, extra_data=None):
+    def _db_create_multiple_hosts(identity=USER_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
         if type(hosts) == list:
@@ -87,7 +87,7 @@ def db_create_multiple_hosts(flask_app):
                 created_hosts.append(host)
         else:
             for _ in range(how_many):
-                host = minimal_db_host(identity, **extra_data)
+                host = minimal_db_host(account=identity["account_number"], **extra_data)
                 db.session.add(host)
                 created_hosts.append(host)
 
@@ -100,7 +100,7 @@ def db_create_multiple_hosts(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host_in_unknown_state(db_create_host):
-    host = minimal_db_host(USER_IDENTITY)
+    host = minimal_db_host()
     host.stale_timestamp = None
     host.reporter = None
     return db_create_host(USER_IDENTITY, host)
