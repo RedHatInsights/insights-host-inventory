@@ -70,8 +70,6 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
 
             new_message_count += len(partition_messages)
             logger.info(f"Polled {new_message_count} messages from the queue.")
-            if new_message_count == 0:
-                break
 
             for message in partition_messages:
                 try:
@@ -91,6 +89,9 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
                     logger.exception("Unable to parse json message from message queue.")
                 except ValidationError:
                     logger.exception("Unable to parse operation from message.")
+
+        if new_message_count == 0:
+            break
 
         total_message_count += new_message_count
         logger.info(f"{total_message_count} messages processed so far, out of a maximum {max_messages}.")
