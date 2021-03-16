@@ -43,7 +43,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
 
 
 @pytest.fixture(scope="function")
-def mq_create_three_specific_hosts(mq_create_or_update_host, identity=None):
+def mq_create_three_specific_hosts(mq_create_or_update_host):
     created_hosts = []
     for i in range(1, 4):
         fqdn = "host1.domain.test" if i in (1, 2) else f"host{i}.domain.test"
