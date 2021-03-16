@@ -35,7 +35,7 @@ def get_schema(fork, branch):
     )
 
 
-def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=1000000):
+def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
     total_message_count = 0
     partitions = []
     test_results = {branch: {} for branch in schemas.keys()}
@@ -67,8 +67,12 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=1000000)
         for partition, partition_messages in consumer.poll(timeout_ms=60000, max_records=100).items():
             if consumer.position(partition) >= end_offsets[partition]:
                 continue
+
             new_message_count += len(partition_messages)
             logger.info(f"Polled {new_message_count} messages from the queue.")
+            if new_message_count == 0:
+                break
+
             for message in partition_messages:
                 try:
                     host = OperationSchema(strict=True).load(json.loads(message.value)).data["data"]
@@ -88,9 +92,8 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=1000000)
                 except ValidationError:
                     logger.exception("Unable to parse operation from message.")
 
-        if new_message_count == 0:
-            break
         total_message_count += new_message_count
+        logger.info(f"{total_message_count} messages processed so far, out of a maximum {max_messages}.")
 
     if total_message_count == 0:
         raise ValueError("No data available at the provided date.")
@@ -101,7 +104,7 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=1000000)
 
 
 def validate_sp_for_branch(
-    consumer, topics, repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=1000000
+    consumer, topics, repo_fork="RedHatInsights", repo_branch="master", days=1, max_messages=10000
 ):
     schemas = {"RedHatInsights/master": get_schema("RedHatInsights", "master")}
 
