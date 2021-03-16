@@ -6,8 +6,9 @@ from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_IDENTITY
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
-from tests.helpers.api_utils import USER_IDENTITY
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def invalid_identities(identity_type):
