@@ -145,6 +145,12 @@ $defs:
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
         example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      rhc_config_state:
+        description: A UUID associated with the config manager state
+        type: string
+        pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        maxLength: 36
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
       cpu_model:
         description: The cpu model name
         type: string
