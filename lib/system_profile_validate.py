@@ -7,6 +7,7 @@ from marshmallow import ValidationError
 from requests import get
 from yaml import safe_load
 
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.queue.queue import OperationSchema
 from app.serialization import deserialize_host
@@ -82,9 +83,11 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
                         try:
                             deserialize_host(host, system_profile_spec=sp_spec)
                             test_results[branch][host["reporter"]].pass_count += 1
-                        except Exception as e:
+                        except InventoryException as ie:
                             test_results[branch][host["reporter"]].fail_count += 1
-                            logger.info(f"Message failed validation. {str(e.messages)}")
+                            logger.info(f"Message failed validation: {ie.detail}")
+                        except Exception as e:
+                            logger.info(f"Message caused a nonstandard exception: {e}")
                 except json.JSONDecodeError:
                     logger.exception("Unable to parse json message from message queue.")
                 except ValidationError:
