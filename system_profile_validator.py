@@ -61,7 +61,7 @@ def _validation_results_plaintext(test_results):
 
 def _post_git_results_comment(pr_number, test_results):
     content = (
-        f"Here are the System Profile validation results using the past {VALIDATE_DAYS} days of data.\n"
+        f"Here are the System Profile validation results using Prod data.\n"
         f"Validating against the {REPO_OWNER}/{REPO_NAME} master spec:\n```\n"
         f"{_validation_results_plaintext(test_results[f'{REPO_OWNER}/{REPO_NAME}'])}\n```\n"
         f"Validating against this PR's spec:\n```\n"
@@ -99,10 +99,8 @@ def _get_prs_that_require_validation(owner, repo):
             file["filename"] for file in _get_git_response(f"/repos/{owner}/{repo}/pulls/{pr_number}/files")
         ]
         logger.info(f"SP spec modified: {sp_spec_modified}")
-        if (
-            True
-            or sp_spec_modified
-            and (latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime)
+        if sp_spec_modified and (
+            latest_self_comment_datetime is None or latest_commit_datetime > latest_self_comment_datetime
         ):
             logger.info(f"- PR #{pr_number} requires validation!")
             prs_to_validate.append(pr_number)
@@ -123,17 +121,15 @@ def main(logger):
         logger.info("No PRs to validate! Exiting.")
         sys.exit(0)
 
-    # Get the list of parsed hosts from the last VALIDATE_DAYS worth of Kafka messages
-    consumer = KafkaConsumer(
-        bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10, 1),
-        value_deserializer=lambda m: m.decode(),
-        **config.validator_kafka_consumer,
-    )
-
     # For each PR in prs_to_validate, validate the parsed hosts and leave a comment on the PR
     for pr_number in prs_to_validate:
 
+        consumer = KafkaConsumer(
+            bootstrap_servers=config.bootstrap_servers,
+            api_version=(0, 10, 1),
+            value_deserializer=lambda m: m.decode(),
+            **config.validator_kafka_consumer,
+        )
         sp_spec = None
 
         # Get spec file from PR
