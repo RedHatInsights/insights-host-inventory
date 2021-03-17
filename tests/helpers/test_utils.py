@@ -86,6 +86,7 @@ def valid_system_profile():
     return {
         "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
