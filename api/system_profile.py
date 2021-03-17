@@ -33,11 +33,16 @@ logger = get_logger(__name__)
 SAP_SYSTEM_QUERY = """
     query hostSystemProfile (
         $hostFilter: HostFilter
+        $limit: Int
+        $offset: Int
     ) {
         hostSystemProfile (
             hostFilter: $hostFilter
         ) {
-            sap_system {
+            sap_system (
+                limit: $limit
+                offset: $offset
+            ) {
                 meta{
                     total
                     count
@@ -55,12 +60,16 @@ SAP_SIDS_QUERY = """
     query hostSystemProfile (
         $hostFilter: HostFilter
         $filter: SapSidFilter
+        $limit: Int
+        $offset: Int
     ) {
         hostSystemProfile (
             hostFilter: $hostFilter
         ) {
             sap_sids (
                 filter: $filter
+                limit: $limit
+                offset: $offset
             ) {
                 meta {
                     total
@@ -93,7 +102,9 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
         "hostFilter": {
             # we're not indexing null timestamps in ES
             "OR": list(staleness_filter(staleness))
-        }
+        },
+        "limit": limit,
+        "offset": offset,
     }
     hostfilter_and_variables = ()
 
@@ -146,7 +157,9 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
         "hostFilter": {
             # we're not indexing null timestamps in ES
             "OR": list(staleness_filter(staleness))
-        }
+        },
+        "limit": limit,
+        "offset": offset,
     }
 
     hostfilter_and_variables = ()
