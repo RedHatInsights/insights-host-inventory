@@ -65,7 +65,7 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
 
     while total_message_count < max_messages:
         new_message_count = 0
-        for partition, partition_messages in consumer.poll(timeout_ms=60000, max_records=100).items():
+        for partition, partition_messages in consumer.poll(timeout_ms=60000, max_records=500).items():
             if consumer.position(partition) >= end_offsets[partition]:
                 continue
 
