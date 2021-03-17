@@ -55,7 +55,7 @@ def _post_git_response(path, content):
 def _validation_results_plaintext(test_results):
     text = ""
     for reporter, result in test_results.items():
-        text += f"{reporter}:\n\tPass:{result.pass_count}\n\tFail:{result.fail_count}\n\n"
+        text += f"{reporter}:\n\tPass: {result.pass_count}\n\tFail: {result.fail_count}\n\n"
     return text
 
 
