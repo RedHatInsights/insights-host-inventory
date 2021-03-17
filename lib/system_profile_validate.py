@@ -87,7 +87,7 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
                             test_results[branch][host["reporter"]].fail_count += 1
                             logger.info(f"Message failed validation: {ie.detail}")
                         except Exception as e:
-                            logger.info(f"Message caused a nonstandard exception: {e}")
+                            logger.info(f"Message caused an unexpected exception: {e}")
                 except json.JSONDecodeError:
                     logger.exception("Unable to parse json message from message queue.")
                 except ValidationError:
