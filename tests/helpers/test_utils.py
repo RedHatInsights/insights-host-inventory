@@ -144,4 +144,6 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
         "sap_sids": ["ABC", "DEF", "GHI"],
+        "selinux_current_mode": "enforcing",
+        "selinux_config_file": "enforcing",
     }

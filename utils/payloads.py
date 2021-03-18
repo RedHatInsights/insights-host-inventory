@@ -431,6 +431,8 @@ def create_system_profile():
         # "installed_packages": rpm_list(),
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
+        "selinux_current_mode": "enforcing",
+        "selinux_config_file": "enforcing",
     }
 
 
