@@ -103,7 +103,7 @@ def db_create_host_in_unknown_state(db_create_host):
     host = minimal_db_host()
     host.stale_timestamp = None
     host.reporter = None
-    return db_create_host(USER_IDENTITY, host)
+    return db_create_host(host=host)
 
 
 @pytest.fixture(scope="function")

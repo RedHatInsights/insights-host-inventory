@@ -96,7 +96,7 @@ def test_create_then_delete_without_insights_id(
     host = db_host()
     del host.canonical_facts["insights_id"]
 
-    db_create_host(USER_IDENTITY, host)
+    db_create_host(host=host)
 
     response_status, response_data = api_delete_host(host.id)
 

@@ -275,7 +275,7 @@ def test_host_model_default_id(db_create_host):
         reporter="yupana",
         stale_timestamp=now(),
     )
-    db_create_host(USER_IDENTITY, host)
+    db_create_host(host=host)
 
     assert isinstance(host.id, uuid.UUID)
 
@@ -289,7 +289,7 @@ def test_host_model_default_timestamps(db_create_host):
     )
 
     before_commit = now()
-    db_create_host(USER_IDENTITY, host)
+    db_create_host(host=host)
     after_commit = now()
 
     assert isinstance(host.created_on, datetime)
@@ -307,7 +307,7 @@ def test_host_model_updated_timestamp(db_create_host):
     )
 
     before_insert_commit = now()
-    db_create_host(USER_IDENTITY, host)
+    db_create_host(host=host)
     after_insert_commit = now()
 
     host.canonical_facts = {"fqdn": "ndqf"}
@@ -328,7 +328,7 @@ def test_host_model_timestamp_timezones(db_create_host):
         reporter="ingress",
     )
 
-    db_create_host(USER_IDENTITY, host)
+    db_create_host(host=host)
 
     assert host.created_on.tzinfo
     assert host.modified_on.tzinfo
@@ -353,7 +353,7 @@ def test_host_model_constraints(field, value, db_create_host):
     host = Host(**values)
 
     with pytest.raises(DataError):
-        db_create_host(USER_IDENTITY, host)
+        db_create_host(host=host)
 
 
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):

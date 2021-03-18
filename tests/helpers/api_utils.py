@@ -15,7 +15,6 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
-from app.auth.identity import Identity
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -114,7 +113,7 @@ def get_required_headers(identity):
 
 
 def build_account_auth_header(identity):
-    dict_ = {"identity": Identity(identity)._asdict()}
+    dict_ = {"identity": identity}
 
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}

@@ -84,7 +84,7 @@ def test_get_only_stale_warning(mq_create_hosts_in_all_states, api_get):
 
 def test_get_only_unknown(mq_create_hosts_in_all_states, db_create_host_in_unknown_state, api_get):
     url = build_hosts_url(query="?staleness=unknown")
-    response_status, response_data = api_get(url, USER_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [db_create_host_in_unknown_state])

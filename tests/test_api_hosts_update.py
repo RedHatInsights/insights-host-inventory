@@ -24,7 +24,6 @@ from tests.helpers.mq_utils import assert_patch_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.mark.parametrize(
@@ -217,7 +216,7 @@ def test_patch_produces_update_event_no_request_id(
     event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_patch
 ):
     host = db_host()
-    created_host = db_create_host(USER_IDENTITY, host)
+    created_host = db_create_host(host=host)
 
     patch_doc = {"display_name": "patch_event_test"}
 
@@ -241,7 +240,7 @@ def test_patch_produces_update_event_with_request_id(
     headers = {"x-rh-insights-request-id": request_id}
 
     host = db_host()
-    created_host = db_create_host(USER_IDENTITY, host)
+    created_host = db_create_host(host=host)
 
     url = build_hosts_url(host_list_or_id=created_host.id)
     response_status, response_data = api_patch(url, patch_doc, extra_headers=headers)
@@ -261,7 +260,7 @@ def test_patch_produces_update_event_no_insights_id(
     host = db_host()
     del host.canonical_facts["insights_id"]
 
-    created_host = db_create_host(USER_IDENTITY, host)
+    created_host = db_create_host(host=host)
 
     patch_doc = {"display_name": "patch_event_test"}
 
