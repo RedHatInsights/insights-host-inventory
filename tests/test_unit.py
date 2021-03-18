@@ -1687,7 +1687,7 @@ class EventProducerTests(TestCase):
 
         self.config = Config(RuntimeEnvironment.TEST)
         self.event_producer = EventProducer(self.config)
-        self.topic_names = {Topic.events: self.config.event_topic, Topic.egress: self.config.host_egress_topic}
+        self.topic_names = {Topic.events: self.config.event_topic}
         threadctx.request_id = str(uuid4())
         self.basic_host = {
             "id": str(uuid4()),
