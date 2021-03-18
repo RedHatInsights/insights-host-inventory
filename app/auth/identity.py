@@ -56,9 +56,6 @@ class Identity:
             if obj["account_number"] is None or obj["account_number"] == "":
                 raise ValueError("Authentication type unknown")
 
-            # Check for bogus parameters
-            validate(self)
-
             threadctx.account_number = obj["account_number"]
         else:
             self.token = token

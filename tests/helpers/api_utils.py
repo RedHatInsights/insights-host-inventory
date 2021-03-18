@@ -247,15 +247,13 @@ def api_per_page_test(api_get, subtests, url, per_page, num_pages):
 def api_pagination_invalid_parameters_test(api_get, subtests, url):
     for parameter, invalid_value in product(("per_page", "page"), ("-1", "0", "notanumber")):
         with subtests.test(parameter=parameter, invalid_value=invalid_value):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={parameter: invalid_value})
+            response_status, response_data = api_get(url, query_parameters={parameter: invalid_value})
             assert response_status == 400
 
 
 def api_pagination_index_test(api_get, url, expected_total):
     non_existent_page = expected_total + 1
-    response_status, response_data = api_get(
-        url, SYSTEM_IDENTITY, query_parameters={"page": non_existent_page, "per_page": 1}
-    )
+    response_status, response_data = api_get(url, query_parameters={"page": non_existent_page, "per_page": 1})
     assert response_status == 404
 
 

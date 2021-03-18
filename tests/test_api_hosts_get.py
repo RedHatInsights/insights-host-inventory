@@ -36,8 +36,6 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
-# from tests.helpers.test_utils import USER_IDENTITY
-
 
 def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts

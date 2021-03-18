@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app.auth.identity import Identity
+from app.auth.identity import validate
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -30,6 +31,7 @@ from app.queue.events import message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
+
 
 logger = get_logger(__name__)
 
@@ -66,7 +68,9 @@ def _get_identity(host, metadata):
     else:
         identity = _decode_id(metadata.get("b64_identity"))
 
-    return Identity(identity)
+    identity = Identity(identity)
+    validate(identity)
+    return identity
 
 
 # When identity_type is System, set owner_id if missing from the host system_profile
@@ -181,9 +185,9 @@ def handle_message(message, event_producer):
     identity = _get_identity(host, platform_metadata)
 
     if host.get("account") != identity.account_number:
-        raise "The account number in identity does not match the number in the host."
-    # basic-auth does not need owner_id
+        raise ValidationException("The account number in identity does not match the number in the host.")
 
+    # basic-auth does not need owner_id
     if identity.identity_type == "System":
         host = _set_owner(host, identity)
 

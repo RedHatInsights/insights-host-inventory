@@ -2,8 +2,6 @@ from requests import exceptions
 
 from tests.helpers.api_utils import build_hosts_url
 
-# from tests.helpers.test_utils import USER_IDENTITY
-
 
 def test_rbac_retry_error_handling(mocker, db_create_host, api_get, enable_rbac):
     request_session_get_mock = mocker.patch("lib.middleware.Session.get")

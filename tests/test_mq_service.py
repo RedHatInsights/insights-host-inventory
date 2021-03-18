@@ -284,8 +284,9 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
         system_profile=expected_system_profile,
     )
 
-    with pytest.raises(InventoryException):
+    with pytest.raises(ValidationException) as ve:
         key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+    assert str(ve.value) == "The owner in host does not match the owner in identity"
 
 
 def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
@@ -1172,5 +1173,6 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
 
-    with pytest.raises(InventoryException):
+    with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer)
+    assert str(ve.value) == "The owner in host does not match the owner in identity"

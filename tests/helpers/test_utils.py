@@ -73,12 +73,6 @@ def set_environment(new_env=None):
     patched_dict.stop()
 
 
-# owner_id needed for hosts owned by system accounts.
-def _set_owner_id(values):
-    values.setdefault("system_profile", {}).setdefault("owner_id", SYSTEM_IDENTITY["system"]["cn"])
-    return values
-
-
 def minimal_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
