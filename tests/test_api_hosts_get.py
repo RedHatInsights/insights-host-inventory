@@ -41,7 +41,7 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
 
-    response_status, response_data = api_get(HOST_URL, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
     assert expected_host_list == response_data["results"]
@@ -54,7 +54,7 @@ def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[0]])
 
     url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -66,7 +66,7 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
 
     url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 2
@@ -78,7 +78,7 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
     expected_host_list = build_expected_host_list([created_hosts[2]])
 
     url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -87,7 +87,7 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
 
 def test_query_using_non_existent_fqdn(api_get):
     url = build_hosts_url(query="?fqdn=ROFLSAUCE.com")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -100,7 +100,7 @@ def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_
     host_name_substr = created_hosts[0].display_name[:4]
 
     url = build_hosts_url(query=f"?display_name={host_name_substr}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert expected_host_list == response_data["results"]
@@ -147,7 +147,7 @@ def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests
     for host_id_list in chain(only_bad_id, with_bad_id):
         with subtests.test(host_id_list=host_id_list):
             url = build_hosts_url(host_list_or_id=host_id_list)
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+            response_status, response_data = api_get(url)
             assert response_status == 400
 
 
@@ -177,7 +177,7 @@ def test_query_host_id_with_incorrect_formats(api_get, subtests):
     for bad_host_id in bad_host_ids:
         with subtests.test():
             url = build_hosts_url(host_list_or_id=bad_host_id)
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+            response_status, response_data = api_get(url)
             assert response_status == 400
 
 
@@ -199,7 +199,7 @@ def test_query_using_display_name_as_hostname(mq_create_three_specific_hosts, ap
     created_hosts = mq_create_three_specific_hosts
 
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].display_name}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 2
@@ -211,7 +211,7 @@ def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, s
     created_hosts = mq_create_three_specific_hosts
 
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[2].display_name}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -223,7 +223,7 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
     url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -233,7 +233,7 @@ def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
 
 def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_get, subtests):
     url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -243,7 +243,7 @@ def test_query_using_non_existent_hostname(mq_create_three_specific_hosts, api_g
 
 def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, subtests):
     url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -255,7 +255,7 @@ def test_query_with_matching_insights_id(mq_create_three_specific_hosts, api_get
     created_hosts = mq_create_three_specific_hosts
 
     url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 1
@@ -265,7 +265,7 @@ def test_query_with_matching_insights_id(mq_create_three_specific_hosts, api_get
 
 def test_query_with_no_matching_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     url = build_hosts_url(query=f"?insights_id={generate_uuid()}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -275,7 +275,7 @@ def test_query_with_no_matching_insights_id(mq_create_three_specific_hosts, api_
 
 def test_query_with_invalid_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     url = build_hosts_url(query="?insights_id=notauuid")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -285,7 +285,7 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
     valid_insights_id = created_hosts[0].insights_id
 
     url = build_hosts_url(query=f"?insights_id={valid_insights_id}&branch_id=123")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
 
@@ -294,7 +294,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
     mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
     fqdn = "some fqdn"
     url = build_hosts_url(query=f"?fqdn={fqdn}")
-    api_get(url, SYSTEM_IDENTITY)
+    api_get(url)
     mock.assert_called_once_with(Identity(SYSTEM_IDENTITY), "fqdn", fqdn)
 
 
@@ -304,7 +304,7 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
 
     url = build_hosts_url(query=f"?insights_id={insights_id}")
-    api_get(url, SYSTEM_IDENTITY)
+    api_get(url)
 
     mock.assert_called_once_with(Identity(SYSTEM_IDENTITY), "insights_id", insights_id)
 
@@ -314,7 +314,7 @@ def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?tags=SPECIAL/tag=ToFind")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -330,7 +330,7 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
     expected_response_list = [created_hosts[0], created_hosts[1]]
 
     url = build_hosts_url(query="?tags=NS1/key1=val1&order_by=updated&order_how=ASC")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -350,7 +350,7 @@ def test_get_host_by_multiple_tags(mq_create_three_specific_hosts, api_get, subt
     expected_response_list = [created_hosts[1]]
 
     url = build_hosts_url(query="?tags=NS1/key1=val1,NS2/key2=val2,NS3/key3=val3")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -369,7 +369,7 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
     expected_response_list = [created_hosts[1]]
 
     url = build_hosts_url(query="?tags=NS1/key1=val1,NS3/key3=val3")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -388,7 +388,7 @@ def test_get_host_with_different_tags_same_namespace(mq_create_three_specific_ho
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?tags=NS1/key1=val1,NS1/key2=val1")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -405,7 +405,7 @@ def test_get_no_host_with_different_tags_same_namespace(mq_create_three_specific
     regression test.
     """
     url = build_hosts_url(query="?tags=NS1/key1=val2,NS1/key2=val1")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 0
@@ -419,7 +419,7 @@ def test_get_host_with_same_tags_different_namespaces(mq_create_three_specific_h
     expected_response_list = [created_hosts[2]]
 
     url = build_hosts_url(query="?tags=NS3/key3=val3,NS1/key3=val3")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -438,7 +438,7 @@ def test_get_host_with_tag_no_value_at_all(mq_create_three_specific_hosts, api_g
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?tags=no/key")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -457,7 +457,7 @@ def test_get_host_with_tag_no_value_in_query(mq_create_three_specific_hosts, api
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?tags=NS1/key2")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -476,7 +476,7 @@ def test_get_host_with_tag_no_namespace(mq_create_three_specific_hosts, api_get,
     expected_response_list = [created_hosts[2]]
 
     url = build_hosts_url(query="?tags=key4=val4")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -495,7 +495,7 @@ def test_get_host_with_tag_only_key(mq_create_three_specific_hosts, api_get, sub
     expected_response_list = [created_hosts[2]]
 
     url = build_hosts_url(query="?tags=key5")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -512,7 +512,7 @@ def test_get_host_with_invalid_tag_no_key(mq_create_three_specific_hosts, api_ge
     Expects 400 response.
     """
     url = build_hosts_url(query="?tags=namespace/=Value")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -526,7 +526,7 @@ def test_get_host_by_display_name_and_tag(mq_create_three_specific_hosts, api_ge
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?tags=NS1/key1=val1&display_name=host1")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -546,7 +546,7 @@ def test_get_host_by_display_name_and_tag_backwards(mq_create_three_specific_hos
     expected_response_list = [created_hosts[0]]
 
     url = build_hosts_url(query="?display_name=host1&tags=NS1/key1=val1")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response_list) == len(response_data["results"])
@@ -572,7 +572,7 @@ def test_get_host_tag_part_too_long(tag_query, part_name, mq_create_three_specif
     """
 
     url = build_hosts_url(query=f"?tags={tag_query}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert_error_response(
         response_data, expected_status=400, expected_detail=f"{part_name} is longer than 255 characters"
@@ -590,7 +590,7 @@ def test_get_host_with_unescaped_special_characters(tag_query, mq_create_or_upda
     created_host = mq_create_or_update_host(host)
 
     url = build_hosts_url(query=f"?tags={quote(tag_query)}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["count"]
@@ -611,7 +611,7 @@ def test_get_host_with_escaped_special_characters(namespace, key, value, mq_crea
 
     tags_query = quote(f"{quote_everything(namespace)}/{quote_everything(key)}={quote_everything(value)}")
     url = build_hosts_url(query=f"?tags={tags_query}")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["count"]
@@ -630,7 +630,7 @@ def tests_hosts_are_ordered_by_updated_desc_by_default(mq_create_four_specific_h
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+            response_status, response_data = api_get(url)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=created_hosts)
 
@@ -648,7 +648,7 @@ def tests_hosts_ordered_by_updated_are_descending_by_default(mq_create_four_spec
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=created_hosts)
 
@@ -666,7 +666,7 @@ def tests_hosts_are_ordered_by_updated_descending(mq_create_four_specific_hosts,
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=created_hosts)
 
@@ -683,7 +683,7 @@ def tests_hosts_are_ordered_by_updated_ascending(mq_create_four_specific_hosts, 
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=created_hosts)
 
@@ -701,7 +701,7 @@ def tests_hosts_ordered_by_display_name_are_ascending_by_default(mq_create_four_
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=expected_hosts)
 
@@ -719,7 +719,7 @@ def tests_hosts_are_ordered_by_display_name_ascending(mq_create_four_specific_ho
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=expected_hosts)
 
@@ -737,7 +737,7 @@ def tests_hosts_are_ordered_by_display_name_descending(mq_create_four_specific_h
 
     for url in urls:
         with subtests.test(url=url):
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert_response_status(response_status, expected_status=200)
             assert_host_ids_in_response(response_data, expected_hosts=expected_hosts)
 
@@ -763,7 +763,7 @@ def _test_order_by_id_desc(inventory_config, api_get, subtests, created_hosts, s
         for url in urls:
             with subtests.test(url=url, updates=updates):
                 order_query_parameters = build_order_query_parameters(order_by=order_by, order_how=order_how)
-                response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+                response_status, response_data = api_get(url, query_parameters=order_query_parameters)
 
                 assert_response_status(response_status, expected_status=200)
                 assert_host_ids_in_response(response_data, expected_hosts)
@@ -819,7 +819,7 @@ def test_invalid_order_by(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="fqdn", order_how="ASC")
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -834,7 +834,7 @@ def test_invalid_order_how(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by="display_name", order_how="asc")
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -849,7 +849,7 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
     for url in urls:
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by=None, order_how="ASC")
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters=order_query_parameters)
+            response_status, response_data = api_get(url, query_parameters=order_query_parameters)
             assert response_status == 400
 
 
@@ -860,7 +860,7 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
 
     url = build_hosts_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(response_data["results"]) == 3
@@ -900,7 +900,7 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get, e
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(SYSTEM_IDENTITY)
+            host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
             response_status, response_data = api_get(url)
@@ -949,7 +949,7 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
             with subtests.test(values=values, path=path):
                 url = build_hosts_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
 
-                response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+                response_status, response_data = api_get(url)
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1

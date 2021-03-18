@@ -15,9 +15,6 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
-from tests.helpers.test_utils import SYSTEM_IDENTITY
-
-
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
 SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
@@ -237,9 +234,7 @@ def assert_paginated_response_counts(response_data, expected_per_page, expected_
 def api_per_page_test(api_get, subtests, url, per_page, num_pages):
     for page in range(1, num_pages):
         with subtests.test(page=page, per_page=per_page):
-            response_status, response_data = api_get(
-                url, SYSTEM_IDENTITY, query_parameters={"page": page, "per_page": per_page}
-            )
+            response_status, response_data = api_get(url, query_parameters={"page": page, "per_page": per_page})
             yield response_status, response_data
 
 
@@ -290,7 +285,7 @@ def api_tags_count_pagination_test(
 
 
 def api_query_test(api_get, subtests, url, expected_host_list):
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     total_expected = len(expected_host_list)
     host_data = build_expected_host_list(expected_host_list)

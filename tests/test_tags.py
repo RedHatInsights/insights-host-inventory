@@ -27,7 +27,7 @@ def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subt
     expected_response = {host.id: host.tags for host in created_hosts}
 
     url = build_host_tags_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -40,7 +40,7 @@ def test_get_tag_count_of_multiple_hosts(mq_create_four_specific_hosts, api_get,
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
     url = build_tags_count_url(host_list_or_id=created_hosts, query="?order_by=updated&order_how=ASC")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -160,7 +160,7 @@ def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_h
     ):
         with subtests.test(search=search):
             url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?search={search}")
-            response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+            response_status, response_data = api_get(url)
 
             assert response_status == 200
             assert len(results.keys()) == len(response_data["results"].keys())
@@ -190,7 +190,7 @@ def test_get_tags_from_host_with_no_tags(mq_create_four_specific_hosts, api_get)
     expected_response = {host_with_no_tags.id: []}
 
     url = build_host_tags_url(host_list_or_id=host_with_no_tags.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert len(expected_response) == len(response_data["results"])
@@ -205,7 +205,7 @@ def test_get_tags_from_host_with_null_tags(tags, mq_create_four_specific_hosts, 
     update_host_in_db(host_id, tags=tags)
 
     url = build_host_tags_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {host_id: []} == response_data["results"]
@@ -220,7 +220,7 @@ def test_get_tags_count_from_host_with_null_tags(tags, mq_create_four_specific_h
     update_host_in_db(host_id, tags=tags)
 
     url = build_tags_count_url(host_list_or_id=host_id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {host_id: 0} == response_data["results"]
@@ -234,7 +234,7 @@ def test_get_tags_count_from_host_with_no_tags(mq_create_four_specific_hosts, ap
     host_with_no_tags = created_hosts[3]
 
     url = build_tags_count_url(host_list_or_id=host_with_no_tags.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {host_with_no_tags.id: 0} == response_data["results"]
@@ -248,7 +248,7 @@ def test_get_tags_count_from_host_with_tag_with_no_value(mq_create_four_specific
     host_with_valueless_tag = created_hosts[0]
 
     url = build_tags_count_url(host_list_or_id=host_with_valueless_tag.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert {host_with_valueless_tag.id: 4} == response_data["results"]

@@ -36,7 +36,7 @@ def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, sub
 
     url = build_system_profile_url(host_list_or_id=created_host.id)
 
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
     assert response_data["results"][0]["system_profile"] == system_profile
     assert response_status == 200
 
@@ -47,7 +47,7 @@ def test_system_profile_sap_system_endpoint_response(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SYSTEM["hostSystemProfile"]["sap_system"]["data"]
@@ -64,7 +64,7 @@ def test_system_profile_sap_sids_endpoint_response(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert response_data["results"] == XJOIN_SYSTEM_PROFILE_SAP_SIDS["hostSystemProfile"]["sap_sids"]["data"]

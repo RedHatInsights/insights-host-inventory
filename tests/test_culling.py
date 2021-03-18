@@ -47,7 +47,7 @@ def test_with_stale_timestamp(mq_create_or_update_host, api_get):
 
 def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
     url = build_hosts_url(query="?staleness=culled")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 400
 
@@ -56,7 +56,7 @@ def test_get_only_fresh(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(query="?staleness=fresh")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["fresh"]])
@@ -66,7 +66,7 @@ def test_get_only_stale(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(query="?staleness=stale")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["stale"]])
@@ -76,7 +76,7 @@ def test_get_only_stale_warning(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(query="?staleness=stale_warning")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["stale_warning"]])
@@ -94,7 +94,7 @@ def test_get_multiple_states(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(query="?staleness=fresh,stale")
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert_host_ids_in_response(response_data, [created_hosts["fresh"], created_hosts["stale"]])
@@ -113,7 +113,7 @@ def test_get_hosts_by_id_default_ignores_culled(mq_create_hosts_in_all_states, a
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
@@ -123,7 +123,7 @@ def test_tags_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_host_tags_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
@@ -133,7 +133,7 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_tags_count_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
@@ -143,7 +143,7 @@ def test_get_system_profile_ignores_culled(mq_create_hosts_in_all_states, api_ge
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_system_profile_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
 
     assert response_status == 200
     assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
@@ -273,7 +273,7 @@ def test_stale_warning_timestamp(
     created_host = mq_create_or_update_host(host)
 
     url = build_hosts_url(created_host.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
     assert response_status == 200
 
     stale_warning_timestamp = stale_timestamp + timedelta(
@@ -296,7 +296,7 @@ def test_culled_timestamp(
     created_host = mq_create_or_update_host(host)
 
     url = build_hosts_url(created_host.id)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(url)
     assert response_status == 200
 
     culled_timestamp = stale_timestamp + timedelta(

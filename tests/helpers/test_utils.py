@@ -17,7 +17,7 @@ NS = "testns"
 ID = "whoabuddy"
 
 SYSTEM_IDENTITY = {
-    "account_number": "sysaccount",
+    "account_number": "test",
     "auth_type": "cert-auth",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
     "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
@@ -25,7 +25,7 @@ SYSTEM_IDENTITY = {
 }
 
 INSIGHTS_CLASSIC_IDENTITY = {
-    "account_number": "classic",
+    "account_number": "test",
     "auth_type": "classic-proxy",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
     "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
@@ -33,7 +33,7 @@ INSIGHTS_CLASSIC_IDENTITY = {
 }
 
 USER_IDENTITY = {
-    "account_number": "usraccount",
+    "account_number": "test",
     "type": "User",
     "auth_type": "basic-auth",
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
