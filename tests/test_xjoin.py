@@ -1603,11 +1603,7 @@ def test_query_system_profile_sap_sids_system_identity(
 
     graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
         SAP_SIDS_QUERY,
-        {
-            "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},)},
-            "limit": 50,
-            "offset": 0,
-        },
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
@@ -1623,11 +1619,7 @@ def test_query_system_profile_sap_system_system_identity(
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
-        {
-            "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},)},
-            "limit": 50,
-            "offset": 0,
-        },
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
