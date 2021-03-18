@@ -60,7 +60,7 @@ class Config:
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
         )
-        self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.events")
+        self.host_egress_topic = os.environ.get("KAFKA_EVENTS_TOPIC", "platform.inventory.events")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
