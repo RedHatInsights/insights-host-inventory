@@ -168,12 +168,6 @@ There are three types of events HBI produces: `created` , `updated`,
 and `delete`. All the events are sent as kafka messages to the
 `platform.inventory.events` kafka topic.
 
-Note
-
-The `created` and `updated` events are also sent to the
-`platform.inventory.host-egress` topic. This topic is **DEPRECATED**
-and will be removed in the future.
-
 Every event uses the host identifier as the kafka message key. The kafka
 message value is specific to each event type and is described below.
 
