@@ -31,6 +31,9 @@ from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
+# from app.auth.identity import Identity
+# from tests.helpers.test_utils import USER_IDENTITY
+
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
@@ -1176,3 +1179,41 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+
+
+# def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests):
+#     mocker.patch("app.queue.queue.build_event")
+#     add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
+
+#     operation_raw = "🧜🏿‍♂️"
+#     operation_escaped = json.dumps(operation_raw)[1:-1]
+
+#     # host1 = minimal_host(display_name=f"{operation_raw}{operation_raw}")
+#     # host2 = minimal_host(display_name=f"{operation_escaped}{operation_escaped}")
+#     # host3 = minimal_host(display_name=f"{operation_raw}{operation_escaped}")
+#     host1 = minimal_host(account=SYSTEM_IDENTITY["account_number"],
+#                           display_name=f"{operation_raw}{operation_escaped}")
+#     host2 = minimal_host(account=SYSTEM_IDENTITY["account_number"],
+#                           display_name=f"{operation_raw}{operation_escaped}")
+#     host3 = minimal_host(account=SYSTEM_IDENTITY["account_number"],
+#                           display_name=f"{operation_raw}{operation_escaped}")
+#     host1.reporter = "me"
+#     host2.reporter = "me"
+#     host3.reporter = "me"
+#     msg1 = json.dumps(wrap_message(host1.data(), "", get_platform_metadata_with_system_identity()))
+#     msg2 = json.dumps(wrap_message(host2.data(), "", get_platform_metadata_with_system_identity()))
+#     msg3 = json.dumps(wrap_message(host3.data(), "", get_platform_metadata_with_system_identity()))
+
+#     messages = (msg1, msg2, msg3)
+
+#     for message in messages:
+#         with subtests.test(message=message):
+#             host_id = generate_uuid()
+#             add_host.reset_mock()
+#             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+#             handle_message(message, mocker.Mock())
+#             # add_host.assert_called_once()
+#             # import pdb; pdb.set_trace()
+#             add_host.assert_called_once_with(
+#                 host1.data(), Identity(SYSTEM_IDENTITY)
+#            )
