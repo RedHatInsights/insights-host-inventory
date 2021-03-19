@@ -261,7 +261,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
     }
 
     inserted_host = Host(**values)
-    db_create_host(USER_IDENTITY, inserted_host)
+    db_create_host(host=inserted_host)
 
     selected_host = db_get_host(inserted_host.id)
     for key, value in values.items():
@@ -362,7 +362,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=stale_timestamp
     )
-    created_host = db_create_host(USER_IDENTITY, input_host)
+    created_host = db_create_host(host=input_host)
 
     assert created_host.per_reporter_staleness == {
         "puptoo": {
@@ -378,7 +378,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=puptoo_stale_timestamp
     )
-    existing_host = db_create_host(USER_IDENTITY, input_host)
+    existing_host = db_create_host(host=input_host)
 
     assert existing_host.per_reporter_staleness == {
         "puptoo": {

@@ -21,7 +21,6 @@ from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_with_stale_timestamp(mq_create_or_update_host, api_get):
@@ -36,11 +35,11 @@ def test_with_stale_timestamp(mq_create_or_update_host, api_get):
     updated_host = mq_create_or_update_host(host)
     assert_system_culling_data(updated_host.data(), stale_timestamp, reporter)
 
-    response_status, response_data = api_get(HOST_URL, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
     assert response_status == 200
     assert_system_culling_data(response_data["results"][0], stale_timestamp, reporter)
 
-    response_status, response_data = api_get(build_hosts_url(created_host.id), SYSTEM_IDENTITY)
+    response_status, response_data = api_get(build_hosts_url(created_host.id))
     assert response_status == 200
     assert_system_culling_data(response_data["results"][0], stale_timestamp, reporter)
 
@@ -316,7 +315,7 @@ def test_culled_host_is_removed(
         stale_timestamp=staleness_timestamps["culled"],
         reporter="some reporter",
     )
-    created_host = db_create_host(SYSTEM_IDENTITY, host)
+    created_host = db_create_host(host=host)
 
     assert db_get_host(created_host.id)
 
@@ -347,7 +346,7 @@ def test_non_culled_host_is_not_removed(
         staleness_timestamps["fresh"],
     ):
         host = minimal_db_host(stale_timestamp=stale_timestamp, reporter="some reporter")
-        created_host = db_create_host(USER_IDENTITY, host)
+        created_host = db_create_host(host=host)
         created_hosts.append(created_host)
 
     created_host_ids = sorted([host.id for host in created_hosts])
@@ -382,7 +381,7 @@ def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hos
             stale_timestamp=staleness_timestamps["culled"],
             reporter="some reporter",
         )
-        created_host = db_create_host(SYSTEM_IDENTITY, host_data)
+        created_host = db_create_host(host=host_data)
         created_host_ids.append(created_host.id)
 
     created_hosts = db_get_hosts(created_host_ids)

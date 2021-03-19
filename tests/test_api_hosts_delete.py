@@ -14,7 +14,6 @@ from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 
 
 def test_delete_non_existent_host(api_delete_host):
@@ -143,7 +142,7 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
 
 
 def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
-    hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=2)
+    hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list))
@@ -158,7 +157,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
 
 
 def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
-    hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=2)
+    hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list[0:1]))
@@ -243,7 +242,7 @@ def test_delete_hosts_chunk_size(
     query_wraper = DeleteQueryWrapper(mocker)
     mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
 
-    hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=2)
+    hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(host.id) for host in hosts]
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
@@ -262,7 +261,7 @@ def test_delete_stops_after_kafka_producer_error(
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
-    hosts = db_create_multiple_hosts(USER_IDENTITY, how_many=3)
+    hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
 
     response_status, response_data = api_delete_host(",".join(host_id_list))

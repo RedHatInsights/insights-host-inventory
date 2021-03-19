@@ -323,7 +323,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            host = db_create_host(SYSTEM_IDENTITY)
+            host = db_create_host()
 
             url = build_host_tags_url(host_list_or_id=host.id)
             response_status, response_data = api_get(url)
@@ -392,8 +392,8 @@ def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_x
             implicit_url = build_tags_url(query=f"?filter[system_profile][sap_system]={value}")
             eq_url = build_tags_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-            implicit_response_status, implicit_response_data = api_get(implicit_url, SYSTEM_IDENTITY)
-            eq_response_status, eq_response_data = api_get(eq_url, SYSTEM_IDENTITY)
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
 
             assert_response_status(implicit_response_status, 200)
             assert_response_status(eq_response_status, 200)
