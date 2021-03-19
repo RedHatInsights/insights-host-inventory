@@ -192,9 +192,6 @@ class HostWrapper:
         return f"HostWrapper({json.dumps(self.__data, indent=2)})"
 
     def __eq__(self, other):
-        # temparory workaround for partial host comparison.  https://issues.redhat.com/browse/RHCLOUD-13072
-        if isinstance(other, dict):
-            return self.__dict__["_HostWrapper__data"] == other
         return self.__data == other.__data
 
 

@@ -10,6 +10,7 @@ from sqlalchemy import null
 from sqlalchemy.exc import OperationalError
 
 from app import db
+from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.queue.event_producer import Topic
@@ -29,10 +30,8 @@ from tests.helpers.test_utils import get_platform_metadata_with_system_identity
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
-
-# from app.auth.identity import Identity
-# from tests.helpers.test_utils import USER_IDENTITY
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -184,6 +183,39 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
         handle_message(invalid_message, mocker.Mock())
 
     add_host.assert_not_called()
+
+
+def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_host):
+    mocker.patch("app.queue.queue.build_event")
+    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
+
+    operation_raw = "🧜🏿‍♂️"
+    operation_escaped = json.dumps(operation_raw)[1:-1]
+
+    names = [
+        f"{operation_raw}{operation_raw}",
+        f"{operation_escaped}{operation_escaped}",
+        f"{operation_raw}{operation_escaped}",
+    ]
+
+    OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
+    messages = []
+
+    for name in names:
+        host = minimal_host(display_name=name, system_profile={"owner_id": OWNER_ID})
+        host.reporter = "me"
+        msg = json.dumps(wrap_message(host.data(), "", get_platform_metadata_with_system_identity()))
+        messages.append(msg)
+
+    messages_tuple = tuple(messages)
+
+    for message in messages_tuple:
+        with subtests.test(message=message):
+            host_id = generate_uuid()
+            add_host.reset_mock()
+            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+            handle_message(message, mocker.Mock())
+            add_host.assert_called_once_with(json.loads(message)["data"], Identity(USER_IDENTITY))
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1179,23 +1211,3 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
-
-
-def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_host):
-    mocker.patch("app.queue.queue.build_event")
-    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
-
-    operation_raw = "🧜🏿‍♂️"
-    operation_escaped = json.dumps(operation_raw)[1:-1]
-
-    OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
-    host1 = minimal_host(display_name=f"{operation_raw}{operation_escaped}", system_profile={"owner_id": OWNER_ID})
-    host1.reporter = "me"
-
-    message = json.dumps(wrap_message(host1.data(), "", get_platform_metadata_with_system_identity()))
-
-    host_id = generate_uuid()
-    add_host.reset_mock()
-    add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-    handle_message(message, mocker.Mock())
-    add_host.assert_called_once_with(host1, mocker.ANY)
