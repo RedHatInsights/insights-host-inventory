@@ -1,4 +1,7 @@
-# Host Based Inventory
+---
+date: 2021-03-19 13:30:00.997996
+title: Host-Inventory
+---
 
 Host Based Inventory (HBI) is the source of truth for system, or host,
 information across the entire platform. HBI consumes information about
