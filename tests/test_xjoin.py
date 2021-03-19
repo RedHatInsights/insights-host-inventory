@@ -1792,3 +1792,96 @@ def test_sp_sparse_xjoin_query_translation(
 
     assert response_status == 200
     graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)
+
+
+def test_query_hosts_filter_per_reporter_staleness(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    queries_http = (
+        "filter[per_reporter_staleness][yupana][exists]",
+        "filter[per_reporter_staleness][yupana][exists]&filter[per_reporter_staleness][puptoo][exists]",
+        "filter[per_reporter_staleness][yupana][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00",
+        "filter[per_reporter_staleness][yupana][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00",
+        "filter[per_reporter_staleness][yupana][check_in_succeeded]=true",
+        (
+            "filter[per_reporter_staleness][yupana][exists]"
+            "&filter[per_reporter_staleness][yupana][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
+            "&filter[per_reporter_staleness][yupana][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
+            "&filter[per_reporter_staleness][yupana][check_in_succeeded]=true"
+            "&filter[per_reporter_staleness][puptoo][exists]"
+            "&filter[per_reporter_staleness][puptoo][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
+            "&filter[per_reporter_staleness][puptoo][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
+            "&filter[per_reporter_staleness][puptoo][check_in_succeeded]=true"
+        ),
+    )
+    queries_graphql = (
+        {"AND": [{"per_reporter_staleness": {"reporter": "yupana"}}]},
+        {
+            "AND": [
+                {"per_reporter_staleness": {"reporter": "puptoo"}},
+                {"per_reporter_staleness": {"reporter": "yupana"}},
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "per_reporter_staleness": {
+                        "reporter": "yupana",
+                        "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
+                    }
+                }
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "per_reporter_staleness": {
+                        "reporter": "yupana",
+                        "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
+                    }
+                }
+            ]
+        },
+        {"AND": [{"per_reporter_staleness": {"reporter": "yupana", "check_in_succeeded": {"is": True}}}]},
+        {
+            "AND": [
+                {
+                    "per_reporter_staleness": {
+                        "reporter": "puptoo",
+                        "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
+                        "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
+                        "check_in_succeeded": {"is": True},
+                    }
+                },
+                {
+                    "per_reporter_staleness": {
+                        "reporter": "yupana",
+                        "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
+                        "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
+                        "check_in_succeeded": {"is": True},
+                    }
+                },
+            ]
+        },
+    )
+
+    for http_query, graphql_query in zip(queries_http, queries_graphql):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()

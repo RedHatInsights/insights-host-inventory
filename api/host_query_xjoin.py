@@ -185,13 +185,55 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
     if filter:
         if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                query_filters += build_sap_system_filters(filter["system_profile"]["sap_system"])
-            if filter["system_profile"].get("sap_sids"):
-                query_filters += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            system_profile_filter = _build_system_profile_filter(filter["system_profile"])
+            if system_profile_filter != ():
+                query_filters += system_profile_filter
+        if filter.get("per_reporter_staleness"):
+            print("!!!!!!!!!!!!!!!PRS!!!!!!!!!!")
+            per_reporter_staleness_filter = _build_per_reporter_staleness_filter(filter["per_reporter_staleness"])
+            if per_reporter_staleness_filter != ():
+                query_filters += per_reporter_staleness_filter
 
     logger.debug(query_filters)
     return query_filters
+
+
+def _build_system_profile_filter(system_profile):
+    system_profile_filter = tuple()
+
+    if system_profile.get("sap_system"):
+        system_profile_filter += build_sap_system_filters(system_profile["sap_system"])
+    if system_profile.get("sap_sids"):
+        system_profile_filter += build_sap_sids_filter(system_profile["sap_sids"])
+
+    return system_profile_filter
+
+
+def _build_per_reporter_staleness_filter(per_reporter_staleness):
+    prs_dict_array = []
+
+    for reporter in per_reporter_staleness:
+        prs_dict = {"reporter": reporter}
+
+        if per_reporter_staleness[reporter].get("stale_timestamp"):
+            prs_dict["stale_timestamp"] = per_reporter_staleness[reporter]["stale_timestamp"]
+        if per_reporter_staleness[reporter].get("last_check_in"):
+            prs_dict["last_check_in"] = per_reporter_staleness[reporter]["last_check_in"]
+        if per_reporter_staleness[reporter].get("check_in_succeeded"):
+            prs_dict["check_in_succeeded"] = {
+                "is": per_reporter_staleness[reporter]["check_in_succeeded"].lower() == "true"
+            }
+
+        prs_dict_array.append({"per_reporter_staleness": prs_dict})
+
+    return ({"AND": prs_dict_array},)
+
+
+def build_prs_reporter_filter(sap_sids):
+    if isinstance(sap_sids, list):
+        return _sap_sids_filters(sap_sids)
+    elif sap_sids.get("contains"):
+        return _sap_sids_filters(sap_sids["contains"])
 
 
 def owner_id_filter():
