@@ -1,4 +1,3 @@
-# import base64
 import json
 from copy import deepcopy
 from datetime import datetime
@@ -30,7 +29,6 @@ from tests.helpers.test_utils import get_platform_metadata_with_system_identity
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -198,7 +196,6 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
         f"{operation_raw}{operation_escaped}",
     ]
 
-    OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
     messages = []
 
     for name in names:
@@ -215,7 +212,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock())
-            add_host.assert_called_once_with(json.loads(message)["data"], Identity(USER_IDENTITY))
+            add_host.assert_called_once_with(json.loads(message)["data"], Identity(SYSTEM_IDENTITY))
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
