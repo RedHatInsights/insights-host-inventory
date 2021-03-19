@@ -7,27 +7,27 @@ from datetime import timedelta
 from datetime import timezone
 
 # good
-# IDENTITY = {
-#     "identity": {
-#         "account_number": "sysaccount",
-#         "type": "System",
-#         "auth_type": "cert-auth",
-#         "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#         "internal": {"org_id": "3340851", "auth_time": 6300},
-#     }
-# }
-# apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
-
-# invalid-auth
 IDENTITY = {
     "identity": {
         "account_number": "sysaccount",
         "type": "System",
-        "auth_type": "invalid-auth",
+        "auth_type": "cert-auth",
         "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
         "internal": {"org_id": "3340851", "auth_time": 6300},
     }
 }
+apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
+
+# invalid-auth
+# IDENTITY = {
+#     "identity": {
+#         "account_number": "sysaccount",
+#         "type": "System",
+#         "auth_type": "invalid-auth",
+#         "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#         "internal": {"org_id": "3340851", "auth_time": 6300},
+#     }
+# }
 apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
 
 
