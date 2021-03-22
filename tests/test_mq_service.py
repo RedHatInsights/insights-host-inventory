@@ -12,7 +12,6 @@ from app import db
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
-from app.queue.event_producer import Topic
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -122,33 +121,33 @@ def test_shutdown_handler(mocker, flask_app):
     assert handle_message_mock.call_count == 2
 
 
-def test_events_sent_to_correct_topic(mocker, flask_app):
-    host_id = generate_uuid()
-    insights_id = generate_uuid()
+# def test_events_sent_to_correct_topic(mocker, flask_app):
+#     host_id = generate_uuid()
+#     insights_id = generate_uuid()
 
-    host = minimal_host(id=host_id, insights_id=insights_id)
+#     host = minimal_host(id=host_id, insights_id=insights_id)
 
-    add_host = mocker.patch(
-        "app.queue.queue.add_host", return_value=({"id": host_id}, host_id, insights_id, AddHostResult.created)
-    )
-    mock_event_producer = mocker.Mock()
+#     add_host = mocker.patch(
+#         "app.queue.queue.add_host", return_value=({"id": host_id}, host_id, insights_id, AddHostResult.created)
+#     )
+#     mock_event_producer = mocker.Mock()
 
-    message = wrap_message(host.data())
-    handle_message(json.dumps(message), mock_event_producer)
+#     message = wrap_message(host.data())
+#     handle_message(json.dumps(message), mock_event_producer)
 
-    assert mock_event_producer.write_event.call_count == 1
-    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
+#     assert mock_event_producer.write_event.call_count == 1
+#     assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
 
-    mock_event_producer.reset_mock()
+#     mock_event_producer.reset_mock()
 
-    # for host update events
-    add_host.return_value = ({"id": host_id}, host_id, insights_id, AddHostResult.updated)
+#     # for host update events
+#     add_host.return_value = ({"id": host_id}, host_id, insights_id, AddHostResult.updated)
 
-    message["data"].update(stale_timestamp=(now() + timedelta(hours=26)).isoformat())
-    handle_message(json.dumps(message), mock_event_producer)
+#     message["data"].update(stale_timestamp=(now() + timedelta(hours=26)).isoformat())
+#     handle_message(json.dumps(message), mock_event_producer)
 
-    assert mock_event_producer.write_event.call_count == 1
-    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
+#     assert mock_event_producer.write_event.call_count == 1
+#     assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
 
 
 # Leaving this in as a reminder that we need to impliment this test eventually
