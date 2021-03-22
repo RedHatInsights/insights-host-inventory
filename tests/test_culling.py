@@ -20,7 +20,6 @@ from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_with_stale_timestamp(mq_create_or_update_host, api_get):
@@ -310,11 +309,7 @@ def test_culled_host_is_removed(
 ):
     staleness_timestamps = get_staleness_timestamps()
 
-    host = minimal_db_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        stale_timestamp=staleness_timestamps["culled"],
-        reporter="some reporter",
-    )
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
     created_host = db_create_host(host=host)
 
     assert db_get_host(created_host.id)
@@ -376,11 +371,7 @@ def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hos
 
     host_count = 3
     for _ in range(host_count):
-        host_data = minimal_db_host(
-            account=SYSTEM_IDENTITY["account_number"],
-            stale_timestamp=staleness_timestamps["culled"],
-            reporter="some reporter",
-        )
+        host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
         created_host = db_create_host(host=host_data)
         created_host_ids.append(created_host.id)
 
@@ -458,7 +449,7 @@ def test_reaper_stops_after_kafka_producer_error(
 
     host_count = 3
     created_hosts = db_create_multiple_hosts(
-        SYSTEM_IDENTITY, how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"]}
+        how_many=host_count, extra_data={"stale_timestamp": staleness_timestamps["culled"]}
     )
     created_host_ids = [str(host.id) for host in created_hosts]
 
