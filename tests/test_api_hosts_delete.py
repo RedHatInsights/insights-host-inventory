@@ -59,7 +59,7 @@ def test_create_then_delete_with_branch_id(
 
 
 def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
-    host = db_create_host()
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
@@ -93,7 +93,7 @@ def test_create_then_delete_without_insights_id(
     host = db_host()
     del host.canonical_facts["insights_id"]
 
-    db_create_host(host)
+    db_create_host(host=host)
 
     response_status, response_data = api_delete_host(host.id)
 
@@ -103,7 +103,9 @@ def test_create_then_delete_without_insights_id(
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
-    host = db_create_host()
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
@@ -122,7 +124,9 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
 
 
 def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, api_delete_host, mocker):
-    host = db_create_host()
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock([host.id]))
 
@@ -184,7 +188,7 @@ def test_delete_host_with_RBAC_allowed(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id, identity_type="User")
+            response_status, response_data = api_delete_host(host.id)
 
             assert_response_status(response_status, 200)
 
@@ -205,7 +209,7 @@ def test_delete_host_with_RBAC_denied(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(host.id, identity_type="User")
+            response_status, response_data = api_delete_host(host.id)
 
             assert_response_status(response_status, 403)
 
@@ -215,9 +219,11 @@ def test_delete_host_with_RBAC_denied(
 def test_delete_host_with_RBAC_bypassed_as_system(
     api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
 ):
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
-    response_status, response_data = api_delete_host(host.id, identity_type="System")
+    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 

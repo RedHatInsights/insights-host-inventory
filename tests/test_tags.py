@@ -15,6 +15,7 @@ from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_get_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
@@ -306,7 +307,7 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, db_create_host, api_g
             host = db_create_host()
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -325,7 +326,7 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
             host = db_create_host()
 
             url = build_host_tags_url(host_list_or_id=host.id)
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 403)
 
@@ -336,6 +337,7 @@ def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, 
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     created_hosts = mq_create_four_specific_hosts
+
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -372,10 +374,10 @@ def test_get_host_tag_count_RBAC_denied(mq_create_four_specific_hosts, mocker, a
 
 
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, enable_rbac):
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
 
     url = build_host_tags_url(host_list_or_id=host.id)
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 

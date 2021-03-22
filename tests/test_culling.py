@@ -149,7 +149,6 @@ def test_get_system_profile_ignores_culled(mq_create_hosts_in_all_states, api_ge
 
 def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
     culled_host = mq_create_hosts_in_all_states["culled"]
-
     url = build_hosts_url(host_list_or_id=[culled_host])
     response_status, response_data = api_patch(url, {"display_name": "patched"})
 
@@ -311,7 +310,7 @@ def test_culled_host_is_removed(
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
-    created_host = db_create_host(host)
+    created_host = db_create_host(host=host)
 
     assert db_get_host(created_host.id)
 
@@ -342,7 +341,7 @@ def test_non_culled_host_is_not_removed(
         staleness_timestamps["fresh"],
     ):
         host = minimal_db_host(stale_timestamp=stale_timestamp, reporter="some reporter")
-        created_host = db_create_host(host)
+        created_host = db_create_host(host=host)
         created_hosts.append(created_host)
 
     created_host_ids = sorted([host.id for host in created_hosts])
@@ -373,7 +372,7 @@ def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hos
     host_count = 3
     for _ in range(host_count):
         host_data = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
-        created_host = db_create_host(host_data)
+        created_host = db_create_host(host=host_data)
         created_host_ids.append(created_host.id)
 
     created_hosts = db_get_hosts(created_host_ids)
