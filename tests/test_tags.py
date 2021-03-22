@@ -333,10 +333,10 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, db_create_host, api_ge
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_host_tag_count_RBAC_allowed(db_create_host, mocker, api_get, subtests, enable_rbac):
+def test_get_host_tag_count_RBAC_allowed(mq_create_four_specific_hosts, mocker, api_get, subtests, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    created_hosts = [db_create_host()]
+    created_hosts = mq_create_four_specific_hosts
 
     expected_response = {host.id: len(host.tags) for host in created_hosts}
 
