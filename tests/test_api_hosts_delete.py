@@ -59,14 +59,12 @@ def test_create_then_delete_with_branch_id(
 
 
 def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
-    host = db_create_host(
-        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
-    )
+    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY, extra_headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -112,7 +110,7 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY, extra_headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -134,7 +132,7 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
 
     # One host queried, but deleted by a different process. No event emitted yet returning
     # 200 OK.
-    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
