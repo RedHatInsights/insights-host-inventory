@@ -5,7 +5,6 @@ from app.auth.identity import Identity
 from tests.helpers.api_utils import build_token_auth_header
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
-from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -123,28 +122,6 @@ def test_invalid_system_identities(flask_client, subtests):
         with subtests.test():
             response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
             assert 401 == response.status_code  # Bad identity
-
-
-def test_insights_classic_workaround(flask_client):
-    payload = create_identity_payload(Identity(INSIGHTS_CLASSIC_IDENTITY))
-    response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-    assert 200 == response.status_code  # OK
-
-
-# This one can likely be removed when the insights classic workaround is
-# no longer needed
-def test_validate_valid_user_identity_no_auth_type(flask_client):
-    """
-    Identity header is valid – non-empty in this case
-    """
-    identity_dict = valid_identity("User")._asdict()
-    identity_dict.pop("auth_type")
-    dict_ = {"identity": identity_dict}
-    json = dumps(dict_)
-    payload = b64encode(json.encode())
-
-    response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
-    assert 200 == response.status_code  # OK
 
 
 def test_validate_invalid_token_on_get(flask_client):
