@@ -1117,24 +1117,20 @@ def test_tags_RBAC_denied(
 
 
 def test_bulk_source_header_set_to_db(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"x-rh-cloud-bulk-query-source": "db"}
-    )
+    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
 
 
 def test_bulk_source_header_set_to_xjoin(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"}
-    )
+    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
     assert response_status == 200
     graphql_query_with_response.assert_called_once()
 
 
 def test_referer_header_set_to_beta(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
     response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
+        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
     )
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
@@ -1142,7 +1138,7 @@ def test_referer_header_set_to_beta(query_source_xjoin_beta_db, graphql_query_wi
 
 def test_referer_not_beta(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
     response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
+        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
     )
     assert response_status == 200
     graphql_query_with_response.assert_called_once()
@@ -1155,24 +1151,20 @@ def test_no_header_env_var_xjoin(query_source_xjoin_beta_db, graphql_query_with_
 
 
 def test_bulk_source_header_set_to_db_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"x-rh-cloud-bulk-query-source": "db"}
-    )
+    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
 
 
 def test_bulk_source_header_set_to_xjoin_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"}
-    )
+    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
     assert response_status == 200
     graphql_query_with_response.assert_called_once()
 
 
 def test_referer_not_beta_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
     response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
+        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
     )
     assert response_status == 200
     graphql_query_with_response.assert_not_called()
@@ -1180,7 +1172,7 @@ def test_referer_not_beta_2(query_source_db_beta_xjoin, graphql_query_with_respo
 
 def test_referer_header_set_to_beta_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
     response_status, response_data = api_get(
-        HOST_URL, SYSTEM_IDENTITY, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
+        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
     )
     assert response_status == 200
     graphql_query_with_response.assert_called_once()

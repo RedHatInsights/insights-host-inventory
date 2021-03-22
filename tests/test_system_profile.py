@@ -190,7 +190,7 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
     expected_total = 0
     host_id = generate_uuid()
 
-    response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile", SYSTEM_IDENTITY)
+    response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
     assert_response_status(response_status, 200)
 
@@ -200,7 +200,7 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
 
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
-    response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile", SYSTEM_IDENTITY)
+    response_status, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
 
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 

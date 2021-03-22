@@ -102,7 +102,7 @@ def test_get_multiple_states(mq_create_hosts_in_all_states, api_get):
 def test_get_hosts_list_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
     created_hosts = mq_create_hosts_in_all_states
 
-    response_status, response_data = api_get(HOST_URL, SYSTEM_IDENTITY)
+    response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
     assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
@@ -151,7 +151,7 @@ def test_get_system_profile_ignores_culled(mq_create_hosts_in_all_states, api_ge
 def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
     culled_host = mq_create_hosts_in_all_states["culled"]
     url = build_hosts_url(host_list_or_id=[culled_host])
-    response_status, response_data = api_patch(url, {"display_name": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_patch(url, {"display_name": "patched"})
 
     assert response_status == 404
 
@@ -160,7 +160,7 @@ def test_patch_works_on_non_culled(mq_create_hosts_in_all_states, api_patch):
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     url = build_hosts_url(host_list_or_id=[fresh_host])
-    response_status, response_data = api_patch(url, {"display_name": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_patch(url, {"display_name": "patched"})
 
     assert response_status == 200
 
@@ -169,7 +169,7 @@ def test_patch_facts_ignores_culled(mq_create_hosts_in_all_states, api_patch):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
-    response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
 
     assert response_status == 400
 
@@ -178,7 +178,7 @@ def test_patch_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_patc
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     url = build_facts_url(host_list_or_id=[fresh_host], namespace="ns1")
-    response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_patch(url, {"ARCHITECTURE": "patched"})
 
     assert response_status == 200
 
@@ -188,7 +188,7 @@ def test_put_facts_ignores_culled(mq_create_hosts_in_all_states, api_put):
 
     url = build_facts_url(host_list_or_id=[culled_host], namespace="ns1")
 
-    response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"})
 
     assert response_status == 400
 
@@ -197,7 +197,7 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     url = build_facts_url(host_list_or_id=[fresh_host], namespace="ns1")
-    response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"}, SYSTEM_IDENTITY)
+    response_status, response_data = api_put(url, {"ARCHITECTURE": "patched"})
 
     assert response_status == 200
 
@@ -205,7 +205,7 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
 def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
-    response_status, response_data = api_delete_host(culled_host.id, SYSTEM_IDENTITY)
+    response_status, response_data = api_delete_host(culled_host.id)
 
     assert response_status == 404
 
@@ -213,7 +213,7 @@ def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
 def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host):
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
-    response_status, response_data = api_delete_host(fresh_host.id, SYSTEM_IDENTITY)
+    response_status, response_data = api_delete_host(fresh_host.id)
 
     assert response_status == 200
 
@@ -222,7 +222,7 @@ def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_hosts_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={"staleness": "fresh"})
+    response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400
 
@@ -231,7 +231,7 @@ def test_tags_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_host_tags_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={"staleness": "fresh"})
+    response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400
 
@@ -240,7 +240,7 @@ def test_tags_count_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_tags_count_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={"staleness": "fresh"})
+    response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400
 
@@ -249,7 +249,7 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     created_hosts = mq_create_hosts_in_all_states
 
     url = build_system_profile_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url, SYSTEM_IDENTITY, query_parameters={"staleness": "fresh"})
+    response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400
 
