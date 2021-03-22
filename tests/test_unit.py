@@ -137,7 +137,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 
                 try:
                     actual_identity = from_auth_header(base64)
-                    self.assertEqual(expected_identity, actual_identity)
+                    self.assertEqual(expected_identity.__dict__, actual_identity.__dict__)
                 except (TypeError, ValueError):
                     self.fail()
 

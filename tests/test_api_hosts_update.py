@@ -216,7 +216,7 @@ def test_patch_produces_update_event_no_request_id(
     event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_patch
 ):
     host = db_host()
-    created_host = db_create_host(host)
+    created_host = db_create_host(host=host)
 
     patch_doc = {"display_name": "patch_event_test"}
 
@@ -240,7 +240,7 @@ def test_patch_produces_update_event_with_request_id(
     headers = {"x-rh-insights-request-id": request_id}
 
     host = db_host()
-    created_host = db_create_host(host)
+    created_host = db_create_host(host=host)
 
     url = build_hosts_url(host_list_or_id=created_host.id)
     response_status, response_data = api_patch(url, patch_doc, extra_headers=headers)
@@ -260,7 +260,7 @@ def test_patch_produces_update_event_no_insights_id(
     host = db_host()
     del host.canonical_facts["insights_id"]
 
-    created_host = db_create_host(host)
+    created_host = db_create_host(host=host)
 
     patch_doc = {"display_name": "patch_event_test"}
 
@@ -415,7 +415,7 @@ def test_patch_host_with_RBAC_allowed(subtests, mocker, api_patch, db_create_hos
             host = db_create_host()
 
             url = build_hosts_url(host_list_or_id=host.id)
-            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="User")
+            response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"})
 
             assert_response_status(response_status, 200)
 
@@ -435,7 +435,7 @@ def test_patch_host_with_RBAC_denied(
             url = build_hosts_url(host_list_or_id=host.id)
 
             new_display_name = "fred_flintstone"
-            response_status, response_data = api_patch(url, {"display_name": new_display_name}, identity_type="User")
+            response_status, response_data = api_patch(url, {"display_name": new_display_name})
 
             assert_response_status(response_status, 403)
 
@@ -443,10 +443,12 @@ def test_patch_host_with_RBAC_denied(
 
 
 def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, event_producer_mock, enable_rbac):
-    host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_hosts_url(host_list_or_id=host.id)
-    response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, identity_type="System")
+    response_status, response_data = api_patch(url, {"display_name": "fred_flintstone"}, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 

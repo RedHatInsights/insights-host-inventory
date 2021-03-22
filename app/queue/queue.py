@@ -1,5 +1,7 @@
+import base64
 import json
 import sys
+from copy import deepcopy
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -8,8 +10,10 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app.auth.identity import Identity
+from app.auth.identity import validate
 from app.culling import Timestamps
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
@@ -27,22 +31,63 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
 
+
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
-USER_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "basic-auth",
-    "type": "User",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
-}
+SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
 class OperationSchema(Schema):
     operation = fields.Str(required=True)
     platform_metadata = fields.Dict()
     data = fields.Dict(required=True)
+
+
+# input is a base64 encoded utf-8 string. b64decode returns bytes, which
+# again needs decoding using ascii to get human readable dictionary
+def _decode_id(encoded_id):
+    id = base64.b64decode(encoded_id)
+    decoded_id = json.loads(id)
+    return decoded_id.get("identity")
+
+
+def _get_identity(host, metadata):
+    # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
+    if not metadata.get("b64_identity"):
+        if host.get("reporter") == "rhsm-conduit":
+            identity = deepcopy(SYSTEM_IDENTITY)
+            identity["account_number"] = host.get("account")
+            identity["system"]["cn"] = host.get("subscription_manager_id")
+        else:
+            raise ValueError(
+                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id"
+            )
+    else:
+        identity = _decode_id(metadata.get("b64_identity"))
+
+    identity = Identity(identity)
+    validate(identity)
+    return identity
+
+
+# When identity_type is System, set owner_id if missing from the host system_profile
+def _set_owner(host, identity):
+    cn = identity.system.get("cn")
+    if "system_profile" not in host:
+        host["system_profile"] = {}
+        host["system_profile"]["owner_id"] = cn
+    elif not host["system_profile"].get("owner_id"):
+        host["system_profile"]["owner_id"] = cn
+    else:
+        if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
+            host["system_profile"]["owner_id"] = host.get("subscription_manager_id")
+        else:
+            if host["system_profile"]["owner_id"] != cn:
+                log_add_host_failure(logger, host)
+                raise ValidationException("The owner in host does not match the owner in identity")
+    return host
 
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
@@ -135,11 +180,15 @@ def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
-    # create a dummy identity for working around the identity requirement for CRUD operations
-    identity = Identity(USER_IDENTITY)
+    host = validated_operation_msg["data"]
+    identity = _get_identity(host, platform_metadata)
 
-    # set account_number in dummy idenity to the actual account_number received in the payload
-    identity.account_number = validated_operation_msg["data"]["account"]
+    if host.get("account") != identity.account_number:
+        raise ValidationException("The account number in identity does not match the number in the host.")
+
+    # basic-auth does not need owner_id
+    if identity.identity_type == "System":
+        host = _set_owner(host, identity)
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)
@@ -149,7 +198,7 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, add_results = add_host(validated_operation_msg["data"], identity)
+        output_host, host_id, insights_id, add_results = add_host(host, identity)
         event_type = add_host_results_to_event_type(add_results)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
