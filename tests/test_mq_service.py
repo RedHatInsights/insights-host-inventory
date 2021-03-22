@@ -128,7 +128,7 @@ def test_shutdown_handler(mocker, flask_app):
     assert handle_message_mock.call_count == 2
 
 
-def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled):
+def test_events_sent_to_correct_topic(mocker, flask_app):
     host_id = generate_uuid()
     insights_id = generate_uuid()
 
@@ -142,10 +142,8 @@ def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled
     message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
     handle_message(json.dumps(message), mock_event_producer)
 
-    # checking events sent to both egress and events topic
-    assert mock_event_producer.write_event.call_count == 2
-    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
-    assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
+    assert mock_event_producer.write_event.call_count == 1
+    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
 
     mock_event_producer.reset_mock()
 
@@ -155,10 +153,8 @@ def test_events_sent_to_correct_topic(mocker, flask_app, secondary_topic_enabled
     message["data"].update(stale_timestamp=(now() + timedelta(hours=26)).isoformat())
     handle_message(json.dumps(message), mock_event_producer)
 
-    # checking events sent to both egress and events topic
-    assert mock_event_producer.write_event.call_count == 2
-    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.egress
-    assert mock_event_producer.write_event.call_args_list[1][0][3] == Topic.events
+    assert mock_event_producer.write_event.call_count == 1
+    assert mock_event_producer.write_event.call_args_list[0][0][3] == Topic.events
 
 
 # Leaving this in as a reminder that we need to impliment this test eventually

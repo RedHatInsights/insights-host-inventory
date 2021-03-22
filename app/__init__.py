@@ -49,7 +49,7 @@ class Permission(Enum):
 
 
 def initialize_metrics(config):
-    topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
+    topic_names = {Topic.events: config.event_topic}
     for event_type in EventType:
         for topic in Topic:
             event_producer_failure.labels(event_type=event_type.name, topic=topic_names[topic])

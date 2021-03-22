@@ -204,11 +204,7 @@ def handle_message(message, event_producer):
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
         headers = message_headers(add_results, insights_id)
-        event_producer.write_event(event, str(host_id), headers, Topic.egress)
-
-        # for transition to platform.inventory.events
-        if inventory_config().secondary_topic_enabled:
-            event_producer.write_event(event, str(host_id), headers, Topic.events)
+        event_producer.write_event(event, str(host_id), headers, Topic.events)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):
