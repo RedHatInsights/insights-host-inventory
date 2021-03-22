@@ -25,6 +25,7 @@ from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
@@ -1623,7 +1624,7 @@ def test_query_hosts_insights_classic_system_identity(
 ):
     url = build_hosts_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1645,7 +1646,7 @@ def test_query_tags_insights_classic_system_identity(
 ):
     url = build_tags_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1667,7 +1668,7 @@ def test_query_system_profile_sap_sids_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1681,7 +1682,7 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url)
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
