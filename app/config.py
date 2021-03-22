@@ -43,7 +43,6 @@ class Config:
         self.additional_validation_topic = topic(
             os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1")
         )
-        self.host_egress_topic = topic("platform.inventory.events")
         self.system_profile_topic = topic("platform.system-profile")
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
@@ -60,7 +59,6 @@ class Config:
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
         )
-        self.host_egress_topic = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
         self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
@@ -95,7 +93,6 @@ class Config:
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
-        self.secondary_topic_enabled = os.environ.get("KAFKA_SECONDARY_TOPIC_ENABLED", "false").lower() == "true"
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
@@ -223,8 +220,7 @@ class Config:
             if self._runtime_environment == RuntimeEnvironment.SERVICE:
                 self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
                 self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
-                self.logger.info("Kafka Host Egress Topic: %s" % self.host_egress_topic)
-                self.logger.info("Kafka Secondary Topic Enabled: %s" % self.secondary_topic_enabled)
+                self.logger.info("Kafka Events Topic: %s" % self.event_topic)
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s" % self.event_topic)

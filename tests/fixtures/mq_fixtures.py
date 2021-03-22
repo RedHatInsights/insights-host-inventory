@@ -72,11 +72,6 @@ def mq_create_hosts_in_all_states(mq_create_or_update_host):
 
 
 @pytest.fixture(scope="function")
-def secondary_topic_enabled(inventory_config):
-    inventory_config.secondary_topic_enabled = True
-
-
-@pytest.fixture(scope="function")
 def kafka_producer(mocker):
     kafka_producer = mocker.patch("app.queue.event_producer.KafkaProducer")
     yield kafka_producer
