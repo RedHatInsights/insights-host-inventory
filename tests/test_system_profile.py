@@ -20,12 +20,17 @@ from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
+
+
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 # system_profile tests
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
+    system_profile["owner_id"] = OWNER_ID
     host = minimal_host(system_profile=system_profile)
     created_host = mq_create_or_update_host(host)
 
@@ -79,7 +84,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -96,7 +101,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -112,7 +117,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoi
             with subtests.test():
                 get_rbac_permissions_mock.return_value = mock_rbac_response
 
-                response_status, response_data = api_get(url, identity_type="User")
+                response_status, response_data = api_get(url)
 
                 assert_response_status(response_status, 403)
 
@@ -122,7 +127,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -132,7 +137,7 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -200,17 +205,31 @@ def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     assert_error_response(response_data, expected_title="Bad Request", expected_status=400)
 
 
-@pytest.mark.parametrize("messages", [10, 25, 50])
-def test_validate_sp_for_branch(mocker, messages):
+@pytest.mark.parametrize("partitions", [1, 5])
+@pytest.mark.parametrize("messages_per_partition_per_poll", [1, 10])
+@pytest.mark.parametrize("number_of_polls", [1, 3])
+def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_poll, number_of_polls):
     # Mock schema fetch
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
-    mock_schema = system_profile_specification()
-    get_schema_from_url_mock.return_value = mock_schema
+    get_schema_from_url_mock.return_value = system_profile_specification()
     config = Config(RuntimeEnvironment.SERVICE)
-    fake_consumer = create_kafka_consumer_mock(mocker, config, 1, messages)
+    fake_consumer = create_kafka_consumer_mock(
+        mocker, config, partitions, messages_per_partition_per_poll, number_of_polls
+    )
+    max_messages_to_poll = 50
+
+    # Due to the parameterization, each call to poll() can return 1-50 messages.
+    # number_of_polls is also parameterized, meaning that this simulates a total of
+    # 1-150 messages. Setting max_messages to 50 allows this test to validate
+    # both loop conditions in get_hosts_from_kafka_messages().
 
     validation_results = validate_sp_for_branch(
-        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
+        fake_consumer,
+        topics={config.host_ingress_topic},
+        repo_fork="test_repo",
+        repo_branch="test_branch",
+        days=3,
+        max_messages=max_messages_to_poll,
     )
 
     assert "test_repo/test_branch" in validation_results
@@ -219,39 +238,23 @@ def test_validate_sp_for_branch(mocker, messages):
     for reporter in validation_results["test_repo/test_branch"]:
         pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
 
-    assert pass_count == messages
-
-
-@pytest.mark.parametrize("partitions", [3, 10, 20])
-@pytest.mark.parametrize("messages_per_partition", [10, 25, 50])
-def test_validate_sp_for_branch_multiple_partitions(mocker, partitions, messages_per_partition):
-    # Mock schema fetch
-    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
-    mock_schema = system_profile_specification()
-    get_schema_from_url_mock.return_value = mock_schema
-    config = Config(RuntimeEnvironment.SERVICE)
-    fake_consumer = create_kafka_consumer_mock(mocker, config, partitions, messages_per_partition)
-
-    validation_results = validate_sp_for_branch(
-        fake_consumer, topics={config.host_ingress_topic}, repo_fork="test_repo", repo_branch="test_branch", days=3
-    )
-
-    assert "test_repo/test_branch" in validation_results
-
-    pass_count = 0
-    for reporter in validation_results["test_repo/test_branch"]:
-        pass_count += validation_results["test_repo/test_branch"][reporter].pass_count
-
-    assert pass_count == partitions * messages_per_partition
+    assert pass_count == min(partitions * messages_per_partition_per_poll * number_of_polls, max_messages_to_poll)
 
 
 def test_validate_sp_no_data(api_post, mocker):
     config = Config(RuntimeEnvironment.SERVICE)
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
+    get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
+    get_schema_from_url_mock.return_value = system_profile_specification()
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(
-            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+            fake_consumer,
+            topics={config.host_ingress_topic},
+            repo_fork="foo",
+            repo_branch="bar",
+            days=3,
+            max_messages=10,
         )
     assert "No data available at the provided date." in str(excinfo.value)
 
@@ -265,7 +268,12 @@ def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
 
     with pytest.raises(expected_exception=ValueError) as excinfo:
         validate_sp_for_branch(
-            fake_consumer, topics={config.host_ingress_topic}, repo_fork="foo", repo_branch="bar", days=3
+            fake_consumer,
+            topics={config.host_ingress_topic},
+            repo_fork="foo",
+            repo_branch="bar",
+            days=3,
+            max_messages=10,
         )
     assert "Schema not found at URL" in str(excinfo.value)
 

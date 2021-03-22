@@ -1,9 +1,8 @@
-import re
-
 import flask
 
 from api import api_operation
 from api import build_collection_response
+from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.host import get_bulk_query_source
@@ -96,7 +95,7 @@ def get_tags(
     if search:
         variables["filter"] = {
             # Escaped so that the string literals are not interpreted as regex
-            "search": {"regex": f".*{re.escape(search)}.*"}
+            "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
     if tags:

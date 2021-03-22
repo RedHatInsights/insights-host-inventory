@@ -1,9 +1,34 @@
+import base64
 import json
 import os
 import uuid
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+
+# good
+IDENTITY = {
+    "identity": {
+        "account_number": "sysaccount",
+        "type": "System",
+        "auth_type": "cert-auth",
+        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+        "internal": {"org_id": "3340851", "auth_time": 6300},
+    }
+}
+apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
+
+# invalid-auth
+# IDENTITY = {
+#     "identity": {
+#         "account_number": "sysaccount",
+#         "type": "System",
+#         "auth_type": "invalid-auth",
+#         "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#         "internal": {"org_id": "3340851", "auth_time": 6300},
+#     }
+# }
+apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
 
 
 def rpm_list():
@@ -375,6 +400,7 @@ def create_system_profile():
     return {
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
@@ -416,6 +442,7 @@ def create_system_profile():
         "subscription_auto_attach": "yes",
         "katello_agent_running": False,
         "satellite_managed": False,
+        "is_marketplace": False,
         "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
@@ -434,7 +461,7 @@ def create_system_profile():
 
 def build_rhsm_payload():
     return {
-        "account": "939054",
+        "account": "rhsaccount",
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -469,6 +496,8 @@ def build_rhsm_payload():
             "D6:58:86:AA:AA:40",
         ],
         "subscription_manager_id": "77ecf4c6-ab06-405c-844c-d815973de7f2",
+        "reporter": "rhsm-conduit",
+        "system_profile": create_system_profile(),
     }
 
 
@@ -510,11 +539,11 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", "test")
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["identity"]["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
-        "insights_id": random_uuid(),
+        # "insights_id": random_uuid(),
         "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         "display_name": fqdn,
@@ -531,9 +560,10 @@ def build_host_chunk():
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
         # "subscription_manager_id": random_uuid(),
-        # "subscription_manager_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        # "subscription_manager_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        # "reporter": "rhsm-conduit",
         "reporter": "me",
     }
     return payload
@@ -543,10 +573,15 @@ def build_host_payload(payload_builder=build_host_chunk):
     return payload_builder()
 
 
+# for testing rhsm-conduit, comment out b64_identity and provide subscription_manager_id in host.
 def build_mq_payload(payload_builder=build_host_chunk):
     message = {
         "operation": "add_host",
-        "platform_metadata": {"request_id": random_uuid(), "archive_url": "http://s3.aws.com/redhat/insights/1234567"},
+        "platform_metadata": {
+            "request_id": random_uuid(),
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+            "b64_identity": apiKey.decode("ascii"),
+        },
         "data": build_host_payload(payload_builder),
     }
     return json.dumps(message).encode("utf-8")

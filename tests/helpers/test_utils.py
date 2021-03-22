@@ -1,4 +1,6 @@
+import base64
 import contextlib
+import json
 import os
 import string
 import unittest.mock
@@ -18,21 +20,23 @@ SYSTEM_IDENTITY = {
     "account_number": "test",
     "auth_type": "cert-auth",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
     "type": "System",
 }
-USER_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "basic-auth",
-    "type": "User",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
-}
+
 INSIGHTS_CLASSIC_IDENTITY = {
     "account_number": "test",
     "auth_type": "classic-proxy",
     "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {},
+    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
     "type": "System",
+}
+
+USER_IDENTITY = {
+    "account_number": "test",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
 
@@ -78,6 +82,8 @@ def minimal_host(**values):
         "reporter": "test" + generate_random_string(),
         **values,
     }
+    if "account" in values:
+        data["account"] = values.get("account")
 
     return HostWrapper(data)
 
@@ -86,6 +92,7 @@ def valid_system_profile():
     return {
         "owner_id": "afe768a2-1c5e-4480-988b-21c3d6cfacf4",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
+        "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz",
         "number_of_cpus": 1,
         "number_of_sockets": 2,
@@ -143,4 +150,19 @@ def valid_system_profile():
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
         "sap_sids": ["ABC", "DEF", "GHI"],
+    }
+
+
+def get_encoded_idstr():
+    id = {"identity": SYSTEM_IDENTITY}
+    SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
+
+    return SYSTEM_API_KEY.decode("ascii")
+
+
+def get_platform_metadata_with_system_identity():
+    return {
+        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": get_encoded_idstr(),
     }
