@@ -283,7 +283,7 @@ $defs:
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"
           type: string
           maxLength: 512
-      installed_packages_delta:
+      installed_packages_multiple:
         type: array  # sorted list, rest of packages not in installed_packages
         items:
           description: A NEVRA string for a single installed package
