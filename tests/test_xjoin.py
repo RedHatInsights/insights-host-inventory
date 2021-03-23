@@ -1815,18 +1815,18 @@ def test_query_hosts_filter_per_reporter_staleness(
         ),
     )
     queries_graphql = (
-        {"AND": [{"per_reporter_staleness": {"reporter": "yupana"}}]},
+        {"AND": [{"per_reporter_staleness": {"reporter": {"eq": "yupana"}}}]},
         {
             "AND": [
-                {"per_reporter_staleness": {"reporter": "puptoo"}},
-                {"per_reporter_staleness": {"reporter": "yupana"}},
+                {"per_reporter_staleness": {"reporter": {"eq": "puptoo"}}},
+                {"per_reporter_staleness": {"reporter": {"eq": "yupana"}}},
             ]
         },
         {
             "AND": [
                 {
                     "per_reporter_staleness": {
-                        "reporter": "yupana",
+                        "reporter": {"eq": "yupana"},
                         "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
                     }
                 }
@@ -1836,18 +1836,18 @@ def test_query_hosts_filter_per_reporter_staleness(
             "AND": [
                 {
                     "per_reporter_staleness": {
-                        "reporter": "yupana",
+                        "reporter": {"eq": "yupana"},
                         "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
                     }
                 }
             ]
         },
-        {"AND": [{"per_reporter_staleness": {"reporter": "yupana", "check_in_succeeded": {"is": True}}}]},
+        {"AND": [{"per_reporter_staleness": {"reporter": {"eq": "yupana"}, "check_in_succeeded": {"is": True}}}]},
         {
             "AND": [
                 {
                     "per_reporter_staleness": {
-                        "reporter": "puptoo",
+                        "reporter": {"eq": "puptoo"},
                         "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
                         "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
                         "check_in_succeeded": {"is": True},
@@ -1855,7 +1855,7 @@ def test_query_hosts_filter_per_reporter_staleness(
                 },
                 {
                     "per_reporter_staleness": {
-                        "reporter": "yupana",
+                        "reporter": {"eq": "yupana"},
                         "last_check_in": {"lt": "2021-03-18T21:21:00.935093+00:00"},
                         "stale_timestamp": {"gte": "2021-03-18T21:21:00.935093+00:00"},
                         "check_in_succeeded": {"is": True},

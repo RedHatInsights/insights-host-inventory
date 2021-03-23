@@ -189,7 +189,6 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
             if system_profile_filter != ():
                 query_filters += system_profile_filter
         if filter.get("per_reporter_staleness"):
-            print("!!!!!!!!!!!!!!!PRS!!!!!!!!!!")
             per_reporter_staleness_filter = _build_per_reporter_staleness_filter(filter["per_reporter_staleness"])
             if per_reporter_staleness_filter != ():
                 query_filters += per_reporter_staleness_filter
@@ -213,7 +212,7 @@ def _build_per_reporter_staleness_filter(per_reporter_staleness):
     prs_dict_array = []
 
     for reporter in per_reporter_staleness:
-        prs_dict = {"reporter": reporter}
+        prs_dict = {"reporter": {"eq": reporter}}
 
         if per_reporter_staleness[reporter].get("stale_timestamp"):
             prs_dict["stale_timestamp"] = per_reporter_staleness[reporter]["stale_timestamp"]
