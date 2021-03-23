@@ -39,6 +39,9 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
+SATELLITE_IDENTITY = SYSTEM_IDENTITY
+SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
+
 
 def generate_uuid():
     return str(uuid.uuid4())
@@ -153,16 +156,16 @@ def valid_system_profile():
     }
 
 
-def get_encoded_idstr():
-    id = {"identity": SYSTEM_IDENTITY}
+def get_encoded_idstr(identity=SYSTEM_IDENTITY):
+    id = {"identity": identity}
     SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
 
     return SYSTEM_API_KEY.decode("ascii")
 
 
-def get_platform_metadata_with_system_identity():
+def get_platform_metadata(identity=SYSTEM_IDENTITY):
     return {
         "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
         "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": get_encoded_idstr(),
+        "b64_identity": get_encoded_idstr(identity),
     }

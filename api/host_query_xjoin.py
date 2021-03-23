@@ -88,11 +88,7 @@ def get_host_list(
     )
 
     current_identity = get_current_identity()
-    if (
-        current_identity.identity_type == "System"
-        and current_identity.auth_type != "classic-proxy"
-        and current_identity.system["cert_type"] == "system"
-    ):
+    if current_identity.identity_type == "System" and current_identity.auth_type != "classic-proxy":
         all_filters += owner_id_filter()
 
     variables = {

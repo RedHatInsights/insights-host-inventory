@@ -112,11 +112,7 @@ def get_tags(
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
-    if (
-        current_identity.identity_type == "System"
-        and current_identity.auth_type != "classic-proxy"
-        and current_identity.system["cert_type"] == "system"
-    ):
+    if current_identity.identity_type == "System" and current_identity.auth_type != "classic-proxy":
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
