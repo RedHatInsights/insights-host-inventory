@@ -25,7 +25,12 @@ from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 def test_headers_forwarded(mocker, patch_xjoin_post, api_get):
@@ -1543,7 +1548,7 @@ def test_query_system_profile_sap_sids_with_search(
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
 
@@ -1554,7 +1559,7 @@ def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graph
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}}),
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": OWNER_ID}}),
         },
         mocker.ANY,
     )
@@ -1563,7 +1568,7 @@ def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graph
 def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get):
     url = build_tags_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
 
@@ -1574,10 +1579,7 @@ def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphq
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "hostFilter": {
-                "OR": mocker.ANY,
-                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
-            },
+            "hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)},
         },
         mocker.ANY,
     )
@@ -1588,20 +1590,13 @@ def test_query_system_profile_sap_sids_system_identity(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
 
     graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
         SAP_SIDS_QUERY,
-        {
-            "hostFilter": {
-                "OR": mocker.ANY,
-                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
-            },
-            "limit": 50,
-            "offset": 0,
-        },
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
@@ -1611,20 +1606,13 @@ def test_query_system_profile_sap_system_system_identity(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert response_status == 200
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
-        {
-            "hostFilter": {
-                "OR": mocker.ANY,
-                "AND": ({"spf_owner_id": {"eq": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"}},),
-            },
-            "limit": 50,
-            "offset": 0,
-        },
+        {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
@@ -1636,7 +1624,7 @@ def test_query_hosts_insights_classic_system_identity(
 ):
     url = build_hosts_url()
 
-    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1658,7 +1646,7 @@ def test_query_tags_insights_classic_system_identity(
 ):
     url = build_tags_url()
 
-    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1680,7 +1668,7 @@ def test_query_system_profile_sap_sids_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 
@@ -1694,7 +1682,7 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, identity_type="Insights_Classic_System")
+    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
 
     assert response_status == 200
 

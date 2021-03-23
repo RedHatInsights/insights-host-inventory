@@ -2,7 +2,6 @@ from kafka.errors import KafkaTimeoutError
 
 from app.culling import Timestamps
 from app.models import Host
-from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -24,7 +23,7 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.updated, insights_id)
             # in case of a failed update event, event_producer logs the message.
-            event_producer.write_event(event, str(host.id), headers, Topic.events)
+            event_producer.write_event(event, str(host.id), headers)
             synchronize_host_count.inc()
 
             yield host.id

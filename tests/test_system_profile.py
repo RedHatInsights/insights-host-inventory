@@ -20,12 +20,17 @@ from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
+
+
+OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 # system_profile tests
 def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
     system_profile = valid_system_profile()
+    system_profile["owner_id"] = OWNER_ID
     host = minimal_host(system_profile=system_profile)
     created_host = mq_create_or_update_host(host)
 
@@ -79,7 +84,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -96,7 +101,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_get(url, identity_type="User")
+            response_status, response_data = api_get(url)
 
             assert_response_status(response_status, 200)
 
@@ -112,7 +117,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoi
             with subtests.test():
                 get_rbac_permissions_mock.return_value = mock_rbac_response
 
-                response_status, response_data = api_get(url, identity_type="User")
+                response_status, response_data = api_get(url)
 
                 assert_response_status(response_status, 403)
 
@@ -122,7 +127,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_system_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -132,7 +137,7 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
 ):
     url = build_system_profile_sap_sids_url()
 
-    response_status, response_data = api_get(url, identity_type="System")
+    response_status, response_data = api_get(url, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
