@@ -7,12 +7,16 @@ from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import EventProducer
+from app.queue.queue import add_host
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from app.queue.queue import update_system_profile
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
 logger = get_logger("mq_service")
+
+field_restriction_to_handler = {{"ALL": add_host}, {"SYSTEM_PROFILE": update_system_profile}}
 
 
 def main():
@@ -37,7 +41,11 @@ def main():
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    event_loop(consumer, application, event_producer, handle_message, shutdown_handler.shut_down)
+    message_handler = partial(
+        handle_message, host_operation=field_restriction_to_handler.get(config.mq_restrict_to_field, add_host)
+    )
+
+    event_loop(consumer, application, event_producer, message_handler, shutdown_handler.shut_down)
 
 
 if __name__ == "__main__":

@@ -18,15 +18,17 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_db_access_failure
+from app.instrumentation import log_update_system_profile_failure
+from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
 from app.queue.events import message_headers
+from app.queue.events import operation_results_to_event_type
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -146,6 +148,37 @@ def parse_operation_message(message):
     return parsed_operation
 
 
+def update_system_profile(host_data, identity):
+    # TODO: update system profile ONLY
+    payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
+
+    with PayloadTrackerProcessingContext(
+        payload_tracker,
+        processing_status_message="updating host system profile",
+        current_operation="updating host system profile",
+    ) as payload_tracker_processing_ctx:
+
+        try:
+            input_host = deserialize_host(host_data)
+            staleness_timestamps = Timestamps.from_config(inventory_config())
+            output_host, host_id, insights_id, add_result = host_repository.update_system_profile(
+                input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
+            )
+            log_update_system_profile_success(logger, output_host)
+            payload_tracker_processing_ctx.inventory_id = output_host["id"]
+            return output_host, host_id, insights_id, add_result
+        except InventoryException:
+            log_update_system_profile_failure(logger, host_data)
+            raise
+        except OperationalError as oe:
+            log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
+            raise oe
+        except Exception:
+            logger.exception("Error while updating host system profile", extra={"host": host_data})
+            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+            raise
+
+
 def add_host(host_data, identity):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
@@ -176,7 +209,7 @@ def add_host(host_data, identity):
 
 
 @metrics.ingress_message_handler_time.time()
-def handle_message(message, event_producer):
+def handle_message(message, event_producer, host_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
@@ -198,11 +231,11 @@ def handle_message(message, event_producer):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, add_results = add_host(host, identity)
-        event_type = add_host_results_to_event_type(add_results)
+        output_host, host_id, insights_id, operation_result = host_operation(host, identity)
+        event_type = operation_results_to_event_type(operation_result)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
-        headers = message_headers(add_results, insights_id)
+        headers = message_headers(operation_result, insights_id)
         event_producer.write_event(event, str(host_id), headers)
 
 

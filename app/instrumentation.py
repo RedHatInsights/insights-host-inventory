@@ -142,6 +142,17 @@ def log_add_host_failure(logger, host_data):
     metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
+# update system profile
+def log_update_system_profile_success(logger, host_data):
+    metrics.update_system_profile_success.inc()
+    logger.info("System profile updated for host", extra={"host": host_data})
+
+
+def log_update_system_profile_failure(logger, host_data):
+    logger.exception("Error updating system profile for host ", extra={"host": host_data})
+    metrics.update_system_profile_failure.labels("InventoryException").inc()
+
+
 # patch host
 def log_patch_host_success(logger, host_id_list):
     logger.info("Patched hosts- hosts: %s", host_id_list)

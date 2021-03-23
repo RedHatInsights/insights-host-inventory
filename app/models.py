@@ -206,7 +206,7 @@ class Host(db.Model):
         self._update_tags(input_host.tags)
 
         if update_system_profile:
-            self._update_system_profile(input_host.system_profile_facts)
+            self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
@@ -320,7 +320,7 @@ class Host(db.Model):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def _update_system_profile(self, input_system_profile):
+    def update_system_profile(self, input_system_profile):
         logger.debug("Updating host's (id=%s) system profile", self.id)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
