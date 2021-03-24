@@ -13,6 +13,9 @@ from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
+from app.auth.identity import AuthType
+from app.auth.identity import CertType
+from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -123,9 +126,9 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     current_identity = get_current_identity()
     if (
-        current_identity.identity_type == "System"
-        and current_identity.auth_type != "classic-proxy"
-        and current_identity.system["cert_type"] == "system"
+        current_identity.identity_type == IdentityType.system
+        and current_identity.auth_type != AuthType.classic
+        and current_identity.system["cert_type"] == CertType.system
     ):
         hostfilter_and_variables += owner_id_filter()
 
@@ -185,9 +188,9 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     current_identity = get_current_identity()
     if (
-        current_identity.identity_type == "System"
-        and current_identity.auth_type != "classic-proxy"
-        and current_identity.system["cert_type"] == "system"
+        current_identity.identity_type == IdentityType.system
+        and current_identity.auth_type != AuthType.classic
+        and current_identity.system["cert_type"] == CertType.system
     ):
         hostfilter_and_variables += owner_id_filter()
 

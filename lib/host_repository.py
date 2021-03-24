@@ -4,6 +4,9 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 
 from app import inventory_config
+from app.auth.identity import AuthType
+from app.auth.identity import CertType
+from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import db
@@ -191,9 +194,9 @@ def update_query_for_owner_id(identity, query):
     logger.debug("identity auth type: %s", identity.auth_type)
     if (
         identity
-        and identity.identity_type == "System"
-        and identity.auth_type != "classic-proxy"
-        and identity.system["cert_type"] == "system"
+        and identity.identity_type == IdentityType.system
+        and identity.auth_type != AuthType.classic
+        and identity.system["cert_type"] == CertType.system
     ):
         return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
     else:

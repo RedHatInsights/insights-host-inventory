@@ -1,5 +1,6 @@
 import os
 from base64 import b64decode
+from enum import Enum
 from json import loads
 
 from app.logging import get_logger
@@ -12,9 +13,6 @@ logger = get_logger(__name__)
 
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 
-cert_types = ["satellite", "system"]
-auth_types = ["basic-auth", "cert-auth", "classic-proxy"]
-
 
 def from_auth_header(base64):
     json = b64decode(base64)
@@ -24,6 +22,23 @@ def from_auth_header(base64):
 
 def from_bearer_token(token):
     return Identity(token=token)
+
+
+class AuthType(str, Enum):
+    basic = "basic-auth"
+    cert = "cert-auth"
+    classic = "classic-proxy"
+
+
+class CertType(str, Enum):
+    satellite = "satellite"
+    system = "system"
+
+
+class IdentityType(str, Enum):
+    system = "System"
+    user = "User"
+    classic = "Insights_Classic_System"
 
 
 class Identity:
@@ -43,12 +58,10 @@ class Identity:
             else:
                 self.auth_type = None
 
-            # This check may change to if "auth_type" in obj.keys()
-            # and then basic-auth and cert-auth.
-            if obj["type"] == "User":
+            if obj["type"] == IdentityType.user:
                 self.identity_type = obj["type"]
                 self.user = obj["user"]
-            elif obj["type"] == "System":
+            elif obj["type"] == IdentityType.system:
                 self.identity_type = obj["type"]
                 self.system = obj["system"]
 
@@ -63,14 +76,14 @@ class Identity:
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
-        if self.identity_type == "User":
+        if self.identity_type == IdentityType.user:
             return {
                 "account_number": self.account_number,
                 "type": self.identity_type,
                 "auth_type": self.auth_type,
                 "user": self.user.copy(),
             }
-        if self.identity_type == "System":
+        if self.identity_type == IdentityType.system:
             return {
                 "account_number": self.account_number,
                 "type": self.identity_type,
@@ -97,21 +110,21 @@ def validate(identity):
         if not identity.account_number:
             raise ValueError("The account_number is mandatory.")
 
-        elif identity.identity_type == "System":
+        elif identity.identity_type == IdentityType.system:
             if not identity.system:
                 raise ValueError("The identity.system is mandatory")
             if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
-            if identity.system.get("cert_type") not in cert_types:
+            if identity.system.get("cert_type") not in CertType.__members__.values():
                 raise ValueError("The cert_type is invalid.")
             if not identity.system.get("cn"):
                 raise ValueError("The cn field is mandatory.")
             if not identity.auth_type:
                 raise ValueError("The auth_type field is mandatory.")
-            if identity.auth_type not in auth_types:
+            if identity.auth_type not in AuthType.__members__.values():
                 raise ValueError("The auth_type is invalid.")
 
-        elif identity.identity_type == "User":
+        elif identity.identity_type == IdentityType.user:
             if not identity.user:
                 raise ValueError("The identity.user is mandatory")
             if not identity.user.get("email"):
