@@ -23,7 +23,7 @@ QUERY = """query Query(
     $order_by: HOSTS_ORDER_BY,
     $order_how: ORDER_DIR,
     $filter: [HostFilter!],
-    $fields: [String!]=[]
+    $fields: [String!]
 ) {
     hosts(
         limit: $limit,
