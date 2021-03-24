@@ -1403,7 +1403,7 @@ def test_query_tags_filter_spf_sap_system(
                 )
 
 
-def test_query_system_profile_sap_system_filter_spf_sap_sids(
+def test_query_system_profile_sap_system_filter(
     mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
@@ -1450,6 +1450,8 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
                 response_status, response_data = api_get(url)
 
                 assert response_status == 200
+
+                print(query)
 
                 graphql_query_empty_response.assert_called_once_with(
                     HOST_QUERY,
