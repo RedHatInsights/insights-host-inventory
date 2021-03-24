@@ -38,7 +38,6 @@ DEFAULT_FIELDS = (
     "culled_timestamp",
     "created",
     "updated",
-    "system_profile",
 )
 
 

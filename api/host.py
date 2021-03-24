@@ -129,7 +129,7 @@ def get_host_list(
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, bulk_query_source)
     return flask_json_response(json_data)
 
 
