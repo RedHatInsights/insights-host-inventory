@@ -77,7 +77,8 @@ def test_handle_message_failure_invalid_message_format(mocker):
     mock_event_producer.assert_not_called()
 
 
-def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
+def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
@@ -93,53 +94,20 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     )
     mock_event_producer = mocker.Mock()
 
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
+    host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
 
-    message = wrap_message(host.data(), "add_host", get_platform_metadata())
-
-    handle_message(json.dumps(message), mock_event_producer)
-
-    mock_event_producer.write_event.assert_called_once()
-
-    assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-        "platform_metadata": get_platform_metadata(),
-        "timestamp": timestamp_iso,
-        "type": "created",
-        "host": {"id": host_id, "insights_id": expected_insights_id},
-        "metadata": {"request_id": get_platform_metadata().get("request_id")},
-    }
-
-
-def test_handle_message_happy_satellite(mocker, event_datetime_mock, flask_app):
-    expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-    timestamp_iso = event_datetime_mock.isoformat()
-
-    mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
-    mock_event_producer = mocker.Mock()
-
-    host = minimal_host(account=SATELLITE_IDENTITY["account_number"], insights_id=expected_insights_id)
-
-    message = wrap_message(host.data(), "add_host", get_platform_metadata(SATELLITE_IDENTITY))
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
 
     handle_message(json.dumps(message), mock_event_producer)
 
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-        "platform_metadata": get_platform_metadata(SATELLITE_IDENTITY),
+        "platform_metadata": get_platform_metadata(identity),
         "timestamp": timestamp_iso,
         "type": "created",
         "host": {"id": host_id, "insights_id": expected_insights_id},
-        "metadata": {"request_id": get_platform_metadata(SATELLITE_IDENTITY).get("request_id")},
+        "metadata": {"request_id": get_platform_metadata(identity).get("request_id")},
     }
 
 
