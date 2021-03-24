@@ -122,34 +122,44 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _sap_system_filters(sap_system):
-    if sap_system == "nil":
-        return {"spf_sap_system": {"is": None}}
-    elif sap_system == "not_nil":
-        return {"NOT": {"spf_sap_system": {"is": None}}}
+def _boolean_filter(field_name, field_value):
+    if field_value == "nil":
+        return ({field_name: {"is": None}},)
+    elif field_value == "not_nil":
+        return ({"NOT": {field_name: {"is": None}}},)
     else:
-        return {"spf_sap_system": {"is": (sap_system.lower() == "true")}}
+        return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def build_sap_system_filters(sap_system):
-    if isinstance(sap_system, str):
-        return (_sap_system_filters(sap_system),)
-    elif sap_system.get("eq"):
-        return (_sap_system_filters(sap_system["eq"]),)
+def _string_filter(field_name, field_value):
+    if field_value == "nil":
+        return ({field_name: {"eq": None}},)
+    elif field_value == "not_nil":
+        return ({"NOT": {field_name: {"eq": None}}},)
+    else:
+        return ({field_name: {"eq": (field_value)}},)
 
 
-def _sap_sids_filters(sap_sids):
+def _sap_sids_filters(field_name, sap_sids):
     sap_sids_filters = ()
     for sap_sid in sap_sids:
-        sap_sids_filters += ({"spf_sap_sids": {"eq": sap_sid}},)
+        sap_sids_filters += ({field_name: {"eq": sap_sid}},)
     return sap_sids_filters
 
 
+def build_filter(field_name, field_value, field_type, operation, filter_building_function):
+    if isinstance(field_value, field_type):
+        return filter_building_function(field_name, field_value)
+    elif field_value.get(operation):
+        return filter_building_function(field_name, field_value[operation])
+
+
+def build_sap_system_filter(sap_system):
+    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter)
+
+
 def build_sap_sids_filter(sap_sids):
-    if isinstance(sap_sids, list):
-        return _sap_sids_filters(sap_sids)
-    elif sap_sids.get("contains"):
-        return _sap_sids_filters(sap_sids["contains"])
+    return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
@@ -185,13 +195,33 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
     if filter:
         if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                query_filters += build_sap_system_filters(filter["system_profile"]["sap_system"])
-            if filter["system_profile"].get("sap_sids"):
-                query_filters += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            query_filters += _build_system_profile_filter(filter["system_profile"])
 
     logger.debug(query_filters)
     return query_filters
+
+
+def _build_system_profile_filter(system_profile):
+    system_profile_filter = tuple()
+
+    if system_profile.get("sap_system"):
+        system_profile_filter += build_sap_system_filter(system_profile["sap_system"])
+    if system_profile.get("sap_sids"):
+        system_profile_filter += build_sap_sids_filter(system_profile["sap_sids"])
+    if system_profile.get("is_marketplace"):
+        system_profile_filter += build_filter(
+            "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _boolean_filter
+        )
+    if system_profile.get("rhc_client_id"):
+        system_profile_filter += build_filter(
+            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq", _string_filter
+        )
+    if system_profile.get("insights_client_version"):
+        system_profile_filter += build_filter(
+            "insights_client_version", system_profile["insights_client_version"], str, "eq", _string_filter
+        )
+
+    return system_profile_filter
 
 
 def owner_id_filter():

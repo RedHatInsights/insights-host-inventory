@@ -1403,7 +1403,7 @@ def test_query_tags_filter_spf_sap_system(
                 )
 
 
-def test_query_system_profile_sap_system_filter_spf_sap_sids(
+def test_query_system_profile_sap_system_filter(
     mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
@@ -1450,6 +1450,8 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
                 response_status, response_data = api_get(url)
 
                 assert response_status == 200
+
+                print(query)
 
                 graphql_query_empty_response.assert_called_once_with(
                     HOST_QUERY,
@@ -1543,6 +1545,112 @@ def test_query_system_profile_sap_sids_with_search(
         {"hostFilter": {"OR": mocker.ANY}, "filter": {"search": {"regex": ".*C2.*"}}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
+
+
+# system_profile is_marketplace tests
+def test_query_hosts_filter_spf_is_marketplace(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][is_marketplace]", "[system_profile][is_marketplace][eq]")
+    values = ("true", "false", "nil", "not_nil")
+    queries = (
+        {"spf_is_marketplace": {"is": True}},
+        {"spf_is_marketplace": {"is": False}},
+        {"spf_is_marketplace": {"is": None}},
+        {"NOT": {"spf_is_marketplace": {"is": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+# system_profile rhc_client_id tests
+def test_query_hosts_filter_spf_rhc_client_id(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][rhc_client_id]", "[system_profile][rhc_client_id][eq]")
+    values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "nil", "not_nil")
+    queries = (
+        {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_rhc_client_id": {"eq": None}},
+        {"NOT": {"spf_rhc_client_id": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+# system_profile rhc_client_id tests
+def test_query_hosts_filter_spf_insights_client_version(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
+    values = ("3.0.6-2.el7_6", "nil", "not_nil")
+    queries = (
+        {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
+        {"spf_insights_client_version": {"eq": None}},
+        {"NOT": {"spf_insights_client_version": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
 
 
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
