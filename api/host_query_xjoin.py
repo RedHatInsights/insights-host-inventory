@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app import HostListResponse
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
@@ -115,7 +116,7 @@ def get_host_list(
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total
+    return map(deserialize_host, response["data"]), total, HostListResponse.sparse_sp
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):

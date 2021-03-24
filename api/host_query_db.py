@@ -4,6 +4,7 @@ import flask
 from sqlalchemy import and_
 from sqlalchemy import or_
 
+from app import HostListResponse
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
@@ -65,7 +66,7 @@ def get_host_list(
 
     log_get_host_list_succeeded(logger, query_results.items)
 
-    return query_results.items, query_results.total
+    return query_results.items, query_results.total, HostListResponse.generic
 
 
 def find_hosts_with_insights_enabled(query):

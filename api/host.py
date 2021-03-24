@@ -17,6 +17,7 @@ from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
+from app import HostListResponse
 from app import inventory_config
 from app import Permission
 from app.auth import get_current_identity
@@ -110,7 +111,7 @@ def get_host_list(
     get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
 
     try:
-        host_list, total = get_host_list(
+        host_list, total, response_type = get_host_list(
             display_name,
             fqdn,
             hostname_or_id,
@@ -129,7 +130,7 @@ def get_host_list(
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list, bulk_query_source)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, response_type)
     return flask_json_response(json_data)
 
 
