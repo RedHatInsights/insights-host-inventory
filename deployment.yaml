@@ -128,8 +128,6 @@ objects:
           value: platform.inventory.host-ingress
         - name: KAFKA_HOST_INGRESS_GROUP
           value: inventory-mq
-        - name: KAFKA_SECONDARY_TOPIC_ENABLED
-          value: ${SECONDARY_TOPIC_ENABLED}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
@@ -182,8 +180,6 @@ objects:
           value: platform.inventory.host-ingress-p1
         - name: KAFKA_HOST_INGRESS_GROUP
           value: inventory-mq
-        - name: KAFKA_SECONDARY_TOPIC_ENABLED
-          value: ${SECONDARY_TOPIC_ENABLED}
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED

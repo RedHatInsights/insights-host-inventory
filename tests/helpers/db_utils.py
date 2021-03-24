@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from random import randint
 
@@ -19,8 +20,12 @@ DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
 DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
 
 
+logger = logging.getLogger(__name__)
+
+
 def clean_tables():
     def _clean_tables():
+        logger.warning("cleaning database tables")
         try:
             db.session.expire_all()
             for table in reversed(db.metadata.sorted_tables):
@@ -42,6 +47,9 @@ def minimal_db_host(**values):
         "reporter": "test-reporter",
         **values,
     }
+    if "account" in values:
+        data["account"] = values.get("account")
+
     return Host(**data)
 
 
@@ -97,8 +105,8 @@ def get_expected_facts_after_update(method, namespace, facts, new_facts):
     return facts
 
 
-def assert_host_exists_in_db(host_id, search_canonical_facts, account=USER_IDENTITY):
-    identity = Identity(account)
+def assert_host_exists_in_db(host_id, search_canonical_facts, identity=USER_IDENTITY):
+    identity = Identity(identity)
     found_host = find_existing_host(identity, search_canonical_facts)
 
     assert host_id == found_host.id
