@@ -169,7 +169,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
     for name in names:
         host = minimal_host(display_name=name, system_profile={"owner_id": OWNER_ID})
         host.reporter = "me"
-        msg = json.dumps(wrap_message(host.data(), "", get_platform_metadata(SYSTEM_IDENTITY)))
+        msg = json.dumps(wrap_message(host.data(), "", get_platform_metadata()))
         messages.append(msg)
 
     messages_tuple = tuple(messages)
