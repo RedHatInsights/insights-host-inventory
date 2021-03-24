@@ -33,6 +33,7 @@ def get_host_list(
     staleness,
     registered_with,
     filter,
+    fields
 ):
     if filter:
         flask.abort(503)

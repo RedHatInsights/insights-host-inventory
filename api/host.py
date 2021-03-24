@@ -100,6 +100,7 @@ def get_host_list(
     staleness=None,
     registered_with=None,
     filter=None,
+    fields=None
 ):
     total = 0
     host_list = ()
@@ -122,6 +123,7 @@ def get_host_list(
             staleness,
             registered_with,
             filter,
+            fields
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
