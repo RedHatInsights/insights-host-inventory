@@ -11,7 +11,7 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 def invalid_identities(identity_type):
-    if identity_type == IdentityType.system:
+    if identity_type == IdentityType.SYSTEM:
         no_cert_type = Identity(SYSTEM_IDENTITY)._asdict()
         no_cert_type["system"].pop("cert_type", None)
 
@@ -25,9 +25,9 @@ def invalid_identities(identity_type):
 
 
 def invalid_payloads(identity_type):
-    if identity_type == IdentityType.system:
+    if identity_type == IdentityType.SYSTEM:
         payloads = ()
-        for identity in invalid_identities(IdentityType.system):
+        for identity in invalid_identities(IdentityType.SYSTEM):
             dict_ = {"identity": identity}
             json = dumps(dict_)
             payloads += (b64encode(json.encode()),)
@@ -38,9 +38,9 @@ def valid_identity(identity_type):
     """
     Provides a valid Identity object.
     """
-    if identity_type == IdentityType.user:
+    if identity_type == IdentityType.USER:
         return Identity(USER_IDENTITY)
-    elif identity_type == IdentityType.system:
+    elif identity_type == IdentityType.SYSTEM:
         return Identity(SYSTEM_IDENTITY)
 
 
@@ -78,7 +78,7 @@ def test_validate_valid_user_identity(flask_client):
     """
     Identity header is valid – non-empty in this case
     """
-    payload = valid_payload(IdentityType.user)
+    payload = valid_payload(IdentityType.USER)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 
@@ -87,7 +87,7 @@ def test_validate_non_admin_user_identity(flask_client):
     """
     Identity header is valid and user is provided, but is not an Admin
     """
-    identity = valid_identity(IdentityType.user)
+    identity = valid_identity(IdentityType.USER)
     identity.user["username"] = "regularjoe@redhat.com"
     payload = create_identity_payload(identity)
     response = flask_client.post(
@@ -100,7 +100,7 @@ def test_validate_non_user_admin_endpoint(flask_client):
     """
     Identity header is valid and user is provided, but is not an Admin
     """
-    payload = valid_payload(IdentityType.system)
+    payload = valid_payload(IdentityType.SYSTEM)
     response = flask_client.post(
         f"{SYSTEM_PROFILE_URL}/validate_schema?repo_branch=master&days=1", headers={"x-rh-identity": payload}
     )
@@ -111,13 +111,13 @@ def test_validate_valid_system_identity(flask_client):
     """
     Identity header is valid – non-empty in this case
     """
-    payload = valid_payload(IdentityType.system)
+    payload = valid_payload(IdentityType.SYSTEM)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert 200 == response.status_code  # OK
 
 
 def test_invalid_system_identities(flask_client, subtests):
-    payloads = invalid_payloads(IdentityType.system)
+    payloads = invalid_payloads(IdentityType.SYSTEM)
 
     for payload in payloads:
         with subtests.test():

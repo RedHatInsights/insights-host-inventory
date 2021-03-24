@@ -126,9 +126,9 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     current_identity = get_current_identity()
     if (
-        current_identity.identity_type == IdentityType.system
-        and current_identity.auth_type != AuthType.classic
-        and current_identity.system["cert_type"] == CertType.system
+        current_identity.identity_type == IdentityType.SYSTEM
+        and current_identity.auth_type != AuthType.CLASSIC
+        and current_identity.system["cert_type"] == CertType.SYSTEM
     ):
         hostfilter_and_variables += owner_id_filter()
 
@@ -188,9 +188,9 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     current_identity = get_current_identity()
     if (
-        current_identity.identity_type == IdentityType.system
-        and current_identity.auth_type != AuthType.classic
-        and current_identity.system["cert_type"] == CertType.system
+        current_identity.identity_type == IdentityType.SYSTEM
+        and current_identity.auth_type != AuthType.CLASSIC
+        and current_identity.system["cert_type"] == CertType.SYSTEM
     ):
         hostfilter_and_variables += owner_id_filter()
 

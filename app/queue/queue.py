@@ -188,7 +188,7 @@ def handle_message(message, event_producer):
         raise ValidationException("The account number in identity does not match the number in the host.")
 
     # basic-auth does not need owner_id
-    if identity.identity_type == IdentityType.system:
+    if identity.identity_type == IdentityType.SYSTEM:
         host = _set_owner(host, identity)
 
     request_id = platform_metadata.get("request_id", "-1")

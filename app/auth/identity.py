@@ -58,10 +58,10 @@ class Identity:
             else:
                 self.auth_type = None
 
-            if obj["type"] == IdentityType.user:
+            if obj["type"] == IdentityType.USER:
                 self.identity_type = obj["type"]
                 self.user = obj["user"]
-            elif obj["type"] == IdentityType.system:
+            elif obj["type"] == IdentityType.SYSTEM:
                 self.identity_type = obj["type"]
                 self.system = obj["system"]
 
@@ -76,14 +76,14 @@ class Identity:
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
 
     def _asdict(self):
-        if self.identity_type == IdentityType.user:
+        if self.identity_type == IdentityType.USER:
             return {
                 "account_number": self.account_number,
                 "type": self.identity_type,
                 "auth_type": self.auth_type,
                 "user": self.user.copy(),
             }
-        if self.identity_type == IdentityType.system:
+        if self.identity_type == IdentityType.SYSTEM:
             return {
                 "account_number": self.account_number,
                 "type": self.identity_type,
@@ -110,7 +110,7 @@ def validate(identity):
         if not identity.account_number:
             raise ValueError("The account_number is mandatory.")
 
-        elif identity.identity_type == IdentityType.system:
+        elif identity.identity_type == IdentityType.SYSTEM:
             if not identity.system:
                 raise ValueError("The identity.system is mandatory")
             if not identity.system.get("cert_type"):
@@ -124,7 +124,7 @@ def validate(identity):
             if identity.auth_type not in AuthType.__members__.values():
                 raise ValueError("The auth_type is invalid.")
 
-        elif identity.identity_type == IdentityType.user:
+        elif identity.identity_type == IdentityType.USER:
             if not identity.user:
                 raise ValueError("The identity.user is mandatory")
             if not identity.user.get("email"):

@@ -194,9 +194,9 @@ def update_query_for_owner_id(identity, query):
     logger.debug("identity auth type: %s", identity.auth_type)
     if (
         identity
-        and identity.identity_type == IdentityType.system
-        and identity.auth_type != AuthType.classic
-        and identity.system["cert_type"] == CertType.system
+        and identity.identity_type == IdentityType.SYSTEM
+        and identity.auth_type != AuthType.CLASSIC
+        and identity.system["cert_type"] == CertType.SYSTEM
     ):
         return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
     else:

@@ -24,7 +24,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 ROUTE = "/api/rbac/v1/access/?application=inventory"
-CHECKED_TYPE = IdentityType.user
+CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
