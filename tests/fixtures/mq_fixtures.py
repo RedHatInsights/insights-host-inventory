@@ -3,6 +3,7 @@ import json
 import pytest
 
 from app.queue.event_producer import EventProducer
+from app.queue.queue import add_host
 from app.queue.queue import handle_message
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
@@ -20,9 +21,13 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(flask_app, event_producer_mock):
+def mq_create_or_update_host(flask_app, event_producer_mock, message_operation=add_host):
     def _mq_create_or_update_host(
-        host_data, platform_metadata=None, return_all_data=False, event_producer=event_producer_mock
+        host_data,
+        platform_metadata=None,
+        return_all_data=False,
+        event_producer=event_producer_mock,
+        message_operation=add_host,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata_with_system_identity()
@@ -30,7 +35,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
             platform_metadata["b64_identity"] = get_encoded_idstr()
         host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
-        handle_message(json.dumps(message), event_producer)
+        handle_message(json.dumps(message), event_producer, message_operation)
         event = json.loads(event_producer.event)
 
         if return_all_data:

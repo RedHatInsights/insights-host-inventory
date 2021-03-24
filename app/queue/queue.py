@@ -149,7 +149,6 @@ def parse_operation_message(message):
 
 
 def update_system_profile(host_data, identity):
-    # TODO: update system profile ONLY
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -209,7 +208,7 @@ def add_host(host_data, identity):
 
 
 @metrics.ingress_message_handler_time.time()
-def handle_message(message, event_producer, host_operation=add_host):
+def handle_message(message, event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
@@ -231,7 +230,7 @@ def handle_message(message, event_producer, host_operation=add_host):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, operation_result = host_operation(host, identity)
+        output_host, host_id, insights_id, operation_result = message_operation(host, identity)
         event_type = operation_results_to_event_type(operation_result)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 

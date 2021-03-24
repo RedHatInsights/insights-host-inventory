@@ -81,7 +81,7 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
 
-    mocker.patch(
+    add_host_mock = mocker.patch(
         "app.queue.queue.add_host",
         return_value=(
             {"id": host_id, "insights_id": expected_insights_id},
@@ -96,7 +96,7 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata_with_system_identity())
 
-    handle_message(json.dumps(message), mock_event_producer)
+    handle_message(json.dumps(message), mock_event_producer, add_host_mock)
 
     mock_event_producer.write_event.assert_called_once()
 
@@ -177,7 +177,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             host_id = generate_uuid()
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-            handle_message(message, mocker.Mock())
+            handle_message(message, mocker.Mock(), add_host)
             add_host.assert_called_once_with(json.loads(message)["data"], Identity(SYSTEM_IDENTITY))
 
 
@@ -200,9 +200,11 @@ def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
     host_data = host.data()
 
-    mocker.patch("app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created))
+    mock_add_host = mocker.patch(
+        "app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created)
+    )
 
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True, message_operation=mock_add_host)
 
     assert key == host_id
     assert event["host"] == host_data
@@ -216,10 +218,12 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
 
-    mocker.patch("app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result))
+    mock_add_host = mocker.patch(
+        "app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result)
+    )
 
     key, event, headers = mq_create_or_update_host(
-        host, platform_metadata={"request_id": request_id}, return_all_data=True
+        host, platform_metadata={"request_id": request_id}, return_all_data=True, message_operation=mock_add_host
     )
 
     assert headers == expected_headers(add_host_result.name, request_id, insights_id)
@@ -1090,7 +1094,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     host_id = generate_uuid()
     timestamp_iso = event_datetime_mock.isoformat()
 
-    mocker.patch(
+    mock_add_host = mocker.patch(
         "app.queue.queue.add_host",
         return_value=(
             {"id": host_id, "insights_id": expected_insights_id},
@@ -1109,7 +1113,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     )
     message = wrap_message(host.data(), "add_host")
 
-    handle_message(json.dumps(message), mock_event_producer)
+    handle_message(json.dumps(message), mock_event_producer, mock_add_host)
 
     mock_event_producer.write_event.assert_called_once()
 

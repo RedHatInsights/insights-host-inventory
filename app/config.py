@@ -157,7 +157,6 @@ class Config:
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "1000"))
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
-        self.mq_restrict_to_field = os.getenv("MQ_RESTRICT_TO_FIELD", "ALL")
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
