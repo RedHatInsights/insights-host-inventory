@@ -95,18 +95,18 @@ def test_handle_message_happy_path(mocker, event_datetime_mock, flask_app):
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
 
-    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+    message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     handle_message(json.dumps(message), mock_event_producer)
 
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-        "platform_metadata": get_platform_metadata(SYSTEM_IDENTITY),
+        "platform_metadata": get_platform_metadata(),
         "timestamp": timestamp_iso,
         "type": "created",
         "host": {"id": host_id, "insights_id": expected_insights_id},
-        "metadata": {"request_id": get_platform_metadata(SYSTEM_IDENTITY).get("request_id")},
+        "metadata": {"request_id": get_platform_metadata().get("request_id")},
     }
 
 
@@ -135,11 +135,11 @@ def test_handle_message_happy_satellite(mocker, event_datetime_mock, flask_app):
     mock_event_producer.write_event.assert_called_once()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
-        "platform_metadata": get_platform_metadata(SYSTEM_IDENTITY),
+        "platform_metadata": get_platform_metadata(SATELLITE_IDENTITY),
         "timestamp": timestamp_iso,
         "type": "created",
         "host": {"id": host_id, "insights_id": expected_insights_id},
-        "metadata": {"request_id": get_platform_metadata(SYSTEM_IDENTITY).get("request_id")},
+        "metadata": {"request_id": get_platform_metadata(SATELLITE_IDENTITY).get("request_id")},
     }
 
 
@@ -201,7 +201,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
     for name in names:
         host = minimal_host(display_name=name, system_profile={"owner_id": OWNER_ID})
         host.reporter = "me"
-        msg = json.dumps(wrap_message(host.data(), "", get_platform_metadata(SYSTEM_IDENTITY)))
+        msg = json.dumps(wrap_message(host.data(), "", get_platform_metadata()))
         messages.append(msg)
 
     messages_tuple = tuple(messages)
@@ -1089,7 +1089,7 @@ def test_handle_message_side_effect(mocker, flask_app):
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
 
     fake_add_host.reset_mock()
-    message = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+    message = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata()))
 
     with pytest.raises(expected_exception=OperationalError):
         handle_message(message, mocker.MagicMock())
@@ -1203,7 +1203,7 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
         system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
     )
 
-    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+    message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer)

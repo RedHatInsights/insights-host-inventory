@@ -5,6 +5,7 @@ import os
 import string
 import unittest.mock
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -39,7 +40,7 @@ USER_IDENTITY = {
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
-SATELLITE_IDENTITY = SYSTEM_IDENTITY
+SATELLITE_IDENTITY = deepcopy(SYSTEM_IDENTITY)
 SATELLITE_IDENTITY["system"]["cert_type"] = "satellite"
 
 
