@@ -25,20 +25,20 @@ def from_bearer_token(token):
 
 
 class AuthType(str, Enum):
-    basic = "basic-auth"
-    cert = "cert-auth"
-    classic = "classic-proxy"
+    BASIC = "basic-auth"
+    CERT = "cert-auth"
+    CLASSIC = "classic-proxy"
 
 
 class CertType(str, Enum):
-    satellite = "satellite"
-    system = "system"
+    SATELLITE = "satellite"
+    SYSTEM = "system"
 
 
 class IdentityType(str, Enum):
-    system = "System"
-    user = "User"
-    classic = "Insights_Classic_System"
+    SYSTEM = "System"
+    USER = "User"
+    CLASSIC = "Insights_Classic_System"
 
 
 class Identity:
