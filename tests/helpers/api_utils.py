@@ -15,6 +15,8 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
+from app.auth.identity import IdentityType
+
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
 SYSTEM_PROFILE_URL = "/api/inventory/v1/system_profile"
@@ -96,7 +98,7 @@ def do_request(func, url, identity, data=None, query_parameters=None, extra_head
 
 
 def get_valid_auth_header(identity):
-    if identity["type"] in ["User", "System", "Insights_Classic_System"]:
+    if identity["type"] in IdentityType.__members__.values():
         return build_account_auth_header(identity)
 
     return build_token_auth_header()
