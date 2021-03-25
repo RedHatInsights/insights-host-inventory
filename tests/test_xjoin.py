@@ -1616,14 +1616,15 @@ def test_query_hosts_filter_spf_rhc_client_id(
                 graphql_query_empty_response.reset_mock()
 
 
-# system_profile rhc_client_id tests
+# system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
-    values = ("3.0.6-2.el7_6", "nil", "not_nil")
+    values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
     queries = (
-        {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
+        {"spf_insights_client_version": {"matches": "3.0.6-2.el7_6"}},
+        {"spf_insights_client_version": {"matches": "3.*"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
     )

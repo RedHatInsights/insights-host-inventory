@@ -16,7 +16,8 @@ __all__ = ("get_host_list",)
 
 logger = get_logger(__name__)
 
-
+NIL_STRING = "nil"
+NOT_NIL_STRING = "not_nil"
 QUERY = """query Query(
     $limit: Int!,
     $offset: Int!,
@@ -122,13 +123,17 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _boolean_filter(field_name, field_value):
-    if field_value == "nil":
+def _boolean_filter_nullable(field_name, field_value):
+    if field_value == NIL_STRING:
         return ({field_name: {"is": None}},)
-    elif field_value == "not_nil":
+    elif field_value == NOT_NIL_STRING:
         return ({"NOT": {field_name: {"is": None}}},)
     else:
-        return ({field_name: {"is": (field_value.lower() == "true")}},)
+        return _boolean_filter(field_name, field_value)
+
+
+def _boolean_filter(field_name, field_value):
+    return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
 def _string_filter(field_name, field_value):
@@ -138,6 +143,15 @@ def _string_filter(field_name, field_value):
         return ({"NOT": {field_name: {"eq": None}}},)
     else:
         return ({field_name: {"eq": (field_value)}},)
+
+
+def _wildcard_string_filter(field_name, field_value):
+    if field_value == "nil":
+        return ({field_name: {"eq": None}},)
+    elif field_value == "not_nil":
+        return ({"NOT": {field_name: {"eq": None}}},)
+    else:
+        return ({field_name: {"matches": (field_value)}},)
 
 
 def _sap_sids_filters(field_name, sap_sids):
@@ -155,7 +169,7 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
 
 
 def build_sap_system_filter(sap_system):
-    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter)
+    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter_nullable)
 
 
 def build_sap_sids_filter(sap_sids):
@@ -210,7 +224,7 @@ def _build_system_profile_filter(system_profile):
         system_profile_filter += build_sap_sids_filter(system_profile["sap_sids"])
     if system_profile.get("is_marketplace"):
         system_profile_filter += build_filter(
-            "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _boolean_filter
+            "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _boolean_filter_nullable
         )
     if system_profile.get("rhc_client_id"):
         system_profile_filter += build_filter(
@@ -218,7 +232,11 @@ def _build_system_profile_filter(system_profile):
         )
     if system_profile.get("insights_client_version"):
         system_profile_filter += build_filter(
-            "insights_client_version", system_profile["insights_client_version"], str, "eq", _string_filter
+            "spf_insights_client_version",
+            system_profile["insights_client_version"],
+            str,
+            "eq",
+            _wildcard_string_filter,
         )
 
     return system_profile_filter
