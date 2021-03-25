@@ -16,7 +16,8 @@ __all__ = ("get_host_list",)
 
 logger = get_logger(__name__)
 
-
+NIL_STRING = "nil"
+NOT_NIL_STRING = "not_nil"
 QUERY = """query Query(
     $limit: Int!,
     $offset: Int!,
@@ -122,34 +123,44 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _sap_system_filters(sap_system):
-    if sap_system == "nil":
-        return {"spf_sap_system": {"is": None}}
-    elif sap_system == "not_nil":
-        return {"NOT": {"spf_sap_system": {"is": None}}}
+def _boolean_filter(field_name, field_value):
+    if field_value == NIL_STRING:
+        return ({field_name: {"is": None}},)
+    elif field_value == NOT_NIL_STRING:
+        return ({"NOT": {field_name: {"is": None}}},)
     else:
-        return {"spf_sap_system": {"is": (sap_system.lower() == "true")}}
+        return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def build_sap_system_filters(sap_system):
-    if isinstance(sap_system, str):
-        return (_sap_system_filters(sap_system),)
-    elif sap_system.get("eq"):
-        return (_sap_system_filters(sap_system["eq"]),)
+def _string_filter(field_name, field_value):
+    if field_value == NIL_STRING:
+        return ({field_name: {"eq": None}},)
+    elif field_value == NOT_NIL_STRING:
+        return ({"NOT": {field_name: {"eq": None}}},)
+    else:
+        return ({field_name: {"eq": (field_value)}},)
 
 
-def _sap_sids_filters(sap_sids):
+def _sap_sids_filters(field_name, sap_sids):
     sap_sids_filters = ()
     for sap_sid in sap_sids:
-        sap_sids_filters += ({"spf_sap_sids": {"eq": sap_sid}},)
+        sap_sids_filters += ({field_name: {"eq": sap_sid}},)
     return sap_sids_filters
 
 
+def build_filter(field_name, field_value, field_type, operation, filter_building_function):
+    if isinstance(field_value, field_type):
+        return filter_building_function(field_name, field_value)
+    elif field_value.get(operation):
+        return filter_building_function(field_name, field_value[operation])
+
+
+def build_sap_system_filter(sap_system):
+    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter)
+
+
 def build_sap_sids_filter(sap_sids):
-    if isinstance(sap_sids, list):
-        return _sap_sids_filters(sap_sids)
-    elif sap_sids.get("contains"):
-        return _sap_sids_filters(sap_sids["contains"])
+    return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
@@ -185,13 +196,9 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
     if filter:
         if filter.get("system_profile"):
-            system_profile_filter = _build_system_profile_filter(filter["system_profile"])
-            if system_profile_filter != ():
-                query_filters += system_profile_filter
+            query_filters += _build_system_profile_filter(filter["system_profile"])
         if filter.get("per_reporter_staleness"):
-            per_reporter_staleness_filter = _build_per_reporter_staleness_filter(filter["per_reporter_staleness"])
-            if per_reporter_staleness_filter != ():
-                query_filters += per_reporter_staleness_filter
+            query_filters += _build_per_reporter_staleness_filter(filter["per_reporter_staleness"])
 
     logger.debug(query_filters)
     return query_filters
@@ -201,7 +208,7 @@ def _build_system_profile_filter(system_profile):
     system_profile_filter = tuple()
 
     if system_profile.get("sap_system"):
-        system_profile_filter += build_sap_system_filters(system_profile["sap_system"])
+        system_profile_filter += build_sap_system_filter(system_profile["sap_system"])
     if system_profile.get("sap_sids"):
         system_profile_filter += build_sap_sids_filter(system_profile["sap_sids"])
 
@@ -211,28 +218,19 @@ def _build_system_profile_filter(system_profile):
 def _build_per_reporter_staleness_filter(per_reporter_staleness):
     prs_dict_array = []
 
-    for reporter in per_reporter_staleness:
+    for reporter, props in per_reporter_staleness.items():
         prs_dict = {"reporter": {"eq": reporter}}
 
         if per_reporter_staleness[reporter].get("stale_timestamp"):
-            prs_dict["stale_timestamp"] = per_reporter_staleness[reporter]["stale_timestamp"]
-        if per_reporter_staleness[reporter].get("last_check_in"):
-            prs_dict["last_check_in"] = per_reporter_staleness[reporter]["last_check_in"]
-        if per_reporter_staleness[reporter].get("check_in_succeeded"):
-            prs_dict["check_in_succeeded"] = {
-                "is": per_reporter_staleness[reporter]["check_in_succeeded"].lower() == "true"
-            }
+            prs_dict["stale_timestamp"] = props["stale_timestamp"]
+        if props.get("last_check_in"):
+            prs_dict["last_check_in"] = props["last_check_in"]
+        if props.get("check_in_succeeded"):
+            prs_dict["check_in_succeeded"] = {"is": props["check_in_succeeded"].lower() == "true"}
 
         prs_dict_array.append({"per_reporter_staleness": prs_dict})
 
     return ({"AND": prs_dict_array},)
-
-
-def build_prs_reporter_filter(sap_sids):
-    if isinstance(sap_sids, list):
-        return _sap_sids_filters(sap_sids)
-    elif sap_sids.get("contains"):
-        return _sap_sids_filters(sap_sids["contains"])
 
 
 def owner_id_filter():
