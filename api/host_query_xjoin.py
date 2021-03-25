@@ -126,13 +126,17 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _boolean_filter(field_name, field_value):
+def _boolean_filter_nullable(field_name, field_value):
     if field_value == NIL_STRING:
         return ({field_name: {"is": None}},)
     elif field_value == NOT_NIL_STRING:
         return ({"NOT": {field_name: {"is": None}}},)
     else:
-        return ({field_name: {"is": (field_value.lower() == "true")}},)
+        return _boolean_filter(field_name, field_value)
+
+
+def _boolean_filter(field_name, field_value):
+    return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
 def _string_filter(field_name, field_value):
@@ -159,14 +163,14 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
 
 
 def build_sap_system_filter(sap_system):
-    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter)
+    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter_nullable)
 
 
 def build_sap_sids_filter(sap_sids):
     return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
-def build_check_in_succeeded(check_in_succeeded):
+def build_check_in_succeeded_filter(check_in_succeeded):
     return build_filter("check_in_succeeded", check_in_succeeded, str, "eq", _boolean_filter)
 
 
@@ -236,7 +240,7 @@ def _build_per_reporter_staleness_filter(per_reporter_staleness):
             if props.get("last_check_in"):
                 prs_dict["last_check_in"] = props["last_check_in"]
             if props.get("check_in_succeeded"):
-                prs_dict.update(build_check_in_succeeded(props["check_in_succeeded"])[0])
+                prs_dict.update(_boolean_filter("check_in_succeeded", props["check_in_succeeded"])[0])
 
             prs_dict_array.append({"per_reporter_staleness": prs_dict})
 
