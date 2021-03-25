@@ -154,6 +154,15 @@ def _wildcard_string_filter(field_name, field_value):
     return ({field_name: {"matches": (field_value)}},)
 
 
+def _wildcard_string_filter(field_name, field_value):
+    if field_value == "nil":
+        return ({field_name: {"eq": None}},)
+    elif field_value == "not_nil":
+        return ({"NOT": {field_name: {"eq": None}}},)
+    else:
+        return ({field_name: {"matches": (field_value)}},)
+
+
 def _sap_sids_filters(field_name, sap_sids):
     sap_sids_filters = ()
     for sap_sid in sap_sids:
