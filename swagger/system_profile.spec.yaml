@@ -337,8 +337,7 @@ $defs:
         example: 'enforcing'
       selinux_config_file:
         type: string
-        enum: [enforcing, permissive, disabled]
-        maxLength: 10
+        maxLength: 128
         description: The SELinux mode provided in the config file
         example: 'permissive'
       is_marketplace:
