@@ -9,9 +9,9 @@ from datetime import timezone
 # good
 IDENTITY = {
     "account_number": "sysaccount",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+    "type": IdentityType.SYSTEM.value,
+    "auth_type": AuthType.CERT.value,
+    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": CertType.SYSTEM.value},
     "internal": {"org_id": "3340851", "auth_time": 6300},
 }
 
