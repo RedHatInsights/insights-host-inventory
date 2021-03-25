@@ -12,6 +12,8 @@ from datetime import timezone
 from random import choice
 from random import randint
 
+from app.utils import HostWrapper
+
 NS = "testns"
 ID = "whoabuddy"
 
