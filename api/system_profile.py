@@ -13,6 +13,9 @@ from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
+from app.auth.identity import AuthType
+from app.auth.identity import CertType
+from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -122,7 +125,15 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
+<<<<<<< HEAD
     if current_identity.identity_type == "System" and current_identity.auth_type != "classic-proxy":
+=======
+    if (
+        current_identity.identity_type == IdentityType.SYSTEM
+        and current_identity.auth_type != AuthType.CLASSIC
+        and current_identity.system["cert_type"] == CertType.SYSTEM
+    ):
+>>>>>>> 9bfe40e... Updated identity and tests to use enums for identity type, auth_type,… (#844)
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
@@ -180,7 +191,11 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == "System" and current_identity.auth_type != "classic-proxy":
+    if (
+        current_identity.identity_type == IdentityType.SYSTEM
+        and current_identity.auth_type != AuthType.CLASSIC
+        and current_identity.system["cert_type"] == CertType.SYSTEM
+    ):
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
