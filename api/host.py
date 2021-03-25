@@ -17,7 +17,6 @@ from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
-from app import HostListResponse
 from app import inventory_config
 from app import Permission
 from app.auth import get_current_identity

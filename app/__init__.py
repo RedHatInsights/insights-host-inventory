@@ -41,6 +41,7 @@ SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 
 HostListResponse = Enum("HostListResponse", ("generic", "sparse_sp"))
 
+
 class Permission(Enum):
     READ = "inventory:hosts:read"
     WRITE = "inventory:hosts:write"

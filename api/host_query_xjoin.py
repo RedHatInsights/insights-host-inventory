@@ -99,8 +99,11 @@ def get_host_list(
     ):
         all_filters += owner_id_filter()
 
+    response_type = HostListResponse.generic
+
     system_profile_fields = []
     if fields.get("system_profile"):
+        response_type = HostListResponse.sparse_sp
         system_profile_fields = list(fields.get("system_profile").keys())
 
     variables = {
@@ -116,7 +119,7 @@ def get_host_list(
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total, HostListResponse.sparse_sp
+    return map(deserialize_host, response["data"]), total, response_type
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):
