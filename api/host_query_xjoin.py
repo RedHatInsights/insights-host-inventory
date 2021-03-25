@@ -123,35 +123,37 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _boolean_filter_nullable(field_name, field_value):
+def _nullable_wrapper(field_name, field_value, graphql_operation, filter_function):
     if field_value == NIL_STRING:
-        return ({field_name: {"is": None}},)
+        return ({field_name: {graphql_operation: None}},)
     elif field_value == NOT_NIL_STRING:
-        return ({"NOT": {field_name: {"is": None}}},)
+        return ({"NOT": {field_name: {graphql_operation: None}}},)
     else:
-        return _boolean_filter(field_name, field_value)
+        return filter_function(field_name, field_value)
+
+
+def _nullable_boolean_filter(field_name, field_value):
+    return _nullable_wrapper(field_name, field_value, "is", _boolean_filter)
 
 
 def _boolean_filter(field_name, field_value):
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
+def _nullable_string_filter(field_name, field_value):
+    return _nullable_wrapper(field_name, field_value, "eq", _string_filter)
+
+
 def _string_filter(field_name, field_value):
-    if field_value == "nil":
-        return ({field_name: {"eq": None}},)
-    elif field_value == "not_nil":
-        return ({"NOT": {field_name: {"eq": None}}},)
-    else:
-        return ({field_name: {"eq": (field_value)}},)
+    return ({field_name: {"eq": (field_value)}},)
+
+
+def _nullable_wildcard_filter(field_name, field_value):
+    return _nullable_wrapper(field_name, field_value, "eq", _wildcard_string_filter)
 
 
 def _wildcard_string_filter(field_name, field_value):
-    if field_value == "nil":
-        return ({field_name: {"eq": None}},)
-    elif field_value == "not_nil":
-        return ({"NOT": {field_name: {"eq": None}}},)
-    else:
-        return ({field_name: {"matches": (field_value)}},)
+    return ({field_name: {"matches": (field_value)}},)
 
 
 def _sap_sids_filters(field_name, sap_sids):
@@ -169,7 +171,7 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
 
 
 def build_sap_system_filter(sap_system):
-    return build_filter("spf_sap_system", sap_system, str, "eq", _boolean_filter_nullable)
+    return build_filter("spf_sap_system", sap_system, str, "eq", _nullable_boolean_filter)
 
 
 def build_sap_sids_filter(sap_sids):
@@ -224,11 +226,11 @@ def _build_system_profile_filter(system_profile):
         system_profile_filter += build_sap_sids_filter(system_profile["sap_sids"])
     if system_profile.get("is_marketplace"):
         system_profile_filter += build_filter(
-            "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _boolean_filter_nullable
+            "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _nullable_boolean_filter
         )
     if system_profile.get("rhc_client_id"):
         system_profile_filter += build_filter(
-            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq", _string_filter
+            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq", _nullable_string_filter
         )
     if system_profile.get("insights_client_version"):
         system_profile_filter += build_filter(
@@ -236,7 +238,7 @@ def _build_system_profile_filter(system_profile):
             system_profile["insights_client_version"],
             str,
             "eq",
-            _wildcard_string_filter,
+            _nullable_wildcard_filter,
         )
 
     return system_profile_filter
