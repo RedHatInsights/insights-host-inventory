@@ -1,5 +1,6 @@
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from tests.helpers.api_utils import get_valid_auth_header
+from tests.helpers.test_utils import USER_IDENTITY
 
 EMPTY_HOSTS_RESPONSE = {"hosts": {"meta": {"total": 0}, "data": []}}
 TAGS_EMPTY_RESPONSE = {"hostTags": {"meta": {"count": 0, "total": 0}, "data": []}}
@@ -128,7 +129,7 @@ def assert_graph_query_single_call_with_staleness(mocker, graphql_query, stalene
 
 
 def assert_called_with_headers(mocker, post, request_id):
-    identity = get_valid_auth_header().get("x-rh-identity").decode()
+    identity = get_valid_auth_header(USER_IDENTITY).get("x-rh-identity").decode()
 
     post.assert_called_once_with(
         mocker.ANY, json=mocker.ANY, headers={"x-rh-identity": identity, "x-rh-insights-request-id": request_id}

@@ -188,6 +188,12 @@ class HostWrapper:
     def from_json(cls, d):
         return cls(json.loads(d))
 
+    def __repr__(self):
+        return f"HostWrapper({json.dumps(self.__data, indent=2)})"
+
+    def __eq__(self, other):
+        return self.__data == other.__data
+
 
 """
 Tagging: functions for converting tags between valid representations

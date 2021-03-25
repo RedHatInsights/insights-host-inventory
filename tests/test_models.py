@@ -12,6 +12,7 @@ from app.models import HostSchema
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
 """
@@ -23,7 +24,13 @@ def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
     # Verify that the display_name is populated from the fqdn
     fqdn = "spacely_space_sprockets.orbitcity.com"
 
-    created_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}})
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "canonical_facts": {"fqdn": fqdn},
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+        },
+    )
 
     assert created_host.display_name == fqdn
 
@@ -78,7 +85,14 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
     # Create an "existing" host
     insights_id = generate_uuid()
 
-    existing_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": None})
+    existing_host = db_create_host(
+        SYSTEM_IDENTITY,
+        extra_data={
+            "canonical_facts": {"insights_id": insights_id},
+            "display_name": None,
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+        },
+    )
 
     # Clear the display_name
     existing_host.display_name = None
@@ -118,9 +132,9 @@ def test_create_host_without_system_profile(db_create_host):
 
 
 def test_create_host_with_system_profile(db_create_host):
-    system_profile_facts = {"number_of_cpus": 1}
+    system_profile_facts = {"number_of_cpus": 1, "owner_id": SYSTEM_IDENTITY["system"]["cn"]}
 
-    created_host = db_create_host(extra_data={"system_profile_facts": system_profile_facts})
+    created_host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": system_profile_facts})
 
     assert created_host.system_profile_facts == system_profile_facts
 
@@ -187,7 +201,13 @@ def test_host_schema_timezone_enforced():
 )
 def test_create_host_with_tags(tags, db_create_host):
     created_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": "fred.flintstone.com"}, "display_name": "display_name", "tags": tags}
+        SYSTEM_IDENTITY,
+        extra_data={
+            "canonical_facts": {"fqdn": "fred.flintstone.com"},
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            "display_name": "display_name",
+            "tags": tags,
+        },
     )
 
     assert created_host.tags == tags
@@ -241,7 +261,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
     }
 
     inserted_host = Host(**values)
-    db_create_host(inserted_host)
+    db_create_host(host=inserted_host)
 
     selected_host = db_get_host(inserted_host.id)
     for key, value in values.items():
@@ -255,7 +275,7 @@ def test_host_model_default_id(db_create_host):
         reporter="yupana",
         stale_timestamp=now(),
     )
-    db_create_host(host)
+    db_create_host(host=host)
 
     assert isinstance(host.id, uuid.UUID)
 
@@ -269,7 +289,7 @@ def test_host_model_default_timestamps(db_create_host):
     )
 
     before_commit = now()
-    db_create_host(host)
+    db_create_host(host=host)
     after_commit = now()
 
     assert isinstance(host.created_on, datetime)
@@ -287,7 +307,7 @@ def test_host_model_updated_timestamp(db_create_host):
     )
 
     before_insert_commit = now()
-    db_create_host(host)
+    db_create_host(host=host)
     after_insert_commit = now()
 
     host.canonical_facts = {"fqdn": "ndqf"}
@@ -308,7 +328,7 @@ def test_host_model_timestamp_timezones(db_create_host):
         reporter="ingress",
     )
 
-    db_create_host(host)
+    db_create_host(host=host)
 
     assert host.created_on.tzinfo
     assert host.modified_on.tzinfo
@@ -333,7 +353,7 @@ def test_host_model_constraints(field, value, db_create_host):
     host = Host(**values)
 
     with pytest.raises(DataError):
-        db_create_host(host)
+        db_create_host(host=host)
 
 
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
@@ -342,7 +362,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=stale_timestamp
     )
-    created_host = db_create_host(input_host)
+    created_host = db_create_host(host=input_host)
 
     assert created_host.per_reporter_staleness == {
         "puptoo": {
@@ -358,7 +378,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     input_host = Host(
         {"fqdn": "fqdn"}, display_name="display_name", reporter="puptoo", stale_timestamp=puptoo_stale_timestamp
     )
-    existing_host = db_create_host(input_host)
+    existing_host = db_create_host(host=input_host)
 
     assert existing_host.per_reporter_staleness == {
         "puptoo": {

@@ -24,7 +24,6 @@ from app.logging import threadctx
 from app.models import db
 from app.models import SPECIFICATION_DIR
 from app.queue.event_producer import EventProducer
-from app.queue.event_producer import Topic
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -49,11 +48,10 @@ class Permission(Enum):
 
 
 def initialize_metrics(config):
-    topic_names = {Topic.egress: config.host_egress_topic, Topic.events: config.event_topic}
+    topic_name = config.event_topic
     for event_type in EventType:
-        for topic in Topic:
-            event_producer_failure.labels(event_type=event_type.name, topic=topic_names[topic])
-            event_producer_success.labels(event_type=event_type.name, topic=topic_names[topic])
+        event_producer_failure.labels(event_type=event_type.name, topic=topic_name)
+        event_producer_success.labels(event_type=event_type.name, topic=topic_name)
 
     rbac_access_denied.labels(required_permission=Permission.READ.value)
     rbac_access_denied.labels(required_permission=Permission.WRITE.value)
