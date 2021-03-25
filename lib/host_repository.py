@@ -5,7 +5,6 @@ from sqlalchemy import or_
 
 from app import inventory_config
 from app.auth.identity import AuthType
-from app.auth.identity import CertType
 from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
 from app.logging import get_logger
