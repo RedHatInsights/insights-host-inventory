@@ -125,15 +125,11 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
                 hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
-<<<<<<< HEAD
-    if current_identity.identity_type == "System" and current_identity.auth_type != "classic-proxy":
-=======
     if (
         current_identity.identity_type == IdentityType.SYSTEM
         and current_identity.auth_type != AuthType.CLASSIC
         and current_identity.system["cert_type"] == CertType.SYSTEM
     ):
->>>>>>> 9bfe40e... Updated identity and tests to use enums for identity type, auth_type,… (#844)
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
