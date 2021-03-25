@@ -166,6 +166,10 @@ def build_sap_sids_filter(sap_sids):
     return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
+def build_check_in_succeeded(check_in_succeeded):
+    return build_filter("check_in_succeeded", check_in_succeeded, str, "eq", _boolean_filter)
+
+
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
@@ -222,16 +226,19 @@ def _build_per_reporter_staleness_filter(per_reporter_staleness):
     prs_dict_array = []
 
     for reporter, props in per_reporter_staleness.items():
-        prs_dict = {"reporter": {"eq": reporter}}
+        if isinstance(props.get("exists"), str) and props.get("exists").lower() == "false":
+            prs_dict_array.append({"NOT": {"per_reporter_staleness": {"reporter": {"eq": reporter}}}})
+        else:
+            prs_dict = {"reporter": {"eq": reporter}}
 
-        if per_reporter_staleness[reporter].get("stale_timestamp"):
-            prs_dict["stale_timestamp"] = props["stale_timestamp"]
-        if props.get("last_check_in"):
-            prs_dict["last_check_in"] = props["last_check_in"]
-        if props.get("check_in_succeeded"):
-            prs_dict["check_in_succeeded"] = {"is": props["check_in_succeeded"].lower() == "true"}
+            if props.get("stale_timestamp"):
+                prs_dict["stale_timestamp"] = props["stale_timestamp"]
+            if props.get("last_check_in"):
+                prs_dict["last_check_in"] = props["last_check_in"]
+            if props.get("check_in_succeeded"):
+                prs_dict.update(build_check_in_succeeded(props["check_in_succeeded"])[0])
 
-        prs_dict_array.append({"per_reporter_staleness": prs_dict})
+            prs_dict_array.append({"per_reporter_staleness": prs_dict})
 
     return ({"AND": prs_dict_array},)
 

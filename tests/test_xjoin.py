@@ -1786,21 +1786,23 @@ def test_query_hosts_filter_per_reporter_staleness(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     queries_http = (
-        "filter[per_reporter_staleness][yupana][exists]",
-        "filter[per_reporter_staleness][yupana][exists]&filter[per_reporter_staleness][puptoo][exists]",
+        "filter[per_reporter_staleness][yupana][exists]=true",
+        "filter[per_reporter_staleness][yupana][exists]=true&filter[per_reporter_staleness][puptoo][exists]=true",
         "filter[per_reporter_staleness][yupana][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00",
         "filter[per_reporter_staleness][yupana][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00",
         "filter[per_reporter_staleness][yupana][check_in_succeeded]=true",
         (
-            "filter[per_reporter_staleness][yupana][exists]"
+            "filter[per_reporter_staleness][yupana][exists]=true"
             "&filter[per_reporter_staleness][yupana][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
             "&filter[per_reporter_staleness][yupana][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
             "&filter[per_reporter_staleness][yupana][check_in_succeeded]=true"
-            "&filter[per_reporter_staleness][puptoo][exists]"
+            "&filter[per_reporter_staleness][puptoo][exists]=true"
             "&filter[per_reporter_staleness][puptoo][stale_timestamp][gte]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
             "&filter[per_reporter_staleness][puptoo][last_check_in][lt]=2021-03-18T21%3A21%3A00.935093%2B00%3A00"
             "&filter[per_reporter_staleness][puptoo][check_in_succeeded]=true"
         ),
+        "filter[per_reporter_staleness][yupana][exists]=false",
+        "filter[per_reporter_staleness][yupana][check_in_succeeded]=nil",
     )
     queries_graphql = (
         {"AND": [{"per_reporter_staleness": {"reporter": {"eq": "yupana"}}}]},
@@ -1851,6 +1853,8 @@ def test_query_hosts_filter_per_reporter_staleness(
                 },
             ]
         },
+        {"AND": [{"NOT": {"per_reporter_staleness": {"reporter": {"eq": "yupana"}}}}]},
+        {"AND": [{"per_reporter_staleness": {"reporter": {"eq": "yupana"}, "check_in_succeeded": {"is": None}}}]},
     )
 
     for http_query, graphql_query in zip(queries_http, queries_graphql):
