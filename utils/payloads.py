@@ -577,7 +577,7 @@ def build_mq_payload(payload_builder=build_host_chunk):
         "platform_metadata": {
             "request_id": random_uuid(),
             "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-            # "b64_identity": apiKey.decode("ascii"),
+            "b64_identity": apiKey.decode("ascii"),
         },
         "data": build_host_payload(payload_builder),
     }
