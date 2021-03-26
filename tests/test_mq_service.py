@@ -146,7 +146,7 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
 
     with pytest.raises(UnicodeError):
-        handle_message(invalid_message, mocker.Mock())
+        handle_message(invalid_message, mocker.Mock(), add_host)
 
     add_host.assert_not_called()
 
@@ -1072,7 +1072,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
 
-    mocker.patch(
+    mock_add_host = mocker.patch(
         "app.queue.queue.add_host",
         return_value=(
             {"id": host_id, "insights_id": expected_insights_id},
@@ -1087,7 +1087,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     message = wrap_message(host.data())
 
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1132,7 +1132,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
 
-    mocker.patch(
+    mock_add_host = mocker.patch(
         "app.queue.queue.add_host",
         return_value=(
             {"id": host_id, "insights_id": expected_insights_id},
@@ -1151,14 +1151,14 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     )
     message = wrap_message(host.data(), "add_host")
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
 
 
 def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
 
-    mocker.patch(
+    mock_add_host = mocker.patch(
         "app.queue.queue.add_host",
         return_value=(
             {"id": host_id, "insights_id": expected_insights_id},
@@ -1178,5 +1178,5 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
