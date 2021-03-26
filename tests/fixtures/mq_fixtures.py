@@ -21,7 +21,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(flask_app, event_producer_mock, message_operation=add_host):
+def mq_create_or_update_host(flask_app, event_producer_mock):
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,

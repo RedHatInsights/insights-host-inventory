@@ -160,6 +160,7 @@ def update_system_profile(host_data, identity):
 
         try:
             input_host = deserialize_host(host_data)
+            input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
