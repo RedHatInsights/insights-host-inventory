@@ -1,4 +1,5 @@
 from enum import Enum
+from uuid import UUID
 
 from sqlalchemy import and_
 from sqlalchemy import or_
@@ -75,7 +76,7 @@ def find_existing_host(identity, canonical_facts):
 
 
 def find_existing_host_by_id(identity, host_id):
-    query = Host.query.filter((Host.account == identity.account_number) & (Host.id.astext == host_id))
+    query = Host.query.filter((Host.account == identity.account_number) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query).first()
 
