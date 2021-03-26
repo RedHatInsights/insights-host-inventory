@@ -161,12 +161,12 @@ def update_system_profile(host_data, identity):
         try:
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            output_host, host_id, insights_id, add_result = host_repository.update_system_profile(
+            output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return output_host, host_id, insights_id, add_result
+            return output_host, host_id, insights_id, update_result
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
             raise
