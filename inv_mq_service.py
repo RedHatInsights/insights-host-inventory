@@ -16,19 +16,16 @@ from lib.handlers import ShutdownHandler
 
 logger = get_logger("mq_service")
 
-topic_to_handler = {
-    "platform.inventory.host-ingress": add_host,
-    "platform.inventory.system-profile": update_system_profile,
-}
-
 
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.config["INVENTORY_CONFIG"]
     start_http_server(config.metrics_port)
 
+    topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
+
     consumer = KafkaConsumer(
-        config.host_ingress_topic,
+        config.kafka_consumer_topic,
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
@@ -44,9 +41,7 @@ def main():
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    message_handler = partial(
-        handle_message, message_operation=topic_to_handler.get(config.host_ingress_topic, add_host)
-    )
+    message_handler = partial(handle_message, message_operation=topic_to_handler[config.kafka_consumer_topic])
 
     event_loop(consumer, application, event_producer, message_handler, shutdown_handler.shut_down)
 

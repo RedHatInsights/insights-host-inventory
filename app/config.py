@@ -43,7 +43,10 @@ class Config:
         self.additional_validation_topic = topic(
             os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1")
         )
-        self.system_profile_topic = topic("platform.system-profile")
+        self.system_profile_topic = topic(
+            os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
+        )
+        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
 
@@ -59,7 +62,8 @@ class Config:
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
         )
-        self.system_profile_topic = os.environ.get("KAFKA_TOPIC", "platform.system-profile")
+        self.system_profile_topic = os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
+        self.kafka_consumer_topic = os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
@@ -219,7 +223,9 @@ class Config:
 
             if self._runtime_environment == RuntimeEnvironment.SERVICE:
                 self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
-                self.logger.info("Kafka Host Ingress Group: %s" % self.host_ingress_consumer_group)
+                self.logger.info("Kafka System Profile Topic: %s" % self.system_profile_topic)
+                self.logger.info("Kafka Consumer Topic: %s" % self.kafka_consumer_topic)
+                self.logger.info("Kafka Consumer Group: %s" % self.host_ingress_consumer_group)
                 self.logger.info("Kafka Events Topic: %s" % self.event_topic)
 
             if self._runtime_environment.event_producer_enabled:
