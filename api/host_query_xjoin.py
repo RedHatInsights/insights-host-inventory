@@ -1,6 +1,8 @@
 from uuid import UUID
 
 from app.auth import get_current_identity
+from app.auth.identity import AuthType
+from app.auth.identity import IdentityType
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -88,11 +90,7 @@ def get_host_list(
     )
 
     current_identity = get_current_identity()
-    if (
-        current_identity.identity_type == "System"
-        and current_identity.auth_type != "classic-proxy"
-        and current_identity.system["cert_type"] == "system"
-    ):
+    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         all_filters += owner_id_filter()
 
     variables = {

@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app.auth.identity import Identity
+from app.auth.identity import IdentityType
 from app.auth.identity import validate
 from app.culling import Timestamps
 from app.exceptions import InventoryException
@@ -24,7 +25,6 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import Topic
 from app.queue.events import add_host_results_to_event_type
 from app.queue.events import build_event
 from app.queue.events import message_headers
@@ -188,7 +188,7 @@ def handle_message(message, event_producer):
         raise ValidationException("The account number in identity does not match the number in the host.")
 
     # basic-auth does not need owner_id
-    if identity.identity_type == "System":
+    if identity.identity_type == IdentityType.SYSTEM:
         host = _set_owner(host, identity)
 
     request_id = platform_metadata.get("request_id", "-1")
@@ -204,7 +204,7 @@ def handle_message(message, event_producer):
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
         headers = message_headers(add_results, insights_id)
-        event_producer.write_event(event, str(host_id), headers, Topic.events)
+        event_producer.write_event(event, str(host_id), headers)
 
 
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):

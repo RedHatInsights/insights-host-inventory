@@ -40,7 +40,6 @@ from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
-from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -1687,7 +1686,7 @@ class EventProducerTests(TestCase):
 
         self.config = Config(RuntimeEnvironment.TEST)
         self.event_producer = EventProducer(self.config)
-        self.topic_names = {Topic.events: self.config.event_topic}
+        self.topic_name = self.config.event_topic
         threadctx.request_id = str(uuid4())
         self.basic_host = {
             "id": str(uuid4()),
@@ -1701,37 +1700,24 @@ class EventProducerTests(TestCase):
         send = self.event_producer._kafka_producer.send
         host_id = self.basic_host["id"]
 
-        for topic, (event_type, host) in product(
-            Topic,
-            (
-                (EventType.created, self.basic_host),
-                (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host)),
-            ),
+        for (event_type, host) in (
+            (EventType.created, self.basic_host),
+            (EventType.updated, self.basic_host),
+            (EventType.delete, deserialize_host(self.basic_host)),
         ):
-            with self.subTest(topic=topic, event_type=event_type):
+            with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
                 headers = message_headers(event_type, host_id)
 
-                self.event_producer.write_event(event, host_id, headers, topic)
+                self.event_producer.write_event(event, host_id, headers)
 
                 send.assert_called_once_with(
-                    self.topic_names[topic],
+                    self.topic_name,
                     key=host_id.encode("utf-8"),
                     value=event.encode("utf-8"),
                     headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
                 )
                 send.reset_mock()
-
-    # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
-    def test_invalid_topic_causes_failure(self):
-        event_type = EventType.created
-        event = build_event(event_type, self.basic_host)
-        key = self.basic_host["id"]
-        headers = message_headers(event_type, self.basic_host["id"])
-
-        with self.assertRaises(KeyError):
-            self.event_producer.write_event(event, key, headers, "invalid")
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_errors_are_caught(self, message_not_produced_mock):
@@ -1744,7 +1730,7 @@ class EventProducerTests(TestCase):
         self.event_producer._kafka_producer.send.side_effect = KafkaError()
 
         with self.assertRaises(KafkaError):
-            self.event_producer.write_event(event, key, headers, Topic.events)
+            self.event_producer.write_event(event, key, headers)
 
         message_not_produced_mock.assert_called_once_with(
             event_producer_logger,

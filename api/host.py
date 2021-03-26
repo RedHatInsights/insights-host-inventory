@@ -35,7 +35,6 @@ from app.models import PatchHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -216,7 +215,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 def _emit_patch_event(serialized_host, host_id, insights_id):
     headers = message_headers(EventType.updated, insights_id)
     event = build_event(EventType.updated, serialized_host)
-    current_app.event_producer.write_event(event, str(host_id), headers, Topic.events)
+    current_app.event_producer.write_event(event, str(host_id), headers)
 
 
 @api_operation

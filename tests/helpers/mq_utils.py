@@ -25,11 +25,10 @@ class MockEventProducer:
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
 
-    def write_event(self, event, key, headers, topic, wait=False):
+    def write_event(self, event, key, headers, wait=False):
         self.event = event
         self.key = key
         self.headers = headers
-        self.topic = topic
         self.wait = wait
 
 

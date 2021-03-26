@@ -8,27 +8,23 @@ from datetime import timezone
 
 # good
 IDENTITY = {
-    "identity": {
-        "account_number": "sysaccount",
-        "type": "System",
-        "auth_type": "cert-auth",
-        "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-        "internal": {"org_id": "3340851", "auth_time": 6300},
-    }
+    "account_number": "test",
+    "type": "system",
+    "auth_type": "cert-auth",
+    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+    "internal": {"org_id": "3340851", "auth_time": 6300},
 }
-apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
 
+# comment added for jenkins check
 # invalid-auth
 # IDENTITY = {
-#     "identity": {
-#         "account_number": "sysaccount",
-#         "type": "System",
-#         "auth_type": "invalid-auth",
-#         "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#         "internal": {"org_id": "3340851", "auth_time": 6300},
-#     }
+#     "account_number": "sysaccount",
+#     "type": "System",
+#     "auth_type": "invalid-auth",
+#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#     "internal": {"org_id": "3340851", "auth_time": 6300},
 # }
-apiKey = base64.b64encode(json.dumps(IDENTITY).encode("utf-8"))
+apiKey = base64.b64encode(json.dumps({"identity": IDENTITY}).encode("utf-8"))
 
 
 def rpm_list():
@@ -456,6 +452,8 @@ def create_system_profile():
         # "installed_packages": rpm_list(),
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
+        "selinux_current_mode": "enforcing",
+        "selinux_config_file": "enforcing",
     }
 
 
@@ -539,7 +537,7 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["identity"]["account_number"])
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "account": account,
