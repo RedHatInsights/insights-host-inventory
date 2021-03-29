@@ -1086,11 +1086,7 @@ def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
     input_host = minimal_host(
         insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1}
     )
-    first_host_from_event = mq_create_or_update_host(input_host)
-    first_host_from_db = db_get_host(first_host_from_event.id)
-
-    assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_insights_id
-    assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
+    mq_create_or_update_host(input_host)
 
     input_host = minimal_host(
         insights_id=generate_uuid(), system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
