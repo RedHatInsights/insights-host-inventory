@@ -15,6 +15,7 @@ from app import Permission
 from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
@@ -23,7 +24,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 ROUTE = "/api/rbac/v1/access/?application=inventory"
-CHECKED_TYPE = "User"
+CHECKED_TYPE = IdentityType.USER
 RETRY_STATUSES = [500, 502, 503, 504]
 
 outbound_http_metric = outbound_http_response_time.labels("rbac")
