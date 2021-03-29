@@ -1054,7 +1054,7 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
 
 
 @pytest.mark.parametrize("id_type", ("id", "insights_id", "fqdn"))
-def test_update_system_profile_host_id(mq_create_or_update_host, db_get_host, id_type):
+def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
     input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
     first_host_from_event = mq_create_or_update_host(input_host)
@@ -1079,6 +1079,26 @@ def test_update_system_profile_host_id(mq_create_or_update_host, db_get_host, id
         "number_of_cpus": 4,
         "number_of_sockets": 8,
     }
+
+
+def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    input_host = minimal_host(
+        insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1}
+    )
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    assert str(first_host_from_db.canonical_facts["insights_id"]) == expected_insights_id
+    assert first_host_from_db.system_profile_facts.get("number_of_cpus") == 1
+
+    input_host = minimal_host(
+        insights_id=generate_uuid(), system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
+    )
+
+    # Should raise an exception due to missing host
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(input_host, message_operation=update_system_profile)
 
 
 def test_handle_message_side_effect(mocker, flask_app):
