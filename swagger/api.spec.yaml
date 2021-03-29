@@ -606,6 +606,12 @@ components:
       schema:
         type: object
         description: System profile field values to filter with
+        properties:
+          is_marketplace:
+            description: A number of entries on the current page.
+            oneOf:
+              - type: boolean
+              - $ref: '#/components/schemas/object_with_boolean'
     fields_param:
       in: query
       name: fields
@@ -618,6 +624,11 @@ components:
         description: System profile field values to fetch
 
   schemas:
+    object_with_boolean:
+      type: object
+      properties:
+        eq:
+          type: boolean
     SystemProfileSapSystemOut:
       type: object
       properties:

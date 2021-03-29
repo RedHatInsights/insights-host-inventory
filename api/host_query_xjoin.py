@@ -242,6 +242,10 @@ def _build_system_profile_filter(system_profile):
             "eq",
             _nullable_wildcard_filter,
         )
+    if system_profile.get("os_release"):
+        system_profile_filter += build_filter(
+            "spf_os_release", system_profile["os_release"], str, "eq", _nullable_wildcard_filter
+        )
 
     return system_profile_filter
 

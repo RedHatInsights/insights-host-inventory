@@ -218,6 +218,7 @@ $defs:
       os_release:
         type: string
         maxLength: 100
+        example: 7.9
       os_kernel_version:
         type: string
         maxLength: 20

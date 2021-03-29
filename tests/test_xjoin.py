@@ -1652,6 +1652,42 @@ def test_query_hosts_filter_spf_insights_client_version(
                 graphql_query_empty_response.reset_mock()
 
 
+# system_profile os_release tests
+def test_query_hosts_filter_spf_os_release(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][os_release]", "[system_profile][os_release][eq]")
+    values = ("7.3", "7*", "nil", "not_nil")
+    queries = (
+        {"spf_os_release": {"matches": "7.3"}},
+        {"spf_os_release": {"matches": "7*"}},
+        {"spf_os_release": {"eq": None}},
+        {"NOT": {"spf_os_release": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
