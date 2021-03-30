@@ -1604,6 +1604,7 @@ def test_query_hosts_filter_spf_is_marketplace(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1639,6 +1640,7 @@ def test_query_hosts_filter_spf_rhc_client_id(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1675,6 +1677,7 @@ def test_query_hosts_filter_spf_insights_client_version(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
