@@ -1091,24 +1091,10 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-def test_rhsm_reporter_and_no_platform_metadata(mocker, event_datetime_mock, flask_app):
-    expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
-    mock_event_producer = mocker.Mock()
-
+def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
+        insights_id=generate_uuid(),
         reporter="rhsm-conduit",
         subscription_manager_id=OWNER_ID,
     )
@@ -1116,7 +1102,7 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, event_datetime_mock, fla
     message = wrap_message(host.data(), "add_host")
 
     with pytest.raises(ValidationException):
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mocker.Mock())
 
 
 def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
