@@ -15,7 +15,7 @@ from app.serialization import serialize_canonical_facts
 logger = logging.getLogger(__name__)
 
 
-EventType = Enum("EventType", ("created", "updated", "delete", "system_profile_updated"))
+EventType = Enum("EventType", ("created", "updated", "delete"))
 
 
 def hostname():
@@ -110,7 +110,6 @@ EVENT_TYPE_MAP = {
     EventType.created: host_create_update_event,
     EventType.updated: host_create_update_event,
     EventType.delete: host_delete_event,
-    EventType.system_profile_updated: host_create_update_event,
 }
 
 

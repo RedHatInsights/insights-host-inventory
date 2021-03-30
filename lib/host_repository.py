@@ -32,7 +32,7 @@ __all__ = (
     "update_query_for_owner_id",
 )
 
-AddHostResult = Enum("AddHostResult", ("created", "updated", "system_profile_updated"))
+AddHostResult = Enum("AddHostResult", ("created", "updated"))
 
 # These are the "elevated" canonical facts that are
 # given priority in the host deduplication process.
@@ -224,7 +224,7 @@ def update_system_profile(input_host, identity, staleness_offset, fields):
 
             output_host = serialize_host(existing_host, staleness_offset, fields)
             insights_id = existing_host.canonical_facts.get("insights_id")
-            return output_host, existing_host.id, insights_id, AddHostResult.system_profile_updated
+            return output_host, existing_host.id, insights_id, AddHostResult.updated
         else:
             raise InventoryException(
                 title="Invalid request", detail="Could not find an existing host with the provided facts."
