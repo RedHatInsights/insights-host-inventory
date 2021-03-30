@@ -1180,8 +1180,11 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         reporter="yee-haw",
         subscription_manager_id=OWNER_ID,
     )
-    message = wrap_message(host.data(), "add_host")
-    with pytest.raises(ValidationException):
+
+    platform_metadata = get_platform_metadata()
+    platform_metadata.pop("b64_identity")
+    message = wrap_message(host.data(), "add_host", platform_metadata)
+    with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer)
 
 
