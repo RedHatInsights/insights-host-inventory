@@ -65,7 +65,8 @@ def _get_identity(host, metadata):
             identity["system"]["cn"] = host.get("subscription_manager_id")
         else:
             raise ValueError(
-                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id"
+                "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
+                f"Host Data: {host}"
             )
     else:
         identity = _decode_id(metadata.get("b64_identity"))
