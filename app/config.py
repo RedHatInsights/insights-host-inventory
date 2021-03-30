@@ -219,17 +219,17 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
-            self.logger.info("Kafka Bootstrap Servers: %s" % self.bootstrap_servers)
+            self.logger.info("Kafka Bootstrap Servers: %s", self.bootstrap_servers)
 
             if self._runtime_environment == RuntimeEnvironment.SERVICE:
-                self.logger.info("Kafka Host Ingress Topic: %s" % self.host_ingress_topic)
-                self.logger.info("Kafka System Profile Topic: %s" % self.system_profile_topic)
-                self.logger.info("Kafka Consumer Topic: %s" % self.kafka_consumer_topic)
-                self.logger.info("Kafka Consumer Group: %s" % self.host_ingress_consumer_group)
-                self.logger.info("Kafka Events Topic: %s" % self.event_topic)
+                self.logger.info("Kafka Host Ingress Topic: %s", self.host_ingress_topic)
+                self.logger.info("Kafka System Profile Topic: %s", self.system_profile_topic)
+                self.logger.info("Kafka Consumer Topic: %s", self.kafka_consumer_topic)
+                self.logger.info("Kafka Consumer Group: %s", self.host_ingress_consumer_group)
+                self.logger.info("Kafka Events Topic: %s", self.event_topic)
 
             if self._runtime_environment.event_producer_enabled:
-                self.logger.info("Kafka Event Topic: %s" % self.event_topic)
+                self.logger.info("Kafka Event Topic: %s", self.event_topic)
 
         if self._runtime_environment.payload_tracker_enabled:
             self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)
