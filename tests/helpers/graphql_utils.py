@@ -30,7 +30,7 @@ XJOIN_HOSTS_RESPONSE = {
                 "facts": None,
                 "stale_timestamp": "2020-02-10T08:07:03.354307Z",
                 "reporter": "puptoo",
-                "system_profile_facts": {},
+                "system_profile_facts": {"test_data": "1.2.3", "random": ["data"]},
             },
             {
                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
@@ -54,7 +54,7 @@ XJOIN_HOSTS_RESPONSE = {
                 },
                 "stale_timestamp": "2020-01-10T08:07:03.354307Z",
                 "reporter": "puptoo",
-                "system_profile_facts": {},
+                "system_profile_facts": {"test_data": "1.2.3", "random": ["data"]},
             },
         ],
     }

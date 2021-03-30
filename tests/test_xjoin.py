@@ -1811,3 +1811,36 @@ def test_sp_sparse_xjoin_query_translation(
 
     assert response_status == 200
     graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)
+
+
+@pytest.mark.parametrize(
+    "query,fields",
+    (
+        ("?fields[system_profile]=sp_field1", ["sp_field1"]),
+        ("?fields[system_profile]=sp_field1,sp_field2,sp_field3", ["sp_field1", "sp_field2", "sp_field3"]),
+        (
+            "?fields[system_profile]=sp_field1&fields[system_profile]=sp_field2,sp_field3",
+            ["sp_field1", "sp_field2", "sp_field3"],
+        ),
+    ),
+)
+def test_query_variables_system_profile(
+    query, fields, mocker, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url(query=query)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": mocker.ANY,
+            "fields": fields,
+        },
+        mocker.ANY,
+    )

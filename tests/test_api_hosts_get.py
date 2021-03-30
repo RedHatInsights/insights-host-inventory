@@ -31,6 +31,7 @@ from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -1070,3 +1071,23 @@ def test_validate_sp_sparse_fields_invalid_requests(query_source_xjoin, api_get)
 
         response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
         assert response_status == 400
+
+
+def test_host_list_sp_fields_requested(patch_xjoin_post, query_source_xjoin, api_get):
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
+    response_status, response_data = api_get(HOST_URL + "?fields[system_profile]=test_data,random")
+
+    assert response_status == 200
+
+    for host_data in response_data["results"]:
+        assert "system_profile" in host_data
+
+
+def test_host_list_sp_fields_not_requested(patch_xjoin_post, query_source_xjoin, api_get):
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
+    response_status, response_data = api_get(HOST_URL)
+
+    assert response_status == 200
+
+    for host_data in response_data["results"]:
+        assert "system_profile" not in host_data
