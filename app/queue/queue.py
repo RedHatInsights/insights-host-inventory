@@ -160,7 +160,7 @@ def add_host(host_data, identity):
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
-                input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
+                input_host, identity, staleness_timestamps, include_owner_id=False, fields=EGRESS_HOST_FIELDS
             )
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
