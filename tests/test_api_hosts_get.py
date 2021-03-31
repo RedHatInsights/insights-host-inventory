@@ -6,8 +6,8 @@ import pytest
 
 from app.auth.identity import Identity
 from app.utils import HostWrapper
-from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import single_canonical_fact_host_query
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
@@ -293,7 +293,7 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
 
 
 def test_query_using_fqdn_not_subset_match(mocker, api_get):
-    mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
+    mock = mocker.patch("api.host_query_db.single_canonical_fact_host_query", wraps=single_canonical_fact_host_query)
     fqdn = "some fqdn"
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
@@ -301,7 +301,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
 
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
-    mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
+    mock = mocker.patch("api.host_query_db.single_canonical_fact_host_query", wraps=single_canonical_fact_host_query)
 
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
 
