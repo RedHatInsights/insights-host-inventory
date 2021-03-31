@@ -1,7 +1,6 @@
 from sqlalchemy.orm.base import instance_state
 
 from app.models import Host
-from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -25,7 +24,7 @@ def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: Fal
                 event = build_event(EventType.delete, host)
                 insights_id = host.canonical_facts.get("insights_id")
                 headers = message_headers(EventType.delete, insights_id)
-                event_producer.write_event(event, str(host.id), headers, Topic.events, wait=True)
+                event_producer.write_event(event, str(host.id), headers, wait=True)
 
             yield host_id, host_deleted
 

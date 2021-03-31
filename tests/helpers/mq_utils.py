@@ -25,11 +25,10 @@ class MockEventProducer:
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
 
-    def write_event(self, event, key, headers, topic, wait=False):
+    def write_event(self, event, key, headers, wait=False):
         self.event = event
         self.key = key
         self.headers = headers
-        self.topic = topic
         self.wait = wait
 
 
@@ -202,10 +201,12 @@ def assert_synchronize_event_is_valid(
         assert event["metadata"] == expected_metadata
 
 
-def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_per_partition):
+def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_per_partition, number_of_polls=5):
     fake_consumer = mocker.Mock()
     mock_poll = {}
-    mock_offsets = {}
+    poll_result_list = []
+    mock_start_offsets = {}
+    mock_end_offsets = {}
     partitions = []
 
     fake_consumer.topics.return_value = {config.host_ingress_topic}
@@ -221,8 +222,14 @@ def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_pe
             SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
             for _ in range(messages_per_partition)
         ]
-        mock_offsets[partition] = SimpleNamespace(offset=0)
+        mock_start_offsets[partition] = SimpleNamespace(offset=1)
+        mock_end_offsets[partition] = 100
 
-    fake_consumer.poll.return_value = mock_poll
-    fake_consumer.offsets_for_times.return_value = mock_offsets
+    poll_result_list.extend([mock_poll] * number_of_polls)
+    poll_result_list.append({})
+
+    fake_consumer.poll.side_effect = poll_result_list
+    fake_consumer.offsets_for_times.return_value = mock_start_offsets
+    fake_consumer.end_offsets.return_value = mock_end_offsets
+    fake_consumer.position.return_value = 1
     return fake_consumer

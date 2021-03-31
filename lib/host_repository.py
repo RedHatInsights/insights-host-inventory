@@ -4,6 +4,8 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 
 from app import inventory_config
+from app.auth.identity import AuthType
+from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
 from app.logging import get_logger
 from app.models import db
@@ -62,6 +64,7 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(identity, canonical_facts):
+    logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
     if not existing_host:
@@ -106,7 +109,7 @@ def find_host_by_canonical_fact(identity, canonical_fact, value):
     """
     Returns first match for a host containing given canonical facts
     """
-    logger.debug("find_host_by_canonical_fact(%s, %s)", canonical_fact, value)
+    logger.debug("find_host_by_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
 
     host = canonical_fact_host_query(identity, canonical_fact, value).first()
 
@@ -188,12 +191,7 @@ def update_query_for_owner_id(identity, query):
     # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
     # TODO: 'identity.auth_type is not 'classic-proxy' is a temporary fix. Remove when workaround is no longer needed
     logger.debug("identity auth type: %s", identity.auth_type)
-    if (
-        identity
-        and identity.identity_type == "System"
-        and identity.auth_type != "classic-proxy"
-        and identity.system["cert_type"] == "system"
-    ):
+    if identity and identity.identity_type == IdentityType.SYSTEM and identity.auth_type != AuthType.CLASSIC:
         return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
     else:
         return query

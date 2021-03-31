@@ -15,10 +15,7 @@ from urllib.parse import urlunsplit
 
 import dateutil.parser
 
-from app.auth.identity import Identity
-from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
-from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
+from app.auth.identity import IdentityType
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -78,11 +75,9 @@ WRITE_PROHIBITED_RBAC_RESPONSE_FILES = (
 )
 
 
-def do_request(
-    func, url, data=None, query_parameters=None, extra_headers=None, auth_type="account_number", identity_type="User"
-):
+def do_request(func, url, identity, data=None, query_parameters=None, extra_headers=None):
     url = inject_qs(url, **query_parameters) if query_parameters else url
-    headers = get_required_headers(auth_type, identity_type)
+    headers = get_required_headers(identity)
 
     print("Required Headers: %s", headers)
 
@@ -102,31 +97,22 @@ def do_request(
     return response.status_code, response_data
 
 
-def get_valid_auth_header(auth_type="account_number", identity_type="User"):
-    if identity_type == "User" or identity_type == "System" or identity_type == "Insights_Classic_System":
-        return build_account_auth_header(auth_type, identity_type)
+def get_valid_auth_header(identity):
+    if identity["type"] in IdentityType.__members__.values():
+        return build_account_auth_header(identity)
 
     return build_token_auth_header()
 
 
-def get_required_headers(auth_type="account_number", identity_type="User"):
-    headers = get_valid_auth_header(auth_type, identity_type)
+def get_required_headers(identity):
+    headers = get_valid_auth_header(identity)
     headers["content-type"] = "application/json"
 
     return headers
 
 
-def build_account_auth_header(account=USER_IDENTITY["account_number"], identity_type="User"):
-    if identity_type == "User":
-        identity = Identity(USER_IDENTITY)
-    elif identity_type == "System":
-        identity = Identity(SYSTEM_IDENTITY)
-    elif identity_type == "Insights_Classic_System":
-        identity = Identity(INSIGHTS_CLASSIC_IDENTITY)
-    else:
-        raise ValueError("unrecognized identity type")
-
-    dict_ = {"identity": identity._asdict()}
+def build_account_auth_header(identity):
+    dict_ = {"identity": identity}
 
     json_doc = json.dumps(dict_)
     auth_header = {"x-rh-identity": b64encode(json_doc.encode())}

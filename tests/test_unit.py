@@ -40,7 +40,6 @@ from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
 from app.queue.event_producer import logger as event_producer_logger
-from app.queue.event_producer import Topic
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -138,7 +137,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 
                 try:
                     actual_identity = from_auth_header(base64)
-                    self.assertEqual(expected_identity, actual_identity)
+                    self.assertEqual(expected_identity.__dict__, actual_identity.__dict__)
                 except (TypeError, ValueError):
                     self.fail()
 
@@ -1222,8 +1221,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "account": None}
-        host_init_data = {"canonical_facts": {"fqdn": "some fqdn"}, **unchanged_data, "facts": {}}
+        unchanged_data = {"display_name": None, "account": None, "reporter": "yupana"}
+        host_init_data = {
+            "stale_timestamp": datetime.now(timezone.utc),
+            "canonical_facts": {"fqdn": "some fqdn"},
+            **unchanged_data,
+            "facts": {},
+        }
         host = Host(**host_init_data)
 
         host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
@@ -1249,10 +1253,13 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "id": str(host_attr_data["id"]),
             "created": self._timestamp_to_str(host_attr_data["created_on"]),
             "updated": self._timestamp_to_str(host_attr_data["modified_on"]),
-            "stale_timestamp": None,
-            "stale_warning_timestamp": None,
-            "culled_timestamp": None,
-            "reporter": None,
+            "stale_timestamp": self._timestamp_to_str(host_init_data["stale_timestamp"]),
+            "stale_warning_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], config.stale_warning_offset_delta.days)
+            ),
+            "culled_timestamp": self._timestamp_to_str(
+                self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
+            ),
         }
         self.assertEqual(expected, actual)
 
@@ -1360,6 +1367,8 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
             system_profile_facts=system_profile_facts,
+            stale_timestamp=datetime.utcnow(),
+            reporter="yupana",
         )
         host.id = uuid4()
 
@@ -1368,7 +1377,12 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
         self.assertEqual(expected, actual)
 
     def test_empty_profile_is_empty_dict(self):
-        host = Host(canonical_facts={"fqdn": "some fqdn"}, display_name="some display name")
+        host = Host(
+            canonical_facts={"fqdn": "some fqdn"},
+            display_name="some display name",
+            stale_timestamp=datetime.utcnow(),
+            reporter="yupana",
+        )
         host.id = uuid4()
         host.system_profile_facts = None
 
@@ -1560,16 +1574,6 @@ class HostUpdateStaleTimestamp(TestCase):
     def _make_host(self, **values):
         return Host(**{"canonical_facts": {"fqdn": "some fqdn"}, **values})
 
-    def test_updated_when_empty(self):
-        host = self._make_host()
-
-        stale_timestamp = datetime.now(timezone.utc)
-        reporter = "some reporter"
-        host._update_stale_timestamp(stale_timestamp, reporter)
-
-        self.assertEqual(stale_timestamp, host.stale_timestamp)
-        self.assertEqual(reporter, host.reporter)
-
     def test_always_updated(self):
         old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
         old_reporter = "old reporter"
@@ -1682,7 +1686,7 @@ class EventProducerTests(TestCase):
 
         self.config = Config(RuntimeEnvironment.TEST)
         self.event_producer = EventProducer(self.config)
-        self.topic_names = {Topic.events: self.config.event_topic, Topic.egress: self.config.host_egress_topic}
+        self.topic_name = self.config.event_topic
         threadctx.request_id = str(uuid4())
         self.basic_host = {
             "id": str(uuid4()),
@@ -1696,37 +1700,24 @@ class EventProducerTests(TestCase):
         send = self.event_producer._kafka_producer.send
         host_id = self.basic_host["id"]
 
-        for topic, (event_type, host) in product(
-            Topic,
-            (
-                (EventType.created, self.basic_host),
-                (EventType.updated, self.basic_host),
-                (EventType.delete, deserialize_host(self.basic_host)),
-            ),
+        for (event_type, host) in (
+            (EventType.created, self.basic_host),
+            (EventType.updated, self.basic_host),
+            (EventType.delete, deserialize_host(self.basic_host)),
         ):
-            with self.subTest(topic=topic, event_type=event_type):
+            with self.subTest(event_type=event_type):
                 event = build_event(event_type, host)
                 headers = message_headers(event_type, host_id)
 
-                self.event_producer.write_event(event, host_id, headers, topic)
+                self.event_producer.write_event(event, host_id, headers)
 
                 send.assert_called_once_with(
-                    self.topic_names[topic],
+                    self.topic_name,
                     key=host_id.encode("utf-8"),
                     value=event.encode("utf-8"),
                     headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
                 )
                 send.reset_mock()
-
-    # Insure that a ValueError exception is raised if a topic not defined in the Topic enum is used
-    def test_invalid_topic_causes_failure(self):
-        event_type = EventType.created
-        event = build_event(event_type, self.basic_host)
-        key = self.basic_host["id"]
-        headers = message_headers(event_type, self.basic_host["id"])
-
-        with self.assertRaises(KeyError):
-            self.event_producer.write_event(event, key, headers, "invalid")
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_errors_are_caught(self, message_not_produced_mock):
@@ -1739,7 +1730,7 @@ class EventProducerTests(TestCase):
         self.event_producer._kafka_producer.send.side_effect = KafkaError()
 
         with self.assertRaises(KafkaError):
-            self.event_producer.write_event(event, key, headers, Topic.events)
+            self.event_producer.write_event(event, key, headers)
 
         message_not_produced_mock.assert_called_once_with(
             event_producer_logger,

@@ -10,7 +10,9 @@ from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="session")
@@ -64,9 +66,9 @@ def db_get_host_by_insights_id(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host(flask_app):
-    def _db_create_host(host=None, extra_data=None):
+    def _db_create_host(identity=SYSTEM_IDENTITY, host=None, extra_data=None):
         extra_data = extra_data or {}
-        host = host or minimal_db_host(**extra_data)
+        host = host or minimal_db_host(account=identity["account_number"], **extra_data)
         db.session.add(host)
         db.session.commit()
         return host
@@ -76,7 +78,7 @@ def db_create_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app):
-    def _db_create_multiple_hosts(hosts=None, how_many=10, extra_data=None):
+    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
         if type(hosts) == list:
@@ -85,7 +87,7 @@ def db_create_multiple_hosts(flask_app):
                 created_hosts.append(host)
         else:
             for _ in range(how_many):
-                host = minimal_db_host(**extra_data)
+                host = minimal_db_host(account=identity["account_number"], **extra_data)
                 db.session.add(host)
                 created_hosts.append(host)
 
@@ -101,4 +103,10 @@ def db_create_host_in_unknown_state(db_create_host):
     host = minimal_db_host()
     host.stale_timestamp = None
     host.reporter = None
-    return db_create_host(host)
+    return db_create_host(host=host)
+
+
+@pytest.fixture(scope="function")
+def models_datetime_mock(mocker):
+    mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
+    return mock.now.return_value

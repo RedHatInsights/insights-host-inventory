@@ -142,7 +142,7 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="User")
+            response_status, response_data = api_put(url, DB_NEW_FACTS)
 
             assert_response_status(response_status, 200)
 
@@ -160,7 +160,7 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            response_status, response_data = api_put(url, updated_facts, identity_type="User")
+            response_status, response_data = api_put(url, updated_facts)
 
             assert_response_status(response_status, 403)
 
@@ -169,10 +169,12 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
 
 def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
     host = db_create_host(
-        extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+        SYSTEM_IDENTITY,
+        extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"].get("cn")}},
     )
+
     url = build_facts_url(host_list_or_id=host.id, namespace=DB_FACTS_NAMESPACE)
 
-    response_status, response_data = api_put(url, DB_NEW_FACTS, identity_type="System")
+    response_status, response_data = api_put(url, DB_NEW_FACTS, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)

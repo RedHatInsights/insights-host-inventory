@@ -8,7 +8,7 @@ from kafka import KafkaConsumer
 # from app.models import SystemProfileSchema
 
 
-HOST_EGRESS_TOPIC = os.environ.get("KAFKA_HOST_EGRESS_TOPIC", "platform.inventory.host-egress")
+EVENTS_TOPIC = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
 HOST_INGRESS_GROUP = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
@@ -25,11 +25,11 @@ def msg_handler(parsed):
 
 
 def main():
-    consumer = KafkaConsumer(HOST_EGRESS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
+    consumer = KafkaConsumer(EVENTS_TOPIC, group_id=HOST_INGRESS_GROUP, bootstrap_servers=BOOTSTRAP_SERVERS)
 
     logging.basicConfig(level=logging.INFO)
 
-    print("HOST_EGRESS_TOPIC:", HOST_EGRESS_TOPIC)
+    print("EVENTS_TOPIC:", EVENTS_TOPIC)
     print("KAFKA_HOST_INGRESS_GROUP:", HOST_INGRESS_GROUP)
     print("BOOTSTRAP_SERVERS:", BOOTSTRAP_SERVERS)
 
