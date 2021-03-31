@@ -220,7 +220,7 @@ of the payload will only be logged as an "error" if the entire delete operation 
 ## Integrating with Cross Join (xjoin)
 
 1. Clone [xjoin-kstreams](https://github.com/RedHatInsights/xjoin-kstreams/)
-1. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
+2. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
     | Service | Port on localhost |
     | ------- | ----------------- |
     | Inventory DB | 5432 |
@@ -233,23 +233,23 @@ of the payload will only be logged as an "error" if the entire delete operation 
     | xjoin-search | 4000 |
     | ElasticSearch | 9200, 9300 |
 
-1. `cd` into the root of this project (host inventory)
-1. Run the inventory-mq-service
+3. `cd` into the root of this project (host inventory)
+4. Run the inventory-mq-service
 ```
 make run_inv_mq_service
 ```
 
-1. Run the inventory api
+5. Run the inventory api
 ```
 make run_inv_web_service
 ```
 
-1. Produce a kafka message
+6. Produce a kafka message
 ```
 make run_inv_mq_service_test_producer
 ```
 
-1. Validate the host is in xjoin
+7. Validate the host is in xjoin
 ```
 curl \
 -H 'Content-Type: application/json' \
@@ -258,7 +258,7 @@ curl \
 http://localhost:4000/graphql
 ```
 
-1. Now you can curl against the inventory-api with xjoin enabled
+8. Now you can curl against the inventory-api with xjoin enabled
 ```
 curl \
 -H 'x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19' \
