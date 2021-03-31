@@ -149,7 +149,7 @@ def log_update_system_profile_success(logger, host_data):
 
 
 def log_update_system_profile_failure(logger, host_data):
-    logger.exception("Error updating system profile for host ", extra={"host": host_data})
+    logger.exception("Error updating system profile for host ID: %s", host_data.get("id"))
     metrics.update_system_profile_failure.labels("InventoryException").inc()
 
 
