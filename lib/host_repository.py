@@ -18,11 +18,11 @@ from lib.db import session_guard
 
 __all__ = (
     "add_host",
-    "canonical_fact_host_query",
-    "canonical_facts_host_query",
+    "single_canonical_fact_host_query",
+    "multiple_canonical_facts_host_query",
     "create_new_host",
     "find_existing_host",
-    "find_host_by_canonical_facts",
+    "find_host_by_multiple_canonical_facts",
     "find_hosts_by_staleness",
     "find_non_culled_hosts",
     "stale_timestamp_filter",
@@ -68,7 +68,7 @@ def find_existing_host(identity, canonical_facts):
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
     if not existing_host:
-        existing_host = find_host_by_canonical_facts(identity, canonical_facts)
+        existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
 
     return existing_host
 
@@ -78,14 +78,14 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
-            existing_host = find_host_by_canonical_fact(identity, elevated_cf_name, cf_value)
+            existing_host = find_host_by_single_canonical_fact(identity, elevated_cf_name, cf_value)
             if existing_host:
                 return existing_host
 
     return None
 
 
-def canonical_fact_host_query(identity, canonical_fact, value):
+def single_canonical_fact_host_query(identity, canonical_fact, value):
     query = Host.query.filter(
         (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
@@ -93,7 +93,7 @@ def canonical_fact_host_query(identity, canonical_fact, value):
     return find_non_culled_hosts(query)
 
 
-def canonical_facts_host_query(identity, canonical_facts):
+def multiple_canonical_facts_host_query(identity, canonical_facts):
     query = Host.query.filter(
         (Host.account == identity.account_number)
         & (
@@ -105,13 +105,13 @@ def canonical_facts_host_query(identity, canonical_facts):
     return find_non_culled_hosts(query)
 
 
-def find_host_by_canonical_fact(identity, canonical_fact, value):
+def find_host_by_single_canonical_fact(identity, canonical_fact, value):
     """
     Returns first match for a host containing given canonical facts
     """
-    logger.debug("find_host_by_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
+    logger.debug("find_host_by_single_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
 
-    host = canonical_fact_host_query(identity, canonical_fact, value).first()
+    host = single_canonical_fact_host_query(identity, canonical_fact, value).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -119,13 +119,13 @@ def find_host_by_canonical_fact(identity, canonical_fact, value):
     return host
 
 
-def find_host_by_canonical_facts(identity, canonical_facts):
+def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     """
     Returns first match for a host containing given canonical facts
     """
-    logger.debug("find_host_by_canonical_facts(%s)", canonical_facts)
+    logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
-    host = canonical_facts_host_query(identity, canonical_facts).first()
+    host = multiple_canonical_facts_host_query(identity, canonical_facts).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)

@@ -9,8 +9,8 @@ from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
-from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import single_canonical_fact_host_query
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = ("get_host_list", "params_to_order_by")
@@ -110,7 +110,7 @@ def _find_all_hosts():
 
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
-    return canonical_fact_host_query(get_current_identity(), canonical_fact, value)
+    return single_canonical_fact_host_query(get_current_identity(), canonical_fact, value)
 
 
 def _find_hosts_by_tag(string_tags, query):
