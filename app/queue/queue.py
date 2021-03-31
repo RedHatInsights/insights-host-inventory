@@ -180,7 +180,9 @@ def add_host(host_data, identity):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer):
     validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata") or {}
+    platform_metadata = validated_operation_msg.get("platform_metadata")
+    if not platform_metadata:
+        raise ValidationException("platform_metadata is mandatory")
 
     host = validated_operation_msg["data"]
     identity = _get_identity(host, platform_metadata)

@@ -1080,13 +1080,31 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
-    message = wrap_message(host.data())
+
+    platform_metadata = get_platform_metadata()
+    platform_metadata.pop("b64_identity")
+
+    message = wrap_message(host.data(), "add_host", platform_metadata)
 
     with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer)
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
+def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=generate_uuid(),
+        reporter="rhsm-conduit",
+        subscription_manager_id=OWNER_ID,
+    )
+
+    message = wrap_message(host.data(), "add_host")
+
+    with pytest.raises(ValidationException):
+        handle_message(json.dumps(message), mocker.Mock())
+
+
 def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
@@ -1109,7 +1127,10 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
         reporter="rhsm-conduit",
         subscription_manager_id=OWNER_ID,
     )
-    message = wrap_message(host.data(), "add_host")
+
+    platform_metadata = get_platform_metadata()
+    platform_metadata.pop("b64_identity")
+    message = wrap_message(host.data(), "add_host", platform_metadata)
 
     handle_message(json.dumps(message), mock_event_producer)
 
@@ -1119,8 +1140,8 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
         "timestamp": timestamp_iso,
         "type": "created",
         "host": {"id": host_id, "insights_id": expected_insights_id},
-        "platform_metadata": {},
-        "metadata": {"request_id": "-1"},
+        "platform_metadata": platform_metadata,
+        "metadata": {"request_id": platform_metadata.get("request_id")},
     }
 
 
@@ -1145,7 +1166,10 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         reporter="yee-haw",
         subscription_manager_id=OWNER_ID,
     )
-    message = wrap_message(host.data(), "add_host")
+
+    platform_metadata = get_platform_metadata()
+    platform_metadata.pop("b64_identity")
+    message = wrap_message(host.data(), "add_host", platform_metadata)
     with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer)
 
