@@ -1075,12 +1075,15 @@ def test_validate_sp_sparse_fields_invalid_requests(query_source_xjoin, api_get)
 
 def test_host_list_sp_fields_requested(patch_xjoin_post, query_source_xjoin, api_get):
     patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
-    response_status, response_data = api_get(HOST_URL + "?fields[system_profile]=test_data,random")
+    fields = ["test_data", "random"]
+    response_status, response_data = api_get(HOST_URL + f"?fields[system_profile]={','.join(fields)}")
 
     assert response_status == 200
 
     for host_data in response_data["results"]:
         assert "system_profile" in host_data
+        for key in host_data["system_profile"].keys():
+            assert key in fields
 
 
 def test_host_list_sp_fields_not_requested(patch_xjoin_post, query_source_xjoin, api_get):
