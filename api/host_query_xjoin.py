@@ -25,7 +25,8 @@ QUERY = """query Query(
     $offset: Int!,
     $order_by: HOSTS_ORDER_BY,
     $order_how: ORDER_DIR,
-    $filter: [HostFilter!]
+    $filter: [HostFilter!],
+    $fields: [String!]
 ) {
     hosts(
         limit: $limit,
@@ -50,6 +51,7 @@ QUERY = """query Query(
             facts,
             stale_timestamp,
             reporter,
+            system_profile_facts (filter: $fields),
         }
     }
 }"""
@@ -82,6 +84,7 @@ def get_host_list(
     staleness,
     registered_with,
     filter,
+    fields,
 ):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
@@ -94,19 +97,27 @@ def get_host_list(
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         all_filters += owner_id_filter()
 
+    additional_fields = tuple()
+
+    system_profile_fields = []
+    if fields.get("system_profile"):
+        additional_fields = ("system_profile",)
+        system_profile_fields = list(fields.get("system_profile").keys())
+
     variables = {
         "limit": limit,
         "offset": offset,
         "order_by": xjoin_order_by,
         "order_how": xjoin_order_how,
         "filter": all_filters,
+        "fields": system_profile_fields,
     }
     response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
 
     total = response["meta"]["total"]
     check_pagination(offset, total)
 
-    return map(deserialize_host, response["data"]), total
+    return map(deserialize_host, response["data"]), total, additional_fields
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):

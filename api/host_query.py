@@ -3,6 +3,7 @@ from enum import Enum
 
 from app import inventory_config
 from app.culling import Timestamps
+from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 
 
@@ -13,9 +14,9 @@ OrderHow = Enum("OrderHow", ("ASC", "DESC"))
 Order = namedtuple("Order", ("by", "how"))
 
 
-def build_paginated_host_list_response(total, page, per_page, host_list):
+def build_paginated_host_list_response(total, page, per_page, host_list, additional_fields=tuple()):
     timestamps = staleness_timestamps()
-    json_host_list = [serialize_host(host, timestamps) for host in host_list]
+    json_host_list = [serialize_host(host, timestamps, DEFAULT_FIELDS + additional_fields) for host in host_list]
     return {
         "total": total,
         "count": len(json_host_list),

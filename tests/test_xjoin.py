@@ -84,6 +84,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({"fqdn": {"eq": fqdn}}, mocker.ANY),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -105,6 +106,7 @@ def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -134,6 +136,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
                 },
                 mocker.ANY,
             ),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -164,6 +167,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
                 },
                 mocker.ANY,
             ),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -185,6 +189,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({"insights_id": {"eq": insights_id}}, mocker.ANY),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -203,6 +208,7 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (mocker.ANY,),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -233,6 +239,7 @@ def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, gr
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({filter_: mocker.ANY}, mocker.ANY),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -273,6 +280,7 @@ def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, gra
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": tag_filters + (mocker.ANY,),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -298,6 +306,7 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (search_any, tag_filter, mocker.ANY),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -317,6 +326,7 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (mocker.ANY, {"NOT": {"insights_id": {"eq": None}}}),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -337,6 +347,7 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
             "order_by": mocker.ANY,
             "order_how": direction,
             "filter": mocker.ANY,
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -368,6 +379,7 @@ def test_query_variables_ordering_by(
             "order_by": xjoin_order_by,
             "order_how": default_xjoin_order_how,
             "filter": mocker.ANY,
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -409,7 +421,14 @@ def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, gr
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_QUERY,
-        {"order_by": mocker.ANY, "order_how": mocker.ANY, "limit": limit, "offset": offset, "filter": mocker.ANY},
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": limit,
+            "offset": offset,
+            "filter": mocker.ANY,
+            "fields": mocker.ANY,
+        },
         mocker.ANY,
     )
 
@@ -431,7 +450,14 @@ def test_query_variables_default_except_staleness(mocker, query_source_xjoin, gr
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_QUERY,
-        {"order_by": "modified_on", "order_how": "DESC", "limit": 50, "offset": 0, "filter": mocker.ANY},
+        {
+            "order_by": "modified_on",
+            "order_how": "DESC",
+            "limit": 50,
+            "offset": 0,
+            "filter": mocker.ANY,
+            "fields": mocker.ANY,
+        },
         mocker.ANY,
     )
 
@@ -521,6 +547,7 @@ def test_query_variables_staleness_with_search(
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (search_any, staleness_any),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -1362,6 +1389,7 @@ def test_query_hosts_filter_spf_sap_system(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1459,6 +1487,7 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, *query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1575,6 +1604,7 @@ def test_query_hosts_filter_spf_is_marketplace(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1610,6 +1640,7 @@ def test_query_hosts_filter_spf_rhc_client_id(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1646,6 +1677,7 @@ def test_query_hosts_filter_spf_insights_client_version(
                         "limit": mocker.ANY,
                         "offset": mocker.ANY,
                         "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
                     },
                     mocker.ANY,
                 )
@@ -1667,6 +1699,7 @@ def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graph
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": OWNER_ID}}),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -1743,6 +1776,7 @@ def test_query_hosts_insights_classic_system_identity(
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": ({"OR": mocker.ANY},),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -1887,3 +1921,36 @@ def test_sp_sparse_xjoin_query_translation(
 
     assert response_status == 200
     graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)
+
+
+@pytest.mark.parametrize(
+    "query,fields",
+    (
+        ("?fields[system_profile]=sp_field1", ["sp_field1"]),
+        ("?fields[system_profile]=sp_field1,sp_field2,sp_field3", ["sp_field1", "sp_field2", "sp_field3"]),
+        (
+            "?fields[system_profile]=sp_field1&fields[system_profile]=sp_field2,sp_field3",
+            ["sp_field1", "sp_field2", "sp_field3"],
+        ),
+    ),
+)
+def test_query_variables_system_profile(
+    query, fields, mocker, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url(query=query)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": mocker.ANY,
+            "fields": fields,
+        },
+        mocker.ANY,
+    )
