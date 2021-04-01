@@ -16,6 +16,12 @@ add_host_success = Counter(
 add_host_failure = Counter(
     "inventory_ingress_add_host_failures", "Total amount of failures adding hosts", ["cause", "reporter"]
 )
+update_system_profile_success = Counter(
+    "inventory_ingress_update_system_profile_successes", "Total amount of successfully updated system profiles"
+)
+update_system_profile_failure = Counter(
+    "inventory_ingress_update_system_profile_failures", "Total amount of failures updating system profiles", ["cause"]
+)
 ingress_message_handler_success = Counter(
     "inventory_ingress_message_handler_successes",
     "Total amount of successfully handled messages from the ingress queue",

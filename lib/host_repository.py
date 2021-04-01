@@ -1,4 +1,5 @@
 from enum import Enum
+from uuid import UUID
 
 from sqlalchemy import and_
 from sqlalchemy import or_
@@ -7,6 +8,7 @@ from app import inventory_config
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.culling import staleness_to_conditions
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import db
 from app.models import Host
@@ -71,6 +73,12 @@ def find_existing_host(identity, canonical_facts):
         existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
 
     return existing_host
+
+
+def find_existing_host_by_id(identity, host_id):
+    query = Host.query.filter((Host.account == identity.account_number) & (Host.id == UUID(host_id)))
+    query = update_query_for_owner_id(identity, query)
+    return find_non_culled_hosts(query).first()
 
 
 @metrics.find_host_using_elevated_ids.time()
@@ -195,3 +203,29 @@ def update_query_for_owner_id(identity, query):
         return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
     else:
         return query
+
+
+def update_system_profile(input_host, identity, staleness_offset, fields):
+    with session_guard(db.session):
+        if input_host.id:
+            existing_host = find_existing_host_by_id(identity, input_host.id)
+        else:
+            existing_host = find_existing_host(identity, input_host.canonical_facts)
+
+        if existing_host:
+            logger.debug("Updating system profile on an existing host")
+            logger.debug(f"existing host = {existing_host}")
+
+            existing_host.update_system_profile(input_host.system_profile_facts)
+            db.session.commit()
+
+            metrics.update_host_count.inc()
+            logger.debug("Updated system profile for host:%s", existing_host)
+
+            output_host = serialize_host(existing_host, staleness_offset, fields)
+            insights_id = existing_host.canonical_facts.get("insights_id")
+            return output_host, existing_host.id, insights_id, AddHostResult.updated
+        else:
+            raise InventoryException(
+                title="Invalid request", detail="Could not find an existing host with the provided facts."
+            )
