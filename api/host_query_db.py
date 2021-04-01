@@ -33,6 +33,7 @@ def get_host_list(
     staleness,
     registered_with,
     filter,
+    fields,
 ):
     if filter:
         flask.abort(503)
@@ -61,10 +62,11 @@ def get_host_list(
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
+    additional_fields = tuple()
 
     log_get_host_list_succeeded(logger, query_results.items)
 
-    return query_results.items, query_results.total
+    return query_results.items, query_results.total, additional_fields
 
 
 def find_hosts_with_insights_enabled(query):
