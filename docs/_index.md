@@ -757,24 +757,41 @@ type [deep object](https://swagger.io/docs/specification/serialization)
 and follow the [generic filter query parameter
 syntax](https://github.com/RedHatInsights/insights-api-common-rails#usage).
 
-For example, to query for hosts with x86-64 architecture the query
-parameter should be defined as:
+Not every field in system profile may be used in filters. The following is a list of system profile fields that may be used to filter hosts:
+
+| Field |Type |
+| ----------- | ----------- |
+| sap_system | Boolean |
+| sap_sids | String |
+| rhc_client_id | String |
+| insights_client_version | String w/ wildcards|
+| is_marketplace | Boolean
+
+For example, to query for hosts with insights client version
+7 and any minor version, the query parameter should be defined as:
 
 ```text
-?filter[system_profile][arch]=x86-64
+?filter[system_profile][insights_client_version]=7.*
 ```
 
 or with explicit operator definition
 
 ```text
-?filter[system_profile][arch][eq]=x86-64
+?filter[system_profile][insights_client_version][eq]=7.*
 ```
 
-To query for hosts whose operating system version major version is 8
-should be defined as:
+To query for hosts used for SAP,
+the query parameter should be defined as:
 
 ```text
-?filter[system_profile][os_release][starts_with]=8
+?filter[system_profile][sap_system][is]=true
+```
+
+To find hosts with empty or missing sap_system fields,
+the `nil` value can be used:
+
+```text
+?filter[system_profile][sap_system][is]=nil
 ```
 
 See the [generic filter query parameter syntax](https://github.com/RedHatInsights/insights-api-common-rails#usage)
