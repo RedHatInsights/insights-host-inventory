@@ -124,7 +124,7 @@ python run_gunicorn.py
 
 # Running all services locally
 
-Honcho is used to provide a command to run MQ and web services at once
+Honcho provides a command to run MQ and web services at once:
 
 ```
 $ honcho start
