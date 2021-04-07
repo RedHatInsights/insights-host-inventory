@@ -25,13 +25,14 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,
+        overwrite_identity=True,
         return_all_data=False,
         event_producer=event_producer_mock,
         message_operation=add_host,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
-        else:
+        elif overwrite_identity:
             platform_metadata["b64_identity"] = get_encoded_idstr()
         host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)

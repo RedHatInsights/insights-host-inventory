@@ -2,6 +2,7 @@ import base64
 import json
 import sys
 from copy import deepcopy
+from uuid import UUID
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -56,13 +57,18 @@ def _decode_id(encoded_id):
     return decoded_id.get("identity")
 
 
+# receives an uuid string w/o dashes and outputs an uuid string with dashes
+def _formatted_uuid(uuid_string):
+    return str(UUID(uuid_string))
+
+
 def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
     if not metadata.get("b64_identity"):
         if host.get("reporter") == "rhsm-conduit":
             identity = deepcopy(SYSTEM_IDENTITY)
             identity["account_number"] = host.get("account")
-            identity["system"]["cn"] = host.get("subscription_manager_id")
+            identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         else:
             raise ValueError(
                 "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
@@ -86,7 +92,7 @@ def _set_owner(host, identity):
         host["system_profile"]["owner_id"] = cn
     else:
         if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
-            host["system_profile"]["owner_id"] = host.get("subscription_manager_id")
+            host["system_profile"]["owner_id"] = _formatted_uuid(host.get("subscription_manager_id"))
         else:
             if host["system_profile"]["owner_id"] != cn:
                 log_add_host_failure(logger, host)
