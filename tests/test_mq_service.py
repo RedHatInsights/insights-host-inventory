@@ -1293,12 +1293,28 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
     )
 
     created_host = mq_create_or_update_host(host)
+    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+
     assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
+
+    # use new identity with a new 'CN'
+    new_id = deepcopy(SYSTEM_IDENTITY)
+    new_id["system"]["cn"] = "137c9d58-941c-4bb9-9426-7879a367c23b"
+    platform_metadata = get_platform_metadata(new_id)
 
     host = minimal_host(insights_id=expected_insights_id, display_name="better_test_host", reporter="puptoo")
 
-    updated_host = mq_create_or_update_host(host)
+    updated_host = mq_create_or_update_host(host, platform_metadata=platform_metadata)
+    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+        host, platform_metadata=platform_metadata, return_all_data=True
+    )
 
     assert updated_host.id == created_host.id
     assert updated_host.insights_id == created_host.insights_id
     assert updated_host.display_name != created_host.display_name
+
+    # explicitly test the posted event
+    assert updated_key == created_key
+    assert updated_event["host"]["insights_id"] == created_event["host"]["insights_id"]
+    assert updated_event["host"]["display_name"] != created_event["host"]["display_name"]
+    assert updated_event["host"]["system_profile"]["owner_id"] != created_event["host"]["system_profile"]["owner_id"]
