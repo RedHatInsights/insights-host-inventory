@@ -226,7 +226,10 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     )
 
     key, event, headers = mq_create_or_update_host(
-        host, platform_metadata={"request_id": request_id}, return_all_data=True, message_operation=mock_add_host
+        host,
+        platform_metadata={"request_id": request_id, "b64_identity": get_encoded_idstr()},
+        return_all_data=True,
+        message_operation=mock_add_host,
     )
 
     assert headers == expected_headers(add_host_result.name, request_id, insights_id)
@@ -1223,7 +1226,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         handle_message(json.dumps(message), mock_event_producer, mock_add_host)
 
 
-def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
+def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
 
@@ -1249,3 +1252,31 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer, mock_add_host)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+
+
+def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, fqdn="d44533.foo.redhat.co"
+    )
+    host.account = SYSTEM_IDENTITY["account_number"]
+
+    created_host = mq_create_or_update_host(host)
+    assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
+
+    new_id = deepcopy(SYSTEM_IDENTITY)
+    new_id["system"]["cn"] = "137c9d58-941c-4bb9-9426-7879a367c23b"
+    platform_metadata = get_platform_metadata(new_id)
+
+    host = minimal_host(
+        account=new_id["account_number"],
+        insights_id=expected_insights_id,
+        fqdn="d44533.foo.redhat.co",
+        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
+    )
+
+    updated_host = mq_create_or_update_host(host, platform_metadata=platform_metadata)
+
+    assert updated_host.id == created_host.id
+    assert updated_host.insights_id == created_host.insights_id
+    assert updated_host.fqdn == created_host.fqdn
