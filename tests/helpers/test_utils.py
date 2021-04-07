@@ -151,6 +151,7 @@ def valid_system_profile():
         "insights_egg_version": "120.0.1",
         "captured_date": "2020-02-13T12:08:55Z",
         "installed_packages": ["rpm1-0:0.0.1.el7.i686", "rpm1-2:0.0.1.el7.i686"],
+        "gpg_pubkeys": ["gpg-pubkey-11111111-22222222", "gpg-pubkey-33333333-44444444"],
         "installed_services": ["ndb", "krb5"],
         "enabled_services": ["ndb", "krb5"],
         "sap_sids": ["ABC", "DEF", "GHI"],
