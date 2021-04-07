@@ -122,6 +122,15 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
+# Running all services locally
+
+Honcho is used to provide a command to run MQ and web services at once
+
+```
+$ honcho start
+```
+
+
 ## Config env vars
 
 ```
