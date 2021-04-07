@@ -47,6 +47,7 @@ INVALID_SYSTEM_PROFILES = (
     {"insights_egg_version": "x" * 51},
     {"captured_date": "x" * 33},
     {"installed_packages": ["x" * 513]},
+    {"gpg_pubkeys": ["x" * 513]},
     {"installed_services": ["x" * 513]},
     {"enabled_services": ["x" * 513]},
     {"sap_sids": ["XXXX"]},
