@@ -17,7 +17,7 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=19.9.0"
 connexion = {version = "~=2.6.0",extras = ["swagger-ui"]}
-pyyaml = "~=5.3.1"
+pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
 validators = "~=0.13.0"
