@@ -79,7 +79,7 @@ def deserialize_host_xjoin(data):
         account=data["account"],
         facts=data["facts"] or {},
         tags={},  # Not a part of host list output
-        system_profile_facts={},  # Not a part of host list output
+        system_profile_facts=data["system_profile_facts"] or {},
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
     )

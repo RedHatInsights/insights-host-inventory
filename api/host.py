@@ -100,6 +100,7 @@ def get_host_list(
     staleness=None,
     registered_with=None,
     filter=None,
+    fields=None,
 ):
     total = 0
     host_list = ()
@@ -109,7 +110,7 @@ def get_host_list(
     get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
 
     try:
-        host_list, total = get_host_list(
+        host_list, total, additional_fields = get_host_list(
             display_name,
             fqdn,
             hostname_or_id,
@@ -122,12 +123,13 @@ def get_host_list(
             staleness,
             registered_with,
             filter,
+            fields,
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
     return flask_json_response(json_data)
 
 

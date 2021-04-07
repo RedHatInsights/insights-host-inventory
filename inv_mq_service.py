@@ -7,8 +7,10 @@ from app import create_app
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import EventProducer
+from app.queue.queue import add_host
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
+from app.queue.queue import update_system_profile
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
@@ -20,8 +22,10 @@ def main():
     config = application.config["INVENTORY_CONFIG"]
     start_http_server(config.metrics_port)
 
+    topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
+
     consumer = KafkaConsumer(
-        config.host_ingress_topic,
+        config.kafka_consumer_topic,
         group_id=config.host_ingress_consumer_group,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
@@ -37,7 +41,9 @@ def main():
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    event_loop(consumer, application, event_producer, handle_message, shutdown_handler.shut_down)
+    message_handler = partial(handle_message, message_operation=topic_to_handler[config.kafka_consumer_topic])
+
+    event_loop(consumer, application, event_producer, message_handler, shutdown_handler.shut_down)
 
 
 if __name__ == "__main__":

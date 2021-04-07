@@ -9,8 +9,8 @@ from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
 from app.models import Host
 from app.utils import Tag
-from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import single_canonical_fact_host_query
 from lib.host_repository import update_query_for_owner_id
 
 __all__ = ("get_host_list", "params_to_order_by")
@@ -33,6 +33,7 @@ def get_host_list(
     staleness,
     registered_with,
     filter,
+    fields,
 ):
     if filter:
         flask.abort(503)
@@ -61,10 +62,11 @@ def get_host_list(
     order_by = params_to_order_by(order_by, order_how)
     query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
+    additional_fields = tuple()
 
     log_get_host_list_succeeded(logger, query_results.items)
 
-    return query_results.items, query_results.total
+    return query_results.items, query_results.total, additional_fields
 
 
 def find_hosts_with_insights_enabled(query):
@@ -110,7 +112,7 @@ def _find_all_hosts():
 
 
 def _find_hosts_by_canonical_fact(canonical_fact, value):
-    return canonical_fact_host_query(get_current_identity(), canonical_fact, value)
+    return single_canonical_fact_host_query(get_current_identity(), canonical_fact, value)
 
 
 def _find_hosts_by_tag(string_tags, query):

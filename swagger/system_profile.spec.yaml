@@ -277,17 +277,24 @@ $defs:
         type: string
         maxLength: 32
       installed_packages:
-        type: array  # technically a set, ordering is not important
+        type: array  # technically a set, ordered by RPM sorting algorithm
         items:
           description: A NEVRA string for a single installed package
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"
           type: string
           maxLength: 512
       installed_packages_delta:
-        type: array  # sorted list, rest of packages not in installed_packages
+        type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
         items:
           description: A NEVRA string for a single installed package
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"
+          type: string
+          maxLength: 512
+      gpg_pubkeys:
+        type: array  # technically a set, ordered by RPM sorting algorithm
+        items:
+          description: A package name string of a single imported GPG pubkey
+          example: "gpg-pubkey-11111111-22222222"
           type: string
           maxLength: 512
       installed_services:

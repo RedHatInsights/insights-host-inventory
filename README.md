@@ -2,7 +2,7 @@
 
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).If you're
 looking for API, integration or user documentation for HBI please see the [Inventory section
-in our Platform Docs site] (https://platform-docs.cloud.paas.psi.redhat.com/backend/inventory.html).
+in our Platform Docs site](https://internal.cloud.redhat.com/docs/services/host-inventory/).
 
 # Getting Started
 
@@ -122,6 +122,15 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py
 ```
 
+# Running all services locally
+
+Honcho provides a command to run MQ and web services at once:
+
+```
+$ honcho start
+```
+
+
 ## Config env vars
 
 ```
@@ -142,11 +151,12 @@ python run_gunicorn.py
 To force an ssl connection to the db set INVENTORY_DB_SSL_MODE to "verify-full"
 and provide the path to the certificate you'd like to use.
 
-## Testing API Calls
+## Identity
 
-It is necessary to pass an authentication header along on each call to the
-service. For testing purposes, it is possible to set the required identity
-header to the following:
+It is necessary to provide a valid Identity both when testing the API, and when producing messages via Kafka.
+For Kafka messages, the Identity must be set in the `platform_metadata.b64_identity` field of the message.
+When testing the API, it must be provided in the authentication header `x-rh-identity` on each call to the service.
+For testing purposes, this required identity header can be set to the following:
 
 ```
 x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19
@@ -175,6 +185,13 @@ If you want to encode other JSON documents, you can use the following command:
 ```shell
 echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64
 ```
+
+### Identity Enforcement
+
+The Identity provided limits access to specific hosts. For API requests, the user can only access
+Hosts which have the same Account as the provided Identity. For Host updates via Kafka messages,
+A Host can only be updated if not only the Account matches, but also the `Host.system_profile.owner_id`
+matches the provided `identity.system.cn` value.
 
 ## Using the legacy api
 
@@ -220,7 +237,7 @@ of the payload will only be logged as an "error" if the entire delete operation 
 ## Integrating with Cross Join (xjoin)
 
 1. Clone [xjoin-kstreams](https://github.com/RedHatInsights/xjoin-kstreams/)
-1. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
+2. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
     | Service | Port on localhost |
     | ------- | ----------------- |
     | Inventory DB | 5432 |
@@ -233,23 +250,23 @@ of the payload will only be logged as an "error" if the entire delete operation 
     | xjoin-search | 4000 |
     | ElasticSearch | 9200, 9300 |
 
-1. `cd` into the root of this project (host inventory)
-1. Run the inventory-mq-service
+3. `cd` into the root of this project (host inventory)
+4. Run the inventory-mq-service
 ```
 make run_inv_mq_service
 ```
 
-1. Run the inventory api
+5. Run the inventory api
 ```
 make run_inv_web_service
 ```
 
-1. Produce a kafka message
+6. Produce a kafka message
 ```
 make run_inv_mq_service_test_producer
 ```
 
-1. Validate the host is in xjoin
+7. Validate the host is in xjoin
 ```
 curl \
 -H 'Content-Type: application/json' \
@@ -258,7 +275,7 @@ curl \
 http://localhost:4000/graphql
 ```
 
-1. Now you can curl against the inventory-api with xjoin enabled
+8. Now you can curl against the inventory-api with xjoin enabled
 ```
 curl \
 -H 'x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19' \

@@ -6,8 +6,8 @@ import pytest
 
 from app.auth.identity import Identity
 from app.utils import HostWrapper
-from lib.host_repository import canonical_fact_host_query
 from lib.host_repository import find_hosts_by_staleness
+from lib.host_repository import single_canonical_fact_host_query
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
@@ -31,6 +31,7 @@ from tests.helpers.api_utils import UUID_2
 from tests.helpers.api_utils import UUID_3
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -292,7 +293,7 @@ def test_query_with_matching_insights_id_and_branch_id(mq_create_three_specific_
 
 
 def test_query_using_fqdn_not_subset_match(mocker, api_get):
-    mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
+    mock = mocker.patch("api.host_query_db.single_canonical_fact_host_query", wraps=single_canonical_fact_host_query)
     fqdn = "some fqdn"
     url = build_hosts_url(query=f"?fqdn={fqdn}")
     api_get(url)
@@ -300,7 +301,7 @@ def test_query_using_fqdn_not_subset_match(mocker, api_get):
 
 
 def test_query_using_insights_id_not_subset_match(mocker, api_get):
-    mock = mocker.patch("api.host_query_db.canonical_fact_host_query", wraps=canonical_fact_host_query)
+    mock = mocker.patch("api.host_query_db.single_canonical_fact_host_query", wraps=single_canonical_fact_host_query)
 
     insights_id = "ff13a346-19cb-42ae-9631-44c42927fb92"
 
@@ -1070,3 +1071,26 @@ def test_validate_sp_sparse_fields_invalid_requests(query_source_xjoin, api_get)
 
         response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
         assert response_status == 400
+
+
+def test_host_list_sp_fields_requested(patch_xjoin_post, query_source_xjoin, api_get):
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
+    fields = ["test_data", "random"]
+    response_status, response_data = api_get(HOST_URL + f"?fields[system_profile]={','.join(fields)}")
+
+    assert response_status == 200
+
+    for host_data in response_data["results"]:
+        assert "system_profile" in host_data
+        for key in host_data["system_profile"].keys():
+            assert key in fields
+
+
+def test_host_list_sp_fields_not_requested(patch_xjoin_post, query_source_xjoin, api_get):
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
+    response_status, response_data = api_get(HOST_URL)
+
+    assert response_status == 200
+
+    for host_data in response_data["results"]:
+        assert "system_profile" not in host_data

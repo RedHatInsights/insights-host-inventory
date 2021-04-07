@@ -195,8 +195,11 @@ class Host(db.Model):
         self.update_canonical_facts(input_host.canonical_facts)
 
         # TODO: Remove this eventually when Sat 6.7 stops sending fqdns as display_names (See RHCLOUD-5954)
-        # NOTE: For this particular issue, display_name changes from "puptoo" and "yupana" are ignored
-        if input_host.reporter != "yupana" and input_host.reporter != "rhsm-conduit":
+        # NOTE: For this particular issue, display_name changes from "puptoo" and "yupana" are ignored,
+        # unless the Insights ID isn't set (See RHCLOUD-13105)
+        if "insights_id" not in self.canonical_facts or (
+            input_host.reporter != "yupana" and input_host.reporter != "rhsm-conduit"
+        ):
             self.update_display_name(input_host.display_name)
 
         self._update_ansible_host(input_host.ansible_host)
@@ -206,7 +209,7 @@ class Host(db.Model):
         self._update_tags(input_host.tags)
 
         if update_system_profile:
-            self._update_system_profile(input_host.system_profile_facts)
+            self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
@@ -320,7 +323,7 @@ class Host(db.Model):
             self.facts[namespace] = facts_dict
         orm.attributes.flag_modified(self, "facts")
 
-    def _update_system_profile(self, input_system_profile):
+    def update_system_profile(self, input_system_profile):
         logger.debug("Updating host's (id=%s) system profile", self.id)
         if not self.system_profile_facts:
             self.system_profile_facts = input_system_profile
