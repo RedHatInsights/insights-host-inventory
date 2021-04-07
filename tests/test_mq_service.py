@@ -1280,3 +1280,25 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
     assert updated_host.id == created_host.id
     assert updated_host.insights_id == created_host.insights_id
     assert updated_host.fqdn == created_host.fqdn
+
+
+def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name="test_host",
+        insights_id=expected_insights_id,
+        system_profile={"owner_id": OWNER_ID},
+        reporter="puptoo",
+    )
+
+    created_host = mq_create_or_update_host(host)
+    assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
+
+    host = minimal_host(insights_id=expected_insights_id, display_name="better_test_host", reporter="puptoo")
+
+    updated_host = mq_create_or_update_host(host)
+
+    assert updated_host.id == created_host.id
+    assert updated_host.insights_id == created_host.insights_id
+    assert updated_host.display_name != created_host.display_name
