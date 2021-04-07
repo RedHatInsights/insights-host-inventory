@@ -30,7 +30,6 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -301,7 +300,7 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     """
     sub_mangager_id = "09152341475c4671a376df609374c349"
 
-    metadata_without_b64 = get_platform_metadata(identity=USER_IDENTITY)
+    metadata_without_b64 = get_platform_metadata(identity=SYSTEM_IDENTITY)
     del metadata_without_b64["b64_identity"]
 
     host = minimal_host(
@@ -332,7 +331,6 @@ def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update
     key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
     # owner_id gets overwritten and equates to subscription_manager_id with dashes
-    assert event["host"]["system_profile"]["owner_id"] != OWNER_ID
     assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
 
 
