@@ -1325,8 +1325,11 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
     assert updated_host.id == created_host.id
     assert updated_host.insights_id == created_host.insights_id
     assert updated_host.fqdn == created_host.fqdn
+    assert updated_host.system_profile.get("owner_id") != created_host.system_profile.get("owner_id")
+    assert updated_host.system_profile.get("owner_id") == "137c9d58-941c-4bb9-9426-7879a367c23b"
 
 
+#  tests changes to owner_id and display name
 def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or_update_host, db_get_host):
     expected_insights_id = generate_uuid()
     host = minimal_host(
@@ -1338,9 +1341,11 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
     )
 
     created_host = mq_create_or_update_host(host)
-    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
-
     assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
+    assert db_get_host(created_host.id).display_name == "test_host"
+
+    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+    assert created_event["host"]["display_name"] == "test_host"
 
     # use new identity with a new 'CN'
     new_id = deepcopy(SYSTEM_IDENTITY)
@@ -1350,16 +1355,17 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
     host = minimal_host(insights_id=expected_insights_id, display_name="better_test_host", reporter="puptoo")
 
     updated_host = mq_create_or_update_host(host, platform_metadata=platform_metadata)
-    updated_key, updated_event, updated_headers = mq_create_or_update_host(
-        host, platform_metadata=platform_metadata, return_all_data=True
-    )
-
     assert updated_host.id == created_host.id
     assert updated_host.insights_id == created_host.insights_id
     assert updated_host.display_name != created_host.display_name
+    assert updated_host.display_name == "better_test_host"
 
+    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+        host, platform_metadata=platform_metadata, return_all_data=True
+    )
     # explicitly test the posted event
     assert updated_key == created_key
     assert updated_event["host"]["insights_id"] == created_event["host"]["insights_id"]
     assert updated_event["host"]["display_name"] != created_event["host"]["display_name"]
     assert updated_event["host"]["system_profile"]["owner_id"] != created_event["host"]["system_profile"]["owner_id"]
+    assert updated_event["host"]["display_name"] == "better_test_host"
