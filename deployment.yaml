@@ -177,7 +177,9 @@ objects:
         - name: KAFKA_GROUP
           value: inventory
         - name: KAFKA_HOST_INGRESS_TOPIC
-          value: platform.inventory.host-ingress-p1
+          value: platform.inventory.host-ingress
+        - name: KAFKA_CONSUMER_TOPIC
+          value: platform.inventory.host-ingress
         - name: KAFKA_HOST_INGRESS_GROUP
           value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -217,6 +219,8 @@ objects:
       name: host-inventory
       version: 12
     kafkaTopics:
+      - topicName: platform.inventory.system-profile
+        partitions: 1
       - topicName: platform.system-profile
         partitions: 1
       - topicName: platform.payload-status
