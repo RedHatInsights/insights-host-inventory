@@ -218,8 +218,15 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     host_id = generate_uuid()
     insights_id = generate_uuid()
     request_id = generate_uuid()
+    subscription_manager_id = generate_uuid()
 
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        id=host_id,
+        insights_id=insights_id,
+        reporter="rhsm-conduit",
+        subscription_manager_id=subscription_manager_id,
+    )
 
     mock_add_host = mocker.patch(
         "app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result)
@@ -292,6 +299,44 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
     with pytest.raises(ValidationException) as ve:
         key, event, headers = mq_create_or_update_host(host, return_all_data=True)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+
+
+def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host):
+    """
+    Tests adding a host with reporter rhsm-conduit and no cn
+    """
+    sub_mangager_id = "09152341475c4671a376df609374c349"
+
+    metadata_without_b64 = get_platform_metadata(identity=SYSTEM_IDENTITY)
+    del metadata_without_b64["b64_identity"]
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], reporter="rhsm-conduit", subscription_manager_id=sub_mangager_id
+    )
+
+    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata_without_b64, return_all_data=True)
+
+    # owner_id equals subscription_manager_id with dashes
+    assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
+
+
+def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update_host):
+    """
+    Tests adding a host with reporter rhsm-conduit
+    """
+    sub_mangager_id = "09152341475c4671a376df609374c349"
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        reporter="rhsm-conduit",
+        subscription_manager_id=sub_mangager_id,
+        system_profile={"owner_id": OWNER_ID},
+    )
+
+    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+
+    # owner_id gets overwritten and equates to subscription_manager_id with dashes
+    assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
 
 
 def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
