@@ -38,7 +38,7 @@ source build.sh
 source unit_test.sh
 
 # Smoke test the App (iqe tests coming soon)
-source deploy_ephemeral_env.sh
+# source deploy_ephemeral_env.sh
 # source smoke_test.sh
 
 mkdir -p $WORKSPACE/artifacts
