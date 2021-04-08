@@ -49,8 +49,6 @@ objects:
           value: ${URLLIB3_LOG_LEVEL}
         - name: INVENTORY_DB_SSL_MODE
           value: ${INVENTORY_DB_SSL_MODE}
-        - name: KAFKA_GROUP
-          value: inventory
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory
         - name: PAYLOAD_TRACKER_ENABLED
@@ -122,10 +120,12 @@ objects:
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
           value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_GROUP
-          value: inventory
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_HOST_INGRESS_TOPIC
-          value: platform.inventory.host-ingress
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
           value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -174,12 +174,66 @@ objects:
           value: ${INVENTORY_DB_SSL_MODE}
         - name: INVENTORY_DB_SSL_CERT
           value: ${INVENTORY_DB_SSL_CERT}
-        - name: KAFKA_GROUP
-          value: inventory
-        - name: KAFKA_HOST_INGRESS_TOPIC
-          value: platform.inventory.host-ingress
         - name: KAFKA_CONSUMER_TOPIC
-          value: platform.inventory.host-ingress
+          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: inventory-mq
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: 200m
+            memory: 256Mi
+    - name: inventory-mq-sp
+      minReplicas: ${{REPLICAS_SP}}
+      podSpec:
+        command:
+        - python
+        - inv_mq_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
           value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -219,19 +273,15 @@ objects:
       name: host-inventory
       version: 12
     kafkaTopics:
-      - topicName: platform.inventory.system-profile
-        partitions: 1
-      - topicName: platform.system-profile
+      - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         partitions: 1
       - topicName: platform.payload-status
         partitions: 1
       - topicName: platform.inventory.events
         partitions: 1
-      - topicName: platform.inventory.host-ingress
+      - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
         partitions: 1
-      - topicName: platform.inventory.host-ingress-p1
-        partitions: 1
-      - topicName: platform.inventory.events
+      - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
 parameters:
 - name: LOG_LEVEL
@@ -247,6 +297,9 @@ parameters:
   value: "1"
 - description: Replica count for pmin consumer
   name: REPLICAS_PMIN
+  value: "1"
+- description: Replica count for sp consumer
+  name: REPLICAS_SP
   value: "1"
 - description: Replica count for webservice
   name: REPLICAS_SVC
@@ -288,3 +341,12 @@ parameters:
   value: '0'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
+- name: KAFKA_HOST_INGRESS_TOPIC
+  description: The topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress
+- name: KAFKA_HOST_INGRESS_P1_TOPIC
+  description: The TOP-PRIORITY topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress-p1
+- name: KAFKA_SYSTEM_PROFILE_TOPIC
+  description: The topic containing Host data for System Profile updates
+  value: platform.inventory.system-profile
