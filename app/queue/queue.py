@@ -24,6 +24,7 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
@@ -166,7 +167,7 @@ def update_system_profile(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
-            input_host = deserialize_host(host_data)
+            input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(

@@ -50,17 +50,7 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
-    return Host(
-        canonical_facts,
-        validated_data.get("display_name"),
-        validated_data.get("ansible_host"),
-        validated_data.get("account"),
-        facts,
-        tags,
-        validated_data.get("system_profile", {}),
-        validated_data["stale_timestamp"],
-        validated_data["reporter"],
-    )
+    return schema.build_model(validated_data, canonical_facts, facts, tags)
 
 
 def deserialize_canonical_facts(raw_data):

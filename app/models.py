@@ -123,7 +123,7 @@ class SystemProfileNormalizer:
             self.filter_keys(value, schema.items)
 
 
-class Host(db.Model):
+class LimitedHost(db.Model):
     __tablename__ = "hosts"
     # These Index entries are essentially place holders so that the
     # alembic autogenerate functionality does not try to remove the indexes
@@ -133,6 +133,40 @@ class Host(db.Model):
         Index("idxaccount", "account"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
     )
+
+    def __init__(
+        self,
+        canonical_facts,
+        display_name=None,
+        ansible_host=None,
+        account=None,
+        facts=None,
+        tags=None,
+        system_profile_facts=None,
+    ):
+
+        if not canonical_facts:
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
+
+        self.canonical_facts = canonical_facts
+
+        if display_name:
+            # Only set the display_name field if input the display_name has
+            # been set...this will make it so that the "default" logic will
+            # get called during the save to fill in an empty display_name
+            self.display_name = display_name
+        self._update_ansible_host(ansible_host)
+        self.account = account
+        self.facts = facts or {}
+        self.tags = tags or {}
+        self.system_profile_facts = system_profile_facts or {}
+
+    def _update_ansible_host(self, ansible_host):
+        if ansible_host is not None:
+            # Allow a user to clear out the ansible host with an empty string
+            self.ansible_host = ansible_host
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -144,6 +178,9 @@ class Host(db.Model):
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
+
+
+class Host(LimitedHost):
     stale_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
@@ -160,29 +197,13 @@ class Host(db.Model):
         stale_timestamp=None,
         reporter=None,
     ):
-
-        if not canonical_facts:
-            raise InventoryException(
-                title="Invalid request", detail="At least one of the canonical fact fields must be present."
-            )
+        super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
 
         if not stale_timestamp or not reporter:
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
-        self.canonical_facts = canonical_facts
-
-        if display_name:
-            # Only set the display_name field if input the display_name has
-            # been set...this will make it so that the "default" logic will
-            # get called during the save to fill in an empty display_name
-            self.display_name = display_name
-        self._update_ansible_host(ansible_host)
-        self.account = account
-        self.facts = facts or {}
-        self.tags = tags or {}
-        self.system_profile_facts = system_profile_facts or {}
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
         self._update_per_reporter_staleness(stale_timestamp, reporter)
@@ -223,11 +244,6 @@ class Host(db.Model):
         self._update_ansible_host(patch_data.get("ansible_host"))
 
         self.update_display_name(patch_data.get("display_name"))
-
-    def _update_ansible_host(self, ansible_host):
-        if ansible_host is not None:
-            # Allow a user to clear out the ansible host with an empty string
-            self.ansible_host = ansible_host
 
     def update_display_name(self, input_display_name):
         if input_display_name:
@@ -413,13 +429,11 @@ class CanonicalFactsSchema(MarshmallowSchema):
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
 
 
-class HostSchema(CanonicalFactsSchema):
+class LimitedHostSchema(CanonicalFactsSchema):
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
     facts = fields.List(fields.Nested(FactsSchema))
-    stale_timestamp = fields.DateTime(required=True, timezone=True)
-    reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
 
@@ -430,11 +444,6 @@ class HostSchema(CanonicalFactsSchema):
             cls.system_profile_normalizer = SystemProfileNormalizer()
         if system_profile_schema:
             self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
-
-    @validates("stale_timestamp")
-    def has_timezone_info(self, timestamp):
-        if timestamp.tzinfo is None:
-            raise MarshmallowValidationError("Timestamp must contain timezone info")
 
     @validates("tags")
     def validate_tags(self, tags):
@@ -486,6 +495,17 @@ class HostSchema(CanonicalFactsSchema):
         normalize(system_profile)
         return {**data, "system_profile": system_profile}
 
+    def build_model(data, canonical_facts, facts, tags):
+        return LimitedHost(
+            canonical_facts,
+            display_name=data.get("display_name"),
+            ansible_host=data.get("ansible_host"),
+            account=data.get("account"),
+            facts=facts,
+            tags=tags,
+            system_profile_facts=data.get("system_profile", {}),
+        )
+
     @pre_load
     def coerce_system_profile_types(self, data):
         return self._normalize_system_profile(self.system_profile_normalizer.coerce_types, data)
@@ -506,9 +526,32 @@ class HostSchema(CanonicalFactsSchema):
                 raise MarshmallowValidationError(f"Empty key in /system_profile/disk_devices/{dd_i}/options.")
 
 
+class HostSchema(LimitedHostSchema):
+    stale_timestamp = fields.DateTime(required=True, timezone=True)
+    reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
+
+    def build_model(data, canonical_facts, facts, tags):
+        return Host(
+            canonical_facts,
+            display_name=data.get("display_name"),
+            ansible_host=data.get("ansible_host"),
+            account=data.get("account"),
+            facts=facts,
+            tags=tags,
+            system_profile_facts=data.get("system_profile", {}),
+            stale_timestamp=data["stale_timestamp"],
+            reporter=data["reporter"],
+        )
+
+    @validates("stale_timestamp")
+    def has_timezone_info(self, timestamp):
+        if timestamp.tzinfo is None:
+            raise MarshmallowValidationError("Timestamp must contain timezone info")
+
+
 class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
 
-    def __init__(self, system_profile_schema=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

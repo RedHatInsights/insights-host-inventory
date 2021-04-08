@@ -1112,6 +1112,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     input_host = minimal_host(
         **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
     )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
     second_host_from_db = db_get_host(second_host_from_event.id)
 

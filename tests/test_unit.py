@@ -907,7 +907,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        host_schema = Mock(
+            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
+        )
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
@@ -944,7 +946,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        host_schema = Mock(
+            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
+        )
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -982,7 +986,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        host_schema = Mock(
+            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
+        )
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1023,7 +1029,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        host_schema = Mock(
+            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
+        )
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1059,7 +1067,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(**{"return_value.load.return_value.data": host_input})
+        host_schema = Mock(
+            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
+        )
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1105,7 +1115,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                     mock.reset_mock()
 
                 all_data = {**common_data, **additional_data}
-                host_schema = Mock(**{"return_value.load.return_value.data": all_data})
+                host_schema = Mock(
+                    **{"return_value.load.return_value.data": all_data, "build_model": HostSchema.build_model}
+                )
 
                 with self.assertRaises(KeyError):
                     deserialize_host({}, host_schema)
