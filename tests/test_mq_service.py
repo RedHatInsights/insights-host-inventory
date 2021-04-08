@@ -218,8 +218,15 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     host_id = generate_uuid()
     insights_id = generate_uuid()
     request_id = generate_uuid()
+    subscription_manager_id = generate_uuid()
 
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        id=host_id,
+        insights_id=insights_id,
+        reporter="rhsm-conduit",
+        subscription_manager_id=subscription_manager_id,
+    )
 
     mock_add_host = mocker.patch(
         "app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result)
@@ -307,9 +314,7 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
         account=SYSTEM_IDENTITY["account_number"], reporter="rhsm-conduit", subscription_manager_id=sub_mangager_id
     )
 
-    key, event, headers = mq_create_or_update_host(
-        host, platform_metadata=metadata_without_b64, overwrite_identity=False, return_all_data=True
-    )
+    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata_without_b64, return_all_data=True)
 
     # owner_id equals subscription_manager_id with dashes
     assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
