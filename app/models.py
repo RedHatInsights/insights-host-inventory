@@ -495,6 +495,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         normalize(system_profile)
         return {**data, "system_profile": system_profile}
 
+    @staticmethod
     def build_model(data, canonical_facts, facts, tags):
         return LimitedHost(
             canonical_facts=canonical_facts,
@@ -530,17 +531,18 @@ class HostSchema(LimitedHostSchema):
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
+    @staticmethod
     def build_model(data, canonical_facts, facts, tags):
         return Host(
             canonical_facts,
-            display_name=data.get("display_name"),
-            ansible_host=data.get("ansible_host"),
-            account=data.get("account"),
-            facts=facts,
-            tags=tags,
-            system_profile_facts=data.get("system_profile", {}),
-            stale_timestamp=data["stale_timestamp"],
-            reporter=data["reporter"],
+            data.get("display_name"),
+            data.get("ansible_host"),
+            data.get("account"),
+            facts,
+            tags,
+            data.get("system_profile", {}),
+            data["stale_timestamp"],
+            data["reporter"],
         )
 
     @validates("stale_timestamp")

@@ -856,7 +856,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         self.assertEqual(tags, host.tags)
 
 
-@patch("app.serialization.Host")
+@patch("app.models.Host")
 @patch("app.serialization._deserialize_tags")
 @patch("app.serialization._deserialize_facts")
 @patch("app.serialization._deserialize_canonical_facts")
