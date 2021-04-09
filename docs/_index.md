@@ -808,6 +808,8 @@ For example, to only fetch the arch, yum_repos and os_kernel_version, the user n
 ?fields[system_profile]=arch,yum_repos,os_kernel_version
 ```
 
+In addition to the /hosts/{host_id_list}/system_profile endpoint, this query can also be used on the upper-level /hosts endpoint to fetch partial system profile data for hosts. On the /hosts endpoint, if this query is not included, no system profile data will be returned.
+
 ## Host Data Syndication (a.k.a. Project Cyndi)
 
 Note
