@@ -70,6 +70,7 @@ A single host object should be wrapped in an `operation` json document.
           "ip_addresses": [<ip_addresses>],
           "mac_addresses": [<mac_addresses>],
           "external_id": "<external_id>",
+          "provider_id": "<provider_id>",
           "facts": [<facts>],
           "tags": {<tags>},
           "system_profile": {<system_profile>},
@@ -116,6 +117,8 @@ facts fields are:
 - `mac_addresses`
 
 - `external_id`
+
+- `provider_id`
 
 Host `tags` should be provided using [nested representation](#nested-representation):
 
@@ -365,6 +368,8 @@ are:
 - `mac_addresses`
 
 - `external_id`
+
+- `provider_id`
 
 If the update request includes an insights\_id, then the inventory
 service will lookup the host using the insights\_id. If the inventory

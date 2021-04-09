@@ -11,6 +11,7 @@ from app.serialization import serialize_host
 
 application = create_app(RuntimeEnvironment.COMMAND)
 
+# TODO: Should "provider_type" and/or "provider_id" be added here"
 parser = argparse.ArgumentParser(
     description="Util that dumps a host from the hosts table.  The db configuration is read from the environment.  "
     "This util is expected to be used within the image/pod."

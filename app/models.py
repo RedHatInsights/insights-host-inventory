@@ -132,6 +132,7 @@ class Host(db.Model):
         Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxaccount", "account"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+        Index("idxproviderid", text("(canonical_facts ->> 'provider_id')")),
     )
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -148,6 +149,9 @@ class Host(db.Model):
     reporter = db.Column(db.String(255))
     per_reporter_staleness = db.Column(JSONB)
 
+    # max string len for cloud provider name: 50?
+    provider_type = db.Column(db.String(50))
+
     def __init__(
         self,
         canonical_facts,
@@ -159,6 +163,7 @@ class Host(db.Model):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
+        provider_type=None,
     ):
 
         if not canonical_facts:
@@ -186,6 +191,7 @@ class Host(db.Model):
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
         self._update_per_reporter_staleness(stale_timestamp, reporter)
+        self._update_provider_type(provider_type)
 
     def save(self):
         self._cleanup_tags()
@@ -214,6 +220,9 @@ class Host(db.Model):
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
 
+        # self.provider_type = _update_provider_type(input_host.provider_type)
+        self._update_provider_type(input_host.provider_type)
+
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
@@ -224,10 +233,18 @@ class Host(db.Model):
 
         self.update_display_name(patch_data.get("display_name"))
 
+        self._update_provider_type(patch_data.get("provider_type"))
+
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    # TODO: is this function useful?  Like ansible_host, provider_type may not be available.
+    def _update_provider_type(self, provider_type):
+        if provider_type is not None:
+            # Allow a user to clear out the provider with an empty string
+            self.provider_type = provider_type
 
     def update_display_name(self, input_display_name):
         if input_display_name:
@@ -411,6 +428,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
 
 
 class HostSchema(CanonicalFactsSchema):
@@ -422,6 +440,8 @@ class HostSchema(CanonicalFactsSchema):
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
+    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=0, max=50))
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -430,6 +450,21 @@ class HostSchema(CanonicalFactsSchema):
             cls.system_profile_normalizer = SystemProfileNormalizer()
         if system_profile_schema:
             self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
+
+    # TODO: how to validate provider type?
+    # TODO: where to specify:
+    # class ProviderType(str, Enum):
+    #     AWS = "basic-auth"
+    #     AZURE = "cert-auth"
+    #     GOOGLE = "classic-proxy"
+    #     ALIBABA = "alibaba"
+
+    @validates("provider_type")
+    def has_provider_type(self, provider_type):
+        # check if canonical_facts have "provder_id"
+
+        # remove True after the implementation
+        return True
 
     @validates("stale_timestamp")
     def has_timezone_info(self, timestamp):
@@ -509,6 +544,7 @@ class HostSchema(CanonicalFactsSchema):
 class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=0, max=50))
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1294,3 +1294,10 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer, mock_add_host)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+
+
+# TODO: tests to add.
+# 1. set provider_type with provider_id
+# 2. set provider_type with out provider_id, should raise "ValidationError"
+# 3. set provider_id without provider_type
+# 4. test unknown provider_type
