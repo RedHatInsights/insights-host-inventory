@@ -34,7 +34,6 @@ from tests.helpers.test_utils import valid_system_profile
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
-NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
 
 
 def test_event_loop_exception_handling(mocker, flask_app):
@@ -1287,7 +1286,7 @@ def test_owner_id_different_from_cn(mocker):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
-        system_profile={"owner_id": NEW_CN},
+        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
     )
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
@@ -1307,6 +1306,7 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
     assert created_event["host"]["account"] == SYSTEM_IDENTITY["account_number"]
     assert created_event["host"]["system_profile"]["owner_id"] == OWNER_ID
 
+    NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
     new_id = deepcopy(SYSTEM_IDENTITY)
     new_id["system"]["cn"] = NEW_CN
     platform_metadata = get_platform_metadata(new_id)
@@ -1339,6 +1339,8 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
     created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
     assert created_event["host"]["display_name"] == "test_host"
     assert created_event["host"]["system_profile"]["owner_id"] == OWNER_ID
+
+    NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
 
     # use new identity with a new 'CN'
     new_id = deepcopy(SYSTEM_IDENTITY)
