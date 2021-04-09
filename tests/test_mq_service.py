@@ -233,10 +233,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     )
 
     key, event, headers = mq_create_or_update_host(
-        host,
-        platform_metadata={"request_id": request_id, "b64_identity": get_encoded_idstr()},
-        return_all_data=True,
-        message_operation=mock_add_host,
+        host, platform_metadata={"request_id": request_id}, return_all_data=True, message_operation=mock_add_host
     )
 
     assert headers == expected_headers(add_host_result.name, request_id, insights_id)
