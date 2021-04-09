@@ -136,7 +136,7 @@ class LimitedHost(db.Model):
 
     def __init__(
         self,
-        canonical_facts,
+        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -144,11 +144,6 @@ class LimitedHost(db.Model):
         tags=None,
         system_profile_facts=None,
     ):
-
-        if not canonical_facts:
-            raise InventoryException(
-                title="Invalid request", detail="At least one of the canonical fact fields must be present."
-            )
 
         self.canonical_facts = canonical_facts
 
@@ -198,6 +193,11 @@ class Host(LimitedHost):
         reporter=None,
     ):
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
+
+        if not canonical_facts:
+            raise InventoryException(
+                title="Invalid request", detail="At least one of the canonical fact fields must be present."
+            )
 
         if not stale_timestamp or not reporter:
             raise InventoryException(
@@ -497,7 +497,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     def build_model(data, canonical_facts, facts, tags):
         return LimitedHost(
-            canonical_facts,
+            canonical_facts=canonical_facts,
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
