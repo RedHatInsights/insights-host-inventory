@@ -34,6 +34,7 @@ from tests.helpers.test_utils import valid_system_profile
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
+NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
 
 
 def test_event_loop_exception_handling(mocker, flask_app):
@@ -1286,7 +1287,7 @@ def test_owner_id_different_from_cn(mocker):
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
-        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
+        system_profile={"owner_id": NEW_CN},
     )
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
@@ -1307,14 +1308,14 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
     assert db_get_host(created_host.id).account == SYSTEM_IDENTITY["account_number"]
 
     new_id = deepcopy(SYSTEM_IDENTITY)
-    new_id["system"]["cn"] = "137c9d58-941c-4bb9-9426-7879a367c23b"
+    new_id["system"]["cn"] = NEW_CN
     platform_metadata = get_platform_metadata(new_id)
 
     host = minimal_host(
         account=new_id["account_number"],
         insights_id=expected_insights_id,
         fqdn="d44533.foo.redhat.co",
-        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
+        system_profile={"owner_id": NEW_CN},
     )
 
     updated_host = mq_create_or_update_host(host, platform_metadata=platform_metadata)
@@ -1323,7 +1324,7 @@ def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host)
     assert updated_host.insights_id == created_host.insights_id
     assert updated_host.fqdn == created_host.fqdn
     assert updated_host.system_profile.get("owner_id") != created_host.system_profile.get("owner_id")
-    assert updated_host.system_profile.get("owner_id") == "137c9d58-941c-4bb9-9426-7879a367c23b"
+    assert updated_host.system_profile.get("owner_id") == NEW_CN
 
 
 #  tests changes to owner_id and display name
@@ -1346,7 +1347,7 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
 
     # use new identity with a new 'CN'
     new_id = deepcopy(SYSTEM_IDENTITY)
-    new_id["system"]["cn"] = "137c9d58-941c-4bb9-9426-7879a367c23b"
+    new_id["system"]["cn"] = NEW_CN
     platform_metadata = get_platform_metadata(new_id)
 
     host = minimal_host(insights_id=expected_insights_id, display_name="better_test_host", reporter="puptoo")
