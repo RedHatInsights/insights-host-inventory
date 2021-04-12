@@ -44,6 +44,13 @@ SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 
+class ProviderType(str, Enum):
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    ALIBABA = "alibaba"
+
+
 def _set_display_name_on_save(context):
     """
     This method sets the display_name if it has not been set previously.
@@ -53,6 +60,18 @@ def _set_display_name_on_save(context):
     params = context.get_current_parameters()
     if not params["display_name"]:
         return params["canonical_facts"].get("fqdn") or params["id"]
+
+
+#  verifies provider_type and if the required provider_id is provided.
+def _check_provider(provider_type, canonical_facts):
+    if provider_type not in ProviderType.__members__.values():
+        raise InventoryException(
+            title="Unknown Provider Type", detail='Valid provider types are "aws", "azure", "gcp", or "alibaba"'
+        )
+    if not canonical_facts.get("provider_id"):
+        raise InventoryException(
+            title="Missing Provider ID", detail="Provider ID must be provided when provider type is provided"
+        )
 
 
 def _time_now():
@@ -170,13 +189,15 @@ class Host(db.Model):
             raise InventoryException(
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
+        self.canonical_facts = canonical_facts
 
         if not stale_timestamp or not reporter:
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
-        self.canonical_facts = canonical_facts
+        if provider_type and _check_provider(provider_type, canonical_facts):
+            self.provider_type
 
         if display_name:
             # Only set the display_name field if input the display_name has
@@ -428,7 +449,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
-    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
 
 class HostSchema(CanonicalFactsSchema):
@@ -450,14 +471,6 @@ class HostSchema(CanonicalFactsSchema):
             cls.system_profile_normalizer = SystemProfileNormalizer()
         if system_profile_schema:
             self.system_profile_normalizer = SystemProfileNormalizer(system_profile_schema=system_profile_schema)
-
-    # TODO: how to validate provider type?
-    # TODO: where to specify:
-    # class ProviderType(str, Enum):
-    #     AWS = "basic-auth"
-    #     AZURE = "cert-auth"
-    #     GOOGLE = "classic-proxy"
-    #     ALIBABA = "alibaba"
 
     @validates("provider_type")
     def has_provider_type(self, provider_type):
