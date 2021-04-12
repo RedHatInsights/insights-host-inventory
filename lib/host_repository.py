@@ -93,15 +93,16 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
     return None
 
 
-def single_canonical_fact_host_query(identity, canonical_fact, value):
+def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=True):
     query = Host.query.filter(
         (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
-    query = update_query_for_owner_id(identity, query)
+    if restrict_to_owner_id:
+        query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query)
 
 
-def multiple_canonical_facts_host_query(identity, canonical_facts):
+def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=True):
     query = Host.query.filter(
         (Host.account == identity.account_number)
         & (
@@ -109,7 +110,8 @@ def multiple_canonical_facts_host_query(identity, canonical_facts):
             | Host.canonical_facts.comparator.contained_by(canonical_facts)
         )
     )
-    query = update_query_for_owner_id(identity, query)
+    if restrict_to_owner_id:
+        query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query)
 
 
@@ -119,7 +121,7 @@ def find_host_by_single_canonical_fact(identity, canonical_fact, value):
     """
     logger.debug("find_host_by_single_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
 
-    host = single_canonical_fact_host_query(identity, canonical_fact, value).first()
+    host = single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=False).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
@@ -133,7 +135,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     """
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
-    host = multiple_canonical_facts_host_query(identity, canonical_facts).first()
+    host = multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
