@@ -1144,6 +1144,18 @@ def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
         mq_create_or_update_host(input_host, message_operation=update_system_profile)
 
 
+def test_update_system_profile_not_provided(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    input_host = minimal_host(id=str(first_host_from_db.id), system_profile={})
+
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(input_host, message_operation=update_system_profile)
+
+
 def test_handle_message_side_effect(mocker, flask_app):
     fake_add_host = mocker.patch(
         "lib.host_repository.add_host", side_effect=OperationalError("DB Problem", "fake_param", "fake_orig")
@@ -1272,17 +1284,6 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
 
 def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(
@@ -1294,5 +1295,5 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+        handle_message(json.dumps(message), mock_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"

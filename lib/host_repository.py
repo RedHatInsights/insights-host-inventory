@@ -206,6 +206,11 @@ def update_query_for_owner_id(identity, query):
 
 
 def update_system_profile(input_host, identity, staleness_offset, fields):
+    if not input_host.system_profile_facts:
+        raise InventoryException(
+            title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
+        )
+
     with session_guard(db.session):
         if input_host.id:
             existing_host = find_existing_host_by_id(identity, input_host.id)
