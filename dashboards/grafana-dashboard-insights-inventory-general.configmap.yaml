@@ -2217,7 +2217,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+adding+host+%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+adding+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #C",
               "thresholds": [
@@ -2240,7 +2240,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+while+adding+host%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+while+adding+host%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #D",
               "thresholds": [
