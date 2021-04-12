@@ -1268,7 +1268,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         handle_message(json.dumps(message), mock_event_producer, mock_add_host)
 
 
-def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
+def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
     host_id = generate_uuid()
 
@@ -1294,3 +1294,65 @@ def test_owner_mismatach(mocker, event_datetime_mock, flask_app):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer, mock_add_host)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+
+
+def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, fqdn="d44533.foo.redhat.co"
+    )
+
+    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+    assert created_event["host"]["account"] == SYSTEM_IDENTITY["account_number"]
+    assert created_event["host"]["system_profile"]["owner_id"] == OWNER_ID
+
+    NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
+    new_id = deepcopy(SYSTEM_IDENTITY)
+    new_id["system"]["cn"] = NEW_CN
+    platform_metadata = get_platform_metadata(new_id)
+
+    host = minimal_host(
+        account=new_id["account_number"],
+        insights_id=expected_insights_id,
+        fqdn="d44533.foo.redhat.co",
+        system_profile={"owner_id": NEW_CN},
+    )
+
+    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+        host, platform_metadata=platform_metadata, return_all_data=True
+    )
+    assert updated_key == created_key
+    assert updated_event["host"]["system_profile"]["owner_id"] == NEW_CN
+
+
+#  tests changes to owner_id and display name
+def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        display_name="test_host",
+        insights_id=expected_insights_id,
+        system_profile={"owner_id": OWNER_ID},
+        reporter="puptoo",
+    )
+
+    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+    assert created_event["host"]["display_name"] == "test_host"
+    assert created_event["host"]["system_profile"]["owner_id"] == OWNER_ID
+
+    NEW_CN = "137c9d58-941c-4bb9-9426-7879a367c23b"
+
+    # use new identity with a new 'CN'
+    new_id = deepcopy(SYSTEM_IDENTITY)
+    new_id["system"]["cn"] = NEW_CN
+    platform_metadata = get_platform_metadata(new_id)
+
+    host = minimal_host(insights_id=expected_insights_id, display_name="better_test_host", reporter="puptoo")
+
+    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+        host, platform_metadata=platform_metadata, return_all_data=True
+    )
+    # explicitly test the posted event
+    assert updated_key == created_key
+    assert updated_event["host"]["system_profile"]["owner_id"] == NEW_CN
+    assert updated_event["host"]["display_name"] == "better_test_host"
