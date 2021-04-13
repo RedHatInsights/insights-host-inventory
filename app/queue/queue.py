@@ -176,6 +176,10 @@ def update_system_profile(host_data, identity):
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
+        except ValidationException as ve:
+            logger.error("Validation error while updating System Profile: %s", ve)
+            metrics.update_system_profile_failure.labels("Exception").inc()
+            raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
             raise
@@ -184,7 +188,7 @@ def update_system_profile(host_data, identity):
             raise oe
         except Exception:
             logger.exception("Error while updating host system profile", extra={"host": host_data})
-            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+            metrics.update_system_profile_failure.labels("Exception").inc()
             raise
 
 
@@ -209,6 +213,10 @@ def add_host(host_data, identity):
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
+        except ValidationException as ve:
+            logger.error("Validation error while adding host: %s", ve)
+            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+            raise
         except InventoryException:
             log_add_host_failure(logger, host_data)
             raise
