@@ -215,7 +215,7 @@ def add_host(host_data, identity):
             return output_host, host_id, insights_id, add_result
         except ValidationException as ve:
             logger.error("Validation error while adding host: %s", ve)
-            metrics.add_host_failure.labels("Exception", "null").inc()
+            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
         except InventoryException:
             log_add_host_failure(logger, host_data)
