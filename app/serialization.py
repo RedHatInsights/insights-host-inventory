@@ -61,7 +61,6 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
         validated_data.get("system_profile", {}),
         validated_data["stale_timestamp"],
         validated_data["reporter"],
-        validated_data.get("provider_type"),
     )
 
 
@@ -84,7 +83,6 @@ def deserialize_host_xjoin(data):
         system_profile_facts=data["system_profile_facts"] or {},
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
-        provider_type=["provider_type"],
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
