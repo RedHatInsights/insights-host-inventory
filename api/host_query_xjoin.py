@@ -187,6 +187,19 @@ def build_sap_sids_filter(sap_sids):
     return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
+def _build_operating_system_filter(operating_system):
+    operating_system_filter = {}
+
+    if operating_system.get("major"):
+        operating_system_filter.update(_string_filter("major", operating_system["major"])[0])
+    if operating_system.get("minor"):
+        operating_system_filter.update(_string_filter("minor", operating_system["minor"])[0])
+    if operating_system.get("name"):
+        operating_system_filter.update(_string_filter("name", operating_system["name"])[0])
+
+    return ({"spf_operating_system": operating_system_filter},)
+
+
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
@@ -249,6 +262,8 @@ def _build_system_profile_filter(system_profile):
             "eq",
             _nullable_wildcard_filter,
         )
+    if system_profile.get("operating_system"):
+        system_profile_filter += _build_operating_system_filter(system_profile["operating_system"])
 
     return system_profile_filter
 

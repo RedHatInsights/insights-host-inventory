@@ -1684,6 +1684,51 @@ def test_query_hosts_filter_spf_insights_client_version(
                 graphql_query_empty_response.reset_mock()
 
 
+# system_profile insights_client_version tests
+def test_query_hosts_filter_spf_operating_system(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][major]=7",
+        "filter[system_profile][operating_system][minor]=3",
+        "filter[system_profile][operating_system][name]=RHEL",
+        (
+            "filter[system_profile][operating_system][major]=7&"
+            "filter[system_profile][operating_system][minor]=3&"
+            "filter[system_profile][operating_system][name]=RHEL"
+        ),
+    )
+
+    graphql_queries = (
+        {"spf_operating_system": {"major": {"eq": "7"}}},
+        {"spf_operating_system": {"minor": {"eq": "3"}}},
+        {"spf_operating_system": {"name": {"eq": "RHEL"}}},
+        {"spf_operating_system": {"major": {"eq": "7"}, "minor": {"eq": "3"}, "name": {"eq": "RHEL"}}},
+    )
+
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
