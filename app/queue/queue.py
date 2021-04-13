@@ -178,7 +178,7 @@ def update_system_profile(host_data, identity):
             return output_host, host_id, insights_id, update_result
         except ValidationException as ve:
             logger.error("Validation error while updating System Profile: %s", ve)
-            metrics.update_system_profile_failure.labels("Exception", "null").inc()
+            metrics.update_system_profile_failure.labels("Exception").inc()
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -188,7 +188,7 @@ def update_system_profile(host_data, identity):
             raise oe
         except Exception:
             logger.exception("Error while updating host system profile", extra={"host": host_data})
-            metrics.update_system_profile_failure.labels("Exception", "null").inc()
+            metrics.update_system_profile_failure.labels("Exception").inc()
             raise
 
 
