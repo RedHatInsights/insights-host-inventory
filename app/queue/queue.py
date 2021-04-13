@@ -24,6 +24,7 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
@@ -166,7 +167,7 @@ def update_system_profile(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
-            input_host = deserialize_host(host_data)
+            input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
@@ -195,6 +196,10 @@ def add_host(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
+            # basic-auth does not need owner_id
+            if identity.identity_type == IdentityType.SYSTEM:
+                host_data = _set_owner(host_data, identity)
+
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
@@ -228,10 +233,6 @@ def handle_message(message, event_producer, message_operation=add_host):
 
     if host.get("account") != identity.account_number:
         raise ValidationException("The account number in identity does not match the number in the host.")
-
-    # basic-auth does not need owner_id
-    if identity.identity_type == IdentityType.SYSTEM:
-        host = _set_owner(host, identity)
 
     request_id = platform_metadata.get("request_id", "-1")
     initialize_thread_local_storage(request_id)

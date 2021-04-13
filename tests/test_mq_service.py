@@ -1112,6 +1112,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     input_host = minimal_host(
         **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
     )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
     second_host_from_db = db_get_host(second_host_from_event.id)
 
@@ -1138,6 +1140,18 @@ def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
     )
 
     # Should raise an exception due to missing host
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(input_host, message_operation=update_system_profile)
+
+
+def test_update_system_profile_not_provided(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    input_host = minimal_host(id=str(first_host_from_db.id), system_profile={})
+
     with pytest.raises(InventoryException):
         mq_create_or_update_host(input_host, message_operation=update_system_profile)
 
@@ -1270,17 +1284,6 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
 
 def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(
@@ -1292,7 +1295,7 @@ def test_owner_id_different_from_cn(mocker):
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+        handle_message(json.dumps(message), mock_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
 
 

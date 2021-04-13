@@ -7,8 +7,10 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import DataError
 
 from app import db
+from app.exceptions import InventoryException
 from app.models import Host
 from app.models import HostSchema
+from app.models import LimitedHost
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -196,6 +198,28 @@ def test_host_schema_invalid_tags(tags):
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
+
+
+@pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
+def test_host_models_missing_fields(missing_field):
+    limited_values = {
+        "account": USER_IDENTITY["account_number"],
+        "canonical_facts": {"fqdn": "foo.qoo.doo.noo"},
+        "system_profile_facts": {"number_of_cpus": 1},
+    }
+    if missing_field in limited_values:
+        limited_values[missing_field] = None
+
+    # LimitedHost should be fine with these missing values
+    LimitedHost(**limited_values)
+
+    values = {**limited_values, "stale_timestamp": now(), "reporter": "reporter"}
+    if missing_field in values:
+        values[missing_field] = None
+
+    # Host should complain about the missing values
+    with pytest.raises(InventoryException):
+        Host(**values)
 
 
 def test_host_schema_timezone_enforced():
