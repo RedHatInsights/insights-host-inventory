@@ -214,7 +214,11 @@ def add_host(host_data, identity):
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
         except ValidationException as ve:
-            logger.error("Validation error while adding host: %s", ve)
+            logger.error(
+                "Validation error while adding host: %s",
+                ve,
+                extra={"host": {"reporter": host_data.get("reporter", "null")}},
+            )
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
         except InventoryException:
