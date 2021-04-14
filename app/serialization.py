@@ -24,6 +24,7 @@ _CANONICAL_FACTS_FIELDS = (
     "fqdn",
     "mac_addresses",
     "external_id",
+    "provider_id",
 )
 
 DEFAULT_FIELDS = (
@@ -38,6 +39,7 @@ DEFAULT_FIELDS = (
     "culled_timestamp",
     "created",
     "updated",
+    "provider_type",
 )
 
 
@@ -119,6 +121,8 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
+    if "provider_type" in fields:
+        serialized_host["provider_type"] = host.provider_type
 
     return serialized_host
 
