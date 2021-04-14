@@ -44,6 +44,13 @@ SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 
+class ProviderType(str, Enum):
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    ALIBABA = "alibaba"
+
+
 def _set_display_name_on_save(context):
     """
     This method sets the display_name if it has not been set previously.
@@ -53,6 +60,18 @@ def _set_display_name_on_save(context):
     params = context.get_current_parameters()
     if not params["display_name"]:
         return params["canonical_facts"].get("fqdn") or params["id"]
+
+
+#  verifies provider_type and if the required provider_id is provided.
+def _check_provider(provider_type, canonical_facts):
+    if provider_type not in ProviderType.__members__.values():
+        raise InventoryException(
+            title="Unknown Provider Type", detail='Valid provider types are "aws", "azure", "gcp", or "alibaba"'
+        )
+    if not canonical_facts.get("provider_id"):
+        raise InventoryException(
+            title="Missing Provider ID", detail="Provider ID must be provided when provider type is provided"
+        )
 
 
 def _time_now():
@@ -132,6 +151,7 @@ class LimitedHost(db.Model):
         Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxaccount", "account"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
+        Index("idxproviderid", text("(canonical_facts ->> 'provider_id')")),
     )
 
     def __init__(
@@ -143,6 +163,7 @@ class LimitedHost(db.Model):
         facts=None,
         tags=None,
         system_profile_facts=None,
+        provider_type=None,
     ):
 
         self.canonical_facts = canonical_facts
@@ -157,11 +178,17 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags or {}
         self.system_profile_facts = system_profile_facts or {}
+        self._update_provider_type(provider_type)
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
             # Allow a user to clear out the ansible host with an empty string
             self.ansible_host = ansible_host
+
+    def _update_provider_type(self, provider_type):
+        if provider_type is not None:
+            # Allow a user to clear out the provider_type with an empty string
+            self.provider_type = provider_type
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -173,6 +200,7 @@ class LimitedHost(db.Model):
     tags = db.Column(JSONB)
     canonical_facts = db.Column(JSONB)
     system_profile_facts = db.Column(JSONB)
+    provider_type = db.Column(db.String(50))
 
 
 class Host(LimitedHost):
@@ -191,6 +219,7 @@ class Host(LimitedHost):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
+        provider_type=None,
     ):
         if not canonical_facts:
             raise InventoryException(
@@ -202,7 +231,12 @@ class Host(LimitedHost):
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
-        super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
+        if provider_type and _check_provider(provider_type, canonical_facts):
+            self.provider_type
+
+        super().__init__(
+            canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts, provider_type
+        )
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
         self._update_per_reporter_staleness(stale_timestamp, reporter)
@@ -228,6 +262,8 @@ class Host(LimitedHost):
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
         self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
 
+        self._update_provider_type(input_host.provider_type)
+
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
 
@@ -237,6 +273,8 @@ class Host(LimitedHost):
         self._update_ansible_host(patch_data.get("ansible_host"))
 
         self.update_display_name(patch_data.get("display_name"))
+
+        self._update_provider_type(patch_data.get("provider_type"))
 
     def update_display_name(self, input_display_name):
         if input_display_name:
@@ -420,6 +458,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
@@ -429,6 +468,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw(allow_none=True)
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=0, max=50))
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -498,6 +538,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             facts=facts,
             tags=tags,
             system_profile_facts=data.get("system_profile", {}),
+            provider_type=data.get("provider_type"),
         )
 
     @pre_load
@@ -536,6 +577,7 @@ class HostSchema(LimitedHostSchema):
             data.get("system_profile", {}),
             data["stale_timestamp"],
             data["reporter"],
+            data.get("provider_type"),
         )
 
     @validates("stale_timestamp")
@@ -547,6 +589,7 @@ class HostSchema(LimitedHostSchema):
 class PatchHostSchema(MarshmallowSchema):
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=0, max=50))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

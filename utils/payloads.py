@@ -558,8 +558,12 @@ def build_host_chunk():
     payload = {
         "account": account,
         # "insights_id": random_uuid(),
-        "bios_uuid": random_uuid(),
-        "fqdn": fqdn,
+        # "bios_uuid": random_uuid(),
+        # "fqdn": fqdn,
+        # "ansible_host": "host1.mydomain.com",
+        # "external_id": "i-05d2313e6b9a42b16",
+        "provider_type": "aws",
+        "provider_id": "i-05d2313e6b9a42b16",
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},

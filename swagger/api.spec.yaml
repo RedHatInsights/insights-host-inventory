@@ -798,6 +798,13 @@ components:
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
+    ProviderId:
+      description: >-
+        Host’s reference in the external source e.g. AWS EC2, Azure,
+        OpenStack, etc. This field is considered to be a canonical fact.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
     CanonicalFactsIn:
       allOf:
       - $ref: "#/components/schemas/CanonicalFactsOut"
@@ -820,6 +827,8 @@ components:
             $ref: "#/components/schemas/NonNullableStringArray"
           external_id:
             $ref: "#/components/schemas/NonNullableString"
+          provider_id:
+            $ref: "#/components/schemas/NonNullableString"
       - anyOf:
         - required:
           - insights_id
@@ -839,6 +848,8 @@ components:
           - mac_addresses
         - required:
           - external_id
+        - required:
+          - provider_id
     CanonicalFactsOut:
       type: object
       properties:
@@ -860,6 +871,8 @@ components:
           $ref: "#/components/schemas/MacAddresses"
         external_id:
           $ref: "#/components/schemas/ExternalId"
+        provider_id:
+          $ref: "#/components/schemas/ProviderId"
     CreateCheckIn:
       title: Check-in data
       description: >-
@@ -895,6 +908,12 @@ components:
                 The ansible host name for remediations
               type: string
               example: host1.mydomain.com
+              nullable: true
+            provider_type:
+              description: >-
+                The cloud provider type
+              type: string
+              example: aws
               nullable: true
             account:
               description: A Red Hat Account number that owns the host.
