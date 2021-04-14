@@ -65,18 +65,20 @@ def _formatted_uuid(uuid_string):
 
 def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
-    if not metadata.get("b64_identity"):
+    if metadata and "b64_identity" in metadata:
+        identity = _decode_id(metadata["b64_identity"])
+    else:
         if host.get("reporter") == "rhsm-conduit":
             identity = deepcopy(SYSTEM_IDENTITY)
             identity["account_number"] = host.get("account")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
-        else:
+        elif metadata:
             raise ValueError(
                 "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
                 f"Host Data: {host}"
             )
-    else:
-        identity = _decode_id(metadata.get("b64_identity"))
+        else:
+            raise ValidationException("platform_metadata is mandatory")
 
     identity = Identity(identity)
     validate(identity)
@@ -232,9 +234,7 @@ def add_host(host_data, identity):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata")
-    if not platform_metadata:
-        raise ValidationException("platform_metadata is mandatory")
+    platform_metadata = validated_operation_msg.get("platform_metadata") or {}
 
     host = validated_operation_msg["data"]
     identity = _get_identity(host, platform_metadata)

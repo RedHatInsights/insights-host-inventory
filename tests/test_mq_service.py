@@ -1209,8 +1209,8 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
 
     message = wrap_message(host.data(), "add_host")
 
-    with pytest.raises(ValidationException):
-        handle_message(json.dumps(message), mocker.Mock())
+    # We just want to verify that no error gets thrown here.
+    handle_message(json.dumps(message), mocker.Mock())
 
 
 def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
