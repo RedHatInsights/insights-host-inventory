@@ -47,33 +47,40 @@ class Identity:
         A "trusted" identity is trusted to be passing in
         the correct account number(s).
         """
-        if not obj and not token:
-            raise ValueError("Neither the account_number or token has been set")
-        elif obj:
-            self.is_trusted_system = False
-            self.account_number = obj["account_number"]
-
-            if obj.get("auth_type"):
-                self.auth_type = obj["auth_type"]
-            else:
-                self.auth_type = None
-
-            if obj["type"] == IdentityType.USER:
-                self.identity_type = obj["type"]
-                self.user = obj["user"]
-            elif obj["type"] == IdentityType.SYSTEM:
-                self.identity_type = obj["type"]
-                self.system = obj["system"]
-
-            # ensure account number availability
-            if obj["account_number"] is None or obj["account_number"] == "":
-                raise ValueError("Authentication type unknown")
-
-            threadctx.account_number = obj["account_number"]
-        else:
+        if token:
+            # Treat as a trusted identity
             self.token = token
             self.is_trusted_system = True
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
+        elif obj:
+            # Ensure account number availability
+            if not obj.get("account_number") or obj["account_number"] == "":
+                raise ValueError("Account Number missing in provided Identity")
+
+            if not obj.get("type") or obj["type"] not in IdentityType.__members__.values():
+                raise ValueError("Identity type invalid or missing in provided Identity")
+
+            self.is_trusted_system = False
+            self.account_number = obj["account_number"]
+            self.auth_type = obj.get("auth_type")
+
+            if obj["type"] == IdentityType.USER:
+                if not obj.get("user"):
+                    raise ValueError("User field not set on provided user-type Identity")
+
+                self.identity_type = obj["type"]
+                self.user = obj["user"]
+            elif obj["type"] == IdentityType.SYSTEM:
+                if not obj.get("system"):
+                    raise ValueError("System field not set on provided system-type Identity")
+
+                self.identity_type = obj["type"]
+                self.system = obj["system"]
+
+            threadctx.account_number = obj["account_number"]
+
+        else:
+            raise ValueError("Neither the account_number or token has been set")
 
     def _asdict(self):
         if self.identity_type == IdentityType.USER:

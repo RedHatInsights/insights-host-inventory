@@ -62,6 +62,7 @@ from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
 
@@ -183,12 +184,39 @@ class AuthIdentityValidateTestCase(TestCase):
         except ValueError:
             self.fail()
 
-    def test_invalid(self):
+    def test_invalid_account(self):
         test_identity = deepcopy(USER_IDENTITY)
         account_numbers = [None, ""]
         for account_number in account_numbers:
             with self.subTest(account_number=account_number):
                 test_identity["account_number"] = account_number
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_invalid_type(self):
+        test_identity = deepcopy(USER_IDENTITY)
+        identity_types = [None, ""]
+        for identity_type in identity_types:
+            with self.subTest(identity_type=identity_type):
+                test_identity["type"] = identity_type
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_invalid_user_obj(self):
+        test_identity = deepcopy(USER_IDENTITY)
+        user_objects = [None, ""]
+        for user_object in user_objects:
+            with self.subTest(user_object=user_object):
+                test_identity["user"] = user_object
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_invalid_system_obj(self):
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        system_objects = [None, ""]
+        for system_object in system_objects:
+            with self.subTest(system_object=system_object):
+                test_identity["system"] = system_object
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
