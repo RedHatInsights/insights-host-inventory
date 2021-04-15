@@ -72,6 +72,7 @@ def _check_provider(provider_type, canonical_facts):
         raise InventoryException(
             title="Missing Provider ID", detail="Provider ID must be provided when provider type is provided"
         )
+    return True
 
 
 def _time_now():
@@ -231,8 +232,8 @@ class Host(LimitedHost):
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
-        if provider_type and _check_provider(provider_type, canonical_facts):
-            self.provider_type
+        if provider_type:
+            _check_provider(provider_type, canonical_facts)
 
         super().__init__(
             canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts, provider_type

@@ -1386,3 +1386,37 @@ def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_g
     host_from_db = db_get_host(created_host.id)
 
     assert created_host.id == str(host_from_db.id)
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_valid_providers(mq_create_or_update_host, db_get_host, provider):
+    input_host = minimal_host(provider_type=provider["type"], provider_id=provider["id"])
+
+    created_host = mq_create_or_update_host(input_host)
+    # find the just created host from the DB
+    host_from_db = db_get_host(created_host.id)
+
+    assert created_host.id == str(host_from_db.id)
+    assert created_host.provider_id == host_from_db.canonical_facts["provider_id"]
+    assert created_host.provider_type == host_from_db.provider_type
+
+
+@pytest.mark.parametrize(
+    "provider", ({"type": "invalid", "id": "i-05d2313e6b9a42b16"}, {"type": "azure"}, {"id": generate_uuid()})
+)
+def test_invalid_providers(mq_create_or_update_host, provider):
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], provider_type=provider.get("type"), provider_id=provider.get("id")
+    )
+
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(host)
