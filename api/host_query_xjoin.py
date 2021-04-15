@@ -189,7 +189,7 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
 def build_filter_string_multiple(field_name, field_value, field_type, operation):
     if isinstance(field_value, field_type) or isinstance(field_value[operation], field_type):
         return build_filter(field_name, field_value, str, operation, _nullable_string_filter)
-    elif field_value.get(operation):
+    else:
         return build_filter(field_name, field_value[operation], list, operation, _nullable_multiple_string_filter)
 
 
