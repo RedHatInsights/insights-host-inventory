@@ -10,6 +10,7 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import validate
@@ -65,18 +66,20 @@ def _formatted_uuid(uuid_string):
 
 def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
-    if not metadata.get("b64_identity"):
+    if metadata and "b64_identity" in metadata:
+        identity = _decode_id(metadata["b64_identity"])
+    else:
         if host.get("reporter") == "rhsm-conduit":
             identity = deepcopy(SYSTEM_IDENTITY)
             identity["account_number"] = host.get("account")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
-        else:
+        elif metadata:
             raise ValueError(
                 "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
                 f"Host Data: {host}"
             )
-    else:
-        identity = _decode_id(metadata.get("b64_identity"))
+        else:
+            raise ValidationException("platform_metadata is mandatory")
 
     identity = Identity(identity)
     validate(identity)
@@ -236,17 +239,9 @@ def add_host(host_data, identity):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata")
-    if not platform_metadata:
-        raise ValidationException("platform_metadata is mandatory")
+    platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
-    host = validated_operation_msg["data"]
-    identity = _get_identity(host, platform_metadata)
-
-    if host.get("account") != identity.account_number:
-        raise ValidationException("The account number in identity does not match the number in the host.")
-
-    request_id = platform_metadata.get("request_id", "-1")
+    request_id = platform_metadata.get("request_id", UNKNOWN_REQUEST_ID_VALUE)
     initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
@@ -254,6 +249,12 @@ def handle_message(message, event_producer, message_operation=add_host):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
+        host = validated_operation_msg["data"]
+        identity = _get_identity(host, platform_metadata)
+
+        if host.get("account") != identity.account_number:
+            raise ValidationException("The account number in identity does not match the number in the host.")
+
         output_host, host_id, insights_id, operation_result = message_operation(host, identity)
         event_type = operation_results_to_event_type(operation_result)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
