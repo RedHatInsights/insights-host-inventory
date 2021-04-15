@@ -584,6 +584,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                 "facts": [],
@@ -606,6 +608,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
                 "facts": [
