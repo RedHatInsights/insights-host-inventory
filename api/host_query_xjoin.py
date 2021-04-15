@@ -153,6 +153,13 @@ def _nullable_string_filter(field_name, field_value):
     return _nullable_wrapper(field_name, field_value, "eq", _string_filter)
 
 
+def _nullable_multiple_string_filter(field_name, field_value):
+    multiple_string_filter = ()
+    for value in field_value:
+        multiple_string_filter += _nullable_wrapper(field_name, value, "eq", _string_filter)
+    return ({"OR": multiple_string_filter},)
+
+
 def _string_filter(field_name, field_value):
     return ({field_name: {"eq": (field_value)}},)
 
@@ -177,6 +184,13 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
         return filter_building_function(field_name, field_value)
     elif field_value.get(operation):
         return filter_building_function(field_name, field_value[operation])
+
+
+def build_filter_string_multiple(field_name, field_value, field_type, operation):
+    if isinstance(field_value, field_type) or isinstance(field_value[operation], field_type):
+        return build_filter(field_name, field_value, str, operation, _nullable_string_filter)
+    elif field_value.get(operation):
+        return build_filter(field_name, field_value[operation], list, operation, _nullable_multiple_string_filter)
 
 
 def build_sap_system_filter(sap_system):
@@ -238,8 +252,8 @@ def _build_system_profile_filter(system_profile):
             "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _nullable_boolean_filter
         )
     if system_profile.get("rhc_client_id"):
-        system_profile_filter += build_filter(
-            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq", _nullable_string_filter
+        system_profile_filter += build_filter_string_multiple(
+            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq"
         )
     if system_profile.get("insights_client_version"):
         system_profile_filter += build_filter(
@@ -249,7 +263,8 @@ def _build_system_profile_filter(system_profile):
             "eq",
             _nullable_wildcard_filter,
         )
-
+    if system_profile.get("owner_id"):
+        system_profile_filter += build_filter_string_multiple("spf_owner_id", system_profile["owner_id"], str, "eq")
     return system_profile_filter
 
 
