@@ -890,6 +890,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            # "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -926,6 +928,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            # host_input["provider_id"],
+            host_input["provider_type"],
         )
 
     def test_without_facts(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -945,6 +949,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
+            "provider_type": "aws",
         }
         host_schema = Mock(
             **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
@@ -966,6 +971,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["provider_type"],
         )
 
     def test_without_tags(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -985,6 +991,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
+            "provider_type": "aws",
         }
         host_schema = Mock(
             **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
@@ -1006,6 +1013,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["provider_type"],
         )
 
     def test_without_display_name(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1028,6 +1036,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
+            "provider_type": "aws",
         }
         host_schema = Mock(
             **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
@@ -1049,6 +1058,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["provider_type"],
         )
 
     def test_without_system_profile(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1066,6 +1076,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             },
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
+            "provider_type": "aws",
         }
         host_schema = Mock(
             **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
@@ -1087,6 +1098,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             {},
             host_input["stale_timestamp"],
             host_input["reporter"],
+            host_input["provider_type"],
         )
 
     def test_without_culling_fields(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
@@ -1179,12 +1191,14 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
         }
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
             "reporter": "insights",
+            "provider_type": "aws",
         }
         host_init_data = {
             "canonical_facts": canonical_facts,
@@ -1236,7 +1250,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         unchanged_data = {"display_name": None, "account": None, "reporter": "yupana"}
         host_init_data = {
             "stale_timestamp": datetime.now(timezone.utc),
-            "canonical_facts": {"fqdn": "some fqdn"},
+            "canonical_facts": {"fqdn": "some fqdn", "provider_id": "i-05d2313e6b9a42b16"},
             **unchanged_data,
             "facts": {},
         }
@@ -1259,6 +1273,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "mac_addresses": None,
             "external_id": None,
             "ansible_host": None,
+            "provider_type": None,
             **unchanged_data,
             "facts": [],
             "tags": [],
@@ -1359,6 +1374,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "stale_timestamp": self._timestamp_to_str(staleness_offset.stale_timestamp.return_value),
             "stale_warning_timestamp": self._timestamp_to_str(staleness_offset.stale_warning_timestamp.return_value),
             "culled_timestamp": self._timestamp_to_str(staleness_offset.culled_timestamp.return_value),
+            "provider_type": None,
         }
         self.assertEqual(expected, actual)
 
@@ -1474,6 +1490,7 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
         }
         self.assertEqual(canonical_facts, serialize_canonical_facts(canonical_facts))
 
@@ -1488,6 +1505,7 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn",
             "mac_addresses",
             "external_id",
+            "provider_id",
         )
         self.assertEqual({field: None for field in canonical_fact_fields}, serialize_canonical_facts({}))
 
