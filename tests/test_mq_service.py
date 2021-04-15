@@ -9,9 +9,11 @@ from sqlalchemy import null
 from sqlalchemy.exc import OperationalError
 
 from app import db
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.logging import threadctx
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -110,6 +112,34 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
         "host": {"id": host_id, "insights_id": expected_insights_id},
         "metadata": {"request_id": get_platform_metadata(identity).get("request_id")},
     }
+
+
+def test_request_id_is_reset(mocker, flask_app):
+    with flask_app.app_context():
+        mock_event_producer = mocker.Mock()
+        add_host_mock = mocker.patch(
+            "app.queue.queue.add_host",
+            return_value=(
+                {"id": generate_uuid(), "insights_id": generate_uuid()},
+                generate_uuid(),
+                generate_uuid(),
+                AddHostResult.created,
+            ),
+        )
+
+        message = wrap_message(minimal_host().data(), "add_host", get_platform_metadata())
+        handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+        assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"][
+            "request_id"
+        ] == get_platform_metadata().get("request_id")
+        assert threadctx.request_id == get_platform_metadata().get("request_id")
+
+        message = wrap_message(minimal_host().data(), "add_host", {})
+
+        with pytest.raises(ValidationException):
+            handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+
+        assert threadctx.request_id == UNKNOWN_REQUEST_ID_VALUE
 
 
 def test_shutdown_handler(mocker, flask_app):
