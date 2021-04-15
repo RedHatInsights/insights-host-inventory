@@ -84,7 +84,9 @@ A single host object should be wrapped in an `operation` json document.
 
 - platform\_metadata: a required JSON doc that can be used to pass
 data associated with the host from the ingress service to the backend
-applications (request\_id, S3 bucket URL, etc).  **b64_identity** is required from all reporters, except "rhsm-conduit", which does not have identity and inventory takes care of it.
+applications (request\_id, S3 bucket URL, etc).
+
+    **b64_identity** is required from all reporters, except "rhsm-conduit".
 ```
         "platform_metadata": {
             "request_id": "b83d686d-b506-41d0-95c7-f217682793db",
