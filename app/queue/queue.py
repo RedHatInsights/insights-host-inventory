@@ -10,6 +10,7 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import validate
@@ -234,15 +235,9 @@ def add_host(host_data, identity):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata") or {}
+    platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
-    host = validated_operation_msg["data"]
-    identity = _get_identity(host, platform_metadata)
-
-    if host.get("account") != identity.account_number:
-        raise ValidationException("The account number in identity does not match the number in the host.")
-
-    request_id = platform_metadata.get("request_id", "-1")
+    request_id = platform_metadata.get("request_id", UNKNOWN_REQUEST_ID_VALUE)
     initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
@@ -250,6 +245,12 @@ def handle_message(message, event_producer, message_operation=add_host):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
+        host = validated_operation_msg["data"]
+        identity = _get_identity(host, platform_metadata)
+
+        if host.get("account") != identity.account_number:
+            raise ValidationException("The account number in identity does not match the number in the host.")
+
         output_host, host_id, insights_id, operation_result = message_operation(host, identity)
         event_type = operation_results_to_event_type(operation_result)
         event = build_event(event_type, output_host, platform_metadata=platform_metadata)
