@@ -798,13 +798,6 @@ components:
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
-    ProviderId:
-      description: >-
-        Host’s reference in the external source e.g. AWS EC2, Azure,
-        OpenStack, etc. This field is considered to be a canonical fact.
-      type: string
-      nullable: true
-      example: i-05d2313e6b9a42b16
     CanonicalFactsIn:
       allOf:
       - $ref: "#/components/schemas/CanonicalFactsOut"
