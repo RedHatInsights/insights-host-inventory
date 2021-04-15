@@ -706,33 +706,6 @@ def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_i
     assert record.display_name == "better_test_host"
 
 
-@pytest.mark.parametrize("reporter", ["yupana", "rhsm-conduit"])
-def test_display_name_ignored_for_blacklisted_reporters(
-    reporter, mq_create_or_update_host, db_get_host_by_insights_id
-):
-    """
-    Tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
-    """
-    insights_id = generate_uuid()
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], display_name="test_host", insights_id=insights_id, reporter="puptoo"
-    )
-    mq_create_or_update_host(host)
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        display_name="yupana_test_host",
-        insights_id=insights_id,
-        reporter=reporter,
-    )
-    mq_create_or_update_host(host)
-
-    record = db_get_host_by_insights_id(insights_id)
-
-    assert record.display_name == "test_host"
-    assert record.reporter == reporter
-
-
 def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
     insights_id = generate_uuid()
 
