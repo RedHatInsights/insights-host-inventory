@@ -1689,21 +1689,102 @@ def test_query_hosts_filter_spf_operating_system(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     http_queries = (
-        "filter[system_profile][operating_system][major]=7",
-        "filter[system_profile][operating_system][minor]=3",
-        "filter[system_profile][operating_system][name]=RHEL",
-        (
-            "filter[system_profile][operating_system][major]=7&"
-            "filter[system_profile][operating_system][minor]=3&"
-            "filter[system_profile][operating_system][name]=RHEL"
-        ),
+        "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][gt]=7.1&"
+        "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
+        "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
+        "filter[system_profile][operating_system][CENT][version][gte]=7.1",
     )
 
     graphql_queries = (
-        {"spf_operating_system": {"major": {"eq": "7"}}},
-        {"spf_operating_system": {"minor": {"eq": "3"}}},
-        {"spf_operating_system": {"name": {"eq": "RHEL"}}},
-        {"spf_operating_system": {"major": {"eq": "7"}, "minor": {"eq": "3"}, "name": {"eq": "RHEL"}}},
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 9, "lte": 9},
+                                        "minor": {"lt": 2},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gt": 1},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "CENT"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "CENT"}}},
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 12, "lte": 12},
+                                        "minor": {"lte": 6},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                },
+            ]
+        },
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):

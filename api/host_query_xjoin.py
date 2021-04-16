@@ -1,10 +1,9 @@
 from uuid import UUID
 
-from marshmallow import ValidationException
-
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
