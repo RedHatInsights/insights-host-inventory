@@ -70,7 +70,7 @@ def _check_provider(provider_type, canonical_facts):
         )
     if not canonical_facts.get("provider_id"):
         raise InventoryException(
-            title="Missing Provider ID", detail="Provider ID must be provided when provider type is provided"
+            title="Missing Provider ID", detail="Provider ID must be specified when provider type is specified"
         )
     return True
 
