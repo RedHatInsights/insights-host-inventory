@@ -912,7 +912,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
-            # "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
             "facts": {
                 "some namespace": {"some key": "some value"},
@@ -950,7 +949,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["system_profile"],
             host_input["stale_timestamp"],
             host_input["reporter"],
-            # host_input["provider_id"],
             host_input["provider_type"],
         )
 
