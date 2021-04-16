@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from marshmallow import ValidationException
+
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
@@ -57,6 +59,7 @@ QUERY = """query Query(
 }"""
 ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name": "display_name"}
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
+SUPPORTED_RANGE_OPERATIONS = ["gt", "gte", "lt", "lte"]
 
 
 def build_tag_query_dict_tuple(tags):
@@ -187,17 +190,55 @@ def build_sap_sids_filter(sap_sids):
     return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
+def _build_operating_system_version_filter(major, minor, name, operation):
+    # for both lte and lt operation the major operation should be lt
+    # so just ignore the 3rd char to get it :)
+    # same applies to gte and gt
+    major_operation = operation[0:2]
+
+    return {
+        "OR": [
+            {
+                "spf_operating_system": {
+                    "major": {"gte": major, "lte": major},  # eq
+                    "minor": {operation: minor},
+                    "name": {"eq": name},
+                }
+            },
+            {"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}},
+        ]
+    }
+
+
 def _build_operating_system_filter(operating_system):
-    operating_system_filter = {}
+    os_filters = []
 
-    if operating_system.get("major"):
-        operating_system_filter.update(_string_filter("major", operating_system["major"])[0])
-    if operating_system.get("minor"):
-        operating_system_filter.update(_string_filter("minor", operating_system["minor"])[0])
-    if operating_system.get("name"):
-        operating_system_filter.update(_string_filter("name", operating_system["name"])[0])
+    for name in operating_system:
+        if operating_system[name].get("version"):
+            os_filters_for_current_name = []
+            version_dict = operating_system[name]["version"]
 
-    return ({"spf_operating_system": operating_system_filter},)
+            # Check that there is an operation at all. No default it wouldn't make sense
+            for operation in version_dict:
+                if operation in SUPPORTED_RANGE_OPERATIONS:
+                    major_version, minor_version = version_dict[operation].split(
+                        "."
+                    )  # add some check/handling for numbers with no decimal
+                    major_version = int(major_version)
+                    minor_version = int(minor_version)
+
+                    os_filters_for_current_name.append(
+                        _build_operating_system_version_filter(major_version, minor_version, name, operation)
+                    )
+                else:
+                    raise ValidationException(
+                        f"Specified operation '{operation}' is not on [operating_system][version] field"
+                    )
+            os_filters.append({"AND": os_filters_for_current_name})
+        else:
+            raise ValidationException(f"Incomplete path provided: {operating_system} ")
+
+    return ({"OR": os_filters},)
 
 
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
