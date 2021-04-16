@@ -9,9 +9,11 @@ from sqlalchemy import null
 from sqlalchemy.exc import OperationalError
 
 from app import db
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
+from app.logging import threadctx
 from app.queue.queue import _validate_json_object_for_utf8
 from app.queue.queue import event_loop
 from app.queue.queue import handle_message
@@ -110,6 +112,34 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
         "host": {"id": host_id, "insights_id": expected_insights_id},
         "metadata": {"request_id": get_platform_metadata(identity).get("request_id")},
     }
+
+
+def test_request_id_is_reset(mocker, flask_app):
+    with flask_app.app_context():
+        mock_event_producer = mocker.Mock()
+        add_host_mock = mocker.patch(
+            "app.queue.queue.add_host",
+            return_value=(
+                {"id": generate_uuid(), "insights_id": generate_uuid()},
+                generate_uuid(),
+                generate_uuid(),
+                AddHostResult.created,
+            ),
+        )
+
+        message = wrap_message(minimal_host().data(), "add_host", get_platform_metadata())
+        handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+        assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"][
+            "request_id"
+        ] == get_platform_metadata().get("request_id")
+        assert threadctx.request_id == get_platform_metadata().get("request_id")
+
+        message = wrap_message(minimal_host().data(), "add_host", {})
+
+        with pytest.raises(ValidationException):
+            handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+
+        assert threadctx.request_id == UNKNOWN_REQUEST_ID_VALUE
 
 
 def test_shutdown_handler(mocker, flask_app):
@@ -676,33 +706,6 @@ def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_i
     assert record.display_name == "better_test_host"
 
 
-@pytest.mark.parametrize("reporter", ["yupana", "rhsm-conduit"])
-def test_display_name_ignored_for_blacklisted_reporters(
-    reporter, mq_create_or_update_host, db_get_host_by_insights_id
-):
-    """
-    Tests the workaround for https://projects.engineering.redhat.com/browse/RHCLOUD-5954
-    """
-    insights_id = generate_uuid()
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], display_name="test_host", insights_id=insights_id, reporter="puptoo"
-    )
-    mq_create_or_update_host(host)
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        display_name="yupana_test_host",
-        insights_id=insights_id,
-        reporter=reporter,
-    )
-    mq_create_or_update_host(host)
-
-    record = db_get_host_by_insights_id(insights_id)
-
-    assert record.display_name == "test_host"
-    assert record.reporter == reporter
-
-
 def test_add_tags_to_host_by_list(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
     insights_id = generate_uuid()
 
@@ -1112,6 +1115,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     input_host = minimal_host(
         **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
     )
+    input_host.stale_timestamp = None
+    input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, message_operation=update_system_profile)
     second_host_from_db = db_get_host(second_host_from_event.id)
 
@@ -1138,6 +1143,18 @@ def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
     )
 
     # Should raise an exception due to missing host
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(input_host, message_operation=update_system_profile)
+
+
+def test_update_system_profile_not_provided(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(input_host)
+    first_host_from_db = db_get_host(first_host_from_event.id)
+
+    input_host = minimal_host(id=str(first_host_from_db.id), system_profile={})
+
     with pytest.raises(InventoryException):
         mq_create_or_update_host(input_host, message_operation=update_system_profile)
 
@@ -1195,8 +1212,8 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
 
     message = wrap_message(host.data(), "add_host")
 
-    with pytest.raises(ValidationException):
-        handle_message(json.dumps(message), mocker.Mock())
+    # We just want to verify that no error gets thrown here.
+    handle_message(json.dumps(message), mocker.Mock())
 
 
 def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
@@ -1270,17 +1287,6 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
 
 def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(
@@ -1292,7 +1298,7 @@ def test_owner_id_different_from_cn(mocker):
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+        handle_message(json.dumps(message), mock_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
 
 

@@ -7,6 +7,7 @@ from yaml import safe_dump
 from yaml import safe_load
 
 from app.models import HostSchema
+from app.models import LimitedHostSchema
 from app.models import SPECIFICATION_DIR
 from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 
@@ -70,6 +71,7 @@ def system_profile_specification():
 def clear_schema_cache():
     try:
         delattr(HostSchema, "system_profile_normalizer")
+        delattr(LimitedHostSchema, "system_profile_normalizer")
     except AttributeError:
         pass
 

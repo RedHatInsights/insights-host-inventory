@@ -7,8 +7,10 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import DataError
 
 from app import db
+from app.exceptions import InventoryException
 from app.models import Host
 from app.models import HostSchema
+from app.models import LimitedHost
 from app.utils import Tag
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -106,42 +108,6 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
     assert existing_host.display_name == existing_host.id
 
 
-# TODO: test for Sat 6.7 hotfix (remove, eventually) See RHCLOUD-5954
-def test_update_existing_host_dont_change_display_name(db_create_host):
-    # Create an "existing" host
-    fqdn = "host1.domain1.com"
-    insights_id = generate_uuid()
-    old_display_name = "foo"
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": fqdn, "insights_id": insights_id}, "display_name": old_display_name}
-    )
-
-    # Attempt to update the display name from Satellite reporter.
-    # Should't update because Insights ID was set
-    expected_fqdn = "different.domain1.com"
-    input_host = Host({"fqdn": expected_fqdn}, display_name="dont_change_me", reporter="yupana", stale_timestamp=now())
-    existing_host.update(input_host)
-
-    # assert display name hasn't changed
-    assert existing_host.display_name == old_display_name
-
-
-def test_update_existing_host_non_insights_display_name(db_create_host):
-    # Create an "existing" host
-    fqdn = "host1.domain1.com"
-    existing_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": "foo"})
-
-    # Attempt to update the display name from Satellite reporter.
-    # Should update because Insights ID isn't set.
-    expected_fqdn = "different.domain1.com"
-    new_display_name = "change_me"
-    input_host = Host({"fqdn": expected_fqdn}, display_name=new_display_name, reporter="yupana", stale_timestamp=now())
-    existing_host.update(input_host)
-
-    # assert display name has changed
-    assert existing_host.display_name == new_display_name
-
-
 def test_create_host_without_system_profile(db_create_host):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
@@ -196,6 +162,28 @@ def test_host_schema_invalid_tags(tags):
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
+
+
+@pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
+def test_host_models_missing_fields(missing_field):
+    limited_values = {
+        "account": USER_IDENTITY["account_number"],
+        "canonical_facts": {"fqdn": "foo.qoo.doo.noo"},
+        "system_profile_facts": {"number_of_cpus": 1},
+    }
+    if missing_field in limited_values:
+        limited_values[missing_field] = None
+
+    # LimitedHost should be fine with these missing values
+    LimitedHost(**limited_values)
+
+    values = {**limited_values, "stale_timestamp": now(), "reporter": "reporter"}
+    if missing_field in values:
+        values[missing_field] = None
+
+    # Host should complain about the missing values
+    with pytest.raises(InventoryException):
+        Host(**values)
 
 
 def test_host_schema_timezone_enforced():
