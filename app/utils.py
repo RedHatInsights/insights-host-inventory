@@ -102,6 +102,14 @@ class HostWrapper:
         self.__data["provider_id"] = cf
 
     @property
+    def provider_type(self):
+        return self.__data.get("provider_type")
+
+    @provider_type.setter
+    def provider_type(self, cf):
+        self.__data["provider_type"] = cf
+
+    @property
     def system_profile(self):
         return self.__data.get("system_profile", None)
 
