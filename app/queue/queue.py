@@ -81,6 +81,9 @@ def _get_identity(host, metadata):
         else:
             raise ValidationException("platform_metadata is mandatory")
 
+    if host.get("account") != identity["account_number"]:
+        raise ValidationException("The account number in identity does not match the number in the host.")
+
     identity = Identity(identity)
     validate(identity)
     return identity
@@ -179,8 +182,7 @@ def update_system_profile(host_data, identity):
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
-        except ValidationException as ve:
-            logger.error("Validation error while updating System Profile: %s", ve)
+        except ValidationException:
             metrics.update_system_profile_failure.labels("Exception").inc()
             raise
         except InventoryException:
@@ -216,12 +218,7 @@ def add_host(host_data, identity):
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
-        except ValidationException as ve:
-            logger.error(
-                "Validation error while adding host: %s",
-                ve,
-                extra={"host": {"reporter": host_data.get("reporter", "null")}},
-            )
+        except ValidationException:
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise
         except InventoryException:
@@ -249,18 +246,21 @@ def handle_message(message, event_producer, message_operation=add_host):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        host = validated_operation_msg["data"]
-        identity = _get_identity(host, platform_metadata)
+        try:
+            host = validated_operation_msg["data"]
 
-        if host.get("account") != identity.account_number:
-            raise ValidationException("The account number in identity does not match the number in the host.")
+            identity = _get_identity(host, platform_metadata)
+            output_host, host_id, insights_id, operation_result = message_operation(host, identity)
+            event_type = operation_results_to_event_type(operation_result)
+            event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
-        output_host, host_id, insights_id, operation_result = message_operation(host, identity)
-        event_type = operation_results_to_event_type(operation_result)
-        event = build_event(event_type, output_host, platform_metadata=platform_metadata)
-
-        headers = message_headers(operation_result, insights_id)
-        event_producer.write_event(event, str(host_id), headers)
+            headers = message_headers(operation_result, insights_id)
+            event_producer.write_event(event, str(host_id), headers)
+        except ValidationException as ve:
+            logger.error(
+                "Validation error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")}
+            )
+            raise
 
 
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):
