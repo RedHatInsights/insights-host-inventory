@@ -8,6 +8,8 @@ objects:
   metadata:
     name: host-inventory
   spec:
+    iqe:
+      plugin: host-inventory
     envName: ${ENV_NAME}
     deployments:
     - name: service
