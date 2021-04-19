@@ -116,13 +116,13 @@ def validate(identity):
             if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
             if identity.system.get("cert_type") not in CertType.__members__.values():
-                raise ValueError("The cert_type is invalid.")
+                raise ValueError(f"The cert_type {identity.system.get('cert_type')} is invalid.")
             if not identity.system.get("cn"):
                 raise ValueError("The cn field is mandatory.")
             if not identity.auth_type:
                 raise ValueError("The auth_type field is mandatory.")
             if identity.auth_type not in AuthType.__members__.values():
-                raise ValueError("The auth_type is invalid.")
+                raise ValueError(f"The auth_type {identity.auth_type} is invalid.")
 
         elif identity.identity_type == IdentityType.USER:
             if not identity.user:
