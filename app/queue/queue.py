@@ -258,9 +258,7 @@ def handle_message(message, event_producer, message_operation=add_host):
             event_producer.write_event(event, str(host_id), headers)
         except ValidationException as ve:
             logger.error(
-                "Validation error while adding or updating host: %s",
-                ve,
-                extra={"reporter": host.get("reporter", "null")},
+                "Validation error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")}
             )
             raise
 
