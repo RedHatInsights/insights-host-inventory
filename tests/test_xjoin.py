@@ -1688,6 +1688,19 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
             graphql_query_empty_response.reset_mock()
 
 
+def test_spf_rhc_client_invalid_field_value(
+    mocker, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    mocker.patch(
+        "api.parsing.customURIParser._make_deep_object",
+        return_value=(("filter", [{"system_profile": {"rhc_client_id": {"eq": None}}}], True)),
+    )
+    url = build_hosts_url(query="?filter[system_profile][rhc_client_id]=something")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert response_data["title"] == "Validation Error"
+
+
 # system_profile owner_id tests
 def test_query_hosts_filter_spf_owner_id(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
@@ -1763,6 +1776,19 @@ def test_query_hosts_filter_spf_owner_id_multiple(
                 mocker.ANY,
             )
             graphql_query_empty_response.reset_mock()
+
+
+def test_spf_owner_id_invalid_field_value(
+    mocker, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    mocker.patch(
+        "api.parsing.customURIParser._make_deep_object",
+        return_value=(("filter", [{"system_profile": {"owner_id": {"eq": None}}}], True)),
+    )
+    url = build_hosts_url(query="?filter[system_profile][owner_id]=something")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert response_data["title"] == "Validation Error"
 
 
 # system_profile insights_client_version tests
