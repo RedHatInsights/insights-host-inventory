@@ -31,6 +31,9 @@ class AuthType(str, Enum):
 
 
 class CertType(str, Enum):
+    HYPERVISOR = "hypervisor"
+    RHUI = "RHUI"
+    SAM = "sam"
     SATELLITE = "satellite"
     SYSTEM = "system"
 
