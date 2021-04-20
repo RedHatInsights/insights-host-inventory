@@ -263,6 +263,9 @@ def handle_message(message, event_producer, message_operation=add_host):
                 extra={"host": {"reporter": host.get("reporter")}},
             )
             raise
+        except ValueError as ve:
+            logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
+            raise
 
 
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):
