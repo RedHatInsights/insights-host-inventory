@@ -32,7 +32,7 @@ class AuthType(str, Enum):
 
 class CertType(str, Enum):
     HYPERVISOR = "hypervisor"
-    RHUI = "RHUI"
+    RHUI = "rhui"
     SAM = "sam"
     SATELLITE = "satellite"
     SYSTEM = "system"
@@ -118,7 +118,7 @@ def validate(identity):
                 raise ValueError("The identity.system is mandatory")
             if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
-            if identity.system.get("cert_type") not in CertType.__members__.values():
+            if identity.system.get("cert_type").lower() not in CertType.__members__.values():
                 # TODO: Raise ValueError once we solidify all cert_type values
                 logger.error("The cert_type %s is invalid.", identity.system.get("cert_type"))
             if not identity.system.get("cn"):
