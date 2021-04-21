@@ -225,7 +225,6 @@ def _build_operating_system_filter(operating_system):
                     minor_version = 0
 
                     if minor_version_list != []:
-                        print(f"minor versiosn list: {minor_version_list}")
                         minor_version = int(minor_version_list[0])
 
                     os_filters_for_current_name.append(
