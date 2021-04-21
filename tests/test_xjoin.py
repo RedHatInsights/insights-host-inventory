@@ -1684,13 +1684,13 @@ def test_query_hosts_filter_spf_insights_client_version(
                 graphql_query_empty_response.reset_mock()
 
 
-# system_profile insights_client_version tests
+# system_profile operating_system tests
 def test_query_hosts_filter_spf_operating_system(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     http_queries = (
         "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
-        "filter[system_profile][operating_system][RHEL][version][gt]=7.1&"
+        "filter[system_profile][operating_system][RHEL][version][gt]=7&"
         "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
         "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
         "filter[system_profile][operating_system][CENT][version][gte]=7.1",
@@ -1738,7 +1738,7 @@ def test_query_hosts_filter_spf_operating_system(
                                 {
                                     "spf_operating_system": {
                                         "major": {"gte": 7, "lte": 7},
-                                        "minor": {"gt": 1},
+                                        "minor": {"gt": 0},
                                         "name": {"eq": "RHEL"},
                                     }
                                 },
@@ -1791,7 +1791,7 @@ def test_query_hosts_filter_spf_operating_system(
         with subtests.test(http_query=http_query, graphql_query=graphql_query):
             url = build_hosts_url(query=f"?{http_query}")
 
-            response_status, response_data = api_get(url)
+            response_status = api_get(url)[0]
 
             assert response_status == 200
 
@@ -1808,6 +1808,25 @@ def test_query_hosts_filter_spf_operating_system(
                 mocker.ANY,
             )
             graphql_query_empty_response.reset_mock()
+
+
+# system_profile operating_system tests
+def test_query_hosts_filter_spf_operating_system_exception_handling(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][RHEL][version][fake_op]=7.1",
+        "filter[system_profile][operating_system][RHEL]=7.1&",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
 
 
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):

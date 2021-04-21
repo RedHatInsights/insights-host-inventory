@@ -213,18 +213,20 @@ def _build_operating_system_filter(operating_system):
     os_filters = []
 
     for name in operating_system:
-        if operating_system[name].get("version"):
+        if isinstance(operating_system[name], dict) and operating_system[name].get("version"):
             os_filters_for_current_name = []
             version_dict = operating_system[name]["version"]
 
             # Check that there is an operation at all. No default it wouldn't make sense
             for operation in version_dict:
                 if operation in SUPPORTED_RANGE_OPERATIONS:
-                    major_version, minor_version = version_dict[operation].split(
-                        "."
-                    )  # add some check/handling for numbers with no decimal
+                    major_version, *minor_version_list = version_dict[operation].split(".")
                     major_version = int(major_version)
-                    minor_version = int(minor_version)
+                    minor_version = 0
+
+                    if minor_version_list != []:
+                        print(f"minor versiosn list: {minor_version_list}")
+                        minor_version = int(minor_version_list[0])
 
                     os_filters_for_current_name.append(
                         _build_operating_system_version_filter(major_version, minor_version, name, operation)
