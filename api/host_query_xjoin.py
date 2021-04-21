@@ -221,6 +221,7 @@ def _build_operating_system_filter(operating_system):
             for operation in version_dict:
                 if operation in SUPPORTED_RANGE_OPERATIONS:
                     major_version, *minor_version_list = version_dict[operation].split(".")
+
                     major_version = int(major_version)
                     minor_version = 0
 
