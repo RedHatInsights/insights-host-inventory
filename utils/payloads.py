@@ -7,12 +7,20 @@ from datetime import timedelta
 from datetime import timezone
 
 # good
+# IDENTITY = {
+#     "account_number": "test",
+#     "type": "System",
+#     "auth_type": "cert-auth",
+#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#     "internal": {"org_id": "3340851", "auth_time": 6300},
+# }
+
 IDENTITY = {
     "account_number": "test",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"org_id": "3340851", "auth_time": 6300},
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"first_name": "test"},
+    # "user": {"email": "tuser@redhat.com", "first_name": "test"},
 }
 
 # invalid-auth
