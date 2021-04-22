@@ -176,5 +176,5 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
 
 
 def log_db_access_failure(logger, message, host_data):
-    logger.error("Error adding host ", f"{host_data['insights_id']}: {message}")
+    logger.error("Failure to access database ", f"{message}")
     metrics.db_communication_error.labels("OperationalError", host_data.get("insights_id", message)).inc()

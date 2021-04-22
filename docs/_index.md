@@ -82,10 +82,18 @@ A single host object should be wrapped in an `operation` json document.
 - operation: name of the operation to perform (“add\_host” is only
     supported currently)
 
-- platform\_metadata: an optional JSON doc that can be used to pass
+- platform\_metadata: a required JSON doc that can be used to pass
 data associated with the host from the ingress service to the backend
-applications (request\_id, S3 bucket URL, etc)
+applications (request\_id, S3 bucket URL, etc).
 
+    **b64_identity** is required from all reporters, except "rhsm-conduit".
+```
+        "platform_metadata": {
+            "request_id": "b83d686d-b506-41d0-95c7-f217682793db",
+            "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+            "b64_identity": <base64_encoded_identity>,
+        }
+```
 - data: a host JSON doc as defined by the [model HostSchema](https://github.com/RedHatInsights/insights-host-inventory/blob/04bb3cea56dc9bc5f8b2e6469e8ff75080b07b3b/app/models.py#L315)
 
 In the host data, the following fields are required:
@@ -807,6 +815,8 @@ For example, to only fetch the arch, yum_repos and os_kernel_version, the user n
 ```text
 ?fields[system_profile]=arch,yum_repos,os_kernel_version
 ```
+
+In addition to the /hosts/{host_id_list}/system_profile endpoint, this query can also be used on the upper-level /hosts endpoint to fetch partial system profile data for hosts. On the /hosts endpoint, if this query is not included, no system profile data will be returned.
 
 ## Host Data Syndication (a.k.a. Project Cyndi)
 

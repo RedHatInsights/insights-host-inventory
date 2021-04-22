@@ -7,6 +7,7 @@ from yaml import safe_dump
 from yaml import safe_load
 
 from app.models import HostSchema
+from app.models import LimitedHostSchema
 from app.models import SPECIFICATION_DIR
 from app.models import SYSTEM_PROFILE_SPECIFICATION_FILE
 
@@ -47,6 +48,7 @@ INVALID_SYSTEM_PROFILES = (
     {"insights_egg_version": "x" * 51},
     {"captured_date": "x" * 33},
     {"installed_packages": ["x" * 513]},
+    {"gpg_pubkeys": ["x" * 513]},
     {"installed_services": ["x" * 513]},
     {"enabled_services": ["x" * 513]},
     {"sap_sids": ["XXXX"]},
@@ -69,6 +71,7 @@ def system_profile_specification():
 def clear_schema_cache():
     try:
         delattr(HostSchema, "system_profile_normalizer")
+        delattr(LimitedHostSchema, "system_profile_normalizer")
     except AttributeError:
         pass
 

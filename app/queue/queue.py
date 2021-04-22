@@ -2,6 +2,7 @@ import base64
 import json
 import sys
 from copy import deepcopy
+from uuid import UUID
 
 from marshmallow import fields
 from marshmallow import Schema
@@ -9,6 +10,7 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
+from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import validate
@@ -23,6 +25,7 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
@@ -56,20 +59,30 @@ def _decode_id(encoded_id):
     return decoded_id.get("identity")
 
 
+# receives an uuid string w/o dashes and outputs an uuid string with dashes
+def _formatted_uuid(uuid_string):
+    return str(UUID(uuid_string))
+
+
 def _get_identity(host, metadata):
     # rhsm reporter does not provide identity.  Set identity type to system for access the host in future.
-    if not metadata.get("b64_identity"):
+    if metadata and "b64_identity" in metadata:
+        identity = _decode_id(metadata["b64_identity"])
+    else:
         if host.get("reporter") == "rhsm-conduit":
             identity = deepcopy(SYSTEM_IDENTITY)
             identity["account_number"] = host.get("account")
-            identity["system"]["cn"] = host.get("subscription_manager_id")
-        else:
+            identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
+        elif metadata:
             raise ValueError(
                 "When identity is not provided, reporter MUST be rhsm-conduit with a subscription_manager_id.\n"
                 f"Host Data: {host}"
             )
-    else:
-        identity = _decode_id(metadata.get("b64_identity"))
+        else:
+            raise ValidationException("platform_metadata is mandatory")
+
+    if host.get("account") != identity["account_number"]:
+        raise ValidationException("The account number in identity does not match the number in the host.")
 
     identity = Identity(identity)
     validate(identity)
@@ -86,7 +99,7 @@ def _set_owner(host, identity):
         host["system_profile"]["owner_id"] = cn
     else:
         if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
-            host["system_profile"]["owner_id"] = host.get("subscription_manager_id")
+            host["system_profile"]["owner_id"] = _formatted_uuid(host.get("subscription_manager_id"))
         else:
             if host["system_profile"]["owner_id"] != cn:
                 log_add_host_failure(logger, host)
@@ -160,7 +173,7 @@ def update_system_profile(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
-            input_host = deserialize_host(host_data)
+            input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
@@ -169,6 +182,9 @@ def update_system_profile(host_data, identity):
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
+        except ValidationException:
+            metrics.update_system_profile_failure.labels("InventoryException").inc()
+            raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
             raise
@@ -177,7 +193,7 @@ def update_system_profile(host_data, identity):
             raise oe
         except Exception:
             logger.exception("Error while updating host system profile", extra={"host": host_data})
-            metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
+            metrics.update_system_profile_failure.labels("Exception").inc()
             raise
 
 
@@ -189,6 +205,10 @@ def add_host(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
+            # basic-auth does not need owner_id
+            if identity.identity_type == IdentityType.SYSTEM:
+                host_data = _set_owner(host_data, identity)
+
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
@@ -198,6 +218,9 @@ def add_host(host_data, identity):
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
+        except ValidationException:
+            metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
+            raise
         except InventoryException:
             log_add_host_failure(logger, host_data)
             raise
@@ -213,21 +236,9 @@ def add_host(host_data, identity):
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
-    platform_metadata = validated_operation_msg.get("platform_metadata")
-    if not platform_metadata:
-        raise ValidationException("platform_metadata is mandatory")
+    platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
-    host = validated_operation_msg["data"]
-    identity = _get_identity(host, platform_metadata)
-
-    if host.get("account") != identity.account_number:
-        raise ValidationException("The account number in identity does not match the number in the host.")
-
-    # basic-auth does not need owner_id
-    if identity.identity_type == IdentityType.SYSTEM:
-        host = _set_owner(host, identity)
-
-    request_id = platform_metadata.get("request_id", "-1")
+    request_id = platform_metadata.get("request_id", UNKNOWN_REQUEST_ID_VALUE)
     initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
@@ -235,12 +246,26 @@ def handle_message(message, event_producer, message_operation=add_host):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="message received", current_operation="handle_message"
     ):
-        output_host, host_id, insights_id, operation_result = message_operation(host, identity)
-        event_type = operation_results_to_event_type(operation_result)
-        event = build_event(event_type, output_host, platform_metadata=platform_metadata)
+        try:
+            host = validated_operation_msg["data"]
 
-        headers = message_headers(operation_result, insights_id)
-        event_producer.write_event(event, str(host_id), headers)
+            identity = _get_identity(host, platform_metadata)
+            output_host, host_id, insights_id, operation_result = message_operation(host, identity)
+            event_type = operation_results_to_event_type(operation_result)
+            event = build_event(event_type, output_host, platform_metadata=platform_metadata)
+
+            headers = message_headers(operation_result, insights_id)
+            event_producer.write_event(event, str(host_id), headers)
+        except ValidationException as ve:
+            logger.error(
+                "Validation error while adding or updating host: %s",
+                ve,
+                extra={"host": {"reporter": host.get("reporter")}},
+            )
+            raise
+        except ValueError as ve:
+            logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
+            raise
 
 
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):

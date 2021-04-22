@@ -12,7 +12,6 @@ from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import MockFuture
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
@@ -31,8 +30,6 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
-        else:
-            platform_metadata["b64_identity"] = get_encoded_idstr()
         host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
         handle_message(json.dumps(message), event_producer, message_operation)

@@ -28,22 +28,14 @@ IQE_FILTER_EXPRESSION=""
 
 # Get bonfire helper scripts
 CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/build.sh -o build.sh
-curl -s $CICD_URL/deploy_ephemeral_env.sh -o deploy_ephemeral_env.sh
+curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 # build the PR commit image
-source build.sh
+source $CICD_ROOT/build.sh
 
 # Run the django unit tests
-source unit_test.sh
+source $APP_ROOT/unit_test.sh
 
 # Smoke test the App (iqe tests coming soon)
-source deploy_ephemeral_env.sh
-# source smoke_test.sh
-
-mkdir -p $WORKSPACE/artifacts
-cat << EOF > ${WORKSPACE}/artifacts/junit-dummy.xml
-<testsuite tests="1">
-    <testcase classname="dummy" name="dummytest"/>
-</testsuite>
-EOF
+# source $CICD_ROOT/deploy_ephemeral_env.sh
+# source $CICD_ROOT/smoke_test.sh
