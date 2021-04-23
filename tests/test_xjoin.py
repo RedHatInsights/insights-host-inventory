@@ -1684,6 +1684,153 @@ def test_query_hosts_filter_spf_insights_client_version(
                 graphql_query_empty_response.reset_mock()
 
 
+# system_profile operating_system tests
+def test_query_hosts_filter_spf_operating_system(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][gt]=7&"
+        "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
+        "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
+        "filter[system_profile][operating_system][CENT][version][gte]=7.1",
+    )
+
+    graphql_queries = (
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 9, "lte": 9},
+                                        "minor": {"lt": 2},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gt": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "CENT"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "CENT"}}},
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 12, "lte": 12},
+                                        "minor": {"lte": 6},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                },
+            ]
+        },
+    )
+
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status = api_get(url)[0]
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+# system_profile operating_system tests
+def test_query_hosts_filter_spf_operating_system_exception_handling(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][RHEL][version][fake_op]=7.1",
+        "filter[system_profile][operating_system][RHEL]=7.1",
+        "filter[system_profile][operating_system][CENT]=",
+        "filter[system_profile][operating_system][CENT]=something",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
