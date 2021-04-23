@@ -1377,6 +1377,7 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
 )
 def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_get_host, user):
     user_id = deepcopy(USER_IDENTITY)
+    del user_id["user"]
     user_id.update(user)
     input_host = minimal_host(account=user_id["account_number"])
 
