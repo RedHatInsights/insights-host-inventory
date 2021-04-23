@@ -1372,11 +1372,12 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
         {"user": {"email": "tuser@redhat.com"}},
         {"user": {"first_name": "test"}},
         {"user": {}},
+        {},
     ),
 )
 def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_get_host, user):
     user_id = deepcopy(USER_IDENTITY)
-    user_id["user"] = user
+    user_id.update(user)
     input_host = minimal_host(account=user_id["account_number"])
 
     created_host = mq_create_or_update_host(input_host)
