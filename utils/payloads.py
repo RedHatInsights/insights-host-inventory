@@ -6,7 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-# good
+# complete system identity
 # IDENTITY = {
 #     "account_number": "test",
 #     "type": "System",
@@ -15,15 +15,7 @@ from datetime import timezone
 #     "internal": {"org_id": "3340851", "auth_time": 6300},
 # }
 
-IDENTITY = {
-    "account_number": "test",
-    "type": "User",
-    "auth_type": "basic-auth",
-    "user": {"first_name": "test"},
-    # "user": {"email": "tuser@redhat.com", "first_name": "test"},
-}
-
-# invalid-auth
+# system identity: invalid or incomplete for testing
 # IDENTITY = {
 #     "account_number": "sysaccount",
 #     "type": "System",
@@ -31,6 +23,23 @@ IDENTITY = {
 #     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
 #     "internal": {"org_id": "3340851", "auth_time": 6300},
 # }
+
+# complete user identity
+IDENTITY = {
+    "account_number": "test",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
+
+# incomplete or invalid user identity for testing
+# IDENTITY = {
+#     "account_number": "test",
+#     "type": "User",
+#     "auth_type": "basic-auth",
+# }
+
+
 apiKey = base64.b64encode(json.dumps({"identity": IDENTITY}).encode("utf-8"))
 
 
