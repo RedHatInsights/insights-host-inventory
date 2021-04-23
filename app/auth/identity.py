@@ -63,8 +63,7 @@ class Identity:
 
             if obj["type"] == IdentityType.USER:
                 self.identity_type = obj["type"]
-                if obj.get("user"):
-                    self.user = obj["user"]
+                self.user = obj.get("user")
             elif obj["type"] == IdentityType.SYSTEM:
                 self.identity_type = obj["type"]
                 self.system = obj["system"]
