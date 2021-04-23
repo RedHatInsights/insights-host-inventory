@@ -32,6 +32,7 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import valid_system_profile
 
 
@@ -1362,3 +1363,26 @@ def test_owner_id_present_in_existing_host_but_missing_from_payload(mq_create_or
     assert updated_key == created_key
     assert updated_event["host"]["system_profile"]["owner_id"] == NEW_CN
     assert updated_event["host"]["display_name"] == "better_test_host"
+
+
+@pytest.mark.parametrize(
+    "user",
+    (
+        {"user": {"email": "tuser@redhat.com", "first_name": "test"}},
+        {"user": {"email": "tuser@redhat.com"}},
+        {"user": {"first_name": "test"}},
+        {"user": {}},
+        {},
+    ),
+)
+def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_get_host, user):
+    user_id = deepcopy(USER_IDENTITY)
+    del user_id["user"]
+    user_id.update(user)
+    input_host = minimal_host(account=user_id["account_number"])
+
+    created_host = mq_create_or_update_host(input_host)
+    # find the just created host from the DB
+    host_from_db = db_get_host(created_host.id)
+
+    assert created_host.id == str(host_from_db.id)
