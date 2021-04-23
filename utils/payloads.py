@@ -562,8 +562,9 @@ def build_host_chunk():
         "fqdn": fqdn,
         # "ansible_host": "host1.mydomain.com",
         # "external_id": "i-05d2313e6b9a42b16",
-        "provider_type": "aws",
-        # "provider_id": "i-05d2313e6b9a42b16",
+        "provider_type": "Alibaba",
+        # "provider_type": " ",
+        "provider_id": "i-05d2313e6b9a42b16",
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
