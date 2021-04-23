@@ -767,13 +767,15 @@ syntax](https://github.com/RedHatInsights/insights-api-common-rails#usage).
 
 Not every field in system profile may be used in filters. The following is a list of system profile fields that may be used to filter hosts:
 
-| Field |Type |
-| ----------- | ----------- |
-| sap_system | Boolean |
-| sap_sids | String |
-| rhc_client_id | String |
-| insights_client_version | String w/ wildcards|
-| is_marketplace | Boolean
+| Field | Type | Example |
+| ----------- | ----------- | ----------- |
+| sap_system | Boolean | true |
+| sap_sids | String | AEC |
+| rhc_client_id | UUID | 92a16a00-6508-4000-9077-d13da7a75fc8 |
+| insights_client_version | String w/ wildcards| 6* |
+| is_marketplace | Boolean | true |
+| operating_system | String | 7.5 |
+| owner_id | UUID | 0892cd6b-c564-4f53-a0cb-0784d79ee323 |
 
 For example, to query for hosts with insights client version
 7 and any minor version, the query parameter should be defined as:
