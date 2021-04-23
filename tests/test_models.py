@@ -108,42 +108,6 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
     assert existing_host.display_name == existing_host.id
 
 
-# TODO: test for Sat 6.7 hotfix (remove, eventually) See RHCLOUD-5954
-def test_update_existing_host_dont_change_display_name(db_create_host):
-    # Create an "existing" host
-    fqdn = "host1.domain1.com"
-    insights_id = generate_uuid()
-    old_display_name = "foo"
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": fqdn, "insights_id": insights_id}, "display_name": old_display_name}
-    )
-
-    # Attempt to update the display name from Satellite reporter.
-    # Should't update because Insights ID was set
-    expected_fqdn = "different.domain1.com"
-    input_host = Host({"fqdn": expected_fqdn}, display_name="dont_change_me", reporter="yupana", stale_timestamp=now())
-    existing_host.update(input_host)
-
-    # assert display name hasn't changed
-    assert existing_host.display_name == old_display_name
-
-
-def test_update_existing_host_non_insights_display_name(db_create_host):
-    # Create an "existing" host
-    fqdn = "host1.domain1.com"
-    existing_host = db_create_host(extra_data={"canonical_facts": {"fqdn": fqdn}, "display_name": "foo"})
-
-    # Attempt to update the display name from Satellite reporter.
-    # Should update because Insights ID isn't set.
-    expected_fqdn = "different.domain1.com"
-    new_display_name = "change_me"
-    input_host = Host({"fqdn": expected_fqdn}, display_name=new_display_name, reporter="yupana", stale_timestamp=now())
-    existing_host.update(input_host)
-
-    # assert display name has changed
-    assert existing_host.display_name == new_display_name
-
-
 def test_create_host_without_system_profile(db_create_host):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
