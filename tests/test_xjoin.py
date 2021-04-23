@@ -1689,16 +1689,20 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
 
 
 def test_spf_rhc_client_invalid_field_value(
-    mocker, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
-    mocker.patch(
-        "api.parsing.customURIParser._make_deep_object",
-        return_value=(("filter", [{"system_profile": {"rhc_client_id": {"eq": None}}}], True)),
+    query_params = (
+        "?filter[system_profile][rhc_client_id][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][bar][]=basicid",
+        "?filter[system_profile][rhc_client_id][eq][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][foo][]=basicid&filter[system_profile][rhc_client_id][bar][]=random",
     )
-    url = build_hosts_url(query="?filter[system_profile][rhc_client_id]=something")
-    response_status, response_data = api_get(url)
-    assert response_status == 400
-    assert response_data["title"] == "Validation Error"
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
 
 
 # system_profile owner_id tests
@@ -1779,16 +1783,20 @@ def test_query_hosts_filter_spf_owner_id_multiple(
 
 
 def test_spf_owner_id_invalid_field_value(
-    mocker, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
-    mocker.patch(
-        "api.parsing.customURIParser._make_deep_object",
-        return_value=(("filter", [{"system_profile": {"owner_id": {"eq": None}}}], True)),
+    query_params = (
+        "?filter[system_profile][owner_id][foo]=issasecret",
+        "?filter[system_profile][owner_id][bar][]=issasecret",
+        "?filter[system_profile][owner_id][eq][foo]=issasecret",
+        "?filter[system_profile][owner_id][foo][]=issasecret&filter[system_profile][owner_id][bar][]=nothersecrect",
     )
-    url = build_hosts_url(query="?filter[system_profile][owner_id]=something")
-    response_status, response_data = api_get(url)
-    assert response_status == 400
-    assert response_data["title"] == "Validation Error"
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
 
 
 # system_profile insights_client_version tests
