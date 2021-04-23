@@ -63,7 +63,7 @@ class Identity:
 
             if obj["type"] == IdentityType.USER:
                 self.identity_type = obj["type"]
-                self.user = obj["user"]
+                self.user = obj.get("user")
             elif obj["type"] == IdentityType.SYSTEM:
                 self.identity_type = obj["type"]
                 self.system = obj["system"]
@@ -127,9 +127,3 @@ def validate(identity):
                 raise ValueError("The auth_type field is mandatory.")
             if identity.auth_type not in AuthType.__members__.values():
                 raise ValueError(f"The auth_type {identity.auth_type} is invalid.")
-
-        elif identity.identity_type == IdentityType.USER:
-            if not identity.user:
-                raise ValueError("The identity.user is mandatory")
-            if not identity.user.get("email"):
-                raise ValueError("For basic-auth email is mandatory")
