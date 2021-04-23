@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from yaml import safe_load
 
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.validators import check_empty_keys
 from app.validators import verify_satellite_id
@@ -45,10 +46,11 @@ SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 
 class ProviderType(str, Enum):
+    ALIBABA = "alibaba"
     AWS = "aws"
     AZURE = "azure"
     GCP = "gcp"
-    ALIBABA = "alibaba"
+    IBM = "ibm"
 
 
 def _set_display_name_on_save(context):
@@ -64,14 +66,13 @@ def _set_display_name_on_save(context):
 
 #  verifies provider_type and if the required provider_id is provided.
 def _check_provider(provider_type, canonical_facts):
-    if provider_type not in ProviderType.__members__.values():
-        raise InventoryException(
-            title="Unknown Provider Type", detail='Valid provider types are "aws", "azure", "gcp", or "alibaba"'
+    if provider_type.lower() not in ProviderType.__members__.values():
+        raise ValidationException(
+            f'Unknown Provider Type: {provider_type}.  Valid provider types are:\
+             "alibaba", "aws", "azure", "gcp", or "ibm"'
         )
     if not canonical_facts.get("provider_id"):
-        raise InventoryException(
-            title="Missing Provider ID", detail="Provider ID must be specified when provider type is specified"
-        )
+        raise ValidationException("Missing Provider ID")
     return True
 
 
