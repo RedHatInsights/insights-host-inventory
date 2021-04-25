@@ -7,7 +7,12 @@ from ttictoc import TicToc
 
 
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
+<<<<<<< HEAD
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:29092")
+=======
+# BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:29092")
+BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+>>>>>>> a829a9c (Change the base image to use UBI8 instead of centos)
 NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 1))
 
 
