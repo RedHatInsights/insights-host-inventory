@@ -203,7 +203,6 @@ class Host(LimitedHost):
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
 
-        # )
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
