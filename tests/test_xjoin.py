@@ -1647,6 +1647,158 @@ def test_query_hosts_filter_spf_rhc_client_id(
                 graphql_query_empty_response.reset_mock()
 
 
+def test_query_hosts_filter_spf_rhc_client_id_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][rhc_client_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
+        "?filter[system_profile][rhc_client_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003"
+        "&filter[system_profile][rhc_client_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
+    )
+    queries = (
+        {"OR": ({"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {
+            "OR": (
+                {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+                {"spf_rhc_client_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
+            )
+        },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_rhc_client_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][rhc_client_id][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][bar][]=basicid",
+        "?filter[system_profile][rhc_client_id][eq][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][foo][]=basicid&filter[system_profile][rhc_client_id][bar][]=random",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
+# system_profile owner_id tests
+def test_query_hosts_filter_spf_owner_id(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][owner_id]", "[system_profile][owner_id][eq]")
+    values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "nil", "not_nil")
+    queries = (
+        {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_owner_id": {"eq": None}},
+        {"NOT": {"spf_owner_id": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_owner_id_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][owner_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
+        "?filter[system_profile][owner_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003"
+        "&filter[system_profile][owner_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
+    )
+    queries = (
+        {"OR": ({"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {
+            "OR": (
+                {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+                {"spf_owner_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
+            )
+        },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_owner_id_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][owner_id][foo]=issasecret",
+        "?filter[system_profile][owner_id][bar][]=issasecret",
+        "?filter[system_profile][owner_id][eq][foo]=issasecret",
+        "?filter[system_profile][owner_id][foo][]=issasecret&filter[system_profile][owner_id][bar][]=nothersecrect",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 # system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
