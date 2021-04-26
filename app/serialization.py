@@ -1,4 +1,5 @@
 from datetime import timezone
+from enum import Enum
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -25,6 +26,7 @@ _CANONICAL_FACTS_FIELDS = (
     "mac_addresses",
     "external_id",
     "provider_id",
+    "provider_type",
 )
 
 DEFAULT_FIELDS = (
@@ -43,8 +45,34 @@ DEFAULT_FIELDS = (
 )
 
 
+class ProviderType(str, Enum):
+    ALIBABA = "alibaba"
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    IBM = "ibm"
+
+
+#  verifies provider_type and if the required provider_id is provided.
+# def _check_provider(provider_type, canonical_facts):
+def _check_provider(data):
+    provider_type = data.get("provider_type")  # .lower()
+    provider_id = data.get("provider_id")
+
+    if provider_type:
+        if provider_type.lower() not in ProviderType.__members__.values():
+            raise ValidationException(
+                f'Unknown Provider Type: {provider_type}.  Valid provider types are:\
+                "alibaba", "aws", "azure", "gcp", or "ibm"'
+            )
+        if not provider_id:
+            raise ValidationException("Missing Provider ID")
+    return True
+
+
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
+        _check_provider(raw_data)
         validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
@@ -121,8 +149,6 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["tags"] = _serialize_tags(host.tags)
     if "system_profile" in fields:
         serialized_host["system_profile"] = host.system_profile_facts or {}
-    if "provider_type" in fields:
-        serialized_host["provider_type"] = host.provider_type
 
     return serialized_host
 

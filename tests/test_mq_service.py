@@ -1407,7 +1407,7 @@ def test_valid_providers(mq_create_or_update_host, db_get_host, provider):
 
     assert created_host.id == str(host_from_db.id)
     assert created_host.provider_id == host_from_db.canonical_facts["provider_id"]
-    assert created_host.provider_type == host_from_db.provider_type
+    assert created_host.provider_type == host_from_db.canonical_facts["provider_type"]
 
 
 @pytest.mark.parametrize(

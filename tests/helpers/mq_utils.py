@@ -143,7 +143,7 @@ def assert_patch_event_is_valid(
             "culled_timestamp": (stale_timestamp + timedelta(weeks=2)).isoformat(),
             "created": host.created_on.astimezone(timezone.utc).isoformat(),
             "provider_id": host.canonical_facts.get("provider_id"),
-            "provider_type": host.provider_type,
+            "provider_type": host.canonical_facts.get("provider_type"),
         },
         "platform_metadata": None,
         "metadata": {"request_id": expected_request_id},

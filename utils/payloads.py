@@ -555,16 +555,18 @@ def random_uuid():
 def build_host_chunk():
     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
+    # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
         "account": account,
         # "insights_id": random_uuid(),
-        # "bios_uuid": random_uuid(),
+        "bios_uuid": random_uuid(),
         "fqdn": fqdn,
         # "ansible_host": "host1.mydomain.com",
         # "external_id": "i-05d2313e6b9a42b16",
-        "provider_type": "Alibaba",
+        "provider_type": "aws",
         # "provider_type": " ",
         "provider_id": "i-05d2313e6b9a42b16",
+        # "provider_id": "ma-05d2313",
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
