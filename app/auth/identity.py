@@ -31,6 +31,9 @@ class AuthType(str, Enum):
 
 
 class CertType(str, Enum):
+    HYPERVISOR = "hypervisor"
+    RHUI = "rhui"
+    SAM = "sam"
     SATELLITE = "satellite"
     SYSTEM = "system"
 
@@ -69,7 +72,7 @@ class Identity:
                     raise ValueError("User field not set on provided user-type Identity")
 
                 self.identity_type = obj["type"]
-                self.user = obj["user"]
+                self.user = obj.get("user")
             elif obj["type"] == IdentityType.SYSTEM:
                 if not obj.get("system"):
                     raise ValueError("System field not set on provided system-type Identity")
@@ -122,17 +125,12 @@ def validate(identity):
                 raise ValueError("The identity.system is mandatory")
             if not identity.system.get("cert_type"):
                 raise ValueError("The cert_type field is mandatory.")
-            if identity.system.get("cert_type") not in CertType.__members__.values():
-                raise ValueError("The cert_type is invalid.")
+            if identity.system.get("cert_type").lower() not in CertType.__members__.values():
+                # TODO: Raise ValueError once we solidify all cert_type values
+                logger.error("The cert_type %s is invalid.", identity.system.get("cert_type"))
             if not identity.system.get("cn"):
                 raise ValueError("The cn field is mandatory.")
             if not identity.auth_type:
                 raise ValueError("The auth_type field is mandatory.")
             if identity.auth_type not in AuthType.__members__.values():
-                raise ValueError("The auth_type is invalid.")
-
-        elif identity.identity_type == IdentityType.USER:
-            if not identity.user:
-                raise ValueError("The identity.user is mandatory")
-            if not identity.user.get("email"):
-                raise ValueError("For basic-auth email is mandatory")
+                raise ValueError(f"The auth_type {identity.auth_type} is invalid.")
