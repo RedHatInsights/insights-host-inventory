@@ -102,6 +102,14 @@ class Config:
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
+        self.kafka_consumer_ssl = {}
+        self.kafka_ssl_enabled = os.environ.get("KAFKA_SSL_ENABLED", "false").lower() == "true"
+        if self.kafka_ssl_enabled:
+            self.kafka_consumer_ssl = {
+                "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "SSL").upper(),
+                "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE", "/opt/certs/kafka-cacert"),
+            }
+
         # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
         self.kafka_consumer = {
             "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
@@ -114,6 +122,7 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            **self.kafka_consumer_ssl,
         }
 
         self.validator_kafka_consumer = {
@@ -127,6 +136,7 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            **self.kafka_consumer_ssl,
         }
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
@@ -226,6 +236,7 @@ class Config:
                 self.logger.info("Kafka System Profile Topic: %s", self.system_profile_topic)
                 self.logger.info("Kafka Consumer Topic: %s", self.kafka_consumer_topic)
                 self.logger.info("Kafka Consumer Group: %s", self.host_ingress_consumer_group)
+                self.logger.info("Kafka Consumer SSL enabled: %s", self.kafka_ssl_enabled)
                 self.logger.info("Kafka Events Topic: %s", self.event_topic)
 
             if self._runtime_environment.event_producer_enabled:
