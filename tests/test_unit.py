@@ -27,7 +27,6 @@ from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
-from app.auth.identity import validate
 from app.config import Config
 from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
@@ -178,8 +177,7 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(USER_IDENTITY)
-            validate(identity)
+            Identity(USER_IDENTITY)
             self.assertTrue(True)
         except ValueError:
             self.fail()
@@ -229,23 +227,17 @@ class TrustedIdentityTestCase(TestCase):
         return identity
 
     def test_validation(self):
-        identity = self._build_id()
-
         with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
-            validate(identity)
+            self._build_id()
 
     def test_validation_with_invalid_identity(self):
-        identity = from_bearer_token("InvalidPassword")
-
         with self.assertRaises(ValueError):
-            validate(identity)
+            from_bearer_token("InvalidPassword")
 
     def test_validation_env_var_not_set(self):
-        identity = self._build_id()
-
         with set_environment({}):
             with self.assertRaises(ValueError):
-                validate(identity)
+                self._build_id()
 
     def test_validation_token_is_None(self):
         tokens = [None, ""]
@@ -255,12 +247,14 @@ class TrustedIdentityTestCase(TestCase):
                     Identity(token=token)
 
     def test_is_trusted_system(self):
-        identity = self._build_id()
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
+            identity = self._build_id()
 
         self.assertEqual(identity.is_trusted_system, True)
 
     def test_account_number_is_not_set_for_trusted_system(self):
-        identity = self._build_id()
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
+            identity = self._build_id()
 
         self.assertFalse(hasattr(identity, "account_number"))
 
