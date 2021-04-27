@@ -56,14 +56,14 @@ class ProviderType(str, Enum):
 #  verifies provider_type and if the required provider_id is provided.
 # def _check_provider(provider_type, canonical_facts):
 def _check_provider(data):
-    provider_type = data.get("provider_type")  # .lower()
+    provider_type = data.get("provider_type")
     provider_id = data.get("provider_id")
 
     if provider_type:
         if provider_type.lower() not in ProviderType.__members__.values():
             raise ValidationException(
-                f'Unknown Provider Type: {provider_type}.  Valid provider types are:\
-                "alibaba", "aws", "azure", "gcp", or "ibm"'
+                f'Unknown Provider Type: "{provider_type}" from reporter: "{data.get("reporter")}".  '
+                f'Valid provider types are: "alibaba", "aws", "azure", "gcp", or "ibm".'
             )
         if not provider_id:
             raise ValidationException("Missing Provider ID")

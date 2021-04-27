@@ -132,7 +132,6 @@ class LimitedHost(db.Model):
         Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxaccount", "account"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
-        Index("idxproviderid", text("(canonical_facts ->> 'provider_id')")),
     )
 
     def __init__(
