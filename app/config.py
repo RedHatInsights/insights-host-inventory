@@ -114,6 +114,8 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
         }
 
         self.validator_kafka_consumer = {
@@ -127,6 +129,8 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
         }
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
