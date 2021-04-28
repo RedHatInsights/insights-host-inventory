@@ -85,11 +85,9 @@ class Identity:
 
             elif obj["type"] == IdentityType.SYSTEM:
                 self.system = obj.get("system")
-                if not self.auth_type:
-                    raise ValueError("The auth_type field is mandatory.")
-                elif self.auth_type not in AuthType.__members__.values():
+                if self.auth_type and self.auth_type not in AuthType.__members__.values():
                     raise ValueError(f"The auth_type {self.auth_type} is invalid")
-                if not self.system:
+                elif not self.system:
                     raise ValueError("The identity.system field is mandatory for system-type identities")
                 elif not self.system.get("cert_type"):
                     raise ValueError("The cert_type field is mandatory for system-type identities")
