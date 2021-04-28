@@ -40,7 +40,6 @@ DEFAULT_FIELDS = (
     "culled_timestamp",
     "created",
     "updated",
-    "provider_type",
 )
 
 
