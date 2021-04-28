@@ -13,7 +13,6 @@ from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.auth.identity import validate
 from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -85,7 +84,6 @@ def _get_identity(host, metadata):
         raise ValidationException("The account number in identity does not match the number in the host.")
 
     identity = Identity(identity)
-    validate(identity)
     return identity
 
 
