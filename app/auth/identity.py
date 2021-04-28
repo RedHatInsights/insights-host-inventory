@@ -28,6 +28,7 @@ class AuthType(str, Enum):
     BASIC = "basic-auth"
     CERT = "cert-auth"
     CLASSIC = "classic-proxy"
+    JWT = "jwt-auth"
 
 
 class CertType(str, Enum):
