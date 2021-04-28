@@ -432,3 +432,39 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
             "check_in_succeeded": True,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_create_host_with_valid_provider(db_create_host, provider):
+    created_host = db_create_host(
+        extra_data={"canonical_facts": {"provider_type": provider.get("type"), "provider_id": provider.get("id")}}
+    )
+
+    assert created_host.canonical_facts.get("provider_type") == provider.get("type")
+    assert created_host.canonical_facts.get("provider_id") == provider.get("id")
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "invalid", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure"},
+        {"id": generate_uuid()},
+        {"id": "\t"},  # tab
+        {"id": "  ", "type": "aws"},
+    ),
+)
+def test_invalid_providers(db_create_host, provider):
+    with pytest.raises(InventoryException):
+        db_create_host(
+            extra_data={"canonical_facts": {"provider_type": provider.get("type"), "provider_id": provider.get("id")}}
+        )

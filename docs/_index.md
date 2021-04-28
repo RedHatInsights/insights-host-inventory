@@ -71,6 +71,7 @@ A single host object should be wrapped in an `operation` json document.
           "mac_addresses": [<mac_addresses>],
           "external_id": "<external_id>",
           "provider_id": "<provider_id>",
+          "provider_type": "<provider_type>",
           "facts": [<facts>],
           "tags": {<tags>},
           "system_profile": {<system_profile>},
@@ -127,6 +128,8 @@ facts fields are:
 - `external_id`
 
 - `provider_id`
+
+- `provider_type`
 
 Host `tags` should be provided using [nested representation](#nested-representation):
 

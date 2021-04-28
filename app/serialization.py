@@ -1,5 +1,4 @@
 from datetime import timezone
-from enum import Enum
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -45,34 +44,8 @@ DEFAULT_FIELDS = (
 )
 
 
-class ProviderType(str, Enum):
-    ALIBABA = "alibaba"
-    AWS = "aws"
-    AZURE = "azure"
-    GCP = "gcp"
-    IBM = "ibm"
-
-
-#  verifies provider_type and if the required provider_id is provided.
-# def _check_provider(provider_type, canonical_facts):
-def _check_provider(data):
-    provider_type = data.get("provider_type")
-    provider_id = data.get("provider_id")
-
-    if provider_type:
-        if provider_type.lower() not in ProviderType.__members__.values():
-            raise ValidationException(
-                f'Unknown Provider Type: "{provider_type}" from reporter: "{data.get("reporter")}".  '
-                f'Valid provider types are: "alibaba", "aws", "azure", "gcp", or "ibm".'
-            )
-        if not provider_id:
-            raise ValidationException("Missing Provider ID")
-    return True
-
-
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
-        _check_provider(raw_data)
         validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None

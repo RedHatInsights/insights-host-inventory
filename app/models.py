@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from yaml import safe_load
 
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.validators import check_empty_keys
 from app.validators import verify_satellite_id
@@ -44,6 +45,14 @@ SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
 
+class ProviderType(str, Enum):
+    ALIBABA = "alibaba"
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    IBM = "ibm"
+
+
 def _set_display_name_on_save(context):
     """
     This method sets the display_name if it has not been set previously.
@@ -53,6 +62,25 @@ def _set_display_name_on_save(context):
     params = context.get_current_parameters()
     if not params["display_name"]:
         return params["canonical_facts"].get("fqdn") or params["id"]
+
+
+#  check provider type and id are both present and the type is valid
+def _check_provider(canonical_facts, reporter):
+    provider_type = canonical_facts.get("provider_type")
+    provider_id = canonical_facts.get("provider_id")
+
+    if (provider_type and not provider_id) or (provider_id and not provider_type):
+        raise ValidationException("provider_type and provider_id are both required.")
+
+    if provider_type and provider_type.lower() not in ProviderType.__members__.values():
+        raise ValidationException(
+            f'Unknown Provider Type: "{provider_type}" from reporter: "{reporter}".  '
+            'Valid provider types are: "alibaba", "aws", "azure", "gcp", or "ibm".'
+        )
+
+    # check for white spaces, tabs, and newline characters only
+    if provider_id and provider_id.isspace():
+        raise ValidationException("Provider id can not be just blank, whitespaces or tabs")
 
 
 def _time_now():
@@ -196,6 +224,8 @@ class Host(LimitedHost):
             raise InventoryException(
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
+
+        _check_provider(canonical_facts, reporter)
 
         if not stale_timestamp or not reporter:
             raise InventoryException(
@@ -420,7 +450,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
-    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
 
