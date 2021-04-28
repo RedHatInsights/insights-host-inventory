@@ -29,6 +29,7 @@ class AuthType(str, Enum):
     CERT = "cert-auth"
     CLASSIC = "classic-proxy"
     JWT = "jwt-auth"
+    UHC = "uhc-auth"
 
 
 class CertType(str, Enum):
