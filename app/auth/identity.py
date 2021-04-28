@@ -75,11 +75,9 @@ class Identity:
 
             if not self.account_number:
                 raise ValueError("The account_number is mandatory.")
-            if not self.identity_type or self.identity_type not in IdentityType.__members__.values():
+            elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():
                 raise ValueError("Identity type invalid or missing in provided Identity")
-            if not self.auth_type:
-                raise ValueError("The auth_type field is mandatory.")
-            elif self.auth_type not in AuthType.__members__.values():
+            elif self.auth_type and self.auth_type not in AuthType.__members__.values():
                 raise ValueError(f"The auth_type {self.auth_type} is invalid")
 
             if obj["type"] == IdentityType.USER:
