@@ -4,10 +4,12 @@ from datetime import timedelta
 
 import pytest
 from marshmallow import ValidationError
+from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
 
 from app import db
 from app.exceptions import InventoryException
+from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
@@ -16,6 +18,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -444,13 +447,12 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
         {"type": "ibm", "id": generate_uuid()},
     ),
 )
-def test_create_host_with_valid_provider(db_create_host, provider):
-    created_host = db_create_host(
-        extra_data={"canonical_facts": {"provider_type": provider.get("type"), "provider_id": provider.get("id")}}
-    )
+def test_valid_providers(provider):
+    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type"), "reporter": "test"}
+    validated_host = CanonicalFactsSchema(strict=True).load(canonical_facts)
 
-    assert created_host.canonical_facts.get("provider_type") == provider.get("type")
-    assert created_host.canonical_facts.get("provider_id") == provider.get("id")
+    assert validated_host.data["provider_id"] == provider.get("id")
+    assert validated_host.data["provider_type"] == provider.get("type")
 
 
 @pytest.mark.parametrize(
@@ -459,12 +461,13 @@ def test_create_host_with_valid_provider(db_create_host, provider):
         {"type": "invalid", "id": "i-05d2313e6b9a42b16"},
         {"type": "azure"},
         {"id": generate_uuid()},
+        {"id": ""},
         {"id": "\t"},  # tab
         {"id": "  ", "type": "aws"},
     ),
 )
-def test_invalid_providers(db_create_host, provider):
-    with pytest.raises(InventoryException):
-        db_create_host(
-            extra_data={"canonical_facts": {"provider_type": provider.get("type"), "provider_id": provider.get("id")}}
-        )
+def test_invalid_providers(mq_create_or_update_host, provider):
+    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type"), "reporter": "test"}
+
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema(strict=True).load(canonical_facts)

@@ -17,6 +17,7 @@ from marshmallow import pre_load
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
+from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy import Index
 from sqlalchemy import orm
@@ -26,7 +27,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from yaml import safe_load
 
 from app.exceptions import InventoryException
-from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.validators import check_empty_keys
 from app.validators import verify_satellite_id
@@ -62,25 +62,6 @@ def _set_display_name_on_save(context):
     params = context.get_current_parameters()
     if not params["display_name"]:
         return params["canonical_facts"].get("fqdn") or params["id"]
-
-
-#  check provider type and id are both present and the type is valid
-def _check_provider(canonical_facts, reporter):
-    provider_type = canonical_facts.get("provider_type")
-    provider_id = canonical_facts.get("provider_id")
-
-    if (provider_type and not provider_id) or (provider_id and not provider_type):
-        raise ValidationException("provider_type and provider_id are both required.")
-
-    if provider_type and provider_type.lower() not in ProviderType.__members__.values():
-        raise ValidationException(
-            f'Unknown Provider Type: "{provider_type}" from reporter: "{reporter}".  '
-            'Valid provider types are: "alibaba", "aws", "azure", "gcp", or "ibm".'
-        )
-
-    # check for white spaces, tabs, and newline characters only
-    if provider_id and provider_id.isspace():
-        raise ValidationException("Provider id can not be just blank, whitespaces or tabs")
 
 
 def _time_now():
@@ -224,8 +205,6 @@ class Host(LimitedHost):
             raise InventoryException(
                 title="Invalid request", detail="At least one of the canonical fact fields must be present."
             )
-
-        _check_provider(canonical_facts, reporter)
 
         if not stale_timestamp or not reporter:
             raise InventoryException(
@@ -452,6 +431,25 @@ class CanonicalFactsSchema(MarshmallowSchema):
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+
+    @validates_schema
+    def validate_provider(self, data, **kwargs):
+        provider_type = data.get("provider_type")
+        provider_id = data.get("provider_id")
+        reporter = data.get("reporter")
+
+        if (provider_type and not provider_id) or (provider_id and not provider_type):
+            raise MarshmallowValidationError("provider_type and provider_id are both required.")
+
+        if provider_type and provider_type.lower() not in ProviderType.__members__.values():
+            raise MarshmallowValidationError(
+                f'Unknown Provider Type: "{provider_type}" from reporter: "{reporter}".  '
+                'Valid provider types are: "alibaba", "aws", "azure", "gcp", or "ibm".'
+            )
+
+        # check for white spaces, tabs, and newline characters only
+        if provider_id and provider_id.isspace():
+            raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
