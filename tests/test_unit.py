@@ -200,15 +200,6 @@ class AuthIdentityValidateTestCase(TestCase):
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
-    def test_invalid_user_obj(self):
-        test_identity = deepcopy(USER_IDENTITY)
-        user_objects = [None, ""]
-        for user_object in user_objects:
-            with self.subTest(user_object=user_object):
-                test_identity["user"] = user_object
-                with self.assertRaises(ValueError):
-                    Identity(test_identity)
-
     def test_invalid_system_obj(self):
         test_identity = deepcopy(SYSTEM_IDENTITY)
         system_objects = [None, ""]
