@@ -350,6 +350,9 @@ $defs:
       is_marketplace:
         description: Indicates whether the host is part of a marketplace install from AWS, Azure, etc.
         type: boolean
+      is_edge:
+        description: Indicates whether the host is an edge host.
+        type: boolean
       rhsm:
         description: Object for subscription-manager details
         type: object
