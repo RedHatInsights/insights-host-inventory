@@ -1172,6 +1172,27 @@ def test_handle_message_side_effect(mocker, flask_app):
         handle_message(message, mocker.MagicMock())
 
 
+@pytest.mark.parametrize("platform_metadata", (None, {}, {"request_id": "12345"}))
+def test_update_system_profile_no_identity(mocker, event_datetime_mock, flask_app, platform_metadata):
+    message = wrap_message(
+        minimal_host(account="foobar", system_profile={"number_of_cpus": 4}).data(), "add_host", platform_metadata
+    )
+
+    # We don't care about the values here
+    mocker.patch(
+        "lib.host_repository.update_system_profile",
+        return_value=(
+            {"id": generate_uuid(), "insights_id": generate_uuid()},
+            generate_uuid(),
+            generate_uuid(),
+            AddHostResult.updated,
+        ),
+    )
+
+    # Just make sure it doesn't complain about missing Identity/metadata
+    handle_message(json.dumps(message), mocker.Mock(), update_system_profile)
+
+
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
 def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
