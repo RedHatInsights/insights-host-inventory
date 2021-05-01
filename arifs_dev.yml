@@ -29,20 +29,22 @@ services:
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
     inv_mq_p1:
-      image: quay.io/thearifismail/insights-inventory:arifstest
+      # image: quay.io/thearifismail/insights-inventory:arifstest
+      image: quay.io/thearifismail/insights-inventory:ubi8based
       ports:
         - 8080:8080
       depends_on:
+        - db
         - kafka
       environment:
-        INVENTORY_DB_HOST: db_1
+        INVENTORY_DB_HOST: db
         INVENTORY_DB_PASS: insights
         INVENTORY_DB_USER: insights
         INVENTORY_DB_PORT: 5432
+        KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+        KAFKA_HOST_INGRESS_TOPIC: platform.inventory.host-ingress
         # - KAFKA_CONSUMER_TOPIC
-        # - KAFKA_HOST_INGRESS_TOPIC
         # - KAFKA_SYSTEM_PROFILE_TOPIC
-        # - KAFKA_BOOTSTRAP_SERVERS=INTERNAL://kafka:9092,EXTERNAL://kafka:29092
         # - KAFKA_HOST_INGRESS_GROUP=
         # - PAYLOAD_TRACKER_KAFKA_TOPIC=
         # - PAYLOAD_TRACKER_SERVICE_NAME=
