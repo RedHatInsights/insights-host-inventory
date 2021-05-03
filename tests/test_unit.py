@@ -209,6 +209,25 @@ class AuthIdentityValidateTestCase(TestCase):
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
+    def test_invalid_auth_types(self):
+        test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY)]
+        auth_types = ["", "foo"]
+        for test_identity in test_identities:
+            for auth_type in auth_types:
+                with self.subTest(auth_type=auth_type):
+                    test_identity["auth_type"] = auth_type
+                    with self.assertRaises(ValueError):
+                        Identity(test_identity)
+
+    def test_invalid_cert_types(self):
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        cert_types = [None, "", "foo"]
+        for cert_type in cert_types:
+            with self.subTest(cert_type=cert_type):
+                test_identity["system"]["cert_type"] = cert_type
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
 
 class TrustedIdentityTestCase(TestCase):
     shared_secret = "ImaSecret"
