@@ -356,12 +356,15 @@ $defs:
         maxLength: 4
         description: Indicates the type of host.
         example: 'edge'
+<<<<<<< HEAD
       greenboot_status:
         type: string
         enum: [red, green]
         maxLength: 5
         description: Indicates the greenboot status of an edge device.
         example: 'red'
+=======
+>>>>>>> 815c048 (Add field to identify edge hosts (#892))
       rhsm:
         description: Object for subscription-manager details
         type: object
