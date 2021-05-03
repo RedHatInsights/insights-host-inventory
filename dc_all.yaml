@@ -102,7 +102,6 @@ services:
         RBAC_ENDPOINT: 'http://localhost:8111'
         INVENTORY_LOG_LEVEL: INFO
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-        # KAFKA_BOOTSTRAP_SERVERS: kafka:29092
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_TOPIC: platform.inventory.host-ingress
         KAFKA_ADDITIONAL_VALIDATION_TOPIC: platform.inventory.host-ingress-p1
