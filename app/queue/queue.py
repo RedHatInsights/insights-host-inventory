@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
+from app.auth.identity import create_mock_identity_from_host
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
@@ -161,7 +162,7 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def update_system_profile(host_data, identity):
+def update_system_profile(host_data, platform_metadata):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -174,6 +175,7 @@ def update_system_profile(host_data, identity):
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
+            identity = create_mock_identity_from_host(input_host)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
             )
@@ -195,7 +197,7 @@ def update_system_profile(host_data, identity):
             raise
 
 
-def add_host(host_data, identity):
+def add_host(host_data, platform_metadata):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
     with PayloadTrackerProcessingContext(
@@ -203,6 +205,7 @@ def add_host(host_data, identity):
     ) as payload_tracker_processing_ctx:
 
         try:
+            identity = _get_identity(host_data, platform_metadata)
             # basic-auth does not need owner_id
             if identity.identity_type == IdentityType.SYSTEM:
                 host_data = _set_owner(host_data, identity)
@@ -247,8 +250,7 @@ def handle_message(message, event_producer, message_operation=add_host):
         try:
             host = validated_operation_msg["data"]
 
-            identity = _get_identity(host, platform_metadata)
-            output_host, host_id, insights_id, operation_result = message_operation(host, identity)
+            output_host, host_id, insights_id, operation_result = message_operation(host, platform_metadata)
             event_type = operation_results_to_event_type(operation_result)
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
