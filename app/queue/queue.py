@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
+from app.auth.identity import create_mock_identity_from_host
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
@@ -85,18 +86,6 @@ def _get_identity(host, metadata):
 
     identity = Identity(identity)
     return identity
-
-
-# Messages from the system_profile topic don't need to provide a real Identity.
-def _create_mock_identity_from_host(host):
-    return Identity(
-        {
-            "account_number": host.account,
-            "type": "User",
-            "auth_type": "basic-auth",
-            "user": {"email": "mock-account@redhat.com", "first_name": "mock"},
-        }
-    )
 
 
 # When identity_type is System, set owner_id if missing from the host system_profile
@@ -186,7 +175,7 @@ def update_system_profile(host_data, platform_metadata):
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            identity = _create_mock_identity_from_host(input_host)
+            identity = create_mock_identity_from_host(input_host)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
             )

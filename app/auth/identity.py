@@ -119,3 +119,7 @@ class Identity:
 
     def __eq__(self, other):
         return self.account_number == other.account_number
+
+
+def create_mock_identity_from_host(host):
+    return Identity({"account_number": host.account, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
