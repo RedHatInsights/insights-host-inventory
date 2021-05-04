@@ -121,5 +121,7 @@ class Identity:
         return self.account_number == other.account_number
 
 
+# Messages from the system_profile topic don't need to provide a real Identity,
+# So this helper function creates a basic User-type identity from the host data.
 def create_mock_identity_from_host(host):
     return Identity({"account_number": host.account, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
