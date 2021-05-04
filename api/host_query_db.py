@@ -25,6 +25,7 @@ def get_host_list(
     fqdn,
     hostname_or_id,
     insights_id,
+    provider_id,
     tags,
     page,
     per_page,
@@ -46,6 +47,8 @@ def get_host_list(
         query = _find_hosts_by_hostname_or_id(hostname_or_id)
     elif insights_id:
         query = _find_hosts_by_canonical_fact("insights_id", insights_id)
+    elif provider_id:
+        query = _find_hosts_by_canonical_fact("provider_id", provider_id)
     else:
         query = _find_all_hosts()
 
@@ -56,6 +59,7 @@ def get_host_list(
     if staleness:
         query = find_hosts_by_staleness(staleness, query)
 
+    # TODO: should there by "from cloud provider".  If yes, then which provider?
     if registered_with:
         query = find_hosts_with_insights_enabled(query)
 

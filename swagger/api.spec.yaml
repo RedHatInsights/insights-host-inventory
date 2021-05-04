@@ -43,6 +43,12 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - in: query
+          name: provider_id
+          schema:
+            type: string
+          description: Search for a host by provider_id
+          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'

@@ -59,6 +59,26 @@ def mq_create_three_specific_hosts(mq_create_or_update_host):
 
 
 @pytest.fixture(scope="function")
+def mq_create_three_aws_hosts(mq_create_or_update_host):
+    created_hosts = []
+    for i in range(1, 4):
+        fqdn = "host1.domain.test" if i in (1, 2) else f"host{i}.domain.test"
+        host = minimal_host(
+            # insights_id=generate_uuid(), display_name=f"host{i}", fqdn=fqdn, facts=FACTS, tags=TAGS[i - 1]
+            provider_type="aws",
+            provider_id=generate_uuid(),
+            display_name=f"host{i}",
+            fqdn=fqdn,
+            facts=FACTS,
+            tags=TAGS[i - 1],
+        )
+        created_host = mq_create_or_update_host(host)
+        created_hosts.append(created_host)
+
+    return created_hosts
+
+
+@pytest.fixture(scope="function")
 def mq_create_four_specific_hosts(mq_create_three_specific_hosts, mq_create_or_update_host):
     created_hosts = mq_create_three_specific_hosts
     host = minimal_host(insights_id=generate_uuid(), display_name=created_hosts[0].display_name)
