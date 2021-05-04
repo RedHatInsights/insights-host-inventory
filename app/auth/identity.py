@@ -79,23 +79,20 @@ class Identity:
                 raise ValueError("The account_number is mandatory.")
             elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():
                 raise ValueError("Identity type invalid or missing in provided Identity")
-            elif self.auth_type and self.auth_type not in AuthType.__members__.values():
+            elif self.auth_type is not None and self.auth_type not in AuthType.__members__.values():
                 raise ValueError(f"The auth_type {self.auth_type} is invalid")
 
-            if obj["type"] == IdentityType.USER:
+            if self.identity_type == IdentityType.USER:
                 self.user = obj.get("user")
-                if not self.user:
-                    raise ValueError("The identity.user field is mandatory for user-type identities")
 
-            elif obj["type"] == IdentityType.SYSTEM:
+            elif self.identity_type == IdentityType.SYSTEM:
                 self.system = obj.get("system")
                 if not self.system:
                     raise ValueError("The identity.system field is mandatory for system-type identities")
                 elif not self.system.get("cert_type"):
                     raise ValueError("The cert_type field is mandatory for system-type identities")
                 elif self.system.get("cert_type") not in CertType.__members__.values():
-                    # TODO: Raise ValueError once we solidify all cert_type values
-                    logger.error("The cert_type %s is invalid.", self.system.get("cert_type"))
+                    raise ValueError(f"The cert_type {self.system.get('cert_type')} is invalid.")
                 elif not self.system.get("cn"):
                     raise ValueError("The cn field is mandatory for system-type identities")
 
