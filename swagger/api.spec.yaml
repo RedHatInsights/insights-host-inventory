@@ -49,6 +49,12 @@ paths:
             type: string
           description: Search for a host by provider_id
           required: false
+        - in: query
+          name: provider_type
+          schema:
+            type: string
+          description: Search for a host by provider_type
+          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'

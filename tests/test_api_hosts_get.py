@@ -1,4 +1,5 @@
 import copy
+import random
 import uuid
 from itertools import chain
 
@@ -75,6 +76,35 @@ def test_query_using_provider_id(mq_create_or_update_host, api_get):
     assert created_host.id == fetched_host["id"]
     assert created_host.provider_id == fetched_host["provider_id"]
     assert created_host.provider_type == fetched_host["provider_type"]
+
+
+def test_query_using_provider_type(mq_create_multiple_hosts_by_provider_type, api_get):
+    providers_tuple = (
+        {"type": "alibaba", "count": 4},
+        {"type": "aws", "count": 2},
+        {"type": "azure", "count": 3},
+        {"type": "gcp", "count": 5},
+        {"type": "ibm", "count": 6},
+    )
+    all_hosts = []
+    for provider in providers_tuple:
+        created_hosts = mq_create_multiple_hosts_by_provider_type(provider["type"], provider["count"])
+        for host in created_hosts:
+            all_hosts.append(host)
+
+    # Check the total number of hosts of all types
+    url = build_hosts_url()
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 20
+
+    # fetch hosts by type.
+    random_choice = random.choice(providers_tuple)
+    url = build_hosts_url(query=f"?provider_type={random_choice['type']}")
+    response_status, response_data = api_get(url)
+
+    assert len(response_data["results"]) == random_choice["count"]
 
 
 def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
@@ -895,49 +925,6 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
 
     assert expected_ids == result_ids
     assert non_expected_id not in expected_ids
-
-
-def test_get_hosts_only_providers(mq_create_three_specific_hosts, mq_create_or_update_host, api_get):
-    created_hosts_with_insights_id = mq_create_three_specific_hosts
-
-    host_without_insights_id = minimal_host(provider_id=generate_uuid(), provider_type="alibaba")
-    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
-
-    url = build_hosts_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 3
-
-    result_ids = sorted([host["id"] for host in response_data["results"]])
-    expected_ids = sorted([host.id for host in created_hosts_with_insights_id])
-    non_expected_id = created_host_without_insights_id.id
-
-    assert expected_ids == result_ids
-    assert non_expected_id not in expected_ids
-
-
-# # TODO: get hosts of a provider_type
-# def test_get_hosts_only_aws(mq_create_three_aws_hosts, mq_create_or_update_host, api_get):
-
-#     aws_hosts = mq_create_three_aws_hosts
-
-#     host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid())
-#     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
-
-#     url = build_hosts_url(query="?provider_type=aws")
-#     import pdb; pdb.set_trace()
-#     response_status, response_data = api_get(url)
-
-#     assert response_status == 200
-#     assert len(response_data["results"]) == 3
-
-#     result_ids = sorted([host["id"] for host in response_data["results"]])
-#     expected_ids = sorted([host.id for host in aws_hosts])
-#     non_expected_id = created_host_without_insights_id.id
-
-#     assert expected_ids == result_ids
-#     assert non_expected_id not in expected_ids
 
 
 def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):

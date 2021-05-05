@@ -79,6 +79,7 @@ def get_host_list(
     hostname_or_id,
     insights_id,
     provider_id,
+    provider_type,
     tags,
     page,
     per_page,
@@ -93,7 +94,16 @@ def get_host_list(
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
 
     all_filters = _query_filters(
-        fqdn, display_name, hostname_or_id, insights_id, provider_id, tags, staleness, registered_with, filter
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
     )
 
     current_identity = get_current_identity()
@@ -263,7 +273,16 @@ def _build_operating_system_filter(operating_system):
 
 
 def _query_filters(
-    fqdn, display_name, hostname_or_id, insights_id, provider_id, tags, staleness, registered_with, filter
+    fqdn,
+    display_name,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    staleness,
+    registered_with,
+    filter,
 ):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
