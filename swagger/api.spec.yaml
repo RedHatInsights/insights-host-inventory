@@ -812,15 +812,16 @@ components:
       example: i-05d2313e6b9a42b16
     ProviderId:
       description: >-
-        Host’s reference in the external source e.g. AWS EC2, Azure,
-        OpenStack, etc. This field is considered to be a canonical fact.
+        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is one of the canonical facts and does not
+        work without provider_type.
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
     ProviderType:
       description: >-
-        Host’s reference in the external source e.g. AWS EC2, Azure,
-        OpenStack, etc. This field is considered to be a canonical fact.
+        Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
+        This field is one of the canonical facts and does not workout provider_id.
       type: string
       nullable: true
       example: aws

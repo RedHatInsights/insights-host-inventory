@@ -301,10 +301,12 @@ def _query_filters(
             logger.debug("Adding id (uuid) to the filter list")
             hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
+    elif provider_id:
+        query_filters = ({"provider_id": {"eq": provider_id}},)
     elif insights_id:
         query_filters = ({"insights_id": {"eq": insights_id}},)
-    elif provider_id:
-        query_filters = ({"provider_id": {"eq": insights_id}},)
+    elif provider_type:
+        query_filters = ({"provider_id": {"eq": provider_type}},)
     else:
         query_filters = ()
 

@@ -3,7 +3,6 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytest
-from marshmallow import ValidationError
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
 
@@ -159,7 +158,7 @@ def test_host_schema_invalid_tags(tags):
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
-    with pytest.raises(ValidationError) as exception:
+    with pytest.raises(MarshmallowValidationError) as exception:
         HostSchema(strict=True).load(host)
 
     error_messages = exception.value.normalized_messages()
@@ -197,7 +196,7 @@ def test_host_schema_timezone_enforced():
         "stale_timestamp": now().replace(tzinfo=None).isoformat(),
         "reporter": "test",
     }
-    with pytest.raises(ValidationError) as exception:
+    with pytest.raises(MarshmallowValidationError) as exception:
         HostSchema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(exception.value)
@@ -448,7 +447,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     ),
 )
 def test_valid_providers(provider):
-    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type"), "reporter": "test"}
+    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
     validated_host = CanonicalFactsSchema(strict=True).load(canonical_facts)
 
     assert validated_host.data["provider_id"] == provider.get("id")
@@ -466,8 +465,8 @@ def test_valid_providers(provider):
         {"id": "  ", "type": "aws"},
     ),
 )
-def test_invalid_providers(mq_create_or_update_host, provider):
-    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type"), "reporter": "test"}
+def test_invalid_providers(provider):
+    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
 
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema(strict=True).load(canonical_facts)

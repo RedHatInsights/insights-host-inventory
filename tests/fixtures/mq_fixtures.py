@@ -59,25 +59,6 @@ def mq_create_three_specific_hosts(mq_create_or_update_host):
 
 
 @pytest.fixture(scope="function")
-def mq_create_multiple_hosts_by_provider_type(mq_create_or_update_host):
-    def _mq_create_multiple_hosts_by_provider_type(provider_type, num):
-        created_hosts = []
-        i = 0
-        while i < num:
-            fqdn = f"host{i}.domain.test"
-            host = minimal_host(
-                provider_type=provider_type, provider_id=generate_uuid(), display_name=f"host{i}", fqdn=fqdn
-            )
-            created_host = mq_create_or_update_host(host)
-            created_hosts.append(created_host)
-            i += 1
-
-        return created_hosts
-
-    return _mq_create_multiple_hosts_by_provider_type
-
-
-@pytest.fixture(scope="function")
 def mq_create_four_specific_hosts(mq_create_three_specific_hosts, mq_create_or_update_host):
     created_hosts = mq_create_three_specific_hosts
     host = minimal_host(insights_id=generate_uuid(), display_name=created_hosts[0].display_name)

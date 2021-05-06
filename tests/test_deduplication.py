@@ -63,8 +63,27 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
+@mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
+def test_insights_id_is_preferred_over_subscription_manager_id(db_create_host, host_create_order, expected_host):
+    multiple_hosts_canonical_facts = ({"subscription_manager_id": generate_uuid()}, {"insights_id": generate_uuid()})
+
+    created_hosts = []
+    for single_host_canonical_facts in host_create_order:
+        host = minimal_db_host(canonical_facts=multiple_hosts_canonical_facts[single_host_canonical_facts])
+        created_host = db_create_host(host=host)
+        created_hosts.append(created_host)
+
+    search_canonical_facts = {
+        key: value
+        for single_host_canonical_facts in multiple_hosts_canonical_facts
+        for key, value in single_host_canonical_facts.items()
+    }
+
+    assert_host_exists_in_db(created_hosts[expected_host].id, search_canonical_facts)
+
+
 @mark.parametrize(("host_create_order", "expected_host"), (((0, 1, 2), 2), ((2, 1, 0), 0), ((0, 2, 1), 1)))
-def test_find_host_using_elevated_ids_match(db_create_host, host_create_order, expected_host):
+def test_provider_id_preference_over_other_elevated_facts(db_create_host, host_create_order, expected_host):
     multiple_hosts_canonical_facts = (
         {"subscription_manager_id": generate_uuid()},
         {"insights_id": generate_uuid()},
