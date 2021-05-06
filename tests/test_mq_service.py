@@ -10,7 +10,6 @@ from sqlalchemy.exc import OperationalError
 
 from app import db
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -136,9 +135,7 @@ def test_request_id_is_reset(mocker, flask_app):
         assert threadctx.request_id == get_platform_metadata().get("request_id")
 
         message = wrap_message(minimal_host().data(), "add_host", {})
-
-        with pytest.raises(ValidationException):
-            handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+        handle_message(json.dumps(message), mock_event_producer, add_host_mock)
 
         assert threadctx.request_id == UNKNOWN_REQUEST_ID_VALUE
 
@@ -212,7 +209,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
             handle_message(message, mocker.Mock(), add_host)
-            add_host.assert_called_once_with(json.loads(message)["data"], Identity(SYSTEM_IDENTITY))
+            add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
 
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
@@ -1175,20 +1172,30 @@ def test_handle_message_side_effect(mocker, flask_app):
         handle_message(message, mocker.MagicMock())
 
 
+@pytest.mark.parametrize("platform_metadata", (None, {}, {"request_id": "12345"}))
+def test_update_system_profile_no_identity(mocker, event_datetime_mock, flask_app, platform_metadata):
+    message = wrap_message(
+        minimal_host(account="foobar", system_profile={"number_of_cpus": 4}).data(), "add_host", platform_metadata
+    )
+
+    # We don't care about the values here
+    mocker.patch(
+        "lib.host_repository.update_system_profile",
+        return_value=(
+            {"id": generate_uuid(), "insights_id": generate_uuid()},
+            generate_uuid(),
+            generate_uuid(),
+            AddHostResult.updated,
+        ),
+    )
+
+    # Just make sure it doesn't complain about missing Identity/metadata
+    handle_message(json.dumps(message), mocker.Mock(), update_system_profile)
+
+
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
 def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
@@ -1199,7 +1206,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+        handle_message(json.dumps(message), mock_event_producer)
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1259,17 +1266,6 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
 
 def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
-    host_id = generate_uuid()
-
-    mock_add_host = mocker.patch(
-        "app.queue.queue.add_host",
-        return_value=(
-            {"id": host_id, "insights_id": expected_insights_id},
-            host_id,
-            expected_insights_id,
-            AddHostResult.created,
-        ),
-    )
     mock_event_producer = mocker.Mock()
 
     host = minimal_host(
@@ -1283,7 +1279,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+        handle_message(json.dumps(message), mock_event_producer)
 
 
 def test_owner_id_different_from_cn(mocker):
