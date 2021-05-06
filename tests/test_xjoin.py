@@ -1799,6 +1799,94 @@ def test_spf_owner_id_invalid_field_value(
             assert response_data["title"] == "Validation Error"
 
 
+# system_profile host_type tests
+def test_query_hosts_filter_spf_host_type(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
+    values = ("edge", "nil", "not_nil")
+    queries = (
+        {"spf_host_type": {"eq": "edge"}},
+        {"spf_host_type": {"eq": None}},
+        {"NOT": {"spf_host_type": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_host_type_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][eq][]=random-type",
+        "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
+    )
+    queries = (
+        {"OR": ({"spf_host_type": {"eq": "random-type"}},)},
+        {"OR": ({"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}})},
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_host_type_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][foo]=what",
+        "?filter[system_profile][host_type][bar][]=barbar",
+        "?filter[system_profile][host_type][eq][foo]=foofoo",
+        "?filter[system_profile][host_type][foo][]=foofoo&filter[system_profile][host_type][bar][]=barbar",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 # system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
