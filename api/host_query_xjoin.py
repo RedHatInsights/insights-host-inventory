@@ -327,6 +327,8 @@ def _build_system_profile_filter(system_profile):
         system_profile_filter += build_filter_string_multiple("spf_owner_id", system_profile["owner_id"], "eq")
     if system_profile.get("operating_system"):
         system_profile_filter += _build_operating_system_filter(system_profile["operating_system"])
+    if system_profile.get("host_type"):
+        system_profile_filter += build_filter_string_multiple("spf_host_type", system_profile["host_type"], "eq")
 
     return system_profile_filter
 

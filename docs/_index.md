@@ -776,6 +776,7 @@ Not every field in system profile may be used in filters. The following is a lis
 | is_marketplace | Boolean | true |
 | operating_system | String | 7.5 |
 | owner_id | UUID | 0892cd6b-c564-4f53-a0cb-0784d79ee323 |
+| host_type | String | edge |
 
 For example, to query for hosts with insights client version
 7 and any minor version, the query parameter should be defined as:
