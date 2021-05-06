@@ -15,7 +15,8 @@ export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
 
 
 # Setup venv for unit tests
-python3.6 -m venv venv
+# python3.6 -m venv venv
+python -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv
 pipenv install --dev
