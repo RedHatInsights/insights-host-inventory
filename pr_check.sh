@@ -34,7 +34,7 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 source $CICD_ROOT/build.sh
 
 # DEBUG
-NS=$(bonfire namespace reserve)
+NS=$(bonfire --debug namespace reserve)
 bonfire namespace release $NS
 
 # Run the django unit tests
