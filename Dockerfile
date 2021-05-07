@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/python-38:1-54.1618436884
+FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
