@@ -11,9 +11,12 @@ if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     exit 1
 fi
 
+
+export REGISTRY_AUTH_FILE=$(pwd)/.podman
+
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-podman build -f dev.dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
+podman build -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
 podman push "${IMAGE}:${IMAGE_TAG}"
 
 # To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
