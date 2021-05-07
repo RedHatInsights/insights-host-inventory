@@ -306,7 +306,7 @@ def _query_filters(
     elif insights_id:
         query_filters = ({"insights_id": {"eq": insights_id}},)
     elif provider_type:
-        query_filters = ({"provider_id": {"eq": provider_type}},)
+        query_filters = ({"provider_type": {"eq": provider_type}},)
     else:
         query_filters = ()
 

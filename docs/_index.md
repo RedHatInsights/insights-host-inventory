@@ -382,6 +382,8 @@ are:
 
 - `provider_id`
 
+- `provider_type`
+
 If the update request includes an insights\_id, then the inventory
 service will lookup the host using the insights\_id. If the inventory
 service finds a host with a matching insights\_id, then the host will be

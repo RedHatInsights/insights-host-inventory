@@ -923,7 +923,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
-            "external_type": "aws",
+            "provider_type": "aws",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1295,6 +1295,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "mac_addresses": None,
             "external_id": None,
             "ansible_host": None,
+            "provider_id": None,
+            "provider_type": None,
             **unchanged_data,
             "facts": [],
             "tags": [],
@@ -1309,12 +1311,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
         }
-
-        # remove unspecified canonical fact which are serialized with 'None' values.
-        if not host_init_data.get("canonical_facts").get("provider_type") and "provider_type" in actual.keys():
-            actual.pop("provider_type")
-        if not host_init_data.get("canonical_facts").get("provider_id") and "provider_id" in actual.keys():
-            actual.pop("provider_id")
 
         self.assertEqual(expected, actual)
 

@@ -872,7 +872,6 @@ components:
           - external_id
         - required:
           - provider_id
-        - required:
           - provider_type
     CanonicalFactsOut:
       type: object

@@ -436,14 +436,13 @@ class CanonicalFactsSchema(MarshmallowSchema):
     def validate_provider(self, data, **kwargs):
         provider_type = data.get("provider_type")
         provider_id = data.get("provider_id")
-        reporter = data.get("reporter")
 
         if (provider_type and not provider_id) or (provider_id and not provider_type):
             raise MarshmallowValidationError("provider_type and provider_id are both required.")
 
         if provider_type and provider_type.lower() not in ProviderType.__members__.values():
             raise MarshmallowValidationError(
-                f'Unknown Provider Type: "{provider_type}" from reporter: "{reporter}".  '
+                f'Unknown Provider Type: "{provider_type}".  '
                 f'Valid provider types are: {", ".join([p.value for p in ProviderType])}.'
             )
 
