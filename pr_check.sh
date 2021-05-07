@@ -34,6 +34,7 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 source $CICD_ROOT/build.sh
 
 # DEBUG
+oc login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
 NS=$(bonfire --debug namespace reserve)
 bonfire namespace release $NS
 
