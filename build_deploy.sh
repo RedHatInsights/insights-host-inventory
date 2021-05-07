@@ -12,7 +12,9 @@ if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
 fi
 
 
-export REGISTRY_AUTH_FILE=$(pwd)/.podman
+AUTH_CONF_DIR="$(pwd)/.podman"
+mkdir -p $AUTH_CONF_DIR
+export REGISTRY_AUTH_FILE=$AUTH_CONF_DIR
 
 podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
