@@ -33,6 +33,10 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 # build the PR commit image
 source $CICD_ROOT/build.sh
 
+# DEBUG
+NS=$(bonfire namespace reserve)
+bonfire namespace release $NS
+
 # Run the django unit tests
 source $APP_ROOT/unit_test.sh
 
