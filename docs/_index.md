@@ -821,6 +821,33 @@ For example, to only fetch the arch, yum_repos and os_kernel_version, the user n
 
 In addition to the /hosts/{host_id_list}/system_profile endpoint, this query can also be used on the upper-level /hosts endpoint to fetch partial system profile data for hosts. On the /hosts endpoint, if this query is not included, no system profile data will be returned.
 
+## Identity Requirements
+
+To create, update and access host data, the identity header must comply with the following logic.
+- it must contain an account number
+- identity must be of type `System` or `User`
+- the auth type in identity must of one of:
+    - `basic_auth`, `cert-auth`, `classic-auth`, `jwt-auth` or `uhc-auth`
+
+If the identity is of type `User`, there is not any additional requirements. However, ff the identity type is `System`, the `system` object should be present in identity and the following identity logic will be used to validate identity.
+- the fields `cert-type` and `cn` must be present within the `system` object
+- the `cert-type` must be one of:
+    - `hypervisor`, `rhui`, `sam`, `satellite` or `system`
+- the value provided in `cn` must be equal to the `owner_id` of the host being added or updated
+
+Host update messages received over `platform.inventory.system-profile` topic does not need to provide an identity header.
+
+The following must be true for host add or update messages received over `platform.inventory.events`.
+- they must contain `platform_metadata` and the `identity` field must be encoded within the `platform_metadata`, except when the reporter is `rhsm-conduit`
+- providing identity is optional when the reporter is `rhsm-conduit`
+- the `owner_id` of the host must match the value in `system.cn` of the identity.
+
+If the reporter is `rhsm-conduit`, and an identity is not provided, adding or updating hosts over the `platform.inventory.events` will follow the logic below.
+- a `subscription_manager_id` must be present
+- `subscription_manager_id` of the hosts gets set as its `owner_id`
+- if `owner_id` of a host does not equate its `subscription_manager_id`, it gets overwritten to the value of `subscription_manager_id`
+
+
 ## Host Data Syndication (a.k.a. Project Cyndi)
 
 Note
