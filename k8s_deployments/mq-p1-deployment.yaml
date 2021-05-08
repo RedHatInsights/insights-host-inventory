@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mq-p1
+  name: mq-p1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mq-p1
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mq-p1
+    spec:
+      containers:
+        - args:
+            - bash
+            - -c
+            - make run_inv_mq_service
+          env:
+            - name: BULK_QUERY_SOURCE
+              value: db
+            - name: CULLING_CULLED_OFFSET_DAYS
+              value: "14"
+            - name: CULLING_CULLED_OFFSET_MINUTES
+              value: "0"
+            - name: CULLING_STALE_WARNING_OFFSET_DAYS
+              value: "7"
+            - name: CULLING_STALE_WARNING_OFFSET_MINUTES
+              value: "0"
+            - name: HOST_DELETE_CHUNK_SIZE
+              value: "1000"
+            - name: INVENTORY_DB_HOST
+              value: db
+            - name: INVENTORY_DB_NAME
+              value: insights
+            - name: INVENTORY_DB_PASS
+              value: insights
+            - name: INVENTORY_DB_POOL_SIZE
+              value: "5"
+            - name: INVENTORY_DB_POOL_TIMEOUT
+              value: "5"
+            - name: INVENTORY_DB_PORT
+              value: "5432"
+            - name: INVENTORY_DB_SSL_CERT
+            - name: INVENTORY_DB_SSL_MODE
+            - name: INVENTORY_DB_USER
+              value: insights
+            - name: INVENTORY_LEGACY_API_URL
+            - name: INVENTORY_LOG_LEVEL
+              value: INFO
+            - name: INVENTORY_MANAGEMENT_URL_PATH_PREFIX
+              value: /
+            - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+              value: platform.inventory.host-ingress-p1
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: hbi-kafka:9092
+            - name: KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS
+              value: "5000"
+            - name: KAFKA_CONSUMER_AUTO_OFFSET_RESET
+              value: latest
+            - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+              value: "3000"
+            - name: KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION
+              value: "5"
+            - name: KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS
+              value: "300000"
+            - name: KAFKA_CONSUMER_MAX_POLL_RECORDS
+              value: "10"
+            - name: KAFKA_CONSUMER_REQUEST_TIMEOUT_MS
+              value: "305000"
+            - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+              value: "10000"
+            - name: KAFKA_CONSUMER_TOPIC
+              value: platform.inventory.host-ingress
+            - name: KAFKA_EVENT_TOPIC
+              value: platform.inventory.events
+            - name: KAFKA_HOST_INGRESS_GROUP
+              value: inventory-mq
+            - name: KAFKA_HOST_INGRESS_TOPIC
+              value: platform.inventory.host-ingress
+            - name: KAFKA_PRODUCER_ACKS
+              value: "1"
+            - name: KAFKA_PRODUCER_BATCH_SIZE
+              value: "16384"
+            - name: KAFKA_PRODUCER_LINGER_MS
+              value: "0"
+            - name: KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION
+              value: "5"
+            - name: KAFKA_PRODUCER_RETRIES
+              value: "0"
+            - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+              value: "100"
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: PLAINTEXT
+            - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
+              value: "10000"
+            - name: KAFKA_SSL_CAFILE
+              value: None
+            - name: KAFKA_SYSTEM_PROFILE_TOPIC
+              value: platform.inventory.system-profile
+            - name: NAMESPACE
+              value: None
+            - name: PAYLOAD_TRACKER_ENABLED
+              value: "true"
+            - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+              value: platform.payload-status
+            - name: PAYLOAD_TRACKER_SERVICE_NAME
+              value: inventory
+            - name: PROMETHEUS_PUSHGATEWAY
+              value: localhost:9091
+            - name: RBAC_ENDPOINT
+              value: http://localhost:8111
+            - name: RBAC_ENFORCED
+              value: "false"
+            - name: RBAC_RETRIES
+              value: "2"
+            - name: RBAC_TIMEOUT
+              value: "10"
+            - name: REST_POST_ENABLED
+              value: "true"
+            - name: SCRIPT_CHUNK_SIZE
+              value: "1000"
+            - name: SP_AUTHORIZED_USERS
+              value: tuser@redhat.com
+            - name: XJOIN_GRAPHQL_URL
+              value: http://localhost:4000/graphql
+          image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+          name: mq-p1
+          resources: {}
+      restartPolicy: Always
+status: {}

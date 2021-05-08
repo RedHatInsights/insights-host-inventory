@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: init-db
+  name: init-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: init-db
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: init-db
+    spec:
+      containers:
+        - args:
+            - bash
+            - -c
+            - make upgrade_db
+          env:
+            - name: INVENTORY_DB_HOST
+              value: db
+            - name: INVENTORY_DB_NAME
+              value: insights
+            - name: INVENTORY_DB_PASS
+              value: insights
+            - name: INVENTORY_DB_PORT
+              value: "5432"
+            - name: INVENTORY_DB_USER
+              value: insights
+            - name: INVENTORY_LOG_LEVEL
+              value: INFO
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: hbi-kafka:9092
+            - name: KAFKA_CONSUMER_TOPIC
+              value: platform.inventory.host-ingress
+            - name: KAFKA_EVENT_TOPIC
+              value: platform.inventory.events
+            - name: KAFKA_HOST_INGRESS_GROUP
+              value: inventory-mq
+            - name: KAFKA_HOST_INGRESS_TOPIC
+              value: platform.inventory.host-ingress
+            - name: KAFKA_PRODUCER_ACKS
+              value: "1"
+            - name: KAFKA_PRODUCER_RETRIES
+              value: "8"
+            - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+              value: "250"
+            - name: KAFKA_SYSTEM_PROFILE_TOPIC
+              value: platform.inventory.system-profile
+            - name: PAYLOAD_TRACKER_ENABLED
+              value: "true"
+            - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+              value: platform.payload-status
+            - name: PAYLOAD_TRACKER_SERVICE_NAME
+              value: inventory
+          image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+          name: init-db
+          resources: {}
+      restartPolicy: Always
+status: {}

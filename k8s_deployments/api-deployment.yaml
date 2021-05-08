@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: api
+  name: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: api
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: api
+    spec:
+      containers:
+        - args:
+            - gunicorn
+            - -b
+            - :8080
+            - run
+          env:
+            - name: APP_NAME
+              value: inventory
+            - name: INVENTORY_DB_HOST
+              value: db
+            - name: INVENTORY_DB_NAME
+              value: insights
+            - name: INVENTORY_DB_PASS
+              value: insights
+            - name: INVENTORY_DB_PORT
+              value: "5432"
+            - name: INVENTORY_DB_USER
+              value: insights
+            - name: INVENTORY_LEGACY_API_URL
+              value: /r/insights/platform/inventory/v1/
+            - name: INVENTORY_LOG_LEVEL
+              value: INFO
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: hbi-kafka:9092
+            - name: KAFKA_CONSUMER_TOPIC
+              value: platform.inventory.host-ingress-p1
+            - name: KAFKA_EVENT_TOPIC
+              value: platform.inventory.events
+            - name: KAFKA_HOST_INGRESS_GROUP
+              value: inventory-mq
+            - name: KAFKA_HOST_INGRESS_TOPIC
+              value: platform.inventory.host-ingress
+            - name: KAFKA_PRODUCER_ACKS
+              value: "1"
+            - name: KAFKA_PRODUCER_RETRIES
+              value: "8"
+            - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+              value: "250"
+            - name: KAFKA_SYSTEM_PROFILE_TOPIC
+              value: platform.inventory.system-profile
+            - name: PATH_PREFIX
+              value: api
+            - name: PAYLOAD_TRACKER_ENABLED
+              value: "true"
+            - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+              value: platform.payload-status
+            - name: PAYLOAD_TRACKER_SERVICE_NAME
+              value: inventory
+          image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+          name: api
+          ports:
+            - containerPort: 8080
+          resources: {}
+      restartPolicy: Always
+status: {}
