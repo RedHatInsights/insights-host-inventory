@@ -1015,11 +1015,12 @@ components:
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
+      type: object
       properties:
         id:
           type: string
         system_profile:
-          $ref: '#/components/schemas/SystemProfile'
+          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
     PatchHostIn:
       title: Host data
       description: >-
@@ -1105,8 +1106,6 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
-    SystemProfile:
-      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
