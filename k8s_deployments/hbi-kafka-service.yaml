@@ -6,14 +6,14 @@ metadata:
     kompose.version: 1.22.0 (HEAD)
   creationTimestamp: null
   labels:
-    io.kompose.service: hbi-kafka
-  name: hbi-kafka
+    io.kompose.service: kafka
+  name: kafka
 spec:
   ports:
     - name: "29092"
       port: 29092
       targetPort: 29092
   selector:
-    io.kompose.service: hbi-kafka
+    io.kompose.service: kafka
 status:
   loadBalancer: {}
