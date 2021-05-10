@@ -6,10 +6,6 @@ from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
 from flask import request
-from prance import ResolvingParser
-from prance.util.resolver import RESOLVE_FILES
-from prance.util.resolver import RESOLVE_INTERNAL
-from prance.util.resolver import TRANSLATE_EXTERNAL
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
@@ -30,6 +26,8 @@ from app.queue.metrics import event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.validators import verify_uuid_format  # noqa: 401
 from lib.handlers import register_shutdown
+from lib.translating_parser.parser import TranslatingParser
+
 
 logger = get_logger(__name__)
 
@@ -83,16 +81,8 @@ def create_app(runtime_environment):
 
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
-    # Read the swagger.yml file to configure the endpoints
-    parser = ResolvingParser(
-        SPECIFICATION_FILE,
-        resolve_types=RESOLVE_FILES | RESOLVE_INTERNAL,
-        resolve_method=TRANSLATE_EXTERNAL,
-        recursion_limit=1,  # 1 is the default for recursion_limit, adding it for clarity
-        recursion_limit_handler=lambda x, y, z: {},
-    )
+    parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
-
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
