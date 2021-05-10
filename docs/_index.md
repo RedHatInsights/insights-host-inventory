@@ -823,30 +823,27 @@ In addition to the /hosts/{host_id_list}/system_profile endpoint, this query can
 
 ## Identity Requirements
 
-To create, update and access host data, the identity header must comply with the following logic.
+To create, update and access host data, the provided identity must comply with the following logic:
 - it must contain an account number
 - identity must be of type `System` or `User`
 - the auth type in identity must of one of:
     - `basic_auth`, `cert-auth`, `classic-auth`, `jwt-auth` or `uhc-auth`
 
-If the identity is of type `User`, there is not any additional requirements. However, ff the identity type is `System`, the `system` object should be present in identity and the following identity logic will be used to validate identity.
+If the identity is of type `User`, there are no additional requirements. However, if the identity type is `System`, the `system` object should be present in identity and the following logic will be used to validate:
 - the fields `cert-type` and `cn` must be present within the `system` object
 - the `cert-type` must be one of:
     - `hypervisor`, `rhui`, `sam`, `satellite` or `system`
 - the value provided in `cn` must be equal to the `owner_id` of the host being added or updated
 
-Host update messages received over `platform.inventory.system-profile` topic does not need to provide an identity header.
+Host update messages received over `platform.inventory.system-profile` topic do not need to provide an identity.
 
-The following must be true for host add or update messages received over `platform.inventory.events`.
-- they must contain `platform_metadata` and the `identity` field must be encoded within the `platform_metadata`, except when the reporter is `rhsm-conduit`
-- providing identity is optional when the reporter is `rhsm-conduit`
-- the `owner_id` of the host must match the value in `system.cn` of the identity.
+The following must be true for `add_host` messages received over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1`.
+- they must contain `platform_metadata` and the `b64_identity` field must be encoded within the `platform_metadata`, except when the reporter is `rhsm-conduit`
+- for an existing host, the `owner_id` of the host must match the value in `system.cn` of the identity
 
-If the reporter is `rhsm-conduit`, and an identity is not provided, adding or updating hosts over the `platform.inventory.events` will follow the logic below.
-- a `subscription_manager_id` must be present
-- `subscription_manager_id` of the hosts gets set as its `owner_id`
-- if `owner_id` of a host does not equate its `subscription_manager_id`, it gets overwritten to the value of `subscription_manager_id`
-
+If the reporter is `rhsm-conduit` and an identity is not provided, adding or updating hosts over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1` will follow this logic:
+- `subscription_manager_id` must be present
+- the host's `owner_id` gets set to its `subscription_manager_id`
 
 ## Host Data Syndication (a.k.a. Project Cyndi)
 
