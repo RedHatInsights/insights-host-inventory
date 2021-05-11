@@ -29,7 +29,7 @@ def runStages() {
         ),
         containerTemplate(
             name: 'python3',
-            image: 'python:3.6.5',
+            image: 'python:3.8',
             ttyEnabled: true,
             command: 'cat',
             resourceRequestCpu: '300m',
