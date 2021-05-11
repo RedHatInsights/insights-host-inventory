@@ -72,7 +72,7 @@ function install_strimzi_operator {
     echo "Setting namespaces (STRIMZI_OPERATOR_NS: $STRIMZI_OPERATOR_NS, WATCH_NS: $WATCH_NS) in strimzi configs ..."
     cd strimzi-${STRIMZI_VERSION}/install/cluster-operator
     # Set namespace that operator runs in
-    sed -i "s/namespace: .*/namespace: ${STRIMZI_OPERATOR_NS}/" *RoleBinding*.yaml
+    sed -i '' "s/namespace: .*/namespace: ${STRIMZI_OPERATOR_NS}/" *RoleBinding*.yaml
     # Set namespaces that operator watches
     yq eval -i "del(.spec.template.spec.containers[0].env.[] | select(.name == \"STRIMZI_NAMESPACE\").valueFrom)" 060-Deployment-strimzi-cluster-operator.yaml
     yq eval -i "(.spec.template.spec.containers[0].env.[] | select(.name == \"STRIMZI_NAMESPACE\")).value = \"$WATCH_NS\"" 060-Deployment-strimzi-cluster-operator.yaml

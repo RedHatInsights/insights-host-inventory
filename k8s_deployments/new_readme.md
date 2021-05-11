@@ -23,12 +23,14 @@ Install bonfire on the dev machine
     kubectl config set-context $(kubectl config current-context) --namespace=hbi
     kubectl config view --minify=true | grep namespace
 ```
-6.  Install strimzi operator for deploying `kafka`, `zookeeper`, and `minio`:
-```
-  wget https://github.com/RedHatInsights/clowder/blob/master/build/kube_setup.sh
-```
-  1. If using `mac`, update the `sed` to reference the namespace to install Strimzi kafka operator into
+6.  Install strimzi operator for deploying `kafka`, `zookeeper`, and `minio` (TODO: Verify minio):
+  A. If using `Linux`, run:
   ```
+  curl -sS https://github.com/RedHatInsights/clowder/blob/master/build/kube_setup.sh | bash -
+  ```
+  B. If using `Mac`, first download `kube_setup.sh` and first add `''` to the `sed` command to update the namespace name and then run `kube_setup.sh`.
+  ```
+  sed -i '' "s/namespace: .*/namespace: ${STRIMZI_OPERATOR_NS}/" *RoleBinding*.yaml
   ```
  by downloading 'kube_setup.sh' updating the `sed` statement to use `-e`.
 Install clowder to local environment:
