@@ -43,7 +43,6 @@ class CertType(str, Enum):
 class IdentityType(str, Enum):
     SYSTEM = "System"
     USER = "User"
-    CLASSIC = "Insights_Classic_System"
 
 
 class Identity:
@@ -87,14 +86,15 @@ class Identity:
 
             elif self.identity_type == IdentityType.SYSTEM:
                 self.system = obj.get("system")
-                if not self.system:
-                    raise ValueError("The identity.system field is mandatory for system-type identities")
-                elif not self.system.get("cert_type"):
-                    raise ValueError("The cert_type field is mandatory for system-type identities")
-                elif self.system.get("cert_type") not in CertType.__members__.values():
-                    raise ValueError(f"The cert_type {self.system.get('cert_type')} is invalid.")
-                elif not self.system.get("cn"):
-                    raise ValueError("The cn field is mandatory for system-type identities")
+                if self.auth_type != AuthType.CLASSIC:
+                    if not self.system:
+                        raise ValueError("The identity.system field is mandatory for system-type identities")
+                    elif not self.system.get("cert_type"):
+                        raise ValueError("The cert_type field is mandatory for system-type identities")
+                    elif self.system.get("cert_type") not in CertType.__members__.values():
+                        raise ValueError(f"The cert_type {self.system.get('cert_type')} is invalid.")
+                    elif not self.system.get("cn"):
+                        raise ValueError("The cn field is mandatory for system-type identities")
 
             threadctx.account_number = obj["account_number"]
 
