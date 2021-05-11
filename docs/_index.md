@@ -829,7 +829,7 @@ To create, update and access host data, the provided identity must comply with t
 - the auth type in identity must of one of:
     - `basic_auth`, `cert-auth`, `classic-proxy`, `jwt-auth` or `uhc-auth`
 
-If the identity is of type `User`, there are no additional requirements. However, if the identity type is `System`, the `system` object should be present in identity and the following logic will be used to validate:
+If the identity is of type `User` or auth type is `classic-proxy`, there are no additional requirements. However, if the identity type is `System`, the `system` object should be present in identity and the following logic will be used to validate:
 - the fields `cert-type` and `cn` must be present within the `system` object
 - the `cert-type` must be one of:
     - `hypervisor`, `rhui`, `sam`, `satellite` or `system`
