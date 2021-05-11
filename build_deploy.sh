@@ -11,15 +11,18 @@ if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     exit 1
 fi
 
-DOCKER_CONF="$PWD/.docker"
-mkdir -p "$DOCKER_CONF"
-docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-docker --config="$DOCKER_CONF" build -f dev.dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
-docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
+
+AUTH_CONF_DIR="$(pwd)/.podman"
+mkdir -p $AUTH_CONF_DIR
+export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+
+podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
+podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
+podman build -f Dockerfile -t "${IMAGE}:${IMAGE_TAG}" .
+podman push "${IMAGE}:${IMAGE_TAG}"
 
 # To enable backwards compatibility with ci, qa, and smoke, always push latest and qa tags
-docker --config="$DOCKER_CONF" tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
-docker --config="$DOCKER_CONF" push "${IMAGE}:latest"
-docker --config="$DOCKER_CONF" tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
-docker --config="$DOCKER_CONF" push "${IMAGE}:qa"
+podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:latest"
+podman push "${IMAGE}:latest"
+podman tag "${IMAGE}:${IMAGE_TAG}" "${IMAGE}:qa"
+podman push "${IMAGE}:qa"
