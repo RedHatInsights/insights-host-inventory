@@ -7,15 +7,15 @@ def _reference_key(ref_url, item_path):
 
     format - ref-url_obj-path
     """
-    return ref_url.path.split('/')[-1] + '_' + '_'.join(item_path[1:])
+    return ref_url.path.split("/")[-1] + "_" + "_".join(item_path[1:])
 
 
 def _local_ref(path):
-    url = '#/' + '/'.join(path)
-    return {'$ref': url}
+    url = "#/" + "/".join(path)
+    return {"$ref": url}
 
 
-class RefTranslator(object):
+class RefTranslator:
     def __init__(self, specs, url):
         """
         Construct a JSON reference translater.
@@ -30,6 +30,7 @@ class RefTranslator(object):
         :param str url: [optional] The URL to base relative references on.
         """
         import copy
+
         self.specs = copy.deepcopy(specs)
 
         self.__strict = True
@@ -52,12 +53,12 @@ class RefTranslator(object):
 
         # Add collected references to the root document.
         if self.__collected_references:
-          if 'components' not in self.specs:
-            self.specs['components'] = {}
-          if 'schemas' not in self.specs['components']:
-            self.specs['components'].update({'schemas': {}})
+            if "components" not in self.specs:
+                self.specs["components"] = {}
+            if "schemas" not in self.specs["components"]:
+                self.specs["components"].update({"schemas": {}})
 
-          self.specs['components']['schemas'].update(self.__collected_references)
+            self.specs["components"]["schemas"].update(self.__collected_references)
 
     def _dereference(self, ref_url, obj_path):
         """
@@ -80,14 +81,15 @@ class RefTranslator(object):
         value = contents
         if len(obj_path) != 0:
             from prance.util.path import path_get
+
             try:
                 value = path_get(value, obj_path)
             except (KeyError, IndexError, TypeError) as ex:
-                raise _url.ResolutionError('Cannot resolve reference "%s": %s'
-                                           % (ref_url.geturl(), str(ex)))
+                raise _url.ResolutionError('Cannot resolve reference "{}": {}'.format(ref_url.geturl(), str(ex)))
 
         # Deep copy value; we don't want to create recursive structures
         import copy
+
         value = copy.deepcopy(value)
 
         # Now resolve partial specs
@@ -99,20 +101,22 @@ class RefTranslator(object):
     def _translate_partial(self, base_url, partial):
         changes = dict(tuple(self._translating_iterator(base_url, partial, ())))
 
-        paths = sorted(changes.keys(), key = len)
+        paths = sorted(changes.keys(), key=len)
 
         from prance.util.path import path_set
+
         for path in paths:
             value = changes[path]
             if len(path) == 0:
                 partial = value
             else:
-                path_set(partial, list(path), value, create = True)
+                path_set(partial, list(path), value, create=True)
 
         return partial
 
     def _translating_iterator(self, base_url, partial, path):
         from prance.util.iterators import reference_iterator
+
         for _, ref_string, item_path in reference_iterator(partial):
             ref_url, obj_path = _url.split_url_reference(base_url, ref_string)
             full_path = path + item_path
@@ -127,7 +131,7 @@ class RefTranslator(object):
                     self.__collected_references[ref_key] = None
                     ref_value = self._dereference(ref_url, obj_path)
                     self.__collected_references[ref_key] = ref_value
-                ref_path = ['components', 'schemas', ref_key]
+                ref_path = ["components", "schemas", ref_key]
 
             ref_obj = _local_ref(ref_path)
             yield full_path, ref_obj
