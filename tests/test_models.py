@@ -470,3 +470,17 @@ def test_invalid_providers(provider):
 
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema(strict=True).load(canonical_facts)
+
+
+def test_missing_provider_type():
+    canonical_facts = {"provider_id": generate_uuid()}
+
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema(strict=True).load(canonical_facts)
+
+
+def test_missing_provider_id():
+    canonical_facts = {"provider_type": "aws"}
+
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema(strict=True).load(canonical_facts)
