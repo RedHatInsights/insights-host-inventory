@@ -195,6 +195,50 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
     )
 
 
+def test_query_variables_provider_type(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    provider_type = "provider_type"
+
+    url = build_hosts_url(query=f"?provider_type={quote(provider_type)}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"provider_type": {"eq": provider_type}}, mocker.ANY),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    provider_id = generate_uuid()
+
+    url = build_hosts_url(query=f"?provider_id={quote(provider_id)}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"provider_id": {"eq": provider_id}}, mocker.ANY),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
