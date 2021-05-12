@@ -59,8 +59,6 @@ objects:
           value: ${BULK_QUERY_SOURCE}
         - name: BULK_QUERY_SOURCE_BETA
           value: ${BULK_QUERY_SOURCE_BETA}
-        - name: REST_POST_ENABLED
-          value: ${REST_POST_ENABLED}
         - name: RBAC_ENFORCED
           value: ${RBAC_ENFORCED}
         - name: KAFKA_PRODUCER_ACKS
@@ -329,9 +327,6 @@ parameters:
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer
-- description: If creating/updating hosts through the REST API is enabled
-  name: REST_POST_ENABLED
-  value: 'true'
 - description: activate RBAC middleware
   name: RBAC_ENFORCED
   value: 'false'

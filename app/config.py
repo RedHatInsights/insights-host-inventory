@@ -90,7 +90,6 @@ class Config:
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
-        self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
