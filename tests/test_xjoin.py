@@ -199,8 +199,6 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
 def test_query_variables_provider_type(
     mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
 ):
-    # provider_type = "aws"
-
     url = build_hosts_url(query=f"?provider_type={provider_type}")
     response_status, response_data = api_get(url)
 
@@ -240,6 +238,18 @@ def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_e
         },
         mocker.ANY,
     )
+
+
+@pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
+def test_query_using_invalid_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    graphql_query_empty_response.assert_not_called()
 
 
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
