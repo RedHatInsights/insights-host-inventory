@@ -53,6 +53,12 @@ paths:
           name: provider_type
           schema:
             type: string
+            enum:
+              - alibaba
+              - aws
+              - azure
+              - gcp
+              - ibm
           description: Search for a host by provider_type
           required: false
         - $ref: '#/components/parameters/branchId'
