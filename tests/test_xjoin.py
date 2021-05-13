@@ -195,10 +195,13 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
     )
 
 
-def test_query_variables_provider_type(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    provider_type = "provider_type"
+@pytest.mark.parametrize("provider_type", ("alibaba", "aws", "azure", "gcp", "ibm"))
+def test_query_variables_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    # provider_type = "aws"
 
-    url = build_hosts_url(query=f"?provider_type={quote(provider_type)}")
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200

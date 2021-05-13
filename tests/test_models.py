@@ -457,13 +457,16 @@ def test_valid_providers(provider):
 @pytest.mark.parametrize(
     "canonical_facts",
     (
-        {"provider_type": "invalid", "provider_id": "i-05d2313e6b9a42b16"}, # invalid provider_type (value not in enum)
-        {"provider_id": generate_uuid()}, # missing provider_type
-        {"provider_type": "azure"}, # missing provider_id
-        {"provider_type": "aws", "provider_id": None}, # invalid provider_id (None)
-        {"provider_type": None, "provider_id": generate_uuid()}, # invalid provider_type (None)
-        {"provider_type": "azure", "provider_id": ""}, # invalid provider_id (empty string)
-        {"provider_type": "aws", "provider_id": "  "}, # invalid provider_id (blank space)
+        {
+            "provider_type": "invalid",
+            "provider_id": "i-05d2313e6b9a42b16",
+        },  # invalid provider_type (value not in enum)
+        {"provider_id": generate_uuid()},  # missing provider_type
+        {"provider_type": "azure"},  # missing provider_id
+        {"provider_type": "aws", "provider_id": None},  # invalid provider_id (None)
+        {"provider_type": None, "provider_id": generate_uuid()},  # invalid provider_type (None)
+        {"provider_type": "azure", "provider_id": ""},  # invalid provider_id (empty string)
+        {"provider_type": "aws", "provider_id": "  "},  # invalid provider_id (blank space)
         {"provider_type": "aws", "provider_id": "\t"},  # invalid provider_id (tab)
     ),
 )
