@@ -301,12 +301,8 @@ def _query_filters(
             logger.debug("Adding id (uuid) to the filter list")
             hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
-    elif provider_id:
-        query_filters = ({"provider_id": {"eq": provider_id}},)
     elif insights_id:
         query_filters = ({"insights_id": {"eq": insights_id}},)
-    elif provider_type:
-        query_filters = ({"provider_type": {"eq": provider_type}},)
     else:
         query_filters = ()
 
@@ -317,6 +313,11 @@ def _query_filters(
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+
+    if provider_type:
+        query_filters += ({"provider_type": {"eq": provider_type}},)
+    if provider_id:
+        query_filters += ({"provider_id": {"eq": provider_id}},)
 
     if filter:
         if filter.get("system_profile"):

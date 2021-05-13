@@ -211,7 +211,7 @@ def test_query_variables_provider_type(
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"provider_type": {"eq": provider_type}}, mocker.ANY),
+            "filter": (mocker.ANY, {"provider_type": {"eq": provider_type}}),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -233,7 +233,43 @@ def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_e
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"provider_id": {"eq": provider_id}}, mocker.ANY),
+            "filter": (mocker.ANY, {"provider_id": {"eq": provider_id}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_query_variables_provider_type_and_id(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider
+):
+    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                mocker.ANY,
+                {"provider_type": {"eq": provider["type"]}},
+                {"provider_id": {"eq": provider["id"]}},
+            ),
             "fields": mocker.ANY,
         },
         mocker.ANY,
