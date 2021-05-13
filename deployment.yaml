@@ -54,7 +54,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: XJOIN_GRAPHQL_URL
-          value: http://${XJOIN_SEARCH_HOST}:{XJOIN_SEARCH_PORT}/graphql
+          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BULK_QUERY_SOURCE
           value: ${BULK_QUERY_SOURCE}
         - name: BULK_QUERY_SOURCE_BETA
