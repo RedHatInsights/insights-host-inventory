@@ -9,7 +9,7 @@ objects:
     name: host-inventory
   spec:
     envName: ${ENV_NAME}
-    dependencies:
+    optionalDependencies:
     - rbac
     deployments:
     - name: service
