@@ -470,14 +470,3 @@ def test_valid_providers(provider):
 def test_invalid_providers(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema(strict=True).load(canonical_facts)
-
-
-@pytest.mark.parametrize("provider", ({"type": "azure"}, {"id": generate_uuid()}))
-def test_missing_provider_keys(provider):
-    if provider.get("id"):
-        canonical_facts = {"provider_id": provider.get("id")}
-    if provider.get("type"):
-        canonical_facts = {"provider_type": "aws"}
-
-    with pytest.raises(MarshmallowValidationError):
-        CanonicalFactsSchema(strict=True).load(canonical_facts)
