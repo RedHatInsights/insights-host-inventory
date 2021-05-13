@@ -455,19 +455,19 @@ def test_valid_providers(provider):
 
 
 @pytest.mark.parametrize(
-    "provider",
+    "canonical_facts",
     (
-        {"type": "invalid", "id": "i-05d2313e6b9a42b16"},
-        {"type": "azure"},
-        {"id": generate_uuid()},
-        {"id": ""},
-        {"id": "\t"},  # tab
-        {"id": "  ", "type": "aws"},
+        {"provider_type": "invalid", "provider_id": "i-05d2313e6b9a42b16"}, # invalid provider_type (value not in enum)
+        {"provider_id": generate_uuid()}, # missing provider_type
+        {"provider_type": "azure"}, # missing provider_id
+        {"provider_type": "aws", "provider_id": None}, # invalid provider_id (None)
+        {"provider_type": None, "provider_id": generate_uuid()}, # invalid provider_type (None)
+        {"provider_type": "azure", "provider_id": ""}, # invalid provider_id (empty string)
+        {"provider_type": "aws", "provider_id": "  "}, # invalid provider_id (blank space)
+        {"provider_type": "aws", "provider_id": "\t"},  # invalid provider_id (tab)
     ),
 )
-def test_invalid_providers(provider):
-    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
-
+def test_invalid_providers(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema(strict=True).load(canonical_facts)
 
