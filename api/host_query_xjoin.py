@@ -78,6 +78,8 @@ def get_host_list(
     fqdn,
     hostname_or_id,
     insights_id,
+    provider_id,
+    provider_type,
     tags,
     page,
     per_page,
@@ -92,7 +94,16 @@ def get_host_list(
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
 
     all_filters = _query_filters(
-        fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
     )
 
     current_identity = get_current_identity()
@@ -261,7 +272,18 @@ def _build_operating_system_filter(operating_system):
     return ({"OR": os_filters},)
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
+def _query_filters(
+    fqdn,
+    display_name,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    staleness,
+    registered_with,
+    filter,
+):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -291,6 +313,10 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+    if provider_type:
+        query_filters += ({"provider_type": {"eq": provider_type}},)
+    if provider_id:
+        query_filters += ({"provider_id": {"eq": provider_id}},)
 
     if filter:
         if filter.get("system_profile"):

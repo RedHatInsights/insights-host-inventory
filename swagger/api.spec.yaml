@@ -43,6 +43,24 @@ paths:
             format: uuid
           description: Search for a host by insights_id
           required: false
+        - in: query
+          name: provider_id
+          schema:
+            type: string
+          description: Search for a host by provider_id
+          required: false
+        - in: query
+          name: provider_type
+          schema:
+            type: string
+            enum:
+              - alibaba
+              - aws
+              - azure
+              - gcp
+              - ibm
+          description: Search for a host by provider_type
+          required: false
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -798,6 +816,21 @@ components:
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
+    ProviderId:
+      description: >-
+        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is one of the canonical facts and does not
+        work without provider_type.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
+    ProviderType:
+      description: >-
+        Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
+        This field is one of the canonical facts and does not workout provider_id.
+      type: string
+      nullable: true
+      example: aws
     CanonicalFactsIn:
       allOf:
       - $ref: "#/components/schemas/CanonicalFactsOut"
@@ -820,6 +853,10 @@ components:
             $ref: "#/components/schemas/NonNullableStringArray"
           external_id:
             $ref: "#/components/schemas/NonNullableString"
+          provider_id:
+            $ref: "#/components/schemas/NonNullableString"
+          provider_type:
+            $ref: "#/components/schemas/NonNullableString"
       - anyOf:
         - required:
           - insights_id
@@ -839,6 +876,9 @@ components:
           - mac_addresses
         - required:
           - external_id
+        - required:
+          - provider_id
+          - provider_type
     CanonicalFactsOut:
       type: object
       properties:
@@ -860,6 +900,10 @@ components:
           $ref: "#/components/schemas/MacAddresses"
         external_id:
           $ref: "#/components/schemas/ExternalId"
+        provider_id:
+          $ref: "#/components/schemas/ProviderId"
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
     CreateCheckIn:
       title: Check-in data
       description: >-

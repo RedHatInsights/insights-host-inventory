@@ -3,11 +3,12 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytest
-from marshmallow import ValidationError
+from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
 
 from app import db
 from app.exceptions import InventoryException
+from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
@@ -16,6 +17,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -156,7 +158,7 @@ def test_host_schema_invalid_tags(tags):
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
-    with pytest.raises(ValidationError) as exception:
+    with pytest.raises(MarshmallowValidationError) as exception:
         HostSchema(strict=True).load(host)
 
     error_messages = exception.value.normalized_messages()
@@ -194,7 +196,7 @@ def test_host_schema_timezone_enforced():
         "stale_timestamp": now().replace(tzinfo=None).isoformat(),
         "reporter": "test",
     }
-    with pytest.raises(ValidationError) as exception:
+    with pytest.raises(MarshmallowValidationError) as exception:
         HostSchema(strict=True).load(host)
 
     assert "Timestamp must contain timezone info" in str(exception.value)
@@ -432,3 +434,42 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
             "check_in_succeeded": True,
         },
     }
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_valid_providers(provider):
+    canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
+    validated_host = CanonicalFactsSchema(strict=True).load(canonical_facts)
+
+    assert validated_host.data["provider_id"] == provider.get("id")
+    assert validated_host.data["provider_type"] == provider.get("type")
+
+
+@pytest.mark.parametrize(
+    "canonical_facts",
+    (
+        {
+            "provider_type": "invalid",
+            "provider_id": "i-05d2313e6b9a42b16",
+        },  # invalid provider_type (value not in enum)
+        {"provider_id": generate_uuid()},  # missing provider_type
+        {"provider_type": "azure"},  # missing provider_id
+        {"provider_type": "aws", "provider_id": None},  # invalid provider_id (None)
+        {"provider_type": None, "provider_id": generate_uuid()},  # invalid provider_type (None)
+        {"provider_type": "azure", "provider_id": ""},  # invalid provider_id (empty string)
+        {"provider_type": "aws", "provider_id": "  "},  # invalid provider_id (blank space)
+        {"provider_type": "aws", "provider_id": "\t"},  # invalid provider_id (tab)
+    ),
+)
+def test_invalid_providers(canonical_facts):
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema(strict=True).load(canonical_facts)

@@ -196,6 +196,99 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
     )
 
 
+@pytest.mark.parametrize("provider_type", ("alibaba", "aws", "azure", "gcp", "ibm"))
+def test_query_variables_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_type": {"eq": provider_type}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    provider_id = generate_uuid()
+
+    url = build_hosts_url(query=f"?provider_id={quote(provider_id)}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_id": {"eq": provider_id}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_query_variables_provider_type_and_id(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider
+):
+    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                mocker.ANY,
+                {"provider_type": {"eq": provider["type"]}},
+                {"provider_id": {"eq": provider["id"]}},
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
+def test_query_using_invalid_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    graphql_query_empty_response.assert_not_called()
+
+
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
@@ -585,6 +678,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                 "facts": [],
@@ -607,6 +702,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
                 "facts": [
