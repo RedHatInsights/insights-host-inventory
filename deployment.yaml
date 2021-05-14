@@ -9,6 +9,8 @@ objects:
     name: host-inventory
   spec:
     envName: ${ENV_NAME}
+    optionalDependencies:
+    - rbac
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
@@ -54,7 +56,7 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: XJOIN_GRAPHQL_URL
-          value: ${XJOIN_SEARCH_URL}
+          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BULK_QUERY_SOURCE
           value: ${BULK_QUERY_SOURCE}
         - name: BULK_QUERY_SOURCE_BETA
@@ -318,8 +320,10 @@ parameters:
   value: api
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
-- name: XJOIN_SEARCH_URL
-  value: 'False'
+- name: XJOIN_SEARCH_HOST
+  value: localhost
+- name: XJOIN_SEARCH_PORT
+  value: '4000'
 - name: BULK_QUERY_SOURCE
   value: db
 - name: BULK_QUERY_SOURCE_BETA
