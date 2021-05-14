@@ -63,43 +63,6 @@ def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     assert expected_host_list == response_data["results"]
 
 
-def test_query_using_provider_id(mq_create_or_update_host, api_get):
-    host = minimal_host(provider_id=generate_uuid(), provider_type="azure")
-    created_host = mq_create_or_update_host(host)
-
-    url = build_hosts_url(query=f"?provider_id={created_host.provider_id}")
-    response_status, response_data = api_get(url)
-    fetched_host = response_data.get("results")[0]
-
-    assert response_status == 200
-    assert created_host.id == fetched_host["id"]
-    assert created_host.provider_id == fetched_host["provider_id"]
-    assert created_host.provider_type == fetched_host["provider_type"]
-
-
-@pytest.mark.parametrize(
-    "provider",
-    (
-        {"type": "alibaba", "count": 4},
-        {"type": "aws", "count": 2},
-        {"type": "azure", "count": 3},
-        {"type": "gcp", "count": 5},
-        {"type": "ibm", "count": 6},
-    ),
-)
-def test_query_using_provider_type(mq_create_or_update_host, api_get, provider):
-    for _ in range(0, provider["count"]):
-        host = minimal_host(provider_type=provider["type"], provider_id=generate_uuid())
-        mq_create_or_update_host(host)
-
-    url = build_hosts_url(query=f"?provider_type={provider['type']}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == provider["count"]
-    assert response_data["results"][0]["provider_type"] == provider["type"]
-
-
 def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
@@ -346,14 +309,6 @@ def test_query_using_insights_id_not_subset_match(mocker, api_get):
     api_get(url)
 
     mock.assert_called_once_with(Identity(USER_IDENTITY), "insights_id", insights_id)
-
-
-def test_query_using_provider_id_not_subset_match(mocker, api_get):
-    mock = mocker.patch("api.host_query_db.single_canonical_fact_host_query", wraps=single_canonical_fact_host_query)
-    provider_id = "i-05d2313e6b9a42b16"
-    url = build_hosts_url(query=f"?provider_id={provider_id}")
-    api_get(url)
-    mock.assert_called_once_with(Identity(USER_IDENTITY), "provider_id", provider_id)
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):

@@ -48,10 +48,6 @@ def get_host_list(
         query = _find_hosts_by_hostname_or_id(hostname_or_id)
     elif insights_id:
         query = _find_hosts_by_canonical_fact("insights_id", insights_id)
-    elif provider_id:
-        query = _find_hosts_by_canonical_fact("provider_id", provider_id)
-    elif provider_type:
-        query = _find_hosts_by_canonical_fact("provider_type", provider_type)
     else:
         query = _find_all_hosts()
 
