@@ -37,6 +37,8 @@ class SerializedHostSchema(Schema):
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
     external_id = fields.Str()
+    provider_id = fields.Str()
+    provider_type = fields.Str()
     created = fields.Str()
     updated = fields.Str()
     stale_timestamp = fields.Str()
