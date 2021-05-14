@@ -27,6 +27,7 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -2216,6 +2217,29 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": 50, "offset": 0}, mocker.ANY
+    )
+
+
+def test_query_with_owner_id_satellite_identity(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url()
+
+    response_status, response_data = api_get(url, SATELLITE_IDENTITY)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": SATELLITE_IDENTITY["system"]["cn"]}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
     )
 
 
