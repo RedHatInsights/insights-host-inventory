@@ -313,7 +313,6 @@ def _query_filters(
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
-
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type}},)
     if provider_id:
