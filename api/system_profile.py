@@ -6,9 +6,8 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.filtering import build_system_profile_filter
 from api.host import get_bulk_query_source
-from api.host_query_xjoin import build_sap_sids_filter
-from api.host_query_xjoin import build_sap_system_filter
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
@@ -118,10 +117,12 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     if filter:
         if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
-            if filter["system_profile"].get("sap_sids"):
-                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            build_system_profile_filter(filter["system_profile"])
+
+            # if filter["system_profile"].get("sap_system"):
+            #     hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
+            # if filter["system_profile"].get("sap_sids"):
+            #     hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
@@ -176,10 +177,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     if filter:
         if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
-            if filter["system_profile"].get("sap_sids"):
-                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            build_system_profile_filter(filter["system_profile"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

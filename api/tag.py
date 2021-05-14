@@ -5,9 +5,8 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.filtering import build_system_profile_filter
 from api.host import get_bulk_query_source
-from api.host_query_xjoin import build_sap_sids_filter
-from api.host_query_xjoin import build_sap_system_filter
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
@@ -23,7 +22,6 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
-
 
 logger = get_logger(__name__)
 
@@ -108,10 +106,7 @@ def get_tags(
 
     if filter:
         if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
-            if filter["system_profile"].get("sap_sids"):
-                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            build_system_profile_filter(filter["system_profile"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

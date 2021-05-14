@@ -194,7 +194,7 @@ $defs:
           maxLength: 30
         type: array
       operating_system:
-        description: Object for OS details
+        description: Object for OS details. Supports range operations
         type: object
         properties:
           major:
@@ -269,6 +269,7 @@ $defs:
           $ref: '#/$defs/InstalledProduct'
       insights_client_version:
         type: string
+        description: the version number of insights client. supports wildcards
         maxLength: 50
       insights_egg_version:
         type: string
