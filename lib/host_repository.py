@@ -87,6 +87,15 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
             existing_host = find_host_by_single_canonical_fact(identity, elevated_cf_name, cf_value)
+
+            # cloned systems have different provider_id but other canonical_facts may be the same
+            if (not existing_host) and (elevated_cf_name == "provider_id"):
+                return None
+
+            # insights_id has precedence over subscription_manager_id
+            if (not existing_host) and (elevated_cf_name == "insights_id"):
+                return None
+
             if existing_host:
                 return existing_host
 
