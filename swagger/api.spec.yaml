@@ -607,8 +607,9 @@ components:
       style: deepObject
       explode: true
       schema:
-        type: object
-        description: System profile field values to filter with
+        $ref:  '#/components/schemas/SystemProfileNestedObject'
+       # type: object
+       # description: System profile field values to filter with
     fields_param:
       in: query
       name: fields
@@ -617,8 +618,9 @@ components:
       style: deepObject
       explode: true
       schema:
-        type: object
-        description: System profile field values to fetch
+        $ref:  '#/components/schemas/SystemProfileNestedObject'
+        # type: object
+        # description: System profile field values to fetch
 
   schemas:
     SystemProfileSapSystemOut:

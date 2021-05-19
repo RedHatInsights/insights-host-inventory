@@ -29,10 +29,10 @@ repos:
     rev: v4.0.4
     hooks:
     - id: swagger-validation
-      files: swagger/.*\.yaml$
-      exclude: swagger/inventory-schemas/
+      args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
 -   repo: https://github.com/APIDevTools/swagger-cli
     rev: v4.0.4
     hooks:
     - id: swagger-validation
-      args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
+      files: swagger/openapi.json$
+      exclude: swagger/inventory-schemas/
