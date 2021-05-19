@@ -1,0 +1,2145 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "description": "REST interface for the Insights Platform Host Inventory application.",
+    "version": "1.0.0",
+    "title": "Insights Host Inventory REST Interface"
+  },
+  "paths": {
+    "/hosts": {
+      "get": {
+        "operationId": "api.host.get_host_list",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Read the entire list of hosts",
+        "description": "Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "display_name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "A part of a searched host’s display name.",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "fqdn",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by a host's FQDN",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "hostname_or_id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search for a host by display_name, fqdn, id",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "insights_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Search for a host by insights_id",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "provider_id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search for a host by provider_id",
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "provider_type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "alibaba",
+                "aws",
+                "azure",
+                "gcp",
+                "ibm"
+              ]
+            },
+            "description": "Search for a host by provider_type",
+            "required": false
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          },
+          {
+            "$ref": "#/components/parameters/fields_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the hosts list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hosts/checkin": {
+      "post": {
+        "operationId": "api.host.host_checkin",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Update staleness timestamps for a host matching the provided facts",
+        "description": "Finds a host and updates its staleness timestamps. It uses the supplied canonical facts to determine which host to update. By default, the staleness timestamp is set to 1 hour from when the request is received; however, this can be overridden by supplying the interval. <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create a check-in record for a host.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully checked in Host.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateHostOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found."
+          }
+        }
+      }
+    },
+    "/hosts/{host_id_list}": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Find hosts by their IDs",
+        "description": "Find one or more hosts by their ID. <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.get_host_by_id",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host not found."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete hosts by IDs",
+        "description": "Delete hosts by IDs <br /><br /> Required permissions: inventory:hosts:write",
+        "operationId": "api.host.delete_by_id",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully deleted hosts."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host not found."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Update a host",
+        "description": "Update a host <br /><br /> Required permissions: inventory:hosts:write",
+        "operationId": "api.host.patch_by_id",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
+        "requestBody": {
+          "description": "A group of fields to be updated on the host",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchHostIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the host."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host not found."
+          }
+        }
+      }
+    },
+    "/hosts/{host_id_list}/facts/{namespace}": {
+      "patch": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Merge facts under a namespace",
+        "description": "Merge one or multiple hosts facts under a namespace. <br /><br /> Required permissions: inventory:hosts:write",
+        "operationId": "api.host.merge_facts",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/factsNamespace"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the new facts to merge with the original ones.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Facts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully merged facts."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host or namespace not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Replace facts under a namespace",
+        "description": "Replace facts under a namespace <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "operationId": "api.host.replace_facts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/factsNamespace"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the new facts to replace the original ones.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Facts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully replaced facts."
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host or namespace not found."
+          }
+        }
+      }
+    },
+    "/hosts/{host_id_list}/system_profile": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Return one or more hosts system profile",
+        "description": "Find one or more hosts by their ID and return the id and system profile <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.get_host_system_profile_by_id",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          },
+          {
+            "$ref": "#/components/parameters/fields_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemProfileByHostOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Host not found."
+          }
+        }
+      }
+    },
+    "/hosts/{host_id_list}/tags": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Get the tags on a host",
+        "description": "Get the tags on a host <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.get_host_tags",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/searchParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully found tags.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/hosts/{host_id_list}/tags/count": {
+      "get": {
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Get the number of tags on a host",
+        "description": "Get the number of tags on a host <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.get_host_tag_count",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully found tag count.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCountOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/tags": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "summary": "Get the active host tags for a given account",
+        "description": "Required permissions: inventory:hosts:read",
+        "operationId": "api.tag.get_tags",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsOrderBy"
+          },
+          {
+            "$ref": "#/components/parameters/tagsOrderHow"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/searchParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveTags"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "$ref": "#/components/responses/PageOutOfBounds"
+          }
+        }
+      }
+    },
+    "/system_profile/sap_system": {
+      "get": {
+        "tags": [
+          "sap_system"
+        ],
+        "summary": "get sap system values",
+        "description": "Required permissions: inventory:hosts:read",
+        "operationId": "api.system_profile.get_sap_system",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "sap_system values and counts for account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemProfileSapSystemOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "$ref": "#/components/responses/PageOutOfBounds"
+          }
+        }
+      }
+    },
+    "/system_profile/sap_sids": {
+      "get": {
+        "tags": [
+          "sap_system"
+        ],
+        "summary": "get sap system values",
+        "description": "Required permissions: inventory:hosts:read",
+        "operationId": "api.system_profile.get_sap_sids",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/searchParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "sap_system values and counts for account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemProfileSapSystemOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "$ref": "#/components/responses/PageOutOfBounds"
+          }
+        }
+      }
+    },
+    "/system_profile/validate_schema": {
+      "post": {
+        "summary": "validate system profile schema",
+        "description": "Validates System Profile data from recent Kafka messages against a given spec, and compares it with the current one. Only HBI Admins can access this endpoint.",
+        "operationId": "api.system_profile.validate_schema",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "repo_fork",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fork of the inventory-schemas repo to use"
+          },
+          {
+            "in": "query",
+            "name": "repo_branch",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The branch of the inventory-schemas repo to use",
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "How many days worth of data to validate"
+          },
+          {
+            "in": "query",
+            "name": "max_messages",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10000
+            },
+            "description": "Stops polling when this number of messages has been collected"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Host validation results"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "x-bearerInfoFunc": "app.auth.bearer_token_handler"
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-rh-identity",
+        "description": "Base64-encoded JSON identity header provided by 3Scale. Contains an account number of the user issuing the request. Format of the JSON: {\"identity\": {\"account_number\": \"12345678\"}}",
+        "x-apikeyInfoFunc": "app.auth.authentication_header_handler"
+      }
+    },
+    "parameters": {
+      "pageParam": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "description": "A page number of the items to return."
+      },
+      "perPageParam": {
+        "name": "per_page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50
+        },
+        "description": "A number of items to return per page."
+      },
+      "hostIdList": {
+        "in": "path",
+        "name": "host_id_list",
+        "description": "A comma separated list of host IDs.",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+            "format": "uuid"
+          }
+        }
+      },
+      "branchId": {
+        "in": "query",
+        "name": "branch_id",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by branch_id",
+        "required": false
+      },
+      "factsNamespace": {
+        "in": "path",
+        "name": "namespace",
+        "description": "A namespace of the merged facts.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "orderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "display_name",
+            "updated"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "orderHowParam": {
+        "name": "order_how",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "description": "Direction of the ordering, defaults to ASC for display_name and to DESC for updated"
+      },
+      "stalenessParam": {
+        "name": "staleness",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "stale_warning",
+              "unknown"
+            ]
+          },
+          "default": [
+            "fresh",
+            "stale",
+            "unknown"
+          ]
+        },
+        "description": "Culling states of the hosts. Default: fresh,stale,unknown"
+      },
+      "tagsParam": {
+        "name": "tags",
+        "in": "query",
+        "description": "filters out hosts not tagged by the given tags",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^([^=/]+/)?[^=/]+(=[^=/]+)?$"
+          }
+        }
+      },
+      "tagsOrderBy": {
+        "in": "query",
+        "name": "order_by",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "default": "tag",
+          "enum": [
+            "tag",
+            "count"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "tagsOrderHow": {
+        "in": "query",
+        "name": "order_how",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "default": "ASC",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "description": "Direction of the ordering. Default to ASC"
+      },
+      "searchParam": {
+        "in": "query",
+        "name": "search",
+        "required": false,
+        "description": "Only include tags that match the given search string. The value is matched against namespace, key and value.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "registered_with": {
+        "in": "query",
+        "name": "registered_with",
+        "required": false,
+        "description": "Filters out any host not registered with the specified service",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "insights"
+          ]
+        }
+      },
+      "filter_param": {
+        "in": "query",
+        "name": "filter",
+        "required": false,
+        "description": "Filters hosts based on system_profile fields",
+        "style": "deepObject",
+        "explode": true,
+        "schema": {
+          "type": "object",
+          "description": "System profile field values to filter with"
+        }
+      },
+      "fields_param": {
+        "in": "query",
+        "name": "fields",
+        "required": false,
+        "description": "Fetches only mentioned system_profile fields",
+        "style": "deepObject",
+        "explode": true,
+        "schema": {
+          "type": "object",
+          "description": "System profile field values to fetch"
+        }
+      }
+    },
+    "schemas": {
+      "SystemProfileSapSystemOut": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "$ref": "#/components/schemas/Total"
+          },
+          "count": {
+            "$ref": "#/components/schemas/Count"
+          },
+          "results": {
+            "description": "The list of sap_system values on the account",
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "TagsOut": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of items in the \"data\" list."
+          },
+          "count": {
+            "description": "A number of entries on the current page.",
+            "type": "integer"
+          },
+          "page": {
+            "description": "A current page number.",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "A page size – a number of entries per single page.",
+            "type": "integer"
+          },
+          "results": {
+            "description": "The list of tags on the systems",
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/StructuredTag"
+              }
+            }
+          }
+        }
+      },
+      "StructuredTag": {
+        "type": "object",
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "nullable": true
+          },
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TagCountOut": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of items in the \"data\" list."
+          },
+          "count": {
+            "description": "A number of entries on the current page.",
+            "type": "integer"
+          },
+          "page": {
+            "description": "A current page number.",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "A page size – a number of entries per single page.",
+            "type": "integer"
+          },
+          "results": {
+            "description": "The list of tags on the systems",
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Facts": {
+        "title": "Host facts",
+        "description": "A set of string facts about a host.",
+        "type": "object",
+        "example": {
+          "fact1": "value1",
+          "fact2": "value2"
+        }
+      },
+      "FactSet": {
+        "title": "Host facts under a namespace",
+        "description": "A set of string facts belonging to a single namespace.",
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A namespace the facts belong to."
+          },
+          "facts": {
+            "type": "object",
+            "description": "The facts themselves.",
+            "example": {
+              "fact1": "value1",
+              "fact2": "value2"
+            }
+          }
+        },
+        "required": [
+          "namespace",
+          "facts"
+        ]
+      },
+      "NonNullableString": {
+        "type": "string",
+        "nullable": false
+      },
+      "NonNullableStringArray": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "nullable": false
+        },
+        "nullable": false
+      },
+      "InsightsId": {
+        "description": "An ID defined in /etc/insights-client/machine-id. This field is considered a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "RhelMachineId": {
+        "description": "A Machine ID of a RHEL host.  This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "SubscriptionManagerId": {
+        "description": "A Red Hat Subcription Manager ID of a RHEL host.  This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "SatelliteId": {
+        "description": "A Red Hat Satellite ID of a RHEL host.  This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "BiosUuid": {
+        "description": "A UUID of the host machine BIOS.  This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "IpAddresses": {
+        "description": "Host’s network IP addresses.  This field is considered to be a canonical fact.",
+        "type": "array",
+        "nullable": true,
+        "items": {
+          "type": "string"
+        },
+        "example": [
+          "10.10.0.1",
+          "10.0.0.2"
+        ]
+      },
+      "Fqdn": {
+        "description": "A host’s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "my.host.example.com"
+      },
+      "MacAddresses": {
+        "description": "Host’s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
+        "type": "array",
+        "nullable": true,
+        "items": {
+          "type": "string"
+        },
+        "example": [
+          "c2:00:d0:c8:61:01"
+        ]
+      },
+      "ExternalId": {
+        "description": "Host’s reference in the external source e.g. AWS EC2, Azure, OpenStack, etc. This field is considered to be a canonical fact.",
+        "type": "string",
+        "nullable": true,
+        "example": "i-05d2313e6b9a42b16"
+      },
+      "ProviderId": {
+        "description": "Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
+        "type": "string",
+        "nullable": true,
+        "example": "i-05d2313e6b9a42b16"
+      },
+      "ProviderType": {
+        "description": "Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc. This field is one of the canonical facts and does not workout provider_id.",
+        "type": "string",
+        "nullable": true,
+        "example": "aws"
+      },
+      "CanonicalFactsIn": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CanonicalFactsOut"
+          },
+          {
+            "properties": {
+              "insights_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "rhel_machine_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "subscription_manager_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "satellite_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "bios_uuid": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "ip_addresses": {
+                "$ref": "#/components/schemas/NonNullableStringArray"
+              },
+              "fqdn": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "mac_addresses": {
+                "$ref": "#/components/schemas/NonNullableStringArray"
+              },
+              "external_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "provider_id": {
+                "$ref": "#/components/schemas/NonNullableString"
+              },
+              "provider_type": {
+                "$ref": "#/components/schemas/NonNullableString"
+              }
+            }
+          },
+          {
+            "anyOf": [
+              {
+                "required": [
+                  "insights_id"
+                ]
+              },
+              {
+                "required": [
+                  "rhel_machine_id"
+                ]
+              },
+              {
+                "required": [
+                  "subscription_manager_id"
+                ]
+              },
+              {
+                "required": [
+                  "satellite_id"
+                ]
+              },
+              {
+                "required": [
+                  "bios_uuid"
+                ]
+              },
+              {
+                "required": [
+                  "ip_addresses"
+                ]
+              },
+              {
+                "required": [
+                  "fqdn"
+                ]
+              },
+              {
+                "required": [
+                  "mac_addresses"
+                ]
+              },
+              {
+                "required": [
+                  "external_id"
+                ]
+              },
+              {
+                "required": [
+                  "provider_id",
+                  "provider_type"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "CanonicalFactsOut": {
+        "type": "object",
+        "properties": {
+          "insights_id": {
+            "$ref": "#/components/schemas/InsightsId"
+          },
+          "rhel_machine_id": {
+            "$ref": "#/components/schemas/RhelMachineId"
+          },
+          "subscription_manager_id": {
+            "$ref": "#/components/schemas/SubscriptionManagerId"
+          },
+          "satellite_id": {
+            "$ref": "#/components/schemas/SatelliteId"
+          },
+          "bios_uuid": {
+            "$ref": "#/components/schemas/BiosUuid"
+          },
+          "ip_addresses": {
+            "$ref": "#/components/schemas/IpAddresses"
+          },
+          "fqdn": {
+            "$ref": "#/components/schemas/Fqdn"
+          },
+          "mac_addresses": {
+            "$ref": "#/components/schemas/MacAddresses"
+          },
+          "external_id": {
+            "$ref": "#/components/schemas/ExternalId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ProviderId"
+          },
+          "provider_type": {
+            "$ref": "#/components/schemas/ProviderType"
+          }
+        }
+      },
+      "CreateCheckIn": {
+        "title": "Check-in data",
+        "description": "Data required to create a check-in record for a host.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CanonicalFactsIn"
+          },
+          {
+            "properties": {
+              "checkin_frequency": {
+                "description": "How long from now to expect another check-in (in minutes).",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2880,
+                "example": 1440
+              }
+            }
+          }
+        ]
+      },
+      "CreateHostOut": {
+        "title": "Create Host Out",
+        "description": "Data of a single host belonging to an account. Represents the hosts without its Inventory metadata.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CanonicalFactsOut"
+          },
+          {
+            "properties": {
+              "display_name": {
+                "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+                "type": "string",
+                "example": "host1.mydomain.com",
+                "nullable": true
+              },
+              "ansible_host": {
+                "description": "The ansible host name for remediations",
+                "type": "string",
+                "example": "host1.mydomain.com",
+                "nullable": true
+              },
+              "account": {
+                "description": "A Red Hat Account number that owns the host.",
+                "type": "string",
+                "example": "000102"
+              },
+              "id": {
+                "description": "A durable and reliable platform-wide host identifier. Applications should use this identifier to reference hosts.",
+                "type": "string",
+                "example": "3f01b55457674041b75e41829bcee1dc"
+              },
+              "created": {
+                "description": "A timestamp when the entry was created.",
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated": {
+                "description": "A timestamp when the entry was last updated.",
+                "type": "string",
+                "format": "date-time"
+              },
+              "facts": {
+                "description": "A set of facts belonging to the host.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FactSet"
+                }
+              },
+              "stale_timestamp": {
+                "description": "Timestamp from which the host is considered stale.",
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "stale_warning_timestamp": {
+                "description": "Timestamp from which the host is considered too stale to be listed without an explicit toggle.",
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "culled_timestamp": {
+                "description": "Timestamp from which the host is considered deleted.",
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "reporter": {
+                "description": "Reporting source of the host. Used when updating the stale_timestamp.",
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "account"
+            ]
+          }
+        ]
+      },
+      "HostOut": {
+        "title": "A Host Inventory entry",
+        "description": "A database entry representing a single host with its Inventory metadata.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CreateHostOut"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "facts": {
+                "description": "A set of facts belonging to the host.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FactSet"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HostQueryOutput": {
+        "title": "A Host Inventory query result",
+        "description": "A paginated host search query result with host entries and their Inventory metadata.",
+        "type": "object",
+        "required": [
+          "count",
+          "page",
+          "per_page",
+          "total",
+          "results"
+        ],
+        "properties": {
+          "count": {
+            "description": "A number of entries on the current page.",
+            "type": "integer"
+          },
+          "page": {
+            "description": "A current page number.",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "A page size – a number of entries per single page.",
+            "type": "integer"
+          },
+          "total": {
+            "description": "A total count of the found entries.",
+            "type": "integer"
+          },
+          "results": {
+            "description": "Actual host search query result entries.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostOut"
+            }
+          }
+        }
+      },
+      "SystemProfileByHostOut": {
+        "title": "A host system profile query result",
+        "description": "Structure of the output of the host system profile query",
+        "type": "object",
+        "required": [
+          "count",
+          "page",
+          "per_page",
+          "total",
+          "results"
+        ],
+        "properties": {
+          "count": {
+            "description": "A number of entries on the current page.",
+            "type": "integer"
+          },
+          "page": {
+            "description": "A current page number.",
+            "type": "integer"
+          },
+          "per_page": {
+            "description": "A page size – a number of entries per single page.",
+            "type": "integer"
+          },
+          "total": {
+            "description": "A total count of the found entries.",
+            "type": "integer"
+          },
+          "results": {
+            "description": "Actual host search query result entries.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HostSystemProfileOut"
+            }
+          }
+        }
+      },
+      "HostSystemProfileOut": {
+        "title": "Structure of an individual host system profile output",
+        "description": "Individual host record that contains only the host id and system profile",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "system_profile": {
+            "description": "Representation of the system profile fields",
+            "type": "object",
+            "properties": {
+              "owner_id": {
+                "description": "A UUID associated with the host's RHSM certificate",
+                "type": "string",
+                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "maxLength": 36,
+                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+              },
+              "rhc_client_id": {
+                "description": "A UUID associated with a cloud_connector",
+                "type": "string",
+                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "maxLength": 36,
+                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+              },
+              "rhc_config_state": {
+                "description": "A UUID associated with the config manager state",
+                "type": "string",
+                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "maxLength": 36,
+                "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
+              },
+              "cpu_model": {
+                "description": "The cpu model name",
+                "type": "string",
+                "maxLength": 100,
+                "example": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz"
+              },
+              "number_of_cpus": {
+                "type": "integer"
+              },
+              "number_of_sockets": {
+                "type": "integer"
+              },
+              "cores_per_socket": {
+                "type": "integer"
+              },
+              "system_memory_bytes": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "infrastructure_type": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "infrastructure_vendor": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "network_interfaces": {
+                "type": "array",
+                "items": {
+                  "description": "Representation of one network interface",
+                  "type": "object",
+                  "properties": {
+                    "ipv4_addresses": {
+                      "type": "array",
+                      "items": {
+                        "description": "The ipv4 address of the system",
+                        "example": "123.456.789.012",
+                        "type": "string",
+                        "format": "ipv4"
+                      }
+                    },
+                    "ipv6_addresses": {
+                      "type": "array",
+                      "items": {
+                        "description": "The ipv6 address of the system",
+                        "example": "0123:4567:89ab:cdef:0123:4567:89ab:cdef",
+                        "type": "string",
+                        "format": "ipv6"
+                      }
+                    },
+                    "mtu": {
+                      "description": "MTU (Maximum transmission unit)",
+                      "type": "integer"
+                    },
+                    "mac_address": {
+                      "description": "MAC address (with or without colons)",
+                      "example": "00:00:00:00:00:00",
+                      "type": "string",
+                      "maxLength": 59
+                    },
+                    "name": {
+                      "description": "Name of interface",
+                      "type": "string",
+                      "example": "eth0",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "state": {
+                      "description": "Interface state (UP, DOWN, UNKNOWN)",
+                      "type": "string",
+                      "example": "UP",
+                      "maxLength": 25
+                    },
+                    "type": {
+                      "description": "Interface type (ether, loopback)",
+                      "type": "string",
+                      "example": "ether",
+                      "maxLength": 18
+                    }
+                  }
+                }
+              },
+              "disk_devices": {
+                "type": "array",
+                "items": {
+                  "description": "Representation of one mounted device",
+                  "type": "object",
+                  "properties": {
+                    "device": {
+                      "example": "/dev/fdd0",
+                      "type": "string",
+                      "maxLength": 2048
+                    },
+                    "label": {
+                      "description": "User-defined mount label",
+                      "type": "string",
+                      "maxLength": 1024
+                    },
+                    "options": {
+                      "description": "Mount options for nested object",
+                      "example": {
+                        "uid": "0",
+                        "ro": true
+                      },
+                      "$ref": "#/paths/~1hosts~1%7Bhost_id_list%7D~1system_profile/get/responses/200/content/application~1json/schema/properties/results/items/properties/system_profile/properties/disk_devices/items/properties/options/additionalProperties/oneOf/0"
+                    },
+                    "mount_point": {
+                      "description": "The mount point",
+                      "example": "/mnt/remote_nfs_shares",
+                      "type": "string",
+                      "maxLength": 2048
+                    },
+                    "type": {
+                      "description": "The mount type",
+                      "example": "ext3",
+                      "type": "string",
+                      "maxLength": 256
+                    }
+                  }
+                }
+              },
+              "bios_vendor": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "bios_version": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "bios_release_date": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "cpu_flags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 30
+                }
+              },
+              "operating_system": {
+                "description": "Object for OS details",
+                "type": "object",
+                "properties": {
+                  "major": {
+                    "description": "Major release of OS (aka the x version)",
+                    "example": 6,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
+                  },
+                  "minor": {
+                    "description": "Minor release of OS (aka the y version)",
+                    "example": 8,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
+                  },
+                  "name": {
+                    "description": "Name of the distro/os",
+                    "example": "RHEL",
+                    "type": "string",
+                    "maxLength": 4,
+                    "enum": [
+                      "RHEL"
+                    ]
+                  }
+                }
+              },
+              "os_release": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "os_kernel_version": {
+                "type": "string",
+                "maxLength": 20,
+                "pattern": "^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$",
+                "description": "The kernel version represented with a three, optionally four, number scheme.",
+                "example": "3.10.0"
+              },
+              "arch": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "kernel_modules": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 255
+                }
+              },
+              "last_boot_time": {
+                "type": "string",
+                "format": "date-time",
+                "maxLength": 50
+              },
+              "running_processes": {
+                "type": "array",
+                "items": {
+                  "description": "A single running process. This will be truncated to 1000 characters when saved.",
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "subscription_status": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "subscription_auto_attach": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "katello_agent_running": {
+                "type": "boolean"
+              },
+              "satellite_managed": {
+                "type": "boolean"
+              },
+              "cloud_provider": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "yum_repos": {
+                "type": "array",
+                "items": {
+                  "description": "Representation of one yum repository",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "maxLength": 256
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 1024
+                    },
+                    "gpgcheck": {
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "base_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 2048
+                    }
+                  }
+                }
+              },
+              "dnf_modules": {
+                "type": "array",
+                "items": {
+                  "description": "Representation of one DNF module",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "maxLength": 128
+                    },
+                    "stream": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  }
+                }
+              },
+              "installed_products": {
+                "type": "array",
+                "items": {
+                  "description": "Representation of one installed product",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "id": {
+                      "description": "The product ID",
+                      "example": "71",
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "status": {
+                      "description": "Subscription status for product",
+                      "example": "Subscribed",
+                      "type": "string",
+                      "maxLength": 256
+                    }
+                  }
+                }
+              },
+              "insights_client_version": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "insights_egg_version": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "captured_date": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "installed_packages": {
+                "type": "array",
+                "items": {
+                  "description": "A NEVRA string for a single installed package",
+                  "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "installed_packages_delta": {
+                "type": "array",
+                "items": {
+                  "description": "A NEVRA string for a single installed package",
+                  "example": "krb5-libs-0:-1.16.1-23.fc29.i686",
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "gpg_pubkeys": {
+                "type": "array",
+                "items": {
+                  "description": "A package name string of a single imported GPG pubkey",
+                  "example": "gpg-pubkey-11111111-22222222",
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "installed_services": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "enabled_services": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "sap_system": {
+                "type": "boolean",
+                "description": "Indicates if SAP is installed on the system"
+              },
+              "sap_sids": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "description": "The SAP system ID (SID)",
+                  "type": "string",
+                  "example": "H2O",
+                  "maxLength": 3,
+                  "pattern": "^[A-Z][A-Z0-9]{2}$"
+                }
+              },
+              "sap_instance_number": {
+                "type": "string",
+                "description": "The instance number of the SAP HANA system (a two-digit number between 00 and 99)",
+                "example": "03",
+                "maxLength": 2,
+                "pattern": "^[0-9]{2}$"
+              },
+              "sap_version": {
+                "type": "string",
+                "description": "The version of the SAP HANA lifecycle management program",
+                "example": "1.00.122.04.1478575636",
+                "maxLength": 22,
+                "pattern": "^[0-9].[0-9]{2}.[0-9]{3}.[0-9]{2}.[0-9]{10}$"
+              },
+              "tuned_profile": {
+                "type": "string",
+                "maxLength": 256,
+                "description": "Current profile resulting from command tuned-adm active",
+                "example": "desktop"
+              },
+              "selinux_current_mode": {
+                "type": "string",
+                "enum": [
+                  "enforcing",
+                  "permissive",
+                  "disabled"
+                ],
+                "maxLength": 10,
+                "description": "The current SELinux mode, either enforcing, permissive, or disabled",
+                "example": "enforcing"
+              },
+              "selinux_config_file": {
+                "type": "string",
+                "maxLength": 128,
+                "description": "The SELinux mode provided in the config file",
+                "example": "permissive"
+              },
+              "is_marketplace": {
+                "description": "Indicates whether the host is part of a marketplace install from AWS, Azure, etc.",
+                "type": "boolean"
+              },
+              "host_type": {
+                "type": "string",
+                "enum": [
+                  "edge"
+                ],
+                "maxLength": 4,
+                "description": "Indicates the type of host.",
+                "example": "edge"
+              },
+              "greenboot_status": {
+                "type": "string",
+                "enum": [
+                  "red",
+                  "green"
+                ],
+                "maxLength": 5,
+                "description": "Indicates the greenboot status of an edge device.",
+                "example": "red"
+              },
+              "rhsm": {
+                "description": "Object for subscription-manager details",
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "System release set by subscription-manager",
+                    "example": "8.1",
+                    "type": "string",
+                    "maxLength": 255
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PatchHostIn": {
+        "title": "Host data",
+        "description": "Data of a single host to be updated.",
+        "type": "object",
+        "properties": {
+          "ansible_host": {
+            "description": "The ansible host name for remediations",
+            "type": "string",
+            "example": "host1.mydomain.com"
+          },
+          "display_name": {
+            "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+            "type": "string",
+            "example": "host1.mydomain.com"
+          }
+        }
+      },
+      "ActiveTags": {
+        "title": "Host data",
+        "type": "object",
+        "required": [
+          "total",
+          "count",
+          "page",
+          "per_page",
+          "results"
+        ],
+        "properties": {
+          "total": {
+            "$ref": "#/components/schemas/Total"
+          },
+          "count": {
+            "$ref": "#/components/schemas/Count"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          },
+          "per_page": {
+            "$ref": "#/components/schemas/PerPage"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "title": "ActiveTag",
+              "description": "Information about a host tag",
+              "type": "object",
+              "required": [
+                "tag",
+                "count"
+              ],
+              "properties": {
+                "tag": {
+                  "$ref": "#/components/schemas/StructuredTag"
+                },
+                "count": {
+                  "description": "The number of hosts with the given tag. If the value is null this indicates that the count is unknown.",
+                  "type": "integer",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        },
+        "example": {
+          "total": 3,
+          "count": 3,
+          "page": 1,
+          "per_page": 50,
+          "results": [
+            {
+              "tag": {
+                "namespace": "Sat",
+                "key": "env",
+                "value": "prod"
+              },
+              "count": 3
+            },
+            {
+              "tag": {
+                "namespace": "aws",
+                "key": "region",
+                "value": "us-east-1"
+              },
+              "count": 1
+            },
+            {
+              "tag": {
+                "namespace": "insights-client",
+                "key": "web",
+                "value": null
+              },
+              "count": -1
+            }
+          ]
+        }
+      },
+      "Total": {
+        "type": "integer",
+        "description": "Total number of items"
+      },
+      "Count": {
+        "type": "integer",
+        "description": "The number of items on the current page"
+      },
+      "Page": {
+        "type": "integer",
+        "description": "The page number"
+      },
+      "PerPage": {
+        "type": "integer",
+        "description": "The number of items to return per page"
+      }
+    },
+    "responses": {
+      "PageOutOfBounds": {
+        "description": "Requested page is outside of the range of available pages"
+      }
+    }
+  }
+}

@@ -25,3 +25,13 @@ repos:
   - id: check-yaml
   - id: debug-statements
   - id: flake8
+-   repo: https://github.com/APIDevTools/swagger-cli
+    rev: v4.0.4
+    hooks:
+    - id: swagger-validation
+      files: swagger/.*\.yaml$
+-   repo: https://github.com/APIDevTools/swagger-cli
+    rev: v4.0.4
+    hooks:
+    - id: swagger-validation
+      args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]

@@ -745,6 +745,7 @@ components:
       type: array
       items:
         type: string
+        nullable: False
       nullable: false
     InsightsId:
       description: >-
@@ -1142,6 +1143,20 @@ components:
     PerPage:
       type: integer
       description: The number of items to return per page
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    SystemProfileNestedObject:
+      $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+    SystemProfileDiskDevice:
+      $ref: 'system_profile.spec.yaml#/$defs/DiskDevice'
+    SystemProfileYumRepo:
+      $ref: 'system_profile.spec.yaml#/$defs/YumRepo'
+    SystemProfileDnfModule:
+      $ref: 'system_profile.spec.yaml#/$defs/DnfModule'
+    SystemProfileInstalledProduct:
+      $ref: 'system_profile.spec.yaml#/$defs/InstalledProduct'
+    SystemProfileNetworkInterface:
+      $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
