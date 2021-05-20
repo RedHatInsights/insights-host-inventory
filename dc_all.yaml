@@ -29,7 +29,7 @@ services:
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
     init_db:
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+      image: quay.io/cloudservices/insights-inventory
       # ports:
       #   - 8080:8080
       depends_on:
@@ -56,7 +56,7 @@ services:
         PAYLOAD_TRACKER_SERVICE_NAME: inventory
         PAYLOAD_TRACKER_ENABLED: 'true'
     api:
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+      image: quay.io/cloudservices/insights-inventory
       ports:
         - 8080:8080
       depends_on:
@@ -86,7 +86,7 @@ services:
         PAYLOAD_TRACKER_SERVICE_NAME: inventory
         PAYLOAD_TRACKER_ENABLED: 'true'
     mq_p1:
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+      image: quay.io/cloudservices/insights-inventory
       # ports:
       #   - 8080:8080
       depends_on:
@@ -150,7 +150,7 @@ services:
         SCRIPT_CHUNK_SIZE: 1000
         SP_AUTHORIZED_USERS: tuser@redhat.com
     mq_pmin:
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+      image: quay.io/cloudservices/insights-inventory
       # ports:
       #   - 8080:8080
       depends_on:
@@ -214,7 +214,7 @@ services:
         SCRIPT_CHUNK_SIZE: 1000
         SP_AUTHORIZED_USERS: tuser@redhat.com
     mq_sp:
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
+      image: quay.io/cloudservices/insights-inventory
       # ports:
       #   - 8080:8080
       depends_on:
