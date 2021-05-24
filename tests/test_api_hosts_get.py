@@ -961,7 +961,7 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 # def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
 #     patch_xjoin_post(response={})
 
-#     values = ("True", "False", "Garfield")
+#     values = ("Garfield")
 
 #     for value in values:
 #         with subtests.test(value=value):
@@ -976,17 +976,17 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 
 
 # DISABLED. Query validation will be added back in a future PR
-# def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
-#     patch_xjoin_post(response={})
+def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
+    patch_xjoin_post(response={})
 
-#     implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
-#     eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
+    implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
+    eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
-#     implicit_response_status, implicit_response_data = api_get(implicit_url)
-#     eq_response_status, eq_response_data = api_get(eq_url)
+    implicit_response_status, implicit_response_data = api_get(implicit_url)
+    eq_response_status, eq_response_data = api_get(eq_url)
 
-#     assert_response_status(implicit_response_status, 400)
-#     assert_response_status(eq_response_status, 400)
+    assert_response_status(implicit_response_status, 400)
+    assert_response_status(eq_response_status, 400)
 
 
 def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, query_source_xjoin, api_get):

@@ -4,6 +4,7 @@ from api.filtering import build_system_profile_filter
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -134,25 +135,6 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _sap_sids_filters(field_name, sap_sids):
-    sap_sids_filters = ()
-    for sap_sid in sap_sids:
-        sap_sids_filters += ({field_name: {"eq": sap_sid}},)
-    return sap_sids_filters
-
-
-# def build_filter_string_multiple(field_name, field_value, operation):
-#     if isinstance(field_value, str) or isinstance(field_value.get(operation), str):
-#         return build_filter(field_name, field_value, str, operation, _nullable_string_filter)
-#     if isinstance(field_value.get(operation), list):
-#         return build_filter(field_name, field_value[operation], list, operation, _nullable_multiple_string_filter)
-
-#     logger.error(f"Validation error while building filters. field_name: {field_name}, field_value: {field_value}")
-#     raise ValidationException(
-#         f"{field_name.strip('spf_')} expected a string or array of strings, instead got {type(field_value).__name__}"
-#     )
-
-
 def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
@@ -184,8 +166,11 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
 
-    if filter.get("system_profile"):
-        query_filters += build_system_profile_filter(filter["system_profile"])
+    for key in filter:
+        if key == "system_profile":
+            query_filters += build_system_profile_filter(filter["system_profile"])
+        else:
+            raise ValidationException("filter key is invalid")
 
     logger.debug(query_filters)
     return query_filters
