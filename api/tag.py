@@ -106,7 +106,7 @@ def get_tags(
 
     if filter:
         if filter.get("system_profile"):
-            build_system_profile_filter(filter["system_profile"])
+            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

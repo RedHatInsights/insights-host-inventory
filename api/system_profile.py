@@ -117,12 +117,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 
     if filter:
         if filter.get("system_profile"):
-            build_system_profile_filter(filter["system_profile"])
-
-            # if filter["system_profile"].get("sap_system"):
-            #     hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
-            # if filter["system_profile"].get("sap_sids"):
-            #     hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
+            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
@@ -177,7 +172,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
 
     if filter:
         if filter.get("system_profile"):
-            build_system_profile_filter(filter["system_profile"])
+            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

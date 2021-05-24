@@ -1464,9 +1464,9 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1499,9 +1499,9 @@ def test_query_tags_filter_spf_sap_sids(
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1533,9 +1533,9 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1656,12 +1656,12 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
         "&filter[system_profile][rhc_client_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
     )
     queries = (
-        {"OR": ({"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {"OR": [{"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}}]},
         {
-            "OR": (
+            "OR": [
                 {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
                 {"spf_rhc_client_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
-            )
+            ]
         },
     )
 
@@ -1750,12 +1750,12 @@ def test_query_hosts_filter_spf_owner_id_multiple(
         "&filter[system_profile][owner_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
     )
     queries = (
-        {"OR": ({"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {"OR": [{"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}}]},
         {
-            "OR": (
+            "OR": [
                 {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
                 {"spf_owner_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
-            )
+            ]
         },
     )
 

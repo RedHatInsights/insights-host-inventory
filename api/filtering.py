@@ -13,7 +13,7 @@ NOT_NIL_STRING = "not_nil"
 
 
 class OPERATION_SETS(Enum):
-    eq = ["eq"]
+    eq = ["eq", "contains"]  # add contains for when it's a list
     matches = ["matches"]
     is_op = ["is"]  # "is" is reserved
     range = ["lt", "gt", "lte", "gte"]
@@ -22,7 +22,7 @@ class OPERATION_SETS(Enum):
 SPEC_OPERATIONS_LOOKUP = {
     "string": OPERATION_SETS.eq.value,
     "wildcard": OPERATION_SETS.eq.value,  # because on our side we want eq
-    "boolean": OPERATION_SETS.is_op.value,
+    "boolean": OPERATION_SETS.eq.value,
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
 }
@@ -111,12 +111,9 @@ class BUILDER_FUNCTIONS(Enum):
     operating_system = partial(_build_operating_system_filter)
 
 
-def _verify_operation(field_filter, operation):
-    pass
-
-
-def _build_field_filter():
-    pass
+def _check_field_valid(field_name):
+    if field_name not in system_profile_spec().keys():
+        raise ValidationException("invalid filter field")
 
 
 # if operation is specified, check the operation is allowed on the field
@@ -126,7 +123,7 @@ def _get_field_value(field_value, field_filter):
         for key in field_value:
             # check operation if valid for the field.
             if key not in SPEC_OPERATIONS_LOOKUP[field_filter]:
-                raise ValidationException("invalid operation")
+                raise ValidationException(f"invalid operation for {field_filter}")
 
             field_value = field_value[key]
 
@@ -144,13 +141,23 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter):
         return filter_function(field_name, field_value)
 
 
+def _get_list_operator(field_name):
+    or_fields = ("owner_id", "rhc_client_id")
+    if field_name in or_fields:
+        return "OR"
+    else:
+        return "AND"
+
+
 def _base_filter_builder(builder_function, field_name, field_value, field_filter):
     if isinstance(field_value, list):
         logger.debug("filter value is a list")
         foo_list = []
         for value in field_value:
             foo_list.append(builder_function(f"spf_{field_name}", value, field_filter)[0])
-        field_filter = ({"AND": foo_list},)
+        # this needs to be configurable between OR/AND
+        list_operator = _get_list_operator(field_name)
+        field_filter = ({list_operator: foo_list},)
     elif isinstance(field_value, str):
         logger.debug("filter value is a string")
         field_filter = builder_function(f"spf_{field_name}", field_value, field_filter)
@@ -174,25 +181,25 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
 def build_system_profile_filter(system_profile):
     system_profile_filter = tuple()
 
-    for field_name, props in system_profile_spec().items():
-        if field_name in system_profile:
-            field_input = system_profile[field_name]
-            field_filter = props["filter"]
+    for field_name in system_profile:
+        logger.debug(f"field_name: {field_name}")
+        _check_field_valid(field_name)  # raise error if field not supported
 
-            logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
+        field_input = system_profile[field_name]
+        field_filter = system_profile_spec()[field_name]["filter"]
 
-            builder_function = BUILDER_FUNCTIONS[field_filter].value
+        logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
-            # custom
-            if field_name in custom_filter_fields:
-                system_profile_filter += builder_function(field_name, field_input, field_filter)
-            else:
-                field_value = _get_field_value(field_input, field_filter)
+        builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-                logger.debug(f"generic filter: field value: {field_value}")
+        # custom
+        if field_name in custom_filter_fields:
+            system_profile_filter += builder_function(field_name, field_input, field_filter)
+        else:
+            field_value = _get_field_value(field_input, field_filter)
 
-                system_profile_filter += _generic_filter_builder(
-                    builder_function, field_name, field_value, field_filter
-                )
+            logger.debug(f"generic filter: field value: {field_value}")
+
+            system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
 
     return system_profile_filter
