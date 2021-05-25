@@ -78,8 +78,10 @@ class Identity:
                 raise ValueError("The account_number is mandatory.")
             elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():
                 raise ValueError("Identity type invalid or missing in provided Identity")
-            elif self.auth_type is not None and self.auth_type not in AuthType.__members__.values():
+            elif self.auth_type is not None and self.auth_type.lower() not in AuthType.__members__.values():
                 raise ValueError(f"The auth_type {self.auth_type} is invalid")
+            else:
+                self.auth_type = self.auth_type.lower()
 
             if self.identity_type == IdentityType.USER:
                 self.user = obj.get("user")
@@ -91,10 +93,12 @@ class Identity:
                         raise ValueError("The identity.system field is mandatory for system-type identities")
                     elif not self.system.get("cert_type"):
                         raise ValueError("The cert_type field is mandatory for system-type identities")
-                    elif self.system.get("cert_type") not in CertType.__members__.values():
-                        raise ValueError(f"The cert_type {self.system.get('cert_type')} is invalid.")
+                    elif self.system["cert_type"].lower() not in CertType.__members__.values():
+                        raise ValueError(f"The cert_type {self.system['cert_type']} is invalid.")
                     elif not self.system.get("cn"):
                         raise ValueError("The cn field is mandatory for system-type identities")
+                    else:
+                        self.system["cert_type"] = self.system["cert_type"].lower()
 
             threadctx.account_number = obj["account_number"]
 
