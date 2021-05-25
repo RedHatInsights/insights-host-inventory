@@ -16,14 +16,23 @@ NOT_NIL_STRING = "not_nil"
 
 
 def _boolean_filter(field_name, field_value):
+    if not field_value.lower() in ("true", "false"):
+        raise ValidationException("invalid field value")
+
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
 def _string_filter(field_name, field_value):
+    if not isinstance(field_value, str):
+        raise ValidationException("invalid field value")
+
     return ({field_name: {"eq": (field_value)}},)
 
 
 def _wildcard_string_filter(field_name, field_value):
+    if not isinstance(field_value, str):
+        raise ValidationException("invalid field value")
+
     return ({field_name: {"matches": (field_value)}},)
 
 
@@ -36,7 +45,7 @@ class BUILDER_FUNCTIONS(Enum):
     operating_system = partial(build_operating_system_filter)
 
 
-def _check_field_valid(field_name):
+def _check_field_in_spec(field_name):
     if field_name not in system_profile_spec().keys():
         raise ValidationException("invalid filter field")
 
@@ -46,7 +55,7 @@ def _check_field_valid(field_name):
 def _get_field_value(field_value, field_filter):
     if isinstance(field_value, dict):
         for key in field_value:
-            # check operation if valid for the field.
+            # check is the operation is valid for the field.
             if key not in lookup_operations(field_filter):
                 raise ValidationException(f"invalid operation for {field_filter}")
 
@@ -80,7 +89,6 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         foo_list = []
         for value in field_value:
             foo_list.append(builder_function(f"spf_{field_name}", value, field_filter)[0])
-        # this needs to be configurable between OR/AND
         list_operator = _get_list_operator(field_name)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(field_value, str):
@@ -96,10 +104,6 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
 def _generic_filter_builder(builder_function, field_name, field_value, field_filter):
     nullable_builder_function = partial(_nullable_wrapper, builder_function)
 
-    # check field value is correct type
-    # if not isinstance(field_value, str):
-    #     raise ValidationException("wrong type for filter")
-
     return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter)
 
 
@@ -107,8 +111,7 @@ def build_system_profile_filter(system_profile):
     system_profile_filter = tuple()
 
     for field_name in system_profile:
-        logger.debug(f"field_name: {field_name}")
-        _check_field_valid(field_name)  # raise error if field not supported
+        _check_field_in_spec(field_name)
 
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
@@ -117,13 +120,10 @@ def build_system_profile_filter(system_profile):
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-        # custom
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
             field_value = _get_field_value(field_input, field_filter)
-
-            logger.debug(f"generic filter: field value: {field_value}")
 
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
 

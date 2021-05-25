@@ -958,21 +958,21 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 
 
 # DISABLED. Query validation will be added back in a future PR
-# def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
-#     patch_xjoin_post(response={})
+def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={})
 
-#     values = ("Garfield")
+    values = "Garfield"
 
-#     for value in values:
-#         with subtests.test(value=value):
-#             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
-#             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+    for value in values:
+        with subtests.test(value=value):
+            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
+            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-#             implicit_response_status, implicit_response_data = api_get(implicit_url)
-#             eq_response_status, eq_response_data = api_get(eq_url)
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
 
-#             assert_response_status(implicit_response_status, 400)
-#             assert_response_status(eq_response_status, 400)
+            assert_response_status(implicit_response_status, 400)
+            assert_response_status(eq_response_status, 400)
 
 
 # DISABLED. Query validation will be added back in a future PR
