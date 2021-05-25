@@ -93,8 +93,8 @@ class Identity:
                         raise ValueError("The identity.system field is mandatory for system-type identities")
                     elif not self.system.get("cert_type"):
                         raise ValueError("The cert_type field is mandatory for system-type identities")
-                    elif self.system.get("cert_type").lower() not in CertType.__members__.values():
-                        raise ValueError(f"The cert_type {self.system.get('cert_type')} is invalid.")
+                    elif self.system["cert_type"].lower() not in CertType.__members__.values():
+                        raise ValueError(f"The cert_type {self.system['cert_type']} is invalid.")
                     elif not self.system.get("cn"):
                         raise ValueError("The cn field is mandatory for system-type identities")
                     else:
