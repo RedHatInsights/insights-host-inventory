@@ -231,7 +231,7 @@ class AuthIdentityValidateTestCase(TestCase):
     def test_case_insensitive_cert_types(self):
         # Validate that cert_type is case-insensitive
         test_identity = deepcopy(SYSTEM_IDENTITY)
-        cert_types = ["RHUI", "Satellite", "SYSTEM", "hypervisor"]
+        cert_types = ["RHUI", "Satellite", "system"]
         for cert_type in cert_types:
             with self.subTest(cert_type=cert_type):
                 test_identity["system"]["cert_type"] = cert_type
@@ -244,7 +244,7 @@ class AuthIdentityValidateTestCase(TestCase):
     def test_case_insensitive_auth_types(self):
         # Validate that auth_type is case-insensitive
         test_identity = deepcopy(SYSTEM_IDENTITY)
-        auth_types = []
+        auth_types = ["CLASSIC-PROXY", "Cert-Auth", "basic-auth"]
         for auth_type in auth_types:
             with self.subTest(auth_type=auth_type):
                 test_identity["auth_type"] = auth_type
