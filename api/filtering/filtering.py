@@ -1,9 +1,9 @@
 from enum import Enum
 from functools import partial
 
-from api.custom_filters import build_operating_system_filter
-from api.filtering_common import lookup_graphql_operations
-from api.filtering_common import lookup_operations
+from api.filtering.custom_filters import build_operating_system_filter
+from api.filtering.filtering_common import lookup_graphql_operations
+from api.filtering.filtering_common import lookup_operations
 from app import custom_filter_fields
 from app import system_profile_spec
 from app.exceptions import ValidationException

@@ -1,4 +1,4 @@
-from api.filtering_common import lookup_operations
+from api.filtering.filtering_common import lookup_operations
 from app.exceptions import ValidationException
 from app.logging import get_logger
 

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from api.filtering import build_system_profile_filter
+from api.filtering.filtering import build_system_profile_filter
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
