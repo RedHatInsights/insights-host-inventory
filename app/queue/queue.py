@@ -101,7 +101,6 @@ def _set_owner(host, identity):
             host["system_profile"]["owner_id"] = _formatted_uuid(host.get("subscription_manager_id"))
         else:
             if host["system_profile"]["owner_id"] != cn:
-                log_add_host_failure(logger, host)
                 raise ValidationException("The owner in host does not match the owner in identity")
     return host
 
@@ -183,7 +182,7 @@ def update_system_profile(host_data, platform_metadata):
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
         except ValidationException:
-            metrics.update_system_profile_failure.labels("InventoryException").inc()
+            metrics.update_system_profile_failure.labels("ValidationException").inc()
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -220,7 +219,7 @@ def add_host(host_data, platform_metadata):
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
         except ValidationException:
-            metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
+            metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             raise
         except InventoryException:
             log_add_host_failure(logger, host_data)

@@ -2217,7 +2217,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+adding+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Validation+error+while+adding+or+updating+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #C",
               "thresholds": [
@@ -2225,6 +2225,69 @@ data:
               ],
               "type": "number",
               "unit": "locale"
+            },
+            {
+              "alias": "validation error ratio",
+              "align": "auto",
+              "colorMode": "cell",
+              "colors": [
+                "rgba(50, 172, 45, 0.97)",
+                "rgba(237, 129, 40, 0.89)",
+                "rgba(245, 54, 54, 0.9)"
+              ],
+              "dateFormat": "YYYY-MM-DD HH:mm:ss",
+              "decimals": 2,
+              "mappingType": 1,
+              "pattern": "Value #D",
+              "thresholds": [
+                "0.0001",
+                "0.1"
+              ],
+              "type": "number",
+              "unit": "percentunit"
+            },
+            {
+              "alias": "inventory errors",
+              "align": "auto",
+              "colorMode": "cell",
+              "colors": [
+                "rgba(50, 172, 45, 0.97)",
+                "rgba(237, 129, 40, 0.89)",
+                "rgba(245, 54, 54, 0.9)"
+              ],
+              "dateFormat": "YYYY-MM-DD HH:mm:ss",
+              "decimals": 0,
+              "link": true,
+              "linkTargetBlank": true,
+              "linkTooltip": "Kibana",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+adding+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
+              "mappingType": 1,
+              "pattern": "Value #E",
+              "thresholds": [
+                "0.1"
+              ],
+              "type": "number",
+              "unit": "locale"
+            },
+            {
+              "alias": "inventory error ratio",
+              "align": "auto",
+              "colorMode": "cell",
+              "colors": [
+                "rgba(50, 172, 45, 0.97)",
+                "rgba(237, 129, 40, 0.89)",
+                "rgba(245, 54, 54, 0.9)"
+              ],
+              "dateFormat": "YYYY-MM-DD HH:mm:ss",
+              "decimals": 2,
+              "mappingType": 1,
+              "pattern": "Value #F",
+              "thresholds": [
+                "0.0001",
+                "0.1"
+              ],
+              "type": "number",
+              "unit": "percentunit"
             },
             {
               "alias": "failures",
@@ -2242,7 +2305,7 @@ data:
               "linkTooltip": "Kibana",
               "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+while+adding+host%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
-              "pattern": "Value #D",
+              "pattern": "Value #G",
               "thresholds": [
                 "0",
                 "0"
@@ -2250,26 +2313,6 @@ data:
               "type": "number",
               "unit": "locale"
             },
-            {
-              "alias": "validation error ratio",
-              "align": "auto",
-              "colorMode": "cell",
-              "colors": [
-                "rgba(50, 172, 45, 0.97)",
-                "rgba(237, 129, 40, 0.89)",
-                "rgba(245, 54, 54, 0.9)"
-              ],
-              "dateFormat": "YYYY-MM-DD HH:mm:ss",
-              "decimals": 2,
-              "mappingType": 1,
-              "pattern": "Value #E",
-              "thresholds": [
-                "0.0001",
-                "0.1"
-              ],
-              "type": "number",
-              "unit": "percentunit"
-            }
           ],
           "targets": [
             {
@@ -2289,25 +2332,39 @@ data:
               "refId": "B"
             },
             {
-              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"InventoryException\"}[$__range])) by (reporter)",
+              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"ValidationException\"}[$__range])) by (reporter)",
               "format": "table",
               "instant": true,
               "interval": "1m",
               "refId": "C"
             },
             {
-              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"InventoryException\"}[$__range])) by (reporter) / (sum(increase(inventory_ingress_add_host_failures_total[$__range])) by (reporter) + sum(increase(inventory_ingress_add_host_successes_total[$__range])) by (reporter)) ",
+              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"ValidationException\"}[$__range])) by (reporter) / (sum(increase(inventory_ingress_add_host_failures_total[$__range])) by (reporter) + sum(increase(inventory_ingress_add_host_successes_total[$__range])) by (reporter)) ",
+              "format": "table",
+              "instant": true,
+              "interval": "1m",
+              "refId": "D"
+            },
+            {
+              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"InventoryException\"}[$__range])) by (reporter)",
               "format": "table",
               "instant": true,
               "interval": "1m",
               "refId": "E"
             },
             {
+              "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"InventoryException\"}[$__range])) by (reporter) / (sum(increase(inventory_ingress_add_host_failures_total[$__range])) by (reporter) + sum(increase(inventory_ingress_add_host_successes_total[$__range])) by (reporter)) ",
+              "format": "table",
+              "instant": true,
+              "interval": "1m",
+              "refId": "F"
+            },
+            {
               "expr": "sum(increase(inventory_ingress_add_host_failures_total{cause=\"Exception\"}[$__range])) by (reporter)",
               "format": "table",
               "instant": true,
               "interval": "1m",
-              "refId": "D"
+              "refId": "G"
             }
           ],
           "timeFrom": null,
