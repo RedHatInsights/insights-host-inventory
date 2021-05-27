@@ -1,0 +1,63 @@
+Name:               env-hbi-kafka-5586985c9c-pkccv
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:05:18 -0400
+Labels:             app=env-hbi
+                    env-app=env-hbi-kafka
+                    pod-template-hash=5586985c9c
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.14
+Controlled By:      ReplicaSet/env-hbi-kafka-5586985c9c
+Containers:
+  env-hbi-kafka:
+    Container ID:   docker://dc8cd9c4013c406a7cc44e2cc2b19ebca5fef3a6c9e52a4fd54713a6e58bf430
+    Image:          quay.io/cloudservices/cp-kafka:5.3.2
+    Image ID:       docker-pullable://quay.io/cloudservices/cp-kafka@sha256:141cc8e2cb9b2c4d80bfbc301dbf74e91cb87d769a6e7f6c5aabac5ea4faa590
+    Port:           9092/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Thu, 27 May 2021 13:05:48 -0400
+    Ready:          True
+    Restart Count:  0
+    Liveness:       tcp-socket :9092 delay=10s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      tcp-socket :9092 delay=15s timeout=2s period=10s #success=1 #failure=3
+    Environment:
+      KAFKA_ADVERTISED_LISTENERS:              PLAINTEXT://env-hbi-kafka.hbi.svc:29092, LOCAL://localhost:9092
+      KAFKA_BROKER_ID:                         1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:  1
+      KAFKA_ZOOKEEPER_CONNECT:                 env-hbi-zookeeper:32181
+      LOG_DIR:                                 /var/lib/kafka
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:    PLAINTEXT:PLAINTEXT, LOCAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME:        LOCAL
+    Mounts:
+      /etc/kafka/secrets from mq-kafka-1 (rw)
+      /var/lib/kafka from env-hbi-kafka (rw)
+      /var/lib/kafka/data from mq-kafka-2 (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  env-hbi-kafka:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  mq-kafka-1:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  mq-kafka-2:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

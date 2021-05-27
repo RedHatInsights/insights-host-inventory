@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:05:17Z"
+  labels:
+    app: env-hbi
+    env-app: env-hbi-minio
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"4f14812e-1e6e-4458-8307-2c91a4a68b40"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":9000,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:05:17Z"
+  name: env-hbi-minio
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdEnvironment
+    name: env-hbi
+    uid: 4f14812e-1e6e-4458-8307-2c91a4a68b40
+  resourceVersion: "1803"
+  uid: 71ce358e-bbd2-46a8-9e8d-0e77603570f9
+spec:
+  clusterIP: 10.98.148.107
+  clusterIPs:
+  - 10.98.148.107
+  ports:
+  - name: minio
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  selector:
+    app: env-hbi
+    env-app: env-hbi-minio
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

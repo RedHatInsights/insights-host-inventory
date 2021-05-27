@@ -1,0 +1,416 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "2"
+    deployment.kubernetes.io/max-replicas: "3"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  generation: 1
+  labels:
+    app: rbac
+    pod: rbac-service
+    pod-template-hash: 56494fff84
+  name: rbac-service-56494fff84
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: rbac-service
+    uid: 15284cb3-5a64-4e28-b8cf-507d32d52ef3
+  resourceVersion: "4398"
+  uid: 99b7b337-b096-452f-a80d-8fae64c3d13a
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rbac
+      pod: rbac-service
+      pod-template-hash: 56494fff84
+  template:
+    metadata:
+      annotations:
+        configHash: e604984da19467107497dfbb3c202238ebadc86134077bd330768f6831f4b18b
+      creationTimestamp: null
+      labels:
+        app: rbac
+        pod: rbac-service
+        pod-template-hash: 56494fff84
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-service
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-service
+              topologyKey: kubernetes.io/hostname
+            weight: 99
+      containers:
+      - env:
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: sentry-dsn
+              name: rbac-secret
+              optional: true
+        - name: SERVICE_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
+        - name: PGSSLMODE
+          value: prefer
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: django-secret-key
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PROTOCOL
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-protocol
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_HOST
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-host
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PORT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-port
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PATH
+        - name: PRINCIPAL_PROXY_USER_ENV
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-env
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-client-id
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-api-token
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_SSL_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-ssl-verify
+              name: rbac-secret
+              optional: true
+        - name: PRINCIPAL_PROXY_SERVICE_SOURCE_CERT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-source-cert
+              name: rbac-secret
+              optional: true
+        - name: POD_CPU_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              containerName: rbac-service
+              divisor: "0"
+              resource: limits.cpu
+        - name: ACCESS_CACHE_ENABLED
+          value: "True"
+        - name: APP_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: DJANGO_DEBUG
+          value: "False"
+        - name: API_PATH_PREFIX
+          value: /api/rbac
+        - name: DEVELOPMENT
+          value: "false"
+        - name: RBAC_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_LOG_FORMATTER
+          value: simple
+        - name: DJANGO_LOG_HANDLERS
+          value: console,ecs
+        - name: DJANGO_LOG_DIRECTORY
+        - name: DJANGO_LOGGING_FILE
+        - name: PERMISSION_SEEDING_ENABLED
+          value: "False"
+        - name: ROLE_SEEDING_ENABLED
+          value: "False"
+        - name: GROUP_SEEDING_ENABLED
+          value: "False"
+        - name: DISABLE_MIGRATE
+          value: "True"
+        - name: BYPASS_BOP_VERIFICATION
+          value: "False"
+        - name: ROLE_CREATE_ALLOW_LIST
+          value: cost-management,remediations,inventory,drift,policies,advisor,catalog,approval,vulnerability,compliance,automation-analytics,notifications,patch,integrations
+        - name: RBAC_DESTRUCTIVE_ENABLED_UNTIL
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: APP_CONFIG
+          value: /opt/app-root/src/rbac/gunicorn.py
+        - name: APP_HOME
+          value: /opt/app-root/src/rbac
+        - name: APP_MODULE
+          value: rbac.wsgi
+        - name: APP_NAMESPACE
+          value: rbac
+        - name: CW_NULL_WORKAROUND
+          value: ${CW_NULL_WORKAROUND)
+        - name: INIT_CONTAINER
+          value: "False"
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: quay.io/cloudservices/rbac:20cad27
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/rbac/v1/status/
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: rbac-service
+        ports:
+        - containerPort: 8000
+          name: web
+          protocol: TCP
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /api/rbac/v1/status/
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/app-root/src/rbac/management/role/definitions
+          name: default-role-config
+        - mountPath: /opt/app-root/src/rbac/management/role/permissions
+          name: model-access-permissions
+        - mountPath: /cdapp/
+          name: config-secret
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: quay-cloudservices-pull
+      initContainers:
+      - args:
+        - sh
+        - /opt/app-root/src/deploy/init-container-setup.sh
+        env:
+        - name: INIT_CONTAINER
+          value: "True"
+        - name: EPH_ENV
+          value: "True"
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: sentry-dsn
+              name: rbac-secret
+              optional: true
+        - name: SERVICE_PSKS
+          valueFrom:
+            secretKeyRef:
+              key: psks.json
+              name: rbac-psks
+              optional: false
+        - name: PGSSLMODE
+          value: prefer
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: django-secret-key
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PROTOCOL
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-protocol
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_HOST
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-host
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PORT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-port
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PATH
+        - name: PRINCIPAL_PROXY_USER_ENV
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-env
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-client-id
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-api-token
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_SSL_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-ssl-verify
+              name: rbac-secret
+              optional: true
+        - name: PRINCIPAL_PROXY_SERVICE_SOURCE_CERT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-source-cert
+              name: rbac-secret
+              optional: true
+        - name: POD_CPU_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              containerName: rbac-service
+              divisor: "0"
+              resource: limits.cpu
+        - name: ACCESS_CACHE_ENABLED
+          value: "True"
+        - name: APP_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: DJANGO_DEBUG
+          value: "False"
+        - name: API_PATH_PREFIX
+          value: /api/rbac
+        - name: DEVELOPMENT
+          value: "false"
+        - name: RBAC_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_LOG_FORMATTER
+          value: simple
+        - name: DJANGO_LOG_HANDLERS
+          value: console,ecs
+        - name: DJANGO_LOG_DIRECTORY
+        - name: DJANGO_LOGGING_FILE
+        - name: PERMISSION_SEEDING_ENABLED
+          value: "False"
+        - name: ROLE_SEEDING_ENABLED
+          value: "False"
+        - name: GROUP_SEEDING_ENABLED
+          value: "False"
+        - name: DISABLE_MIGRATE
+          value: "True"
+        - name: BYPASS_BOP_VERIFICATION
+          value: "False"
+        - name: ROLE_CREATE_ALLOW_LIST
+          value: cost-management,remediations,inventory,drift,policies,advisor,catalog,approval,vulnerability,compliance,automation-analytics,notifications,patch,integrations
+        - name: RBAC_DESTRUCTIVE_ENABLED_UNTIL
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: APP_CONFIG
+          value: /opt/app-root/src/rbac/gunicorn.py
+        - name: APP_HOME
+          value: /opt/app-root/src/rbac
+        - name: APP_MODULE
+          value: rbac.wsgi
+        - name: APP_NAMESPACE
+          value: rbac
+        - name: CW_NULL_WORKAROUND
+          value: ${CW_NULL_WORKAROUND)
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: quay.io/cloudservices/rbac:20cad27
+        imagePullPolicy: IfNotPresent
+        name: rbac-service-init
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/app-root/src/rbac/management/role/definitions
+          name: default-role-config
+        - mountPath: /opt/app-root/src/rbac/management/role/permissions
+          name: model-access-permissions
+        - mountPath: /cdapp/
+          name: config-secret
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: rbac-app
+      serviceAccountName: rbac-app
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: rbac-config
+        name: default-role-config
+      - configMap:
+          defaultMode: 420
+          name: model-access-permissions
+        name: model-access-permissions
+      - name: config-secret
+        secret:
+          defaultMode: 420
+          secretName: rbac
+status:
+  availableReplicas: 2
+  fullyLabeledReplicas: 2
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2

@@ -1,0 +1,325 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "0"
+    deployment.kubernetes.io/max-replicas: "0"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  generation: 1
+  labels:
+    app: rbac
+    pod: rbac-scheduler-service
+    pod-template-hash: 5cdfbfdc69
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:deployment.kubernetes.io/desired-replicas: {}
+          f:deployment.kubernetes.io/max-replicas: {}
+          f:deployment.kubernetes.io/revision: {}
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+          f:pod-template-hash: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"2fcf02a2-9df7-4549-8c04-8949b1857c35"}:
+            .: {}
+            f:apiVersion: {}
+            f:blockOwnerDeletion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:replicas: {}
+        f:selector: {}
+        f:template:
+          f:metadata:
+            f:annotations:
+              .: {}
+              f:configHash: {}
+            f:labels:
+              .: {}
+              f:app: {}
+              f:pod: {}
+              f:pod-template-hash: {}
+          f:spec:
+            f:affinity:
+              .: {}
+              f:podAntiAffinity:
+                .: {}
+                f:preferredDuringSchedulingIgnoredDuringExecution: {}
+            f:containers:
+              k:{"name":"rbac-scheduler-service"}:
+                .: {}
+                f:command: {}
+                f:env:
+                  .: {}
+                  k:{"name":"ACG_CONFIG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"APP_NAMESPACE"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"CLOWDER_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"CW_NULL_WORKAROUND"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"DJANGO_DEBUG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"DJANGO_LOG_LEVEL"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"GROUP_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PERMISSION_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ROLE_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"SENTRY_DSN"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:livenessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":9000,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:resources:
+                  .: {}
+                  f:limits:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                  f:requests:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/cdapp/"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:imagePullSecrets:
+              .: {}
+              k:{"name":"quay-cloudservices-pull"}:
+                .: {}
+                f:name: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:serviceAccount: {}
+            f:serviceAccountName: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"config-secret"}:
+                .: {}
+                f:name: {}
+                f:secret:
+                  .: {}
+                  f:defaultMode: {}
+                  f:secretName: {}
+      f:status:
+        f:observedGeneration: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-05-27T17:17:25Z"
+  name: rbac-scheduler-service-5cdfbfdc69
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: rbac-scheduler-service
+    uid: 2fcf02a2-9df7-4549-8c04-8949b1857c35
+  resourceVersion: "3710"
+  uid: 97751423-7fb8-4909-b60f-5c0dd2924a95
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rbac
+      pod: rbac-scheduler-service
+      pod-template-hash: 5cdfbfdc69
+  template:
+    metadata:
+      annotations:
+        configHash: e604984da19467107497dfbb3c202238ebadc86134077bd330768f6831f4b18b
+      creationTimestamp: null
+      labels:
+        app: rbac
+        pod: rbac-scheduler-service
+        pod-template-hash: 5cdfbfdc69
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-scheduler-service
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-scheduler-service
+              topologyKey: kubernetes.io/hostname
+            weight: 99
+      containers:
+      - command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${PWD}/rbac/ celery -A rbac.celery beat -l $DJANGO_LOG_LEVEL
+        env:
+        - name: DJANGO_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_DEBUG
+          value: "False"
+        - name: APP_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: PERMISSION_SEEDING_ENABLED
+          value: "False"
+        - name: ROLE_SEEDING_ENABLED
+          value: "False"
+        - name: GROUP_SEEDING_ENABLED
+          value: "False"
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: CW_NULL_WORKAROUND
+          value: ${CW_NULL_WORKAROUND)
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: sentry-dsn
+              name: rbac-secret
+              optional: true
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: quay.io/cloudservices/rbac:20cad27
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              PYTHONPATH=${PWD}/rbac/ celery inspect ping -A rbac.celery
+          failureThreshold: 3
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: rbac-scheduler-service
+        ports:
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              PYTHONPATH=${PWD}/rbac/ celery inspect ping -A rbac.celery
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /cdapp/
+          name: config-secret
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: quay-cloudservices-pull
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: rbac-app
+      serviceAccountName: rbac-app
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config-secret
+        secret:
+          defaultMode: 420
+          secretName: rbac
+status:
+  observedGeneration: 1
+  replicas: 0

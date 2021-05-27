@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"app":"rbac","pod":"rbac-service"},"name":"rbac","namespace":"hbi"},"spec":{"ports":[{"name":"weblegacy","port":8080,"protocol":"TCP","targetPort":8000}],"selector":{"pod":"rbac-service"}}}
+  creationTimestamp: "2021-05-27T17:17:23Z"
+  labels:
+    app: rbac
+    pod: rbac-service
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":8080,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:pod: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: oc
+    operation: Update
+    time: "2021-05-27T17:17:23Z"
+  name: rbac
+  namespace: hbi
+  resourceVersion: "3539"
+  uid: b2069c0e-309d-473d-8795-f3d08617c693
+spec:
+  clusterIP: 10.110.18.136
+  clusterIPs:
+  - 10.110.18.136
+  ports:
+  - name: weblegacy
+    port: 8080
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    pod: rbac-service
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  labels:
+    app: rbac
+    pod: rbac-service
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"7bccdccd-27ed-46b4-93c1-a7b6db2386e2"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":8000,"protocol":"TCP"}:
+            .: {}
+            f:appProtocol: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+          k:{"port":9000,"protocol":"TCP"}:
+            .: {}
+            f:appProtocol: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:pod: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: rbac-service
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: rbac
+    uid: 7bccdccd-27ed-46b4-93c1-a7b6db2386e2
+  resourceVersion: "3638"
+  uid: a30baadd-20fb-48fa-a6fc-bcf2fb1be680
+spec:
+  clusterIP: 10.101.122.227
+  clusterIPs:
+  - 10.101.122.227
+  ports:
+  - appProtocol: http
+    name: public
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  - appProtocol: http
+    name: metrics
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  selector:
+    pod: rbac-service
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

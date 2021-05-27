@@ -1,0 +1,59 @@
+Name:               rbac-db-69968d95b9-vlzkq
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:17:25 -0400
+Labels:             app=rbac
+                    pod-template-hash=69968d95b9
+                    service=db
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.18
+Controlled By:      ReplicaSet/rbac-db-69968d95b9
+Containers:
+  rbac-db:
+    Container ID:   docker://0ad54f34db4fa29023617f1d9cdfe69135a4a3a65b7183c75649e3266dcbd9fe
+    Image:          quay.io/cloudservices/postgresql-rds:12-1
+    Image ID:       docker-pullable://quay.io/cloudservices/postgresql-rds@sha256:f80f56bf4fdfc7eff549f94b3e942c1b1663dca52686b07f9dd5499bdcc185fd
+    Port:           5432/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Thu, 27 May 2021 13:18:48 -0400
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    1
+      Started:      Thu, 27 May 2021 13:18:44 -0400
+      Finished:     Thu, 27 May 2021 13:18:47 -0400
+    Ready:          True
+    Restart Count:  1
+    Liveness:       exec [psql -U $(POSTGRESQL_USER) -d $(POSTGRESQL_DATABASE) -c SELECT 1] delay=15s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      exec [psql -U $(POSTGRESQL_USER) -d $(POSTGRESQL_DATABASE) -c SELECT 1] delay=45s timeout=2s period=10s #success=1 #failure=3
+    Environment:
+      POSTGRESQL_USER:             ZtcVNiQk0p7gRT1E
+      POSTGRESQL_PASSWORD:         44ox9985pipQv2jg
+      PGPASSWORD:                  UPQDFN1agGAIwdpW
+      POSTGRESQL_MASTER_USER:      postgres
+      POSTGRESQL_MASTER_PASSWORD:  UPQDFN1agGAIwdpW
+      POSTGRESQL_DATABASE:         rbac
+    Mounts:
+      /var/lib/pgsql/data from rbac-db (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  rbac-db:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

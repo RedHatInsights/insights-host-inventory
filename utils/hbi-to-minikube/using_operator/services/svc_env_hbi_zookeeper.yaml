@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:05:17Z"
+  labels:
+    app: env-hbi
+    env-app: env-hbi-zookeeper
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"4f14812e-1e6e-4458-8307-2c91a4a68b40"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":2888,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+          k:{"port":3888,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+          k:{"port":32181,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:05:17Z"
+  name: env-hbi-zookeeper
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdEnvironment
+    name: env-hbi
+    uid: 4f14812e-1e6e-4458-8307-2c91a4a68b40
+  resourceVersion: "1779"
+  uid: 7ff403b4-3ed6-4245-b804-b03e112e6f8a
+spec:
+  clusterIP: 10.103.166.143
+  clusterIPs:
+  - 10.103.166.143
+  ports:
+  - name: zookeeper1
+    port: 32181
+    protocol: TCP
+    targetPort: 32181
+  - name: zookeeper2
+    port: 2888
+    protocol: TCP
+    targetPort: 2888
+  - name: zookeeper3
+    port: 3888
+    protocol: TCP
+    targetPort: 3888
+  selector:
+    app: env-hbi
+    env-app: env-hbi-zookeeper
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

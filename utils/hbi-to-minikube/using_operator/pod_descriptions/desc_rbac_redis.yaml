@@ -1,0 +1,52 @@
+Name:               rbac-redis-75f7786c95-tvcnj
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:17:25 -0400
+Labels:             app=rbac
+                    env-app=rbac-redis
+                    pod-template-hash=75f7786c95
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.19
+Controlled By:      ReplicaSet/rbac-redis-75f7786c95
+Containers:
+  rbac-redis:
+    Container ID:  docker://bcfcf1253c4314fa22dad2a9e63d3076f2b9620ea99b23aba8717fb5b37e4ace
+    Image:         redis:6
+    Image ID:      docker-pullable://redis@sha256:365eddf64356169aa0cbfbeaf928eb80762de3cc364402e7653532bcec912973
+    Port:          6379/TCP
+    Host Port:     0/TCP
+    Command:
+      redis-server
+      /usr/local/etc/redis/redis.conf
+    State:          Running
+      Started:      Thu, 27 May 2021 13:18:44 -0400
+    Ready:          True
+    Restart Count:  0
+    Liveness:       exec [redis-cli] delay=15s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      exec [redis-cli] delay=45s timeout=2s period=10s #success=1 #failure=3
+    Environment:    <none>
+    Mounts:
+      /usr/local/etc/redis/ from rbac-redis (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  rbac-redis:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      rbac-redis
+    Optional:  false
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

@@ -1,0 +1,294 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "1"
+    deployment.kubernetes.io/max-replicas: "2"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:05:17Z"
+  generation: 1
+  labels:
+    app: env-hbi
+    env-app: env-hbi-zookeeper
+    pod-template-hash: 668dd5b7b
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:deployment.kubernetes.io/desired-replicas: {}
+          f:deployment.kubernetes.io/max-replicas: {}
+          f:deployment.kubernetes.io/revision: {}
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+          f:pod-template-hash: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"cf8b8ca6-b86f-48b3-b8da-2ddcbed28d38"}:
+            .: {}
+            f:apiVersion: {}
+            f:blockOwnerDeletion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:replicas: {}
+        f:selector: {}
+        f:template:
+          f:metadata:
+            f:labels:
+              .: {}
+              f:app: {}
+              f:env-app: {}
+              f:pod-template-hash: {}
+          f:spec:
+            f:containers:
+              k:{"name":"env-hbi-zookeeper"}:
+                .: {}
+                f:env:
+                  .: {}
+                  k:{"name":"ZOOKEEPER_CLIENT_PORT"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ZOOKEEPER_INIT_LIMIT"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ZOOKEEPER_SERVER_ID"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ZOOKEEPER_SERVERS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ZOOKEEPER_SYNC_LIMIT"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"ZOOKEEPER_TICK_TIME"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:livenessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":2181,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                  k:{"containerPort":2888,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                  k:{"containerPort":3888,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:resources: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/etc/zookeeper/secrets"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/zookeeper"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/zookeeper/data"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/zookeeper/log"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:serviceAccount: {}
+            f:serviceAccountName: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"env-hbi-zookeeper"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"mq-zookeeper-1"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"mq-zookeeper-2"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"mq-zookeeper-3"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+      f:status:
+        f:availableReplicas: {}
+        f:fullyLabeledReplicas: {}
+        f:observedGeneration: {}
+        f:readyReplicas: {}
+        f:replicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-05-27T17:06:02Z"
+  name: env-hbi-zookeeper-668dd5b7b
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: env-hbi-zookeeper
+    uid: cf8b8ca6-b86f-48b3-b8da-2ddcbed28d38
+  resourceVersion: "1979"
+  uid: ce5408db-214a-446b-9880-f0c8ba98d2cf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: env-hbi
+      env-app: env-hbi-zookeeper
+      pod-template-hash: 668dd5b7b
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: env-hbi
+        env-app: env-hbi-zookeeper
+        pod-template-hash: 668dd5b7b
+    spec:
+      containers:
+      - env:
+        - name: ZOOKEEPER_INIT_LIMIT
+          value: "10"
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "32181"
+        - name: ZOOKEEPER_SERVER_ID
+          value: "1"
+        - name: ZOOKEEPER_SERVERS
+          value: env-hbi-zookeeper:32181
+        - name: ZOOKEEPER_TICK_TIME
+          value: "2000"
+        - name: ZOOKEEPER_SYNC_LIMIT
+          value: "10"
+        image: quay.io/cloudservices/cp-zookeeper:5.3.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - echo
+            - ruok
+            - '|'
+            - nc
+            - 127.0.0.1
+            - "32181"
+            - '|'
+            - grep
+            - imok
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 2
+        name: env-hbi-zookeeper
+        ports:
+        - containerPort: 2181
+          name: zookeeper
+          protocol: TCP
+        - containerPort: 2888
+          name: zookeeper-1
+          protocol: TCP
+        - containerPort: 3888
+          name: zookeeper-2
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - echo
+            - ruok
+            - '|'
+            - nc
+            - 127.0.0.1
+            - "32181"
+            - '|'
+            - grep
+            - imok
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 2
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/zookeeper
+          name: env-hbi-zookeeper
+        - mountPath: /etc/zookeeper/secrets
+          name: mq-zookeeper-1
+        - mountPath: /var/lib/zookeeper/data
+          name: mq-zookeeper-2
+        - mountPath: /var/lib/zookeeper/log
+          name: mq-zookeeper-3
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: env-hbi-env
+      serviceAccountName: env-hbi-env
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: env-hbi-zookeeper
+      - emptyDir: {}
+        name: mq-zookeeper-1
+      - emptyDir: {}
+        name: mq-zookeeper-2
+      - emptyDir: {}
+        name: mq-zookeeper-3
+status:
+  availableReplicas: 1
+  fullyLabeledReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1

@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  labels:
+    app: rbac
+    service: db
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:service: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"7bccdccd-27ed-46b4-93c1-a7b6db2386e2"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":5432,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:service: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: rbac-db
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: rbac
+    uid: 7bccdccd-27ed-46b4-93c1-a7b6db2386e2
+  resourceVersion: "3660"
+  uid: fd213c46-bd56-4b1e-b372-a5baa6cbff19
+spec:
+  clusterIP: 10.99.21.126
+  clusterIPs:
+  - 10.99.21.126
+  ports:
+  - name: database
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: rbac
+    service: db
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

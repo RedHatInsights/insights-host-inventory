@@ -1,0 +1,21 @@
+# Bonfire deployment configuration
+
+# Defines where to fetch the file that defines application configs
+appsFile:
+  host: gitlab
+  repo: insights-platform/cicd-common
+  path: bonfire_configs/ephemeral_apps.yaml
+
+# (optional) define any apps locally. An app defined here with <name> will override config for app
+# <name> in above fetched config.
+apps:
+- name: host-inventory
+  components:
+  - name: host-inventory
+    host: local
+    repo: /Users/aarif/Documents/dev-ws/insights/insights-host-inventory
+    path: deployment.yaml
+    parameters:
+      # IMAGE: quay.io/thearifismail/host-inventory
+      IMAGE: 127.0.0.1:5000/host-inventory
+      CLOWDER_ENABLED: "true"

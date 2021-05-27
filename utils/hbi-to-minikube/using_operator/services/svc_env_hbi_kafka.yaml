@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:05:17Z"
+  labels:
+    app: env-hbi
+    env-app: env-hbi-kafka
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"4f14812e-1e6e-4458-8307-2c91a4a68b40"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":29092,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:05:17Z"
+  name: env-hbi-kafka
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdEnvironment
+    name: env-hbi
+    uid: 4f14812e-1e6e-4458-8307-2c91a4a68b40
+  resourceVersion: "1786"
+  uid: 26219379-ddfe-49ca-8815-d0604573ce63
+spec:
+  clusterIP: 10.98.61.64
+  clusterIPs:
+  - 10.98.61.64
+  ports:
+  - name: kafka
+    port: 29092
+    protocol: TCP
+    targetPort: 29092
+  selector:
+    app: env-hbi
+    env-app: env-hbi-kafka
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

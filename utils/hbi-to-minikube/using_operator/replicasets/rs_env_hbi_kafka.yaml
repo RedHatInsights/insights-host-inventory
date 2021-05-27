@@ -1,0 +1,254 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "1"
+    deployment.kubernetes.io/max-replicas: "2"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:05:17Z"
+  generation: 1
+  labels:
+    app: env-hbi
+    env-app: env-hbi-kafka
+    pod-template-hash: 5586985c9c
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:deployment.kubernetes.io/desired-replicas: {}
+          f:deployment.kubernetes.io/max-replicas: {}
+          f:deployment.kubernetes.io/revision: {}
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+          f:pod-template-hash: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"a7d39161-872c-46d4-a76d-ee206628417f"}:
+            .: {}
+            f:apiVersion: {}
+            f:blockOwnerDeletion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:replicas: {}
+        f:selector: {}
+        f:template:
+          f:metadata:
+            f:labels:
+              .: {}
+              f:app: {}
+              f:env-app: {}
+              f:pod-template-hash: {}
+          f:spec:
+            f:containers:
+              k:{"name":"env-hbi-kafka"}:
+                .: {}
+                f:env:
+                  .: {}
+                  k:{"name":"KAFKA_ADVERTISED_LISTENERS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_BROKER_ID"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_INTER_BROKER_LISTENER_NAME"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_ZOOKEEPER_CONNECT"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"LOG_DIR"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:livenessProbe:
+                  .: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:tcpSocket:
+                    .: {}
+                    f:port: {}
+                  f:timeoutSeconds: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":9092,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:tcpSocket:
+                    .: {}
+                    f:port: {}
+                  f:timeoutSeconds: {}
+                f:resources: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/etc/kafka/secrets"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/kafka"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/var/lib/kafka/data"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:serviceAccount: {}
+            f:serviceAccountName: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"env-hbi-kafka"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"mq-kafka-1"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+              k:{"name":"mq-kafka-2"}:
+                .: {}
+                f:emptyDir: {}
+                f:name: {}
+      f:status:
+        f:availableReplicas: {}
+        f:fullyLabeledReplicas: {}
+        f:observedGeneration: {}
+        f:readyReplicas: {}
+        f:replicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-05-27T17:06:13Z"
+  name: env-hbi-kafka-5586985c9c
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: env-hbi-kafka
+    uid: a7d39161-872c-46d4-a76d-ee206628417f
+  resourceVersion: "2012"
+  uid: 48981756-44b2-4907-b9ab-e74350157a00
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: env-hbi
+      env-app: env-hbi-kafka
+      pod-template-hash: 5586985c9c
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: env-hbi
+        env-app: env-hbi-kafka
+        pod-template-hash: 5586985c9c
+    spec:
+      containers:
+      - env:
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: PLAINTEXT://env-hbi-kafka.hbi.svc:29092, LOCAL://localhost:9092
+        - name: KAFKA_BROKER_ID
+          value: "1"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: env-hbi-zookeeper:32181
+        - name: LOG_DIR
+          value: /var/lib/kafka
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: PLAINTEXT:PLAINTEXT, LOCAL:PLAINTEXT
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: LOCAL
+        image: quay.io/cloudservices/cp-kafka:5.3.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 9092
+          timeoutSeconds: 2
+        name: env-hbi-kafka
+        ports:
+        - containerPort: 9092
+          name: kafka
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 9092
+          timeoutSeconds: 2
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/kafka
+          name: env-hbi-kafka
+        - mountPath: /etc/kafka/secrets
+          name: mq-kafka-1
+        - mountPath: /var/lib/kafka/data
+          name: mq-kafka-2
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: env-hbi-env
+      serviceAccountName: env-hbi-env
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: env-hbi-kafka
+      - emptyDir: {}
+        name: mq-kafka-1
+      - emptyDir: {}
+        name: mq-kafka-2
+status:
+  availableReplicas: 1
+  fullyLabeledReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1

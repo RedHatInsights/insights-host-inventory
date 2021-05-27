@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  labels:
+    app: host-inventory
+    pod: host-inventory-service
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"e081a6a6-67ab-4558-a9cc-7e31c50dc67d"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":8000,"protocol":"TCP"}:
+            .: {}
+            f:appProtocol: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+          k:{"port":9000,"protocol":"TCP"}:
+            .: {}
+            f:appProtocol: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:pod: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: host-inventory-service
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: host-inventory
+    uid: e081a6a6-67ab-4558-a9cc-7e31c50dc67d
+  resourceVersion: "3557"
+  uid: 0ed7f49a-8ef3-4980-87d0-add176290025
+spec:
+  clusterIP: 10.98.55.105
+  clusterIPs:
+  - 10.98.55.105
+  ports:
+  - appProtocol: http
+    name: public
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  - appProtocol: http
+    name: metrics
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  selector:
+    pod: host-inventory-service
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

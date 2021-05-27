@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  labels:
+    app: host-inventory
+    service: db
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:service: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"e081a6a6-67ab-4558-a9cc-7e31c50dc67d"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":5432,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:service: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: host-inventory-db
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: host-inventory
+    uid: e081a6a6-67ab-4558-a9cc-7e31c50dc67d
+  resourceVersion: "3607"
+  uid: 3d40870f-7770-4202-a07a-2504188cbe85
+spec:
+  clusterIP: 10.110.189.72
+  clusterIPs:
+  - 10.110.189.72
+  ports:
+  - name: database
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: host-inventory
+    service: db
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

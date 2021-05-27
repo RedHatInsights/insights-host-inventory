@@ -1,0 +1,66 @@
+Name:               env-hbi-zookeeper-668dd5b7b-p9f4f
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:05:17 -0400
+Labels:             app=env-hbi
+                    env-app=env-hbi-zookeeper
+                    pod-template-hash=668dd5b7b
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.13
+Controlled By:      ReplicaSet/env-hbi-zookeeper-668dd5b7b
+Containers:
+  env-hbi-zookeeper:
+    Container ID:   docker://575b4d1e36e24b9aec3306971c5d30ecdd227391e1ad3e29f1d2f1a0ceb9e157
+    Image:          quay.io/cloudservices/cp-zookeeper:5.3.2
+    Image ID:       docker-pullable://quay.io/cloudservices/cp-zookeeper@sha256:818639a82b1022794c0566013e2ddd87bddeb1250cf11b3da2b850c89293d1a8
+    Ports:          2181/TCP, 2888/TCP, 3888/TCP
+    Host Ports:     0/TCP, 0/TCP, 0/TCP
+    State:          Running
+      Started:      Thu, 27 May 2021 13:05:43 -0400
+    Ready:          True
+    Restart Count:  0
+    Liveness:       exec [echo ruok | nc 127.0.0.1 32181 | grep imok] delay=10s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      exec [echo ruok | nc 127.0.0.1 32181 | grep imok] delay=15s timeout=2s period=10s #success=1 #failure=3
+    Environment:
+      ZOOKEEPER_INIT_LIMIT:   10
+      ZOOKEEPER_CLIENT_PORT:  32181
+      ZOOKEEPER_SERVER_ID:    1
+      ZOOKEEPER_SERVERS:      env-hbi-zookeeper:32181
+      ZOOKEEPER_TICK_TIME:    2000
+      ZOOKEEPER_SYNC_LIMIT:   10
+    Mounts:
+      /etc/zookeeper/secrets from mq-zookeeper-1 (rw)
+      /var/lib/zookeeper from env-hbi-zookeeper (rw)
+      /var/lib/zookeeper/data from mq-zookeeper-2 (rw)
+      /var/lib/zookeeper/log from mq-zookeeper-3 (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  env-hbi-zookeeper:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  mq-zookeeper-1:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  mq-zookeeper-2:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  mq-zookeeper-3:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

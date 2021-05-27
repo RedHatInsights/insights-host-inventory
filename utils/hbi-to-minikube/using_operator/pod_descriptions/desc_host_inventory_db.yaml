@@ -1,0 +1,59 @@
+Name:               host-inventory-db-84d88b7478-dlpmc
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:17:24 -0400
+Labels:             app=host-inventory
+                    pod-template-hash=84d88b7478
+                    service=db
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.15
+Controlled By:      ReplicaSet/host-inventory-db-84d88b7478
+Containers:
+  host-inventory-db:
+    Container ID:   docker://c206edeeed4a011a5e846d2a5ae2960e5f9afed54d491bfa7e89a69e1815d549
+    Image:          quay.io/cloudservices/postgresql-rds:12-1
+    Image ID:       docker-pullable://quay.io/cloudservices/postgresql-rds@sha256:f80f56bf4fdfc7eff549f94b3e942c1b1663dca52686b07f9dd5499bdcc185fd
+    Port:           5432/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Thu, 27 May 2021 13:18:03 -0400
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    1
+      Started:      Thu, 27 May 2021 13:17:52 -0400
+      Finished:     Thu, 27 May 2021 13:18:00 -0400
+    Ready:          True
+    Restart Count:  1
+    Liveness:       exec [psql -U $(POSTGRESQL_USER) -d $(POSTGRESQL_DATABASE) -c SELECT 1] delay=15s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      exec [psql -U $(POSTGRESQL_USER) -d $(POSTGRESQL_DATABASE) -c SELECT 1] delay=45s timeout=2s period=10s #success=1 #failure=3
+    Environment:
+      POSTGRESQL_USER:             IU7KUtLX9iM66aDb
+      POSTGRESQL_PASSWORD:         kIP19iim93bGnyGr
+      PGPASSWORD:                  b6XcnQLO4uCDNYJI
+      POSTGRESQL_MASTER_USER:      postgres
+      POSTGRESQL_MASTER_PASSWORD:  b6XcnQLO4uCDNYJI
+      POSTGRESQL_DATABASE:         host-inventory
+    Mounts:
+      /var/lib/pgsql/data from host-inventory-db (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  host-inventory-db:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

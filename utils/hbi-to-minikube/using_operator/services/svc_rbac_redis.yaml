@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  labels:
+    app: rbac
+    env-app: rbac-redis
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"7bccdccd-27ed-46b4-93c1-a7b6db2386e2"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:ports:
+          .: {}
+          k:{"port":6379,"protocol":"TCP"}:
+            .: {}
+            f:name: {}
+            f:port: {}
+            f:protocol: {}
+            f:targetPort: {}
+        f:selector:
+          .: {}
+          f:app: {}
+          f:env-app: {}
+        f:sessionAffinity: {}
+        f:type: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: rbac-redis
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: rbac
+    uid: 7bccdccd-27ed-46b4-93c1-a7b6db2386e2
+  resourceVersion: "3664"
+  uid: 7ce0b6bc-a442-430a-9c67-d7aab2213cec
+spec:
+  clusterIP: 10.110.200.179
+  clusterIPs:
+  - 10.110.200.179
+  ports:
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: rbac
+    env-app: rbac-redis
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

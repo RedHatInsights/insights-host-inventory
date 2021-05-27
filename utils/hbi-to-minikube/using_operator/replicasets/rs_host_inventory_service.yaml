@@ -1,0 +1,241 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "1"
+    deployment.kubernetes.io/max-replicas: "2"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  generation: 1
+  labels:
+    app: host-inventory
+    pod: host-inventory-service
+    pod-template-hash: 58849bcb89
+  name: host-inventory-service-58849bcb89
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: host-inventory-service
+    uid: 95060d76-c643-4a2d-b899-3e0520102959
+  resourceVersion: "4182"
+  uid: 61b6ebe6-90b7-42ca-aee5-a664bd5edc63
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: host-inventory
+      pod: host-inventory-service
+      pod-template-hash: 58849bcb89
+  template:
+    metadata:
+      annotations:
+        configHash: 37aecb2f5be9f0c79052c86de9974f279c5d08806e4c0aec7b3f807feeaad1ee
+      creationTimestamp: null
+      labels:
+        app: host-inventory
+        pod: host-inventory-service
+        pod-template-hash: 58849bcb89
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: host-inventory
+                  pod: host-inventory-service
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: host-inventory
+                  pod: host-inventory-service
+              topologyKey: kubernetes.io/hostname
+            weight: 99
+      containers:
+      - command:
+        - gunicorn
+        - --workers=4
+        - --threads=8
+        - --worker-tmp-dir=/gunicorn
+        - -c
+        - gunicorn.conf.py
+        - -b
+        - 0.0.0.0:8000
+        - -t
+        - "60"
+        - run
+        env:
+        - name: APP_NAME
+          value: inventory
+        - name: PATH_PREFIX
+          value: api
+        - name: INVENTORY_LEGACY_API_URL
+          value: /r/insights/platform/inventory/v1/
+        - name: prometheus_multiproc_dir
+          value: /tmp/inventory/prometheus
+        - name: INVENTORY_LOG_LEVEL
+          value: INFO
+        - name: URLLIB3_LOG_LEVEL
+          value: WARNING
+        - name: INVENTORY_DB_SSL_MODE
+          value: prefer
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: "true"
+        - name: XJOIN_GRAPHQL_URL
+          value: http://localhost:4000/graphql
+        - name: BULK_QUERY_SOURCE
+          value: db
+        - name: BULK_QUERY_SOURCE_BETA
+          value: db
+        - name: RBAC_ENFORCED
+          value: "false"
+        - name: KAFKA_PRODUCER_ACKS
+          value: "1"
+        - name: KAFKA_PRODUCER_RETRIES
+          value: "0"
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: "100"
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: 127.0.0.1:5000/host-inventory:bc49d74
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        name: host-inventory-service
+        ports:
+        - containerPort: 8000
+          name: web
+          protocol: TCP
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp/inventory/prometheus
+          name: prometheus-volume
+        - mountPath: /gunicorn
+          name: gunicorn-worker-dir
+        - mountPath: /cdapp/
+          name: config-secret
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: quay-cloudservices-pull
+      initContainers:
+      - command:
+        - /opt/app-root/bin/python
+        - manage.py
+        - db
+        - upgrade
+        env:
+        - name: APP_NAME
+          value: inventory
+        - name: PATH_PREFIX
+          value: api
+        - name: INVENTORY_LEGACY_API_URL
+          value: /r/insights/platform/inventory/v1/
+        - name: prometheus_multiproc_dir
+          value: /tmp/inventory/prometheus
+        - name: INVENTORY_LOG_LEVEL
+          value: INFO
+        - name: URLLIB3_LOG_LEVEL
+          value: WARNING
+        - name: INVENTORY_DB_SSL_MODE
+          value: prefer
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: "true"
+        - name: XJOIN_GRAPHQL_URL
+          value: http://localhost:4000/graphql
+        - name: BULK_QUERY_SOURCE
+          value: db
+        - name: BULK_QUERY_SOURCE_BETA
+          value: db
+        - name: RBAC_ENFORCED
+          value: "false"
+        - name: KAFKA_PRODUCER_ACKS
+          value: "1"
+        - name: KAFKA_PRODUCER_RETRIES
+          value: "0"
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: "100"
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: 127.0.0.1:5000/host-inventory:bc49d74
+        imagePullPolicy: IfNotPresent
+        name: host-inventory-service-init
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp/inventory/prometheus
+          name: prometheus-volume
+        - mountPath: /gunicorn
+          name: gunicorn-worker-dir
+        - mountPath: /cdapp/
+          name: config-secret
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: host-inventory-app
+      serviceAccountName: host-inventory-app
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: prometheus-volume
+      - emptyDir:
+          medium: Memory
+        name: gunicorn-worker-dir
+      - name: config-secret
+        secret:
+          defaultMode: 420
+          secretName: host-inventory
+status:
+  availableReplicas: 1
+  fullyLabeledReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1

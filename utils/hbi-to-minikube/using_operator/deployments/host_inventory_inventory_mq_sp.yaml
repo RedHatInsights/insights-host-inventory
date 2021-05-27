@@ -1,0 +1,375 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  generation: 1
+  labels:
+    app: host-inventory
+    pod: host-inventory-inventory-mq-sp
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"e081a6a6-67ab-4558-a9cc-7e31c50dc67d"}:
+            .: {}
+            f:apiVersion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:progressDeadlineSeconds: {}
+        f:replicas: {}
+        f:revisionHistoryLimit: {}
+        f:selector: {}
+        f:strategy:
+          f:rollingUpdate:
+            .: {}
+            f:maxSurge: {}
+            f:maxUnavailable: {}
+          f:type: {}
+        f:template:
+          f:metadata:
+            f:annotations:
+              .: {}
+              f:configHash: {}
+            f:labels:
+              .: {}
+              f:app: {}
+              f:pod: {}
+          f:spec:
+            f:affinity:
+              .: {}
+              f:podAntiAffinity:
+                .: {}
+                f:preferredDuringSchedulingIgnoredDuringExecution: {}
+            f:containers:
+              k:{"name":"host-inventory-inventory-mq-sp"}:
+                .: {}
+                f:command: {}
+                f:env:
+                  .: {}
+                  k:{"name":"ACG_CONFIG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"CLOWDER_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"INVENTORY_DB_SSL_CERT"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"INVENTORY_DB_SSL_MODE"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"INVENTORY_LOG_LEVEL"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_CONSUMER_TOPIC"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_HOST_INGRESS_GROUP"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_HOST_INGRESS_TOPIC"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_PRODUCER_ACKS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_PRODUCER_RETRIES"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_PRODUCER_RETRY_BACKOFF_MS"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"KAFKA_SYSTEM_PROFILE_TOPIC"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PAYLOAD_TRACKER_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PAYLOAD_TRACKER_SERVICE_NAME"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:livenessProbe:
+                  .: {}
+                  f:failureThreshold: {}
+                  f:httpGet:
+                    .: {}
+                    f:path: {}
+                    f:port: {}
+                    f:scheme: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":9000,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:failureThreshold: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:tcpSocket:
+                    .: {}
+                    f:port: {}
+                  f:timeoutSeconds: {}
+                f:resources:
+                  .: {}
+                  f:limits:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                  f:requests:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/cdapp/"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:imagePullSecrets:
+              .: {}
+              k:{"name":"quay-cloudservices-pull"}:
+                .: {}
+                f:name: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:serviceAccount: {}
+            f:serviceAccountName: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"config-secret"}:
+                .: {}
+                f:name: {}
+                f:secret:
+                  .: {}
+                  f:defaultMode: {}
+                  f:secretName: {}
+    manager: manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:deployment.kubernetes.io/revision: {}
+      f:status:
+        f:availableReplicas: {}
+        f:conditions:
+          .: {}
+          k:{"type":"Available"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Progressing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:observedGeneration: {}
+        f:readyReplicas: {}
+        f:replicas: {}
+        f:updatedReplicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-05-27T17:18:45Z"
+  name: host-inventory-inventory-mq-sp
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: cloud.redhat.com/v1alpha1
+    controller: true
+    kind: ClowdApp
+    name: host-inventory
+    uid: e081a6a6-67ab-4558-a9cc-7e31c50dc67d
+  resourceVersion: "4017"
+  uid: 415cb427-b2b1-416f-9830-5f76e3b95d44
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: host-inventory
+      pod: host-inventory-inventory-mq-sp
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        configHash: 37aecb2f5be9f0c79052c86de9974f279c5d08806e4c0aec7b3f807feeaad1ee
+      creationTimestamp: null
+      labels:
+        app: host-inventory
+        pod: host-inventory-inventory-mq-sp
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: host-inventory
+                  pod: host-inventory-inventory-mq-sp
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: host-inventory
+                  pod: host-inventory-inventory-mq-sp
+              topologyKey: kubernetes.io/hostname
+            weight: 99
+      containers:
+      - command:
+        - python
+        - inv_mq_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: INFO
+        - name: INVENTORY_DB_SSL_MODE
+          value: prefer
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: platform.inventory.system-profile
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: platform.inventory.host-ingress
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: platform.inventory.system-profile
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: inventory-mq
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: "true"
+        - name: KAFKA_PRODUCER_ACKS
+          value: "1"
+        - name: KAFKA_PRODUCER_RETRIES
+          value: "0"
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: "100"
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: 127.0.0.1:5000/host-inventory:bc49d74
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: host-inventory-inventory-mq-sp
+        ports:
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 9000
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /cdapp/
+          name: config-secret
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: quay-cloudservices-pull
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: host-inventory-app
+      serviceAccountName: host-inventory-app
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config-secret
+        secret:
+          defaultMode: 420
+          secretName: host-inventory
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2021-05-27T17:18:45Z"
+    lastUpdateTime: "2021-05-27T17:18:45Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2021-05-27T17:17:24Z"
+    lastUpdateTime: "2021-05-27T17:18:45Z"
+    message: ReplicaSet "host-inventory-inventory-mq-sp-8485db49c8" has successfully
+      progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

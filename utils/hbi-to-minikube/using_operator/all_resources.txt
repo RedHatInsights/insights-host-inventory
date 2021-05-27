@@ -1,0 +1,61 @@
+# (insights-host-inventory) bash-3.2$ oc get all
+NAME                                                    READY   STATUS    RESTARTS   AGE
+pod/env-hbi-kafka-5586985c9c-pkccv                      1/1     Running   0          5h40m
+pod/env-hbi-minio-8468b69c75-pgs7f                      1/1     Running   0          5h40m
+pod/env-hbi-zookeeper-668dd5b7b-p9f4f                   1/1     Running   0          5h40m
+pod/host-inventory-db-84d88b7478-dlpmc                  1/1     Running   1          5h28m
+pod/host-inventory-inventory-mq-p1-5c756dfb5f-lj5g8     1/1     Running   0          5h28m
+pod/host-inventory-inventory-mq-pmin-7ccc744957-mkfvj   1/1     Running   0          5h28m
+pod/host-inventory-inventory-mq-sp-8485db49c8-s8pjl     1/1     Running   0          5h28m
+pod/host-inventory-service-58849bcb89-w85m8             1/1     Running   0          5h28m
+pod/rbac-db-69968d95b9-vlzkq                            1/1     Running   1          5h28m
+pod/rbac-redis-75f7786c95-tvcnj                         1/1     Running   0          5h28m
+pod/rbac-service-56494fff84-brr75                       1/1     Running   0          5h28m
+pod/rbac-service-56494fff84-ftzk2                       1/1     Running   0          5h28m
+
+NAME                                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                       AGE
+service/env-hbi-kafka                      ClusterIP   10.98.61.64      <none>        29092/TCP                     5h40m
+service/env-hbi-minio                      ClusterIP   10.98.148.107    <none>        9000/TCP                      5h40m
+service/env-hbi-zookeeper                  ClusterIP   10.103.166.143   <none>        32181/TCP,2888/TCP,3888/TCP   5h40m
+service/host-inventory-db                  ClusterIP   10.110.189.72    <none>        5432/TCP                      5h28m
+service/host-inventory-inventory-mq-p1     ClusterIP   10.100.229.145   <none>        9000/TCP                      5h28m
+service/host-inventory-inventory-mq-pmin   ClusterIP   10.111.65.143    <none>        9000/TCP                      5h28m
+service/host-inventory-inventory-mq-sp     ClusterIP   10.99.171.33     <none>        9000/TCP                      5h28m
+service/host-inventory-service             ClusterIP   10.98.55.105     <none>        8000/TCP,9000/TCP             5h28m
+service/rbac                               ClusterIP   10.110.18.136    <none>        8080/TCP                      5h28m
+service/rbac-db                            ClusterIP   10.99.21.126     <none>        5432/TCP                      5h28m
+service/rbac-redis                         ClusterIP   10.110.200.179   <none>        6379/TCP                      5h28m
+service/rbac-scheduler-service             ClusterIP   10.96.170.251    <none>        9000/TCP                      5h28m
+service/rbac-service                       ClusterIP   10.101.122.227   <none>        8000/TCP,9000/TCP             5h28m
+service/rbac-worker-service                ClusterIP   10.96.3.118      <none>        9000/TCP                      5h28m
+
+NAME                                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/env-hbi-kafka                      1/1     1            1           5h40m
+deployment.apps/env-hbi-minio                      1/1     1            1           5h40m
+deployment.apps/env-hbi-zookeeper                  1/1     1            1           5h40m
+deployment.apps/host-inventory-db                  1/1     1            1           5h28m
+deployment.apps/host-inventory-inventory-mq-p1     1/1     1            1           5h28m
+deployment.apps/host-inventory-inventory-mq-pmin   1/1     1            1           5h28m
+deployment.apps/host-inventory-inventory-mq-sp     1/1     1            1           5h28m
+deployment.apps/host-inventory-service             1/1     1            1           5h28m
+deployment.apps/rbac-db                            1/1     1            1           5h28m
+deployment.apps/rbac-redis                         1/1     1            1           5h28m
+deployment.apps/rbac-scheduler-service             0/0     0            0           5h28m
+deployment.apps/rbac-service                       2/2     2            2           5h28m
+deployment.apps/rbac-worker-service                0/0     0            0           5h28m
+
+NAME                                                          DESIRED   CURRENT   READY   AGE
+replicaset.apps/env-hbi-kafka-5586985c9c                      1         1         1       5h40m
+replicaset.apps/env-hbi-minio-8468b69c75                      1         1         1       5h40m
+replicaset.apps/env-hbi-zookeeper-668dd5b7b                   1         1         1       5h40m
+replicaset.apps/host-inventory-db-84d88b7478                  1         1         1       5h28m
+replicaset.apps/host-inventory-inventory-mq-p1-5c756dfb5f     1         1         1       5h28m
+replicaset.apps/host-inventory-inventory-mq-pmin-7ccc744957   1         1         1       5h28m
+replicaset.apps/host-inventory-inventory-mq-sp-8485db49c8     1         1         1       5h28m
+replicaset.apps/host-inventory-service-58849bcb89             1         1         1       5h28m
+replicaset.apps/rbac-db-69968d95b9                            1         1         1       5h28m
+replicaset.apps/rbac-redis-75f7786c95                         1         1         1       5h28m
+replicaset.apps/rbac-scheduler-service-5cdfbfdc69             0         0         0       5h28m
+replicaset.apps/rbac-service-56494fff84                       2         2         2       5h28m
+replicaset.apps/rbac-worker-service-849695bf6f                0         0         0       5h28m
+# (insights-host-inventory) bash-3.2$

@@ -1,0 +1,513 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  annotations:
+    deployment.kubernetes.io/desired-replicas: "0"
+    deployment.kubernetes.io/max-replicas: "0"
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2021-05-27T17:17:24Z"
+  generation: 1
+  labels:
+    app: rbac
+    pod: rbac-worker-service
+    pod-template-hash: 849695bf6f
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:deployment.kubernetes.io/desired-replicas: {}
+          f:deployment.kubernetes.io/max-replicas: {}
+          f:deployment.kubernetes.io/revision: {}
+        f:labels:
+          .: {}
+          f:app: {}
+          f:pod: {}
+          f:pod-template-hash: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"a0f16d84-aecd-44b5-ba4d-ed4f60e81544"}:
+            .: {}
+            f:apiVersion: {}
+            f:blockOwnerDeletion: {}
+            f:controller: {}
+            f:kind: {}
+            f:name: {}
+            f:uid: {}
+      f:spec:
+        f:replicas: {}
+        f:selector: {}
+        f:template:
+          f:metadata:
+            f:annotations:
+              .: {}
+              f:configHash: {}
+            f:labels:
+              .: {}
+              f:app: {}
+              f:pod: {}
+              f:pod-template-hash: {}
+          f:spec:
+            f:affinity:
+              .: {}
+              f:podAntiAffinity:
+                .: {}
+                f:preferredDuringSchedulingIgnoredDuringExecution: {}
+            f:containers:
+              k:{"name":"rbac-worker-service"}:
+                .: {}
+                f:command: {}
+                f:env:
+                  .: {}
+                  k:{"name":"ACG_CONFIG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"APP_NAMESPACE"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:fieldRef:
+                        .: {}
+                        f:apiVersion: {}
+                        f:fieldPath: {}
+                  k:{"name":"CLOWDER_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"CW_NULL_WORKAROUND"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"DJANGO_DEBUG"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"DJANGO_LOG_LEVEL"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"DJANGO_SECRET_KEY"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"GROUP_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PERMISSION_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PGSSLMODE"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"PRINCIPAL_PROXY_API_TOKEN"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_CLIENT_ID"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_HOST"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_PATH"}:
+                    .: {}
+                    f:name: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_PORT"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_PROTOCOL"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_SOURCE_CERT"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_SERVICE_SSL_VERIFY"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"PRINCIPAL_PROXY_USER_ENV"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                  k:{"name":"ROLE_SEEDING_ENABLED"}:
+                    .: {}
+                    f:name: {}
+                    f:value: {}
+                  k:{"name":"SENTRY_DSN"}:
+                    .: {}
+                    f:name: {}
+                    f:valueFrom:
+                      .: {}
+                      f:secretKeyRef:
+                        .: {}
+                        f:key: {}
+                        f:name: {}
+                        f:optional: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:livenessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:initialDelaySeconds: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":9000,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:name: {}
+                    f:protocol: {}
+                f:readinessProbe:
+                  .: {}
+                  f:exec:
+                    .: {}
+                    f:command: {}
+                  f:failureThreshold: {}
+                  f:periodSeconds: {}
+                  f:successThreshold: {}
+                  f:timeoutSeconds: {}
+                f:resources:
+                  .: {}
+                  f:limits:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                  f:requests:
+                    .: {}
+                    f:cpu: {}
+                    f:memory: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+                f:volumeMounts:
+                  .: {}
+                  k:{"mountPath":"/cdapp/"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/opt/app-root/src/rbac/management/role/definitions"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+                  k:{"mountPath":"/opt/app-root/src/rbac/management/role/permissions"}:
+                    .: {}
+                    f:mountPath: {}
+                    f:name: {}
+            f:dnsPolicy: {}
+            f:imagePullSecrets:
+              .: {}
+              k:{"name":"quay-cloudservices-pull"}:
+                .: {}
+                f:name: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:serviceAccount: {}
+            f:serviceAccountName: {}
+            f:terminationGracePeriodSeconds: {}
+            f:volumes:
+              .: {}
+              k:{"name":"config-secret"}:
+                .: {}
+                f:name: {}
+                f:secret:
+                  .: {}
+                  f:defaultMode: {}
+                  f:secretName: {}
+              k:{"name":"default-role-config"}:
+                .: {}
+                f:configMap:
+                  .: {}
+                  f:defaultMode: {}
+                  f:name: {}
+                f:name: {}
+              k:{"name":"model-access-permissions"}:
+                .: {}
+                f:configMap:
+                  .: {}
+                  f:defaultMode: {}
+                  f:name: {}
+                f:name: {}
+      f:status:
+        f:observedGeneration: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-05-27T17:17:24Z"
+  name: rbac-worker-service-849695bf6f
+  namespace: hbi
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Deployment
+    name: rbac-worker-service
+    uid: a0f16d84-aecd-44b5-ba4d-ed4f60e81544
+  resourceVersion: "3641"
+  uid: 50033c1b-e291-4522-bfc9-a6ed368dbc12
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rbac
+      pod: rbac-worker-service
+      pod-template-hash: 849695bf6f
+  template:
+    metadata:
+      annotations:
+        configHash: e604984da19467107497dfbb3c202238ebadc86134077bd330768f6831f4b18b
+      creationTimestamp: null
+      labels:
+        app: rbac
+        pod: rbac-worker-service
+        pod-template-hash: 849695bf6f
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-worker-service
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: rbac
+                  pod: rbac-worker-service
+              topologyKey: kubernetes.io/hostname
+            weight: 99
+      containers:
+      - command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${PWD}/rbac/ celery -A rbac.celery worker -l $DJANGO_LOG_LEVEL
+        env:
+        - name: DJANGO_LOG_LEVEL
+          value: INFO
+        - name: DJANGO_DEBUG
+          value: "False"
+        - name: PERMISSION_SEEDING_ENABLED
+          value: "False"
+        - name: ROLE_SEEDING_ENABLED
+          value: "False"
+        - name: GROUP_SEEDING_ENABLED
+          value: "False"
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: django-secret-key
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PROTOCOL
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-protocol
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_HOST
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-host
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PORT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-port
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_PATH
+        - name: PRINCIPAL_PROXY_USER_ENV
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-env
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-client-id
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-api-token
+              name: rbac-secret
+              optional: false
+        - name: PRINCIPAL_PROXY_SERVICE_SSL_VERIFY
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-ssl-verify
+              name: rbac-secret
+              optional: true
+        - name: PRINCIPAL_PROXY_SERVICE_SOURCE_CERT
+          valueFrom:
+            secretKeyRef:
+              key: principal-proxy-source-cert
+              name: rbac-secret
+              optional: true
+        - name: APP_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: PGSSLMODE
+          value: prefer
+        - name: CLOWDER_ENABLED
+          value: "true"
+        - name: CW_NULL_WORKAROUND
+          value: ${CW_NULL_WORKAROUND)
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: sentry-dsn
+              name: rbac-secret
+              optional: true
+        - name: ACG_CONFIG
+          value: /cdapp/cdappconfig.json
+        image: quay.io/cloudservices/rbac:20cad27
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              PYTHONPATH=${PWD}/rbac/ celery inspect ping -A rbac.celery
+          failureThreshold: 3
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: rbac-worker-service
+        ports:
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              PYTHONPATH=${PWD}/rbac/ celery inspect ping -A rbac.celery
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 8Gi
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/app-root/src/rbac/management/role/definitions
+          name: default-role-config
+        - mountPath: /opt/app-root/src/rbac/management/role/permissions
+          name: model-access-permissions
+        - mountPath: /cdapp/
+          name: config-secret
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: quay-cloudservices-pull
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: rbac-app
+      serviceAccountName: rbac-app
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: rbac-config
+        name: default-role-config
+      - configMap:
+          defaultMode: 420
+          name: model-access-permissions
+        name: model-access-permissions
+      - name: config-secret
+        secret:
+          defaultMode: 420
+          secretName: rbac
+status:
+  observedGeneration: 1
+  replicas: 0

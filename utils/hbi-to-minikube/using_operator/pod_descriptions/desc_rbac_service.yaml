@@ -1,0 +1,176 @@
+Name:               rbac-service-56494fff84-brr75
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:17:26 -0400
+Labels:             app=rbac
+                    pod=rbac-service
+                    pod-template-hash=56494fff84
+Annotations:        configHash: e604984da19467107497dfbb3c202238ebadc86134077bd330768f6831f4b18b
+Status:             Running
+IP:                 172.17.0.23
+Controlled By:      ReplicaSet/rbac-service-56494fff84
+Init Containers:
+  rbac-service-init:
+    Container ID:  docker://0d649933c26c8bd1600381d974172320c1279b5bdce3ae7f9f86b4acbcb7e2ff
+    Image:         quay.io/cloudservices/rbac:20cad27
+    Image ID:      docker-pullable://quay.io/cloudservices/rbac@sha256:2f2d8a33ab2ab6919b3d0baaf4e7839da8db48befbc2be8ccc13d405805d0771
+    Port:          <none>
+    Host Port:     <none>
+    Args:
+      sh
+      /opt/app-root/src/deploy/init-container-setup.sh
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Thu, 27 May 2021 13:19:38 -0400
+      Finished:     Thu, 27 May 2021 13:19:45 -0400
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  8Gi
+    Requests:
+      cpu:     300m
+      memory:  1Gi
+    Environment:
+      INIT_CONTAINER:                       True
+      EPH_ENV:                              True
+      SENTRY_DSN:                           <set to the key 'sentry-dsn' in secret 'rbac-secret'>  Optional: true
+      SERVICE_PSKS:                         <set to the key 'psks.json' in secret 'rbac-psks'>     Optional: false
+      PGSSLMODE:                            prefer
+      DJANGO_SECRET_KEY:                    <set to the key 'django-secret-key' in secret 'rbac-secret'>         Optional: false
+      PRINCIPAL_PROXY_SERVICE_PROTOCOL:     <set to the key 'principal-proxy-protocol' in secret 'rbac-secret'>  Optional: false
+      PRINCIPAL_PROXY_SERVICE_HOST:         <set to the key 'principal-proxy-host' in secret 'rbac-secret'>      Optional: false
+      PRINCIPAL_PROXY_SERVICE_PORT:         <set to the key 'principal-proxy-port' in secret 'rbac-secret'>      Optional: false
+      PRINCIPAL_PROXY_SERVICE_PATH:
+      PRINCIPAL_PROXY_USER_ENV:             <set to the key 'principal-proxy-env' in secret 'rbac-secret'>          Optional: false
+      PRINCIPAL_PROXY_CLIENT_ID:            <set to the key 'principal-proxy-client-id' in secret 'rbac-secret'>    Optional: false
+      PRINCIPAL_PROXY_API_TOKEN:            <set to the key 'principal-proxy-api-token' in secret 'rbac-secret'>    Optional: false
+      PRINCIPAL_PROXY_SERVICE_SSL_VERIFY:   <set to the key 'principal-proxy-ssl-verify' in secret 'rbac-secret'>   Optional: true
+      PRINCIPAL_PROXY_SERVICE_SOURCE_CERT:  <set to the key 'principal-proxy-source-cert' in secret 'rbac-secret'>  Optional: true
+      POD_CPU_LIMIT:                        1 (limits.cpu)
+      ACCESS_CACHE_ENABLED:                 True
+      APP_NAMESPACE:                        hbi (v1:metadata.namespace)
+      DJANGO_DEBUG:                         False
+      API_PATH_PREFIX:                      /api/rbac
+      DEVELOPMENT:                          false
+      RBAC_LOG_LEVEL:                       INFO
+      DJANGO_LOG_LEVEL:                     INFO
+      DJANGO_LOG_FORMATTER:                 simple
+      DJANGO_LOG_HANDLERS:                  console,ecs
+      DJANGO_LOG_DIRECTORY:
+      DJANGO_LOGGING_FILE:
+      PERMISSION_SEEDING_ENABLED:           False
+      ROLE_SEEDING_ENABLED:                 False
+      GROUP_SEEDING_ENABLED:                False
+      DISABLE_MIGRATE:                      True
+      BYPASS_BOP_VERIFICATION:              False
+      ROLE_CREATE_ALLOW_LIST:               cost-management,remediations,inventory,drift,policies,advisor,catalog,approval,vulnerability,compliance,automation-analytics,notifications,patch,integrations
+      RBAC_DESTRUCTIVE_ENABLED_UNTIL:
+      CLOWDER_ENABLED:                      true
+      APP_CONFIG:                           /opt/app-root/src/rbac/gunicorn.py
+      APP_HOME:                             /opt/app-root/src/rbac
+      APP_MODULE:                           rbac.wsgi
+      APP_NAMESPACE:                        rbac
+      CW_NULL_WORKAROUND:                   ${CW_NULL_WORKAROUND)
+      ACG_CONFIG:                           /cdapp/cdappconfig.json
+      ACG_CONFIG:                           /cdapp/cdappconfig.json
+    Mounts:
+      /cdapp/ from config-secret (rw)
+      /opt/app-root/src/rbac/management/role/definitions from default-role-config (rw)
+      /opt/app-root/src/rbac/management/role/permissions from model-access-permissions (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from rbac-app-token-94bk2 (ro)
+Containers:
+  rbac-service:
+    Container ID:   docker://6b6cb304b89cd08a147061d5d81f6608abd678aca18b0728bf5fb387a0572af2
+    Image:          quay.io/cloudservices/rbac:20cad27
+    Image ID:       docker-pullable://quay.io/cloudservices/rbac@sha256:2f2d8a33ab2ab6919b3d0baaf4e7839da8db48befbc2be8ccc13d405805d0771
+    Ports:          8000/TCP, 9000/TCP
+    Host Ports:     0/TCP, 0/TCP
+    State:          Running
+      Started:      Thu, 27 May 2021 13:19:47 -0400
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  8Gi
+    Requests:
+      cpu:      300m
+      memory:   1Gi
+    Liveness:   http-get http://:8000/api/rbac/v1/status/ delay=60s timeout=3s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:8000/api/rbac/v1/status/ delay=60s timeout=3s period=10s #success=1 #failure=3
+    Environment:
+      SENTRY_DSN:                           <set to the key 'sentry-dsn' in secret 'rbac-secret'>  Optional: true
+      SERVICE_PSKS:                         <set to the key 'psks.json' in secret 'rbac-psks'>     Optional: false
+      PGSSLMODE:                            prefer
+      DJANGO_SECRET_KEY:                    <set to the key 'django-secret-key' in secret 'rbac-secret'>         Optional: false
+      PRINCIPAL_PROXY_SERVICE_PROTOCOL:     <set to the key 'principal-proxy-protocol' in secret 'rbac-secret'>  Optional: false
+      PRINCIPAL_PROXY_SERVICE_HOST:         <set to the key 'principal-proxy-host' in secret 'rbac-secret'>      Optional: false
+      PRINCIPAL_PROXY_SERVICE_PORT:         <set to the key 'principal-proxy-port' in secret 'rbac-secret'>      Optional: false
+      PRINCIPAL_PROXY_SERVICE_PATH:
+      PRINCIPAL_PROXY_USER_ENV:             <set to the key 'principal-proxy-env' in secret 'rbac-secret'>          Optional: false
+      PRINCIPAL_PROXY_CLIENT_ID:            <set to the key 'principal-proxy-client-id' in secret 'rbac-secret'>    Optional: false
+      PRINCIPAL_PROXY_API_TOKEN:            <set to the key 'principal-proxy-api-token' in secret 'rbac-secret'>    Optional: false
+      PRINCIPAL_PROXY_SERVICE_SSL_VERIFY:   <set to the key 'principal-proxy-ssl-verify' in secret 'rbac-secret'>   Optional: true
+      PRINCIPAL_PROXY_SERVICE_SOURCE_CERT:  <set to the key 'principal-proxy-source-cert' in secret 'rbac-secret'>  Optional: true
+      POD_CPU_LIMIT:                        1 (limits.cpu)
+      ACCESS_CACHE_ENABLED:                 True
+      APP_NAMESPACE:                        hbi (v1:metadata.namespace)
+      DJANGO_DEBUG:                         False
+      API_PATH_PREFIX:                      /api/rbac
+      DEVELOPMENT:                          false
+      RBAC_LOG_LEVEL:                       INFO
+      DJANGO_LOG_LEVEL:                     INFO
+      DJANGO_LOG_FORMATTER:                 simple
+      DJANGO_LOG_HANDLERS:                  console,ecs
+      DJANGO_LOG_DIRECTORY:
+      DJANGO_LOGGING_FILE:
+      PERMISSION_SEEDING_ENABLED:           False
+      ROLE_SEEDING_ENABLED:                 False
+      GROUP_SEEDING_ENABLED:                False
+      DISABLE_MIGRATE:                      True
+      BYPASS_BOP_VERIFICATION:              False
+      ROLE_CREATE_ALLOW_LIST:               cost-management,remediations,inventory,drift,policies,advisor,catalog,approval,vulnerability,compliance,automation-analytics,notifications,patch,integrations
+      RBAC_DESTRUCTIVE_ENABLED_UNTIL:
+      CLOWDER_ENABLED:                      true
+      APP_CONFIG:                           /opt/app-root/src/rbac/gunicorn.py
+      APP_HOME:                             /opt/app-root/src/rbac
+      APP_MODULE:                           rbac.wsgi
+      APP_NAMESPACE:                        rbac
+      CW_NULL_WORKAROUND:                   ${CW_NULL_WORKAROUND)
+      INIT_CONTAINER:                       False
+      ACG_CONFIG:                           /cdapp/cdappconfig.json
+    Mounts:
+      /cdapp/ from config-secret (rw)
+      /opt/app-root/src/rbac/management/role/definitions from default-role-config (rw)
+      /opt/app-root/src/rbac/management/role/permissions from model-access-permissions (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from rbac-app-token-94bk2 (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-role-config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      rbac-config
+    Optional:  false
+  model-access-permissions:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      model-access-permissions
+    Optional:  false
+  config-secret:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  rbac
+    Optional:    false
+  rbac-app-token-94bk2:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  rbac-app-token-94bk2
+    Optional:    false
+QoS Class:       Burstable
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

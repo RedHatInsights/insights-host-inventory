@@ -1,0 +1,53 @@
+Name:               env-hbi-minio-8468b69c75-pgs7f
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:05:17 -0400
+Labels:             app=env-hbi
+                    env-app=env-hbi-minio
+                    pod-template-hash=8468b69c75
+Annotations:        <none>
+Status:             Running
+IP:                 172.17.0.12
+Controlled By:      ReplicaSet/env-hbi-minio-8468b69c75
+Containers:
+  env-hbi-minio:
+    Container ID:  docker://4c380c37e4dd4d3cfcfdbd9c2e2f4b003ad719c82d16292e79a738286747ce1d
+    Image:         quay.io/cloudservices/minio:RELEASE.2020-11-19T23-48-16Z-amd64
+    Image ID:      docker-pullable://quay.io/cloudservices/minio@sha256:13c529dedc6e071c6a04d64587346b088cc26ab98f1787dce922d73e8f513d6d
+    Port:          9000/TCP
+    Host Port:     0/TCP
+    Args:
+      server
+      /storage
+    State:          Running
+      Started:      Thu, 27 May 2021 13:05:22 -0400
+    Ready:          True
+    Restart Count:  0
+    Liveness:       tcp-socket :9000 delay=10s timeout=2s period=10s #success=1 #failure=3
+    Readiness:      tcp-socket :9000 delay=20s timeout=2s period=10s #success=1 #failure=3
+    Environment:
+      MINIO_ACCESS_KEY:  <set to the key 'accessKey' in secret 'env-hbi-minio'>  Optional: false
+      MINIO_SECRET_KEY:  <set to the key 'secretKey' in secret 'env-hbi-minio'>  Optional: false
+    Mounts:
+      /storage from env-hbi-minio (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from env-hbi-env-token-p4zzr (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  env-hbi-minio:
+    Type:    EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:
+  env-hbi-env-token-p4zzr:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  env-hbi-env-token-p4zzr
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s

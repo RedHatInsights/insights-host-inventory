@@ -1,0 +1,72 @@
+Name:               host-inventory-inventory-mq-sp-8485db49c8-s8pjl
+Namespace:          hbi
+Priority:           0
+PriorityClassName:  <none>
+Node:               minikube/192.168.64.40
+Start Time:         Thu, 27 May 2021 13:17:25 -0400
+Labels:             app=host-inventory
+                    pod=host-inventory-inventory-mq-sp
+                    pod-template-hash=8485db49c8
+Annotations:        configHash: 37aecb2f5be9f0c79052c86de9974f279c5d08806e4c0aec7b3f807feeaad1ee
+Status:             Running
+IP:                 172.17.0.16
+Controlled By:      ReplicaSet/host-inventory-inventory-mq-sp-8485db49c8
+Containers:
+  host-inventory-inventory-mq-sp:
+    Container ID:  docker://35a01228f746e7b5b0ba8b56332ba281a8a9ad5eca5c112ecef3b330af43e8d4
+    Image:         127.0.0.1:5000/host-inventory:bc49d74
+    Image ID:      docker-pullable://127.0.0.1:5000/host-inventory@sha256:aaadfa55e3c32e8c1d428a966923f995ad7af7793ee947d678a9c64487ca90c1
+    Port:          9000/TCP
+    Host Port:     0/TCP
+    Command:
+      python
+      inv_mq_service.py
+    State:          Running
+      Started:      Thu, 27 May 2021 13:18:35 -0400
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  8Gi
+    Requests:
+      cpu:      300m
+      memory:   1Gi
+    Liveness:   http-get http://:9000/ delay=10s timeout=5s period=10s #success=1 #failure=3
+    Readiness:  tcp-socket :9000 delay=0s timeout=1s period=10s #success=1 #failure=3
+    Environment:
+      INVENTORY_LOG_LEVEL:              INFO
+      INVENTORY_DB_SSL_MODE:            prefer
+      INVENTORY_DB_SSL_CERT:            ${INVENTORY_DB_SSL_CERT}
+      KAFKA_CONSUMER_TOPIC:             platform.inventory.system-profile
+      KAFKA_HOST_INGRESS_TOPIC:         platform.inventory.host-ingress
+      KAFKA_SYSTEM_PROFILE_TOPIC:       platform.inventory.system-profile
+      KAFKA_HOST_INGRESS_GROUP:         inventory-mq
+      PAYLOAD_TRACKER_SERVICE_NAME:     inventory-mq-service
+      PAYLOAD_TRACKER_ENABLED:          true
+      KAFKA_PRODUCER_ACKS:              1
+      KAFKA_PRODUCER_RETRIES:           0
+      KAFKA_PRODUCER_RETRY_BACKOFF_MS:  100
+      CLOWDER_ENABLED:                  true
+      ACG_CONFIG:                       /cdapp/cdappconfig.json
+    Mounts:
+      /cdapp/ from config-secret (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from host-inventory-app-token-w2ghn (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  config-secret:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  host-inventory
+    Optional:    false
+  host-inventory-app-token-w2ghn:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  host-inventory-app-token-w2ghn
+    Optional:    false
+QoS Class:       Burstable
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
