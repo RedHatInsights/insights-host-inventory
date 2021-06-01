@@ -1941,8 +1941,8 @@ def test_query_hosts_filter_spf_host_type_multiple(
         "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
     )
     queries = (
-        {"OR": ({"spf_host_type": {"eq": "random-type"}},)},
-        {"OR": ({"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}})},
+        {"OR": [{"spf_host_type": {"eq": "random-type"}}]},
+        {"OR": [{"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}}]},
     )
 
     for param, query in zip(query_params, queries):

@@ -146,7 +146,18 @@ def _params_to_order(param_order_by=None, param_order_how=None):
     return xjoin_order_by, xjoin_order_how
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
+def _query_filters(
+    fqdn,
+    display_name,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    staleness,
+    registered_with,
+    filter,
+):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -189,6 +200,7 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
 
     logger.debug(query_filters)
     return query_filters
+
 
 def owner_id_filter():
     return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)

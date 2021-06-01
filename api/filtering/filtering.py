@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 
 NIL_STRING = "nil"
 NOT_NIL_STRING = "not_nil"
+OR_FIELDS = ("owner_id", "rhc_client_id", "host_type")
 
 
 def _boolean_filter(field_name, field_value):
@@ -76,8 +77,7 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter):
 
 
 def _get_list_operator(field_name):
-    or_fields = ("owner_id", "rhc_client_id")
-    if field_name in or_fields:
+    if field_name in OR_FIELDS:
         return "OR"
     else:
         return "AND"
