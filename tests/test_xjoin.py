@@ -2374,8 +2374,6 @@ def test_generic_filtering_string(
 
                         response_status, _ = api_get(url)
 
-                        print(f"URL: {url}")
-
                         assert response_status == 200
 
                         query_verifier(mocker, query_mock, query)
@@ -2537,9 +2535,6 @@ def test_generic_filtering_boolean(
                         url = url_builder(query=f"?filter{path}{op}={value}")
 
                         response_status, _ = api_get(url)
-
-                        print(f"URL: {url}")
-
                         assert response_status == 200
 
                         query_verifier(mocker, query_mock, query)
@@ -2673,8 +2668,6 @@ def test_generic_filtering_wildcard(
 
                         response_status, _ = api_get(url)
 
-                        print(f"URL: {url}")
-
                         assert response_status == 200
 
                         query_verifier(mocker, query_mock, query)
@@ -2740,9 +2733,6 @@ def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin,
                 with subtests.test(prefix=prefix, suffix=suffix):
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
-
-                    print(f"response status: {response_status}")
-                    # print(f"response title: {response_data['title']}")
 
                     assert response_status == 400
                     assert response_data["title"] == "Validation Error"
