@@ -17,6 +17,7 @@ from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_sap_sids_failed
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_failed
@@ -115,9 +116,11 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
-    if filter:
-        if filter.get("system_profile"):
+    for key in filter:
+        if key == "system_profile":
             hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+        else:
+            raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
@@ -170,9 +173,11 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
-    if filter:
-        if filter.get("system_profile"):
+    for key in filter:
+        if key == "system_profile":
             hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+        else:
+            raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

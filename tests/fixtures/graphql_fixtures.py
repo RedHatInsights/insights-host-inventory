@@ -51,6 +51,13 @@ def graphql_system_profile_sap_system_query_empty_response(graphql_query):
     )
 
 
+@pytest.fixture(
+    scope="function", params=[SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE, SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE]
+)
+def graphql_system_profile_query_empty_response(graphql_query, request):
+    return graphql_query(func="api.system_profile.graphql_query", return_value=request.param)
+
+
 @pytest.fixture(scope="function")
 def graphql_system_profile_sap_system_query_with_response(graphql_query):
     return graphql_query(func="api.system_profile.graphql_query", return_value=XJOIN_SYSTEM_PROFILE_SAP_SYSTEM)
