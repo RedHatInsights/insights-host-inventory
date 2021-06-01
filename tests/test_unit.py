@@ -200,15 +200,6 @@ class AuthIdentityValidateTestCase(TestCase):
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
-    def test_invalid_user_obj(self):
-        test_identity = deepcopy(USER_IDENTITY)
-        user_objects = [None, ""]
-        for user_object in user_objects:
-            with self.subTest(user_object=user_object):
-                test_identity["user"] = user_object
-                with self.assertRaises(ValueError):
-                    Identity(test_identity)
-
     def test_invalid_system_obj(self):
         test_identity = deepcopy(SYSTEM_IDENTITY)
         system_objects = [None, ""]
@@ -217,6 +208,51 @@ class AuthIdentityValidateTestCase(TestCase):
                 test_identity["system"] = system_object
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
+
+    def test_invalid_auth_types(self):
+        test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY)]
+        auth_types = ["", "foo"]
+        for test_identity in test_identities:
+            for auth_type in auth_types:
+                with self.subTest(auth_type=auth_type):
+                    test_identity["auth_type"] = auth_type
+                    with self.assertRaises(ValueError):
+                        Identity(test_identity)
+
+    def test_invalid_cert_types(self):
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        cert_types = [None, "", "foo"]
+        for cert_type in cert_types:
+            with self.subTest(cert_type=cert_type):
+                test_identity["system"]["cert_type"] = cert_type
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_case_insensitive_cert_types(self):
+        # Validate that cert_type is case-insensitive
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        cert_types = ["RHUI", "Satellite", "system"]
+        for cert_type in cert_types:
+            with self.subTest(cert_type=cert_type):
+                test_identity["system"]["cert_type"] = cert_type
+                try:
+                    Identity(test_identity)
+                    self.assertTrue(True)
+                except Exception:
+                    self.fail()
+
+    def test_case_insensitive_auth_types(self):
+        # Validate that auth_type is case-insensitive
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        auth_types = ["CLASSIC-PROXY", "Cert-Auth", "basic-auth", None]
+        for auth_type in auth_types:
+            with self.subTest(auth_type=auth_type):
+                test_identity["auth_type"] = auth_type
+                try:
+                    Identity(test_identity)
+                    self.assertTrue(True)
+                except Exception:
+                    self.fail()
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -912,6 +948,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1201,6 +1239,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
         }
         unchanged_data = {
             "display_name": "some display name",
@@ -1281,6 +1321,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "mac_addresses": None,
             "external_id": None,
             "ansible_host": None,
+            "provider_id": None,
+            "provider_type": None,
             **unchanged_data,
             "facts": [],
             "tags": [],
@@ -1295,6 +1337,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
         }
+
         self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
@@ -1496,6 +1539,8 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
         }
         self.assertEqual(canonical_facts, serialize_canonical_facts(canonical_facts))
 
@@ -1510,6 +1555,8 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn",
             "mac_addresses",
             "external_id",
+            "provider_id",
+            "provider_type",
         )
         self.assertEqual({field: None for field in canonical_fact_fields}, serialize_canonical_facts({}))
 

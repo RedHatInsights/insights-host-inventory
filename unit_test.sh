@@ -14,8 +14,11 @@ export INVENTORY_DB_PASS=$DATABASE_PASSWORD
 export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
 
 
+# check python version before
+python --version
+
 # Setup venv for unit tests
-python3.6 -m venv venv
+python3.8 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv
 pipenv install --dev

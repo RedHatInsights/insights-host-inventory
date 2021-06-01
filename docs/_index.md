@@ -70,6 +70,8 @@ A single host object should be wrapped in an `operation` json document.
           "ip_addresses": [<ip_addresses>],
           "mac_addresses": [<mac_addresses>],
           "external_id": "<external_id>",
+          "provider_id": "<provider_id>",
+          "provider_type": "<provider_type>",
           "facts": [<facts>],
           "tags": {<tags>},
           "system_profile": {<system_profile>},
@@ -124,6 +126,10 @@ facts fields are:
 - `mac_addresses`
 
 - `external_id`
+
+- `provider_id`
+
+- `provider_type`
 
 Host `tags` should be provided using [nested representation](#nested-representation):
 
@@ -373,6 +379,10 @@ are:
 - `mac_addresses`
 
 - `external_id`
+
+- `provider_id`
+
+- `provider_type`
 
 If the update request includes an insights\_id, then the inventory
 service will lookup the host using the insights\_id. If the inventory
@@ -776,6 +786,7 @@ Not every field in system profile may be used in filters. The following is a lis
 | is_marketplace | Boolean | true |
 | operating_system | String | 7.5 |
 | owner_id | UUID | 0892cd6b-c564-4f53-a0cb-0784d79ee323 |
+| host_type | String | edge |
 
 For example, to query for hosts with insights client version
 7 and any minor version, the query parameter should be defined as:
@@ -819,6 +830,30 @@ For example, to only fetch the arch, yum_repos and os_kernel_version, the user n
 ```
 
 In addition to the /hosts/{host_id_list}/system_profile endpoint, this query can also be used on the upper-level /hosts endpoint to fetch partial system profile data for hosts. On the /hosts endpoint, if this query is not included, no system profile data will be returned.
+
+## Identity Requirements
+
+To create, update and access host data, the provided identity must comply with the following logic:
+- it must contain an account number
+- identity must be of type `System` or `User`
+- the auth type in identity must of one of:
+    - `basic_auth`, `cert-auth`, `classic-proxy`, `jwt-auth` or `uhc-auth`
+
+If the identity is of type `User` or auth type is `classic-proxy`, there are no additional requirements. However, if the identity type is `System`, the `system` object should be present in identity and the following logic will be used to validate:
+- the fields `cert-type` and `cn` must be present within the `system` object
+- the `cert-type` must be one of:
+    - `hypervisor`, `rhui`, `sam`, `satellite` or `system`
+- the value provided in `cn` must be equal to the `owner_id` of the host being added or updated
+
+Host update messages received over `platform.inventory.system-profile` topic do not need to provide an identity.
+
+The following must be true for `add_host` messages received over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1`.
+- they must contain `platform_metadata` and the `b64_identity` field must be encoded within the `platform_metadata`, except when the reporter is `rhsm-conduit`
+- for an existing host, the `owner_id` of the host must match the value in `system.cn` of the identity
+
+If the reporter is `rhsm-conduit` and an identity is not provided, adding or updating hosts over `platform.inventory.host-ingress` and `platform.inventory.host-ingress-p1` will follow this logic:
+- `subscription_manager_id` must be present
+- the host's `owner_id` gets set to its `subscription_manager_id`
 
 ## Host Data Syndication (a.k.a. Project Cyndi)
 

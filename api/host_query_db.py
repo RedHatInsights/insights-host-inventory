@@ -25,6 +25,8 @@ def get_host_list(
     fqdn,
     hostname_or_id,
     insights_id,
+    provider_id,
+    provider_type,
     tags,
     page,
     per_page,

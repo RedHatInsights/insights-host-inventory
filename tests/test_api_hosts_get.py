@@ -35,6 +35,7 @@ from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -955,6 +956,29 @@ def test_get_hosts_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xj
 
                 assert_response_status(response_status, 200)
                 assert response_data["total"] == 1
+
+
+def test_get_hosts_with_satellite_identity(db_create_host, api_get):
+    owner_id = SATELLITE_IDENTITY["system"]["cn"]
+    host_one = db_create_host(SATELLITE_IDENTITY, extra_data={"system_profile_facts": {"owner_id": owner_id}})
+    host_two = db_create_host(SATELLITE_IDENTITY, extra_data={"system_profile_facts": {"owner_id": owner_id}})
+
+    host_ids = [str(host_one.id), str(host_two.id)]
+    response_status, response_data = api_get(HOST_URL, identity=SATELLITE_IDENTITY)
+
+    # check both hosts gets fetched when using satellite identity
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 2
+    for host_data in response_data["results"]:
+        assert host_data["id"] in host_ids
+
+    url = build_system_profile_url(host_list_or_id=[host_one, host_two])
+    response_status, response_data = api_get(url, identity=SATELLITE_IDENTITY)
+
+    # check the owner_id is identical for both hosts
+    assert_response_status(response_status, 200)
+    for host_data in response_data["results"]:
+        assert host_data["system_profile"]["owner_id"] == owner_id
 
 
 # DISABLED. Query validation will be added back in a future PR

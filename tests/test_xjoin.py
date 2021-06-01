@@ -27,6 +27,7 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -193,6 +194,99 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
         },
         mocker.ANY,
     )
+
+
+@pytest.mark.parametrize("provider_type", ("alibaba", "aws", "azure", "gcp", "ibm"))
+def test_query_variables_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_type": {"eq": provider_type}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    provider_id = generate_uuid()
+
+    url = build_hosts_url(query=f"?provider_id={quote(provider_id)}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_id": {"eq": provider_id}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_query_variables_provider_type_and_id(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider
+):
+    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                mocker.ANY,
+                {"provider_type": {"eq": provider["type"]}},
+                {"provider_id": {"eq": provider["id"]}},
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
+def test_query_using_invalid_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    graphql_query_empty_response.assert_not_called()
 
 
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
@@ -584,6 +678,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                 "facts": [],
@@ -606,6 +702,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
                 "facts": [
@@ -1799,6 +1897,94 @@ def test_spf_owner_id_invalid_field_value(
             assert response_data["title"] == "Validation Error"
 
 
+# system_profile host_type tests
+def test_query_hosts_filter_spf_host_type(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
+    values = ("edge", "nil", "not_nil")
+    queries = (
+        {"spf_host_type": {"eq": "edge"}},
+        {"spf_host_type": {"eq": None}},
+        {"NOT": {"spf_host_type": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_host_type_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][eq][]=random-type",
+        "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
+    )
+    queries = (
+        {"OR": ({"spf_host_type": {"eq": "random-type"}},)},
+        {"OR": ({"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}})},
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_host_type_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][foo]=what",
+        "?filter[system_profile][host_type][bar][]=barbar",
+        "?filter[system_profile][host_type][eq][foo]=foofoo",
+        "?filter[system_profile][host_type][foo][]=foofoo&filter[system_profile][host_type][bar][]=barbar",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 # system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
@@ -2128,6 +2314,29 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": 50, "offset": 0}, mocker.ANY
+    )
+
+
+def test_query_with_owner_id_satellite_identity(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url()
+
+    response_status, response_data = api_get(url, SATELLITE_IDENTITY)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": SATELLITE_IDENTITY["system"]["cn"]}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
     )
 
 

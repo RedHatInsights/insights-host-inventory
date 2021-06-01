@@ -17,6 +17,7 @@ from marshmallow import pre_load
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
+from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy import Index
 from sqlalchemy import orm
@@ -42,6 +43,14 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
+
+
+class ProviderType(str, Enum):
+    ALIBABA = "alibaba"
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    IBM = "ibm"
 
 
 def _set_display_name_on_save(context):
@@ -420,6 +429,26 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
+    provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+
+    @validates_schema
+    def validate_provider(self, data, **kwargs):
+        provider_type = data.get("provider_type")
+        provider_id = data.get("provider_id")
+
+        if (provider_type and not provider_id) or (provider_id and not provider_type):
+            raise MarshmallowValidationError("provider_type and provider_id are both required.")
+
+        if provider_type and provider_type.lower() not in ProviderType.__members__.values():
+            raise MarshmallowValidationError(
+                f'Unknown Provider Type: "{provider_type}".  '
+                f'Valid provider types are: {", ".join([p.value for p in ProviderType])}.'
+            )
+
+        # check for white spaces, tabs, and newline characters only
+        if provider_id and provider_id.isspace():
+            raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
