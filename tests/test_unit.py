@@ -27,7 +27,6 @@ from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
-from app.auth.identity import validate
 from app.config import Config
 from app.culling import _Config as CullingConfig
 from app.culling import Timestamps
@@ -62,6 +61,7 @@ from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
 
@@ -177,13 +177,12 @@ class AuthIdentityFromAuthHeaderTestCase(AuthIdentityConstructorTestCase):
 class AuthIdentityValidateTestCase(TestCase):
     def test_valid(self):
         try:
-            identity = Identity(USER_IDENTITY)
-            validate(identity)
+            Identity(USER_IDENTITY)
             self.assertTrue(True)
         except ValueError:
             self.fail()
 
-    def test_invalid(self):
+    def test_invalid_account(self):
         test_identity = deepcopy(USER_IDENTITY)
         account_numbers = [None, ""]
         for account_number in account_numbers:
@@ -191,6 +190,69 @@ class AuthIdentityValidateTestCase(TestCase):
                 test_identity["account_number"] = account_number
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
+
+    def test_invalid_type(self):
+        test_identity = deepcopy(USER_IDENTITY)
+        identity_types = [None, ""]
+        for identity_type in identity_types:
+            with self.subTest(identity_type=identity_type):
+                test_identity["type"] = identity_type
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_invalid_system_obj(self):
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        system_objects = [None, ""]
+        for system_object in system_objects:
+            with self.subTest(system_object=system_object):
+                test_identity["system"] = system_object
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_invalid_auth_types(self):
+        test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY)]
+        auth_types = ["", "foo"]
+        for test_identity in test_identities:
+            for auth_type in auth_types:
+                with self.subTest(auth_type=auth_type):
+                    test_identity["auth_type"] = auth_type
+                    with self.assertRaises(ValueError):
+                        Identity(test_identity)
+
+    def test_invalid_cert_types(self):
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        cert_types = [None, "", "foo"]
+        for cert_type in cert_types:
+            with self.subTest(cert_type=cert_type):
+                test_identity["system"]["cert_type"] = cert_type
+                with self.assertRaises(ValueError):
+                    Identity(test_identity)
+
+    def test_case_insensitive_cert_types(self):
+        # Validate that cert_type is case-insensitive
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        cert_types = ["RHUI", "Satellite", "system"]
+        for cert_type in cert_types:
+            with self.subTest(cert_type=cert_type):
+                test_identity["system"]["cert_type"] = cert_type
+                try:
+                    Identity(test_identity)
+                    self.assertTrue(True)
+                except Exception:
+                    self.fail()
+
+    def test_case_insensitive_auth_types(self):
+        # Validate that auth_type is case-insensitive
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        auth_types = ["CLASSIC-PROXY", "Cert-Auth", "basic-auth", None]
+        for auth_type in auth_types:
+            with self.subTest(auth_type=auth_type):
+                test_identity["auth_type"] = auth_type
+                try:
+                    Identity(test_identity)
+                    self.assertTrue(True)
+                except Exception:
+                    self.fail()
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -201,23 +263,17 @@ class TrustedIdentityTestCase(TestCase):
         return identity
 
     def test_validation(self):
-        identity = self._build_id()
-
         with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
-            validate(identity)
+            self._build_id()
 
     def test_validation_with_invalid_identity(self):
-        identity = from_bearer_token("InvalidPassword")
-
         with self.assertRaises(ValueError):
-            validate(identity)
+            from_bearer_token("InvalidPassword")
 
     def test_validation_env_var_not_set(self):
-        identity = self._build_id()
-
         with set_environment({}):
             with self.assertRaises(ValueError):
-                validate(identity)
+                self._build_id()
 
     def test_validation_token_is_None(self):
         tokens = [None, ""]
@@ -227,12 +283,14 @@ class TrustedIdentityTestCase(TestCase):
                     Identity(token=token)
 
     def test_is_trusted_system(self):
-        identity = self._build_id()
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
+            identity = self._build_id()
 
         self.assertEqual(identity.is_trusted_system, True)
 
     def test_account_number_is_not_set_for_trusted_system(self):
-        identity = self._build_id()
+        with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
+            identity = self._build_id()
 
         self.assertFalse(hasattr(identity, "account_number"))
 
@@ -890,6 +948,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1179,6 +1239,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
         }
         unchanged_data = {
             "display_name": "some display name",
@@ -1259,6 +1321,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "mac_addresses": None,
             "external_id": None,
             "ansible_host": None,
+            "provider_id": None,
+            "provider_type": None,
             **unchanged_data,
             "facts": [],
             "tags": [],
@@ -1273,6 +1337,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
         }
+
         self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
@@ -1474,6 +1539,8 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
             "external_id": "i-05d2313e6b9a42b16",
+            "provider_id": "i-05d2313e6b9a42b16",
+            "provider_type": "aws",
         }
         self.assertEqual(canonical_facts, serialize_canonical_facts(canonical_facts))
 
@@ -1488,6 +1555,8 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "fqdn",
             "mac_addresses",
             "external_id",
+            "provider_id",
+            "provider_type",
         )
         self.assertEqual({field: None for field in canonical_fact_fields}, serialize_canonical_facts({}))
 

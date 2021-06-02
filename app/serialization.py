@@ -24,6 +24,8 @@ _CANONICAL_FACTS_FIELDS = (
     "fqdn",
     "mac_addresses",
     "external_id",
+    "provider_id",
+    "provider_type",
 )
 
 DEFAULT_FIELDS = (

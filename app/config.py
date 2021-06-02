@@ -90,7 +90,6 @@ class Config:
         self.mgmt_url_path_prefix = os.getenv("INVENTORY_MANAGEMENT_URL_PATH_PREFIX", "/")
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
-        self.rest_post_enabled = os.environ.get("REST_POST_ENABLED", "true").lower() == "true"
 
         self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
@@ -114,6 +113,8 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
         }
 
         self.validator_kafka_consumer = {
@@ -127,6 +128,8 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
         }
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer

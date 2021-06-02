@@ -6,16 +6,16 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
-# good
-IDENTITY = {
-    "account_number": "test",
-    "type": "System",
-    "auth_type": "cert-auth",
-    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"org_id": "3340851", "auth_time": 6300},
-}
+# complete system identity
+# IDENTITY = {
+#     "account_number": "test",
+#     "type": "System",
+#     "auth_type": "cert-auth",
+#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+#     "internal": {"org_id": "3340851", "auth_time": 6300},
+# }
 
-# invalid-auth
+# system identity: invalid or incomplete for testing
 # IDENTITY = {
 #     "account_number": "sysaccount",
 #     "type": "System",
@@ -23,6 +23,23 @@ IDENTITY = {
 #     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
 #     "internal": {"org_id": "3340851", "auth_time": 6300},
 # }
+
+# complete user identity
+IDENTITY = {
+    "account_number": "test",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
+
+# incomplete or invalid user identity for testing
+# IDENTITY = {
+#     "account_number": "test",
+#     "type": "User",
+#     "auth_type": "basic-auth",
+# }
+
+
 apiKey = base64.b64encode(json.dumps({"identity": IDENTITY}).encode("utf-8"))
 
 
@@ -538,11 +555,20 @@ def random_uuid():
 def build_host_chunk():
     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
+    # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
         "account": account,
         # "insights_id": random_uuid(),
-        "bios_uuid": random_uuid(),
-        "fqdn": fqdn,
+        # "bios_uuid": random_uuid(),
+        # "fqdn": fqdn,
+        # "ansible_host": "host1.mydomain.com",
+        # "external_id": "i-05d2313e6b9a42b16",
+        # "provider_type": " ",
+        "provider_type": "aws",
+        # "provider_type": "Alibaba",
+        "provider_id": "i-05d2313e6b9a42b16",
+        # "provider_id": random_uuid(),
+        # "provider_id": "",
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},

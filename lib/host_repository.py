@@ -38,7 +38,7 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 # given priority in the host deduplication process.
 # NOTE: The order of this tuple is important.  The order defines
 # the priority.
-ELEVATED_CANONICAL_FACT_FIELDS = ("insights_id", "subscription_manager_id")
+ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 
 ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
 NULL = None

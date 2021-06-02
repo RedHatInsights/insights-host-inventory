@@ -9,6 +9,8 @@ objects:
     name: host-inventory
   spec:
     envName: ${ENV_NAME}
+    optionalDependencies:
+    - rbac
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
@@ -54,13 +56,11 @@ objects:
         - name: PAYLOAD_TRACKER_ENABLED
           value: 'true'
         - name: XJOIN_GRAPHQL_URL
-          value: ${XJOIN_SEARCH_URL}
+          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
         - name: BULK_QUERY_SOURCE
           value: ${BULK_QUERY_SOURCE}
         - name: BULK_QUERY_SOURCE_BETA
           value: ${BULK_QUERY_SOURCE_BETA}
-        - name: REST_POST_ENABLED
-          value: ${REST_POST_ENABLED}
         - name: RBAC_ENFORCED
           value: ${RBAC_ENFORCED}
         - name: KAFKA_PRODUCER_ACKS
@@ -320,8 +320,10 @@ parameters:
   value: api
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
-- name: XJOIN_SEARCH_URL
-  value: 'False'
+- name: XJOIN_SEARCH_HOST
+  value: localhost
+- name: XJOIN_SEARCH_PORT
+  value: '4000'
 - name: BULK_QUERY_SOURCE
   value: db
 - name: BULK_QUERY_SOURCE_BETA
@@ -329,9 +331,6 @@ parameters:
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer
-- description: If creating/updating hosts through the REST API is enabled
-  name: REST_POST_ENABLED
-  value: 'true'
 - description: activate RBAC middleware
   name: RBAC_ENFORCED
   value: 'false'

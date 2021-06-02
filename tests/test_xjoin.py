@@ -27,6 +27,7 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
@@ -193,6 +194,99 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
         },
         mocker.ANY,
     )
+
+
+@pytest.mark.parametrize("provider_type", ("alibaba", "aws", "azure", "gcp", "ibm"))
+def test_query_variables_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_type": {"eq": provider_type}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    provider_id = generate_uuid()
+
+    url = build_hosts_url(query=f"?provider_id={quote(provider_id)}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"provider_id": {"eq": provider_id}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_query_variables_provider_type_and_id(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider
+):
+    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                mocker.ANY,
+                {"provider_type": {"eq": provider["type"]}},
+                {"provider_id": {"eq": provider["id"]}},
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
+def test_query_using_invalid_provider_type(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
+):
+    url = build_hosts_url(query=f"?provider_type={provider_type}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    graphql_query_empty_response.assert_not_called()
 
 
 def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
@@ -584,6 +678,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-02-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-02-24T08:07:03.354307+00:00",
                 "facts": [],
@@ -606,6 +702,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "ip_addresses": None,
                 "mac_addresses": None,
                 "external_id": None,
+                "provider_id": None,
+                "provider_type": None,
                 "stale_warning_timestamp": "2020-01-17T08:07:03.354307+00:00",
                 "culled_timestamp": "2020-01-24T08:07:03.354307+00:00",
                 "facts": [
@@ -1647,6 +1745,246 @@ def test_query_hosts_filter_spf_rhc_client_id(
                 graphql_query_empty_response.reset_mock()
 
 
+def test_query_hosts_filter_spf_rhc_client_id_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][rhc_client_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
+        "?filter[system_profile][rhc_client_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003"
+        "&filter[system_profile][rhc_client_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
+    )
+    queries = (
+        {"OR": ({"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {
+            "OR": (
+                {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+                {"spf_rhc_client_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
+            )
+        },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_rhc_client_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][rhc_client_id][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][bar][]=basicid",
+        "?filter[system_profile][rhc_client_id][eq][foo]=basicid",
+        "?filter[system_profile][rhc_client_id][foo][]=basicid&filter[system_profile][rhc_client_id][bar][]=random",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
+# system_profile owner_id tests
+def test_query_hosts_filter_spf_owner_id(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][owner_id]", "[system_profile][owner_id][eq]")
+    values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "nil", "not_nil")
+    queries = (
+        {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_owner_id": {"eq": None}},
+        {"NOT": {"spf_owner_id": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_owner_id_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][owner_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
+        "?filter[system_profile][owner_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003"
+        "&filter[system_profile][owner_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
+    )
+    queries = (
+        {"OR": ({"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {
+            "OR": (
+                {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+                {"spf_owner_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
+            )
+        },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_owner_id_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][owner_id][foo]=issasecret",
+        "?filter[system_profile][owner_id][bar][]=issasecret",
+        "?filter[system_profile][owner_id][eq][foo]=issasecret",
+        "?filter[system_profile][owner_id][foo][]=issasecret&filter[system_profile][owner_id][bar][]=nothersecrect",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
+# system_profile host_type tests
+def test_query_hosts_filter_spf_host_type(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
+    values = ("edge", "nil", "not_nil")
+    queries = (
+        {"spf_host_type": {"eq": "edge"}},
+        {"spf_host_type": {"eq": None}},
+        {"NOT": {"spf_host_type": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for value, query in zip(values, queries):
+            with subtests.test(value=value, query=query, path=path):
+                url = build_hosts_url(query=f"?filter{path}={value}")
+
+                response_status, response_data = api_get(url)
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+def test_query_hosts_filter_spf_host_type_multiple(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][eq][]=random-type",
+        "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
+    )
+    queries = (
+        {"OR": ({"spf_host_type": {"eq": "random-type"}},)},
+        {"OR": ({"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}})},
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+def test_spf_host_type_invalid_field_value(
+    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][host_type][foo]=what",
+        "?filter[system_profile][host_type][bar][]=barbar",
+        "?filter[system_profile][host_type][eq][foo]=foofoo",
+        "?filter[system_profile][host_type][foo][]=foofoo&filter[system_profile][host_type][bar][]=barbar",
+    )
+    for param in query_params:
+        with subtests.test(param=param):
+            url = build_hosts_url(query=param)
+            response_status, response_data = api_get(url)
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 # system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
@@ -1682,6 +2020,153 @@ def test_query_hosts_filter_spf_insights_client_version(
                     mocker.ANY,
                 )
                 graphql_query_empty_response.reset_mock()
+
+
+# system_profile operating_system tests
+def test_query_hosts_filter_spf_operating_system(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][gt]=7&"
+        "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
+        "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
+        "filter[system_profile][operating_system][CENT][version][gte]=7.1",
+    )
+
+    graphql_queries = (
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 9, "lte": 9},
+                                        "minor": {"lt": 2},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gt": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "CENT"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "CENT"}}},
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 12, "lte": 12},
+                                        "minor": {"lte": 6},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                },
+            ]
+        },
+    )
+
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status = api_get(url)[0]
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+# system_profile operating_system tests
+def test_query_hosts_filter_spf_operating_system_exception_handling(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][operating_system][RHEL][version][fake_op]=7.1",
+        "filter[system_profile][operating_system][RHEL]=7.1",
+        "filter[system_profile][operating_system][CENT]=",
+        "filter[system_profile][operating_system][CENT]=something",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
 
 
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
@@ -1829,6 +2314,29 @@ def test_query_system_profile_sap_system_insights_classic_system_identity(
 
     graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": 50, "offset": 0}, mocker.ANY
+    )
+
+
+def test_query_with_owner_id_satellite_identity(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    url = build_hosts_url()
+
+    response_status, response_data = api_get(url, SATELLITE_IDENTITY)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_owner_id": {"eq": SATELLITE_IDENTITY["system"]["cn"]}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
     )
 
 

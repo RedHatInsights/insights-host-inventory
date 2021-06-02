@@ -3,6 +3,7 @@ from uuid import UUID
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -57,6 +58,7 @@ QUERY = """query Query(
 }"""
 ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name": "display_name"}
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
+SUPPORTED_RANGE_OPERATIONS = ["gt", "gte", "lt", "lte"]
 
 
 def build_tag_query_dict_tuple(tags):
@@ -76,6 +78,8 @@ def get_host_list(
     fqdn,
     hostname_or_id,
     insights_id,
+    provider_id,
+    provider_type,
     tags,
     page,
     per_page,
@@ -90,7 +94,16 @@ def get_host_list(
     xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
 
     all_filters = _query_filters(
-        fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
     )
 
     current_identity = get_current_identity()
@@ -153,6 +166,13 @@ def _nullable_string_filter(field_name, field_value):
     return _nullable_wrapper(field_name, field_value, "eq", _string_filter)
 
 
+def _nullable_multiple_string_filter(field_name, field_value):
+    multiple_string_filter = ()
+    for value in field_value:
+        multiple_string_filter += _nullable_wrapper(field_name, value, "eq", _string_filter)
+    return ({"OR": multiple_string_filter},)
+
+
 def _string_filter(field_name, field_value):
     return ({field_name: {"eq": (field_value)}},)
 
@@ -179,6 +199,18 @@ def build_filter(field_name, field_value, field_type, operation, filter_building
         return filter_building_function(field_name, field_value[operation])
 
 
+def build_filter_string_multiple(field_name, field_value, operation):
+    if isinstance(field_value, str) or isinstance(field_value.get(operation), str):
+        return build_filter(field_name, field_value, str, operation, _nullable_string_filter)
+    if isinstance(field_value.get(operation), list):
+        return build_filter(field_name, field_value[operation], list, operation, _nullable_multiple_string_filter)
+
+    logger.error(f"Validation error while building filters. field_name: {field_name}, field_value: {field_value}")
+    raise ValidationException(
+        f"{field_name.strip('spf_')} expected a string or array of strings, instead got {type(field_value).__name__}"
+    )
+
+
 def build_sap_system_filter(sap_system):
     return build_filter("spf_sap_system", sap_system, str, "eq", _nullable_boolean_filter)
 
@@ -187,7 +219,71 @@ def build_sap_sids_filter(sap_sids):
     return build_filter("spf_sap_sids", sap_sids, list, "contains", _sap_sids_filters)
 
 
-def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, staleness, registered_with, filter):
+def _build_operating_system_version_filter(major, minor, name, operation):
+    # for both lte and lt operation the major operation should be lt
+    # so just ignore the 3rd char to get it :)
+    # same applies to gte and gt
+    major_operation = operation[0:2]
+
+    return {
+        "OR": [
+            {
+                "spf_operating_system": {
+                    "major": {"gte": major, "lte": major},  # eq
+                    "minor": {operation: minor},
+                    "name": {"eq": name},
+                }
+            },
+            {"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}},
+        ]
+    }
+
+
+def _build_operating_system_filter(operating_system):
+    os_filters = []
+
+    for name in operating_system:
+        if isinstance(operating_system[name], dict) and operating_system[name].get("version"):
+            os_filters_for_current_name = []
+            version_dict = operating_system[name]["version"]
+
+            # Check that there is an operation at all. No default it wouldn't make sense
+            for operation in version_dict:
+                if operation in SUPPORTED_RANGE_OPERATIONS:
+                    major_version, *minor_version_list = version_dict[operation].split(".")
+
+                    major_version = int(major_version)
+                    minor_version = 0
+
+                    if minor_version_list != []:
+                        minor_version = int(minor_version_list[0])
+
+                    os_filters_for_current_name.append(
+                        _build_operating_system_version_filter(major_version, minor_version, name, operation)
+                    )
+                else:
+                    raise ValidationException(
+                        f"Specified operation '{operation}' is not on [operating_system][version] field"
+                    )
+            os_filters.append({"AND": os_filters_for_current_name})
+        else:
+            raise ValidationException(f"Incomplete path provided: {operating_system} ")
+
+    return ({"OR": os_filters},)
+
+
+def _query_filters(
+    fqdn,
+    display_name,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    staleness,
+    registered_with,
+    filter,
+):
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn}},)
     elif display_name:
@@ -217,6 +313,10 @@ def _query_filters(fqdn, display_name, hostname_or_id, insights_id, tags, stalen
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+    if provider_type:
+        query_filters += ({"provider_type": {"eq": provider_type}},)
+    if provider_id:
+        query_filters += ({"provider_id": {"eq": provider_id}},)
 
     if filter:
         if filter.get("system_profile"):
@@ -240,8 +340,8 @@ def _build_system_profile_filter(system_profile):
             "spf_is_marketplace", system_profile["is_marketplace"], str, "eq", _nullable_boolean_filter
         )
     if system_profile.get("rhc_client_id"):
-        system_profile_filter += build_filter(
-            "spf_rhc_client_id", system_profile["rhc_client_id"], str, "eq", _nullable_string_filter
+        system_profile_filter += build_filter_string_multiple(
+            "spf_rhc_client_id", system_profile["rhc_client_id"], "eq"
         )
     if system_profile.get("insights_client_version"):
         system_profile_filter += build_filter(
@@ -251,6 +351,12 @@ def _build_system_profile_filter(system_profile):
             "eq",
             _nullable_wildcard_filter,
         )
+    if system_profile.get("owner_id"):
+        system_profile_filter += build_filter_string_multiple("spf_owner_id", system_profile["owner_id"], "eq")
+    if system_profile.get("operating_system"):
+        system_profile_filter += _build_operating_system_filter(system_profile["operating_system"])
+    if system_profile.get("host_type"):
+        system_profile_filter += build_filter_string_multiple("spf_host_type", system_profile["host_type"], "eq")
 
     return system_profile_filter
 

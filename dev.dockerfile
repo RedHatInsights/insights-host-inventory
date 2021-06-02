@@ -1,16 +1,19 @@
-FROM registry.centos.org/centos/python-36-centos7
+FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
-RUN yum -y install centos-release-scl-rh
-RUN yum -y install rh-postgresql10-postgresql
-RUN sed -i 's/source scl_\(.*\)$/source scl_\1 rh-postgresql10/' /opt/app-root/etc/scl_enable
+
+# use general package name instead of a specific one,
+# like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
+# so future security fixes are autamatically picked up.
+RUN dnf install -y postgresql
+
 USER 1001
 
 WORKDIR /opt/app-root/src
 COPY . .
 
-RUN scl enable rh-python36 "pip install --upgrade pip"
-RUN pip install pipenv
-RUN pipenv install --system --dev
+RUN pip install --upgrade pip && \
+    pip install pipenv && \
+    pipenv install --system --dev
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'
