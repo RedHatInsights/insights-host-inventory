@@ -165,7 +165,7 @@ objects:
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
         command:
-        - /bin/sh 
+        - /bin/sh
         - -c
         - python inv_mq_service.py
         env:
@@ -220,7 +220,7 @@ objects:
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
         command:
-        - /bin/sh 
+        - /bin/sh
         - -c
         - python inv_mq_service.py
         env:
