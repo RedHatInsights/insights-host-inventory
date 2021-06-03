@@ -38,6 +38,7 @@ UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
+SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
 
 SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": list, "object": dict}
 
@@ -112,8 +113,10 @@ def _get_field_filter(field_name, props):
 
 
 def process_system_profile_spec():
-    # open the spec and process it removing fields that shouldn't be indexed
-    # and removing field info that isn't needed to build the filters
+    system_profile_blocklist = []
+    with open(SYSTEM_PROFILE_BLOCK_LIST_FILE) as fp:
+        system_profile_blocklist = yaml.safe_load(fp)["fields"]
+
     with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
         # TODO: add some handling here for if loading fails for some reason
         system_profile_blocklist = ["os_release", "running_processes", "yum_repos", "installed_packages_delta"]
