@@ -19,10 +19,9 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
-          - /opt/app-root/bin/python
-          - manage.py
-          - db
-          - upgrade
+          - /bin/sh
+          - -c
+          - python manage.py db upgrade
           inheritEnv: true
         command:
         - gunicorn
@@ -111,8 +110,9 @@ objects:
       minReplicas: ${{REPLICAS_PMIN}}
       podSpec:
         command:
-        - python
-        - inv_mq_service.py
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -165,8 +165,9 @@ objects:
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
         command:
-        - python
-        - inv_mq_service.py
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
@@ -219,8 +220,9 @@ objects:
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
         command:
-        - python
-        - inv_mq_service.py
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
         env:
         - name: INVENTORY_LOG_LEVEL
           value: ${LOG_LEVEL}
