@@ -1,0 +1,5 @@
+fields:
+  - "os_release"
+  - "running_processes"
+  - "yum_repos"
+  - "installed_packages_delta"

@@ -116,11 +116,10 @@ def process_system_profile_spec():
     system_profile_blocklist = []
     with open(SYSTEM_PROFILE_BLOCK_LIST_FILE) as fp:
         system_profile_blocklist = yaml.safe_load(fp)["fields"]
+        print(f"block list fields: {system_profile_blocklist}")
 
     with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
         # TODO: add some handling here for if loading fails for some reason
-        system_profile_blocklist = ["os_release", "running_processes", "yum_repos", "installed_packages_delta"]
-
         system_profile_spec = yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"]
         system_profile_spec_processed = {}
 
