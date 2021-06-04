@@ -14,6 +14,7 @@ from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -22,6 +23,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import staleness_filter
 from lib.middleware import rbac
+
 
 logger = get_logger(__name__)
 
@@ -105,9 +107,11 @@ def get_tags(
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
     if filter:
-        if filter.get("system_profile"):
-            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
-
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         hostfilter_and_variables += owner_id_filter()

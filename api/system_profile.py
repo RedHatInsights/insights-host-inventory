@@ -116,11 +116,12 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
     if registered_with:
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
-    for key in filter:
-        if key == "system_profile":
-            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
-        else:
-            raise ValidationException("filter key is invalid")
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
@@ -173,11 +174,12 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
             "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
-    for key in filter:
-        if key == "system_profile":
-            hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
-        else:
-            raise ValidationException("filter key is invalid")
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:

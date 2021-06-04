@@ -981,7 +981,6 @@ def test_get_hosts_with_satellite_identity(db_create_host, api_get):
         assert host_data["system_profile"]["owner_id"] == owner_id
 
 
-# DISABLED. Query validation will be added back in a future PR
 def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
     patch_xjoin_post(response={})
 
@@ -999,7 +998,6 @@ def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, su
             assert_response_status(eq_response_status, 400)
 
 
-# DISABLED. Query validation will be added back in a future PR
 def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
     patch_xjoin_post(response={})
 

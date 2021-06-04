@@ -2548,23 +2548,12 @@ def test_generic_filtering_string(
     )
     query_dicts = (rhc_client_id_queries, rhc_config_state_queries, bios_vendor)
 
-    endpoints = (
-        "hosts",
-        "tags",
-        "sap_system",
-        # "sap_sids"
-    )
-    endpoint_query_verifiers = (
-        _verify_hosts_query,
-        _verify_tags_query,
-        _verify_sap_system_query,
-        # _verify_sap_sids_query
-    )
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
     endpoint_query_mocks = (
         graphql_query_empty_response,
         graphql_tag_query_empty_response,
         graphql_system_profile_sap_system_query_empty_response,
-        # graphql_system_profile_sap_sids_query_empty_response
     )
     endpoint_url_builders = (
         build_hosts_url,
@@ -2710,30 +2699,14 @@ def test_generic_filtering_boolean(
     )
     query_dicts = (sap_system_queries, satellite_managed_queries, katello_agent_running_queries)
 
-    endpoints = (
-        "hosts",
-        "tags",
-        "sap_system",
-        # "sap_sids"
-    )
-    endpoint_query_verifiers = (
-        _verify_hosts_query,
-        _verify_tags_query,
-        _verify_sap_system_query,
-        # _verify_sap_sids_query
-    )
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
     endpoint_query_mocks = (
         graphql_query_empty_response,
         graphql_tag_query_empty_response,
         graphql_system_profile_sap_system_query_empty_response,
-        # graphql_system_profile_sap_sids_query_empty_response
     )
-    endpoint_url_builders = (
-        build_hosts_url,
-        build_tags_url,
-        build_system_profile_sap_system_url,
-        # build_system_profile_sap_sids_url
-    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
     for query_verifier, query_mock, endpoint, url_builder in zip(
         endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
     ):

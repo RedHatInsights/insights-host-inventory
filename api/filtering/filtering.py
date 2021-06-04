@@ -16,23 +16,27 @@ NOT_NIL_STRING = "not_nil"
 OR_FIELDS = ("owner_id", "rhc_client_id", "host_type")
 
 
+def _invalid_value_error(field_name, field_value):
+    raise ValidationException(f"{field_value} is an invalid value for field {field_name}")
+
+
 def _boolean_filter(field_name, field_value):
     if not field_value.lower() in ("true", "false"):
-        raise ValidationException("invalid field value")
+        _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
 def _string_filter(field_name, field_value):
     if not isinstance(field_value, str):
-        raise ValidationException("invalid field value")
+        _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"eq": (field_value)}},)
 
 
 def _wildcard_string_filter(field_name, field_value):
     if not isinstance(field_value, str):
-        raise ValidationException("invalid field value")
+        _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"matches": (field_value)}},)
 
@@ -48,7 +52,7 @@ class BUILDER_FUNCTIONS(Enum):
 
 def _check_field_in_spec(field_name):
     if field_name not in system_profile_spec().keys():
-        raise ValidationException("invalid filter field")
+        raise ValidationException(f"invalid filter field: {field_name}")
 
 
 # if operation is specified, check the operation is allowed on the field
@@ -56,7 +60,7 @@ def _check_field_in_spec(field_name):
 def _get_field_value(field_value, field_filter):
     if isinstance(field_value, dict):
         for key in field_value:
-            # check is the operation is valid for the field.
+            # check if the operation is valid for the field.
             if key not in lookup_operations(field_filter):
                 raise ValidationException(f"invalid operation for {field_filter}")
 
@@ -96,7 +100,7 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         field_filter = builder_function(f"spf_{field_name}", field_value, field_filter)
     else:
         logger.debug("filter value is bad")
-        raise ValidationException("wrong type for filter")
+        raise ValidationException(f"wrong type for {field_value} filter")
 
     return field_filter
 
