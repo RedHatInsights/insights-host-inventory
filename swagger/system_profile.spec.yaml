@@ -188,6 +188,7 @@ $defs:
       bios_release_date:
         type: string
         maxLength: 50
+        x-indexed: false
       cpu_flags:
         items:
           type: string
@@ -238,6 +239,7 @@ $defs:
         maxLength: 50
       running_processes:
         type: array  # techincally a set, ordering is not important
+        x-indexed: false
         items:
           description: A single running process. This will be truncated to 1000 characters when saved.
           type: string
@@ -257,6 +259,7 @@ $defs:
         maxLength: 100
       yum_repos:
         type: array  # technically a set, ordering is not important
+        x-indexed: false
         items:
           $ref: '#/$defs/YumRepo'
       dnf_modules:
@@ -270,6 +273,7 @@ $defs:
       insights_client_version:
         type: string
         description: the version number of insights client. supports wildcards
+        x-wildcard: true
         maxLength: 50
       insights_egg_version:
         type: string
@@ -286,6 +290,7 @@ $defs:
           maxLength: 512
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
+        x-indexed: false
         items:
           description: A NEVRA string for a single installed package
           example: "krb5-libs-0:-1.16.1-23.fc29.i686"

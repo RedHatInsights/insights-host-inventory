@@ -101,8 +101,8 @@ def _get_field_filter(field_name, props):
         return field_name
 
     # determine if the string field supports wildcard queries
-    if field_type == "string" and props.get("description"):
-        if "wildcard" in props["description"].lower():
+    if field_type == "string" and props.get("x-wildcard"):
+        if props["x-wildcard"] is True:
             return "wildcard"
 
     # if it's an array determine filter type from members
@@ -113,18 +113,13 @@ def _get_field_filter(field_name, props):
 
 
 def process_system_profile_spec():
-    system_profile_blocklist = []
-    with open(SYSTEM_PROFILE_BLOCK_LIST_FILE) as fp:
-        system_profile_blocklist = yaml.safe_load(fp)["fields"]
-        print(f"block list fields: {system_profile_blocklist}")
-
     with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
         # TODO: add some handling here for if loading fails for some reason
         system_profile_spec = yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"]
         system_profile_spec_processed = {}
 
         for field, props in system_profile_spec.items():
-            if field not in system_profile_blocklist:
+            if props.get("x-indexed", True):
                 field_type = _spec_type_to_python_type(props["type"])  # cast from string to type
                 field_filter = _get_field_filter(field, props)
 
