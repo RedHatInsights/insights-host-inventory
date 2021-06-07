@@ -19,7 +19,10 @@ from tests.helpers.api_utils import build_expected_host_list
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
+from tests.helpers.api_utils import build_system_profile_sap_sids_url
+from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
+from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import quote
@@ -1116,3 +1119,17 @@ def test_host_list_sp_fields_not_requested(patch_xjoin_post, query_source_xjoin,
 
     for host_data in response_data["results"]:
         assert "system_profile" not in host_data
+
+
+def test_unindexed_fields_fail_gracefully(query_source_xjoin, api_get):
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+
+    for url_builder in url_builders:
+        for query in ("?filter[system_profile][installed_packages_delta]=foo",):
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 400
