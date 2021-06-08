@@ -180,7 +180,7 @@ Multiple tools are set up to help with analysis of rejected messages:
 ### Host-Ingress Stats Table
 
 HBI's Grafana dashboard keeps track of multiple metrics regarding host-ingress validation.
-For each reporter, [this panel](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?viewPanel=68&orgId=1&refresh=5m&var-datasource=crcp01ue1-prometheus&var-kibana=https:%2F%2Fkibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D(refreshInterval:(pause:!t,value:0),time:(from:now-12h,mode:quick,to:now))%26_a%3D(columns:!(_source),index:%270a2575c0-65f9-11e9-ba88-097c6c9f6850%27,interval:auto&var-kibana_dev=https:%2F%2Fkibana-kibana.5a9f.insights-dev.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D(refreshInterval:(pause:!t,value:0),time:(from:now-12h,mode:quick,to:now))%26_a%3D(columns:!(_source),index:d2da0310-7048-11e9-a501-7998195d35a8,interval:auto&var-kibana_prod=https:%2F%2Fkibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D(refreshInterval:(pause:!t,value:0),time:(from:now-12h,mode:quick,to:now))%26_a%3D(columns:!(_source),index:%270a2575c0-65f9-11e9-ba88-097c6c9f6850%27,interval:auto)
+For each reporter, [this panel](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?viewPanel=68&orgId=1&refresh=5m&var-datasource=crcp01ue1-prometheus&var-kibana=https:%2F%2Fkibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D\(refreshInterval:\(pause:!t,value:0\),time:\(from:now-12h,mode:quick,to:now\)\)%26_a%3D\(columns:!\(_source\),index:%270a2575c0-65f9-11e9-ba88-097c6c9f6850%27,interval:auto&var-kibana_dev=https:%2F%2Fkibana-kibana.5a9f.insights-dev.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D\(refreshInterval:\(pause:!t,value:0\),time:\(from:now-12h,mode:quick,to:now\)\)%26_a%3D\(columns:!\(_source\),index:d2da0310-7048-11e9-a501-7998195d35a8,interval:auto&var-kibana_prod=https:%2F%2Fkibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com%2Fapp%2Fkibana%23%2Fdiscover%3F_g%3D\(refreshInterval:\(pause:!t,value:0\),time:\(from:now-12h,mode:quick,to:now\)\)%26_a%3D\(columns:!\(_source\),index:%270a2575c0-65f9-11e9-ba88-097c6c9f6850%27,interval:auto)
 shows how many messages failed due to schema validation ("validation errors"),
 an inventory exception ("inventory errors"), or an unhandled failure ("failures").
 Each link in the table leads to a reporter-specific Kibana query that
@@ -188,12 +188,13 @@ returns a detailed list of errors that can help with debugging.
 
 ### System Profile Validator
 
-The System Profile Validator is a bot that validates changes to the
+The System Profile Validator is a job that validates changes to the
 System Profile against Production data. To see how a schema change
 would affect current data, open a PR to the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas)
-with your desired modifications. `dippy-bot` will then comment on the PR
-with a summary of the validation results per reporter, making it clear
-how each reporter's messages would be affected by the suggested change.
+with your desired modifications. `dippy-bot`, our bot account, will then
+comment on the PR with a summary of the validation results per reporter,
+making it clear how each reporter's messages would be affected by the
+suggested change.
 
 Users with HBI Admin permissions are also able to use the
 [validator API endpoint](https://cloud.redhat.com/api/inventory/v1/ui/#/default/api.system_profile.validate_schema)
