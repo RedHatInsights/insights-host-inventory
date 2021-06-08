@@ -108,6 +108,8 @@ $defs:
       mtu:
         description: MTU (Maximum transmission unit)
         type: integer
+        minimum: 0
+        maximum: 18446744073709551615
       mac_address:
         description: MAC address (with or without colons)
         example: "00:00:00:00:00:00"
@@ -158,13 +160,21 @@ $defs:
         example: 'Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz'
       number_of_cpus:
         type: integer
+        minimum: 0
+        maximum: 4294967295
       number_of_sockets:
         type: integer
+        minimum: 0
+        maximum: 4294967295
       cores_per_socket:
         type: integer
+        minimum: 0
+        maximum: 4294967295
       system_memory_bytes:
         type: integer
         format: int64
+        minimum: 0
+        maximum: 18446744073709551615
       infrastructure_type:
         type: string
         maxLength: 100
