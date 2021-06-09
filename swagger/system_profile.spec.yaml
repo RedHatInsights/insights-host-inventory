@@ -340,7 +340,7 @@ $defs:
         description: The version of the SAP HANA lifecycle management program
         example:  '1.00.122.04.1478575636'
         maxLength: 22
-        pattern: '^[0-9].[0-9]{2}.[0-9]{3}.[0-9]{2}.[0-9]{10}$'
+        pattern: '^[0-9]\.[0-9]{2}\.[0-9]{3}\.[0-9]{2}\.[0-9]{10}$'
       tuned_profile:
         type: string
         maxLength: 256
