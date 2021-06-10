@@ -17,12 +17,6 @@ objects:
       web: true
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        initContainers:
-        - command:
-          - /bin/sh
-          - -c
-          - python manage.py db upgrade
-          inheritEnv: true
         command:
         - gunicorn
         - --workers=4
@@ -164,6 +158,12 @@ objects:
     - name: inventory-mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
+        initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - python manage.py db upgrade
+          inheritEnv: true
         command:
         - /bin/sh
         - -c
