@@ -1562,9 +1562,9 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1597,9 +1597,9 @@ def test_query_tags_filter_spf_sap_sids(
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1631,9 +1631,9 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
-        ({"spf_sap_sids": {"eq": "XQC"}},),
-        ({"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}),
-        ({"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}),
+        ({"AND": [{"spf_sap_sids": {"eq": "XQC"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "ABC"}}, {"spf_sap_sids": {"eq": "A12"}}]},),
+        ({"AND": [{"spf_sap_sids": {"eq": "M80"}}, {"spf_sap_sids": {"eq": "BEN"}}]},),
     )
 
     for path in filter_paths:
@@ -1754,12 +1754,12 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
         "&filter[system_profile][rhc_client_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
     )
     queries = (
-        {"OR": ({"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {"OR": [{"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}}]},
         {
-            "OR": (
+            "OR": [
                 {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
                 {"spf_rhc_client_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
-            )
+            ]
         },
     )
 
@@ -1848,12 +1848,12 @@ def test_query_hosts_filter_spf_owner_id_multiple(
         "&filter[system_profile][owner_id][eq][]=6e2c3332-936c-4167-b9be-c219f4303c85",
     )
     queries = (
-        {"OR": ({"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},)},
+        {"OR": [{"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}}]},
         {
-            "OR": (
+            "OR": [
                 {"spf_owner_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
                 {"spf_owner_id": {"eq": "6e2c3332-936c-4167-b9be-c219f4303c85"}},
-            )
+            ]
         },
     )
 
@@ -1941,8 +1941,8 @@ def test_query_hosts_filter_spf_host_type_multiple(
         "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
     )
     queries = (
-        {"OR": ({"spf_host_type": {"eq": "random-type"}},)},
-        {"OR": ({"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}})},
+        {"OR": [{"spf_host_type": {"eq": "random-type"}}]},
+        {"OR": [{"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}}]},
     )
 
     for param, query in zip(query_params, queries):
@@ -2462,3 +2462,459 @@ def test_query_variables_system_profile(
         },
         mocker.ANY,
     )
+
+
+# Generic filtering tests
+def _verify_hosts_query(mocker, graphql_query_empty_response, query):
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, query),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def _verify_tags_query(mocker, graphql_tag_query_empty_response, query):
+    graphql_tag_query_empty_response.assert_called_once_with(
+        TAGS_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "hostFilter": {"OR": mocker.ANY, "AND": (query,)},
+        },
+        mocker.ANY,
+    )
+
+
+def _verify_sap_system_query(mocker, graphql_system_profile_sap_system_query_empty_response, query):
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": (query,)}, "limit": mocker.ANY, "offset": mocker.ANY},
+        mocker.ANY,
+    )
+
+
+def _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query):
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY,
+        {"hostFilter": {"OR": mocker.ANY, "AND": (query,)}, "limit": mocker.ANY, "offset": mocker.ANY},
+        mocker.ANY,
+    )
+
+
+# Test generic filtering for string fields
+def test_generic_filtering_string(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][rhc_client_id]",
+        "[system_profile][rhc_config_state]",
+        "[system_profile][bios_vendor]",
+    )
+    operations = ("", "[eq]")
+    values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "foo", "nil", "not_nil")
+    rhc_client_id_queries = (
+        {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_rhc_client_id": {"eq": "foo"}},
+        {"spf_rhc_client_id": {"eq": None}},
+        {"NOT": {"spf_rhc_client_id": {"eq": None}}},
+    )
+    rhc_config_state_queries = (
+        {"spf_rhc_config_state": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_rhc_config_state": {"eq": "foo"}},
+        {"spf_rhc_config_state": {"eq": None}},
+        {"NOT": {"spf_rhc_config_state": {"eq": None}}},
+    )
+    bios_vendor = (
+        {"spf_bios_vendor": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_bios_vendor": {"eq": "foo"}},
+        {"spf_bios_vendor": {"eq": None}},
+        {"NOT": {"spf_bios_vendor": {"eq": None}}},
+    )
+    query_dicts = (rhc_client_id_queries, rhc_config_state_queries, bios_vendor)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        # build_system_profile_sap_sids_url
+    )
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+# having both system_profile endpoints creates a moching issue right now.
+# Just going to split one off until I can refactor the whole test suite
+def test_generic_filtering_string_sap_sids(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_system_profile_sap_sids_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][rhc_client_id]",
+        "[system_profile][rhc_config_state]",
+        "[system_profile][bios_vendor]",
+    )
+    operations = ("", "[eq]")
+    values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "foo", "nil", "not_nil")
+    rhc_client_id_queries = (
+        {"spf_rhc_client_id": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_rhc_client_id": {"eq": "foo"}},
+        {"spf_rhc_client_id": {"eq": None}},
+        {"NOT": {"spf_rhc_client_id": {"eq": None}}},
+    )
+    rhc_config_state_queries = (
+        {"spf_rhc_config_state": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_rhc_config_state": {"eq": "foo"}},
+        {"spf_rhc_config_state": {"eq": None}},
+        {"NOT": {"spf_rhc_config_state": {"eq": None}}},
+    )
+    bios_vendor = (
+        {"spf_bios_vendor": {"eq": "8dd97934-8ce4-11eb-8dcd-0242ac130003"}},
+        {"spf_bios_vendor": {"eq": "foo"}},
+        {"spf_bios_vendor": {"eq": None}},
+        {"NOT": {"spf_bios_vendor": {"eq": None}}},
+    )
+    query_dicts = (rhc_client_id_queries, rhc_config_state_queries, bios_vendor)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_string_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefixes = (
+        "?filter[system_profile][rhc_client_id]",
+        "?filter[system_profile][rhc_config_state]",
+        "?filter[system_profile][bios_vendor]",
+    )
+    suffixes = (
+        "[foo]=bar",
+        "[bar][]=bar",
+        "[eq][foo]=bar",
+        "[is]=bar",
+        "[matches]=bar",
+        "[lt]=bar",
+        "[gt]=bar",
+        "[lte]=bar",
+        "[gte]=bar",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
+
+
+def test_generic_filtering_boolean(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][sap_system]",
+        "[system_profile][satellite_managed]",
+        "[system_profile][katello_agent_running]",
+    )
+    operations = ("", "[eq]")
+    values = ("true", "false", "nil", "not_nil")
+    sap_system_queries = (
+        {"spf_sap_system": {"is": True}},
+        {"spf_sap_system": {"is": False}},
+        {"spf_sap_system": {"is": None}},
+        {"NOT": {"spf_sap_system": {"is": None}}},
+    )
+    satellite_managed_queries = (
+        {"spf_satellite_managed": {"is": True}},
+        {"spf_satellite_managed": {"is": False}},
+        {"spf_satellite_managed": {"is": None}},
+        {"NOT": {"spf_satellite_managed": {"is": None}}},
+    )
+    katello_agent_running_queries = (
+        {"spf_katello_agent_running": {"is": True}},
+        {"spf_katello_agent_running": {"is": False}},
+        {"spf_katello_agent_running": {"is": None}},
+        {"NOT": {"spf_katello_agent_running": {"is": None}}},
+    )
+    query_dicts = (sap_system_queries, satellite_managed_queries, katello_agent_running_queries)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+# having both system_profile endpoints creates a moching issue right now.
+# Just going to split one off until I can refactor the whole test suite
+def test_generic_filtering_boolean_sap_sids(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_system_profile_sap_sids_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][sap_system]",
+        "[system_profile][satellite_managed]",
+        "[system_profile][katello_agent_running]",
+    )
+    operations = ("", "[eq]")
+    values = ("true", "false", "nil", "not_nil")
+    sap_system_queries = (
+        {"spf_sap_system": {"is": True}},
+        {"spf_sap_system": {"is": False}},
+        {"spf_sap_system": {"is": None}},
+        {"NOT": {"spf_sap_system": {"is": None}}},
+    )
+    satellite_managed_queries = (
+        {"spf_satellite_managed": {"is": True}},
+        {"spf_satellite_managed": {"is": False}},
+        {"spf_satellite_managed": {"is": None}},
+        {"NOT": {"spf_satellite_managed": {"is": None}}},
+    )
+    katello_agent_running_queries = (
+        {"spf_katello_agent_running": {"is": True}},
+        {"spf_katello_agent_running": {"is": False}},
+        {"spf_katello_agent_running": {"is": None}},
+        {"NOT": {"spf_katello_agent_running": {"is": None}}},
+    )
+    query_dicts = (sap_system_queries, satellite_managed_queries, katello_agent_running_queries)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefixes = (
+        "?filter[system_profile][sap_system]",
+        "?filter[system_profile][satellite_managed]",
+        "?filter[system_profile][katello_agent_running]",
+    )
+    suffixes = (
+        # bad operation
+        "[foo]=true",
+        "[bar][]=true",
+        "[eq][foo]=true",
+        "[is]=true",
+        "[lt]=true",
+        "[gt]=true",
+        "[lte]=true",
+        "[gte]=true",
+        "[matches]=true",
+        "[contains]=true"
+        # bad value
+        "[eq]=foo",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
+
+
+def test_generic_filtering_wildcard(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = ("[system_profile][insights_client_version]",)
+    operations = ("", "[eq]")
+    values = ("8.*", "7.3", "nil", "not_nil")
+    insights_client_version_queries = (
+        {"spf_insights_client_version": {"matches": "8.*"}},
+        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": None}},
+        {"NOT": {"spf_insights_client_version": {"eq": None}}},
+    )
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path in filter_paths:
+            for op in operations:
+                for value, query in zip(values, insights_client_version_queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+# having both system_profile endpoints creates a moching issue right now.
+# Just going to split one off until I can refactor the whole test suite
+def test_generic_filtering_wildcard_sap_sids(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_system_profile_sap_sids_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = ("[system_profile][insights_client_version]",)
+    operations = ("", "[eq]")
+    values = ("8.*", "7.3", "nil", "not_nil")
+    insights_client_version_queries = (
+        {"spf_insights_client_version": {"matches": "8.*"}},
+        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": None}},
+        {"NOT": {"spf_insights_client_version": {"eq": None}}},
+    )
+
+    for path in filter_paths:
+        for op in operations:
+            for value, query in zip(values, insights_client_version_queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefixes = ("?filter[system_profile][insights_client_version]",)
+    suffixes = (
+        # bad operation
+        "[foo]=bar",
+        "[bar][]=bar",
+        "[eq][foo]=bar",
+        "[is]=bar",
+        "[lt]=bar",
+        "[gt]=bar",
+        "[lte]=bar",
+        "[gte]=bar",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
