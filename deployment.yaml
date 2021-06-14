@@ -296,16 +296,16 @@ parameters:
   value: 512Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
-  value: "1"
+  value: "5"
 - description: Replica count for pmin consumer
   name: REPLICAS_PMIN
-  value: "1"
+  value: "3"
 - description: Replica count for sp consumer
   name: REPLICAS_SP
-  value: "1"
+  value: "2"
 - description: Replica count for webservice
   name: REPLICAS_SVC
-  value: "1"
+  value: "10"
 - description: Image tag
   name: IMAGE_TAG
   required: true
