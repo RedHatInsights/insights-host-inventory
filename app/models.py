@@ -309,7 +309,7 @@ class Host(LimitedHost):
     def _update_tags(self, tags_dict):
         if self.tags is None:
             raise InventoryException(
-                title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
+                title="Invalid request", detail="Tags must be either an object or an array, and cannot be null."
             )
 
         for namespace, ns_tags in tags_dict.items():
@@ -479,7 +479,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         elif isinstance(tags, dict):
             return self._validate_tags_dict(tags)
         else:
-            raise MarshmallowValidationError("Tags must be either an object or an array.")
+            raise MarshmallowValidationError("Tags must be either an object or an array, and cannot be null.")
 
     @staticmethod
     def _validate_tags_list(tags):
