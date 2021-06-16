@@ -248,7 +248,6 @@ $defs:
         maxLength: 50
       running_processes:
         type: array  # techincally a set, ordering is not important
-        x-indexed: false
         items:
           description: A single running process. This will be truncated to 1000 characters when saved.
           type: string
