@@ -19,7 +19,10 @@ from tests.helpers.api_utils import build_expected_host_list
 from tests.helpers.api_utils import build_host_id_list_for_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
+from tests.helpers.api_utils import build_system_profile_sap_sids_url
+from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
+from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import quote
@@ -981,36 +984,34 @@ def test_get_hosts_with_satellite_identity(db_create_host, api_get):
         assert host_data["system_profile"]["owner_id"] == owner_id
 
 
-# DISABLED. Query validation will be added back in a future PR
-# def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
-#     patch_xjoin_post(response={})
+def test_get_hosts_sap_system_bad_parameter_values(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    patch_xjoin_post(response={})
 
-#     values = ("True", "False", "Garfield")
+    values = "Garfield"
 
-#     for value in values:
-#         with subtests.test(value=value):
-#             implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
-#             eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
+    for value in values:
+        with subtests.test(value=value):
+            implicit_url = build_hosts_url(query=f"?filter[system_profile][sap_system]={value}")
+            eq_url = build_hosts_url(query=f"?filter[system_profile][sap_system][eq]={value}")
 
-#             implicit_response_status, implicit_response_data = api_get(implicit_url)
-#             eq_response_status, eq_response_data = api_get(eq_url)
+            implicit_response_status, implicit_response_data = api_get(implicit_url)
+            eq_response_status, eq_response_data = api_get(eq_url)
 
-#             assert_response_status(implicit_response_status, 400)
-#             assert_response_status(eq_response_status, 400)
+            assert_response_status(implicit_response_status, 400)
+            assert_response_status(eq_response_status, 400)
 
 
-# DISABLED. Query validation will be added back in a future PR
-# def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
-#     patch_xjoin_post(response={})
+def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xjoin):
+    patch_xjoin_post(response={})
 
-#     implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
-#     eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
+    implicit_url = build_hosts_url(query="?filter[system_profile][bad_thing]=Banana")
+    eq_url = build_hosts_url(query="?filter[Bad_thing][Extra_bad_one][eq]=Pinapple")
 
-#     implicit_response_status, implicit_response_data = api_get(implicit_url)
-#     eq_response_status, eq_response_data = api_get(eq_url)
+    implicit_response_status, implicit_response_data = api_get(implicit_url)
+    eq_response_status, eq_response_data = api_get(eq_url)
 
-#     assert_response_status(implicit_response_status, 400)
-#     assert_response_status(eq_response_status, 400)
+    assert_response_status(implicit_response_status, 400)
+    assert_response_status(eq_response_status, 400)
 
 
 def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, query_source_xjoin, api_get):
@@ -1118,3 +1119,17 @@ def test_host_list_sp_fields_not_requested(patch_xjoin_post, query_source_xjoin,
 
     for host_data in response_data["results"]:
         assert "system_profile" not in host_data
+
+
+def test_unindexed_fields_fail_gracefully(query_source_xjoin, api_get):
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+
+    for url_builder in url_builders:
+        for query in ("?filter[system_profile][installed_packages_delta]=foo",):
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 400
