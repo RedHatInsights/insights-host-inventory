@@ -608,6 +608,13 @@ def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_in
     assert record.tags == {}
 
 
+def test_add_host_with_null_tags(mq_create_or_update_host):
+    host = minimal_host(tags=None)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
 def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
     tags = [
