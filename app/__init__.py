@@ -2,6 +2,7 @@ from enum import Enum
 from os.path import join
 
 import connexion
+import yaml
 from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
@@ -36,6 +37,12 @@ REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
+SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
+SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
+
+SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": list, "object": dict}
+
+custom_filter_fields = ["operating_system"]
 
 
 class Permission(Enum):
@@ -68,6 +75,57 @@ def shutdown_hook(close_function, name):
 
 def inventory_config():
     return current_app.config["INVENTORY_CONFIG"]
+
+
+def system_profile_spec():
+    return current_app.config["SYSTEM_PROFILE_SPEC"]
+
+
+def _spec_type_to_python_type(type_as_string):
+    return SPEC_TYPES_LOOKUP[type_as_string]
+
+
+def _get_field_filter(field_name, props):
+    field_type = None
+
+    if props.get("type"):
+        field_type = props["type"]
+    elif props.get("$ref"):
+        # remove path to get name of custom type
+        return props["$ref"].replace("#/$defs/", "")
+    else:
+        raise Exception("system profile spec is invalid")
+
+    # determine if the field uses a custom filter
+    if field_name in custom_filter_fields:
+        return field_name
+
+    # determine if the string field supports wildcard queries
+    if field_type == "string" and props.get("x-wildcard"):
+        if props["x-wildcard"] is True:
+            return "wildcard"
+
+    # if it's an array determine filter type from members
+    if field_type == "array":
+        return _get_field_filter(None, props["items"])
+
+    return field_type
+
+
+def process_system_profile_spec():
+    with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
+        # TODO: add some handling here for if loading fails for some reason
+        system_profile_spec = yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"]
+        system_profile_spec_processed = {}
+
+        for field, props in system_profile_spec.items():
+            if props.get("x-indexed", True):
+                field_type = _spec_type_to_python_type(props["type"])  # cast from string to type
+                field_filter = _get_field_filter(field, props)
+
+                system_profile_spec_processed[field] = {"type": field_type, "filter": field_filter}
+
+        return system_profile_spec_processed
 
 
 def create_app(runtime_environment):
@@ -109,6 +167,8 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.db_pool_timeout
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
+
+    flask_app.config["SYSTEM_PROFILE_SPEC"] = process_system_profile_spec()
 
     db.init_app(flask_app)
 

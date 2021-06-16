@@ -5,9 +5,8 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.filtering.filtering import build_system_profile_filter
 from api.host import get_bulk_query_source
-from api.host_query_xjoin import build_sap_sids_filter
-from api.host_query_xjoin import build_sap_system_filter
 from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
@@ -15,6 +14,7 @@ from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
+from app.exceptions import ValidationException
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -107,12 +107,11 @@ def get_tags(
         variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
 
     if filter:
-        if filter.get("system_profile"):
-            if filter["system_profile"].get("sap_system"):
-                hostfilter_and_variables += build_sap_system_filter(filter["system_profile"].get("sap_system"))
-            if filter["system_profile"].get("sap_sids"):
-                hostfilter_and_variables += build_sap_sids_filter(filter["system_profile"]["sap_sids"])
-
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         hostfilter_and_variables += owner_id_filter()
