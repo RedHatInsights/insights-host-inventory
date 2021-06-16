@@ -114,7 +114,7 @@ $defs:
         description: MAC address (with or without colons)
         example: "00:00:00:00:00:00"
         type: string
-        maxLength: 59
+        pattern: "^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|^[A-Fa-f0-9]{12}$"
       name:
         description: Name of interface
         type: string
@@ -248,6 +248,7 @@ $defs:
         maxLength: 50
       running_processes:
         type: array  # techincally a set, ordering is not important
+        x-indexed: false
         items:
           description: A single running process. This will be truncated to 1000 characters when saved.
           type: string
