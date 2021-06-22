@@ -5,10 +5,8 @@ from datetime import timedelta
 
 import marshmallow
 import pytest
-from sqlalchemy import null
 from sqlalchemy.exc import OperationalError
 
-from app import db
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -598,7 +596,7 @@ def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host)
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))
+@pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))
 def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, **tags)
@@ -608,6 +606,13 @@ def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_in
     record = db_get_host_by_insights_id(insights_id)
 
     assert record.tags == {}
+
+
+def test_add_host_with_null_tags(mq_create_or_update_host):
+    host = minimal_host(tags=None)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
 
 
 def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insights_id):
@@ -746,26 +751,6 @@ def test_add_tags_to_host_by_dict(mq_create_or_update_host, db_get_host_by_insig
             assert expected_tags == record.tags
 
 
-@pytest.mark.parametrize("empty", (None, null()))
-def test_add_tags_to_hosts_with_null_tags(empty, mq_create_or_update_host, db_get_host_by_insights_id, flask_app):
-    # FIXME: Remove this test after migration to NOT NULL.
-    insights_id = generate_uuid()
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id)
-    mq_create_or_update_host(host)
-
-    created_host = db_get_host_by_insights_id(insights_id)
-    created_host.tags = empty
-
-    db.session.add(created_host)
-    db.session.commit()
-
-    new_host = mq_create_or_update_host(host)
-    assert [] == new_host.tags
-
-    updated_host = db_get_host_by_insights_id(insights_id)
-    assert {} == updated_host.tags
-
-
 def test_replace_tags_of_host_by_list(mq_create_or_update_host, db_get_host_by_insights_id, subtests):
     insights_id = generate_uuid()
 
@@ -877,7 +862,6 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
     for message_tags, expected_tags in (
         ({"tags": {"namespace 1": {"key 1": ["value 1"]}}}, {"namespace 1": {"key 1": ["value 1"]}}),
         ({}, {"namespace 1": {"key 1": ["value 1"]}}),
-        ({"tags": None}, {"namespace 1": {"key 1": ["value 1"]}}),
         ({"tags": []}, {"namespace 1": {"key 1": ["value 1"]}}),
         ({"tags": {}}, {"namespace 1": {"key 1": ["value 1"]}}),
     ):
@@ -890,7 +874,7 @@ def test_keep_host_tags_by_empty(mq_create_or_update_host, db_get_host_by_insigh
             assert expected_tags == record.tags
 
 
-@pytest.mark.parametrize("tags", ({}, {"tags": None}, {"tags": []}, {"tags": {}}))
+@pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))
 def test_add_host_default_empty_dict(tags, mq_create_or_update_host, db_get_host_by_insights_id):
     insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, **tags)

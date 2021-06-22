@@ -150,7 +150,7 @@ class LimitedHost(db.Model):
         ansible_host=None,
         account=None,
         facts=None,
-        tags=None,
+        tags={},
         system_profile_facts=None,
     ):
 
@@ -164,7 +164,7 @@ class LimitedHost(db.Model):
         self._update_ansible_host(ansible_host)
         self.account = account
         self.facts = facts or {}
-        self.tags = tags or {}
+        self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
 
     def _update_ansible_host(self, ansible_host):
@@ -196,7 +196,7 @@ class Host(LimitedHost):
         ansible_host=None,
         account=None,
         facts=None,
-        tags=None,
+        tags={},
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
@@ -210,6 +210,9 @@ class Host(LimitedHost):
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
             )
+
+        if tags is None:
+            raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
 
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
         self.stale_timestamp = stale_timestamp
@@ -304,8 +307,10 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "facts")
 
     def _update_tags(self, tags_dict):
-        if not self.tags:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
-            self.tags = {}
+        if self.tags is None:
+            raise InventoryException(
+                title="Invalid request", detail="Tags must be either an object or an array, and cannot be null."
+            )
 
         for namespace, ns_tags in tags_dict.items():
             if ns_tags:
@@ -457,7 +462,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
-    tags = fields.Raw(allow_none=True)
+    tags = fields.Raw()
 
     def __init__(self, system_profile_schema=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -473,10 +478,8 @@ class LimitedHostSchema(CanonicalFactsSchema):
             return self._validate_tags_list(tags)
         elif isinstance(tags, dict):
             return self._validate_tags_dict(tags)
-        elif tags is None:
-            return True
         else:
-            raise MarshmallowValidationError("Tags must be either an object, an array or null.")
+            raise MarshmallowValidationError("Tags must be either an object or an array, and cannot be null.")
 
     @staticmethod
     def _validate_tags_list(tags):
