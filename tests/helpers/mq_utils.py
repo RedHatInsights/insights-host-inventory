@@ -6,7 +6,7 @@ from datetime import timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from kafka.common import TopicPartition
+from kafka import TopicPartition
 
 from app.utils import Tag
 from tests.helpers.test_utils import minimal_host
