@@ -115,6 +115,9 @@ class Config:
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
             "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
+            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
         }
 
         self.validator_kafka_consumer = {
@@ -130,6 +133,9 @@ class Config:
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
             "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
+            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
         }
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
@@ -142,6 +148,11 @@ class Config:
             "max_in_flight_requests_per_connection": int(
                 os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
+            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
         }
 
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
