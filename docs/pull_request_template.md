@@ -1,6 +1,6 @@
-## Overview
+# Overview
 
-This PR is being created to address [this Jira](https://issues.redhat.com/browse/RHCLOUD-xxxxx).
+This PR is being created to address [this Jira](https://issues.redhat.com/browse/ESSNTL-xxxxx).
 (A description of your PR's changes, along with why/context to the PR, goes here.)
 
 ## PR Checklist
@@ -13,9 +13,9 @@ This PR is being created to address [this Jira](https://issues.redhat.com/browse
 - [ ] Documentation, if this PR changes the way other services interact with host inventory
 - [ ] Links to related PRs
 
-## Secure Coding Practices Checklist GitHub Link
+## Secure Coding Practices Documentation Reference
 
-- https://github.com/RedHatInsights/secure-coding-checklist
+You can find documentation on this checklist [here](https://github.com/RedHatInsights/secure-coding-checklist).
 
 ## Secure Coding Checklist
 
