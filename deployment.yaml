@@ -100,7 +100,7 @@ objects:
         - emptyDir:
             medium: Memory
           name: gunicorn-worker-dir
-    - name: inventory-mq-pmin
+    - name: mq-pmin
       minReplicas: ${{REPLICAS_PMIN}}
       podSpec:
         command:
@@ -155,7 +155,7 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
-    - name: inventory-mq-p1
+    - name: mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
         initContainers:
@@ -216,7 +216,7 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
-    - name: inventory-mq-sp
+    - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
         command:
