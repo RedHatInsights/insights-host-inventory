@@ -141,7 +141,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(up{service=\"insights-inventory\"})",
+              "expr": "sum(up{service=\"host-inventory-service\"})",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -228,7 +228,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=\"insights-inventory\"}[$__range]))",
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=\"host-inventory-service\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -315,7 +315,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(inventory_http_request_total{service=\"insights-inventory\"}[$__range])) by (status) > 0",
+              "expr": "sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range])) by (status) > 0",
               "instant": true,
               "interval": "5m",
               "legendFormat": "{{status}}",
@@ -362,7 +362,7 @@ data:
           "links": [
             {
               "targetBlank": true,
-              "url": "[[kibana]],query:'@log_stream:+%22insights-inventory-*%22+AND+message:+%22Deleted+host%22'),sort:!('@timestamp',desc))"
+              "url": "[[kibana]],query:'@log_stream:+%22host-inventory-service-*%22+AND+message:+%22Deleted+host%22'),sort:!('@timestamp',desc))"
             }
           ],
           "mappingType": 1,
@@ -399,7 +399,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_delete_host_count_total{service=\"insights-inventory\"}[$__range]))",
+              "expr": "sum(increase(inventory_delete_host_count_total{service=\"host-inventory-service\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -485,7 +485,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"insights-inventory\", status=~\"5.*\"}[$__range])))",
+              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"5.*\"}[$__range])))",
               "interval": "5m",
               "legendFormat": "",
               "refId": "A"
@@ -808,7 +808,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"insights-inventory\", status=~\"4.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"insights-inventory\"}[$__range]))",
+              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"4.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -955,7 +955,7 @@ data:
           "links": [
             {
               "targetBlank": true,
-              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+(message:+%22Unable+to+parse+json+message+from+message+queue%22+OR+message:+%22Invalid+Unicode+sequence+in+message+from+message+queue%22+OR+message:+%22Input+validation+error+while+parsing+operation+message*%22)'),sort:!('@timestamp',desc))"
+              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+(message:+%22Unable+to+parse+json+message+from+message+queue%22+OR+message:+%22Invalid+Unicode+sequence+in+message+from+message+queue%22+OR+message:+%22Input+validation+error+while+parsing+operation+message*%22)'),sort:!('@timestamp',desc))"
             }
           ],
           "mappingType": 1,
@@ -1170,7 +1170,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "(sum(increase(inventory_http_request_total{service=\"insights-inventory\", status=~\"5.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"insights-inventory\"}[$__range]))",
+              "expr": "(sum(increase(inventory_http_request_total{service=\"host-inventory-service\", status=~\"5.*\"}[$__range])) OR vector(0)) / sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -1532,7 +1532,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(inventory_http_request_total{service=\"insights-inventory\"}[$__range]))",
+              "expr": "sum(increase(inventory_http_request_total{service=\"host-inventory-service\"}[$__range]))",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -1711,7 +1711,7 @@ data:
           "links": [
             {
               "targetBlank": true,
-              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+parsing+operation+message%22'),sort:!('@timestamp',desc))"
+              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+message:+%22Error+parsing+operation+message%22'),sort:!('@timestamp',desc))"
             }
           ],
           "mappingType": 1,
@@ -1833,7 +1833,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(up{service=\"inventory-mq\"})",
+              "expr": "sum(up{service=\"host-inventory-mq\"})",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -1920,7 +1920,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=~\"inventory-mq-.*\"}[$__range]))",
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{container=~\"host-inventory-mq-.*\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -2064,7 +2064,7 @@ data:
           "links": [
             {
               "targetBlank": true,
-              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+(message:+%22Unable+to+parse+json+message+from+message+queue%22+OR+message:+%22Invalid+Unicode+sequence+in+message+from+message+queue%22+OR+message:+%22Input+validation+error+while+parsing+operation+message*%22)'),sort:!('@timestamp',desc))"
+              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+(message:+%22Unable+to+parse+json+message+from+message+queue%22+OR+message:+%22Invalid+Unicode+sequence+in+message+from+message+queue%22+OR+message:+%22Input+validation+error+while+parsing+operation+message*%22)'),sort:!('@timestamp',desc))"
             }
           ],
           "mappingType": 1,
@@ -2217,7 +2217,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Validation+error+while+adding+or+updating+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+message:+%22Validation+error+while+adding+or+updating+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #C",
               "thresholds": [
@@ -2260,7 +2260,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+adding+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+message:+%22Error+adding+host+%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #E",
               "thresholds": [
@@ -2303,7 +2303,7 @@ data:
               "link": true,
               "linkTargetBlank": true,
               "linkTooltip": "Kibana",
-              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22inventory-mq-*%22+AND+message:+%22Error+while+adding+host%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
+              "linkUrl": "${kibana:raw},query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+message:+%22Error+while+adding+host%22+AND+host.reporter:+%22${__cell_1:raw}%22'),sort:!('@timestamp',desc))",
               "mappingType": 1,
               "pattern": "Value #G",
               "thresholds": [
@@ -3407,7 +3407,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(up{service=\"insights-inventory\"})",
+              "expr": "sum(up{service=\"host-inventory-service\"})",
               "interval": "15s",
               "legendFormat": "number of pods",
               "refId": "A"
@@ -3505,7 +3505,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(\nlabel_replace(\nup{service=\"inventory-mq\"},\n\"deployment\", \"$1\", \"pod\", \"^inventory-mq-(.*?)-.*$\"\n)\n) by (deployment)",
+              "expr": "sum(\nlabel_replace(\nup{service=\"host-inventory-mq\"},\n\"deployment\", \"$1\", \"pod\", \"^host-inventory-mq-(.*?)-.*$\"\n)\n) by (deployment)",
               "interval": "15s",
               "legendFormat": "{{deployment}}",
               "refId": "A"
@@ -3603,7 +3603,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(container_cpu_usage_seconds_total{container=\"insights-inventory\"}[1m])",
+              "expr": "rate(container_cpu_usage_seconds_total{container=\"host-inventory-service\"}[1m])",
               "interval": "1m",
               "legendFormat": "{{pod}}",
               "refId": "A"
@@ -3701,7 +3701,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(container_cpu_usage_seconds_total{container=~\"inventory-mq-.*\"}[1m])",
+              "expr": "rate(container_cpu_usage_seconds_total{container=~\"host-inventory-mq-.*\"}[1m])",
               "interval": "1m",
               "legendFormat": "{{pod}}",
               "refId": "A"
@@ -3799,7 +3799,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "container_memory_usage_bytes{container=\"insights-inventory\"}",
+              "expr": "container_memory_usage_bytes{container=\"host-inventory-service\"}",
               "interval": "1m",
               "legendFormat": "{{pod}}",
               "refId": "A"
@@ -3897,7 +3897,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "container_memory_usage_bytes{container=~\"inventory-mq-.*\"}",
+              "expr": "container_memory_usage_bytes{container=~\"host-inventory-mq-.*\"}",
               "interval": "1m",
               "legendFormat": "{{pod}}",
               "refId": "A"
