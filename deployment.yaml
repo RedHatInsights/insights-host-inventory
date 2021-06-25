@@ -409,3 +409,12 @@ parameters:
   value: PLAINTEXT
 - name: KAFKA_SSL_CAFILE
   value: /opt/certs/kafka-cacert
+# the following params values come from 'app-interface/data/products/insights/environments/<env_name>.yml'
+# if loading this file can not get the values, then `deploy-clowder.yml` from app-interface should be
+# able to.
+- name: PROMETHEUS_PUSHGATEWAY
+  value: ${PROMETHEUS_PUSHGATEWAY}
+- name: KAFKA_BOOTSTRAP_HOST
+  value: ${KAFKA_BOOTSTRAP_HOST}
+- name: KAFKA_BOOTSTRAP_PORT
+  value: ${KAFKA_BOOTSTRAP_PORT}
