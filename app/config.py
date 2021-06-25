@@ -155,6 +155,15 @@ class Config:
             "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
         }
 
+        self.payload_tracker_kafka_producer = {
+            "bootstrap_servers": os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092"),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
+            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
+        }
+
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"
