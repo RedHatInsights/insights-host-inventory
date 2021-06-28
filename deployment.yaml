@@ -62,6 +62,10 @@ objects:
           value: ${KAFKA_PRODUCER_RETRIES}
         - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
           value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SSL_CAFILE
+          value: ${KAFKA_SSL_CAFILE}
         - name: CLOWDER_ENABLED
           value: "true"
         resources:
@@ -94,12 +98,16 @@ objects:
           name: prometheus-volume
         - mountPath: /gunicorn
           name: gunicorn-worker-dir
+        - mountPath: /opt/certs/
+          name: kafka-cacert
         volumes:
         - emptyDir: {}
           name: prometheus-volume
         - emptyDir:
             medium: Memory
           name: gunicorn-worker-dir
+        - emptyDir: {}
+          name: kafka-cacert
     - name: mq-pmin
       minReplicas: ${{REPLICAS_PMIN}}
       podSpec:
@@ -132,6 +140,10 @@ objects:
           value: ${KAFKA_PRODUCER_RETRIES}
         - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
           value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SSL_CAFILE
+          value: ${KAFKA_SSL_CAFILE}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -155,6 +167,12 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
+        volumeMounts:
+        - mountPath: /opt/certs/
+          name: kafka-cacert
+        volumes:
+        - emptyDir: {}
+          name: kafka-cacert
     - name: mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
@@ -193,6 +211,10 @@ objects:
           value: ${KAFKA_PRODUCER_RETRIES}
         - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
           value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SSL_CAFILE
+          value: ${KAFKA_SSL_CAFILE}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -216,6 +238,12 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
+        volumeMounts:
+        - mountPath: /opt/certs/
+          name: kafka-cacert
+        volumes:
+        - emptyDir: {}
+          name: kafka-cacert
     - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
@@ -248,6 +276,10 @@ objects:
           value: ${KAFKA_PRODUCER_RETRIES}
         - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
           value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SSL_CAFILE
+          value: ${KAFKA_SSL_CAFILE}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -271,6 +303,12 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
+        volumeMounts:
+        - mountPath: /opt/certs/
+          name: kafka-cacert
+        volumes:
+        - emptyDir: {}
+          name: kafka-cacert
     database:
       name: host-inventory
       version: 12
@@ -366,3 +404,8 @@ parameters:
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
+- name: KAFKA_SECURITY_PROTOCOL
+  description: The Kafka Security Protocol
+  value: PLAINTEXT
+- name: KAFKA_SSL_CAFILE
+  value: /opt/certs/kafka-cacert
