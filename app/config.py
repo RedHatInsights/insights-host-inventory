@@ -156,7 +156,6 @@ class Config:
         }
 
         self.payload_tracker_kafka_producer = {
-            "bootstrap_servers": os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092"),
             "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
             "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
             "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
