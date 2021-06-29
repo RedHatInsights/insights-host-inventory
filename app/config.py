@@ -19,6 +19,7 @@ class Config:
         cfg = app_common_python.LoadedConfig
 
         self.metrics_port = cfg.metricsPort
+        self.metrics_path = cfg.metricsPath
         self._db_user = cfg.database.username
         self._db_password = cfg.database.password
         self._db_host = cfg.database.hostname
@@ -148,6 +149,14 @@ class Config:
             "max_in_flight_requests_per_connection": int(
                 os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
+            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
+        }
+
+        self.payload_tracker_kafka_producer = {
             "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
             "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
             "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
