@@ -327,7 +327,7 @@ objects:
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -381,7 +381,7 @@ objects:
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -524,7 +524,7 @@ parameters:
 # able to.
 - name: PROMETHEUS_PUSHGATEWAY
   value: ${PROMETHEUS_PUSHGATEWAY}
-- name: KAFKA_BOOTSTRAP_HOST
-  value: ${KAFKA_BOOTSTRAP_HOST}
-- name: KAFKA_BOOTSTRAP_PORT
-  value: ${KAFKA_BOOTSTRAP_PORT}
+- name: KAFKA_SERVERS_HOST
+  value: ${KAFKA_SERVERS_HOST}
+- name: KAFKA_SERVERS_PORT
+  value: ${KAFKA_SERVERS_PORT}
