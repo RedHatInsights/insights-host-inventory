@@ -334,8 +334,8 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: PROM_PUSHGATEWAY
+            value: ${PROM_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -388,8 +388,8 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: PROM_PUSHGATEWAY
+            value: ${PROM_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -522,8 +522,8 @@ parameters:
 # the following params values come from 'app-interface/data/products/insights/environments/<env_name>.yml'
 # if loading this file can not get the values, then `deploy-clowder.yml` from app-interface should be
 # able to.
-- name: PROMETHEUS_PUSHGATEWAY
-  value: ${PROMETHEUS_PUSHGATEWAY}
+- name: PROM_PUSHGATEWAY
+  value: ${PROM_PUSHGATEWAY}
 - name: KAFKA_SERVERS_HOST
   value: ${KAFKA_SERVERS_HOST}
 - name: KAFKA_SERVERS_PORT
