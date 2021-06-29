@@ -132,6 +132,49 @@ $defs:
         type: string
         example: "ether"
         maxLength: 18
+  RPMOSTreeDeployment:
+    description: Limited deployment information from systems managed by rpm-ostree as reported by rpm-ostree status --json
+    type: object
+    required: ["id", "checksum", "origin", "osname", "booted", "pinned"]
+    properties:
+      id:
+        description: ID of the deployment
+        example: "fedora-silverblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0"
+        type: string
+        minLength: 1
+        maxLength: 255
+      checksum:
+        description: The checksum / commit of the deployment
+        example: "63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb"
+        type: string
+        maxLength: 64
+        pattern: "^[a-fA-F0-9]{64}$"
+      origin:
+        description: The origin repo from which the commit was installed
+        example: "fedora/33/x86_64/silverblue"
+        type: string
+        minLength: 1
+        maxLength: 255
+      osname:
+        description: The operating system name
+        example: "fedora-silverblue"
+        type: string
+        minLength: 1
+        maxLength: 255
+      version:
+        description: The version of the deployment
+        example: "33.21"
+        type: string
+        minLength: 1
+        maxLength: 255
+      booted:
+        description: Whether the deployment is currently booted
+        example: True
+        type: boolean
+      pinned:
+        description: Whether the deployment is currently pinned
+        example: False
+        type: boolean
   SystemProfile:
     description: Representation of the system profile fields
     type: object
@@ -382,6 +425,11 @@ $defs:
       greenboot_fallback_detected:
         type: boolean
         description: Indicates whether greenboot detected a rolled back update on an edge device.
+      rpm_ostree_deployments:
+        type: array
+        description: The list of deployments on the system as reported by rpm-ostree status --json
+        items:
+          $ref: '#/$defs/RPMOSTreeDeployment'
       rhsm:
         description: Object for subscription-manager details
         type: object
