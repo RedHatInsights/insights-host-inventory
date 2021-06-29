@@ -334,7 +334,7 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: PROM_PUSHGATEWAY
+          - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROM_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
@@ -388,7 +388,7 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: PROM_PUSHGATEWAY
+          - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROM_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
