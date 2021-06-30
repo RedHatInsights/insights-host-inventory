@@ -19,6 +19,7 @@ class Config:
         cfg = app_common_python.LoadedConfig
 
         self.metrics_port = cfg.metricsPort
+        self.metrics_path = cfg.metricsPath
         self._db_user = cfg.database.username
         self._db_password = cfg.database.password
         self._db_host = cfg.database.hostname
