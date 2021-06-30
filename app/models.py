@@ -60,7 +60,7 @@ def _set_display_name_on_save(context):
     the id exists and can be used as the display_name if necessary.
     """
     params = context.get_current_parameters()
-    if not params["display_name"]:
+    if not params["display_name"] or params["display_name"] == str(params["id"]):
         return params["canonical_facts"].get("fqdn") or params["id"]
 
 
@@ -253,7 +253,7 @@ class Host(LimitedHost):
     def update_display_name(self, input_display_name):
         if input_display_name:
             self.display_name = input_display_name
-        elif not self.display_name:
+        elif not self.display_name or self.display_name == str(self.id):
             # This is the case where the display_name is not set on the
             # existing host record and the input host does not have it set
             if "fqdn" in self.canonical_facts:

@@ -309,6 +309,116 @@ objects:
         volumes:
         - emptyDir: {}
           name: kafka-cacert
+    jobs:
+    - name: reaper
+      schedule: '@hourly'
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - python host_reaper.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROM_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SSL_CAFILE
+            value: ${KAFKA_SSL_CAFILE}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /opt/certs/
+          name: kafka-cacert
+        volumes:
+        - emptyDir: {}
+          name: kafka-cacert
+    - name: synchronizer
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: OnFailure
+        command:
+          - /bin/sh
+          - -c
+          - python host_synchronizer.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROM_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SSL_CAFILE
+            value: ${KAFKA_SSL_CAFILE}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /opt/certs/
+          name: kafka-cacert
+        volumes:
+        - emptyDir: {}
+          name: kafka-cacert
     database:
       name: host-inventory
       version: 12
@@ -409,3 +519,12 @@ parameters:
   value: PLAINTEXT
 - name: KAFKA_SSL_CAFILE
   value: /opt/certs/kafka-cacert
+# the following params values come from 'app-interface/data/products/insights/environments/<env_name>.yml'
+# if loading this file can not get the values, then `deploy-clowder.yml` from app-interface should be
+# able to.
+- name: PROM_PUSHGATEWAY
+  value: ${PROM_PUSHGATEWAY}
+- name: KAFKA_SERVERS_HOST
+  value: ${KAFKA_SERVERS_HOST}
+- name: KAFKA_SERVERS_PORT
+  value: ${KAFKA_SERVERS_PORT}
