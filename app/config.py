@@ -1,4 +1,5 @@
 import os
+import tempfile
 from datetime import timedelta
 from enum import Enum
 
@@ -50,7 +51,7 @@ class Config:
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
-        self.kafka_ssl_cafile = broker_cfg.cacert
+        self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
         self.kafka_sasl_username = broker_cfg.sasl.username
         self.kafka_sasl_password = broker_cfg.sasl.password
 
@@ -212,6 +213,14 @@ class Config:
         if value is None:
             raise ValueError(f"{os.environ.get(name)} is not a valid value for {name}")
         return value
+
+    def _kafka_ca(self, cacert_string):
+        cacert_filename = None
+        if cacert_string:
+            with tempfile.NamedTemporaryFile(delete=False) as tf:
+                cacert_filename = tf.name
+                tf.write(cacert_string.encode("utf-8"))
+        return cacert_filename
 
     def log_configuration(self):
         if not self._runtime_environment.logging_enabled:
