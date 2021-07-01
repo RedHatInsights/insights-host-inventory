@@ -207,7 +207,6 @@ def create_app(runtime_environment):
             flask_app,
             defaults_prefix="inventory",
             group_by="url_rule",
-            path=None,
             excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
         )
         metrics.start_http_server(app_config.metrics_port, endpoint=app_config.metrics_path)
