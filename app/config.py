@@ -53,6 +53,7 @@ class Config:
 
     def non_clowder_config(self):
         self.metrics_port = 9126
+        self.metrics_path = "/metrics"
         self._db_user = os.getenv("INVENTORY_DB_USER", "insights")
         self._db_password = os.getenv("INVENTORY_DB_PASS", "insights")
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
