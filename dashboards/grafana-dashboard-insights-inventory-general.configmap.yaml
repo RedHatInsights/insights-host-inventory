@@ -1833,7 +1833,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum(up{service=\"host-inventory-mq\"})",
+              "expr": "sum(up{service=~\"host-inventory-mq-.*\"})",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -2537,84 +2537,6 @@ data:
             "align": false,
             "alignLevel": null
           }
-        },
-        {
-          "columns": [],
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
-          },
-          "fontSize": "100%",
-          "gridPos": {
-            "h": 6,
-            "w": 12,
-            "x": 0,
-            "y": 23
-          },
-          "id": 78,
-          "links": [],
-          "pageSize": null,
-          "scroll": true,
-          "showHeader": true,
-          "sort": {
-            "col": 2,
-            "desc": true
-          },
-          "styles": [
-            {
-              "alias": "Time",
-              "align": "auto",
-              "dateFormat": "YYYY-MM-DD HH:mm:ss",
-              "pattern": "Time",
-              "type": "hidden"
-            },
-            {
-              "alias": "",
-              "align": "auto",
-              "colorMode": null,
-              "colors": [
-                "rgba(245, 54, 54, 0.9)",
-                "rgba(237, 129, 40, 0.89)",
-                "rgba(50, 172, 45, 0.97)"
-              ],
-              "dateFormat": "YYYY-MM-DD HH:mm:ss",
-              "decimals": 0,
-              "mappingType": 1,
-              "pattern": "Value",
-              "thresholds": [],
-              "type": "number",
-              "unit": "none"
-            },
-            {
-              "alias": "",
-              "align": "auto",
-              "colorMode": null,
-              "colors": [
-                "rgba(245, 54, 54, 0.9)",
-                "rgba(237, 129, 40, 0.89)",
-                "rgba(50, 172, 45, 0.97)"
-              ],
-              "decimals": 2,
-              "pattern": "/.*/",
-              "thresholds": [],
-              "type": "number",
-              "unit": "short"
-            }
-          ],
-          "targets": [
-            {
-              "expr": "sum(increase(rest_post_request_count_total[$__range])) by (reporter)",
-              "instant": true,
-              "interval": "1m",
-              "refId": "A"
-            }
-          ],
-          "title": "HTTP host create requests",
-          "transform": "timeseries_to_rows",
-          "type": "table-old"
         },
         {
           "aliasColors": {},
@@ -3505,7 +3427,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(\nlabel_replace(\nup{service=\"host-inventory-mq\"},\n\"deployment\", \"$1\", \"pod\", \"^host-inventory-mq-(.*?)-.*$\"\n)\n) by (deployment)",
+              "expr": "sum(\nlabel_replace(\nup{service=~\"host-inventory-mq-.*\"},\n\"deployment\", \"$1\", \"pod\", \"^host-inventory-mq-(.*?)-.*$\"\n)\n) by (deployment)",
               "interval": "15s",
               "legendFormat": "{{deployment}}",
               "refId": "A"
