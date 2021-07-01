@@ -484,7 +484,7 @@ parameters:
   description: The Kafka Security Protocol
   value: PLAINTEXT
 - name: KAFKA_SASL_MECHANISM
-  value: ''
+  value: 'PLAIN'
 # the following params values come from 'app-interface/data/products/insights/environments/<env_name>.yml'
 # if loading this file can not get the values, then `deploy-clowder.yml` from app-interface should be
 # able to.

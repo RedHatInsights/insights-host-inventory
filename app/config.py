@@ -112,7 +112,7 @@ class Config:
         self.kafka_ssl_configs = {
             "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
             "ssl_cafile": self.kafka_ssl_cafile,
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
             "sasl_plain_username": self.kafka_sasl_username,
             "sasl_plain_password": self.kafka_sasl_password,
         }
