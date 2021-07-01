@@ -20,7 +20,7 @@ logger = get_logger("mq_service")
 def main():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.config["INVENTORY_CONFIG"]
-    start_http_server(config.metrics_port)
+    start_http_server(config.metrics_port, endpoint=config.metrics_path)
 
     topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
 
