@@ -133,8 +133,17 @@ def serialize_host_system_profile_xjoin(host_data):
     return {"id": _serialize_uuid(host_data["id"]), "system_profile": host_data.get("system_profile_facts") or {}}
 
 
+def _recursive_casefold(field_data):
+    if isinstance(field_data, str):
+        return field_data.casefold()
+    elif isinstance(field_data, list):
+        return [_recursive_casefold(x) for x in field_data]
+    else:
+        return field_data
+
+
 def _deserialize_canonical_facts(data):
-    return {field: data[field] for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def serialize_canonical_facts(canonical_facts):
