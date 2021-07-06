@@ -203,13 +203,13 @@ def create_app(runtime_environment):
 
     # HTTP request metrics
     if runtime_environment.metrics_endpoint_enabled:
-        PrometheusMetrics(
+        metrics = PrometheusMetrics(
             flask_app,
             defaults_prefix="inventory",
             group_by="url_rule",
-            path=None,
             excluded_paths=["^/metrics$", "^/health$", "^/version$", r"^/favicon\.ico$"],
         )
+        metrics.start_http_server(app_config.metrics_port, endpoint=app_config.metrics_path)
 
     # initialize metrics to zero
     initialize_metrics(app_config)
