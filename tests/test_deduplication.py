@@ -3,6 +3,7 @@ from pytest import mark
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
@@ -61,6 +62,24 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_subscription_manager_id_case_insensitive(mq_create_or_update_host):
+    smid = generate_uuid()
+
+    first_host = mq_create_or_update_host(minimal_host(subscription_manager_id=smid.upper()))
+    second_host = mq_create_or_update_host(minimal_host(subscription_manager_id=smid.lower()))
+    assert first_host.id == second_host.id
+
+
+def test_mac_addresses_case_insensitive(mq_create_or_update_host):
+    first_host = mq_create_or_update_host(
+        minimal_host(fqdn="foo.bar.com", mac_addresses=["C2:00:D0:C8:61:01", "aa:bb:cc:dd:ee:ff"])
+    )
+    second_host = mq_create_or_update_host(
+        minimal_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
+    )
+    assert first_host.id == second_host.id
 
 
 @mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
