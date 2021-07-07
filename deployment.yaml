@@ -305,7 +305,7 @@ objects:
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -313,7 +313,7 @@ objects:
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
           - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROM_PUSHGATEWAY}
+            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -353,7 +353,7 @@ objects:
           - name: INVENTORY_DB_SSL_CERT
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_SERVERS_HOST}:${KAFKA_SERVERS_PORT}
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -361,7 +361,7 @@ objects:
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
           - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROM_PUSHGATEWAY}
+            value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -485,12 +485,11 @@ parameters:
   value: PLAINTEXT
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
-# the following params values come from 'app-interface/data/products/insights/environments/<env_name>.yml'
-# if loading this file can not get the values, then `deploy-clowder.yml` from app-interface should be
-# able to.
-- name: PROM_PUSHGATEWAY
-  value: ${PROM_PUSHGATEWAY}
-- name: KAFKA_SERVERS_HOST
-  value: ${KAFKA_SERVERS_HOST}
-- name: KAFKA_SERVERS_PORT
-  value: ${KAFKA_SERVERS_PORT}
+- name: PROMETHEUS_PUSHGATEWAY
+  value: 'localhost:9091'
+- name: KAFKA_BOOTSTRAP_HOST
+  value: 'localhost'
+- name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: INVENTORY_DB_SSL_CERT
+  value: ''
