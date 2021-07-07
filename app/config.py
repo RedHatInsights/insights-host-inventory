@@ -56,6 +56,7 @@ class Config:
             self.kafka_sasl_username = broker_cfg.sasl.username
             self.kafka_sasl_password = broker_cfg.sasl.password
         else:
+            self.kafka_ssl_cafile = None
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
 
