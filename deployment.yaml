@@ -491,3 +491,5 @@ parameters:
   value: 'localhost'
 - name: KAFKA_BOOTSTRAP_PORT
   value: '29092'
+- name: INVENTORY_DB_SSL_CERT
+  value: ''
