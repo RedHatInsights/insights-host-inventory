@@ -25,7 +25,7 @@ def init_payload_tracker(config, producer=None):
         _PRODUCER = producer
     else:
         logger.info("Starting KafkaProducer() for PayloadTracker")
-        _PRODUCER = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.payload_tracker_kafka_producer)
+        _PRODUCER = KafkaProducer(**config.payload_tracker_kafka_producer)
 
 
 def get_payload_tracker(account=None, request_id=None):

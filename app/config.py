@@ -1,4 +1,5 @@
 import os
+import tempfile
 from datetime import timedelta
 from enum import Enum
 
@@ -50,6 +51,9 @@ class Config:
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
+        self.kafka_sasl_username = broker_cfg.sasl.username
+        self.kafka_sasl_password = broker_cfg.sasl.password
 
     def non_clowder_config(self):
         self.metrics_port = 9126
@@ -70,6 +74,9 @@ class Config:
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
         self._db_ssl_cert = os.getenv("INVENTORY_DB_SSL_CERT", "")
+        self.kafka_ssl_cafile = os.environ.get("KAFKA_SSL_CAFILE")
+        self.kafka_sasl_username = os.environ.get("KAFKA_SASL_USERNAME", "")
+        self.kafka_sasl_password = os.environ.get("KAFKA_SASL_PASSWORD", "")
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -103,6 +110,14 @@ class Config:
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
+        self.kafka_ssl_configs = {
+            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl_cafile": self.kafka_ssl_cafile,
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
+            "sasl_plain_username": self.kafka_sasl_username,
+            "sasl_plain_password": self.kafka_sasl_password,
+        }
+
         # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
         self.kafka_consumer = {
             "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
@@ -115,11 +130,7 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
-            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
-            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
-            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
+            **self.kafka_ssl_configs,
         }
 
         self.validator_kafka_consumer = {
@@ -133,11 +144,7 @@ class Config:
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
-            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
-            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
-            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
-            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
+            **self.kafka_ssl_configs,
         }
 
         # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
@@ -150,20 +157,10 @@ class Config:
             "max_in_flight_requests_per_connection": int(
                 os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
-            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
-            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
-            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
-            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
+            **self.kafka_ssl_configs,
         }
 
-        self.payload_tracker_kafka_producer = {
-            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
-            "ssl_cafile": os.environ.get("KAFKA_SSL_CAFILE"),
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "").upper(),
-            "sasl_plain_username": os.environ.get("KAFKA_SASL_USERNAME", ""),
-            "sasl_plain_password": os.environ.get("KAFKA_SASL_PASSWORD", ""),
-        }
+        self.payload_tracker_kafka_producer = {"bootstrap_servers": self.bootstrap_servers, **self.kafka_ssl_configs}
 
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
@@ -217,6 +214,14 @@ class Config:
         if value is None:
             raise ValueError(f"{os.environ.get(name)} is not a valid value for {name}")
         return value
+
+    def _kafka_ca(self, cacert_string):
+        cacert_filename = None
+        if cacert_string:
+            with tempfile.NamedTemporaryFile(delete=False) as tf:
+                cacert_filename = tf.name
+                tf.write(cacert_string.encode("utf-8"))
+        return cacert_filename
 
     def log_configuration(self):
         if not self._runtime_environment.logging_enabled:
