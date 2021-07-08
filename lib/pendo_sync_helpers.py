@@ -1,20 +1,54 @@
-
-from app.models import Host
 import json
+
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from api.metrics import outbound_http_response_time
+from app.instrumentation import pendo_failure
+from app.models import Host
+
 __all__ = ("pendo_sync",)
 
+PENDO_ROUTE = "/metadata/account/custom/value"
+PENDO_API_KEY = "x-pendo-integration-key"
+PENDO_CONTENT_TYPE = "content-type"
+RETRY_STATUSES = [408, 500, 502, 503, 504]
 
-def _make_request(request_body, config):
-    pass
+outbound_http_metric = outbound_http_response_time.labels("pendo")
 
-def _pendo_update(account_list, logger, config):
-    '''
-    TODO Serialize and send Data to Pendo
-    '''
+
+def _process_response(pendo_response, logger):
+    # TODO
+    resp_data = pendo_response.json()
+    logger.info(f"Pendo Data Sent. Response: {resp_data}")
+
+
+def _make_request(request_body, config, logger):
+    request_header = {PENDO_API_KEY: config.pendo_integration_key, PENDO_CONTENT_TYPE: "application/json"}
+
+    request_session = Session()
+    retry_config = Retry(total=config.pendo_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_url = config.pendo_endpoint + PENDO_ROUTE
+    request_session.mount(request_url, HTTPAdapter(max_retries=retry_config))
+
+    try:
+        print("TRYING.......")
+        with outbound_http_metric.time():
+            pendo_response = request_session.post(
+                url=request_url, headers=request_header, data=request_body, timeout=config.pendo_timeout
+            )
+            if pendo_response.status_code == 403:
+                raise Exception("Failed to sync account data. Status 403.")
+    except Exception as e:
+        pendo_failure(logger, e)
+    finally:
+        request_session.close()
+
+    _process_response(pendo_response, logger)
+
+
+def _pendo_update(account_list, config, logger):
     request_body = []
     for account_info in account_list:
         account_number, host_count = account_info
@@ -24,6 +58,9 @@ def _pendo_update(account_list, logger, config):
 
         logger.info(f"Account Number: {account_number}, Host Count: {host_count}")
     request_body = json.dumps(request_body)
+    if config.pendo_sync_active:
+        _make_request(request_body, config, logger)
+
 
 def pendo_sync(select_query, limit, config, logger, interrupt=lambda: False):
     query = select_query.group_by(Host.account).order_by(Host.account)
@@ -31,6 +68,6 @@ def pendo_sync(select_query, limit, config, logger, interrupt=lambda: False):
 
     update_count = 0
     while len(account_list) > 0 and not interrupt():
-        _pendo_update(account_list, logger, config)
+        _pendo_update(account_list, config, logger)
         account_list = query.filter(Host.account > account_list[-1].account).limit(limit).all()
     logger.info(f"Accounts updated: {update_count}")

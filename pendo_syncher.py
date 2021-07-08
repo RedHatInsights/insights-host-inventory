@@ -1,4 +1,3 @@
-from logging import log
 import sys
 from functools import partial
 
@@ -15,23 +14,18 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.queue.event_producer import EventProducer
-from app.queue.metrics import event_producer_failure
-from app.queue.metrics import event_producer_success
-from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.metrics import pendo_fetching_failure
 from lib.pendo_sync_helpers import pendo_sync
-from lib.metrics import pendo_syncher_fail_count
-from lib.metrics import synchronize_fail_count
-from lib.metrics import synchronize_host_count
+
 
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "inventory-pendo-syncher"
 LOGGER_NAME = "inventory_pendo_syncher"
-COLLECTED_METRICS = (pendo_syncher_fail_count,)
+COLLECTED_METRICS = (pendo_fetching_failure,)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.PENDO_JOB
 
 
@@ -54,15 +48,13 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Pendo Syncher failed", exc_info=value)
 
 
-@pendo_syncher_fail_count.count_exceptions()
+@pendo_fetching_failure.count_exceptions()
 def run(config, logger, session, shutdown_handler):
 
     query = session.query(Host.account, func.count(Host.id))
 
-    update_count = 0
-    accounts = pendo_sync(query, config.pendo_request_size, config, logger, shutdown_handler.shut_down)
-    logger.info(f"Number of Accounts Synced: {update_count}")
-    return update_count
+    pendo_sync(query, config.pendo_request_size, config, logger, shutdown_handler.shut_down)
+    logger.info("Pendo Syncher Run Complete.")
 
 
 def main(logger):

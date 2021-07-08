@@ -188,7 +188,7 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"
-            self.pendo_endpoint = os.environ.get("PENDO_ENDPOINT", "https://app.pendo.io/api/v1/metadata/account/custom/value")
+            self.pendo_endpoint = os.environ.get("PENDO_ENDPOINT", "https://app.pendo.io/api/v1")
             self.pendo_integration_key = os.environ.get("PENDO_INTEGRATION_KEY", "")
             self.pendo_retries = int(os.environ.get("PENDO_RETRIES", "3"))
             self.pendo_timeout = int(os.environ.get("PENDO_TIMEOUT", "240"))
@@ -262,7 +262,7 @@ class Config:
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)
-        
+
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.logger.info("Pendo Sync Active: %s", self.pendo_sync_active)
             self.logger.info("Pendo Endpoint: %s", self.pendo_endpoint)
