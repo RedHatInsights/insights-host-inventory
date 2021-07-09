@@ -48,7 +48,6 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Pendo Syncher failed", exc_info=value)
 
 
-@pendo_fetching_failure.count_exceptions()
 def run(config, logger, session, shutdown_handler):
 
     query = session.query(Host.account, func.count(Host.id))
@@ -72,9 +71,6 @@ def main(logger):
     Session = _init_db(config)
     session = Session()
     register_shutdown(session.get_bind().dispose, "Closing database")
-
-    # event_producer = EventProducer(config)
-    # register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()

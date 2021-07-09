@@ -26,4 +26,6 @@ host_reaper_fail_count = Counter("inventory_reaper_fail_count", "The total amoun
 synchronize_host_count = Counter("inventory_synchronize_host_count", "The total amount of hosts synchronized")
 synchronize_fail_count = Counter("inventory_synchronize_fail_count", "The total amount of synchronization failures")
 
-pendo_fetching_failure = Counter("inventory_pendo_syncher_failures", "Total amount of failures while sending Pendo data")
+pendo_fetching_failure = Counter(
+    "inventory_pendo_syncher_failures", "Total amount of failures while sending Pendo data"
+)
