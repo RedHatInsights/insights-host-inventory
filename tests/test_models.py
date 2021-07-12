@@ -159,9 +159,9 @@ def test_host_schema_valid_tags(tags):
         "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
-    validated_host = HostSchema(strict=True).load(host)
+    validated_host = HostSchema().load(host)
 
-    assert validated_host.data["tags"] == tags
+    assert validated_host["tags"] == tags
 
 
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
@@ -175,7 +175,7 @@ def test_host_schema_invalid_tags(tags):
         "reporter": "test",
     }
     with pytest.raises(MarshmallowValidationError) as exception:
-        HostSchema(strict=True).load(host)
+        HostSchema().load(host)
 
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
@@ -213,7 +213,7 @@ def test_host_schema_timezone_enforced():
         "reporter": "test",
     }
     with pytest.raises(MarshmallowValidationError) as exception:
-        HostSchema(strict=True).load(host)
+        HostSchema().load(host)
 
     assert "Timestamp must contain timezone info" in str(exception.value)
 
@@ -464,10 +464,10 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 )
 def test_valid_providers(provider):
     canonical_facts = {"provider_id": provider.get("id"), "provider_type": provider.get("type")}
-    validated_host = CanonicalFactsSchema(strict=True).load(canonical_facts)
+    validated_host = CanonicalFactsSchema().load(canonical_facts)
 
-    assert validated_host.data["provider_id"] == provider.get("id")
-    assert validated_host.data["provider_type"] == provider.get("type")
+    assert validated_host["provider_id"] == provider.get("id")
+    assert validated_host["provider_type"] == provider.get("type")
 
 
 @pytest.mark.parametrize(
@@ -488,4 +488,4 @@ def test_valid_providers(provider):
 )
 def test_invalid_providers(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
-        CanonicalFactsSchema(strict=True).load(canonical_facts)
+        CanonicalFactsSchema().load(canonical_facts)

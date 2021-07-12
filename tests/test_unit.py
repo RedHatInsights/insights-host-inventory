@@ -1193,7 +1193,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema = MagicMock()
         deserialize_host(host_input, host_schema)
 
-        host_schema.assert_called_once_with(strict=True, system_profile_schema=None)
+        host_schema.assert_called_once_with(system_profile_schema=None)
         host_schema.return_value.load.assert_called_with(host_input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)

@@ -483,7 +483,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def _validate_tags_list(tags):
-        TagsSchema(many=True, strict=True).validate(tags)
+        TagsSchema(many=True).validate(tags)
         return True
 
     @staticmethod
@@ -533,11 +533,11 @@ class LimitedHostSchema(CanonicalFactsSchema):
         )
 
     @pre_load
-    def coerce_system_profile_types(self, data):
+    def coerce_system_profile_types(self, data, **kwargs):
         return self._normalize_system_profile(self.system_profile_normalizer.coerce_types, data)
 
     @post_load
-    def filter_system_profile_keys(self, data):
+    def filter_system_profile_keys(self, data, **kwargs):
         return self._normalize_system_profile(self.system_profile_normalizer.filter_keys, data)
 
     @validates("system_profile")
