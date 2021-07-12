@@ -29,6 +29,7 @@ from yaml import safe_load
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.validators import check_empty_keys
+from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
@@ -431,7 +432,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
         fields.Str(validate=marshmallow_validate.Length(min=1, max=255)), validate=marshmallow_validate.Length(min=1)
     )
     mac_addresses = fields.List(
-        fields.Str(validate=marshmallow_validate.Length(min=1, max=59)), validate=marshmallow_validate.Length(min=1)
+        fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1)
     )
     external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))

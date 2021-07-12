@@ -27,10 +27,18 @@ def verify_ip_address_format(ip_address):
 
 @draft4_format_checker.checks("mac_address")
 def verify_mac_address_format(mac_address):
+    pattern = re.compile(
+        r"^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|"
+        r"^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|"
+        r"^[A-Fa-f0-9]{12}$|"
+        r"^([A-Fa-f0-9]{2}[:-]){19}[A-Fa-f0-9]{2}$|"
+        r"^[A-Fa-f0-9]{40}$"
+    )
+
     if not mac_address:
         return False
 
-    return validators.mac_address(mac_address)
+    return bool(pattern.match(mac_address))
 
 
 def check_empty_keys(data):

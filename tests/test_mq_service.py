@@ -1366,3 +1366,43 @@ def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_g
     host_from_db = db_get_host(created_host.id)
 
     assert created_host.id == str(host_from_db.id)
+
+
+def test_add_host_with_canonical_facts_MAC_address_incorrect_format(event_datetime_mock, mq_create_or_update_host):
+    """
+    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    """
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID}, mac_addresses=["bad"]
+    )
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
+
+
+def test_add_host_with_canonical_facts_MAC_address_valid_formats(
+    event_datetime_mock, mq_create_or_update_host, db_get_host
+):
+    """
+    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    """
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        system_profile={"owner_id": OWNER_ID},
+        mac_addresses=[
+            "BD0DC5FB4235",
+            "d3a94b06bbdd",
+            "99:40:16:A9:38:21",
+            "2f:3c:00:53:8c:71",
+            "58-CA-D4-5F-D6-BE",
+            "d5-90-c8-e0-3b-e5",
+            "1EDC.C1E7.32BA",
+            "a2da.8b79.40e0",
+            "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33",
+            "00112233445566778899aabbccddeeff00112233",
+        ],
+    )
+    created_host = mq_create_or_update_host(host)
+    host_from_db = db_get_host(created_host.id)
+
+    assert created_host.id == str(host_from_db.id)
+    assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
