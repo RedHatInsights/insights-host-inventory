@@ -24,9 +24,8 @@ def _process_response(pendo_response, logger):
 
     resp_data = pendo_response.json()
 
-    logger.info(
-        f"Pendo Data Sent. Total: {resp_data['total']} Updated: {resp_data['updated']}, Failed, {resp_data['failed']}"
-    )
+    logger.info(f"Total: {resp_data['total']} Updated: {resp_data['updated']}, Failed: {resp_data['failed']}")
+
     if resp_data.get("missing"):
         logger.debug("Some accounts failed to sync.", extra={"sync_failed_accounts": resp_data["missing"]})
 
