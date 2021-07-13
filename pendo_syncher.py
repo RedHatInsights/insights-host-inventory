@@ -52,7 +52,7 @@ def run(config, logger, session, shutdown_handler):
 
     query = session.query(Host.account, func.count(Host.id))
 
-    pendo_sync(query, config.pendo_request_size, config, logger, shutdown_handler.shut_down)
+    pendo_sync(query, config, logger, shutdown_handler.shut_down)
     logger.info("Pendo Syncher Run Complete.")
 
 

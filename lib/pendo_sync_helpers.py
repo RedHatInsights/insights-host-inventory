@@ -66,10 +66,10 @@ def _pendo_update(account_list, config, logger):
         _make_request(request_body, config, logger)
 
 
-def pendo_sync(select_query, limit, config, logger, interrupt=lambda: False):
+def pendo_sync(select_query, config, logger, interrupt=lambda: False):
     query = select_query.group_by(Host.account).order_by(Host.account)
-    account_list = query.limit(limit).all()
+    account_list = query.limit(config.pendo_request_size).all()
 
     while len(account_list) > 0 and not interrupt():
         _pendo_update(account_list, config, logger)
-        account_list = query.filter(Host.account > account_list[-1].account).limit(limit).all()
+        account_list = query.filter(Host.account > account_list[-1].account).limit(config.pendo_request_size).all()
