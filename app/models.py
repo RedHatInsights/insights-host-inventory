@@ -493,7 +493,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def _validate_tags_list(tags):
-        return TagsSchema(many=True).load(tags)
+        return bool(TagsSchema(many=True).load(tags))
 
     @staticmethod
     def _validate_tags_dict(tags):
