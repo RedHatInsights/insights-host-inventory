@@ -119,7 +119,6 @@ def build_event(event_type, host, **kwargs):
     with event_serialization_time.labels(event_type.name).time():
         build = EVENT_TYPE_MAP[event_type]
         schema, event = build(event_type, host, **kwargs)
-        # TODO: Must validate data before dumping, since validation no longer happens on serialization
         result = schema().dumps(event)
         return result
 

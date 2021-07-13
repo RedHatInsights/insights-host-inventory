@@ -484,7 +484,6 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @validates("tags")
     def validate_tags(self, tags):
-        print("Validating tags rn")
         if isinstance(tags, list):
             return self._validate_tags_list(tags)
         elif isinstance(tags, dict):
@@ -498,9 +497,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def _validate_tags_dict(tags):
-        print("Validate tags dict")
         for namespace, ns_tags in tags.items():
-            print(f"Validating {namespace}, {ns_tags}")
             TAG_NAMESPACE_VALIDATION(namespace)
             if ns_tags is None:
                 continue

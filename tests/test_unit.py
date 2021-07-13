@@ -1705,7 +1705,6 @@ class SerializationDeserializeTags(TestCase):
                     "null": {"key5": ["value5"]},
                 }
                 deserialized_tags = function(input_tags)
-                print(deserialized_tags)
 
                 self.assertCountEqual(
                     ["namespace1", "namespace2", "namespace3", "namespace4", "null"], deserialized_tags.keys()
