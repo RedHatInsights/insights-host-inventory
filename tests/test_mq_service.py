@@ -1368,26 +1368,37 @@ def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_g
     assert created_host.id == str(host_from_db.id)
 
 
-def test_add_host_with_canonical_facts_MAC_address_incorrect_format(event_datetime_mock, mq_create_or_update_host):
+def test_add_host_with_canonical_facts_MAC_address_incorrect_format(mq_create_or_update_host, subtests):
     """
-    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    Tests that a validation eception is raised when MAC adrress is in the wrong format.
     """
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID}, mac_addresses=["bad"]
-    )
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+    bad_address_list = [
+        "bad",  # just a random string
+        "Z1:Z2:Z3:Z4:Z5:Z6",  # right length, out of range character
+        "BD0DC5FB42356",  # too long
+        "BD0DC5FB423",  # too short
+        "BD:0D:C5:FB:42:35:66",  # too long
+        "BD:0D:C5:FB:42:3",  # too short
+        "1EDC.C1E7.32BA.ABCD",  # too long
+        "1EDC.C1E7",  # too short
+        "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44",  # too long
+        "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22",  # too short
+        "99:40:16:A9:3821",  # missing one dilimiter
+        "99:40:16:A9:38::21",  # too many delimiters
+    ]
+
+    for bad_address in bad_address_list:
+        with subtests.test(bad_address=bad_address):
+            host = minimal_host(mac_addresses=[bad_address])
+            with pytest.raises(ValidationException):
+                mq_create_or_update_host(host)
 
 
-def test_add_host_with_canonical_facts_MAC_address_valid_formats(
-    event_datetime_mock, mq_create_or_update_host, db_get_host
-):
+def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_update_host, db_get_host):
     """
-    Tests that owner_id in the system profile is rejected if it's in the wrong format
+    Tests that a pyload containing a list of MAC adresses (in each of the valid formats) is excepted.
     """
     host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        system_profile={"owner_id": OWNER_ID},
         mac_addresses=[
             "BD0DC5FB4235",
             "d3a94b06bbdd",
@@ -1399,10 +1410,9 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(
             "a2da.8b79.40e0",
             "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33",
             "00112233445566778899aabbccddeeff00112233",
-        ],
+        ]
     )
     created_host = mq_create_or_update_host(host)
     host_from_db = db_get_host(created_host.id)
 
-    assert created_host.id == str(host_from_db.id)
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
