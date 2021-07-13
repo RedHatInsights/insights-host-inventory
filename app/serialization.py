@@ -201,6 +201,8 @@ def _deserialize_tags_list(tags):
 
     for tag_data in tags:
         namespace = Tag.deserialize_namespace(tag_data.get("namespace"))
+        print(f"Namespace is: {namespace}")
+        print(f"deserialized is: {deserialized}")
         if namespace not in deserialized:
             deserialized[namespace] = {}
 
