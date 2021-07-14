@@ -119,8 +119,8 @@ def build_event(event_type, host, **kwargs):
     with event_serialization_time.labels(event_type.name).time():
         build = EVENT_TYPE_MAP[event_type]
         schema, event = build(event_type, host, **kwargs)
-        result = schema(strict=True).dumps(event)
-        return result.data
+        result = schema().dumps(event)
+        return result
 
 
 def operation_results_to_event_type(results):
