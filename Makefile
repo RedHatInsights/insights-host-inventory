@@ -32,6 +32,9 @@ run_inv_http_test_producer:
 run_reaper:
 	python host_reaper.py
 
+run_pendo_syncher:
+	python pendo_syncher.py
+
 style:
 	pre-commit run --all-files
 
