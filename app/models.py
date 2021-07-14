@@ -11,6 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from jsonschema import RefResolver
 from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
+from marshmallow import EXCLUDE
 from marshmallow import fields
 from marshmallow import post_load
 from marshmallow import pre_load
@@ -416,12 +417,18 @@ class FactsSchema(MarshmallowSchema):
 
 
 class TagsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
     namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
 class CanonicalFactsSchema(MarshmallowSchema):
+    class Meta:
+        unknown = EXCLUDE
+
     insights_id = fields.Str(validate=verify_uuid_format)
     rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
@@ -458,6 +465,9 @@ class CanonicalFactsSchema(MarshmallowSchema):
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
+    class Meta:
+        unknown = EXCLUDE
+
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
@@ -484,7 +494,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def _validate_tags_list(tags):
-        TagsSchema(many=True, strict=True).validate(tags)
+        TagsSchema(many=True).load(tags)
         return True
 
     @staticmethod
@@ -534,11 +544,11 @@ class LimitedHostSchema(CanonicalFactsSchema):
         )
 
     @pre_load
-    def coerce_system_profile_types(self, data):
+    def coerce_system_profile_types(self, data, **kwargs):
         return self._normalize_system_profile(self.system_profile_normalizer.coerce_types, data)
 
     @post_load
-    def filter_system_profile_keys(self, data):
+    def filter_system_profile_keys(self, data, **kwargs):
         return self._normalize_system_profile(self.system_profile_normalizer.filter_keys, data)
 
     @validates("system_profile")
@@ -554,6 +564,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
 
 class HostSchema(LimitedHostSchema):
+    class Meta:
+        unknown = EXCLUDE
+
     stale_timestamp = fields.DateTime(required=True, timezone=True)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 

@@ -145,7 +145,7 @@ def parse_operation_message(message):
         raise
 
     try:
-        parsed_operation = OperationSchema(strict=True).load(parsed_message).data
+        parsed_operation = OperationSchema().load(parsed_message)
     except ValidationError as e:
         logger.error(
             "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}

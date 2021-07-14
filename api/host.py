@@ -229,7 +229,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @metrics.api_request_time.time()
 def patch_by_id(host_id_list, body):
     try:
-        validated_patch_host_data = PatchHostSchema(strict=True).load(body).data
+        validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
