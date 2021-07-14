@@ -45,7 +45,7 @@ DEFAULT_FIELDS = (
 
 def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
-        validated_data = schema(strict=True, system_profile_schema=system_profile_spec).load(raw_data).data
+        validated_data = schema(system_profile_schema=system_profile_spec).load(raw_data)
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
 
@@ -57,7 +57,7 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
 
 def deserialize_canonical_facts(raw_data):
     try:
-        validated_data = CanonicalFactsSchema(strict=True).load(raw_data).data
+        validated_data = CanonicalFactsSchema().load(raw_data)
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
     return _deserialize_canonical_facts(validated_data)

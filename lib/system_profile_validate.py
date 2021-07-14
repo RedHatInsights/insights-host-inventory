@@ -74,7 +74,7 @@ def validate_sp_schemas(consumer, topics, schemas, days=1, max_messages=10000):
 
             for message in partition_messages:
                 try:
-                    host = OperationSchema(strict=True).load(json.loads(message.value)).data["data"]
+                    host = OperationSchema().load(json.loads(message.value))["data"]
                     if not host.get("reporter"):
                         host["reporter"] = "unknown_reporter"
                     for branch, sp_spec in schemas.items():

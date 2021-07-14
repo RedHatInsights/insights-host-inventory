@@ -841,7 +841,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 with self.assertRaises(ValidationException) as context:
                     deserialize_host(inp)
 
-                    expected_errors = HostSchema().load(inp).errors
+                    expected_errors = HostSchema().validate(inp)
                     self.assertEqual(str(expected_errors), str(context.exception))
 
     # Test that both of the host schemas will pass all of these fields
@@ -967,9 +967,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(
-            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
-        )
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
 
@@ -1006,9 +1004,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(
-            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
-        )
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1046,9 +1042,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(
-            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
-        )
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1089,9 +1083,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(
-            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
-        )
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1127,9 +1119,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "some reporter",
         }
-        host_schema = Mock(
-            **{"return_value.load.return_value.data": host_input, "build_model": HostSchema.build_model}
-        )
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
         result = deserialize_host({}, host_schema)
         self.assertEqual(host.return_value, result)
@@ -1176,7 +1166,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
                 all_data = {**common_data, **additional_data}
                 host_schema = Mock(
-                    **{"return_value.load.return_value.data": all_data, "build_model": HostSchema.build_model}
+                    **{"return_value.load.return_value": all_data, "build_model": HostSchema.build_model}
                 )
 
                 with self.assertRaises(KeyError):
@@ -1193,7 +1183,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_schema = MagicMock()
         deserialize_host(host_input, host_schema)
 
-        host_schema.assert_called_once_with(strict=True, system_profile_schema=None)
+        host_schema.assert_called_once_with(system_profile_schema=None)
         host_schema.return_value.load.assert_called_with(host_input)
 
     @patch("app.serialization.ValidationError", new=ValidationError)
@@ -1215,7 +1205,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         deserialize_tags.assert_not_called()
         host.assert_not_called()
 
-        host_schema.return_value.load.return_value.data.get.assert_not_called()
+        host_schema.return_value.load.return_value.get.assert_not_called()
 
 
 class SerializationSerializeHostBaseTestCase(TestCase):
@@ -1715,7 +1705,6 @@ class SerializationDeserializeTags(TestCase):
                     "null": {"key5": ["value5"]},
                 }
                 deserialized_tags = function(input_tags)
-                print(deserialized_tags)
 
                 self.assertCountEqual(
                     ["namespace1", "namespace2", "namespace3", "namespace4", "null"], deserialized_tags.keys()
@@ -1973,12 +1962,9 @@ class ModelsSystemProfileTestCase(TestCase):
         }
 
     def _assert_system_profile_is_invalid(self, load_result):
-        self.assertIn("system_profile", load_result.errors)
+        self.assertIn("system_profile", load_result)
         self.assertTrue(
-            any(
-                "System profile does not conform to schema." in message
-                for message in load_result.errors["system_profile"]
-            )
+            any("System profile does not conform to schema." in message for message in load_result["system_profile"])
         )
 
     def test_invalid_values_are_rejected(self):
@@ -1986,7 +1972,7 @@ class ModelsSystemProfileTestCase(TestCase):
         for system_profile in INVALID_SYSTEM_PROFILES:
             with self.subTest(system_profile=system_profile):
                 payload = self._payload(system_profile)
-                result = schema.load(payload)
+                result = schema.validate(payload)
                 self._assert_system_profile_is_invalid(result)
 
     def test_specification_file_is_used(self):
@@ -1998,14 +1984,14 @@ class ModelsSystemProfileTestCase(TestCase):
 
         with mock_system_profile_specification(mock_spec):
             schema = HostSchema()
-            result = schema.load(payload)
+            result = schema.validate(payload)
             self._assert_system_profile_is_invalid(result)
 
     def test_types_are_coerced(self):
         payload = self._payload({"number_of_cpus": "1"})
         schema = HostSchema()
         result = schema.load(payload)
-        self.assertEqual({"number_of_cpus": 1}, result.data["system_profile"])
+        self.assertEqual({"number_of_cpus": 1}, result["system_profile"])
 
     def test_fields_are_filtered(self):
         payload = self._payload(
@@ -2018,7 +2004,7 @@ class ModelsSystemProfileTestCase(TestCase):
         schema = HostSchema()
         result = schema.load(payload)
         expected = {"number_of_cpus": 1, "network_interfaces": [{"ipv4_addresses": ["10.10.10.1"]}]}
-        self.assertEqual(expected, result.data["system_profile"])
+        self.assertEqual(expected, result["system_profile"])
 
     @patch("app.models.jsonschema_validate")
     def test_type_coercion_happens_before_loading(self, jsonschema_validate):
@@ -2033,7 +2019,7 @@ class ModelsSystemProfileTestCase(TestCase):
         payload = self._payload({"number_of_gpus": 1})
         result = schema.load(payload)
         jsonschema_validate.assert_called_once_with({"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema)
-        self.assertEqual({}, result.data["system_profile"])
+        self.assertEqual({}, result["system_profile"])
 
 
 class QueryParameterParsingTestCase(TestCase):
