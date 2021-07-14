@@ -64,7 +64,7 @@ def test_pendo_syncher_response_process_failure(mocker, db_create_host):
 
 def test_pendo_syncher_exception(mocker, db_create_host):
     request_session_post_mock = mocker.patch("pendo_syncher.Session.post")
-    request_session_post_mock.side_effect = Exception()
+    request_session_post_mock.side_effect = Exception("Pendo syncher exception message")
 
     db_create_host()
 
@@ -74,7 +74,8 @@ def test_pendo_syncher_exception(mocker, db_create_host):
     mock_pendo_failure = mocker.patch("pendo_syncher.pendo_failure")
     pendo_syncher_run(config, mock.Mock(), db.session, shutdown_handler=mock.Mock(**{"shut_down.return_value": False}))
 
-    mock_pendo_failure.assert_called_once()
+    mock_call_args = mock_pendo_failure.call_args.args
+    assert str(mock_call_args[1]) == "Pendo syncher exception message"
 
 
 def test_pendo_syncher_retry_error(mocker, db_create_host):
