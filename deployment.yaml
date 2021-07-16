@@ -409,7 +409,7 @@ objects:
             memory: 256Mi
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
-      suspend: ${{PENDO_SYNCHER_SUSPEND}}
+      suspend: ${PENDO_SYNCHER_SUSPEND}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
