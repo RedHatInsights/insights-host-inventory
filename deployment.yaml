@@ -407,6 +407,44 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
+    - name: pendo-syncher
+      schedule: ${PENDO_CRON_SCHEDULE}
+      suspend: ${PENDO_SYNCHER_SUSPEND}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - python pendo_syncher.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: DEBUG
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: PENDO_SYNC_ACTIVE
+            value: ${PENDO_SYNC_ACTIVE}
+          - name: PENDO_INTEGRATION_KEY
+            secretKeyRef:
+              key: apikey
+              name: pendo-creds
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: 200m
+            memory: 256Mi
     - name: synchronizer
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -566,6 +604,12 @@ parameters:
   value: '29092'
 - name: INVENTORY_DB_SSL_CERT
   value: ''
+- name: PENDO_SYNCHER_SUSPEND
+  value: 'true'
+- name: PENDO_CRON_SCHEDULE
+  value: 0 */2 * * *
+- name: PENDO_SYNC_ACTIVE
+  value: 'false'
 - name: SP_VALIDATOR_SUSPEND
   value: 'false'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
