@@ -188,6 +188,14 @@ class Config:
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "1000"))
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
 
+        if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
+            self.pendo_sync_active = os.environ.get("PENDO_SYNC_ACTIVE", "false").lower() == "true"
+            self.pendo_endpoint = os.environ.get("PENDO_ENDPOINT", "https://app.pendo.io/api/v1")
+            self.pendo_integration_key = os.environ.get("PENDO_INTEGRATION_KEY", "")
+            self.pendo_retries = int(os.environ.get("PENDO_RETRIES", "3"))
+            self.pendo_timeout = int(os.environ.get("PENDO_TIMEOUT", "240"))
+            self.pendo_request_size = int(os.environ.get("PENDO_REQUEST_SIZE", "500"))
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
@@ -264,6 +272,13 @@ class Config:
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)
+
+        if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
+            self.logger.info("Pendo Sync Active: %s", self.pendo_sync_active)
+            self.logger.info("Pendo Endpoint: %s", self.pendo_endpoint)
+
+            self.logger.info("Pendo Retry Times: %s", self.pendo_retries)
+            self.logger.info("Pendo Timeout Seconds: %s", self.pendo_timeout)
 
         if self._runtime_environment.payload_tracker_enabled:
             self.logger.info("Payload Tracker Kafka Topic: %s", self.payload_tracker_kafka_topic)

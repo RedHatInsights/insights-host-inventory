@@ -173,3 +173,18 @@ def get_platform_metadata(identity=SYSTEM_IDENTITY):
         "archive_url": "http://s3.aws.com/redhat/insights/1234567",
         "b64_identity": get_encoded_idstr(identity),
     }
+
+
+class MockResponseObject:
+    def __init__(self):
+        self.status_code = 200
+        self.content = None
+
+    def json(self):
+        return json.loads(self.content)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self
