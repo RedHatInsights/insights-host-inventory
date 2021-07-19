@@ -489,3 +489,26 @@ def test_valid_providers(provider):
 def test_invalid_providers(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema().load(canonical_facts)
+
+
+@pytest.mark.parametrize(
+    "ip_addresses", (["127.0.0.1"], ["1.2.3.4"], ["2001:db8:3333:4444:5555:6666:7777:8888"], ["::"], ["2001:db8::"])
+)
+def test_valid_ip_addresses(ip_addresses):
+    CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
+
+
+@pytest.mark.parametrize(
+    "ip_addresses",
+    (
+        ["just_a_string"],
+        ["1.2.3"],
+        ["1.2.3.4.5"],
+        ["1.2.256.0"],
+        ["2001:db8:3333:4444:5555:6666:7777:8888:9999"],
+        ["1111:2222:3333:4444:5555:6666:7777:gb8"],
+    ),
+)
+def test_invalid_ip_addresses(ip_addresses):
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
