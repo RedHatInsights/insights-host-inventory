@@ -91,6 +91,18 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
     assert expected_host_list == response_data["results"]
 
 
+def test_query_using_fqdn_case_insensitive(mq_create_three_specific_hosts, api_get):
+    created_hosts = mq_create_three_specific_hosts
+    expected_host_list = build_expected_host_list([created_hosts[2]])
+
+    url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn.upper()}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert expected_host_list == response_data["results"]
+
+
 def test_query_using_non_existent_fqdn(api_get):
     url = build_hosts_url(query="?fqdn=ROFLSAUCE.com")
     response_status, response_data = api_get(url)

@@ -95,7 +95,7 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
 
 def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=True):
     query = Host.query.filter(
-        (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext.casefold() == value)
+        (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)

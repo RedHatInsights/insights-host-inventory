@@ -106,11 +106,11 @@ def get_host_list(
     try:
         host_list, total, additional_fields = get_host_list(
             display_name,
-            fqdn.casefold(),
+            fqdn.casefold() if fqdn else None,
             hostname_or_id,
-            insights_id.casefold(),
-            provider_id.casefold(),
-            provider_type.casefold(),
+            insights_id.casefold() if insights_id else None,
+            provider_id.casefold() if provider_id else None,
+            provider_type.casefold() if provider_type else None,
             tags,
             page,
             per_page,

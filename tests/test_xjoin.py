@@ -132,7 +132,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
                 {
                     "OR": (
                         {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches": f"*{hostname_or_id}*"}},
+                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
                     )
                 },
                 mocker.ANY,
@@ -162,7 +162,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
                 {
                     "OR": (
                         {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches": f"*{hostname_or_id}*"}},
+                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
                         {"id": {"eq": hostname_or_id}},
                     )
                 },
