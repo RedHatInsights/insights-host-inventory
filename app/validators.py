@@ -1,7 +1,7 @@
+import ipaddress
 import re
 import uuid
 
-import validators
 from jsonschema import draft4_format_checker
 
 
@@ -22,7 +22,11 @@ def verify_ip_address_format(ip_address):
     if not ip_address:
         return False
 
-    return validators.ipv4(ip_address) or validators.ipv6(ip_address)
+    try:
+        return ipaddress.ip_address(ip_address) is not None
+    except Exception:
+        pass
+    return False
 
 
 @draft4_format_checker.checks("mac_address")
