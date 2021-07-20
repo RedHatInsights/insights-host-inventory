@@ -647,7 +647,7 @@ def test_query_variables_staleness_with_search(
     )
 
 
-def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get):
+def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get, mocker):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
