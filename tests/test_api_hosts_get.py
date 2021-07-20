@@ -43,9 +43,14 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
 
-def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
+def test_query_all(mq_create_three_specific_hosts, api_get, subtests, mocker):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
+
+    for host in expected_host_list:
+        host["per_reporter_staleness"] = {
+            host["reporter"]: {"check_in_succeeded": True, "last_check_in": mocker.ANY, "stale_timestamp": mocker.ANY}
+        }
 
     response_status, response_data = api_get(HOST_URL)
 
@@ -55,9 +60,14 @@ def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
     api_base_pagination_test(api_get, subtests, HOST_URL, expected_total=len(created_hosts))
 
 
-def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
+def test_query_using_display_name(mq_create_three_specific_hosts, api_get, mocker):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0]])
+
+    for host in expected_host_list:
+        host["per_reporter_staleness"] = {
+            host["reporter"]: {"check_in_succeeded": True, "last_check_in": mocker.ANY, "stale_timestamp": mocker.ANY}
+        }
 
     url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
     response_status, response_data = api_get(url)
@@ -67,9 +77,14 @@ def test_query_using_display_name(mq_create_three_specific_hosts, api_get):
     assert expected_host_list == response_data["results"]
 
 
-def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
+def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get, mocker):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[0], created_hosts[1]])
+
+    for host in expected_host_list:
+        host["per_reporter_staleness"] = {
+            host["reporter"]: {"check_in_succeeded": True, "last_check_in": mocker.ANY, "stale_timestamp": mocker.ANY}
+        }
 
     url = build_hosts_url(query=f"?fqdn={created_hosts[0].fqdn}")
     response_status, response_data = api_get(url)
@@ -79,9 +94,14 @@ def test_query_using_fqdn_two_results(mq_create_three_specific_hosts, api_get):
     assert expected_host_list == response_data["results"]
 
 
-def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
+def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get, mocker):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[2]])
+
+    for host in expected_host_list:
+        host["per_reporter_staleness"] = {
+            host["reporter"]: {"check_in_succeeded": True, "last_check_in": mocker.ANY, "stale_timestamp": mocker.ANY}
+        }
 
     url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
     response_status, response_data = api_get(url)
@@ -99,9 +119,14 @@ def test_query_using_non_existent_fqdn(api_get):
     assert len(response_data["results"]) == 0
 
 
-def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
+def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests, mocker):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list(created_hosts)
+
+    for host in expected_host_list:
+        host["per_reporter_staleness"] = {
+            host["reporter"]: {"check_in_succeeded": True, "last_check_in": mocker.ANY, "stale_timestamp": mocker.ANY}
+        }
 
     host_name_substr = created_hosts[0].display_name[:4]
 
