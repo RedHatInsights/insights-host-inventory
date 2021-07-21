@@ -33,6 +33,21 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
     assert_host_exists_in_db(created_host.id, superset_canonical_facts)
 
 
+def test_find_host_canonical_fact_match_different_elevated_ids(db_create_host):
+    base_canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
+
+    created_host_canonical_facts = base_canonical_facts.copy()
+    created_host_canonical_facts["insights_id"] = generate_uuid()
+
+    # Create the superset of canonical facts to search by
+    search_canonical_facts = base_canonical_facts.copy()
+    search_canonical_facts["subscription_manager_id"] = generate_uuid()
+
+    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
 def test_find_host_using_insights_id_match(db_create_host):
     canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
 
