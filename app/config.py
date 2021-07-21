@@ -51,11 +51,11 @@ class Config:
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
         self.event_topic = topic("platform.inventory.events")
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
-        if broker_cfg.sasl:
+        try:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
             self.kafka_sasl_username = broker_cfg.sasl.username
             self.kafka_sasl_password = broker_cfg.sasl.password
-        else:
+        except AttributeError:
             self.kafka_ssl_cafile = None
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
