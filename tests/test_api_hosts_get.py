@@ -83,12 +83,14 @@ def test_query_using_fqdn_one_result(mq_create_three_specific_hosts, api_get):
     created_hosts = mq_create_three_specific_hosts
     expected_host_list = build_expected_host_list([created_hosts[2]])
 
-    url = build_hosts_url(query=f"?fqdn={created_hosts[2].fqdn}")
-    response_status, response_data = api_get(url)
+    # Test upper- and lower-case values
+    for fqdn in [created_hosts[2].fqdn.lower(), created_hosts[2].fqdn.upper()]:
+        url = build_hosts_url(query=f"?fqdn={fqdn}")
+        response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-    assert expected_host_list == response_data["results"]
+        assert response_status == 200
+        assert len(response_data["results"]) == 1
+        assert expected_host_list == response_data["results"]
 
 
 def test_query_using_non_existent_fqdn(api_get):
@@ -260,13 +262,15 @@ def test_query_using_non_existent_id(mq_create_three_specific_hosts, api_get, su
 def test_query_with_matching_insights_id(mq_create_three_specific_hosts, api_get, subtests):
     created_hosts = mq_create_three_specific_hosts
 
-    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id}")
-    response_status, response_data = api_get(url)
+    # Test upper- and lower-case values
+    for insights_id in [created_hosts[0].insights_id.upper(), created_hosts[0].insights_id.lower()]:
+        url = build_hosts_url(query=f"?insights_id={insights_id}")
+        response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
+        assert response_status == 200
+        assert len(response_data["results"]) == 1
 
-    api_pagination_test(api_get, subtests, url, expected_total=1)
+        api_pagination_test(api_get, subtests, url, expected_total=1)
 
 
 def test_query_with_no_matching_insights_id(mq_create_three_specific_hosts, api_get, subtests):
