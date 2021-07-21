@@ -48,7 +48,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
 def mq_create_three_specific_hosts(mq_create_or_update_host):
     created_hosts = []
     for i in range(1, 4):
-        fqdn = "host1.domain.test" if i in (1, 2) else f"host{i}.domain.test"
+        fqdn = "host1.DOMAIN.test" if i in (1, 2) else f"host{i}.domain.test"
         host = minimal_host(
             insights_id=generate_uuid(), display_name=f"host{i}", fqdn=fqdn, facts=FACTS, tags=TAGS[i - 1]
         )
