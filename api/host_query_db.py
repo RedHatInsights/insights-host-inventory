@@ -136,7 +136,7 @@ def _find_hosts_by_hostname_or_id(hostname):
 
     filter_list = [
         Host.display_name.comparator.contains(hostname),
-        Host.canonical_facts["fqdn"].astext.contains(hostname),
+        Host.canonical_facts["fqdn"].astext.contains(hostname.casefold()),
     ]
 
     try:
