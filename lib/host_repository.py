@@ -135,7 +135,11 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     """
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
-    host = multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False).first()
+    host = multiple_canonical_facts_host_query(
+        identity,
+        {key: value for (key, value) in canonical_facts.items() if key not in ELEVATED_CANONICAL_FACT_FIELDS},
+        restrict_to_owner_id=False,
+    ).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match: %s", host)
