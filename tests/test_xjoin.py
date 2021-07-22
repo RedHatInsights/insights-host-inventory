@@ -70,7 +70,7 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
 
 
 def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    fqdn = "host.domain.com"
+    fqdn = "host.DOMAIN.com"
 
     url = build_hosts_url(query=f"?fqdn={quote(fqdn)}")
     response_status, response_data = api_get(url)
@@ -84,7 +84,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"fqdn": {"eq": fqdn}}, mocker.ANY),
+            "filter": ({"fqdn": {"eq": fqdn.casefold()}}, mocker.ANY),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -132,7 +132,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
                 {
                     "OR": (
                         {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches": f"*{hostname_or_id}*"}},
+                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
                     )
                 },
                 mocker.ANY,
@@ -162,7 +162,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
                 {
                     "OR": (
                         {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches": f"*{hostname_or_id}*"}},
+                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
                         {"id": {"eq": hostname_or_id}},
                     )
                 },
@@ -175,7 +175,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
 
 
 def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    insights_id = generate_uuid()
+    insights_id = generate_uuid().upper()
 
     url = build_hosts_url(query=f"?insights_id={quote(insights_id)}")
     response_status, response_data = api_get(url)
@@ -189,7 +189,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"insights_id": {"eq": insights_id}}, mocker.ANY),
+            "filter": ({"insights_id": {"eq": insights_id.casefold()}}, mocker.ANY),
             "fields": mocker.ANY,
         },
         mocker.ANY,

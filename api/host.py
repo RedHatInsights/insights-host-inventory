@@ -44,7 +44,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
-from lib.host_repository import AddHostResult
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
@@ -57,13 +56,6 @@ XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
-
-
-def _convert_host_results_to_http_status(result):
-    if result == AddHostResult.created:
-        return 201
-    else:
-        return 200
 
 
 def _get_host_list_by_id_list(host_id_list):
@@ -114,11 +106,11 @@ def get_host_list(
     try:
         host_list, total, additional_fields = get_host_list(
             display_name,
-            fqdn,
+            fqdn.casefold() if fqdn else None,
             hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
+            insights_id.casefold() if insights_id else None,
+            provider_id.casefold() if provider_id else None,
+            provider_type.casefold() if provider_type else None,
             tags,
             page,
             per_page,
