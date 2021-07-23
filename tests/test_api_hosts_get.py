@@ -866,7 +866,7 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
 def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_update_host, api_get):
     created_hosts_with_insights_id = mq_create_three_specific_hosts
 
-    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid())
+    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
 
     url = build_hosts_url(query="?registered_with=insights")
