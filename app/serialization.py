@@ -75,6 +75,7 @@ def deserialize_host_xjoin(data):
         system_profile_facts=data["system_profile_facts"] or {},
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
+        per_reporter_staleness=data.get("per_reporter_staleness"),
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
