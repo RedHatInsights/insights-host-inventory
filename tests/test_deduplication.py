@@ -1,6 +1,7 @@
 from pytest import mark
 
 from tests.helpers.db_utils import assert_host_exists_in_db
+from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
@@ -29,8 +30,47 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
 
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host=host)
-
     assert_host_exists_in_db(created_host.id, superset_canonical_facts)
+
+
+def test_find_host_canonical_fact_subset_match_different_elevated_ids(db_create_host):
+    base_canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
+
+    created_host_canonical_facts = base_canonical_facts.copy()
+    created_host_canonical_facts["insights_id"] = generate_uuid()
+
+    # Create the subset of canonical facts to search by
+    search_canonical_facts = {"fqdn": "fred"}
+    search_canonical_facts["subscription_manager_id"] = generate_uuid()
+
+    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_create_host):
+    base_canonical_facts = {"fqdn": "fred", "bios_uuid": generate_uuid()}
+
+    created_host_canonical_facts = base_canonical_facts.copy()
+    created_host_canonical_facts["insights_id"] = generate_uuid()
+
+    # Create the superset of canonical facts to search by
+    search_canonical_facts = base_canonical_facts.copy()
+    search_canonical_facts["subscription_manager_id"] = generate_uuid()
+    search_canonical_facts["satellite_id"] = generate_uuid()
+
+    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+
+    assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+def test_no_merge_when_different_facts(db_create_host):
+    cf1 = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
+    cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "subscription_manager_id": generate_uuid()}
+
+    db_create_host(host=minimal_db_host(canonical_facts=cf1))
+
+    assert_host_missing_from_db(cf2)
 
 
 def test_find_host_using_insights_id_match(db_create_host):

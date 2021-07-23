@@ -2,6 +2,7 @@ from enum import Enum
 from uuid import UUID
 
 from sqlalchemy import and_
+from sqlalchemy import not_
 from sqlalchemy import or_
 
 from app import inventory_config
@@ -107,7 +108,7 @@ def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_o
         (Host.account == identity.account_number)
         & (
             Host.canonical_facts.comparator.contains(canonical_facts)
-            | Host.canonical_facts.comparator.contained_by(canonical_facts)
+            | provided_canonical_facts_filter(canonical_facts)
         )
     )
     if restrict_to_owner_id:
@@ -194,6 +195,19 @@ def stale_timestamp_filter(gt=None, lte=None):
         filter_ += (Host.stale_timestamp > gt,)
     if lte:
         filter_ += (Host.stale_timestamp <= lte,)
+    return and_(*filter_)
+
+
+def provided_canonical_facts_filter(canonical_facts):
+    filter_ = ()
+    for key, value in canonical_facts.items():
+        filter_ += (
+            or_(
+                not_(Host.canonical_facts.comparator.has_key(key)),  # noqa: W601
+                Host.canonical_facts.contains({key: value}),
+            ),
+        )
+
     return and_(*filter_)
 
 
