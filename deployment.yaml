@@ -290,7 +290,7 @@ objects:
     jobs:
     - name: reaper
       schedule: '@hourly'
-      suspend: ${REAPER_SUSPEND}
+      suspend: ${{REAPER_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
@@ -340,7 +340,7 @@ objects:
             memory: 256Mi
     - name: sp-validator
       schedule: '@hourly'
-      suspend: ${SP_VALIDATOR_SUSPEND}
+      suspend: ${{SP_VALIDATOR_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
@@ -410,7 +410,7 @@ objects:
             memory: 256Mi
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
-      suspend: ${PENDO_SYNCHER_SUSPEND}
+      suspend: ${{PENDO_SYNCHER_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: Never
