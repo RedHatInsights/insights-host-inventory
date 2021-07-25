@@ -1,3 +1,4 @@
+# TODO: Needs health check for host-inventory containers to wait for the DB to come along
 version: '3.1'
 services:
     db:
@@ -29,11 +30,7 @@ services:
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
     init_db:
-<<<<<<< HEAD
       image: quay.io/cloudservices/insights-inventory
-=======
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
->>>>>>> e5ff3dc (all services in docker-compose)
       # ports:
       #   - 8080:8080
       depends_on:
@@ -47,11 +44,7 @@ services:
         INVENTORY_DB_PORT: 5432
         INVENTORY_DB_USER: insights
         INVENTORY_LOG_LEVEL: INFO
-<<<<<<< HEAD
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-=======
-        KAFKA_BOOTSTRAP_SERVERS: kafka:29092
->>>>>>> e5ff3dc (all services in docker-compose)
         KAFKA_CONSUMER_TOPIC: platform.inventory.host-ingress
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_GROUP: inventory-mq
@@ -64,11 +57,7 @@ services:
         PAYLOAD_TRACKER_SERVICE_NAME: inventory
         PAYLOAD_TRACKER_ENABLED: 'true'
     api:
-<<<<<<< HEAD
       image: quay.io/cloudservices/insights-inventory
-=======
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
->>>>>>> e5ff3dc (all services in docker-compose)
       ports:
         - 8080:8080
       depends_on:
@@ -85,11 +74,7 @@ services:
         APP_NAME: inventory
         PATH_PREFIX: api
         INVENTORY_LEGACY_API_URL: /r/insights/platform/inventory/v1/
-<<<<<<< HEAD
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-=======
-        KAFKA_BOOTSTRAP_SERVERS: kafka:29092
->>>>>>> e5ff3dc (all services in docker-compose)
         KAFKA_CONSUMER_TOPIC: platform.inventory.host-ingress-p1
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_GROUP: inventory-mq
@@ -102,11 +87,7 @@ services:
         PAYLOAD_TRACKER_SERVICE_NAME: inventory
         PAYLOAD_TRACKER_ENABLED: 'true'
     mq_p1:
-<<<<<<< HEAD
       image: quay.io/cloudservices/insights-inventory
-=======
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
->>>>>>> e5ff3dc (all services in docker-compose)
       # ports:
       #   - 8080:8080
       depends_on:
@@ -121,11 +102,7 @@ services:
         INVENTORY_DB_USER: insights
         RBAC_ENDPOINT: 'http://localhost:8111'
         INVENTORY_LOG_LEVEL: INFO
-<<<<<<< HEAD
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-=======
-        KAFKA_BOOTSTRAP_SERVERS: kafka:29092
->>>>>>> e5ff3dc (all services in docker-compose)
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_TOPIC: platform.inventory.host-ingress
         KAFKA_ADDITIONAL_VALIDATION_TOPIC: platform.inventory.host-ingress-p1
@@ -174,11 +151,7 @@ services:
         SCRIPT_CHUNK_SIZE: 1000
         SP_AUTHORIZED_USERS: tuser@redhat.com
     mq_pmin:
-<<<<<<< HEAD
       image: quay.io/cloudservices/insights-inventory
-=======
-      image: quay.io/thearifismail/insights-inventory:ubi8-nostartingscript
->>>>>>> e5ff3dc (all services in docker-compose)
       # ports:
       #   - 8080:8080
       depends_on:
@@ -193,7 +166,6 @@ services:
         INVENTORY_DB_USER: insights
         RBAC_ENDPOINT: 'http://localhost:8111'
         INVENTORY_LOG_LEVEL: INFO
-<<<<<<< HEAD
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_TOPIC: platform.inventory.host-ingress
@@ -247,6 +219,7 @@ services:
       # ports:
       #   - 8080:8080
       depends_on:
+        - db
         - init_db
         - kafka
       command: bash -c 'make run_inv_mq_service'
@@ -259,9 +232,6 @@ services:
         RBAC_ENDPOINT: 'http://localhost:8111'
         INVENTORY_LOG_LEVEL: INFO
         KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-=======
-        KAFKA_BOOTSTRAP_SERVERS: kafka:29092
->>>>>>> e5ff3dc (all services in docker-compose)
         KAFKA_EVENT_TOPIC: platform.inventory.events
         KAFKA_HOST_INGRESS_TOPIC: platform.inventory.host-ingress
         KAFKA_ADDITIONAL_VALIDATION_TOPIC: platform.inventory.host-ingress-p1
