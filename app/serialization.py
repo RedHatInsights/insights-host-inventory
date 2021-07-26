@@ -23,7 +23,6 @@ _CANONICAL_FACTS_FIELDS = (
     "ip_addresses",
     "fqdn",
     "mac_addresses",
-    "external_id",
     "provider_id",
     "provider_type",
 )

@@ -723,7 +723,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         unchanged_input = {
             "display_name": "some display name",
@@ -856,7 +855,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         unchanged_input = {
             "display_name": "some display name",
@@ -947,7 +945,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
             "facts": {
@@ -1228,7 +1225,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
         }
@@ -1309,7 +1305,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "bios_uuid": None,
             "ip_addresses": None,
             "mac_addresses": None,
-            "external_id": None,
             "ansible_host": None,
             "provider_id": None,
             "provider_type": None,
@@ -1483,7 +1478,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": self._randomly_formatted_sequence(("10.10.0.1", "10.10.0.2")),
             "fqdn": "some fqdn",
             "mac_addresses": self._randomly_formatted_sequence(("c2:00:d0:c8:61:01",)),
-            "external_id": "i-05d2313e6b9a42b16",
         }
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, input)
@@ -1498,7 +1492,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         input = {**canonical_facts, "unknown": "something"}
         result = _deserialize_canonical_facts(input)
@@ -1528,7 +1521,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
         }
@@ -1544,7 +1536,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "ip_addresses",
             "fqdn",
             "mac_addresses",
-            "external_id",
             "provider_id",
             "provider_type",
         )

@@ -562,7 +562,6 @@ def build_host_chunk():
         # "bios_uuid": random_uuid(),
         # "fqdn": fqdn,
         # "ansible_host": "host1.mydomain.com",
-        # "external_id": "i-05d2313e6b9a42b16",
         # "provider_type": " ",
         "provider_type": "aws",
         # "provider_type": "Alibaba",
