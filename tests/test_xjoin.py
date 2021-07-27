@@ -647,7 +647,7 @@ def test_query_variables_staleness_with_search(
     )
 
 
-def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get, mocker):
+def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
@@ -675,8 +675,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "per_reporter_staleness": {
                     "puptoo": {
                         "check_in_succeeded": True,
-                        "last_check_in": "2020-02-10T08:07:03.354307Z",
-                        "stale_timestamp": "2020-08-10T08:07:03.354307Z",
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
                 "rhel_machine_id": None,
@@ -706,8 +706,8 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "per_reporter_staleness": {
                     "puptoo": {
                         "check_in_succeeded": True,
-                        "last_check_in": "2020-02-10T08:07:03.354307Z",
-                        "stale_timestamp": "2020-08-10T08:07:03.354307Z",
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
                 "rhel_machine_id": None,
