@@ -38,7 +38,7 @@ def get_host_list(
     fields,
 ):
     if filter:
-        flask.abort(503)
+        flask.abort(503, "xjoin-search not accessible")
 
     if fqdn:
         query = _find_hosts_by_canonical_fact("fqdn", fqdn)
