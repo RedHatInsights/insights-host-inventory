@@ -430,9 +430,10 @@ objects:
           - name: PENDO_SYNC_ACTIVE
             value: ${PENDO_SYNC_ACTIVE}
           - name: PENDO_INTEGRATION_KEY
-            secretKeyRef:
-              key: apikey
-              name: pendo-creds
+            valueFrom:
+              secretKeyRef:
+                key: apikey
+                name: pendo-creds
           - name: NAMESPACE
             valueFrom:
               fieldRef:
