@@ -420,7 +420,7 @@ objects:
           - python pendo_syncher.py
         env:
           - name: INVENTORY_LOG_LEVEL
-            value: DEBUG
+            value: ${LOG_LEVEL}
           - name: INVENTORY_DB_SSL_MODE
             value: ${INVENTORY_DB_SSL_MODE}
           - name: INVENTORY_DB_SSL_CERT
@@ -609,7 +609,7 @@ parameters:
 - name: PENDO_SYNCHER_SUSPEND
   value: 'true'
 - name: PENDO_CRON_SCHEDULE
-  value: 0 */2 * * *
+  value: '@daily'
 - name: PENDO_SYNC_ACTIVE
   value: 'false'
 - name: SP_VALIDATOR_SUSPEND
