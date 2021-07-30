@@ -2,6 +2,7 @@ import pytest
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
+from app.exceptions import ValidationException
 from lib.host_repository import find_hosts_by_staleness
 from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import assert_error_response
@@ -28,7 +29,7 @@ OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 # system_profile tests
-def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, subtests):
+def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get):
     system_profile = valid_system_profile()
     system_profile["owner_id"] = OWNER_ID
     host = minimal_host(system_profile=system_profile)
@@ -39,6 +40,16 @@ def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get, sub
     response_status, response_data = api_get(url)
     assert response_data["results"][0]["system_profile"] == system_profile
     assert response_status == 200
+
+
+def test_system_profile_invalid_date_format(mq_create_or_update_host, api_get):
+    system_profile = valid_system_profile()
+    system_profile["owner_id"] = OWNER_ID
+    system_profile["last_boot_time"] = "12:25 Mar 19, 2019"  # Invalid date format
+    host = minimal_host(system_profile=system_profile)
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host)
 
 
 # sap endpoint tests
