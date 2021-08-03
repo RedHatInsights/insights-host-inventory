@@ -1493,6 +1493,21 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
         }
+        input = {**canonical_facts, "unknown": "something"}
+        result = _deserialize_canonical_facts(input)
+        self.assertEqual(result, canonical_facts)
+
+    def test_external_id_not_used_as_canonical_fact(self):
+        canonical_facts = {
+            "insights_id": str(uuid4()),
+            "rhel_machine_id": str(uuid4()),
+            "subscription_manager_id": str(uuid4()),
+            "satellite_id": str(uuid4()),
+            "bios_uuid": str(uuid4()),
+            "ip_addresses": ("10.10.0.1", "10.10.0.2"),
+            "fqdn": "some fqdn",
+            "mac_addresses": ["c2:00:d0:c8:61:01"],
+        }
         input = {**canonical_facts, "external_id": str(uuid4())}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
