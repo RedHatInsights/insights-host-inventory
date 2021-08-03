@@ -1493,7 +1493,7 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
         }
-        input = {**canonical_facts, "unknown": "something"}
+        input = {**canonical_facts, "external_id": str(uuid4())}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
 
