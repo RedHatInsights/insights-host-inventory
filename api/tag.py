@@ -77,7 +77,8 @@ def get_tags(
     filter=None,
 ):
     if not xjoin_enabled():
-        flask.abort(503, "xjoin-search not enabled")
+        logger.info("xjoin-search not enabled")
+        flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
 
