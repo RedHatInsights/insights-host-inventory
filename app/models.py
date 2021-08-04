@@ -263,7 +263,7 @@ class Host(LimitedHost):
             # This logical branch handles the display_name fallback values.
             # If the display_name isn't set and isn't provided in the update data,
             # we need to set it to a fallback value. If the display_name is set to
-            # the ID or the old FQDN, we need to reevaluate it.
+            # the ID or the old FQDN, we need to re-evaluate it.
             self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
 
     def update_canonical_facts(self, canonical_facts):
