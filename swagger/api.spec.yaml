@@ -988,7 +988,6 @@ components:
               description: >-
                 Reporting source of the last checkin status, stale_timestamp, and last_check_in.
               type: object
-              nullable: true
           required:
             - account
     HostOut:
