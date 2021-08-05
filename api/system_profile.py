@@ -96,6 +96,7 @@ def xjoin_enabled():
 @metrics.api_request_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
+        logger.error("xjoin-search not enabled")
         flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
@@ -147,6 +148,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 @metrics.api_request_time.time()
 def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
     if not xjoin_enabled():
+        logger.error("xjoin-search not enabled")
         flask.abort(503)
 
     limit, offset = pagination_params(page, per_page)
