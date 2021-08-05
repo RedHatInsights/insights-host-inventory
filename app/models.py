@@ -221,7 +221,7 @@ class Host(LimitedHost):
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
-        self.per_reporter_staleness = per_reporter_staleness
+        self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(stale_timestamp, reporter)
 
