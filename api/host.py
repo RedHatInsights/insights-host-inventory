@@ -188,6 +188,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     if fields:
         if not get_bulk_query_source() == BulkQuerySource.xjoin:
+            logger.error("xjoin-search not accessible")
             flask.abort(503)
 
         total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
