@@ -38,6 +38,7 @@ def get_host_list(
     fields,
 ):
     if filter:
+        logger.error("xjoin-search not accessible")
         flask.abort(503)
 
     if fqdn:
