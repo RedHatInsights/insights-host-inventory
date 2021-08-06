@@ -227,9 +227,9 @@ class Host(LimitedHost):
         db.session.add(self)
 
     def update(self, input_host, update_system_profile=False):
-        self.update_canonical_facts(input_host.canonical_facts)
+        self.update_display_name(input_host.display_name, input_host.canonical_facts.get("fqdn"))
 
-        self.update_display_name(input_host.display_name)
+        self.update_canonical_facts(input_host.canonical_facts)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -249,20 +249,22 @@ class Host(LimitedHost):
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
 
+        self.update_display_name(patch_data.get("display_name"))
         self._update_ansible_host(patch_data.get("ansible_host"))
 
-        self.update_display_name(patch_data.get("display_name"))
-
-    def update_display_name(self, input_display_name):
+    def update_display_name(self, input_display_name, input_fqdn=None):
         if input_display_name:
             self.display_name = input_display_name
-        elif not self.display_name or self.display_name == str(self.id):
-            # This is the case where the display_name is not set on the
-            # existing host record and the input host does not have it set
-            if "fqdn" in self.canonical_facts:
-                self.display_name = self.canonical_facts["fqdn"]
-            else:
-                self.display_name = self.id
+        elif (
+            not self.display_name
+            or self.display_name == self.canonical_facts.get("fqdn")
+            or self.display_name == str(self.id)
+        ):
+            # This logical branch handles the display_name fallback values.
+            # If the display_name isn't set and isn't provided in the update data,
+            # we need to set it to a fallback value. If the display_name is set to
+            # the ID or the old FQDN, we need to re-evaluate it.
+            self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
 
     def update_canonical_facts(self, canonical_facts):
         logger.debug(
