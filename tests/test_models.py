@@ -66,6 +66,29 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
     assert existing_host.display_name == expected_fqdn
 
 
+def test_update_existing_host_display_name_changing_fqdn(db_create_host):
+    old_fqdn = "host1.domain1.com"
+    new_fqdn = "host2.domain2.com"
+    insights_id = generate_uuid()
+
+    existing_host = db_create_host(
+        extra_data={"canonical_facts": {"fqdn": old_fqdn, "insights_id": insights_id}, "display_name": None}
+    )
+
+    # Set the display_name to the old FQDN
+    existing_host.display_name = old_fqdn
+    db.session.commit()
+    assert existing_host.display_name == old_fqdn
+
+    # Update the host
+    input_host = Host(
+        {"fqdn": new_fqdn, "insights_id": insights_id}, display_name="", reporter="puptoo", stale_timestamp=now()
+    )
+    existing_host.update(input_host)
+
+    assert existing_host.display_name == new_fqdn
+
+
 def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db_create_host):
     expected_fqdn = "host1.domain1.com"
     insights_id = generate_uuid()
