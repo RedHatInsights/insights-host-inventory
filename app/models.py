@@ -203,6 +203,7 @@ class Host(LimitedHost):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
+        per_reporter_staleness=None,
     ):
         if not canonical_facts:
             raise InventoryException(
@@ -220,7 +221,9 @@ class Host(LimitedHost):
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
-        self._update_per_reporter_staleness(stale_timestamp, reporter)
+        self.per_reporter_staleness = per_reporter_staleness or {}
+        if not per_reporter_staleness:
+            self._update_per_reporter_staleness(stale_timestamp, reporter)
 
     def save(self):
         self._cleanup_tags()

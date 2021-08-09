@@ -672,6 +672,13 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
                 "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                 "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": {
+                        "check_in_succeeded": True,
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                    }
+                },
                 "rhel_machine_id": None,
                 "subscription_manager_id": None,
                 "bios_uuid": None,
@@ -696,6 +703,13 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
                 "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
                 "stale_timestamp": "2020-01-10T08:07:03.354307+00:00",
                 "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": {
+                        "check_in_succeeded": True,
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                    }
+                },
                 "rhel_machine_id": None,
                 "subscription_manager_id": None,
                 "bios_uuid": None,

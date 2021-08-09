@@ -984,6 +984,10 @@ components:
               description: Reporting source of the host. Used when updating the stale_timestamp.
               type: string
               nullable: true
+            per_reporter_staleness:
+              description: >-
+                Reporting source of the last checkin status, stale_timestamp, and last_check_in.
+              type: object
           required:
             - account
     HostOut:
