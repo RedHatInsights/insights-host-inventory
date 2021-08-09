@@ -1254,7 +1254,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1282,6 +1287,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "culled_timestamp": self._timestamp_to_str(
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
 
@@ -1295,7 +1301,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1327,6 +1338,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "culled_timestamp": self._timestamp_to_str(
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
         self.assertEqual(expected, actual)
@@ -1392,7 +1404,12 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1415,6 +1432,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "stale_timestamp": self._timestamp_to_str(staleness_offset.stale_timestamp.return_value),
             "stale_warning_timestamp": self._timestamp_to_str(staleness_offset.stale_warning_timestamp.return_value),
             "culled_timestamp": self._timestamp_to_str(staleness_offset.culled_timestamp.return_value),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
 

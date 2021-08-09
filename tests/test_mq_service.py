@@ -1076,10 +1076,7 @@ def test_host_account_using_mq(mq_create_or_update_host, api_get, db_get_host, d
 
     second_batch = db_get_hosts([created_host.id, same_host.id])
 
-    # update_existing_host() returns the same host but with updated timestamp.
-    created_host.updated = same_host.updated
-
-    assert created_host == same_host
+    assert created_host.id == same_host.id
     assert len(first_batch.all()) == len(second_batch.all())
 
 

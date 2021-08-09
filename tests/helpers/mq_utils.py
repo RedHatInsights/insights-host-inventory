@@ -135,6 +135,7 @@ def assert_patch_event_is_valid(
             "satellite_id": host.canonical_facts.get("satellite_id"),
             "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
             "system_profile": host.system_profile_facts,
+            "per_reporter_staleness": host.per_reporter_staleness,
             "external_id": None,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
             "reporter": reporter,
