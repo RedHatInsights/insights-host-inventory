@@ -9,6 +9,7 @@ from json import dumps
 from random import choice
 from unittest import main
 from unittest import TestCase
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -2029,14 +2030,18 @@ class ModelsSystemProfileTestCase(TestCase):
         schema = HostSchema()
         payload = self._payload({"number_of_cpus": "1"})
         schema.load(payload)
-        jsonschema_validate.assert_called_once_with({"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema, format_checker=ANY
+        )
 
     @patch("app.models.jsonschema_validate")
     def test_type_filtering_happens_after_loading(self, jsonschema_validate):
         schema = HostSchema()
         payload = self._payload({"number_of_gpus": 1})
         result = schema.load(payload)
-        jsonschema_validate.assert_called_once_with({"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema, format_checker=ANY
+        )
         self.assertEqual({}, result["system_profile"])
 
 
