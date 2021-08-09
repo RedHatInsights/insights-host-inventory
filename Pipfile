@@ -32,6 +32,7 @@ prance = "==0.20.2"
 app-common-python = "~=0.1.2"
 honcho = "*"
 sqlalchemy = "<1.4.0"
+strict-rfc3339 = ">=0.6"
 
 [dev-packages]
 pytest = "~=5.0.1"
