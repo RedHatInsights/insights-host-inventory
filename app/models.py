@@ -446,7 +446,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
     mac_addresses = fields.List(
         fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1)
     )
-    external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 

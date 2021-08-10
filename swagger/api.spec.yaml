@@ -851,8 +851,6 @@ components:
             $ref: "#/components/schemas/NonNullableString"
           mac_addresses:
             $ref: "#/components/schemas/NonNullableStringArray"
-          external_id:
-            $ref: "#/components/schemas/NonNullableString"
           provider_id:
             $ref: "#/components/schemas/NonNullableString"
           provider_type:
@@ -875,8 +873,6 @@ components:
         - required:
           - mac_addresses
         - required:
-          - external_id
-        - required:
           - provider_id
           - provider_type
     CanonicalFactsOut:
@@ -898,8 +894,6 @@ components:
           $ref: "#/components/schemas/Fqdn"
         mac_addresses:
           $ref: "#/components/schemas/MacAddresses"
-        external_id:
-          $ref: "#/components/schemas/ExternalId"
         provider_id:
           $ref: "#/components/schemas/ProviderId"
         provider_type:
