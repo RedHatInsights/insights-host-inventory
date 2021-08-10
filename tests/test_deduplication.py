@@ -65,7 +65,7 @@ def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_creat
 
 
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
-def test_elevated_id_priority_order(db_create_host, changing_id):
+def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     base_canonical_facts = {"insights_id": generate_uuid(), "subscription_manager_id": generate_uuid()}
 
     created_host_canonical_facts = base_canonical_facts.copy()
@@ -78,6 +78,23 @@ def test_elevated_id_priority_order(db_create_host, changing_id):
 
     assert_host_exists_in_db(created_host.id, created_host_canonical_facts)
     assert_host_missing_from_db(search_canonical_facts)
+
+
+@mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
+def test_elevated_id_priority_order_match(db_create_host, changing_id):
+    base_canonical_facts = {
+        "provider_id": generate_uuid(),
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+    }
+
+    matching_host = db_create_host(host=minimal_db_host(canonical_facts=base_canonical_facts))
+
+    nomatch_host_canonical_facts = base_canonical_facts.copy()
+    nomatch_host_canonical_facts[changing_id] = generate_uuid()
+
+    assert_host_exists_in_db(matching_host.id, base_canonical_facts)
+    assert_host_missing_from_db(nomatch_host_canonical_facts)
 
 
 def test_no_merge_when_no_match(mq_create_or_update_host):
