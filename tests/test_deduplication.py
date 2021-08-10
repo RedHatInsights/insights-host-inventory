@@ -74,8 +74,9 @@ def test_elevated_id_priority_order(db_create_host, changing_id):
     search_canonical_facts = base_canonical_facts.copy()
     search_canonical_facts[changing_id] = generate_uuid()
 
-    db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
 
+    assert_host_exists_in_db(created_host.id, created_host_canonical_facts)
     assert_host_missing_from_db(search_canonical_facts)
 
 
@@ -152,45 +153,3 @@ def test_mac_addresses_case_insensitive(mq_create_or_update_host):
         minimal_host(fqdn="foo.bar.com", mac_addresses=["c2:00:d0:c8:61:01", "AA:BB:CC:DD:EE:FF"])
     )
     assert first_host.id == second_host.id
-
-
-@mark.parametrize(("host_create_order", "expected_host"), (((0, 1), 1), ((1, 0), 0)))
-def test_insights_id_is_preferred_over_subscription_manager_id(db_create_host, host_create_order, expected_host):
-    multiple_hosts_canonical_facts = ({"subscription_manager_id": generate_uuid()}, {"insights_id": generate_uuid()})
-
-    created_hosts = []
-    for single_host_canonical_facts in host_create_order:
-        host = minimal_db_host(canonical_facts=multiple_hosts_canonical_facts[single_host_canonical_facts])
-        created_host = db_create_host(host=host)
-        created_hosts.append(created_host)
-
-    search_canonical_facts = {
-        key: value
-        for single_host_canonical_facts in multiple_hosts_canonical_facts
-        for key, value in single_host_canonical_facts.items()
-    }
-
-    assert_host_exists_in_db(created_hosts[expected_host].id, search_canonical_facts)
-
-
-@mark.parametrize(("host_create_order", "expected_host"), (((0, 1, 2), 2), ((2, 1, 0), 0), ((0, 2, 1), 1)))
-def test_provider_id_preference_over_other_elevated_facts(db_create_host, host_create_order, expected_host):
-    multiple_hosts_canonical_facts = (
-        {"subscription_manager_id": generate_uuid()},
-        {"insights_id": generate_uuid()},
-        {"provider_type": "aws", "provider_id": "i-05d2313e6b9a42b16"},
-    )
-
-    created_hosts = []
-    for single_host_canonical_facts in host_create_order:
-        host = minimal_db_host(canonical_facts=multiple_hosts_canonical_facts[single_host_canonical_facts])
-        created_host = db_create_host(host=host)
-        created_hosts.append(created_host)
-
-    search_canonical_facts = {
-        key: value
-        for single_host_canonical_facts in multiple_hosts_canonical_facts
-        for key, value in single_host_canonical_facts.items()
-    }
-
-    assert_host_exists_in_db(created_hosts[expected_host].id, search_canonical_facts)
