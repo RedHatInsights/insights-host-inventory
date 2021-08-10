@@ -64,6 +64,23 @@ def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_creat
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
+def test_no_merge_when_no_match(mq_create_or_update_host):
+    wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
+    del wrapper.ip_addresses
+    first_host = mq_create_or_update_host(wrapper)
+
+    second_host = mq_create_or_update_host(
+        minimal_host(
+            bios_uuid=generate_uuid(),
+            satellite_id=generate_uuid(),
+            ansible_host="testhost",
+            display_name="testdisplayname",
+        )
+    )
+
+    assert first_host.id != second_host.id
+
+
 @mark.parametrize("changing_id", ("provider_id", "insights_id"))
 def test_elevated_id_priority_order_nomatch(db_create_host, changing_id):
     base_canonical_facts = {"insights_id": generate_uuid(), "subscription_manager_id": generate_uuid()}
@@ -95,23 +112,6 @@ def test_elevated_id_priority_order_match(db_create_host, changing_id):
 
     assert_host_exists_in_db(matching_host.id, base_canonical_facts)
     assert_host_missing_from_db(nomatch_host_canonical_facts)
-
-
-def test_no_merge_when_no_match(mq_create_or_update_host):
-    wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
-    del wrapper.ip_addresses
-    first_host = mq_create_or_update_host(wrapper)
-
-    second_host = mq_create_or_update_host(
-        minimal_host(
-            bios_uuid=generate_uuid(),
-            satellite_id=generate_uuid(),
-            ansible_host="testhost",
-            display_name="testdisplayname",
-        )
-    )
-
-    assert first_host.id != second_host.id
 
 
 def test_no_merge_when_different_facts(db_create_host):
