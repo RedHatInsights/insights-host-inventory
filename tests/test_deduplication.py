@@ -79,6 +79,23 @@ def test_elevated_id_priority_order(db_create_host, changing_id):
     assert_host_missing_from_db(search_canonical_facts)
 
 
+def test_no_merge_when_no_match(mq_create_or_update_host):
+    wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
+    del wrapper.ip_addresses
+    first_host = mq_create_or_update_host(wrapper)
+
+    second_host = mq_create_or_update_host(
+        minimal_host(
+            bios_uuid=generate_uuid(),
+            satellite_id=generate_uuid(),
+            ansible_host="rhiqe.laptop-57.perez.org",
+            display_name="rhiqe.61ceb1ad-a4f9-4f97-9d60-6df238559676.lt-24.spencer.info",
+        )
+    )
+
+    assert first_host.id != second_host.id
+
+
 def test_no_merge_when_different_facts(db_create_host):
     cf1 = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
     cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "subscription_manager_id": generate_uuid()}
