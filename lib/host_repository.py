@@ -84,12 +84,19 @@ def find_existing_host_by_id(identity, host_id):
 
 @metrics.find_host_using_elevated_ids.time()
 def _find_host_by_elevated_ids(identity, canonical_facts):
+    not_found_for_ids = {}
     for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
         cf_value = canonical_facts.get(elevated_cf_name)
         if cf_value:
             existing_host = find_host_by_single_canonical_fact(identity, elevated_cf_name, cf_value)
             if existing_host:
+                for nomatch_key, nomatch_value in not_found_for_ids.items():
+                    # If this value exists and differs on the host, it's not actually a match
+                    if existing_host.canonical_facts[nomatch_key] != nomatch_value:
+                        return None
                 return existing_host
+            else:
+                not_found_for_ids[elevated_cf_name] = cf_value
 
     return None
 

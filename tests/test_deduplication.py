@@ -64,6 +64,21 @@ def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_creat
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
+@mark.parametrize("changing_id", ("provider_id", "insights_id"))
+def test_elevated_id_priority_order(db_create_host, changing_id):
+    base_canonical_facts = {"insights_id": generate_uuid(), "subscription_manager_id": generate_uuid()}
+
+    created_host_canonical_facts = base_canonical_facts.copy()
+    created_host_canonical_facts[changing_id] = generate_uuid()
+
+    search_canonical_facts = base_canonical_facts.copy()
+    search_canonical_facts[changing_id] = generate_uuid()
+
+    db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+
+    assert_host_missing_from_db(search_canonical_facts)
+
+
 def test_no_merge_when_different_facts(db_create_host):
     cf1 = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
     cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "subscription_manager_id": generate_uuid()}
