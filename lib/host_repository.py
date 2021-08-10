@@ -106,10 +106,8 @@ def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_t
 def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=True):
     query = Host.query.filter(
         (Host.account == identity.account_number)
-        & (
-            Host.canonical_facts.comparator.contains(canonical_facts)
-            | provided_canonical_facts_filter(canonical_facts)
-        )
+        & (contains_no_incorrect_facts_filter(canonical_facts))
+        & (matches_at_least_one_canonical_fact_filter(canonical_facts))
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
@@ -198,17 +196,28 @@ def stale_timestamp_filter(gt=None, lte=None):
     return and_(*filter_)
 
 
-def provided_canonical_facts_filter(canonical_facts):
+def contains_no_incorrect_facts_filter(canonical_facts):
+    # Does not contain any incorrect CF values
+    # Incorrect value = AND( key exists, NOT( contains key:value ) )
+    # -> NOT( OR( *Incorrect values ) )
     filter_ = ()
     for key, value in canonical_facts.items():
         filter_ += (
-            or_(
-                not_(Host.canonical_facts.comparator.has_key(key)),  # noqa: W601
-                Host.canonical_facts.contains({key: value}),
-            ),
+            and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),  # noqa: W601
         )
 
-    return and_(*filter_)
+    return not_(or_(*filter_))
+
+
+def matches_at_least_one_canonical_fact_filter(canonical_facts):
+    # Contains at least one correct CF value
+    # Correct value = contains key:value
+    # -> OR( *correct values )
+    filter_ = ()
+    for key, value in canonical_facts.items():
+        filter_ += (Host.canonical_facts.contains({key: value}),)
+
+    return or_(*filter_)
 
 
 def update_query_for_owner_id(identity, query):
