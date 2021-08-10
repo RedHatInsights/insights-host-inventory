@@ -36,7 +36,6 @@ class SerializedHostSchema(Schema):
     bios_uuid = fields.Str()
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
-    external_id = fields.Str()
     provider_id = fields.Str()
     provider_type = fields.Str()
     created = fields.Str()
@@ -47,6 +46,7 @@ class SerializedHostSchema(Schema):
     reporter = fields.Str()
     tags = fields.List(fields.Nested(TagsSchema))
     system_profile = fields.Dict()
+    per_reporter_staleness = fields.Dict()
 
 
 class HostEventMetadataSchema(Schema):

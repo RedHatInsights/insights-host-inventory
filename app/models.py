@@ -8,6 +8,7 @@ from os.path import join
 
 from connexion.decorators.validation import coerce_type
 from flask_sqlalchemy import SQLAlchemy
+from jsonschema import FormatChecker
 from jsonschema import RefResolver
 from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -203,6 +204,7 @@ class Host(LimitedHost):
         system_profile_facts=None,
         stale_timestamp=None,
         reporter=None,
+        per_reporter_staleness=None,
     ):
         if not canonical_facts:
             raise InventoryException(
@@ -220,7 +222,9 @@ class Host(LimitedHost):
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
         self.stale_timestamp = stale_timestamp
         self.reporter = reporter
-        self._update_per_reporter_staleness(stale_timestamp, reporter)
+        self.per_reporter_staleness = per_reporter_staleness or {}
+        if not per_reporter_staleness:
+            self._update_per_reporter_staleness(stale_timestamp, reporter)
 
     def save(self):
         self._cleanup_tags()
@@ -442,7 +446,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
     mac_addresses = fields.List(
         fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1)
     )
-    external_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
     provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
 
@@ -555,7 +558,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
         try:
-            jsonschema_validate(system_profile, self.system_profile_normalizer.schema)
+            jsonschema_validate(system_profile, self.system_profile_normalizer.schema, format_checker=FormatChecker())
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 

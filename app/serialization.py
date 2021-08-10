@@ -23,7 +23,6 @@ _CANONICAL_FACTS_FIELDS = (
     "ip_addresses",
     "fqdn",
     "mac_addresses",
-    "external_id",
     "provider_id",
     "provider_type",
 )
@@ -35,6 +34,7 @@ DEFAULT_FIELDS = (
     "ansible_host",
     "facts",
     "reporter",
+    "per_reporter_staleness",
     "stale_timestamp",
     "stale_warning_timestamp",
     "culled_timestamp",
@@ -74,6 +74,7 @@ def deserialize_host_xjoin(data):
         system_profile_facts=data["system_profile_facts"] or {},
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
+        per_reporter_staleness=data.get("per_reporter_staleness", {}) or {},
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
@@ -105,6 +106,8 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["facts"] = _serialize_facts(host.facts)
     if "reporter" in fields:
         serialized_host["reporter"] = host.reporter
+    if "per_reporter_staleness" in fields:
+        serialized_host["per_reporter_staleness"] = host.per_reporter_staleness
     if "stale_timestamp" in fields:
         serialized_host["stale_timestamp"] = stale_timestamp and _serialize_datetime(stale_timestamp)
     if "stale_warning_timestamp" in fields:

@@ -9,6 +9,7 @@ from json import dumps
 from random import choice
 from unittest import main
 from unittest import TestCase
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -723,7 +724,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         unchanged_input = {
             "display_name": "some display name",
@@ -856,7 +856,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         unchanged_input = {
             "display_name": "some display name",
@@ -947,7 +946,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
             "facts": {
@@ -1228,7 +1226,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
         }
@@ -1253,7 +1250,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1281,6 +1283,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "culled_timestamp": self._timestamp_to_str(
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
 
@@ -1294,7 +1297,12 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1309,7 +1317,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "bios_uuid": None,
             "ip_addresses": None,
             "mac_addresses": None,
-            "external_id": None,
             "ansible_host": None,
             "provider_id": None,
             "provider_type": None,
@@ -1326,6 +1333,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "culled_timestamp": self._timestamp_to_str(
                 self._add_days(host_init_data["stale_timestamp"], config.culled_offset_delta.days)
             ),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
         self.assertEqual(expected, actual)
@@ -1391,7 +1399,12 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
         }
         host = Host(**host_init_data)
 
-        host_attr_data = {"id": uuid4(), "created_on": datetime.utcnow(), "modified_on": datetime.utcnow()}
+        host_attr_data = {
+            "id": uuid4(),
+            "created_on": datetime.utcnow(),
+            "modified_on": datetime.utcnow(),
+            "per_reporter_staleness": host.per_reporter_staleness,
+        }
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
@@ -1414,6 +1427,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "stale_timestamp": self._timestamp_to_str(staleness_offset.stale_timestamp.return_value),
             "stale_warning_timestamp": self._timestamp_to_str(staleness_offset.stale_warning_timestamp.return_value),
             "culled_timestamp": self._timestamp_to_str(staleness_offset.culled_timestamp.return_value),
+            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
         self.assertEqual(expected, actual)
 
@@ -1483,7 +1497,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": self._randomly_formatted_sequence(("10.10.0.1", "10.10.0.2")),
             "fqdn": "some fqdn",
             "mac_addresses": self._randomly_formatted_sequence(("c2:00:d0:c8:61:01",)),
-            "external_id": "i-05d2313e6b9a42b16",
         }
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, input)
@@ -1498,7 +1511,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
-            "external_id": "i-05d2313e6b9a42b16",
         }
         input = {**canonical_facts, "unknown": "something"}
         result = _deserialize_canonical_facts(input)
@@ -1528,7 +1540,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "ip_addresses": ("10.10.0.1", "10.10.0.2"),
             "fqdn": "some fqdn",
             "mac_addresses": ("c2:00:d0:c8:61:01",),
-            "external_id": "i-05d2313e6b9a42b16",
             "provider_id": "i-05d2313e6b9a42b16",
             "provider_type": "aws",
         }
@@ -1544,7 +1555,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
             "ip_addresses",
             "fqdn",
             "mac_addresses",
-            "external_id",
             "provider_id",
             "provider_type",
         )
@@ -2011,14 +2021,18 @@ class ModelsSystemProfileTestCase(TestCase):
         schema = HostSchema()
         payload = self._payload({"number_of_cpus": "1"})
         schema.load(payload)
-        jsonschema_validate.assert_called_once_with({"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_cpus": 1}, HostSchema.system_profile_normalizer.schema, format_checker=ANY
+        )
 
     @patch("app.models.jsonschema_validate")
     def test_type_filtering_happens_after_loading(self, jsonschema_validate):
         schema = HostSchema()
         payload = self._payload({"number_of_gpus": 1})
         result = schema.load(payload)
-        jsonschema_validate.assert_called_once_with({"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema)
+        jsonschema_validate.assert_called_once_with(
+            {"number_of_gpus": 1}, HostSchema.system_profile_normalizer.schema, format_checker=ANY
+        )
         self.assertEqual({}, result["system_profile"])
 
 
