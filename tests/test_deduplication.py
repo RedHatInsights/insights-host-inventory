@@ -73,8 +73,8 @@ def test_no_merge_when_no_match(mq_create_or_update_host):
         minimal_host(
             bios_uuid=generate_uuid(),
             satellite_id=generate_uuid(),
-            ansible_host="rhiqe.laptop-57.perez.org",
-            display_name="rhiqe.61ceb1ad-a4f9-4f97-9d60-6df238559676.lt-24.spencer.info",
+            ansible_host="testhost",
+            display_name="testdisplayname",
         )
     )
 
