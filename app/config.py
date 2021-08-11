@@ -105,7 +105,7 @@ class Config:
 
         self.api_urls = [self.api_url_path_prefix, self.legacy_api_url_path_prefix]
 
-        self.rbac_enforced = os.environ.get("RBAC_ENFORCED", "false").lower() == "true"
+        self.bypass_rbac = os.environ.get("BYPASS_RBAC", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
@@ -196,6 +196,9 @@ class Config:
             self.pendo_timeout = int(os.environ.get("PENDO_TIMEOUT", "240"))
             self.pendo_request_size = int(os.environ.get("PENDO_REQUEST_SIZE", "500"))
 
+        if self._runtime_environment == RuntimeEnvironment.TEST:
+            self.bypass_rbac = "true"
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
@@ -255,7 +258,7 @@ class Config:
             self.logger.info("API URL Path: %s", self.api_url_path_prefix)
             self.logger.info("Management URL Path Prefix: %s", self.mgmt_url_path_prefix)
 
-            self.logger.info("RBAC Enforced: %s", self.rbac_enforced)
+            self.logger.info("RBAC Bypassed: %s", self.bypass_rbac)
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
