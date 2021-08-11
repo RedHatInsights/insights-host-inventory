@@ -84,12 +84,16 @@ def find_existing_host_by_id(identity, host_id):
 
 @metrics.find_host_using_elevated_ids.time()
 def _find_host_by_elevated_ids(identity, canonical_facts):
-    for elevated_cf_name in ELEVATED_CANONICAL_FACT_FIELDS:
-        cf_value = canonical_facts.get(elevated_cf_name)
-        if cf_value:
-            existing_host = find_host_by_single_canonical_fact(identity, elevated_cf_name, cf_value)
-            if existing_host:
-                return existing_host
+    elevated_facts = {key: value for (key, value) in canonical_facts.items() if key in ELEVATED_CANONICAL_FACT_FIELDS}
+    if elevated_facts:
+        existing_host = find_host_by_multiple_canonical_facts(identity, elevated_facts)
+        if existing_host:
+            for elevated_field in (key for key in elevated_facts if key in existing_host.canonical_facts):
+                # If this value exists and differs on the host, it's not actually a match
+                if existing_host.canonical_facts.get(elevated_field) != canonical_facts[elevated_field]:
+                    return None
+
+            return existing_host
 
     return None
 
@@ -112,20 +116,6 @@ def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_o
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query)
-
-
-def find_host_by_single_canonical_fact(identity, canonical_fact, value):
-    """
-    Returns first match for a host containing given canonical facts
-    """
-    logger.debug("find_host_by_single_canonical_fact(%s, %s, %s)", identity, canonical_fact, value)
-
-    host = single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=False).first()
-
-    if host:
-        logger.debug("Found existing host using canonical_fact match: %s", host)
-
-    return host
 
 
 def find_host_by_multiple_canonical_facts(identity, canonical_facts):
