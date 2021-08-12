@@ -54,8 +54,8 @@ objects:
           value: ${BULK_QUERY_SOURCE}
         - name: BULK_QUERY_SOURCE_BETA
           value: ${BULK_QUERY_SOURCE_BETA}
-        - name: RBAC_ENFORCED
-          value: ${RBAC_ENFORCED}
+        - name: BYPASS_RBAC
+          value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
           value: ${KAFKA_PRODUCER_ACKS}
         - name: KAFKA_PRODUCER_RETRIES
@@ -573,7 +573,7 @@ parameters:
   name: INVENTORY_DB_SSL_MODE
   value: prefer
 - description: activate RBAC middleware
-  name: RBAC_ENFORCED
+  name: BYPASS_RBAC
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: '1'

@@ -65,7 +65,7 @@ def rbac(required_permission):
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
-            if not inventory_config().rbac_enforced:
+            if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
             if get_current_identity().identity_type != CHECKED_TYPE:

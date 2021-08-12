@@ -18,6 +18,7 @@ def prometheus_temp_dir():
     with TemporaryDirectory() as temp_dir:
         orig = getenv(PROMETHEUS_ENV_VAR)
         putenv(PROMETHEUS_ENV_VAR, temp_dir)
+        putenv("BYPASS_RBAC", "true")
         try:
             yield
         finally:

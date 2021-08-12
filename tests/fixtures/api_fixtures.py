@@ -58,7 +58,7 @@ def api_delete_host(flask_client):
 
 @pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
-    inventory_config.rbac_enforced = True
+    inventory_config.bypass_rbac = False
 
 
 @pytest.fixture(scope="function")
