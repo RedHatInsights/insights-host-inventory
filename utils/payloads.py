@@ -447,7 +447,7 @@ def create_system_profile():
         "os_release": "Red Hat EL 7.0.1",
         "os_kernel_version": "3.10.0",
         "arch": "x86-64",
-        "last_boot_time": "12:25 Mar 19, 2019",
+        "last_boot_time": "2020-02-13T12:08:55Z",
         "kernel_modules": ["i915", "e1000e"],
         "running_processes": ["vim", "gcc", "python"],
         "subscription_status": "valid",
