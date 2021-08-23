@@ -9,6 +9,8 @@ objects:
     name: host-inventory
   spec:
     envName: ${ENV_NAME}
+    testing:
+      iqePlugin: host-inventory
     optionalDependencies:
     - rbac
     deployments:
