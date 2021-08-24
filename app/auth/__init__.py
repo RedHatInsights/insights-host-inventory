@@ -1,4 +1,5 @@
 import connexion
+from flask import abort
 
 from api.metrics import login_failure_count
 from app.auth.identity import from_auth_header
@@ -16,7 +17,7 @@ def authentication_header_handler(apikey, required_scopes=None):
     except Exception as exc:
         login_failure_count.inc()
         logger.error(str(exc), exc_info=True)
-        return None
+        abort(401, str(exc))
 
     return {"uid": identity}
 
