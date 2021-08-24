@@ -565,8 +565,8 @@ def build_host_chunk():
         # "provider_type": " ",
         "provider_type": "aws",
         # "provider_type": "Alibaba",
-        # "provider_id": "i-05d2313e6b9a42b16",
-        "provider_id": random_uuid(),
+        "provider_id": "i-05d2313e6b9a42b16",
+        # "provider_id": random_uuid(),
         # "provider_id": "",
         "display_name": fqdn,
         "tags": [
