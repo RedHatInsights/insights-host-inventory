@@ -86,12 +86,20 @@ def find_existing_host_by_id(identity, host_id):
 def _find_host_by_elevated_ids(identity, canonical_facts):
     elevated_facts = {key: value for (key, value) in canonical_facts.items() if key in ELEVATED_CANONICAL_FACT_FIELDS}
     if elevated_facts:
-        existing_host = find_host_by_multiple_canonical_facts(identity, elevated_facts)
+        query = Host.query.filter(
+            (Host.account == identity.account_number) & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+        )
+        query = update_query_for_owner_id(identity, query)
+        existing_host = find_non_culled_hosts(query).first()
+
         if existing_host:
-            for elevated_field in (key for key in elevated_facts if key in existing_host.canonical_facts):
-                # If this value exists and differs on the host, it's not actually a match
-                if existing_host.canonical_facts.get(elevated_field) != canonical_facts[elevated_field]:
-                    return None
+            # If the highest-priority CF value exists and differs on the host, it's not actually a match
+            first_elevated_field = list(
+                {key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()}
+            )[0]
+
+            if existing_host.canonical_facts.get(first_elevated_field) != canonical_facts.get(first_elevated_field):
+                return None
 
             return existing_host
 
