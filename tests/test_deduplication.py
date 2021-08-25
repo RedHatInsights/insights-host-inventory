@@ -105,13 +105,12 @@ def test_elevated_id_priority_order_match(db_create_host, changing_id):
         "subscription_manager_id": generate_uuid(),
     }
 
-    matching_host = db_create_host(host=minimal_db_host(canonical_facts=base_canonical_facts))
+    created_host = db_create_host(host=minimal_db_host(canonical_facts=base_canonical_facts))
 
-    nomatch_host_canonical_facts = base_canonical_facts.copy()
-    nomatch_host_canonical_facts[changing_id] = generate_uuid()
+    match_host_canonical_facts = base_canonical_facts.copy()
+    match_host_canonical_facts[changing_id] = generate_uuid()
 
-    assert_host_exists_in_db(matching_host.id, base_canonical_facts)
-    assert_host_missing_from_db(nomatch_host_canonical_facts)
+    assert_host_exists_in_db(created_host.id, match_host_canonical_facts)
 
 
 def test_no_merge_when_different_facts(db_create_host):
