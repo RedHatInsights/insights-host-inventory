@@ -28,7 +28,7 @@ def bearer_token_handler(token):
     except Exception:
         login_failure_count.inc()
         logger.error("Failed to validate bearer token value", exc_info=True)
-        return None
+        abort(401, "Failed to validate bearer token value")
 
     return {"uid": identity}
 
