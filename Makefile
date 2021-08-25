@@ -40,3 +40,15 @@ style:
 
 validate-dashboard:
 	python utils/validate_dashboards.py
+
+
+update-schema:
+	[ -d swagger/inventory-schemas ] || git clone git@github.com:RedHatInsights/inventory-schemas.git swagger/inventory-schemas
+	(cd swagger/inventory-schemas && git pull)
+	cp \
+	    swagger/inventory-schemas/schemas/system_profile/v1.yaml \
+	    swagger/system_profile.spec.yaml
+	( cd swagger/inventory-schemas; set +e;git rev-parse HEAD) > swagger/system_profile_commit_id
+	git add swagger/system_profile.spec.yaml
+	git add swagger/system_profile_commit_id
+	git diff --cached
