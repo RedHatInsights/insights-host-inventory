@@ -1,4 +1,5 @@
 import connexion
+from flask import abort
 
 from api.metrics import login_failure_count
 from app.auth.identity import from_auth_header
@@ -13,10 +14,10 @@ logger = get_logger(__name__)
 def authentication_header_handler(apikey, required_scopes=None):
     try:
         identity = from_auth_header(apikey)
-    except Exception:
+    except Exception as exc:
         login_failure_count.inc()
-        logger.debug("Failed to validate identity header value", exc_info=True)
-        return None
+        logger.error(str(exc), exc_info=True)
+        abort(401, f"Identity Error: {str(exc)}")
 
     return {"uid": identity}
 
@@ -26,8 +27,8 @@ def bearer_token_handler(token):
         identity = from_bearer_token(token)
     except Exception:
         login_failure_count.inc()
-        logger.debug("Failed to validate bearer token value", exc_info=True)
-        return None
+        logger.error("Failed to validate bearer token value", exc_info=True)
+        abort(401, "Failed to validate bearer token value")
 
     return {"uid": identity}
 
