@@ -89,7 +89,6 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
         query = Host.query.filter(
             (Host.account == identity.account_number) & (matches_at_least_one_canonical_fact_filter(canonical_facts))
         )
-        query = update_query_for_owner_id(identity, query)
         existing_host = find_non_culled_hosts(query).first()
 
         if existing_host:

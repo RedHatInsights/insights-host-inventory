@@ -69,7 +69,7 @@ def _get_identity(host, metadata):
     if metadata and "b64_identity" in metadata:
         identity = _decode_id(metadata["b64_identity"])
     else:
-        if host.get("reporter") == "rhsm-conduit":
+        if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
             identity = deepcopy(SYSTEM_IDENTITY)
             identity["account_number"] = host.get("account")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
