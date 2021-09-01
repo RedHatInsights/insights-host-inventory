@@ -983,16 +983,7 @@ components:
                 Reporting source of the last checkin status, stale_timestamp, and last_check_in.
               type: object
               additionalProperties:
-                type: object
-                properties:
-                  last_check_in:
-                    type: string
-                    format: date-time
-                  stale_timestamp:
-                    type: string
-                    format: date-time
-                  check_in_succeeded:
-                    type: boolean
+                $ref: '#components/schemas/PerReporterStaleness'
           required:
             - account
     HostOut:
@@ -1091,7 +1082,17 @@ components:
             name.
           type: string
           example: host1.mydomain.com
-
+    PerReporterStaleness:
+      type: object
+      properties:
+        last_check_in:
+          type: string
+          format: date-time
+        stale_timestamp:
+          type: string
+          format: date-time
+        check_in_succeeded:
+          type: boolean
     ActiveTags:
       title: Host data
       type: object
