@@ -1,5 +1,6 @@
 from pytest import mark
 
+from app.models import ProviderType
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
@@ -151,6 +152,30 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
+
+
+@mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
+def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
+    base_canonical_facts = {
+        "provider_type": ProviderType.AWS,  # Doesn't matter
+        "provider_id": generate_uuid(),
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+    }
+
+    platform_metadata = {"request_id": "b9757340-f839-4541-9af6-f7535edf08db"}
+
+    first_host = minimal_host(**base_canonical_facts)
+    first_host.reporter = "rhsm-conduit"
+    created_first_host = mq_create_or_update_host(first_host, platform_metadata=platform_metadata)
+
+    second_host_canonical_facts = base_canonical_facts.copy()
+    second_host_canonical_facts[changing_id] = generate_uuid()
+    second_host = minimal_host(**second_host_canonical_facts)
+    second_host.reporter = "rhsm-conduit"
+    created_second_host = mq_create_or_update_host(second_host, platform_metadata=platform_metadata)
+
+    assert created_first_host.id == created_second_host.id
 
 
 def test_subscription_manager_id_case_insensitive(mq_create_or_update_host):
