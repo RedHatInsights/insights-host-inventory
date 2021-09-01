@@ -982,6 +982,17 @@ components:
               description: >-
                 Reporting source of the last checkin status, stale_timestamp, and last_check_in.
               type: object
+              additionalProperties:
+                type: object
+                properties:
+                  last_check_in:
+                    type: string
+                    format: date-time
+                  stale_timestamp:
+                    type: string
+                    format: date-time
+                  check_in_succeeded:
+                    type: boolean
           required:
             - account
     HostOut:
