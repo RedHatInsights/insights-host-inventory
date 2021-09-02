@@ -753,13 +753,6 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
-    RhelMachineId:
-      description: >-
-        A Machine ID of a RHEL host.  This field is considered to be a
-        canonical fact.
-      type: string
-      nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
