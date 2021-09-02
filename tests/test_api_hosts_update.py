@@ -50,12 +50,7 @@ def test_update_fields(patch_doc, event_producer_mock, db_create_host, db_get_ho
 
 
 @pytest.mark.parametrize(
-    "canonical_facts",
-    [
-        {"insights_id": generate_uuid()},
-        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid()},
-        {"insights_id": generate_uuid(), "rhel_machine_id": generate_uuid(), "fqdn": generate_uuid()},
-    ],
+    "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
 def test_checkin_canonical_facts(
     event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_post, canonical_facts

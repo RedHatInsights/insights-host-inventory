@@ -131,7 +131,6 @@ def assert_patch_event_is_valid(
             "bios_uuid": host.canonical_facts.get("bios_uuid"),
             "ip_addresses": host.canonical_facts.get("ip_addresses"),
             "mac_addresses": host.canonical_facts.get("mac_addresses"),
-            "rhel_machine_id": host.canonical_facts.get("rhel_machine_id"),
             "satellite_id": host.canonical_facts.get("satellite_id"),
             "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
             "system_profile": host.system_profile_facts,

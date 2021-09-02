@@ -173,7 +173,6 @@ def assert_host_data(actual_host, expected_host, expected_id=None):
         assert actual_host["id"] == expected_id
     assert actual_host["account"] == expected_host.account
     assert actual_host["insights_id"] == expected_host.insights_id
-    assert actual_host["rhel_machine_id"] == expected_host.rhel_machine_id
     assert actual_host["subscription_manager_id"] == expected_host.subscription_manager_id
     assert actual_host["satellite_id"] == expected_host.satellite_id
     assert actual_host["bios_uuid"] == expected_host.bios_uuid

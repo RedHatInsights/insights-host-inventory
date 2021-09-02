@@ -64,7 +64,6 @@ def db_host(**values):
             "bios_uuid": generate_uuid(),
             "fqdn": "test-fqdn",
             "satellite_id": generate_uuid(),
-            "rhel_machine_id": generate_uuid(),
             "ip_addresses": ["10.0.0.1"],
             "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
         },

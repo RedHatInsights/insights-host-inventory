@@ -837,8 +837,6 @@ components:
       - properties:
           insights_id:
             $ref: "#/components/schemas/NonNullableString"
-          rhel_machine_id:
-            $ref: "#/components/schemas/NonNullableString"
           subscription_manager_id:
             $ref: "#/components/schemas/NonNullableString"
           satellite_id:
@@ -859,8 +857,6 @@ components:
         - required:
           - insights_id
         - required:
-          - rhel_machine_id
-        - required:
           - subscription_manager_id
         - required:
           - satellite_id
@@ -880,8 +876,6 @@ components:
       properties:
         insights_id:
           $ref: "#/components/schemas/InsightsId"
-        rhel_machine_id:
-          $ref: "#/components/schemas/RhelMachineId"
         subscription_manager_id:
           $ref: "#/components/schemas/SubscriptionManagerId"
         satellite_id:
