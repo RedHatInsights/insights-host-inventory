@@ -746,6 +746,13 @@ components:
       items:
         type: string
       nullable: false
+    DashedUuid:
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     InsightsId:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
@@ -757,29 +764,16 @@ components:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
         considered a canonical fact.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      # minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      $ref: "#/components/schemas/DashedUuid"
     RhelMachineId:
       description: >-
         A Machine ID of a RHEL host.  This field is considered to be a
         canonical fact.
-      type: string
-      nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
     RhelMachineId_In:
       description: >-
         A Machine ID of a RHEL host.  This field is considered to be a
         canonical fact.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      $ref: "#/components/schemas/DashedUuid"
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
@@ -791,12 +785,7 @@ components:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
         considered to be a canonical fact.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      $ref: "#/components/schemas/DashedUuid"
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
@@ -808,12 +797,7 @@ components:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
         be a canonical fact.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      $ref: "#/components/schemas/DashedUuid"
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
@@ -825,12 +809,7 @@ components:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
         canonical fact.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      $ref: "#/components/schemas/DashedUuid"
     IpAddresses:
       description: >-
         Host’s network IP addresses.  This field is considered to be a
