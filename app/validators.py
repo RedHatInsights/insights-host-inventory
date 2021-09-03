@@ -45,6 +45,17 @@ def verify_mac_address_format(mac_address):
     return bool(pattern.match(mac_address))
 
 
+@draft4_format_checker.checks("date-time")
+def is_custom_date(val):
+    if not val:
+        return True
+    try:
+        match = re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+\d{2}:\d{2})?$", val)
+        return True if match else False
+    except TypeError:
+        return False
+
+
 def check_empty_keys(data):
     if isinstance(data, dict):
         for key, value in data.items():
