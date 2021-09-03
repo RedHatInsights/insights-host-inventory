@@ -753,6 +753,16 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    InsightsId_In:
+      description: >-
+        An ID defined in /etc/insights-client/machine-id. This field is
+        considered a canonical fact.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      # minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     RhelMachineId:
       description: >-
         A Machine ID of a RHEL host.  This field is considered to be a
@@ -760,6 +770,16 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    RhelMachineId_In:
+      description: >-
+        A Machine ID of a RHEL host.  This field is considered to be a
+        canonical fact.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
@@ -767,6 +787,16 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    SubscriptionManagerId_In:
+      description: >-
+        A Red Hat Subcription Manager ID of a RHEL host.  This field is
+        considered to be a canonical fact.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
@@ -774,6 +804,16 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    SatelliteId_In:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host.  This field is considered to
+        be a canonical fact.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
@@ -781,6 +821,16 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    BiosUuid_In:
+      description: >-
+        A UUID of the host machine BIOS.  This field is considered to be a
+        canonical fact.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     IpAddresses:
       description: >-
         Host’s network IP addresses.  This field is considered to be a
@@ -824,6 +874,17 @@ components:
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
+    ProviderId_In:
+      description: >-
+        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is one of the canonical facts and does not
+        work without provider_type.
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     ProviderType:
       description: >-
         Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
@@ -833,26 +894,26 @@ components:
       example: aws
     CanonicalFactsIn:
       allOf:
-      - $ref: "#/components/schemas/CanonicalFactsOut"
+      # - $ref: "#/components/schemas/CanonicalFactsOut"
       - properties:
           insights_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/InsightsId_In"
           rhel_machine_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/RhelMachineId_In"
           subscription_manager_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/SubscriptionManagerId_In"
           satellite_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/SatelliteId_In"
           bios_uuid:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/BiosUuid_In"
           ip_addresses:
-            $ref: "#/components/schemas/NonNullableStringArray"
+            $ref: "#/components/schemas/NonNullableString"
           fqdn:
             $ref: "#/components/schemas/NonNullableString"
           mac_addresses:
-            $ref: "#/components/schemas/NonNullableStringArray"
-          provider_id:
             $ref: "#/components/schemas/NonNullableString"
+          provider_id:
+            $ref: "#/components/schemas/ProviderId_In"
           provider_type:
             $ref: "#/components/schemas/NonNullableString"
       - anyOf:
