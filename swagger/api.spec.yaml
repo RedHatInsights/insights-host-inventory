@@ -874,17 +874,6 @@ components:
       type: string
       nullable: true
       example: i-05d2313e6b9a42b16
-    ProviderId_In:
-      description: >-
-        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
-        GCP, IBM etc. This field is one of the canonical facts and does not
-        work without provider_type.
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     ProviderType:
       description: >-
         Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
@@ -894,7 +883,6 @@ components:
       example: aws
     CanonicalFactsIn:
       allOf:
-      # - $ref: "#/components/schemas/CanonicalFactsOut"
       - properties:
           insights_id:
             $ref: "#/components/schemas/InsightsId_In"
@@ -913,7 +901,7 @@ components:
           mac_addresses:
             $ref: "#/components/schemas/NonNullableString"
           provider_id:
-            $ref: "#/components/schemas/ProviderId_In"
+            $ref: "#/components/schemas/NonNullableString"
           provider_type:
             $ref: "#/components/schemas/NonNullableString"
       - anyOf:
