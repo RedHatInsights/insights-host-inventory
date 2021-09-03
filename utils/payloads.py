@@ -557,7 +557,6 @@ def build_host_chunk():
     # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
         "account": account,
-<<<<<<< HEAD
         "insights_id": random_uuid(),
         # the following 3 tests invalid/valid inputs.
         # "insights_id": uuid.uuid4().hex,
@@ -570,21 +569,6 @@ def build_host_chunk():
         "ansible_host": "host1.mydomain.com",
         "provider_type": "aws",
         "provider_id": random_uuid(),
-=======
-        # "insights_id": random_uuid(),
-        "insights_id": "asdfbe",
-        # "insights_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
-        # "bios_uuid": random_uuid(),
-        # "fqdn": fqdn,
-        # "ansible_host": "host1.mydomain.com",
-        # "provider_type": " ",
-        "provider_type": "aws",
-        # "provider_type": "Alibaba",
-        # "provider_id": "whoopie-05d2313e6b9a42b16" + random_uuid()[:6],
-        "provider_id": random_uuid(),
-        # "provider_id": "0123456789012345678901234567890123456789",
-        # "provider_id": "",
->>>>>>> 4a9f4be (start of uuid ingestion)
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
