@@ -837,7 +837,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             {
                 "account": "someacct",
-                "insights_id": str(uuid4()),  # longer than 36 chars
+                "insights_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
@@ -851,7 +851,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             {
                 "account": "someacct",
-                "subscription_manager_id": uuid4().hex + "testtestteststests",  # uuid witout dashes is invalid
+                "subscription_manager_id": uuid4().hex,  # uuid witout dashes not allowed for dedup control
                 # "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
