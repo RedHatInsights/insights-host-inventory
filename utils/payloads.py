@@ -558,8 +558,10 @@ def build_host_chunk():
     # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
         "account": account,
-        "insights_id": random_uuid(),
+        # "insights_id": random_uuid(),
+        # "insights_id": uuid.uuid4().hex,
         # "insights_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        "insights_id": "1b36b20f7fa04454a6d2008294e06378",
         "bios_uuid": random_uuid(),
         "satellite_id": random_uuid(),
         "rhel_machine_id": random_uuid(),
@@ -585,7 +587,7 @@ def build_host_chunk():
         # "ip_addresses": None,
         "ip_addresses": ["10.0.0.2", "10.10.0.1"],
         "mac_addresses": ["c2:00:d0:c8:61:01"],
-        "subscription_manager_id": random_uuid(),
+        "subscription_manager_id": uuid.uuid4().hex,
         # "subscription_manager_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),

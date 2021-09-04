@@ -56,6 +56,13 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
      - account number
     """
 
+    # TODO: check the canonical facts with uuid values have version 4 format, i.e. dashes
+    # these 'insights_id', 'bios_uuid', satellite_id, or subscription_manager_id
+    # check each using:
+    #     if not '-' in <CF>:
+    #        CF = uuid.UUID(CF)
+    # the above is based on assumption that the uuid value valid.
+
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)
 

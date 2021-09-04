@@ -835,6 +835,33 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
+            {
+                "account": "someacct",
+                "insights_id": str(uuid4()),  # longer than 36 chars
+                "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
+                "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
+                "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
+                "subscription_manager_id": uuid4().hex + "testtestteststests",  # uuid witout dashes is invalid
+                # "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
+                "satellite_id": None,  # test for null
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
         )
         for inp in inputs:
             with self.subTest(input=inp):
