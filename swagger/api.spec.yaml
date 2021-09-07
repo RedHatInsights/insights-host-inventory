@@ -707,8 +707,6 @@ components:
       type: array
       items:
         type: string
-        nullable: False
-      nullable: false
     InsightsId:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
