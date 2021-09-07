@@ -760,6 +760,8 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    # The schemas, with names like "InsightsId_In", have been added for controlling uuid format used by
+    # canonical_facts.  Not controlling uuid formats lead to the creation of multiple hosts with identicle uuids.
     InsightsId_In:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
@@ -874,11 +876,11 @@ components:
           bios_uuid:
             $ref: "#/components/schemas/BiosUuid_In"
           ip_addresses:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/NonNullableStringArray"
           fqdn:
             $ref: "#/components/schemas/NonNullableString"
           mac_addresses:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/NonNullableStringArray"
           provider_id:
             $ref: "#/components/schemas/NonNullableString"
           provider_type:

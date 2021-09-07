@@ -11,7 +11,7 @@ def verify_uuid_format(uuid_str):
         return False
 
     try:
-        # uuid must have '-' for consistency and dedup control.
+        # uuid must have '-' for consistency and better dedup control.
         return uuid.UUID(uuid_str) and "-" in uuid_str is not None
     except Exception:
         pass

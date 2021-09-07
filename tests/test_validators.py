@@ -6,10 +6,9 @@ from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
 
-# @pytest.mark.parametrize("uuid", ["4a8fb994-57fe-4dbb-ad2a-9e922560b6c1", "4a8fb99457fe4dbbad2a9e922560b6c1"])
-@pytest.mark.parametrize("uuid", ["4a8fb994-57fe-4dbb-ad2a-9e922560b6c1"])
-def test_valid_uuid(uuid):
-    assert verify_uuid_format(uuid) is True
+# A valid UUID for canonical_facts must include hyphens.
+def test_valid_uuid():
+    assert verify_uuid_format("4a8fb994-57fe-4dbb-ad2a-9e922560b6c1") is True
 
 
 @pytest.mark.parametrize(
@@ -18,6 +17,8 @@ def test_valid_uuid(uuid):
         "123456",
         "",
         "4a8fb994-57fe-4dbb-ad2a-9e922560b6c1DEADBEEF",
+        "4a8fb994a57feb4dbbcad2ac9e922560b6c1DEADBEEF",
+        "4a8fb994a57feb4dbbcad2ac9e922560b6c1DEADBEEFxxxxxx",
         "4a8fb99457fe4dbbad2a9e922560b6c1DEADBEEF",
         "4a8fb99457fe4dbbad2a9e922560b6c1",
         None,
