@@ -760,7 +760,7 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
-    # The schemas, with names like "InsightsId_In", have been added for controlling uuid format used by
+    # The schemas, with names ending in "_In", have been added for controlling uuid format used by
     # canonical_facts.  Not controlling uuid formats lead to the creation of multiple hosts with identicle uuids.
     InsightsId_In:
       description: >-
