@@ -875,11 +875,11 @@ components:
           bios_uuid:
             $ref: "#/components/schemas/BiosUuid_In"
           ip_addresses:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/NonNullableStringArray"
           fqdn:
             $ref: "#/components/schemas/NonNullableString"
           mac_addresses:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/NonNullableStringArray"
           provider_id:
             $ref: "#/components/schemas/NonNullableString"
           provider_type:
