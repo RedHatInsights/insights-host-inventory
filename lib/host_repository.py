@@ -79,7 +79,7 @@ def find_existing_host(identity, canonical_facts):
 def find_existing_host_by_id(identity, host_id):
     query = Host.query.filter((Host.account == identity.account_number) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query).order_by(Host.modified_on).first()
+    return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
 @metrics.find_host_using_elevated_ids.time()
@@ -93,7 +93,9 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
 
         for del_key in elevated_keys:
             existing_host = (
-                multiple_canonical_facts_host_query(identity, elevated_facts, False).order_by(Host.modified_on).first()
+                multiple_canonical_facts_host_query(identity, elevated_facts, False)
+                .order_by(Host.modified_on.desc())
+                .first()
             )
             if existing_host:
                 return existing_host
@@ -131,7 +133,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
 
     host = (
         multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False)
-        .order_by(Host.modified_on)
+        .order_by(Host.modified_on.desc())
         .first()
     )
 
