@@ -7,13 +7,13 @@ from datetime import timedelta
 from datetime import timezone
 
 # complete system identity
-# IDENTITY = {
-#     "account_number": "test",
-#     "type": "System",
-#     "auth_type": "cert-auth",
-#     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#     "internal": {"org_id": "3340851", "auth_time": 6300},
-# }
+IDENTITY = {
+    "account_number": "test",
+    "type": "System",
+    "auth_type": "cert-auth",
+    "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
+    "internal": {"org_id": "3340851", "auth_time": 6300},
+}
 
 # system identity: invalid or incomplete for testing
 # IDENTITY = {
@@ -25,12 +25,12 @@ from datetime import timezone
 # }
 
 # complete user identity
-IDENTITY = {
-    "account_number": "test",
-    "type": "User",
-    "auth_type": "basic-auth",
-    "user": {"email": "tuser@redhat.com", "first_name": "test"},
-}
+# IDENTITY = {
+#     "account_number": "test",
+#     "type": "User",
+#     "auth_type": "basic-auth",
+#     "user": {"email": "tuser@redhat.com", "first_name": "test"},
+# }
 
 # incomplete or invalid user identity for testing
 # IDENTITY = {
@@ -555,17 +555,21 @@ def random_uuid():
 def build_host_chunk():
     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
+    # fqdn = "fred"
+    # fqdn = "george"
     # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
         "account": account,
-        # "insights_id": random_uuid(),
-        # "bios_uuid": random_uuid(),
-        # "fqdn": fqdn,
+        # "insights_id": "0dafde35-118c-4d89-8d9c-aca841d9a942",
+        # "bios_uuid": "9f962a0a-6b2f-4e6c-a4b7-6355e7c9ba4c",
+        "insights_id": random_uuid(),
+        "bios_uuid": random_uuid(),
+        "fqdn": fqdn,
         # "ansible_host": "host1.mydomain.com",
         # "provider_type": " ",
-        "provider_type": "aws",
+        # "provider_type": "aws",
         # "provider_type": "Alibaba",
-        "provider_id": "i-05d2313e6b9a42b16",
+        # "provider_id": "i-05d2313e6b9a42b16",
         # "provider_id": random_uuid(),
         # "provider_id": "",
         "display_name": fqdn,
@@ -581,12 +585,12 @@ def build_host_chunk():
         # "ip_addresses": None,
         # "ip_addresses": ["1",],
         # "mac_addresses": None,
-        # "subscription_manager_id": random_uuid(),
+        "subscription_manager_id": random_uuid(),
         # "subscription_manager_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         # "reporter": "rhsm-conduit",
-        "reporter": "me",
+        "reporter": "puptoo",
     }
     return payload
 
