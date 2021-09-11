@@ -60,8 +60,8 @@ def _excepthook(logger, type, value, traceback):
 @synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
 
-    # query = session.query(Host)
-    query = session.query(Host.id, Host.canonical_facts)
+    query = session.query(Host)
+    # query = session.query(Host.id, Host.canonical_facts)
 
     update_count = 0
     events = delete_duplicate_hosts(

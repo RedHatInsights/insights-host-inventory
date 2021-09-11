@@ -1,16 +1,22 @@
-# from kafka.errors import KafkaTimeoutError
+from sqlalchemy import and_
+from sqlalchemy import not_
+from sqlalchemy import or_
+
+from app.auth.identity import AuthType
+from app.auth.identity import Identity
+from app.auth.identity import IdentityType
 from app.models import Host
 
-# from lib.host_repository import ELEVATED_CANONICAL_FACT_FIELDS as ecff
+# from app.logging import get_logger
 
-# from lib.metrics import synchronize_host_count
 
-# from app.culling import Timestamps
-# from app.queue.events import build_event
-# from app.queue.events import EventType
-# from app.queue.events import message_headers
-# from app.queue.queue import EGRESS_HOST_FIELDS
-# from app.serialization import serialize_host
+# complete user identity
+IDENTITY = {
+    "account_number": "test",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "tuser@redhat.com", "first_name": "test"},
+}
 
 __all__ = ("delete_duplicate_hosts",)
 
@@ -19,55 +25,11 @@ unique_list = []
 duplicate_list = []
 
 
-def unique(host_list):
-
-    # traverse for all elements
-    for host in host_list:
-        # check if exists in unique_list or not
-        if str(host.id) not in unique_list:
-            unique_list.append(str(host.id))
-
-
-def multiple_canonical_facts_host_query(host, canonical_facts):
-    print("Entering multiple_canonical_facts_host_query")
-    print(f"Canonical facts: {canonical_facts}")
-    is_unique = False
-    if host not in unique_list:
-        if len(unique_list) > 0:
-            print("Unique list has at least a host")
-        else:
-            unique_list.append(host)
-            is_unique = True
-    # check if any of the canonical_facts are similar
-    if not is_unique:
-        for fact in canonical_facts:
-            for unique_host in unique_list:
-                if fact in unique_host[1].keys():
-                    print(f"Fact being checked: {fact}")
-                    val = unique_host[1].get(fact)
-                    if host[1][fact] == val:
-                        print("this host is duplicate")
-                        duplicate_list.append(host)
-    return is_unique
-
-
-def find_host_by_elevated_facts(host, all_hosts):
-    canonical_facts = host[1]
-    elevated_facts = {
-        key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()
-    }
-    if elevated_facts:
-        elevated_keys = [key for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()]
-        elevated_keys.reverse()
-
-        for del_key in elevated_keys:
-            existing_host = multiple_canonical_facts_host_query(host, elevated_facts)
-            if existing_host:
-                return existing_host
-
-            del elevated_facts[del_key]
-
-    return None
+def unique(host):
+    # Use id and account to create unique hosts across all accounts.
+    unique_host = {"id": host.id, "account": host.account}
+    if unique_host not in unique_list:
+        unique_list.append(unique_host)
 
 
 # The order is important, particularly the first 3 which are elevated facts with provider_id being the highest priority
@@ -83,62 +45,134 @@ CANONICAL_FACTS = (
 )
 
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
+ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
+
+
+def update_query_for_owner_id(identity, query):
+    # kafka based requests have dummy identity for working around the identity requirement for CRUD operations
+    # TODO: 'identity.auth_type is not 'classic-proxy' is a temporary fix. Remove when workaround is no longer needed
+    print("identity auth type: %s", identity.auth_type)
+    if identity and identity.identity_type == IdentityType.SYSTEM and identity.auth_type != AuthType.CLASSIC:
+        return query.filter(and_(Host.system_profile_facts["owner_id"].as_string() == identity.system["cn"]))
+    else:
+        return query
+
+
+def matches_at_least_one_canonical_fact_filter(canonical_facts):
+    # Contains at least one correct CF value
+    # Correct value = contains key:value
+    # -> OR( *correct values )
+    filter_ = ()
+    for key, value in canonical_facts.items():
+        filter_ += (Host.canonical_facts.contains({key: value}),)
+
+    return or_(*filter_)
+
+
+def contains_no_incorrect_facts_filter(canonical_facts):
+    # Does not contain any incorrect CF values
+    # Incorrect value = AND( key exists, NOT( contains key:value ) )
+    # -> NOT( OR( *Incorrect values ) )
+    filter_ = ()
+    for key, value in canonical_facts.items():
+        filter_ += (
+            and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),  # noqa: W601
+        )
+
+    return not_(or_(*filter_))
+
+
+def multiple_canonical_facts_host_query(identity, canonical_facts, query, restrict_to_owner_id=True):
+    # query = Host.query.filter(
+    query = query.filter(
+        (Host.account == identity.account_number)
+        & (contains_no_incorrect_facts_filter(canonical_facts))
+        & (matches_at_least_one_canonical_fact_filter(canonical_facts))
+    )
+    if restrict_to_owner_id:
+        query = update_query_for_owner_id(identity, query)
+    return query
+
+
+# Get hosts by the highest elevated canonical fact present
+def find_host_by_multiple_elevated_canonical_facts(identity, canonical_facts, query):
+    """
+    First check if multiple hosts are returned.  If they are then retain by the highest
+    priority elevated facts
+    """
+    print("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
+
+    if canonical_facts.get("provider_id"):
+        if canonical_facts.get("subscription_manager_id"):
+            canonical_facts.pop("subscription_manager_id")
+        if canonical_facts.get("insights_id"):
+            canonical_facts.pop("insights_id")
+    elif canonical_facts.get("insights_id"):
+        if canonical_facts.get("subscription_manager_id"):
+            canonical_facts.pop("subscription_manager_id")
+
+    hosts = (
+        multiple_canonical_facts_host_query(identity, canonical_facts, query, restrict_to_owner_id=False)
+        .order_by(Host.modified_on.desc())
+        .all()
+    )
+
+    if hosts:
+        print("Found existing host using canonical_fact match: %s", hosts)
+
+        return hosts
+
+
+def find_host_by_multiple_canonical_facts(identity, canonical_facts, query):
+    """
+    Returns first match for a host containing given canonical facts
+    """
+    print("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
+
+    hosts = (
+        multiple_canonical_facts_host_query(identity, canonical_facts, query, restrict_to_owner_id=False)
+        .order_by(Host.modified_on.desc())
+        .all()
+    )
+
+    if hosts:
+        print("Found existing host using canonical_fact match: %s", hosts)
+
+    return hosts
+
+
+def get_elevated_canonical_facts(canonical_facts):
+    elevated_facts = {
+        key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()
+    }
+    return elevated_facts
 
 
 def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
+    identity = Identity(IDENTITY)
+
     query = select_query.order_by(Host.id)
     all_hosts = query.limit(chunk_size).all()
 
-    host_count = 0
     for host in all_hosts:
-        host_count += 1
-        print(f"host counted: {host_count}")
-        result = find_host_by_elevated_facts(host, all_hosts)
-        if result:
-            print(f"Host found: {host.id}")
-            print(f"Unique hosts found: {len(unique_list)}"),
-        print(f"Number of duplicate hosts found: {len(duplicate_list)}")
-    # delete hosts which are not unique
-    for host in all_hosts:
-        if str(host[0]) not in unique_list:
-            # delete this host
-            print(f"Delete host: {host.id}")
+        print(f"Canonical facts: {host.canonical_facts}")
+        elevated_facts = get_elevated_canonical_facts(host.canonical_facts)
+        print(f"elevated canonical facts: {elevated_facts}")
+        if elevated_facts:
+            existing_hosts = find_host_by_multiple_elevated_canonical_facts(identity, elevated_facts, query)
         else:
-            print(f"Host {str(host[0])} is unique!")
-    # load next chunk using keyset pagination
-    all_hosts = query.filter(Host.id > all_hosts[-1].id).limit(chunk_size).all()
+            existing_hosts = find_host_by_multiple_canonical_facts(identity, host.canonical_facts, query)
 
+        print(f"Existing host: {existing_hosts}")
+        unique(existing_hosts[0])
+        print(f"Unique hosts count: {len(unique_list)}")
+        print(f"All hosts count: {len(all_hosts)}")
 
-# Starting code ####
-# def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
-#     query = select_query.order_by(Host.id)
-#     all_hosts = query.limit(chunk_size).all()
-
-#     for cf in CANONICAL_FACTS:
-#         query = select_query.order_by(Host.id).filter(Host.canonical_facts[cf].isnot(None))
-#         # fq = query.filter(Host.canonical_facts['subscription_manager_id'].isnot(None))
-#         host_list = query.limit(chunk_size).all()
-
-#         print(f"Canonical fact: {cf}")
-#         print(f"Total number of hosts in DB: {len(host_list)}")
-
-#         print(f"Unique hosts found: {len(unique_list)}"),
-#         if len(host_list) > 0 and not interrupt():
-#             unique(host_list)
-#             for host in host_list:
-#                 yield host.id
-#         try:
-#             # pace the events production speed as flush completes sending all buffered records.
-#             event_producer._kafka_producer.flush(300)
-#         except KafkaTimeoutError:
-#             raise KafkaTimeoutError(f"KafkaTimeoutError: failure to flush {chunk_size} records within 300 seconds")
-
-#     # delete hosts which are not unique
-#     for host in all_hosts:
-#         if str(host[0]) not in unique_list:
-#             # delete this host
-#             print(f"Delete host: {host.id}")
-#         else:
-#             print(f"Host {str(host[0])} is unique!")
-#     # load next chunk using keyset pagination
-#     all_hosts = query.filter(Host.id > all_hosts[-1].id).limit(chunk_size).all()
+    for host in all_hosts:
+        hostIdAccount = {"id": host.id, "account": host.account}
+        if hostIdAccount not in unique_list:
+            print(f"Duplicate host: {host.id}")
+            print(f"Duplicate canonical_facts: {host.canonical_facts}")
+            duplicate_list.append(hostIdAccount)
+    print(f"Duplicate hosts count: {len(duplicate_list)}")
+    print.info("Done!!!")
