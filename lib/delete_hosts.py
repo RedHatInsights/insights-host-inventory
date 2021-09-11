@@ -148,10 +148,17 @@ def get_elevated_canonical_facts(canonical_facts):
     return elevated_facts
 
 
+def _delete_host(query, host):
+    delete_query = query.filter(Host.id == host["id"].hex)
+    delete_query.delete(synchronize_session="fetch")
+    delete_query.session.commit()
+
+
 def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
     identity = Identity(IDENTITY)
 
-    query = select_query.order_by(Host.id)
+    # query = select_query.order_by(Host.id)
+    query = select_query
     all_hosts = query.limit(chunk_size).all()
 
     for host in all_hosts:
@@ -175,4 +182,8 @@ def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, int
             print(f"Duplicate canonical_facts: {host.canonical_facts}")
             duplicate_list.append(hostIdAccount)
     print(f"Duplicate hosts count: {len(duplicate_list)}")
+
+    # delete duplicate hosts
+    for host in duplicate_list:
+        _delete_host(query, host)
     print.info("Done!!!")
