@@ -18,19 +18,17 @@ from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
-from lib.delete_hosts import delete_duplicate_hosts
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
-from lib.metrics import synchronize_fail_count
-from lib.metrics import synchronize_host_count
+from lib.host_prune_duplicates import delete_duplicate_hosts
+from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "duplicate_hosts_pruner"
 LOGGER_NAME = "duplicate_hosts_pruner"
 COLLECTED_METRICS = (
-    synchronize_host_count,
-    synchronize_fail_count,
+    delete_duplicate_host_count,
     event_producer_failure,
     event_producer_success,
     event_serialization_time,
@@ -57,11 +55,9 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host synchronizer failed", exc_info=value)
 
 
-@synchronize_fail_count.count_exceptions()
 def run(config, logger, session, event_producer, shutdown_handler):
 
     query = session.query(Host)
-    # query = session.query(Host.id, Host.canonical_facts)
 
     update_count = 0
     events = delete_duplicate_hosts(

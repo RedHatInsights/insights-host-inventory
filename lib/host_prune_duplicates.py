@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -6,6 +8,7 @@ from app.auth.identity import AuthType
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.models import Host
+from lib.metrics import delete_duplicate_host_count
 
 # from app.logging import get_logger
 
@@ -20,7 +23,7 @@ IDENTITY = {
 
 __all__ = ("delete_duplicate_hosts",)
 
-# initialize a null list
+# initialize a empty lists
 unique_list = []
 duplicate_list = []
 
@@ -33,16 +36,7 @@ def unique(host):
 
 
 # The order is important, particularly the first 3 which are elevated facts with provider_id being the highest priority
-CANONICAL_FACTS = (
-    "provider_id",
-    "insights_id",
-    "subscription_manager_id",
-    "fqdn",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "mac_addresses",
-)
+CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
 
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 ALL_STALENESS_STATES = ("fresh", "stale", "stale_warning", "unknown")
@@ -100,7 +94,7 @@ def find_host_by_multiple_elevated_canonical_facts(identity, canonical_facts, qu
     First check if multiple hosts are returned.  If they are then retain by the highest
     priority elevated facts
     """
-    print("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
+    print("find_host_by_multiple_elevated_canonical_facts(%s)", canonical_facts)
 
     if canonical_facts.get("provider_id"):
         if canonical_facts.get("subscription_manager_id"):
@@ -120,7 +114,14 @@ def find_host_by_multiple_elevated_canonical_facts(identity, canonical_facts, qu
     if hosts:
         print("Found existing host using canonical_fact match: %s", hosts)
 
-        return hosts
+    unique(hosts[0])
+
+
+def trim_extra_facts(needed_fact, canonical_facts):
+    for fact in CANONICAL_FACTS:
+        if fact in canonical_facts and not fact == needed_fact:
+            _ = canonical_facts.pop(fact)
+    return canonical_facts
 
 
 def find_host_by_multiple_canonical_facts(identity, canonical_facts, query):
@@ -129,16 +130,18 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts, query):
     """
     print("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
-    hosts = (
-        multiple_canonical_facts_host_query(identity, canonical_facts, query, restrict_to_owner_id=False)
-        .order_by(Host.modified_on.desc())
-        .all()
-    )
+    for fact in canonical_facts:
+        needed_cf = trim_extra_facts(fact, deepcopy(canonical_facts))
+        hosts = (
+            multiple_canonical_facts_host_query(identity, needed_cf, query, restrict_to_owner_id=False)
+            .order_by(Host.modified_on.desc())
+            .all()
+        )
 
-    if hosts:
-        print("Found existing host using canonical_fact match: %s", hosts)
+        unique(hosts[0])
 
-    return hosts
+        if hosts:
+            print("Found existing host using canonical_fact match: %s", hosts)
 
 
 def get_elevated_canonical_facts(canonical_facts):
@@ -146,6 +149,11 @@ def get_elevated_canonical_facts(canonical_facts):
         key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()
     }
     return elevated_facts
+
+
+def get_unelevated_canonical_facts(canonical_facts):
+    unelevated_facts = {key: canonical_facts[key] for key in CANONICAL_FACTS if key in canonical_facts.keys()}
+    return unelevated_facts
 
 
 def _delete_host(query, host):
@@ -157,7 +165,6 @@ def _delete_host(query, host):
 def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, interrupt=lambda: False):
     identity = Identity(IDENTITY)
 
-    # query = select_query.order_by(Host.id)
     query = select_query
     all_hosts = query.limit(chunk_size).all()
 
@@ -166,12 +173,13 @@ def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, int
         elevated_facts = get_elevated_canonical_facts(host.canonical_facts)
         print(f"elevated canonical facts: {elevated_facts}")
         if elevated_facts:
-            existing_hosts = find_host_by_multiple_elevated_canonical_facts(identity, elevated_facts, query)
+            find_host_by_multiple_elevated_canonical_facts(identity, elevated_facts, query)
         else:
-            existing_hosts = find_host_by_multiple_canonical_facts(identity, host.canonical_facts, query)
+            unelevated_facts = get_unelevated_canonical_facts(host.canonical_facts)
+            print(f"unelevated canonical facts: {unelevated_facts}")
+            if unelevated_facts:
+                find_host_by_multiple_canonical_facts(identity, unelevated_facts, query)
 
-        print(f"Existing host: {existing_hosts}")
-        unique(existing_hosts[0])
         print(f"Unique hosts count: {len(unique_list)}")
         print(f"All hosts count: {len(all_hosts)}")
 
@@ -184,6 +192,11 @@ def delete_duplicate_hosts(select_query, event_producer, chunk_size, config, int
     print(f"Duplicate hosts count: {len(duplicate_list)}")
 
     # delete duplicate hosts
-    for host in duplicate_list:
-        _delete_host(query, host)
-    print.info("Done!!!")
+    while len(duplicate_list) > 0 and not interrupt():
+        for host in duplicate_list:
+            _delete_host(query, host)
+            duplicate_list.remove(host)
+            delete_duplicate_host_count.inc()
+
+            yield host["id"]
+        print("Done deleting duplicate hosts!!!")
