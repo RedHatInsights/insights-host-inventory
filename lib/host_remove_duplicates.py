@@ -64,23 +64,23 @@ def multiple_canonical_facts_host_query(canonical_facts, query):
 
 
 # Get hosts by the highest elevated canonical fact present
-def find_host_by_multiple_elevated_canonical_facts(canonical_facts, query, logger):
+def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     """
     First check if multiple hosts are returned.  If they are then retain the with the highest
     priority elevated fact
     """
-    logger.debug("find_host_by_multiple_elevated_canonical_facts(%s)", canonical_facts)
+    logger.debug("find_host_by_elevated_canonical_facts(%s)", elevated_cfs)
 
-    if canonical_facts.get("provider_id"):
-        if canonical_facts.get("subscription_manager_id"):
-            canonical_facts.pop("subscription_manager_id")
-        if canonical_facts.get("insights_id"):
-            canonical_facts.pop("insights_id")
-    elif canonical_facts.get("insights_id"):
-        if canonical_facts.get("subscription_manager_id"):
-            canonical_facts.pop("subscription_manager_id")
+    if elevated_cfs.get("provider_id"):
+        if elevated_cfs.get("subscription_manager_id"):
+            elevated_cfs.pop("subscription_manager_id")
+        if elevated_cfs.get("insights_id"):
+            elevated_cfs.pop("insights_id")
+    elif elevated_cfs.get("insights_id"):
+        if elevated_cfs.get("subscription_manager_id"):
+            elevated_cfs.pop("subscription_manager_id")
 
-    hosts = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).all()
+    hosts = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).all()
 
     if hosts:
         logger.debug("Found existing host using canonical_fact match: %s", hosts)
@@ -96,11 +96,11 @@ def trim_extra_facts(needed_fact, canonical_facts):
 
 
 # this function is called when no elevated canonical facts are present in the host
-def find_host_by_multiple_canonical_facts(canonical_facts, query, logger):
+def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     """
     Returns all matches for a host containing given canonical facts
     """
-    logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
+    logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
     for fact in canonical_facts:
         needed_cf = trim_extra_facts(fact, deepcopy(canonical_facts))
@@ -119,9 +119,9 @@ def get_elevated_canonical_facts(canonical_facts):
     return elevated_facts
 
 
-def get_unelevated_canonical_facts(canonical_facts):
-    unelevated_facts = {key: canonical_facts[key] for key in CANONICAL_FACTS if key in canonical_facts.keys()}
-    return unelevated_facts
+def get_regular_canonical_facts(canonical_facts):
+    regular_cfs = {key: canonical_facts[key] for key in CANONICAL_FACTS if key in canonical_facts.keys()}
+    return regular_cfs
 
 
 def _delete_host(query, host):
@@ -137,15 +137,15 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
     for host in all_hosts:
         logger.info(f"Host ID: {host.id}")
         logger.info(f"Canonical facts: {host.canonical_facts}")
-        elevated_facts = get_elevated_canonical_facts(host.canonical_facts)
-        logger.info(f"elevated canonical facts: {elevated_facts}")
-        if elevated_facts:
-            find_host_by_multiple_elevated_canonical_facts(elevated_facts, query, logger)
+        elevated_cfs = get_elevated_canonical_facts(host.canonical_facts)
+        logger.info(f"elevated canonical facts: {elevated_cfs}")
+        if elevated_cfs:
+            find_host_by_elevated_canonical_facts(elevated_cfs, query, logger)
         else:
-            unelevated_facts = get_unelevated_canonical_facts(host.canonical_facts)
-            logger.info(f"unelevated canonical facts: {unelevated_facts}")
-            if unelevated_facts:
-                find_host_by_multiple_canonical_facts(unelevated_facts, query, logger)
+            regular_cfs = get_regular_canonical_facts(host.canonical_facts)
+            logger.info(f"regular canonical facts: {regular_cfs}")
+            if regular_cfs:
+                find_host_by_regular_canonical_facts(regular_cfs, query, logger)
 
         logger.info(f"Unique hosts count: {len(unique_list)}")
         logger.info(f"All hosts count: {len(all_hosts)}")

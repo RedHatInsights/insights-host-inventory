@@ -14,9 +14,6 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.queue.event_producer import EventProducer
-from app.queue.metrics import event_producer_failure
-from app.queue.metrics import event_producer_success
-from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
@@ -27,12 +24,7 @@ __all__ = ("main", "run")
 
 PROMETHEUS_JOB = "duplicate_hosts_remover"
 LOGGER_NAME = "duplicate_hosts_remover"
-COLLECTED_METRICS = (
-    delete_duplicate_host_count,
-    event_producer_failure,
-    event_producer_success,
-    event_serialization_time,
-)
+COLLECTED_METRICS = (delete_duplicate_host_count,)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
