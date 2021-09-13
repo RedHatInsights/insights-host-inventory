@@ -29,7 +29,6 @@ class SerializedHostSchema(Schema):
     ansible_host = fields.Str()
     account = fields.Str(required=True)
     insights_id = fields.Str()
-    rhel_machine_id = fields.Str()
     subscription_manager_id = fields.Str()
     satellite_id = fields.Str()
     fqdn = fields.Str()
