@@ -523,7 +523,6 @@ def build_qpc_payload():
         "mac_addresses": ["00:50:56:9e:bb:eb"],
         "insights_id": "137c9d58-941c-4bb9-9426-7879a367c23b",
         "subscription_manager_id": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
-        "rhel_machine_id": "e2c9d65ad21c4c7092ffb97a2ca744f3",
         "fqdn": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "facts": [
             {

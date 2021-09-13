@@ -717,7 +717,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -876,7 +875,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
     def test_with_all_common_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -966,7 +964,6 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "ansible_host": "some ansible host",
             "account": "some acct",
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -1246,7 +1243,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
     def test_with_all_fields(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -1338,7 +1334,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         expected = {
             **host_init_data["canonical_facts"],
             "insights_id": None,
-            "rhel_machine_id": None,
             "subscription_manager_id": None,
             "satellite_id": None,
             "bios_uuid": None,
@@ -1517,7 +1512,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
     def test_values_are_stored_unchanged(self):
         input = {
             "insights_id": self._randomly_formatted_uuid(uuid4()),
-            "rhel_machine_id": self._randomly_formatted_uuid(uuid4()),
             "subscription_manager_id": self._randomly_formatted_uuid(uuid4()),
             "satellite_id": self._randomly_formatted_uuid(uuid4()),
             "bios_uuid": self._randomly_formatted_uuid(uuid4()),
@@ -1531,7 +1525,6 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
     def test_unknown_fields_are_rejected(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -1545,13 +1538,7 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
 
     def test_empty_fields_are_rejected(self):
         canonical_facts = {"fqdn": "some fqdn"}
-        input = {
-            **canonical_facts,
-            "insights_id": "",
-            "rhel_machine_id": None,
-            "ip_addresses": [],
-            "mac_addresses": tuple(),
-        }
+        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
 
@@ -1560,7 +1547,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
     def test_contains_all_values_unchanged(self):
         canonical_facts = {
             "insights_id": str(uuid4()),
-            "rhel_machine_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
             "bios_uuid": str(uuid4()),
@@ -1575,7 +1561,6 @@ class SerializationSerializeCanonicalFactsTestCase(TestCase):
     def test_missing_fields_are_filled_with_none(self):
         canonical_fact_fields = (
             "insights_id",
-            "rhel_machine_id",
             "subscription_manager_id",
             "satellite_id",
             "bios_uuid",

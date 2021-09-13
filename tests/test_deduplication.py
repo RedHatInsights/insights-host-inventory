@@ -10,7 +10,7 @@ from tests.helpers.test_utils import minimal_host
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
     fqdn = "fred.flintstone.com"
-    canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid(), "rhel_machine_id": generate_uuid()}
+    canonical_facts = {"fqdn": fqdn, "bios_uuid": generate_uuid()}
 
     host = minimal_db_host(canonical_facts=canonical_facts)
     created_host = db_create_host(host=host)
@@ -26,7 +26,6 @@ def test_find_host_using_superset_canonical_fact_match(db_create_host):
 
     # Create the superset of canonical facts to search by
     superset_canonical_facts = canonical_facts.copy()
-    superset_canonical_facts["rhel_machine_id"] = generate_uuid()
     superset_canonical_facts["satellite_id"] = generate_uuid()
 
     host = minimal_db_host(canonical_facts=canonical_facts)
