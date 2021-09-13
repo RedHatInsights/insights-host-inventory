@@ -64,6 +64,17 @@ def test_find_host_canonical_fact_superset_match_different_elevated_ids(db_creat
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
 
 
+def test_find_correct_host_when_similar_canonical_facts(db_create_host):
+    cf1 = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
+    cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
+    cf3 = {"fqdn": cf1["fqdn"], "bios_uuid": cf1["bios_uuid"], "insights_id": cf2["insights_id"]}
+
+    db_create_host(host=minimal_db_host(canonical_facts=cf1))
+    created_host_2 = db_create_host(host=minimal_db_host(canonical_facts=cf2))
+
+    assert_host_exists_in_db(created_host_2.id, cf3)
+
+
 def test_no_merge_when_no_match(mq_create_or_update_host):
     wrapper = minimal_host(fqdn="test_fqdn", insights_id=generate_uuid())
     del wrapper.ip_addresses
