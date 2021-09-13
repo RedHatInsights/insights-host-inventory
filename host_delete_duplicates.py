@@ -20,13 +20,13 @@ from app.queue.metrics import event_serialization_time
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
-from lib.host_prune_duplicates import delete_duplicate_hosts
+from lib.host_remove_duplicates import delete_duplicate_hosts
 from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("main", "run")
 
-PROMETHEUS_JOB = "duplicate_hosts_pruner"
-LOGGER_NAME = "duplicate_hosts_pruner"
+PROMETHEUS_JOB = "duplicate_hosts_remover"
+LOGGER_NAME = "duplicate_hosts_remover"
 COLLECTED_METRICS = (
     delete_duplicate_host_count,
     event_producer_failure,
@@ -52,7 +52,7 @@ def _prometheus_job(namespace):
 
 
 def _excepthook(logger, type, value, traceback):
-    logger.exception("Host synchronizer failed", exc_info=value)
+    logger.exception("Host duplicate remover failed", exc_info=value)
 
 
 def run(config, logger, session, event_producer, shutdown_handler):
@@ -60,9 +60,7 @@ def run(config, logger, session, event_producer, shutdown_handler):
     query = session.query(Host)
 
     update_count = 0
-    events = delete_duplicate_hosts(
-        query, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down
-    )
+    events = delete_duplicate_hosts(query, config.script_chunk_size, logger, shutdown_handler.shut_down)
     for host_id in events:
         logger.info("Deleted host: %s", host_id)
         update_count += 1
