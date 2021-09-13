@@ -768,15 +768,6 @@ components:
         An ID defined in /etc/insights-client/machine-id. This field is
         considered a canonical fact.
       $ref: "#/components/schemas/DashedUuid"
-    RhelMachineId:
-      description: >-
-        A Machine ID of a RHEL host.  This field is considered to be a
-        canonical fact.
-    RhelMachineId_In:
-      description: >-
-        A Machine ID of a RHEL host.  This field is considered to be a
-        canonical fact.
-      $ref: "#/components/schemas/DashedUuid"
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
