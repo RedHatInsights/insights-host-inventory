@@ -82,6 +82,11 @@ def find_existing_host_by_id(identity, host_id):
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
+def _delete_hosts(hosts_to_delete):
+    logger.debug(f"About to delete {len(hosts_to_delete)} hosts")
+    # TODO: Actually do it tho
+
+
 @metrics.find_host_using_elevated_ids.time()
 def _find_host_by_elevated_ids(identity, canonical_facts):
     elevated_facts = {
@@ -92,13 +97,17 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
         elevated_keys.reverse()
 
         for del_key in elevated_keys:
-            existing_host = (
+            existing_hosts = (
                 multiple_canonical_facts_host_query(identity, elevated_facts, False)
                 .order_by(Host.modified_on.desc())
-                .first()
+                .all()
             )
-            if existing_host:
-                return existing_host
+            if len(existing_hosts) > 0:
+                if len(existing_hosts) > 1:
+                    logger.debug(f"{len(existing_hosts)-1} duplicates detected!")
+                    _delete_hosts(existing_hosts[1:])
+
+                return existing_hosts[0]
 
             del elevated_facts[del_key]
 
@@ -131,16 +140,20 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     """
     logger.debug("find_host_by_multiple_canonical_facts(%s)", canonical_facts)
 
-    host = (
+    existing_hosts = (
         multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False)
         .order_by(Host.modified_on.desc())
-        .first()
+        .all()
     )
 
-    if host:
-        logger.debug("Found existing host using canonical_fact match: %s", host)
+    if len(existing_hosts) > 1:
+        logger.debug(f"{len(existing_hosts)-1} duplicates detected!")
+        _delete_hosts(existing_hosts[1:])
 
-    return host
+    if existing_hosts[0]:
+        logger.debug("Found existing host using canonical_fact match: %s", existing_hosts[0])
+
+    return existing_hosts[0]
 
 
 def find_hosts_by_staleness(staleness, query):
