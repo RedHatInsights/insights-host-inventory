@@ -113,7 +113,7 @@ def get_regular_canonical_facts(canonical_facts):
 
 
 def _delete_host(query, host):
-    delete_query = query.filter(Host.id == host["id"].hex)
+    delete_query = query.filter(Host.id == str(host["id"]))
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
