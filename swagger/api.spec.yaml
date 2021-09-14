@@ -746,7 +746,7 @@ components:
       items:
         type: string
       nullable: false
-    DashedUuid:
+    HyphenatedUuid:
       type: string
       nullable: true
       pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -767,7 +767,7 @@ components:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
         considered a canonical fact.
-      $ref: "#/components/schemas/DashedUuid"
+      $ref: "#/components/schemas/HyphenatedUuid"
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
@@ -779,7 +779,7 @@ components:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
         considered to be a canonical fact.
-      $ref: "#/components/schemas/DashedUuid"
+      $ref: "#/components/schemas/HyphenatedUuid"
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
@@ -791,7 +791,7 @@ components:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
         be a canonical fact.
-      $ref: "#/components/schemas/DashedUuid"
+      $ref: "#/components/schemas/HyphenatedUuid"
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
@@ -803,7 +803,7 @@ components:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
         canonical fact.
-      $ref: "#/components/schemas/DashedUuid"
+      $ref: "#/components/schemas/HyphenatedUuid"
     IpAddresses:
       description: >-
         Host’s network IP addresses.  This field is considered to be a
