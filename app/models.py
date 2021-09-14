@@ -437,7 +437,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
         unknown = EXCLUDE
 
     insights_id = fields.Str(validate=verify_uuid_format)
-    rhel_machine_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_satellite_id)
     fqdn = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))

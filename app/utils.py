@@ -30,14 +30,6 @@ class HostWrapper:
         self.__data["insights_id"] = cf
 
     @property
-    def rhel_machine_id(self):
-        return self.__data.get("rhel_machine_id", None)
-
-    @rhel_machine_id.setter
-    def rhel_machine_id(self, cf):
-        self.__data["rhel_machine_id"] = cf
-
-    @property
     def subscription_manager_id(self):
         return self.__data.get("subscription_manager_id", None)
 
