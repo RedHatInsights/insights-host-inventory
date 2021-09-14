@@ -746,6 +746,13 @@ components:
       items:
         type: string
       nullable: false
+    DashedUuid:
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     InsightsId:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
@@ -753,6 +760,14 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    # The schemas, with names ending in "_In", have been added for controlling uuid format used by
+    # canonical_facts.  Not controlling uuid formats lead to the creation of multiple hosts with identicle
+    # values for the same canonical_fact.
+    InsightsId_In:
+      description: >-
+        An ID defined in /etc/insights-client/machine-id. This field is
+        considered a canonical fact.
+      $ref: "#/components/schemas/DashedUuid"
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
@@ -760,6 +775,11 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    SubscriptionManagerId_In:
+      description: >-
+        A Red Hat Subcription Manager ID of a RHEL host.  This field is
+        considered to be a canonical fact.
+      $ref: "#/components/schemas/DashedUuid"
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
@@ -767,6 +787,11 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    SatelliteId_In:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host.  This field is considered to
+        be a canonical fact.
+      $ref: "#/components/schemas/DashedUuid"
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
@@ -774,6 +799,11 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
+    BiosUuid_In:
+      description: >-
+        A UUID of the host machine BIOS.  This field is considered to be a
+        canonical fact.
+      $ref: "#/components/schemas/DashedUuid"
     IpAddresses:
       description: >-
         Host’s network IP addresses.  This field is considered to be a
@@ -819,16 +849,15 @@ components:
       example: aws
     CanonicalFactsIn:
       allOf:
-      - $ref: "#/components/schemas/CanonicalFactsOut"
       - properties:
           insights_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/InsightsId_In"
           subscription_manager_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/SubscriptionManagerId_In"
           satellite_id:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/SatelliteId_In"
           bios_uuid:
-            $ref: "#/components/schemas/NonNullableString"
+            $ref: "#/components/schemas/BiosUuid_In"
           ip_addresses:
             $ref: "#/components/schemas/NonNullableStringArray"
           fqdn:
