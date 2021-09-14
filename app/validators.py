@@ -12,7 +12,7 @@ def verify_uuid_format(uuid_str):
 
     try:
         # uuid must have '-' for consistency and better dedup control.
-        return uuid.UUID(uuid_str) and "-" in uuid_str is not None
+        return uuid.UUID(uuid_str) is not None and "-" in uuid_str
     except Exception:
         pass
     return False
