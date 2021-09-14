@@ -16,7 +16,6 @@ __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile"
 
 _CANONICAL_FACTS_FIELDS = (
     "insights_id",
-    "rhel_machine_id",
     "subscription_manager_id",
     "satellite_id",
     "bios_uuid",
