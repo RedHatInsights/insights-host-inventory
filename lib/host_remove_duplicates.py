@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
@@ -72,13 +70,10 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     logger.debug("find_host_by_elevated_canonical_facts(%s)", elevated_cfs)
 
     if elevated_cfs.get("provider_id"):
-        if elevated_cfs.get("subscription_manager_id"):
-            elevated_cfs.pop("subscription_manager_id")
-        if elevated_cfs.get("insights_id"):
-            elevated_cfs.pop("insights_id")
+        elevated_cfs.pop("subscription_manager_id", None)
+        elevated_cfs.pop("insights_id", None)
     elif elevated_cfs.get("insights_id"):
-        if elevated_cfs.get("subscription_manager_id"):
-            elevated_cfs.pop("subscription_manager_id")
+        elevated_cfs.pop("subscription_manager_id", None)
 
     hosts = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).all()
 
@@ -86,13 +81,6 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
         logger.debug("Found existing host using canonical_fact match: %s", hosts)
 
     unique(hosts[0])
-
-
-def trim_extra_facts(needed_fact, canonical_facts):
-    for fact in CANONICAL_FACTS:
-        if fact in canonical_facts and not fact == needed_fact:
-            _ = canonical_facts.pop(fact)
-    return canonical_facts
 
 
 # this function is called when no elevated canonical facts are present in the host
@@ -103,7 +91,7 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
     for fact in canonical_facts:
-        needed_cf = trim_extra_facts(fact, deepcopy(canonical_facts))
+        needed_cf = {fact: canonical_facts[fact]}
         hosts = multiple_canonical_facts_host_query(needed_cf, query).order_by(Host.modified_on.desc()).all()
 
         unique(hosts[0])
