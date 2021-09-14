@@ -12,12 +12,16 @@ OAPI = SPECIFICATION_DIR + "openapi.json"
 with open(OAPI) as fp:
     oapi_data = yaml.dump(json.load(fp))
 
-openapi = TranslatingParser(OAPI)
-openapi.parse()
 
-# spec = TranslatingParser(SPECIFICATION_DIR + "api.spec.yaml")
-# spec.parse()
+def make_diff(specfile, output_filename):
+    parser = TranslatingParser(SPECIFICATION_DIR + specfile)
+    cdiff = unified_diff(
+        oapi_data.splitlines(True), parser.yaml().splitlines(True), fromfile="oapi", tofile="output_filename"
+    )
+    sys.stdout.writelines(cdiff)
 
 
-cdiff = unified_diff(oapi_data.splitlines(True), openapi.yaml().splitlines(True), fromfile="oapi", tofile="prance")
-sys.stdout.writelines(cdiff)
+if __name__ == "__main__":
+    make_diff("openapi.json", "prace_reads_bundle")
+    # todo: reenable this once the prance bug about inclusion is resolved
+    # make_diff("api.spec.yaml", "prace_reads_spec")
