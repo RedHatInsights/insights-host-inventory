@@ -21,6 +21,8 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_db_access_failure
+from app.instrumentation import log_host_delete_failed
+from app.instrumentation import log_host_delete_succeeded
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
@@ -36,6 +38,7 @@ from app.queue.events import operation_results_to_event_type
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
+from lib.host_delete import delete_hosts
 
 
 logger = get_logger(__name__)
@@ -123,6 +126,20 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
+def _delete_duplicate_hosts(identity, hosts_to_delete, event_producer):
+    if not hosts_to_delete:
+        return
+
+    query = host_repository.host_list_by_id_list_query(
+        identity, [host.id for host in hosts_to_delete], restrict_to_owner_id=False
+    )
+    for host_id, deleted in delete_hosts(query, event_producer, inventory_config().host_delete_chunk_size):
+        if deleted:
+            log_host_delete_succeeded(logger, host_id, "DEDUP")
+        else:
+            log_host_delete_failed(logger, host_id, "DEDUP")
+
+
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
@@ -180,7 +197,7 @@ def update_system_profile(host_data, platform_metadata):
             )
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return output_host, host_id, insights_id, update_result
+            return output_host, host_id, insights_id, update_result, identity, None
         except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
             raise
@@ -212,12 +229,12 @@ def add_host(host_data, platform_metadata):
             input_host = deserialize_host(host_data)
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
-            output_host, host_id, insights_id, add_result = host_repository.add_host(
+            output_host, host_id, insights_id, add_result, duplicates = host_repository.add_host(
                 input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
             )
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
-            return output_host, host_id, insights_id, add_result
+            return output_host, host_id, insights_id, add_result, identity, duplicates
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             raise
@@ -249,12 +266,16 @@ def handle_message(message, event_producer, message_operation=add_host):
         try:
             host = validated_operation_msg["data"]
 
-            output_host, host_id, insights_id, operation_result = message_operation(host, platform_metadata)
+            output_host, host_id, insights_id, operation_result, identity, duplicates = message_operation(
+                host, platform_metadata
+            )
             event_type = operation_results_to_event_type(operation_result)
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
             headers = message_headers(operation_result, insights_id)
             event_producer.write_event(event, str(host_id), headers)
+
+            _delete_duplicate_hosts(identity, duplicates, event_producer)
         except ValidationException as ve:
             logger.error(
                 "Validation error while adding or updating host: %s",

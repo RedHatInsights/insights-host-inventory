@@ -91,6 +91,8 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
             host_id,
             expected_insights_id,
             AddHostResult.created,
+            None,
+            None,
         ),
     )
     mock_event_producer = mocker.Mock()
@@ -122,6 +124,8 @@ def test_request_id_is_reset(mocker, flask_app):
                 generate_uuid(),
                 generate_uuid(),
                 AddHostResult.created,
+                None,
+                None,
             ),
         )
 
@@ -180,7 +184,9 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
 
 def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_host):
     mocker.patch("app.queue.queue.build_event")
-    add_host = mocker.patch("app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None))
+    add_host = mocker.patch(
+        "app.queue.queue.add_host", return_value=(mocker.MagicMock(), None, None, None, None, None)
+    )
 
     operation_raw = "🧜🏿‍♂️"
     operation_escaped = json.dumps(operation_raw)[1:-1]
@@ -205,7 +211,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
         with subtests.test(message=message):
             host_id = generate_uuid()
             add_host.reset_mock()
-            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
+            add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated, None, None)
             handle_message(message, mocker.Mock(), add_host)
             add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
@@ -230,7 +236,7 @@ def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_
     host_data = host.data()
 
     mock_add_host = mocker.patch(
-        "app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created)
+        "app.queue.queue.add_host", return_value=(host_data, host_id, insights_id, AddHostResult.created, None, None)
     )
 
     key, event, headers = mq_create_or_update_host(host, return_all_data=True, message_operation=mock_add_host)
@@ -255,7 +261,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
     )
 
     mock_add_host = mocker.patch(
-        "app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result)
+        "app.queue.queue.add_host", return_value=(host.data(), host_id, insights_id, add_host_result, None, None)
     )
 
     key, event, headers = mq_create_or_update_host(
@@ -1217,6 +1223,8 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
             host_id,
             expected_insights_id,
             AddHostResult.created,
+            None,
+            None,
         ),
     )
     mock_event_producer = mocker.Mock()

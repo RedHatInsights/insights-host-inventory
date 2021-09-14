@@ -106,11 +106,12 @@ def get_expected_facts_after_update(method, namespace, facts, new_facts):
 
 def assert_host_missing_from_db(search_canonical_facts, identity=USER_IDENTITY):
     identity = Identity(identity)
-    assert not find_existing_host(identity, search_canonical_facts)
+    existing_host, _ = find_existing_host(identity, search_canonical_facts)
+    assert not existing_host
 
 
 def assert_host_exists_in_db(host_id, search_canonical_facts, identity=USER_IDENTITY):
     identity = Identity(identity)
-    found_host = find_existing_host(identity, search_canonical_facts)
+    found_host, _ = find_existing_host(identity, search_canonical_facts)
 
     assert host_id == found_host.id

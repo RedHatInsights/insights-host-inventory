@@ -57,23 +57,26 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
     """
 
     with session_guard(db.session):
-        existing_host = find_existing_host(identity, input_host.canonical_facts)
+        existing_host, duplicates = find_existing_host(identity, input_host.canonical_facts)
 
         if existing_host:
-            return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
+            return (
+                *update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields),
+                duplicates,
+            )
         else:
-            return create_new_host(input_host, staleness_offset, fields)
+            return (*create_new_host(input_host, staleness_offset, fields), None)
 
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(identity, canonical_facts):
     logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
-    existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
+    existing_host, duplicates = _find_host_by_elevated_ids(identity, canonical_facts)
 
     if not existing_host:
-        existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
+        existing_host, duplicates = find_host_by_multiple_canonical_facts(identity, canonical_facts)
 
-    return existing_host
+    return existing_host, duplicates
 
 
 def find_existing_host_by_id(identity, host_id):
@@ -82,9 +85,11 @@ def find_existing_host_by_id(identity, host_id):
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
 
-def _delete_hosts(hosts_to_delete):
-    logger.debug(f"About to delete {len(hosts_to_delete)} hosts")
-    # TODO: Actually do it tho
+def host_list_by_id_list_query(identity, host_id_list, restrict_to_owner_id=True):
+    query = Host.query.filter((Host.account == identity.account_number) & Host.id.in_(host_id_list))
+    if restrict_to_owner_id:
+        query = update_query_for_owner_id(identity, query)
+    return find_non_culled_hosts(query)
 
 
 @metrics.find_host_using_elevated_ids.time()
@@ -103,15 +108,11 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
                 .all()
             )
             if len(existing_hosts) > 0:
-                if len(existing_hosts) > 1:
-                    logger.debug(f"{len(existing_hosts)-1} duplicates detected!")
-                    _delete_hosts(existing_hosts[1:])
-
-                return existing_hosts[0]
+                return existing_hosts[0], existing_hosts[1:]
 
             del elevated_facts[del_key]
 
-    return None
+    return None, None
 
 
 def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=True):
@@ -146,14 +147,11 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
         .all()
     )
 
-    if len(existing_hosts) > 1:
-        logger.debug(f"{len(existing_hosts)-1} duplicates detected!")
-        _delete_hosts(existing_hosts[1:])
-
-    if existing_hosts[0]:
+    if len(existing_hosts) > 0:
         logger.debug("Found existing host using canonical_fact match: %s", existing_hosts[0])
+        return existing_hosts[0], existing_hosts[1:]
 
-    return existing_hosts[0]
+    return None, None
 
 
 def find_hosts_by_staleness(staleness, query):
@@ -254,7 +252,7 @@ def update_system_profile(input_host, identity, staleness_offset, fields):
         if input_host.id:
             existing_host = find_existing_host_by_id(identity, input_host.id)
         else:
-            existing_host = find_existing_host(identity, input_host.canonical_facts)
+            existing_host, _ = find_existing_host(identity, input_host.canonical_facts)
 
         if existing_host:
             logger.debug("Updating system profile on an existing host")

@@ -46,6 +46,7 @@ from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
+from lib.host_repository import host_list_by_id_list_query
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
@@ -59,9 +60,7 @@ logger = get_logger(__name__)
 
 
 def _get_host_list_by_id_list(host_id_list):
-    current_identity = get_current_identity()
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
-    return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
+    return host_list_by_id_list_query(get_current_identity(), host_id_list)
 
 
 def get_bulk_query_source():
@@ -389,7 +388,7 @@ def host_checkin(body):
 
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
-    existing_host = find_existing_host(current_identity, canonical_facts)
+    existing_host, _ = find_existing_host(current_identity, canonical_facts)
 
     if existing_host:
         existing_host._update_modified_date()
