@@ -2,6 +2,7 @@ import ipaddress
 import re
 import uuid
 
+from dateutil import parser
 from jsonschema import draft4_format_checker
 
 
@@ -50,9 +51,9 @@ def is_custom_date(val):
     if not val:
         return True
     try:
-        match = re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+\d{2}:\d{2})?$", val)
-        return True if match else False
-    except TypeError:
+        parser.isoparse(val)
+        return True
+    except ValueError:
         return False
 
 
