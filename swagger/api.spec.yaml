@@ -608,8 +608,6 @@ components:
       explode: true
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
-       # type: object
-       # description: System profile field values to filter with
     fields_param:
       in: query
       name: fields
@@ -619,8 +617,6 @@ components:
       explode: true
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
-        # type: object
-        # description: System profile field values to fetch
 
   schemas:
     SystemProfileSapSystemOut:

@@ -1120,12 +1120,6 @@
         "nullable": true,
         "example": "3f01b55457674041b75e41829bcee1dc"
       },
-      "RhelMachineId": {
-        "description": "A Machine ID of a RHEL host.  This field is considered to be a canonical fact.",
-        "type": "string",
-        "nullable": true,
-        "example": "3f01b55457674041b75e41829bcee1dc"
-      },
       "SubscriptionManagerId": {
         "description": "A Red Hat Subcription Manager ID of a RHEL host.  This field is considered to be a canonical fact.",
         "type": "string",
@@ -1173,12 +1167,6 @@
           "c2:00:d0:c8:61:01"
         ]
       },
-      "ExternalId": {
-        "description": "Host’s reference in the external source e.g. AWS EC2, Azure, OpenStack, etc. This field is considered to be a canonical fact.",
-        "type": "string",
-        "nullable": true,
-        "example": "i-05d2313e6b9a42b16"
-      },
       "ProviderId": {
         "description": "Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
         "type": "string",
@@ -1199,9 +1187,6 @@
           {
             "properties": {
               "insights_id": {
-                "$ref": "#/components/schemas/NonNullableString"
-              },
-              "rhel_machine_id": {
                 "$ref": "#/components/schemas/NonNullableString"
               },
               "subscription_manager_id": {
@@ -1235,11 +1220,6 @@
               {
                 "required": [
                   "insights_id"
-                ]
-              },
-              {
-                "required": [
-                  "rhel_machine_id"
                 ]
               },
               {
@@ -1287,9 +1267,6 @@
         "properties": {
           "insights_id": {
             "$ref": "#/components/schemas/InsightsId"
-          },
-          "rhel_machine_id": {
-            "$ref": "#/components/schemas/RhelMachineId"
           },
           "subscription_manager_id": {
             "$ref": "#/components/schemas/SubscriptionManagerId"
