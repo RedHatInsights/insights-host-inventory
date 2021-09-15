@@ -5,12 +5,7 @@ from sqlalchemy import or_
 from app.models import Host
 from lib.metrics import delete_duplicate_host_count
 
-# from app.logging import get_logger
-
-# logger = None
-
 __all__ = ("delete_duplicate_hosts",)
-
 
 # The order is important, particularly the first 3 which are elevated facts with provider_id being the highest priority
 CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
@@ -53,7 +48,7 @@ def multiple_canonical_facts_host_query(canonical_facts, query):
 # Get hosts by the highest elevated canonical fact present
 def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     """
-    First check if multiple hosts are returned.  If they are then retain the with the highest
+    First check if multiple hosts are returned.  If they are then retain the one with the highest
     priority elevated fact
     """
     logger.debug("find_host_by_elevated_canonical_facts(%s)", elevated_cfs)
@@ -67,7 +62,7 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     hosts = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).all()
 
     if hosts:
-        logger.debug("Found existing host using canonical_fact match: %s", hosts)
+        logger.debug("Found existing host using canonical_fact match: %s", len(hosts))
 
     return hosts
 
@@ -82,7 +77,7 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     hosts = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).all()
 
     if hosts:
-        logger.debug("Found existing host using canonical_fact match: %s", hosts)
+        logger.debug("Found existing host using canonical_fact match: %s", len(hosts))
 
     return hosts
 
