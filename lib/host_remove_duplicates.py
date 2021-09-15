@@ -90,14 +90,12 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     """
     logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
-    for fact in canonical_facts:
-        needed_cf = {fact: canonical_facts[fact]}
-        hosts = multiple_canonical_facts_host_query(needed_cf, query).order_by(Host.modified_on.desc()).all()
+    hosts = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).all()
 
-        unique(hosts[0])
+    if hosts:
+        logger.debug("Found existing host using canonical_fact match: %s", hosts)
 
-        if hosts:
-            logger.debug("Found existing host using canonical_fact match: %s", hosts)
+    unique(hosts[0])
 
 
 def get_elevated_canonical_facts(canonical_facts):
