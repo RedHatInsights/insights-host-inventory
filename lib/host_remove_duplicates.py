@@ -11,17 +11,6 @@ from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("delete_duplicate_hosts",)
 
-# initialize a empty lists
-unique_list = []
-duplicate_list = []
-
-
-def unique(host):
-    # Use id and account to create unique hosts across all accounts.
-    unique_host = {"id": host.id, "account": host.account}
-    if unique_host not in unique_list:
-        unique_list.append(unique_host)
-
 
 # The order is important, particularly the first 3 which are elevated facts with provider_id being the highest priority
 CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
@@ -80,7 +69,7 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     if hosts:
         logger.debug("Found existing host using canonical_fact match: %s", hosts)
 
-    unique(hosts[0])
+    return hosts
 
 
 # this function is called when no elevated canonical facts are present in the host
@@ -95,7 +84,7 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     if hosts:
         logger.debug("Found existing host using canonical_fact match: %s", hosts)
 
-    unique(hosts[0])
+    return hosts
 
 
 def get_elevated_canonical_facts(canonical_facts):
@@ -118,36 +107,60 @@ def _delete_host(query, host):
 
 def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: False):
     query = select_query
-    all_hosts = query.limit(chunk_size).all()
+    logger.info(f"Total number of hosts in inventory: {query.count()}")
 
-    for host in all_hosts:
-        logger.info(f"Host ID: {host.id}")
-        logger.info(f"Canonical facts: {host.canonical_facts}")
-        elevated_cfs = get_elevated_canonical_facts(host.canonical_facts)
-        logger.info(f"elevated canonical facts: {elevated_cfs}")
-        if elevated_cfs:
-            find_host_by_elevated_canonical_facts(elevated_cfs, query, logger)
-        else:
-            regular_cfs = get_regular_canonical_facts(host.canonical_facts)
-            logger.info(f"regular canonical facts: {regular_cfs}")
-            if regular_cfs:
-                find_host_by_regular_canonical_facts(regular_cfs, query, logger)
+    distinct_accounts_query = query.distinct(Host.account)
+    logger.info(f"Total number of accounts in inventory: {distinct_accounts_query.count()}")
 
-        logger.info(f"Unique hosts count: {len(unique_list)}")
-        logger.info(f"All hosts count: {len(all_hosts)}")
+    accounts = distinct_accounts_query.limit(chunk_size).all()
+    distinct_accounts = []
+    for acct in accounts:
+        distinct_accounts.append(acct.account)
 
-    for host in all_hosts:
-        hostIdAccount = {"id": host.id, "account": host.account}
-        if hostIdAccount not in unique_list:
-            duplicate_list.append(hostIdAccount)
-    logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
+    for account in distinct_accounts:
+        # set uniquess within the account
+        unique_list = []
 
-    # delete duplicate hosts
-    while len(duplicate_list) > 0 and not interrupt():
-        for host in duplicate_list:
-            _delete_host(query, host)
-            duplicate_list.remove(host)
-            delete_duplicate_host_count.inc()
+        def unique(host):
+            unique_host = {"id": host.id, "account": host.account}
+            if unique_host not in unique_list:
+                unique_list.append(unique_host)
 
-            yield host["id"]
-        logger.info("Done deleting duplicate hosts!!!")
+        acct_query = query.filter(Host.account == account)
+        host_list = acct_query.limit(chunk_size).all()
+        for host in host_list:
+            logger.info(f"Host ID: {host.id}")
+            logger.info(f"Canonical facts: {host.canonical_facts}")
+            elevated_cfs = get_elevated_canonical_facts(host.canonical_facts)
+            logger.info(f"elevated canonical facts: {elevated_cfs}")
+            if elevated_cfs:
+                hosts = find_host_by_elevated_canonical_facts(elevated_cfs, acct_query, logger)
+            else:
+                regular_cfs = get_regular_canonical_facts(host.canonical_facts)
+                logger.info(f"regular canonical facts: {regular_cfs}")
+                if regular_cfs:
+                    hosts = find_host_by_regular_canonical_facts(regular_cfs, acct_query, logger)
+
+            unique(hosts[0])
+            logger.info(f"Unique hosts count: {len(unique_list)}")
+            logger.info(f"All hosts count: {len(host_list)}")
+
+        duplicate_list = []
+        for host in host_list:
+            hostIdAccount = {"id": host.id, "account": host.account}
+            if hostIdAccount not in unique_list:
+                duplicate_list.append(hostIdAccount)
+        logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
+
+        # delete duplicate hosts
+        while len(duplicate_list) > 0 and not interrupt():
+            for host in duplicate_list:
+                _delete_host(query, host)
+                duplicate_list.remove(host)
+                delete_duplicate_host_count.inc()
+
+                yield host["id"]
+                # load next chunk using keyset pagination
+        host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
+
+    logger.info("Done deleting duplicate hosts!!!")
