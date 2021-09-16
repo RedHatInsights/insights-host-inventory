@@ -1,7 +1,8 @@
-#  duplicate-hosts-removeris run manually to synchronize host-invnenotry DB
-# to the xjoin elastic-search index.
+# duplicate-hosts-remover is run manually to detect and delete
+# duplicate hosts from the database.
 
-# To delete duplicate hosts, set the value for metadata.name and run :
+# To delete duplicate hosts, replace the value of metadata.name
+# with the name of the Job in the namespace and run:
 # "kubectl create -f duplicate_remover_clowd_job_invocation.yaml"
 
 apiVersion: cloud.redhat.com/v1alpha1
