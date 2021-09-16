@@ -1,43 +1,57 @@
 # from unittest import mock
 import pytest
+from unittest import mock
+from app.logging import get_logger
 
-# from app import db
-# from app import threadctx
-# from app import UNKNOWN_REQUEST_ID_VALUE
-# from host_delete_duplicates import run as host_delete_duplicates_run
-# from tests.helpers.db_utils import minimal_db_host
-# from tests.helpers.test_utils import get_staleness_timestamps
+from app import db
+from app import threadctx
+from app import UNKNOWN_REQUEST_ID_VALUE
+from host_delete_duplicates import run as host_delete_duplicates_run
+from host_delete_duplicates import _init_db as _init_db
+from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.test_utils import get_staleness_timestamps
+from lib.handlers import register_shutdown
 
 
-# TODO: new tests needed.  these are from host_synchrnonizer
+logger = get_logger(__name__)
+
+
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicate_host(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+    event_producer_mock, db_create_host, db_get_host, inventory_config,
 ):
-    # staleness_timestamps = get_staleness_timestamps()
+    staleness_timestamps = get_staleness_timestamps()
 
-    # host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
-    # created_host = db_create_host(host=host)
+    # make two hosts that are the same
+    host = minimal_db_host(stale_timestamp=staleness_timestamps["fresh"], reporter="some reporter")
+    created_host_1 = db_create_host(host=host)
+    created_host_2 = db_create_host(host=host)
 
-    # assert db_get_host(created_host.id)
+    assert db_get_host(created_host_1.id)
+    assert db_get_host(created_host_2.id)
 
-    # threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    # host_delete_duplicates_run(
-    #     inventory_config,
-    #     mock.Mock(),
-    #     db.session,
-    #     event_producer_mock,
-    #     shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-    # )
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
-    # # check if host exist thought event synchronizer must find it to produce an update event.
-    # assert db_get_host(created_host.id)
+    Session = _init_db(inventory_config)
+    accounts_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+    register_shutdown(accounts_session.get_bind().dispose, "Closing database")
+    register_shutdown(hosts_session.get_bind().dispose, "Closing database")
+    register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
-    # assert_synchronize_event_is_valid(
-    #     event_producer=event_producer_mock, key=str(created_host.id), host=created_host,timestamp=event_datetime_mock
-    # )
+    host_delete_duplicates_run(
+        inventory_config,
+        mock.Mock(),
+        accounts_session,
+        hosts_session,
+        misc_session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
 
-    assert True
+    # check that only the more recently added host exists.
+    assert db_get_host(created_host_2.id)
 
 
 @pytest.mark.host_delete_duplicates
