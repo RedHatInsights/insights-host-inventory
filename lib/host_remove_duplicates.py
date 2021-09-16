@@ -59,12 +59,12 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     elif elevated_cfs.get("insights_id"):
         elevated_cfs.pop("subscription_manager_id", None)
 
-    hosts = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).all()
+    host = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).one_or_none()
 
-    if hosts:
-        logger.debug("Found existing host using canonical_fact match: %s", len(hosts))
+    if host:
+        logger.debug("Found existing host using canonical_fact match")
 
-    return hosts
+    return host
 
 
 # this function is called when no elevated canonical facts are present in the host
@@ -74,23 +74,21 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     """
     logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
-    hosts = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).all()
+    host = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).one_or_none()
 
-    if hosts:
-        logger.debug("Found existing host using canonical_fact match: %s", len(hosts))
+    if host:
+        logger.debug("Found existing host using canonical_fact match")
 
-    return hosts
+    return host
 
 
 def get_elevated_canonical_facts(canonical_facts):
-    elevated_facts = {
-        key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts.keys()
-    }
+    elevated_facts = {key: canonical_facts[key] for key in ELEVATED_CANONICAL_FACT_FIELDS if key in canonical_facts}
     return elevated_facts
 
 
 def get_regular_canonical_facts(canonical_facts):
-    regular_cfs = {key: canonical_facts[key] for key in CANONICAL_FACTS if key in canonical_facts.keys()}
+    regular_cfs = {key: canonical_facts[key] for key in CANONICAL_FACTS if key in canonical_facts}
     return regular_cfs
 
 
@@ -117,9 +115,8 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
         unique_list = []
 
         def unique(host):
-            unique_host = {"id": host.id, "account": host.account}
-            if unique_host not in unique_list:
-                unique_list.append(unique_host)
+            if host.id not in unique_list:
+                unique_list.append(host.id)
 
         acct_query = query.filter(Host.account == account)
         host_list = acct_query.limit(chunk_size).all()
@@ -129,22 +126,23 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
             elevated_cfs = get_elevated_canonical_facts(host.canonical_facts)
             logger.info(f"elevated canonical facts: {elevated_cfs}")
             if elevated_cfs:
-                hosts = find_host_by_elevated_canonical_facts(elevated_cfs, acct_query, logger)
+                host_match = find_host_by_elevated_canonical_facts(elevated_cfs, acct_query, logger)
             else:
                 regular_cfs = get_regular_canonical_facts(host.canonical_facts)
                 logger.info(f"regular canonical facts: {regular_cfs}")
                 if regular_cfs:
-                    hosts = find_host_by_regular_canonical_facts(regular_cfs, acct_query, logger)
+                    host_match = find_host_by_regular_canonical_facts(regular_cfs, acct_query, logger)
 
-            unique(hosts[0])
+            unique(host_match)
             logger.info(f"Unique hosts count: {len(unique_list)}")
             logger.info(f"All hosts count: {len(host_list)}")
 
         duplicate_list = []
-        for host in host_list:
-            hostIdAccount = {"id": host.id, "account": host.account}
-            if hostIdAccount not in unique_list:
-                duplicate_list.append(hostIdAccount)
+        for matching_host in host_list:
+            # TODO: Review this logic.
+            # I made a fix here, and I don't think this conditional makes sense.
+            if matching_host.id not in unique_list:
+                duplicate_list.append(matching_host.id)
         logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
 
         # delete duplicate hosts
@@ -158,4 +156,4 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
                 # load next chunk using keyset pagination
         host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
 
-    logger.info("Done deleting duplicate hosts!!!")
+    logger.info("Done deleting duplicate hosts!")
