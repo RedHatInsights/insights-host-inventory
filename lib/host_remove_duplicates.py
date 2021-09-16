@@ -1,6 +1,7 @@
 from sqlalchemy import and_
 from sqlalchemy import not_
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import array
 
 from app.models import Host
 
@@ -37,6 +38,10 @@ def multiple_canonical_facts_host_query(canonical_facts, query):
     return query
 
 
+def contains_no_elevated_facts_query(query):
+    return query.filter(not_(Host.canonical_facts.has_any(array(ELEVATED_CANONICAL_FACT_FIELDS))))
+
+
 # Get hosts by the highest elevated canonical fact present
 def find_host_list_by_elevated_canonical_facts(elevated_cfs, query, logger):
     """
@@ -63,13 +68,16 @@ def find_host_list_by_regular_canonical_facts(canonical_facts, query, logger):
     """
     logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
-    hosts = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).all()
-
+    hosts = (
+        contains_no_elevated_facts_query(multiple_canonical_facts_host_query(canonical_facts, query))
+        .order_by(Host.modified_on.desc())
+        .all()
+    )
     return hosts
 
 
-def _delete_hosts_by_id_list(session, host_id_list):
-    delete_query = session.query(Host).filter(Host.id.in_(host_id_list))
+def _delete_hosts_by_id_set(session, host_id_set):
+    delete_query = session.query(Host).filter(Host.id.in_(host_id_set))
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
@@ -89,13 +97,12 @@ def delete_duplicate_hosts(accounts_session, hosts_session, misc_session, chunk_
         misc_query = misc_session.query(Host).filter(Host.account == account)
 
         def unique(host_list):
-            if host_list[0].id not in unique_set:
-                unique_set.add(host_list[0].id)
-                logger.info(f"{host_list[0].id} is unique, total: {len(unique_set)}")
+            unique_set.add(host_list[0].id)
+            logger.info(f"{host_list[0].id} is unique, total: {len(unique_set)}")
             if len(host_list) > 1:
                 for host_id in [h.id for h in host_list[1:] if h.id not in unique_set]:
                     duplicate_set.add(host_id)
-                    logger.info(f"{host_id} is a duplicate, total: {len(duplicate_set)}")
+                    logger.info(f"{host_id} is a potential duplicate")
 
         for host in (
             hosts_query.filter(Host.account == account).order_by(Host.modified_on.desc()).yield_per(chunk_size)
@@ -105,20 +112,20 @@ def delete_duplicate_hosts(accounts_session, hosts_session, misc_session, chunk_
                 key: value for key, value in canonical_facts.items() if key in ELEVATED_CANONICAL_FACT_FIELDS
             }
             if elevated_cfs:
-                logger.debug(f"find by elevated canonical facts: {elevated_cfs}")
+                logger.info(f"find by elevated canonical facts: {elevated_cfs}")
                 host_matches = find_host_list_by_elevated_canonical_facts(elevated_cfs, misc_query, logger)
             else:
                 regular_cfs = {
                     key: value for key, value in canonical_facts.items() if key not in ELEVATED_CANONICAL_FACT_FIELDS
                 }
-                logger.debug(f"find by regular canonical facts: {regular_cfs}")
+                logger.info(f"find by regular canonical facts: {regular_cfs}")
                 if regular_cfs:
                     host_matches = find_host_list_by_regular_canonical_facts(regular_cfs, misc_query, logger)
 
             unique(host_matches)
 
         # delete duplicate hosts
-        _delete_hosts_by_id_list(misc_session, duplicate_set)
+        _delete_hosts_by_id_set(misc_session, duplicate_set)
         total_deleted += len(duplicate_set)
 
     return total_deleted
