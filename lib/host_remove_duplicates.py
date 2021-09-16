@@ -3,7 +3,6 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 
 from app.models import Host
-from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("delete_duplicate_hosts",)
 
@@ -88,9 +87,8 @@ def get_regular_canonical_facts(canonical_facts):
     return regular_cfs
 
 
-def _delete_host(query, host):
-    delete_query = query.filter(Host.id == str(host["id"]))
-    delete_query.delete(synchronize_session="fetch")
+def _delete_hosts_by_id_list(host_id_list):
+    delete_query = Host.query.filter(Host.id.in_(host_id_list)).delete(synchronize_session="fetch")
     delete_query.session.commit()
 
 
@@ -98,6 +96,7 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
     query = select_query
     logger.info(f"Total number of hosts in inventory: {query.count()}")
 
+    # TODO: Must loop here to get all the chunks
     distinct_accounts = [row.account for row in query.distinct(Host.account).limit(chunk_size).all()]
     logger.info(f"Total number of accounts in inventory: {len(distinct_accounts)}")
 
@@ -110,6 +109,7 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
                 unique_list.append(host.id)
 
         acct_query = query.filter(Host.account == account)
+        # TODO: Must loop here to get all the chunks
         host_list = acct_query.limit(chunk_size).all()
         for host in host_list:
             logger.info(f"Host ID: {host.id}")
@@ -128,23 +128,9 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
             logger.info(f"Unique hosts count: {len(unique_list)}")
             logger.info(f"All hosts count: {len(host_list)}")
 
-        duplicate_list = []
-        for matching_host in host_list:
-            # TODO: Review this logic.
-            # I made a fix here, and I don't think this conditional makes sense.
-            if matching_host.id not in unique_list:
-                duplicate_list.append(matching_host.id)
+        duplicate_list = [match.id for match in host_list if match.id not in unique_list]
         logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
 
         # delete duplicate hosts
-        while len(duplicate_list) > 0 and not interrupt():
-            for host in duplicate_list:
-                _delete_host(query, host)
-                duplicate_list.remove(host)
-                delete_duplicate_host_count.inc()
-
-                yield host["id"]
-                # load next chunk using keyset pagination
-        host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
-
-    logger.info("Done deleting duplicate hosts!")
+        _delete_hosts_by_id_list(duplicate_list)
+        return len(duplicate_list)
