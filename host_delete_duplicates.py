@@ -48,7 +48,13 @@ def _excepthook(logger, type, value, traceback):
 
 def run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler):
     num_deleted = delete_duplicate_hosts(
-        accounts_session, hosts_session, misc_session, config.script_chunk_size, logger, shutdown_handler.shut_down
+        accounts_session,
+        hosts_session,
+        misc_session,
+        config.script_chunk_size,
+        logger,
+        event_producer,
+        shutdown_handler.shut_down,
     )
     logger.info(f"Total number of hosts deleted: {num_deleted}")
 

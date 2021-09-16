@@ -3,7 +3,12 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import array
 
+from app.instrumentation import log_host_delete_succeeded
 from app.models import Host
+from app.queue.events import build_event
+from app.queue.events import EventType
+from app.queue.events import message_headers
+from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("delete_duplicate_hosts",)
 
@@ -82,7 +87,9 @@ def _delete_hosts_by_id_set(session, host_id_set):
     delete_query.session.commit()
 
 
-def delete_duplicate_hosts(accounts_session, hosts_session, misc_session, chunk_size, logger, interrupt=lambda: False):
+def delete_duplicate_hosts(
+    accounts_session, hosts_session, misc_session, chunk_size, logger, event_producer, interrupt=lambda: False
+):
     total_deleted = 0
     hosts_query = hosts_session.query(Host)
     account_query = accounts_session.query(Host.account)
@@ -126,6 +133,14 @@ def delete_duplicate_hosts(accounts_session, hosts_session, misc_session, chunk_
 
         # delete duplicate hosts
         _delete_hosts_by_id_set(misc_session, duplicate_set)
+        for host_id in duplicate_set:
+            log_host_delete_succeeded(logger, host_id, "DEDUP")
+            delete_duplicate_host_count.inc()
+            event = build_event(EventType.delete, host)
+            insights_id = host.canonical_facts.get("insights_id")
+            headers = message_headers(EventType.delete, insights_id)
+            event_producer.write_event(event, str(host.id), headers, wait=True)
+
         total_deleted += len(duplicate_set)
 
     return total_deleted
