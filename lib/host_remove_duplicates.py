@@ -17,11 +17,7 @@ def matches_at_least_one_canonical_fact_filter(canonical_facts):
     # Contains at least one correct CF value
     # Correct value = contains key:value
     # -> OR( *correct values )
-    filter_ = ()
-    for key, value in canonical_facts.items():
-        filter_ += (Host.canonical_facts.contains({key: value}),)
-
-    return or_(*filter_)
+    return or_(Host.canonical_facts.contains({key: value}) for key, value in canonical_facts.items())
 
 
 def contains_no_incorrect_facts_filter(canonical_facts):
@@ -102,13 +98,8 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
     query = select_query
     logger.info(f"Total number of hosts in inventory: {query.count()}")
 
-    distinct_accounts_query = query.distinct(Host.account)
-    logger.info(f"Total number of accounts in inventory: {distinct_accounts_query.count()}")
-
-    accounts = distinct_accounts_query.limit(chunk_size).all()
-    distinct_accounts = []
-    for acct in accounts:
-        distinct_accounts.append(acct.account)
+    distinct_accounts = [row.account for row in query.distinct(Host.account).limit(chunk_size).all()]
+    logger.info(f"Total number of accounts in inventory: {len(distinct_accounts)}")
 
     for account in distinct_accounts:
         # set uniquess within the account
