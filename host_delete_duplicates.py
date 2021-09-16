@@ -12,7 +12,6 @@ from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
-from app.models import Host
 from app.queue.event_producer import EventProducer
 from lib.db import session_guard
 from lib.handlers import register_shutdown
@@ -47,9 +46,9 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host duplicate remover failed", exc_info=value)
 
 
-def run(config, logger, session, event_producer, shutdown_handler):
+def run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler):
     num_deleted = delete_duplicate_hosts(
-        session.query(Host), config.script_chunk_size, logger, shutdown_handler.shut_down
+        accounts_session, hosts_session, misc_session, config.script_chunk_size, logger, shutdown_handler.shut_down
     )
     logger.info(f"Total number of hosts deleted: {num_deleted}")
 
@@ -67,8 +66,12 @@ def main(logger):
     register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
-    session = Session()
-    register_shutdown(session.get_bind().dispose, "Closing database")
+    accounts_session = Session()
+    hosts_session = Session()
+    misc_session = Session()
+    register_shutdown(accounts_session.get_bind().dispose, "Closing database")
+    register_shutdown(hosts_session.get_bind().dispose, "Closing database")
+    register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
     event_producer = EventProducer(config)
     register_shutdown(event_producer.close, "Closing producer")
@@ -76,8 +79,8 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(session):
-        run(config, logger, session, event_producer, shutdown_handler)
+    with session_guard(accounts_session), session_guard(hosts_session), session_guard(misc_session):
+        run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

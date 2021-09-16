@@ -6,9 +6,7 @@ from app.models import Host
 
 __all__ = ("delete_duplicate_hosts",)
 
-# The order is important, particularly the first 3 which are elevated facts with provider_id being the highest priority
 CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
-
 ELEVATED_CANONICAL_FACT_FIELDS = ("provider_id", "insights_id", "subscription_manager_id")
 
 
@@ -87,48 +85,52 @@ def get_regular_canonical_facts(canonical_facts):
     return regular_cfs
 
 
-def _delete_hosts_by_id_list(query, host_id_list):
-    delete_query = query.filter(Host.id.in_(host_id_list)).delete(synchronize_session="fetch")
+def _delete_hosts_by_id_list(session, host_id_list):
+    delete_query = session.query(Host).filter(Host.id.in_(host_id_list))
+    delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 
 
-def delete_duplicate_hosts(query, chunk_size, logger, interrupt=lambda: False):
-    logger.info(f"Total number of hosts in inventory: {query.count()}")
+def delete_duplicate_hosts(accounts_session, hosts_session, misc_session, chunk_size, logger, interrupt=lambda: False):
+    total_deleted = 0
+    hosts_query = hosts_session.query(Host)
+    account_query = accounts_session.query(Host.account)
 
-    distinct_accounts = [row.account for row in query.distinct(Host.account).limit(chunk_size).all()]
-    logger.info(f"Total number of accounts in inventory: {len(distinct_accounts)}")
+    logger.info(f"Total number of hosts in inventory: {hosts_query.count()}")
+    logger.info(f"Total number of accounts in inventory: {account_query.distinct(Host.account).count()}")
 
-    for account in distinct_accounts:
+    for account in account_query.distinct(Host.account).yield_per(chunk_size):
+        logger.info(f"Processing account {account}")
         # set uniquess within the account
         unique_list = []
+        duplicate_list = []
+        misc_query = misc_session.query(Host).filter(Host.account == account)
 
         def unique(host):
             if host.id not in unique_list:
                 unique_list.append(host.id)
+            else:
+                duplicate_list.append(host.id)
 
-        acct_query = query.filter(Host.account == account)
-        # TODO: Must loop here to get all the chunks
-        host_list = acct_query.limit(chunk_size).all()
-        for host in host_list:
+            logger.info(f"Unique: {len(unique_list)} | Duplicate: {len(duplicate_list)}")
+
+        for host in hosts_query.filter(Host.account == account).yield_per(chunk_size):
             logger.info(f"Host ID: {host.id}")
             logger.info(f"Canonical facts: {host.canonical_facts}")
             elevated_cfs = get_elevated_canonical_facts(host.canonical_facts)
-            logger.info(f"elevated canonical facts: {elevated_cfs}")
             if elevated_cfs:
-                host_match = find_host_by_elevated_canonical_facts(elevated_cfs, acct_query, logger)
+                logger.info(f"elevated canonical facts: {elevated_cfs}")
+                host_match = find_host_by_elevated_canonical_facts(elevated_cfs, misc_query, logger)
             else:
                 regular_cfs = get_regular_canonical_facts(host.canonical_facts)
                 logger.info(f"regular canonical facts: {regular_cfs}")
                 if regular_cfs:
-                    host_match = find_host_by_regular_canonical_facts(regular_cfs, acct_query, logger)
+                    host_match = find_host_by_regular_canonical_facts(regular_cfs, misc_query, logger)
 
             unique(host_match)
-            logger.info(f"Unique hosts count: {len(unique_list)}")
-            logger.info(f"All hosts count: {len(host_list)}")
-
-        duplicate_list = [match.id for match in host_list if match.id not in unique_list]
-        logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
 
         # delete duplicate hosts
-        _delete_hosts_by_id_list(query, duplicate_list)
-        return len(duplicate_list)
+        _delete_hosts_by_id_list(misc_session, duplicate_list)
+        total_deleted += len(duplicate_list)
+
+    return total_deleted
