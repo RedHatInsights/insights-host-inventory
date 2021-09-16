@@ -54,7 +54,7 @@ def find_host_by_elevated_canonical_facts(elevated_cfs, query, logger):
     elif elevated_cfs.get("insights_id"):
         elevated_cfs.pop("subscription_manager_id", None)
 
-    host = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).one_or_none()
+    host = multiple_canonical_facts_host_query(elevated_cfs, query).order_by(Host.modified_on.desc()).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match")
@@ -69,7 +69,7 @@ def find_host_by_regular_canonical_facts(canonical_facts, query, logger):
     """
     logger.debug("find_host_by_regular_canonical_facts(%s)", canonical_facts)
 
-    host = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).one_or_none()
+    host = multiple_canonical_facts_host_query(canonical_facts, query).order_by(Host.modified_on.desc()).first()
 
     if host:
         logger.debug("Found existing host using canonical_fact match")
@@ -87,16 +87,14 @@ def get_regular_canonical_facts(canonical_facts):
     return regular_cfs
 
 
-def _delete_hosts_by_id_list(host_id_list):
-    delete_query = Host.query.filter(Host.id.in_(host_id_list)).delete(synchronize_session="fetch")
+def _delete_hosts_by_id_list(query, host_id_list):
+    delete_query = query.filter(Host.id.in_(host_id_list)).delete(synchronize_session="fetch")
     delete_query.session.commit()
 
 
-def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: False):
-    query = select_query
+def delete_duplicate_hosts(query, chunk_size, logger, interrupt=lambda: False):
     logger.info(f"Total number of hosts in inventory: {query.count()}")
 
-    # TODO: Must loop here to get all the chunks
     distinct_accounts = [row.account for row in query.distinct(Host.account).limit(chunk_size).all()]
     logger.info(f"Total number of accounts in inventory: {len(distinct_accounts)}")
 
@@ -132,5 +130,5 @@ def delete_duplicate_hosts(select_query, chunk_size, logger, interrupt=lambda: F
         logger.info(f"Duplicate hosts count: {len(duplicate_list)}")
 
         # delete duplicate hosts
-        _delete_hosts_by_id_list(duplicate_list)
+        _delete_hosts_by_id_list(query, duplicate_list)
         return len(duplicate_list)
