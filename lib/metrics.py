@@ -29,3 +29,5 @@ synchronize_fail_count = Counter("inventory_synchronize_fail_count", "The total 
 pendo_fetching_failure = Counter(
     "inventory_pendo_syncher_failures", "Total amount of failures while sending Pendo data"
 )
+
+delete_duplicate_host_count = Counter("inventory_delete_duplicate_host_count", "The total amount of hosts deleted")
