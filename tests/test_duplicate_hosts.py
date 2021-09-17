@@ -5,7 +5,6 @@ from unittest import mock
 
 import pytest
 
-from app import db
 from app import threadctx
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.logging import get_logger
@@ -403,7 +402,7 @@ def test_delete_duplicates_elevated_ids_not_matching(
     # Hosts with more canonical facts
     for _ in range(host_count):
         canonical_facts[tested_id] = generate_uuid()
-        canonical_facts["ip_addresses"] = [f"10.0.0.10"]
+        canonical_facts["ip_addresses"] = ["10.0.0.10"]
         host = minimal_db_host(canonical_facts=canonical_facts)
         created_hosts.append(db_create_host(host=host))
 
@@ -569,15 +568,15 @@ def test_delete_duplicates_last_modified(
     host_count = 100
     # Create random number of hosts
     hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(randint(1, host_count - 1))]
-    created_hosts = db_create_multiple_hosts(hosts=hosts)
+    created_host_ids = [host.id for host in db_create_multiple_hosts(hosts=hosts)]
     # Update the latest created host
     updated_host = mq_create_or_update_host(minimal_host(canonical_facts=canonical_facts))
     # Create remaining hosts
     hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count - len(hosts))]
-    created_hosts += db_create_multiple_hosts(hosts=hosts)
+    created_host_ids += [host.id for host in db_create_multiple_hosts(hosts=hosts)]
 
-    for host in created_hosts:
-        assert db_get_host(host.id)
+    for id in created_host_ids:
+        assert db_get_host(id)
 
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
@@ -591,8 +590,8 @@ def test_delete_duplicates_last_modified(
         )
 
     assert deleted_hosts_count == host_count - 1
-    for host in created_hosts:
-        if host.id != updated_host.id:
-            assert not db_get_host(host.id)
+    for id in created_host_ids:
+        if id != updated_host.id:
+            assert not db_get_host(id)
         else:
-            assert db_get_host(host.id)
+            assert db_get_host(id)
