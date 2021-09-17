@@ -13,7 +13,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
-from lib.db import session_guard
+from lib.db import multi_session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 from lib.host_remove_duplicates import delete_duplicate_hosts
@@ -86,7 +86,7 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with session_guard(accounts_session), session_guard(hosts_session), session_guard(misc_session):
+    with multi_session_guard([accounts_session, hosts_session, misc_session]):
         run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler)
 
 
