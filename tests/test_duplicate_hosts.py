@@ -13,10 +13,10 @@ from host_delete_duplicates import _init_db as _init_db
 from host_delete_duplicates import run as host_delete_duplicates_run
 from lib.db import multi_session_guard
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
-from tests.helpers.test_utils import minimal_host
 
 ELEVATED_IDS = ("provider_id", "insights_id", "subscription_manager_id")
 CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
@@ -566,17 +566,12 @@ def test_delete_duplicates_last_modified(
         "provider_type": "aws",
     }
     host_count = 100
-    # Create random number of hosts
-    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(randint(1, host_count - 1))]
-    created_host_ids = [host.id for host in db_create_multiple_hosts(hosts=hosts)]
-    # Update the latest created host
-    updated_host = mq_create_or_update_host(minimal_host(canonical_facts=canonical_facts))
-    # Create remaining hosts
-    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count - len(hosts))]
-    created_host_ids += [host.id for host in db_create_multiple_hosts(hosts=hosts)]
 
-    for id in created_host_ids:
-        assert db_get_host(id)
+    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count)]
+    created_host_ids = [host.id for host in db_create_multiple_hosts(hosts=hosts)]
+    updated_host = update_host_in_db(choice(created_host_ids), display_name="new-display-name")
+    for host_id in created_host_ids:
+        assert db_get_host(host_id)
 
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
@@ -590,8 +585,8 @@ def test_delete_duplicates_last_modified(
         )
 
     assert deleted_hosts_count == host_count - 1
-    for id in created_host_ids:
-        if id != updated_host.id:
-            assert not db_get_host(id)
+    for host_id in created_host_ids:
+        if host_id != updated_host.id:
+            assert not db_get_host(host_id)
         else:
-            assert db_get_host(id)
+            assert db_get_host(host_id)
