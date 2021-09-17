@@ -12,4 +12,4 @@ metadata:
 spec:
   appName: host-inventory
   jobs:
-    - duplicate_hosts_remover
+    - duplicate-hosts-remover

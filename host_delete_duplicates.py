@@ -21,8 +21,8 @@ from lib.metrics import delete_duplicate_host_count
 
 __all__ = ("main", "run")
 
-PROMETHEUS_JOB = "duplicate_hosts_remover"
-LOGGER_NAME = "duplicate_hosts_remover"
+PROMETHEUS_JOB = "duplicate-hosts-remover"
+LOGGER_NAME = "duplicate-hosts-remover"
 COLLECTED_METRICS = (delete_duplicate_host_count,)
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
