@@ -497,7 +497,7 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
-    - name: duplicate_hosts_remover
+    - name: duplicate-hosts-remover
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         restartPolicy: OnFailure
