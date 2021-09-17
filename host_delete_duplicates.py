@@ -57,6 +57,7 @@ def run(config, logger, accounts_session, hosts_session, misc_session, event_pro
         shutdown_handler.shut_down,
     )
     logger.info(f"Total number of hosts deleted: {num_deleted}")
+    return num_deleted
 
 
 def main(logger):
