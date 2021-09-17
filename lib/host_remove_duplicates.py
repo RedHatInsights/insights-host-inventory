@@ -130,6 +130,8 @@ def delete_duplicate_hosts(
                     host_matches = find_host_list_by_regular_canonical_facts(regular_cfs, misc_query, logger)
 
             unique(host_matches)
+            hosts_session.expunge_all()
+        accounts_session.expunge_all()
 
         # delete duplicate hosts
         _delete_hosts_by_id_set(misc_session, duplicate_set)
