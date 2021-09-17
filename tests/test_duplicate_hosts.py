@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 
+from app import db
 from app import threadctx
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.logging import get_logger
@@ -16,13 +17,14 @@ from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import minimal_host
 
 ELEVATED_IDS = ("provider_id", "insights_id", "subscription_manager_id")
 CANONICAL_FACTS = ("fqdn", "satellite_id", "bios_uuid", "ip_addresses", "mac_addresses")
 logger = get_logger(__name__)
 
 
-# @pytest.mark.host_delete_duplicates
+@pytest.mark.host_delete_duplicates
 def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config):
     print("reunning sdas")
 
@@ -549,3 +551,48 @@ def test_delete_duplicates_without_elevated_not_matching(
     for host in created_hosts:
         assert db_get_host(host.id)
 
+
+@pytest.mark.host_delete_duplicates
+def test_delete_duplicates_last_modified(
+    event_producer, kafka_producer, db_create_multiple_hosts, db_get_host, inventory_config, mq_create_or_update_host
+):
+    """Test that the deletion script always keeps host with the latest 'modified_on' date"""
+    canonical_facts = {
+        "provider_id": generate_uuid(),
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "bios_uuid": generate_uuid(),
+        "satellite_id": generate_uuid(),
+        "fqdn": generate_random_string(),
+        "provider_type": "aws",
+    }
+    host_count = 100
+    # Create random number of hosts
+    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(randint(1, host_count - 1))]
+    created_hosts = db_create_multiple_hosts(hosts=hosts)
+    # Update the latest created host
+    updated_host = mq_create_or_update_host(minimal_host(canonical_facts=canonical_facts))
+    # Create remaining hosts
+    hosts = [minimal_db_host(canonical_facts=canonical_facts) for _ in range(host_count - len(hosts))]
+    created_hosts += db_create_multiple_hosts(hosts=hosts)
+
+    for host in created_hosts:
+        assert db_get_host(host.id)
+
+    Session = _init_db(inventory_config)
+    sessions = [Session() for _ in range(3)]
+    with multi_session_guard(sessions):
+        deleted_hosts_count = host_delete_duplicates_run(
+            inventory_config,
+            mock.Mock(),
+            *sessions,
+            event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        )
+
+    assert deleted_hosts_count == host_count - 1
+    for host in created_hosts:
+        if host.id != updated_host.id:
+            assert not db_get_host(host.id)
+        else:
+            assert db_get_host(host.id)
