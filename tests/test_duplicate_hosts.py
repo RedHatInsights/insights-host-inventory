@@ -796,3 +796,32 @@ def test_delete_duplicates_multiple_scenarios(
 
     for host in without_elevated_not_matching_created_hosts:
         assert db_get_host(host)
+
+
+@pytest.mark.host_delete_duplicates
+def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_get_host, inventory_config):
+    canonical_facts = {
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "bios_uuid": generate_uuid(),
+        "satellite_id": generate_uuid(),
+        "fqdn": generate_random_string(),
+    }
+    host1 = minimal_db_host(canonical_facts=canonical_facts, account="111111")
+    created_host1 = db_create_host(host=host1).id
+    host2 = minimal_db_host(canonical_facts=canonical_facts, account="222222")
+    created_host2 = db_create_host(host=host2).id
+
+    Session = _init_db(inventory_config)
+    sessions = [Session() for _ in range(3)]
+    with multi_session_guard(sessions):
+        deleted_hosts_count = host_delete_duplicates_run(
+            inventory_config,
+            mock.Mock(),
+            *sessions,
+            event_producer,
+            shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+        )
+    assert deleted_hosts_count == 0
+    assert db_get_host(created_host1)
+    assert db_get_host(created_host2)
