@@ -541,7 +541,7 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${DEDUP_MEMORY_LIMIT}
           requests:
             cpu: 200m
             memory: ${MEMORY_REQUEST}
@@ -594,6 +594,9 @@ parameters:
 - description: request limit for service
   name: MEMORY_REQUEST
   value: 256Mi
+- description: memory limit for dedup job
+  name: DEDUP_MEMORY_LIMIT
+  value: 1Gi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
