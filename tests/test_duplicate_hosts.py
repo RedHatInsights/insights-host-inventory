@@ -26,8 +26,6 @@ logger = get_logger(__name__)
 
 @pytest.mark.host_delete_duplicates
 def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config):
-    print("reunning sdas")
-
     # make two hosts that are the same
     canonical_facts = {
         "provider_type": ProviderType.AWS,  # Doesn't matter
