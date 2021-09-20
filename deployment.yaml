@@ -562,7 +562,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: duplicate-hosts-remover-job-name-${CJI_RANDOM_SUFFIX}
+    name: duplicate-hosts-remover-${CJI_RANDOM_SUFFIX}
   spec:
     appName: host-inventory
     jobs:
