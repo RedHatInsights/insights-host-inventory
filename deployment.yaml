@@ -559,6 +559,14 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: duplicate-hosts-remover-job-name-${CJI_RANDOM_SUFFIX}
+  spec:
+    appName: host-inventory
+    jobs:
+      - duplicate-hosts-remover
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -671,3 +679,6 @@ parameters:
   value: 'true'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
+- name: CJI_RANDOM_SUFFIX
+  required: true
+  value: '123456'
