@@ -544,7 +544,7 @@ objects:
             memory: ${MEMORY_LIMIT}
           requests:
             cpu: 200m
-            memory: 256Mi
+            memory: ${REQUEST_LIMIT}
     database:
       name: host-inventory
       version: 12
@@ -583,6 +583,9 @@ parameters:
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: request limit for service
+  name: REQUEST_LIMIT
+  value: 256Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
