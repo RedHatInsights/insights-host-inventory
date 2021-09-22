@@ -197,6 +197,18 @@ def stale_timestamp_filter(gt=None, lte=None):
     return and_(*filter_)
 
 
+def exclude_edge_filter(query):
+    return and_(
+        query,
+        (
+            or_(
+                not_(Host.system_profile_facts.has_key("host_type")),  # noqa: W601 JSONB query filter, not a dict
+                Host.system_profile_facts["host_type"].as_string() != "edge",
+            )
+        ),
+    )
+
+
 def contains_no_incorrect_facts_filter(canonical_facts):
     # Does not contain any incorrect CF values
     # Incorrect value = AND( key exists, NOT( contains key:value ) )

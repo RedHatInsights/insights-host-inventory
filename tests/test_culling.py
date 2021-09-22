@@ -329,6 +329,31 @@ def test_culled_host_is_removed(
 
 
 @pytest.mark.host_reaper
+def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db_get_host, inventory_config):
+    staleness_timestamps = get_staleness_timestamps()
+
+    host = minimal_db_host(
+        stale_timestamp=staleness_timestamps["culled"],
+        reporter="some reporter",
+        system_profile_facts={"host_type": "edge"},
+    )
+    created_host = db_create_host(host=host)
+
+    assert db_get_host(created_host.id)
+
+    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    host_reaper_run(
+        inventory_config,
+        mock.Mock(),
+        db.session,
+        event_producer_mock,
+        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
+    )
+
+    assert db_get_host(created_host.id)
+
+
+@pytest.mark.host_reaper
 def test_non_culled_host_is_not_removed(
     event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, inventory_config
 ):
