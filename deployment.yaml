@@ -497,6 +497,54 @@ objects:
           requests:
             cpu: 200m
             memory: 256Mi
+    - name: duplicate-hosts-remover
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: OnFailure
+        command:
+          - /bin/sh
+          - -c
+          - python host_delete_duplicates.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${DEDUP_MEMORY_LIMIT}
+          requests:
+            cpu: 200m
+            memory: ${MEMORY_REQUEST}
     database:
       name: host-inventory
       version: 12
@@ -511,6 +559,14 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: duplicate-hosts-remover-${CJI_RANDOM_SUFFIX}
+  spec:
+    appName: host-inventory
+    jobs:
+      - duplicate-hosts-remover
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -535,6 +591,12 @@ parameters:
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: request limit for service
+  name: MEMORY_REQUEST
+  value: 256Mi
+- description: memory limit for dedup job
+  name: DEDUP_MEMORY_LIMIT
+  value: 1Gi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -620,3 +682,6 @@ parameters:
   value: 'true'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
+- name: CJI_RANDOM_SUFFIX
+  required: true
+  value: '123456'
