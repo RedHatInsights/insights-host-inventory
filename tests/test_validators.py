@@ -8,7 +8,7 @@ from app.validators import verify_uuid_format
 
 # A valid UUID for canonical_facts must include hyphens.
 def test_valid_uuid():
-    assert verify_uuid_format("4a8fb994-57fe-4dbb-ad2a-9e922560b6c1") is True
+    assert verify_uuid_format("4a8fb994-57fe-4dbb-ad2a-9e922560b6c1")
 
 
 @pytest.mark.parametrize(

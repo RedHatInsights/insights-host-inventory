@@ -850,8 +850,9 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             {
                 "account": "someacct",
-                "subscription_manager_id": uuid4().hex,  # uuid witout dashes not allowed for dedup control
-                # "tags": [{"namespace": "namespace", "value": "value"}],
+                "subscription_manager_id": str(uuid4()).replace(
+                    "-", ""
+                ),  # uuid witout dashes not allowed for dedup control
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
