@@ -962,6 +962,8 @@ components:
               description: >-
                 Reporting source of the last checkin status, stale_timestamp, and last_check_in.
               type: object
+              additionalProperties:
+                $ref: '#components/schemas/PerReporterStaleness'
           required:
             - account
     HostOut:
@@ -1060,7 +1062,19 @@ components:
             name.
           type: string
           example: host1.mydomain.com
-
+    PerReporterStaleness:
+      type: object
+      properties:
+        last_check_in:
+          type: string
+          format: date-time
+          example: '2020-02-10T08:07:03.354307+00:00'
+        stale_timestamp:
+          type: string
+          format: date-time
+          example: '2020-02-17T08:07:03.354307+00:00'
+        check_in_succeeded:
+          type: boolean
     ActiveTags:
       title: Host data
       type: object
