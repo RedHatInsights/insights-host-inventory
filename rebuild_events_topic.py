@@ -37,6 +37,47 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
+def run(config, logger, session, consumer, event_producer, shutdown_handler):
+    num_messages = 1
+    partitions = []
+
+    # Seek to beginning
+    for partition_id in consumer.partitions_for_topic(config.event_topic) or []:
+        partitions.append(TopicPartition(config.event_topic, partition_id))
+
+    consumer.assign(partitions)
+    partitions = consumer.assignment()
+    consumer.seek_to_beginning(*partitions)
+    total_messages_processed = 0
+
+    while num_messages > 0 and not shutdown_handler.shut_down():
+        num_messages = 0
+        msgs = consumer.poll(timeout_ms=1000)
+        for _, messages in msgs.items():
+            for message in messages:
+                logger.debug("Message received")
+                try:
+                    sync_event_message(json.loads(message.value), session, event_producer)
+                    # TODO: Metrics
+                    # metrics.ingress_message_handler_success.inc()
+                except OperationalError as oe:
+                    """ sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                    """
+                    logger.error(f"Could not access DB {str(oe)}")
+                    sys.exit(3)
+                except Exception:
+                    # TODO: Metrics
+                    # metrics.ingress_message_handler_failure.inc()
+                    logger.exception("Unable to process message", extra={"incoming_message": message})
+
+            num_messages += len(messages)
+
+        total_messages_processed += num_messages
+
+    logger.info(f"Event topic rebuild complete. Processed {total_messages_processed} messages.")
+
+
 def main(logger):
     application = create_app(RuntimeEnvironment.JOB)
     config = application.config["INVENTORY_CONFIG"]
@@ -59,45 +100,9 @@ def main(logger):
     register_shutdown(event_producer.close, "Closing producer")
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
-    num_messages = 1
-    partitions = []
-
-    # Seek to beginning
-    for partition_id in consumer.partitions_for_topic(config.event_topic) or []:
-        partitions.append(TopicPartition(config.event_topic, partition_id))
-
-    consumer.assign(partitions)
-    partitions = consumer.assignment()
-    consumer.seek_to_beginning(*partitions)
-    total_messages_processed = 0
 
     with session_guard(session):
-        while num_messages > 0 and not shutdown_handler.shut_down():
-            num_messages = 0
-            msgs = consumer.poll(timeout_ms=1000)
-            for _, messages in msgs.items():
-                for message in messages:
-                    logger.debug("Message received")
-                    try:
-                        sync_event_message(json.loads(message.value), session, event_producer)
-                        # TODO: Metrics
-                        # metrics.ingress_message_handler_success.inc()
-                    except OperationalError as oe:
-                        """ sqlalchemy.exc.OperationalError: This error occurs when an
-                            authentication failure occurs or the DB is not accessible.
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        # TODO: Metrics
-                        # metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": message})
-
-                num_messages += len(messages)
-
-            total_messages_processed += num_messages
-
-        logger.info(f"Event topic rebuild complete. Processed {total_messages_processed} messages.")
+        run(config, logger, session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
