@@ -8,6 +8,9 @@ USER root
 RUN dnf install -y postgresql
 RUN dnf upgrade -y --security
 
+# remove packages not used by host-inventory to avoid security vulnerabilityes
+RUN dnf remove -y npm
+
 USER 1001
 
 WORKDIR /opt/app-root/src
