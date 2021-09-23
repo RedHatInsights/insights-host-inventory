@@ -48,7 +48,7 @@ def verify_mac_address_format(mac_address):
 
 @draft4_format_checker.checks("date-time")
 def is_custom_date(val):
-    if not val:
+    if val is None:
         return True
     try:
         parser.isoparse(val)
