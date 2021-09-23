@@ -79,7 +79,7 @@ def main(logger):
                 for message in messages:
                     logger.debug("Message received")
                     try:
-                        sync_event_message(json.loads(message.value), session, event_producer, shutdown_handler)
+                        sync_event_message(json.loads(message.value), session, event_producer)
                         # TODO: Metrics
                         # metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:

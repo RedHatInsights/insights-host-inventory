@@ -21,8 +21,6 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_host_failure
 from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_db_access_failure
-from app.instrumentation import log_host_delete_failed
-from app.instrumentation import log_host_delete_succeeded
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
@@ -40,7 +38,6 @@ from app.queue.events import operation_results_to_event_type
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
-from lib.host_delete import delete_hosts
 
 
 logger = get_logger(__name__)
@@ -166,17 +163,8 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def sync_event_message(message, session, event_producer, shutdown_handler):
-    if message["type"] == EventType.delete.name:
-        query = session.query(Host).filter((Host.account == message["account"]) & (Host.id == UUID(message["id"])))
-        # If the host exists in the DB, delete it.
-        if query.count():
-            for host_id, deleted in delete_hosts(query, event_producer, 1, shutdown_handler.shut_down):
-                if deleted:
-                    log_host_delete_succeeded(logger, host_id, "TOPIC-REBUILD")
-                else:
-                    log_host_delete_failed(logger, host_id, "TOPIC-REBUILD")
-    else:
+def sync_event_message(message, session, event_producer):
+    if message["type"] != EventType.delete.name:
         query = session.query(Host).filter(
             (Host.account == message["host"]["account"]) & (Host.id == UUID(message["host"]["id"]))
         )
