@@ -42,14 +42,46 @@ def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get):
     assert response_status == 200
 
 
-def test_system_profile_invalid_date_format(mq_create_or_update_host, api_get):
+@pytest.mark.parametrize(
+    "boot_time",
+    [
+        "clearly wrong",
+        pytest.param("", id="empty str also wrong"),
+        "12:25 Mar 19, 2019",
+        "2021-05-11T19:46:56Z+00:00",
+        "2021-05-11T19:46:56.951+00:00Z",
+        "2021-05-11-12T19:46",
+        "2021-05T19:46.951",
+    ],
+)
+def test_system_profile_invalid_date_format(mq_create_or_update_host, boot_time):
     system_profile = valid_system_profile()
     system_profile["owner_id"] = OWNER_ID
-    system_profile["last_boot_time"] = "12:25 Mar 19, 2019"  # Invalid date format
+    system_profile["last_boot_time"] = boot_time
     host = minimal_host(system_profile=system_profile)
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host)
+
+
+@pytest.mark.parametrize(
+    "boot_time",
+    [
+        "2021-05-11T19:46:56Z",
+        "2021-05-11T19:46:56+00:00",
+        "2021-05-11T19:46:56.951Z",
+        "2021-05-11T19:46:56.951+00:00",
+        "2021-05-11T19:46:56",
+        "2021-05-11T19:46:56.951",
+    ],
+)
+def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
+    system_profile = valid_system_profile()
+    system_profile["owner_id"] = OWNER_ID
+    system_profile["last_boot_time"] = boot_time
+    host = minimal_host(system_profile=system_profile)
+
+    mq_create_or_update_host(host)
 
 
 # sap endpoint tests
