@@ -10,6 +10,7 @@ RUN dnf upgrade -y --security
 
 # remove packages not used by host-inventory to avoid security vulnerabilityes
 RUN dnf remove -y npm
+RUN dnf clean all -y
 
 USER 1001
 
