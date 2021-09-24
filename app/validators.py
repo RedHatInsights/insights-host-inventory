@@ -2,6 +2,7 @@ import ipaddress
 import re
 import uuid
 
+from dateutil import parser
 from jsonschema import draft4_format_checker
 
 
@@ -44,6 +45,17 @@ def verify_mac_address_format(mac_address):
         return False
 
     return bool(pattern.match(mac_address))
+
+
+@draft4_format_checker.checks("date-time")
+def is_custom_date(val):
+    if val is None:
+        return True
+    try:
+        parser.isoparse(val)
+        return True
+    except ValueError:
+        return False
 
 
 def check_empty_keys(data):

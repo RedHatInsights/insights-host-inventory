@@ -31,7 +31,7 @@ INVALID_SYSTEM_PROFILES = (
     {"os_kernel_version": "x" * 21},
     {"arch": "x" * 51},
     {"kernel_modules": ["x" * 256]},
-    {"last_boot_time": ["x" * 51]},
+    {"last_boot_time": "x" * 51},
     {"running_processes": ["x" * 1001]},
     {"subscription_status": ["x" * 101]},
     {"subscription_auto_attach": ["x" * 101]},

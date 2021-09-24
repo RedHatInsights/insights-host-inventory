@@ -8,7 +8,7 @@ from os.path import join
 
 from connexion.decorators.validation import coerce_type
 from flask_sqlalchemy import SQLAlchemy
-from jsonschema import FormatChecker
+from jsonschema import draft4_format_checker
 from jsonschema import RefResolver
 from jsonschema import validate as jsonschema_validate
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -557,7 +557,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile):
         try:
-            jsonschema_validate(system_profile, self.system_profile_normalizer.schema, format_checker=FormatChecker())
+            jsonschema_validate(
+                system_profile, self.system_profile_normalizer.schema, format_checker=draft4_format_checker
+            )
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
