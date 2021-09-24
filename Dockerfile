@@ -2,15 +2,19 @@ FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
+# remove packages not used by host-inventory to avoid security vulnerabilityes
+RUN dnf remove -y npm
+RUN dnf upgrade -y --security
+RUN dnf clean all -y
+
 # use general package name instead of a specific one,
 # like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
 # so future security fixes are autamatically picked up.
-RUN dnf install -y postgresql
-RUN dnf upgrade -y --security
 
-# remove packages not used by host-inventory to avoid security vulnerabilityes
-RUN dnf remove -y npm
-RUN dnf clean all -y
+# the explicit should go away when the patched postgresql package becomes available in yum repos
+# RUN dnf install -y postgresql
+COPY postgresql-13.3-1.module+el8.4.0+11254+85259292.x86_64.rpm ./
+RUN dnf install -y postgresql-13.3-1.module+el8.4.0+11254+85259292.x86_64.rpm
 
 USER 1001
 
