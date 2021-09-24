@@ -202,7 +202,9 @@ def assert_synchronize_event_is_valid(
         assert event["metadata"] == expected_metadata
 
 
-def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_per_partition, number_of_polls=5):
+def create_kafka_consumer_mock(
+    mocker, config, number_of_partitions, messages_per_partition, number_of_polls=5, message_list=None
+):
     fake_consumer = mocker.Mock()
     mock_poll = {}
     poll_result_list = []
@@ -219,10 +221,13 @@ def create_kafka_consumer_mock(mocker, config, number_of_partitions, messages_pe
     fake_consumer.assignment.return_value = set(partitions)
 
     for partition in partitions:
-        mock_poll[partition] = [
-            SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
-            for _ in range(messages_per_partition)
-        ]
+        if message_list:
+            mock_poll[partition] = message_list
+        else:
+            mock_poll[partition] = [
+                SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
+                for _ in range(messages_per_partition)
+            ]
         mock_start_offsets[partition] = SimpleNamespace(offset=1)
         mock_end_offsets[partition] = 100
 
