@@ -75,8 +75,6 @@ def test_creates_delete_event_when_missing_from_db(
 
     assert event_producer_mock.write_event.call_count == num_missing
 
-    print(f"full call_args_list = {event_producer_mock.write_event.call_args_list}")
-
     for i in range(num_missing):
         produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
         assert produced_event["type"] == "delete"
