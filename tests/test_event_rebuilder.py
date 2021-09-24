@@ -1,6 +1,8 @@
 import json
 from unittest import mock
 
+import pytest
+
 from app import db
 from app import threadctx
 from app import UNKNOWN_REQUEST_ID_VALUE
@@ -33,22 +35,33 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert event_producer_mock.call_count == 0
+    assert event_producer_mock.write_event.call_count == 0
 
 
-def test_creates_delete_event_when_missing_from_db(mocker, db_create_host, inventory_config):
+@pytest.mark.parametrize("num_existing", (0, 3, 4))
+@pytest.mark.parametrize("num_missing", (1, 3, 5))
+def test_creates_delete_event_when_missing_from_db(
+    mocker, db_create_host, inventory_config, num_existing, num_missing
+):
     event_producer_mock = mock.Mock()
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     event_list = []
+    existing_hosts_created = 0
+    missing_hosts_id_list = []
 
-    for _ in range(4):
-        host = minimal_db_host()
-        db_create_host(host=host)
-        event_list.append(build_event(EventType.created, host))
+    # Set up DB and event queue
+    while existing_hosts_created < num_existing or len(missing_hosts_id_list) < num_missing:
+        if existing_hosts_created < num_existing:
+            host = minimal_db_host()
+            db_create_host(host=host)
+            event_list.append(build_event(EventType.created, host))
+            existing_hosts_created += 1
+        if len(missing_hosts_id_list) < num_missing:
+            missing_host = minimal_db_host()
+            missing_host.id = generate_uuid()
+            event_list.append(build_event(EventType.updated, missing_host))
+            missing_hosts_id_list.append(missing_host.id)
 
-    missing_host = minimal_db_host()
-    missing_host.id = generate_uuid()
-    event_list.append(build_event(EventType.updated, missing_host))
     consumer_mock = create_kafka_consumer_mock(mocker, inventory_config, 1, 0, 1, event_list)
 
     rebuild_events_run(
@@ -60,7 +73,11 @@ def test_creates_delete_event_when_missing_from_db(mocker, db_create_host, inven
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    produced_event = json.loads(event_producer_mock.write_event.call_args_list[0][0][0])
+    assert event_producer_mock.write_event.call_count == num_missing
 
-    assert produced_event["type"] == "delete"
-    assert produced_event["id"] == missing_host.id
+    print(f"full call_args_list = {event_producer_mock.write_event.call_args_list}")
+
+    for i in range(num_missing):
+        produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
+        assert produced_event["type"] == "delete"
+        assert produced_event["id"] in missing_hosts_id_list
