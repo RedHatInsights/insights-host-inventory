@@ -127,5 +127,5 @@ class Identity:
 
 # Messages from the system_profile topic don't need to provide a real Identity,
 # So this helper function creates a basic User-type identity from the host data.
-def create_mock_identity_from_host(host):
-    return Identity({"account_number": host.account, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
+def create_mock_identity_with_account(account):
+    return Identity({"account_number": account, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
