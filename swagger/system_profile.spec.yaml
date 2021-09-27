@@ -440,3 +440,25 @@ $defs:
             example: "8.1"
             type: string
             maxLength: 255
+      system_purpose:
+        description: Object for system purpose information
+        type: object
+        properties:
+          usage:
+            description: The intended usage of the system
+            type: string
+            maxLength: 17
+            enum: ['Production', 'Development/Test', 'Disaster Recovery']
+            example: 'Production'
+          role:
+            description: The intended role of the system
+            type: string
+            maxLength: 37
+            enum: ['Red Hat Enterprise Linux Server', 'Red Hat Enterprise Linux Workstation', 'Red Hat Enterprise Linux Compute Node']
+            example: 'Red Hat Enterprise Linux Server'
+          sla:
+            description: The intended SLA of the system
+            type: string
+            maxLength: 12
+            enum: ['Premium', 'Standard', 'Self-Support']
+            example: 'Premium'
