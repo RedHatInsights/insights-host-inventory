@@ -19,7 +19,7 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     event_list = []
 
-    for _ in range(5):
+    for _ in range(4):
         host = minimal_db_host()
         db_create_host(host=host)
         event_list.append(build_event(EventType.created, host))
