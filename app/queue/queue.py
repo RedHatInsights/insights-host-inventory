@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth.identity import create_mock_identity_from_host
+from app.auth.identity import create_mock_identity_with_account
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
@@ -25,12 +25,14 @@ from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
 from app.logging import get_logger
 from app.logging import threadctx
+from app.models import Host
 from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
 from app.queue.events import build_event
+from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.serialization import DEFAULT_FIELDS
@@ -161,6 +163,23 @@ def parse_operation_message(message):
     return parsed_operation
 
 
+def sync_event_message(message, session, event_producer):
+    if message["type"] != EventType.delete.name:
+        query = session.query(Host).filter(
+            (Host.account == message["host"]["account"]) & (Host.id == UUID(message["host"]["id"]))
+        )
+        # If the host doesn't exist in the DB, produce a Delete event.
+        if not query.count():
+            host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
+            host.id = message["host"]["id"]
+            event = build_event(EventType.delete, host)
+            insights_id = host.canonical_facts.get("insights_id")
+            headers = message_headers(EventType.delete, insights_id)
+            event_producer.write_event(event, host.id, headers, wait=True)
+
+    return
+
+
 def update_system_profile(host_data, platform_metadata):
     payload_tracker = get_payload_tracker(request_id=threadctx.request_id)
 
@@ -174,7 +193,7 @@ def update_system_profile(host_data, platform_metadata):
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            identity = create_mock_identity_from_host(input_host)
+            identity = create_mock_identity_with_account(input_host.account)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
             )
