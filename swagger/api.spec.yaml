@@ -759,51 +759,28 @@ components:
         considered a canonical fact.
       type: string
       nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
-    # The schemas, with names ending in "_In", have been added for controlling uuid format used by
-    # canonical_facts.  Not controlling uuid formats lead to the creation of multiple hosts with identicle
-    # values for the same canonical_fact.
-    InsightsId_In:
-      description: >-
-        An ID defined in /etc/insights-client/machine-id. This field is
-        considered a canonical fact.
-      $ref: "#/components/schemas/HyphenatedUuid"
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     SubscriptionManagerId:
       description: >-
         A Red Hat Subcription Manager ID of a RHEL host.  This field is
         considered to be a canonical fact.
       type: string
       nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
-    SubscriptionManagerId_In:
-      description: >-
-        A Red Hat Subcription Manager ID of a RHEL host.  This field is
-        considered to be a canonical fact.
-      $ref: "#/components/schemas/HyphenatedUuid"
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host.  This field is considered to
         be a canonical fact.
       type: string
       nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
-    SatelliteId_In:
-      description: >-
-        A Red Hat Satellite ID of a RHEL host.  This field is considered to
-        be a canonical fact.
-      $ref: "#/components/schemas/HyphenatedUuid"
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS.  This field is considered to be a
         canonical fact.
       type: string
       nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
-    BiosUuid_In:
-      description: >-
-        A UUID of the host machine BIOS.  This field is considered to be a
-        canonical fact.
-      $ref: "#/components/schemas/HyphenatedUuid"
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     IpAddresses:
       description: >-
         Host’s network IP addresses.  This field is considered to be a
@@ -851,13 +828,21 @@ components:
       allOf:
       - properties:
           insights_id:
-            $ref: "#/components/schemas/InsightsId_In"
+            allOf:
+            - $ref: "#/components/schemas/InsightsId"
+            - $ref: "#/components/schemas/HyphenatedUuid"
           subscription_manager_id:
-            $ref: "#/components/schemas/SubscriptionManagerId_In"
+            allOf:
+            - $ref: "#/components/schemas/SubscriptionManagerId"
+            - $ref: "#/components/schemas/HyphenatedUuid"
           satellite_id:
-            $ref: "#/components/schemas/SatelliteId_In"
+            allOf:
+            - $ref: "#/components/schemas/SatelliteId"
+            - $ref: "#/components/schemas/HyphenatedUuid"
           bios_uuid:
-            $ref: "#/components/schemas/BiosUuid_In"
+            allOf:
+            - $ref: "#/components/schemas/BiosUuid"
+            - $ref: "#/components/schemas/HyphenatedUuid"
           ip_addresses:
             $ref: "#/components/schemas/NonNullableStringArray"
           fqdn:
