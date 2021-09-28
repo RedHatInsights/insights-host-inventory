@@ -102,7 +102,7 @@ def main(logger):
     shutdown_handler.register()
 
     with session_guard(session):
-        run(config, logger, session, event_producer, shutdown_handler)
+        run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
