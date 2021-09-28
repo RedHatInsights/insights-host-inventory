@@ -37,6 +37,6 @@ source $CICD_ROOT/build.sh
 # Run the django unit tests
 source $APP_ROOT/unit_test.sh
 
-# Smoke test the App (iqe tests coming soon)
+# Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
 source $CICD_ROOT/cji_smoke_test.sh
