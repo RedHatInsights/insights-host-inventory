@@ -222,7 +222,7 @@ def create_kafka_consumer_mock(
 
     for partition in partitions:
         if message_list:
-            mock_poll[partition] = message_list
+            mock_poll[partition] = [SimpleNamespace(value=message) for message in message_list]
         else:
             mock_poll[partition] = [
                 SimpleNamespace(value=json.dumps(wrap_message(minimal_host().data())))
