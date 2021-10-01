@@ -21,6 +21,7 @@ COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.
 IQE_PLUGINS="host_inventory"
 IQE_MARKER_EXPRESSION="smoke"
 IQE_FILTER_EXPRESSION=""
+IQE_CJI_TIMEOUT="30m"
 
 # ---------------------------
 # We'll take it from here ...
@@ -36,6 +37,6 @@ source $CICD_ROOT/build.sh
 # Run the django unit tests
 source $APP_ROOT/unit_test.sh
 
-# Smoke test the App (iqe tests coming soon)
-# source $CICD_ROOT/deploy_ephemeral_env.sh
-# source $CICD_ROOT/smoke_test.sh
+# Run IQE tests
+source $CICD_ROOT/deploy_ephemeral_env.sh
+source $CICD_ROOT/cji_smoke_test.sh
