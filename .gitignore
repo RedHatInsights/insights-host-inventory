@@ -10,4 +10,5 @@ tags
 /.sonar/sonar-scanner.properties
 /.scannerwork/
 
+swagger/inventory-schemas/
 coverage.xml

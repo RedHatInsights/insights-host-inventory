@@ -466,7 +466,6 @@ paths:
         '403':
             description: Forbidden
 
-
 components:
   securitySchemes:
     BearerAuth:
@@ -484,24 +483,9 @@ components:
       x-apikeyInfoFunc: app.auth.authentication_header_handler
   parameters:
     pageParam:
-      name: page
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-      description: A page number of the items to return.
+      $ref: 'pagination.yaml#/components/parameters/pageParam'
     perPageParam:
-      name: per_page
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-      description: A number of items to return per page.
+      $ref: 'pagination.yaml#/components/parameters/perPageParam'
     hostIdList:
       in: path
       name: host_id_list
@@ -623,8 +607,7 @@ components:
       style: deepObject
       explode: true
       schema:
-        type: object
-        description: System profile field values to filter with
+        $ref:  '#/components/schemas/SystemProfileNestedObject'
     fields_param:
       in: query
       name: fields
@@ -633,8 +616,7 @@ components:
       style: deepObject
       explode: true
       schema:
-        type: object
-        description: System profile field values to fetch
+        $ref:  '#/components/schemas/SystemProfileNestedObject'
 
   schemas:
     SystemProfileSapSystemOut:
@@ -648,41 +630,27 @@ components:
           description: The list of sap_system values on the account
           type: array
           items:
-            oneOf:
-              - type: object
-                properties:
-                  value:
-                    type: string
-                  count:
-                    type: integer
-              - type: object
-                properties:
-                  value:
-                    type: boolean
-                  count:
-                    type: integer
+            type: object
+            properties:
+              value:
+                oneOf:
+                - type: string
+                - type: boolean
+              count:
+                type: integer
+
     TagsOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/StructuredTag'
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        properties:
+          results:
+            description: The list of tags on the systems
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                $ref: '#/components/schemas/StructuredTag'
     StructuredTag:
       type: object
       properties:
@@ -695,25 +663,15 @@ components:
           type: string
           nullable: true
     TagCountOut:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of items in the "data" list.
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        results:
-          description: The list of tags on the systems
-          type: object
-          additionalProperties:
-            type: integer
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        properties:
+          results:
+            description: The list of tags on the systems
+            type: object
+            additionalProperties:
+              type: integer
     Facts:
       title: Host facts
       description: A set of string facts about a host.
@@ -745,7 +703,6 @@ components:
       type: array
       items:
         type: string
-      nullable: false
     InsightsId:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
@@ -983,59 +940,31 @@ components:
       description: >-
         A paginated host search query result with host entries and their
         Inventory metadata.
-      type: object
-      required:
-        - count
-        - page
-        - per_page
-        - total
-        - results
-      properties:
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        total:
-          description: A total count of the found entries.
-          type: integer
-        results:
-          description: Actual host search query result entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/HostOut'
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        required:
+          - results
+        properties:
+          results:
+            description: Actual host search query result entries.
+            type: array
+            items:
+              $ref: '#/components/schemas/HostOut'
     SystemProfileByHostOut:
       title: A host system profile query result
       description: Structure of the output of the host system profile query
-      type: object
-      required:
-        - count
-        - page
-        - per_page
-        - total
-        - results
-      properties:
-        count:
-          description: A number of entries on the current page.
-          type: integer
-        page:
-          description: A current page number.
-          type: integer
-        per_page:
-          description: A page size – a number of entries per single page.
-          type: integer
-        total:
-          description: A total count of the found entries.
-          type: integer
-        results:
-          description: Actual host search query result entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/HostSystemProfileOut'
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        required:
+          - results
+        properties:
+          results:
+            description: Actual host search query result entries.
+            type: array
+            items:
+              $ref: '#/components/schemas/HostSystemProfileOut'
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
@@ -1044,7 +973,7 @@ components:
         id:
           type: string
         system_profile:
-          $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+          $ref: '#/components/schemas/SystemProfile'
     PatchHostIn:
       title: Host data
       description: >-
@@ -1077,38 +1006,28 @@ components:
           type: boolean
     ActiveTags:
       title: Host data
-      type: object
-      required:
-        - total
-        - count
-        - page
-        - per_page
-        - results
-      properties:
-        total:
-          $ref: '#/components/schemas/Total'
-        count:
-          $ref: '#/components/schemas/Count'
-        page:
-          $ref: '#/components/schemas/Page'
-        per_page:
-          $ref: '#/components/schemas/PerPage'
-        results:
-          type: array
-          items:
-            title: ActiveTag
-            description: Information about a host tag
-            type: object
-            required:
-              - tag
-              - count
-            properties:
-              tag:
-                $ref: '#/components/schemas/StructuredTag'
-              count:
-                description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
-                type: integer
-                nullable: true
+      allOf:
+      - $ref: '#/components/schemas/PaginationOut'
+      - type: object
+        required:
+          - results
+        properties:
+          results:
+            type: array
+            items:
+              title: ActiveTag
+              description: Information about a host tag
+              type: object
+              required:
+                - tag
+                - count
+              properties:
+                tag:
+                  $ref: '#/components/schemas/StructuredTag'
+                count:
+                  description: The number of hosts with the given tag. If the value is null this indicates that the count is unknown.
+                  type: integer
+                  nullable: true
       example:
         total: 3
         count: 3
@@ -1130,18 +1049,38 @@ components:
               key: web
               value: null
             count: -1
+
+
+    # include renames for system_profile
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    SystemProfileNestedObject:
+      $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+    SystemProfileDiskDevice:
+      $ref: 'system_profile.spec.yaml#/$defs/DiskDevice'
+    SystemProfileYumRepo:
+      $ref: 'system_profile.spec.yaml#/$defs/YumRepo'
+    SystemProfileDnfModule:
+      $ref: 'system_profile.spec.yaml#/$defs/DnfModule'
+    SystemProfileInstalledProduct:
+      $ref: 'system_profile.spec.yaml#/$defs/InstalledProduct'
+    SystemProfileNetworkInterface:
+      $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
+
+
+    # include renames for pagination
+    PaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/PaginationOut'
     Total:
-      type: integer
-      description: Total number of items
+      $ref: 'pagination.yaml#/components/schemas/Total'
     Count:
-      type: integer
-      description: The number of items on the current page
+      $ref: 'pagination.yaml#/components/schemas/Count'
     Page:
-      type: integer
-      description: The page number
+      $ref: 'pagination.yaml#/components/schemas/Page'
     PerPage:
-      type: integer
-      description: The number of items to return per page
+      $ref: 'pagination.yaml#/components/schemas/PerPage'
+
+
   responses:
     PageOutOfBounds:
       description: Requested page is outside of the range of available pages
