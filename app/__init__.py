@@ -36,7 +36,7 @@ IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 UNKNOWN_REQUEST_ID_VALUE = "-1"
 
-# temporary replaced for RHCLOUD-12800 - correct normalization of the bundled spec
+# temporary replaced for ESSNTL-746 - correct normalization of the bundled spec
 # SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
