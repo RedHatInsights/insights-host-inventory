@@ -3,12 +3,13 @@ import sys
 from functools import partial
 
 from kafka import KafkaConsumer
+from kafka import TopicPartition
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
+from app import create_app
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -36,8 +37,17 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def run(logger, session, consumer, event_producer, shutdown_handler):
+def run(config, logger, session, consumer, event_producer, shutdown_handler):
     num_messages = 1
+    partitions = []
+
+    # Seek to beginning
+    for partition_id in consumer.partitions_for_topic(config.event_topic) or []:
+        partitions.append(TopicPartition(config.event_topic, partition_id))
+
+    consumer.assign(partitions)
+    partitions = consumer.assignment()
+    consumer.seek_to_beginning(*partitions)
     total_messages_processed = 0
 
     while num_messages > 0 and not shutdown_handler.shut_down():
@@ -47,7 +57,7 @@ def run(logger, session, consumer, event_producer, shutdown_handler):
             for message in messages:
                 logger.debug("Message received")
                 try:
-                    sync_event_message(json.loads(message), session, event_producer)
+                    sync_event_message(json.loads(message.value), session, event_producer)
                     # TODO: Metrics
                     # metrics.ingress_message_handler_success.inc()
                 except OperationalError as oe:
@@ -69,33 +79,30 @@ def run(logger, session, consumer, event_producer, shutdown_handler):
 
 
 def main(logger):
-    config = Config(RuntimeEnvironment.JOB)
-    config.log_configuration()
+    application = create_app(RuntimeEnvironment.JOB)
+    config = application.config["INVENTORY_CONFIG"]
+    Session = _init_db(config)
+    session = Session()
+    # TODO: Metrics
+    # start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
-        config.event_topic,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
         **config.events_kafka_consumer,
     )
 
-    event_producer = EventProducer(config)
-    register_shutdown(event_producer.close, "Closing producer")
-
-    Session = _init_db(config)
-    session = Session()
-    # TODO: Metrics
-    # start_http_server(config.metrics_port)
-
     register_shutdown(session.get_bind().dispose, "Closing database")
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
+    event_producer = EventProducer(config)
+    register_shutdown(event_producer.close, "Closing producer")
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
     with session_guard(session):
-        run(logger, session, consumer, event_producer, shutdown_handler)
+        run(config, logger, session, consumer, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":
