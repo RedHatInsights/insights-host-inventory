@@ -5,16 +5,14 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
-from api.filtering.filtering import build_system_profile_filter
+from api.filtering.filtering import query_filters
 from api.host import get_bulk_query_source
-from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
-from app.exceptions import ValidationException
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -68,6 +66,12 @@ def xjoin_enabled():
 def get_tags(
     search=None,
     tags=None,
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    provider_id=None,
+    provider_type=None,
     order_by=None,
     order_how=None,
     page=None,
@@ -93,7 +97,18 @@ def get_tags(
         },
     }
 
-    hostfilter_and_variables = ()
+    hostfilter_and_variables = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        None,
+        registered_with,
+        filter,
+    )
 
     if search:
         variables["filter"] = {
@@ -101,18 +116,6 @@ def get_tags(
             "search": {"regex": f".*{custom_escape(search)}.*"}
         }
 
-    if tags:
-        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
-
-    if registered_with:
-        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
-
-    if filter:
-        for key in filter:
-            if key == "system_profile":
-                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
-            else:
-                raise ValidationException("filter key is invalid")
     current_identity = get_current_identity()
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         hostfilter_and_variables += owner_id_filter()

@@ -1174,7 +1174,7 @@ def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphq
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}},
+            "hostFilter": {"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
         },
         mocker.ANY,
     )
