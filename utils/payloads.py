@@ -563,7 +563,7 @@ def build_host_chunk():
         # "bios_uuid": "9f962a0a-6b2f-4e6c-a4b7-6355e7c9ba4c",
         # "satellite_id": random_uuid(),
         "bios_uuid": random_uuid(),
-        # "fqdn": fqdn,
+        "fqdn": fqdn,
         # "ansible_host": "host1.mydomain.com",
         # "provider_type": " ",
         # "provider_type": "aws",
@@ -573,10 +573,10 @@ def build_host_chunk():
         # "provider_id": "",
         "display_name": fqdn,
         "tags": [
-            {"namespace": "SPECIAL", "key": "key", "value": "val"},
-            {"namespace": "NS3", "key": "key3", "value": "val3"},
-            {"namespace": "NS1", "key": "key3", "value": "val3"},
-            {"namespace": "Sat", "key": "prod", "value": None},
+            {"namespace": "Sat", "key": "env", "value": "prod"},
+            {"namespace": "aws", "key": "region", "value": "us-east-2"},
+            {"namespace": "insights-client", "key": "os", "value": "fedora"},
+            {"namespace": "insights-client", "key": "web ", "value": None},
         ],
         # "tags": {
         #     "SPECIAL": {"key": ["val"]}, "NS3": {"key3": ["val3"]}, "NS1": {"key3": ["val3"]}, "Sat": {"prod": []},

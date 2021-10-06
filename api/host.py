@@ -132,6 +132,67 @@ def get_host_list(
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
+def delete_host_list(
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    provider_id=None,
+    provider_type=None,
+    tags=None,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    staleness=None,
+    registered_with=None,
+    filter=None,
+    fields=None,
+):
+    total = 0
+    host_list = ()
+
+    bulk_query_source = get_bulk_query_source()
+
+    get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
+
+    try:
+        host_list, total, additional_fields = get_host_list(
+            display_name,
+            fqdn.casefold() if fqdn else None,
+            hostname_or_id,
+            insights_id.casefold() if insights_id else None,
+            provider_id.casefold() if provider_id else None,
+            provider_type.casefold() if provider_type else None,
+            tags,
+            page,
+            per_page,
+            order_by,
+            order_how,
+            staleness,
+            registered_with,
+            filter,
+            fields,
+        )
+    except ValueError as e:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(e))
+
+    hl = list(host_list)  # host_list is a map
+    dh_num = 0
+
+    for host in hl:
+        logger.info(f"Host to delete: {host.id}")
+        deleted, _ = delete_by_id([host.id])
+        if deleted:
+            logger.info(f"Host Delete: {host}")
+            dh_num += 1
+    return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
 def delete_by_id(host_id_list):
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
@@ -159,7 +220,7 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
-    return flask.Response(None, status.HTTP_200_OK)
+    return deleted, flask.Response(None, status.HTTP_200_OK)
 
 
 @api_operation
