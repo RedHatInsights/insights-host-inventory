@@ -6,6 +6,7 @@ from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
+from app.models import ProviderType
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
@@ -793,6 +794,37 @@ def test_tags_query_variables_default_except_staleness(
     graphql_tag_query_empty_response.assert_called_once_with(
         TAGS_QUERY,
         {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "field,matcher,value",
+    (
+        ("fqdn", "eq", "some fqdn"),
+        ("display_name", "matches_lc", "*some display name*"),
+        ("insights_id", "eq", generate_uuid()),
+        ("provider_id", "eq", "some-provider-id"),
+        ("provider_type", "eq", ProviderType.AZURE.value),
+    ),
+)
+def test_tags_query_host_filters(
+    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, field, matcher, value
+):
+    url = build_tags_url(query=f"?{field}={quote(value.replace('*',''))}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+    graphql_tag_query_empty_response.assert_called_once_with(
+        TAGS_QUERY,
+        {
+            "order_by": "tag",
+            "order_how": "ASC",
+            "limit": 50,
+            "offset": 0,
+            "hostFilter": {"AND": ({field: {matcher: value}},), "OR": mocker.ANY},
+        },
         mocker.ANY,
     )
 
