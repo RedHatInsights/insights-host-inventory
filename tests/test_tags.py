@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import null
 
+from app.models import ProviderType
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import api_pagination_test
@@ -58,6 +59,29 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
 
     assert response_status == 200
     assert {} == response_data["results"]
+
+
+def test_get_list_of_tags_with_host_filters(patch_xjoin_post, query_source_xjoin, api_get, subtests):
+    patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
+    """
+    Validate that the /tags endpoint doesn't break when we supply it with various filters.
+    We test the actual xjoin call in test_xjoin.test_tags_query_host_filters.
+    """
+    for query in (
+        f"?display_name=display_name{ProviderType.ALIBABA.value}",
+        f"?fqdn=fqdn{ProviderType.AWS.value}",
+        f"?hostname_or_id=display_name{ProviderType.AZURE.value}",
+        f"?hostname_or_id=fqdn{ProviderType.GCP.value}",
+        f"?insights_id={generate_uuid()}",
+        f"?provider_id=provider_id{ProviderType.IBM.value}",
+        f"?provider_type={ProviderType.IBM.value}",
+    ):
+        with subtests.test(query=query):
+            url = build_tags_url(query=query)
+            response_status, response_data = api_get(url)
+
+            assert_response_status(response_status, 200)
+            assert response_data["total"] == 1
 
 
 def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
