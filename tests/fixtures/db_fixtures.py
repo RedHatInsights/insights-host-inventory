@@ -9,6 +9,7 @@ from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
+from tests.helpers.db_utils import db_host
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
@@ -78,7 +79,7 @@ def db_create_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app):
-    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
+    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None, minimal=True):
         extra_data = extra_data or {}
         created_hosts = []
         if type(hosts) == list:
@@ -87,7 +88,10 @@ def db_create_multiple_hosts(flask_app):
                 created_hosts.append(host)
         else:
             for _ in range(how_many):
-                host = minimal_db_host(account=identity["account_number"], **extra_data)
+                if minimal:
+                    host = minimal_db_host(account=identity["account_number"], **extra_data)
+                else:
+                    host = db_host(account=identity["account_number"], **extra_data)
                 db.session.add(host)
                 created_hosts.append(host)
 

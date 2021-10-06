@@ -183,8 +183,7 @@ def delete_host_list(
 
     for host in hl:
         logger.info(f"Host to delete: {host.id}")
-        deleted, _ = delete_by_id([host.id])
-        if deleted:
+        if delete_by_id([host.id]):
             logger.info(f"Host Delete: {host}")
             dh_num += 1
     return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
@@ -220,7 +219,7 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
-    return deleted, flask.Response(None, status.HTTP_200_OK)
+    return flask.Response(None, status.HTTP_200_OK)
 
 
 @api_operation

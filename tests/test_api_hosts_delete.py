@@ -7,6 +7,7 @@ from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -100,6 +101,25 @@ def test_create_then_delete_without_insights_id(
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+
+def test_delete_hosts_using_filter(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts
+):
+    created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
+
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+
+    assert event_producer_mock.event is None
+    response_status, _ = api_delete_filtered_hosts(url)
+
+    # check db for deleted hosts
+    host_id_list = [str(host.id) for host in created_hosts]
+    remaining_hosts = db_get_hosts(host_id_list)
+
+    assert_response_status(response_status, expected_status=200)
+    assert '"type": "delete"' in event_producer_mock.event
+    assert remaining_hosts.count() == 0
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
