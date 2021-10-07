@@ -2,11 +2,14 @@ FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
-# use general package name instead of a specific one,
-# like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
-# so future security fixes are autamatically picked up.
-RUN dnf install -y postgresql
+RUN dnf module install -y postgresql:13
+
+# remove packages not used by host-inventory to avoid security vulnerabilityes
+RUN dnf remove -y npm
+
+# upgrade security patches and cleanup any clutter left.
 RUN dnf upgrade -y --security
+RUN dnf clean all -y
 
 USER 1001
 
