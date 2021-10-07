@@ -21,66 +21,22 @@
         ],
         "parameters": [
           {
-            "in": "query",
-            "name": "display_name",
-            "schema": {
-              "type": "string"
-            },
-            "description": "A part of a searched host’s display name.",
-            "required": false
+            "$ref": "#/components/parameters/displayName"
           },
           {
-            "in": "query",
-            "name": "fqdn",
-            "schema": {
-              "type": "string"
-            },
-            "description": "Filter by a host's FQDN",
-            "required": false
+            "$ref": "#/components/parameters/fqdn"
           },
           {
-            "in": "query",
-            "name": "hostname_or_id",
-            "schema": {
-              "type": "string"
-            },
-            "description": "Search for a host by display_name, fqdn, id",
-            "required": false
+            "$ref": "#/components/parameters/hostnameOrId"
           },
           {
-            "in": "query",
-            "name": "insights_id",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Search for a host by insights_id",
-            "required": false
+            "$ref": "#/components/parameters/insightsId"
           },
           {
-            "in": "query",
-            "name": "provider_id",
-            "schema": {
-              "type": "string"
-            },
-            "description": "Search for a host by provider_id",
-            "required": false
+            "$ref": "#/components/parameters/providerId"
           },
           {
-            "in": "query",
-            "name": "provider_type",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "alibaba",
-                "aws",
-                "azure",
-                "gcp",
-                "ibm"
-              ]
-            },
-            "description": "Search for a host by provider_type",
-            "required": false
+            "$ref": "#/components/parameters/providerType"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -582,6 +538,24 @@
             "$ref": "#/components/parameters/searchParam"
           },
           {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/providerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerType"
+          },
+          {
             "$ref": "#/components/parameters/registered_with"
           },
           {
@@ -836,6 +810,68 @@
           "type": "string"
         },
         "description": "Filter by branch_id",
+        "required": false
+      },
+      "displayName": {
+        "in": "query",
+        "name": "display_name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by display_name",
+        "required": false
+      },
+      "fqdn": {
+        "in": "query",
+        "name": "fqdn",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by FQDN",
+        "required": false
+      },
+      "hostnameOrId": {
+        "in": "query",
+        "name": "hostname_or_id",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by display_name, fqdn, id",
+        "required": false
+      },
+      "insightsId": {
+        "in": "query",
+        "name": "insights_id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Filter by insights_id",
+        "required": false
+      },
+      "providerId": {
+        "in": "query",
+        "name": "provider_id",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by provider_id",
+        "required": false
+      },
+      "providerType": {
+        "in": "query",
+        "name": "provider_type",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "alibaba",
+            "aws",
+            "azure",
+            "gcp",
+            "ibm"
+          ]
+        },
+        "description": "Filter by provider_type",
         "required": false
       },
       "factsNamespace": {
