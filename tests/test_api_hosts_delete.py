@@ -103,8 +103,34 @@ def test_create_then_delete_without_insights_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
+@pytest.mark.parametrize(
+    "query_filter",
+    (
+        "display_name=test-display-name",
+        "tags=SPECIAL/tag=ToFind",
+        "tags=ns1/key2=val1",
+        "tags=ns1/key1=val1",
+        "tags=ns1/key1=val2",
+        "tags=ns1/key1=val2&display_name=test-display-name",
+    ),
+)
 def test_delete_hosts_using_filter(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, query_filter
+):
+    _ = db_create_multiple_hosts(how_many=3, minimal=False)
+
+    url = build_hosts_url(query=f"?{query_filter}")
+
+    # verify the mock has not event type is not set, which gets set when a delete event is produced.
+    assert event_producer_mock.event is None
+    response_status, _ = api_delete_filtered_hosts(url)
+
+    assert_response_status(response_status, expected_status=200)
+    assert '"type": "delete"' in event_producer_mock.event
+
+
+def test_delete_hosts_get_deleted_hosts(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, api_get
 ):
     created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
 
@@ -113,12 +139,32 @@ def test_delete_hosts_using_filter(
     assert event_producer_mock.event is None
     response_status, _ = api_delete_filtered_hosts(url)
 
+    assert_response_status(response_status, expected_status=200)
+    assert '"type": "delete"' in event_producer_mock.event
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 0
+
+
+def test_delete_hosts_deleted_from_database(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, api_get
+):
+    created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
+
+    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+
+    assert event_producer_mock.event is None
+    response_status, _ = api_delete_filtered_hosts(url)
+
+    assert_response_status(response_status, expected_status=200)
+    assert '"type": "delete"' in event_producer_mock.event
+
     # check db for deleted hosts
     host_id_list = [str(host.id) for host in created_hosts]
     remaining_hosts = db_get_hosts(host_id_list)
 
-    assert_response_status(response_status, expected_status=200)
-    assert '"type": "delete"' in event_producer_mock.event
     assert remaining_hosts.count() == 0
 
 
