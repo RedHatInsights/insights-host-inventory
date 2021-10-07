@@ -81,6 +81,81 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "api.host.delete_host_list",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete the entire list of hosts fitlered by the query",
+        "description": "Delete the entire list of hosts fitlered by the query. <br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/providerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          },
+          {
+            "$ref": "#/components/parameters/fields_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully deleted the hosts filtered by the query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostQueryOutput"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/hosts/checkin": {
