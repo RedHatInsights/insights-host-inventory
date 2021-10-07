@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import partial
+from uuid import UUID
 
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
@@ -8,6 +9,10 @@ from app import custom_filter_fields
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.utils import Tag
+from app.xjoin import staleness_filter
+from app.xjoin import string_contains_lc
+
 
 logger = get_logger(__name__)
 
@@ -109,6 +114,73 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
     nullable_builder_function = partial(_nullable_wrapper, builder_function)
 
     return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter)
+
+
+def build_tag_query_dict_tuple(tags):
+    query_tag_tuple = ()
+    for string_tag in tags:
+        query_tag_dict = {}
+        tag_dict = Tag.from_string(string_tag).data()
+        for key in tag_dict.keys():
+            query_tag_dict[key] = {"eq": tag_dict[key]}
+        query_tag_tuple += ({"tag": query_tag_dict},)
+    logger.debug("query_tag_tuple: %s", query_tag_tuple)
+    return query_tag_tuple
+
+
+def query_filters(
+    fqdn,
+    display_name,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    staleness,
+    registered_with,
+    filter,
+):
+    if fqdn:
+        query_filters = ({"fqdn": {"eq": fqdn}},)
+    elif display_name:
+        query_filters = ({"display_name": string_contains_lc(display_name)},)
+    elif hostname_or_id:
+        contains_lc = string_contains_lc(hostname_or_id)
+        hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": contains_lc})
+        try:
+            id = UUID(hostname_or_id)
+        except ValueError:
+            # Do not filter using the id
+            logger.debug("The hostname (%s) could not be converted into a UUID", hostname_or_id, exc_info=True)
+        else:
+            logger.debug("Adding id (uuid) to the filter list")
+            hostname_or_id_filters += ({"id": {"eq": str(id)}},)
+        query_filters = ({"OR": hostname_or_id_filters},)
+    elif insights_id:
+        query_filters = ({"insights_id": {"eq": insights_id}},)
+    else:
+        query_filters = ()
+
+    if tags:
+        query_filters += build_tag_query_dict_tuple(tags)
+    if staleness:
+        staleness_filters = tuple(staleness_filter(staleness))
+        query_filters += ({"OR": staleness_filters},)
+    if registered_with:
+        query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+    if provider_type:
+        query_filters += ({"provider_type": {"eq": provider_type}},)
+    if provider_id:
+        query_filters += ({"provider_id": {"eq": provider_id}},)
+
+    for key in filter:
+        if key == "system_profile":
+            query_filters += build_system_profile_filter(filter["system_profile"])
+        else:
+            raise ValidationException("filter key is invalid")
+
+    logger.debug(query_filters)
+    return query_filters
 
 
 def build_system_profile_filter(system_profile):

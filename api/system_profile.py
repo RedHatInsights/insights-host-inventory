@@ -7,8 +7,8 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import build_system_profile_filter
+from api.filtering.filtering import build_tag_query_dict_tuple
 from api.host import get_bulk_query_source
-from api.host_query_xjoin import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
