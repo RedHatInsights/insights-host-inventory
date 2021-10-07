@@ -68,13 +68,13 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, query_source_xjoin
     We test the actual xjoin call in test_xjoin.test_tags_query_host_filters.
     """
     for query in (
-        f"?display_name=display_name{ProviderType.ALIBABA.value}",
-        f"?fqdn=fqdn{ProviderType.AWS.value}",
-        f"?hostname_or_id=display_name{ProviderType.AZURE.value}",
-        f"?hostname_or_id=fqdn{ProviderType.GCP.value}",
+        "?display_name=test-example-host",
+        "?fqdn=tagfilter.test.com",
+        "?hostname_or_id=test-example-host",
+        "?hostname_or_id=tagfilter.test.com",
         f"?insights_id={generate_uuid()}",
-        f"?provider_id=provider_id{ProviderType.IBM.value}",
-        f"?provider_type={ProviderType.IBM.value}",
+        f"?provider_id={generate_uuid()}",
+        f"?provider_type={ProviderType.AZURE.value}",
     ):
         with subtests.test(query=query):
             url = build_tags_url(query=query)
