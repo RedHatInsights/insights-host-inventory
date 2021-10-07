@@ -2,15 +2,14 @@ FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
+RUN dnf module install -y postgresql:13
+
 # remove packages not used by host-inventory to avoid security vulnerabilityes
 RUN dnf remove -y npm
 
 # upgrade security patches and cleanup any clutter left.
 RUN dnf upgrade -y --security
 RUN dnf clean all -y
-
-RUN dnf module enable -y postgresql:13
-RUN dnf install -y postgresql
 
 USER 1001
 
