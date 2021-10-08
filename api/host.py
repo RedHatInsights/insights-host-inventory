@@ -157,7 +157,7 @@ def delete_host_list(
     get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
 
     try:
-        host_list, total, additional_fields = get_host_list(
+        host_list, total, _ = get_host_list(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,
