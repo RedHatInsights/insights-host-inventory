@@ -9,7 +9,7 @@ from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 
-__all__ = ("get_host_list", "query_filters")
+__all__ = ("get_host_list", "get_host_ids_list", "query_filters")
 
 logger = get_logger(__name__)
 
@@ -56,6 +56,66 @@ SUPPORTED_RANGE_OPERATIONS = ["gt", "gte", "lt", "lte"]
 
 
 def get_host_list(
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    page,
+    per_page,
+    param_order_by,
+    param_order_how,
+    staleness,
+    registered_with,
+    filter,
+    fields,
+):
+    limit, offset = pagination_params(page, per_page)
+    xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
+
+    all_filters = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
+    )
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+        all_filters += owner_id_filter()
+
+    additional_fields = tuple()
+
+    system_profile_fields = []
+    if fields.get("system_profile"):
+        additional_fields = ("system_profile",)
+        system_profile_fields = list(fields.get("system_profile").keys())
+
+    variables = {
+        "limit": limit,
+        "offset": offset,
+        "order_by": xjoin_order_by,
+        "order_how": xjoin_order_how,
+        "filter": all_filters,
+        "fields": system_profile_fields,
+    }
+    response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
+
+    total = response["meta"]["total"]
+    check_pagination(offset, total)
+
+    return map(deserialize_host, response["data"]), total, additional_fields
+
+
+def get_host_ids_list(
     display_name,
     fqdn,
     hostname_or_id,

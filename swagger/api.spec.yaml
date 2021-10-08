@@ -59,23 +59,13 @@ paths:
         - $ref: '#/components/parameters/insightsId'
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
-        - $ref: '#/components/parameters/branchId'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/orderByParam'
-        - $ref: '#/components/parameters/orderHowParam'
-        - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/filter_param'
-        - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
           description: Successfully deleted the hosts filtered by the query.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostQueryOutput'
+        '400':
+          description: Invalid request.
   /hosts/checkin:
     post:
       operationId: api.host.host_checkin

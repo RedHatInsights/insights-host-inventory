@@ -12,8 +12,10 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
+from api.host_query_db import get_host_ids_list as get_host_ids_list_db
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
+from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
@@ -22,6 +24,7 @@ from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
+from app.instrumentation import log_delete_filtered_hosts_failed
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -52,6 +55,10 @@ from lib.middleware import rbac
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
+GET_HOST_IDS_LIST_FUNCTIONS = {
+    BulkQuerySource.db: get_host_ids_list_db,
+    BulkQuerySource.xjoin: get_host_ids_list_xjoin,
+}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
 
@@ -140,24 +147,17 @@ def delete_host_list(
     provider_id=None,
     provider_type=None,
     tags=None,
-    page=1,
-    per_page=100,
-    order_by=None,
-    order_how=None,
-    staleness=None,
-    registered_with=None,
     filter=None,
-    fields=None,
 ):
     total = 0
     host_list = ()
 
     bulk_query_source = get_bulk_query_source()
 
-    get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
+    get_host_ids_list = GET_HOST_IDS_LIST_FUNCTIONS[bulk_query_source]
 
     try:
-        host_list, total, _ = get_host_list(
+        host_list, total = get_host_ids_list(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,
@@ -165,17 +165,10 @@ def delete_host_list(
             provider_id.casefold() if provider_id else None,
             provider_type.casefold() if provider_type else None,
             tags,
-            page,
-            per_page,
-            order_by,
-            order_how,
-            staleness,
-            registered_with,
             filter,
-            fields,
         )
     except ValueError as e:
-        log_get_host_list_failed(logger)
+        log_delete_filtered_hosts_failed(logger)
         flask.abort(400, str(e))
 
     hl = list(host_list)  # host_list is a map
