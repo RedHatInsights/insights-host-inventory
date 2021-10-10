@@ -7,7 +7,7 @@ from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_hosts_bulk_delete_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -16,6 +16,8 @@ from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+# from tests.helpers.api_utils import build_hosts_url
 
 
 def test_delete_non_existent_host(api_delete_host):

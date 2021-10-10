@@ -154,6 +154,7 @@ def delete_host_list(
     staleness=None,
     tags=None,
     filter=None,
+    fields=None,
 ):
     if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter]):
         logger.error("bulk-delete operation needs at least one input property to filter on.")

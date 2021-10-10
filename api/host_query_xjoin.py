@@ -75,6 +75,23 @@ ORDER_BY_MAPPING = {
     "operating_system": "operating_system",
 }
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
+HOST_IDS_QUERY = """query Query(
+    $filter: [HostFilter!],
+) {
+    hosts(
+        filter: {
+            AND: $filter,
+        }
+    ) {
+        meta {
+            total,
+        }
+        data {
+            id,
+            display_name,
+        }
+    }
+}"""
 
 
 def get_host_list(
