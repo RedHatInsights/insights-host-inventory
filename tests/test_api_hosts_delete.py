@@ -7,7 +7,7 @@ from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_hosts_bulk_delete_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -15,6 +15,8 @@ from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+# from tests.helpers.api_utils import build_hosts_url
 
 
 def test_delete_non_existent_host(api_delete_host):
@@ -115,37 +117,50 @@ def test_create_then_delete_without_insights_id(
     ),
 )
 def test_delete_hosts_using_filter(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, query_filter
+    event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, query_filter
 ):
-    _ = db_create_multiple_hosts(how_many=3, minimal=False)
+    db_create_multiple_hosts(how_many=3, minimal=False)
 
-    url = build_hosts_url(query=f"?{query_filter}")
+    url = build_hosts_bulk_delete_url(query=f"?{query_filter}")
 
-    # verify the mock has not event type is not set, which gets set when a delete event is produced.
-    assert event_producer_mock.event is None
     response_status, _ = api_delete_filtered_hosts(url)
 
     assert_response_status(response_status, expected_status=200)
     assert '"type": "delete"' in event_producer_mock.event
 
 
+# TODO delete this test to respond to
+# https://github.com/RedHatInsights/insights-host-inventory/pull/1011/files#r724887324
 def test_delete_hosts_get_deleted_hosts(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, api_get
+    event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, db_get_hosts
 ):
     created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
 
-    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
 
-    assert event_producer_mock.event is None
     response_status, _ = api_delete_filtered_hosts(url)
 
     assert_response_status(response_status, expected_status=200)
     assert '"type": "delete"' in event_producer_mock.event
 
-    response_status, response_data = api_get(url)
+    # assert_delete_event_is_valid(
+    #     event_producer=event_producer_mock,
+    #     host=created_hosts,
+    #     timestamp=event_datetime_mock,
+    #     expected_request_id=request_id,
+    #     expected_metadata={"request_id": request_id},
+    # )
 
-    assert response_status == 200
-    assert response_data["count"] == 0
+    # url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    # response_status, response_data = api_get(url)
+
+    # assert response_status == 200
+    # assert response_data["count"] == 0
+
+    host_id_list = [str(host.id) for host in created_hosts]
+    remaining_hosts = db_get_hosts(host_id_list)
+
+    assert remaining_hosts.count() == 0
 
 
 def test_delete_hosts_deleted_from_database(
@@ -153,7 +168,7 @@ def test_delete_hosts_deleted_from_database(
 ):
     created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
 
-    url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
+    url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
 
     assert event_producer_mock.event is None
     response_status, _ = api_delete_filtered_hosts(url)

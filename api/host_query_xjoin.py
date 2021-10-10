@@ -50,6 +50,23 @@ QUERY = """query Query(
         }
     }
 }"""
+HOST_IDS_QUERY = """query Query(
+    $filter: [HostFilter!],
+) {
+    hosts(
+        filter: {
+            AND: $filter,
+        }
+    ) {
+        meta {
+            total,
+        }
+        data {
+            id,
+            display_name,
+        }
+    }
+}"""
 ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name": "display_name"}
 ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
 SUPPORTED_RANGE_OPERATIONS = ["gt", "gte", "lt", "lte"]
@@ -116,25 +133,11 @@ def get_host_list(
 
 
 def get_host_ids_list(
-    display_name,
-    fqdn,
-    hostname_or_id,
-    insights_id,
-    provider_id,
-    provider_type,
-    tags,
-    page,
-    per_page,
-    param_order_by,
-    param_order_how,
-    staleness,
-    registered_with,
-    filter,
-    fields,
+    display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter, fields
 ):
-    limit, offset = pagination_params(page, per_page)
-    xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
 
+    registered_with = None
+    staleness = None
     all_filters = query_filters(
         fqdn,
         display_name,
@@ -152,27 +155,14 @@ def get_host_ids_list(
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         all_filters += owner_id_filter()
 
-    additional_fields = tuple()
-
     system_profile_fields = []
     if fields.get("system_profile"):
-        additional_fields = ("system_profile",)
         system_profile_fields = list(fields.get("system_profile").keys())
 
-    variables = {
-        "limit": limit,
-        "offset": offset,
-        "order_by": xjoin_order_by,
-        "order_how": xjoin_order_how,
-        "filter": all_filters,
-        "fields": system_profile_fields,
-    }
-    response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
+    variables = {"filter": all_filters, "fields": system_profile_fields}
+    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
 
-    total = response["meta"]["total"]
-    check_pagination(offset, total)
-
-    return map(deserialize_host, response["data"]), total, additional_fields
+    return response["data"], response["meta"]["total"]
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):

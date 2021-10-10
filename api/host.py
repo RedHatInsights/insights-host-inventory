@@ -148,6 +148,7 @@ def delete_host_list(
     provider_type=None,
     tags=None,
     filter=None,
+    fields=None,
 ):
     total = 0
     host_list = ()
@@ -166,6 +167,7 @@ def delete_host_list(
             provider_type.casefold() if provider_type else None,
             tags,
             filter,
+            fields,
         )
     except ValueError as e:
         log_delete_filtered_hosts_failed(logger)
@@ -175,8 +177,8 @@ def delete_host_list(
     dh_num = 0
 
     for host in hl:
-        logger.info(f"Host to delete: {host.id}")
-        if delete_by_id([host.id]):
+        logger.info(f"Host to delete: {host['id']}")
+        if True:  # delete_by_id([host['id']]):
             logger.info(f"Host Delete: {host}")
             dh_num += 1
     return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
