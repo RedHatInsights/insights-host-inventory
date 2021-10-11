@@ -2170,6 +2170,40 @@
                 "example": "Premium"
               }
             }
+          },
+          "ansible": {
+            "description": "Object containing data specific to Ansible Automation Platform",
+            "type": "object",
+            "properties": {
+              "controller_version": {
+                "description": "The ansible-tower or automation-controller version on the host",
+                "type": "string",
+                "example": "1.2.3",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$"
+              },
+              "hub_version": {
+                "description": "The automation-hub version on the host",
+                "type": "string",
+                "example": "4.5.6",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$"
+              },
+              "catalog_worker_version": {
+                "description": "The catalog-worker version on the host",
+                "type": "string",
+                "example": "7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$"
+              },
+              "sso_version": {
+                "description": "The SSO version on the host",
+                "type": "string",
+                "example": "10.11.12",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$"
+              }
+            }
           }
         }
       },
