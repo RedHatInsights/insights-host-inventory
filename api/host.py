@@ -178,7 +178,8 @@ def delete_host_list(
 
     for host in hl:
         logger.info(f"Host to delete: {host['id']}")
-        if True:  # delete_by_id([host['id']]):
+        # if True:  # delete_by_id([host['id']]):
+        if delete_by_id([host["id"]]):
             logger.info(f"Host Delete: {host}")
             dh_num += 1
     return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
