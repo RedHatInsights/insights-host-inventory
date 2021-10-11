@@ -16,7 +16,10 @@ objects:
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
-      web: true
+      webServices:
+        public:
+          enabled: true
+          apiPath: inventory
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         command:
