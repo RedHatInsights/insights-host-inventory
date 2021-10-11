@@ -10,6 +10,7 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
+from api.host_query import build_host_id_list_response
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_ids_list as get_host_ids_list_db
@@ -133,6 +134,43 @@ def get_host_list(
         flask.abort(400, str(e))
 
     json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
+    return flask_json_response(json_data)
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def get_host_ids_list(
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    provider_id=None,
+    provider_type=None,
+    tags=None,
+    filter=None,
+    fields=None,
+):
+    total = 0
+    host_list = ()
+
+    try:
+        host_list, total = get_host_ids_list_xjoin(
+            display_name,
+            fqdn.casefold() if fqdn else None,
+            hostname_or_id,
+            insights_id.casefold() if insights_id else None,
+            provider_id.casefold() if provider_id else None,
+            provider_type.casefold() if provider_type else None,
+            tags,
+            filter,
+            fields,
+        )
+    except ValueError as e:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(e))
+
+    json_data = build_host_id_list_response(total, host_list)
     return flask_json_response(json_data)
 
 

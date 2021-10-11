@@ -26,5 +26,9 @@ def build_paginated_host_list_response(total, page, per_page, host_list, additio
     }
 
 
+def build_host_id_list_response(total, host_list):
+    return {"total": total, "count": len(host_list), "results": host_list}
+
+
 def staleness_timestamps():
     return Timestamps.from_config(inventory_config())

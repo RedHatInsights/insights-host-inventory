@@ -73,7 +73,35 @@ paths:
                 $ref: '#/components/schemas/CreateHostOut'
         '404':
           description: Not Found.
-  /hosts/bulk_delete:
+  /hosts/bulk:
+    get:
+      operationId: api.host.get_host_ids_list
+      tags:
+        - hosts
+      summary: Get the entire list of hosts fitlered by the query
+      description: >-
+        Get the entire list of hosts fitlered by the query.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/providerId'
+        - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/fields_param'
+      responses:
+        '200':
+          description: Successfully read the hosts list.
+          # content:
+          #   application/json:
+          #     schema:
+          #       $ref: '#/components/schemas/HostQueryOutput'
     delete:
       operationId: api.host.delete_host_list
       tags:
@@ -82,7 +110,7 @@ paths:
       description: >-
         Delete the entire list of hosts fitlered by the query.
         <br /><br />
-        Required permissions: inventory:hosts:read
+        Required permissions: inventory:hosts:write
       security:
         - ApiKeyAuth: []
       parameters:

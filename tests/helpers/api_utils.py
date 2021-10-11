@@ -341,7 +341,7 @@ def build_host_checkin_url():
 
 
 def build_hosts_bulk_delete_url(host_list_or_id=None, query=None):
-    return _build_url(path="/bulk_delete", host_list_or_id=host_list_or_id, query=query)
+    return _build_url(path="/bulk", host_list_or_id=host_list_or_id, query=query)
 
 
 def build_host_tags_url(host_list_or_id, query=None):
