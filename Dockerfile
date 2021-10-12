@@ -7,7 +7,7 @@ RUN dnf module install -y postgresql:13
 # remove packages not used by host-inventory to avoid security vulnerabilityes
 RUN dnf remove -y npm
 
-# upgrade security patches and cleanup any clutter left.
+# upgrade security patches and cleanup any clutter left behind.
 RUN dnf upgrade -y --security
 RUN dnf clean all -y
 
