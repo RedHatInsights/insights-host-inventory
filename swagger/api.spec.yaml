@@ -151,11 +151,7 @@ paths:
           content:
             application/json:
               schema:
-                description: A UUID generated when the host is created
-                type: string
-                pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-                maxLength: 36
-                example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+                $ref: '#/components/schemas/HostQueryOutput'
         '400':
           description: Invalid request.
         '404':
