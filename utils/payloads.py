@@ -454,7 +454,7 @@ def create_system_profile():
         "subscription_auto_attach": "yes",
         "katello_agent_running": False,
         "satellite_managed": False,
-        "is_marketplace": False,
+        "is_marketplace": True,
         "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},
@@ -595,6 +595,8 @@ def build_host_chunk():
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         # "reporter": "rhsm-conduit",
         "reporter": "puptoo",
+        # "reporter": "cloud-connector",
+        # "reporter": "yupana",
     }
     return payload
 

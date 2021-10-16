@@ -5,6 +5,7 @@ import flask
 from flask import current_app
 from flask_api import status
 from marshmallow import ValidationError
+from werkzeug.exceptions import NotFound
 
 from api import api_operation
 from api import build_collection_response
@@ -149,13 +150,15 @@ def get_host_ids_list(
     provider_type=None,
     tags=None,
     filter=None,
-    fields=None,
 ):
     total = 0
     host_list = ()
 
+    bulk_query_source = get_bulk_query_source()
+    get_host_ids_list = GET_HOST_IDS_LIST_FUNCTIONS[bulk_query_source]
+
     try:
-        host_list, total = get_host_ids_list_xjoin(
+        host_list, total = get_host_ids_list(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,
@@ -164,14 +167,13 @@ def get_host_ids_list(
             provider_type.casefold() if provider_type else None,
             tags,
             filter,
-            fields,
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
     json_data = build_host_id_list_response(total, host_list)
-    return flask_json_response(json_data)
+    return flask_json_response(str(json_data))
 
 
 @api_operation
@@ -186,13 +188,11 @@ def delete_host_list(
     provider_type=None,
     tags=None,
     filter=None,
-    fields=None,
 ):
     total = 0
     host_list = ()
 
     bulk_query_source = get_bulk_query_source()
-
     get_host_ids_list = GET_HOST_IDS_LIST_FUNCTIONS[bulk_query_source]
 
     try:
@@ -205,7 +205,6 @@ def delete_host_list(
             provider_type.casefold() if provider_type else None,
             tags,
             filter,
-            fields,
         )
     except ValueError as e:
         log_delete_filtered_hosts_failed(logger)
@@ -215,11 +214,14 @@ def delete_host_list(
     dh_num = 0
 
     for host in hl:
-        logger.info(f"Host to delete: {host['id']}")
-        # if True:  # delete_by_id([host['id']]):
-        if delete_by_id([host["id"]]):
-            logger.info(f"Host Delete: {host}")
-            dh_num += 1
+        id = str(host.id) if isinstance(host, Host) else host["id"]
+        logger.info(f"Host to delete: {id}")
+        try:
+            if delete_by_id([id]):
+                logger.info(f"Host Delete: {host}")
+                dh_num += 1
+        except NotFound:
+            log_delete_filtered_hosts_failed(logger, host["id"], "HOST_NOT_FOUND_IN_DB")
     return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
 
 

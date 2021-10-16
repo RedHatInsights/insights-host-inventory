@@ -63,7 +63,6 @@ HOST_IDS_QUERY = """query Query(
         }
         data {
             id,
-            display_name,
         }
     }
 }"""
@@ -132,10 +131,8 @@ def get_host_list(
     return map(deserialize_host, response["data"]), total, additional_fields
 
 
-def get_host_ids_list(
-    display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter, fields
-):
-
+def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
+    # registered_with and staleness required only to build query_filters
     registered_with = None
     staleness = None
     all_filters = query_filters(
@@ -155,11 +152,7 @@ def get_host_ids_list(
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         all_filters += owner_id_filter()
 
-    system_profile_fields = []
-    if fields.get("system_profile"):
-        system_profile_fields = list(fields.get("system_profile").keys())
-
-    variables = {"filter": all_filters, "fields": system_profile_fields}
+    variables = {"filter": all_filters}
     response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
 
     return response["data"], response["meta"]["total"]

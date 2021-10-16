@@ -62,7 +62,6 @@ def log_host_delete_failed(logger, host_id, control_rule):
     )
 
 
-# TODO: Verify that the message makes sense.
 def log_delete_filtered_hosts_failed(logger, host_id, control_rule):
     logger.info(
         "Hosts matching %s already deleted or not found. Delete event not emitted.",

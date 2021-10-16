@@ -72,6 +72,8 @@ def get_host_list(
     return query_results.items, query_results.total, additional_fields
 
 
+# TODO: This function is added to get the bulk delete working.
+# Question: Should this be left in place or deleted because searches are run using xjoin?
 def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
     if filter:
         logger.error("xjoin-search not accessible")
@@ -92,22 +94,9 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         # add tag filtering to the query
         query = _find_hosts_by_tag(tags, query)
 
-    # if staleness:
-    #     query = find_hosts_by_staleness(staleness, query)
-
-    # if registered_with:
-    #     query = find_hosts_with_insights_enabled(query)
-
-    # order_by = params_to_order_by(order_by, order_how)
-    # query = query.order_by(*order_by)
-    # query_results = query.paginate(page, per_page, True)
-    # additional_fields = tuple()
-
     query_results = query.all()
     log_get_host_list_succeeded(logger, len(query_results))
 
-    # return query_results.items, query_results.total, additional_fields
-    # return query_results.items, query_results.total
     return query_results, len(query_results)
 
 

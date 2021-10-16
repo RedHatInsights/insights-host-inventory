@@ -9,7 +9,6 @@ from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
-from tests.helpers.db_utils import db_host
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
@@ -88,10 +87,7 @@ def db_create_multiple_hosts(flask_app):
                 created_hosts.append(host)
         else:
             for _ in range(how_many):
-                if minimal:
-                    host = minimal_db_host(account=identity["account_number"], **extra_data)
-                else:
-                    host = db_host(account=identity["account_number"], **extra_data)
+                host = minimal_db_host(account=identity["account_number"], **extra_data)
                 db.session.add(host)
                 created_hosts.append(host)
 
