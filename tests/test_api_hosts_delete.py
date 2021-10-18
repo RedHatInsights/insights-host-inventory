@@ -109,9 +109,10 @@ def test_create_then_delete_without_insights_id(
     "query_filter", ("tags=SPECIAL/tag=ToFind", "tags=ns1/key2=val1", "tags=ns1/key1=val1", "tags=ns1/key1=val2")
 )
 def test_delete_hosts_using_filter(
-    event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, query_filter
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, query_filter
 ):
-    db_create_multiple_hosts(
+
+    created_hosts = db_create_multiple_hosts(
         how_many=3,
         extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
     )
@@ -123,66 +124,11 @@ def test_delete_hosts_using_filter(
     assert_response_status(response_status, expected_status=200)
     assert '"type": "delete"' in event_producer_mock.event
 
-
-# TODO delete this test to respond to
-# https://github.com/RedHatInsights/insights-host-inventory/pull/1011/files#r724887324
-def test_delete_hosts_get_deleted_hosts(
-    event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, db_get_hosts
-):
-    created_hosts = db_create_multiple_hosts(
-        how_many=3,
-        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
-    )
-
-    url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
-
-    response_status, _ = api_delete_filtered_hosts(url)
-
-    assert_response_status(response_status, expected_status=200)
-    assert '"type": "delete"' in event_producer_mock.event
-
-    # assert_delete_event_is_valid(
-    #     event_producer=event_producer_mock,
-    #     host=created_hosts,
-    #     timestamp=event_datetime_mock,
-    #     expected_request_id=request_id,
-    #     expected_metadata={"request_id": request_id},
-    # )
-
-    # url = build_hosts_url(query=f"?display_name={created_hosts[0].display_name}")
-    # response_status, response_data = api_get(url)
-
-    # assert response_status == 200
-    # assert response_data["count"] == 0
-
+    # check db for deleted hosts using their IDs
     host_id_list = [str(host.id) for host in created_hosts]
     remaining_hosts = db_get_hosts(host_id_list)
 
-    assert remaining_hosts.count() == len(created_hosts) - 1
-
-
-def test_delete_hosts_deleted_from_database(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, api_get
-):
-    created_hosts = db_create_multiple_hosts(
-        how_many=3,
-        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
-    )
-
-    url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
-
-    assert event_producer_mock.event is None
-    response_status, _ = api_delete_filtered_hosts(url)
-
-    assert_response_status(response_status, expected_status=200)
-    assert '"type": "delete"' in event_producer_mock.event
-
-    # check db for deleted hosts
-    host_id_list = [str(host.id) for host in created_hosts]
-    remaining_hosts = db_get_hosts(host_id_list)
-
-    # assert remaining_hosts.count() == 0
-    assert remaining_hosts.count() == len(created_hosts) - 1
+    assert remaining_hosts.count() == 0
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
