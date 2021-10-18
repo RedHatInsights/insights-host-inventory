@@ -1,6 +1,6 @@
 # Overview
 
-This PR is being created to address [this Jira](https://issues.redhat.com/browse/ESSNTL-xxxxx).
+This PR is being created to address [ESSNTL-xxxx](https://issues.redhat.com/browse/ESSNTL-xxxx).
 (A description of your PR's changes, along with why/context to the PR, goes here.)
 
 ## PR Checklist
@@ -10,6 +10,7 @@ This PR is being created to address [this Jira](https://issues.redhat.com/browse
 - [ ] Tests: validate optimal/expected output
 - [ ] Tests: validate exceptions and failure scenarios
 - [ ] Tests: edge cases
+- [ ] Recovers or fails gracefully during potential resource outages (e.g. DB, Kafka)
 - [ ] Documentation, if this PR changes the way other services interact with host inventory
 - [ ] Links to related PRs
 
