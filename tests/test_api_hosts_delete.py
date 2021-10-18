@@ -106,20 +106,15 @@ def test_create_then_delete_without_insights_id(
 
 
 @pytest.mark.parametrize(
-    "query_filter",
-    (
-        "display_name=test-display-name",
-        "tags=SPECIAL/tag=ToFind",
-        "tags=ns1/key2=val1",
-        "tags=ns1/key1=val1",
-        "tags=ns1/key1=val2",
-        "tags=ns1/key1=val2&display_name=test-display-name",
-    ),
+    "query_filter", ("tags=SPECIAL/tag=ToFind", "tags=ns1/key2=val1", "tags=ns1/key1=val1", "tags=ns1/key1=val2")
 )
 def test_delete_hosts_using_filter(
     event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, query_filter
 ):
-    db_create_multiple_hosts(how_many=3, minimal=False)
+    db_create_multiple_hosts(
+        how_many=3,
+        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
+    )
 
     url = build_hosts_bulk_delete_url(query=f"?{query_filter}")
 
@@ -134,7 +129,10 @@ def test_delete_hosts_using_filter(
 def test_delete_hosts_get_deleted_hosts(
     event_producer_mock, db_create_multiple_hosts, api_delete_filtered_hosts, db_get_hosts
 ):
-    created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
+    created_hosts = db_create_multiple_hosts(
+        how_many=3,
+        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
+    )
 
     url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
 
@@ -160,13 +158,16 @@ def test_delete_hosts_get_deleted_hosts(
     host_id_list = [str(host.id) for host in created_hosts]
     remaining_hosts = db_get_hosts(host_id_list)
 
-    assert remaining_hosts.count() == 0
+    assert remaining_hosts.count() == len(created_hosts) - 1
 
 
 def test_delete_hosts_deleted_from_database(
     event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, api_get
 ):
-    created_hosts = db_create_multiple_hosts(how_many=3, minimal=False)
+    created_hosts = db_create_multiple_hosts(
+        how_many=3,
+        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
+    )
 
     url = build_hosts_bulk_delete_url(query=f"?display_name={created_hosts[0].display_name}")
 
@@ -180,7 +181,8 @@ def test_delete_hosts_deleted_from_database(
     host_id_list = [str(host.id) for host in created_hosts]
     remaining_hosts = db_get_hosts(host_id_list)
 
-    assert remaining_hosts.count() == 0
+    # assert remaining_hosts.count() == 0
+    assert remaining_hosts.count() == len(created_hosts) - 1
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):

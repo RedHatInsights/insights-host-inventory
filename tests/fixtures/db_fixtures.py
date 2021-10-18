@@ -78,7 +78,7 @@ def db_create_host(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app):
-    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None, minimal=True):
+    def _db_create_multiple_hosts(identity=SYSTEM_IDENTITY, hosts=None, how_many=10, extra_data=None):
         extra_data = extra_data or {}
         created_hosts = []
         if type(hosts) == list:
