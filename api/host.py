@@ -73,6 +73,14 @@ def _get_host_list_by_id_list(host_id_list):
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
 
 
+# sefety check for bulk delete
+def _any_args(*args):
+    for arg in args:
+        if arg:
+            return True
+    return False
+
+
 def get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
         if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
@@ -151,6 +159,10 @@ def get_host_ids_list(
     tags=None,
     filter=None,
 ):
+    if not _any_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
+        logger.error("Bulk operation needs at least one input property to filter on.")
+        flask.abort(400, "Bulk operation needs at least one input property to filter on.")
+
     total = 0
     host_list = ()
 
@@ -189,6 +201,10 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
+    if not _any_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
+        logger.error("Bulk operation needs at least one input property to filter on.")
+        flask.abort(400, "Bulk operation needs at least one input property to filter on.")
+
     total = 0
     host_list = ()
 
