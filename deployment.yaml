@@ -689,10 +689,6 @@ parameters:
   value: 'false'
 - name: SP_VALIDATOR_SUSPEND
   value: 'true'
-- name: DUP_HOST_REMOVER_SUSPEND
-  value: 'true'
-- name: DUP_HOST_REMOVER_SCHEDULE
-  value: '@daily'
 - name: REAPER_SUSPEND
   value: 'true'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
