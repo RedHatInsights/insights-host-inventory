@@ -340,7 +340,7 @@ def build_host_checkin_url():
     return _build_url(base_url=HOST_URL, path="/checkin")
 
 
-def build_hosts_bulk_delete_url(host_list_or_id=None, query=None):
+def build_hosts_bulk_url(host_list_or_id=None, query=None):
     return _build_url(path="/bulk", host_list_or_id=host_list_or_id, query=query)
 
 

@@ -7,7 +7,7 @@ from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_hosts_bulk_delete_url
+from tests.helpers.api_utils import build_hosts_bulk_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -117,7 +117,7 @@ def test_delete_hosts_using_filter(
         extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
     )
 
-    url = build_hosts_bulk_delete_url(query=f"?{query_filter}")
+    url = build_hosts_bulk_url(query=f"?{query_filter}")
 
     response_status, _ = api_delete_filtered_hosts(url)
 

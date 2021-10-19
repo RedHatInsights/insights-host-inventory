@@ -38,6 +38,17 @@ XJOIN_HOST_IDS_RESPONSE = {
                     {"namespace": "insights-client", "key": "web ", "value": None},
                 ],
             },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "account": "test",
+                "fqdn": "test03.rhel7.fqdn",
+                "tags": [
+                    {"namespace": "Sat", "key": "env", "value": "prod"},
+                    {"namespace": "aws", "key": "region", "value": "us-east-2"},
+                    {"namespace": "insights-client", "key": "os", "value": "fedora"},
+                    {"namespace": "insights-client", "key": "web ", "value": None},
+                ],
+            },
         ],
     }
 }
