@@ -9,6 +9,7 @@ from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
 from app import process_spec
 from app.models import ProviderType
+from tests.helpers.api_utils import build_hosts_bulk_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
@@ -25,6 +26,7 @@ from tests.helpers.graphql_utils import assert_called_with_headers
 from tests.helpers.graphql_utils import assert_graph_query_single_call_with_staleness
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
+from tests.helpers.graphql_utils import XJOIN_HOST_IDS_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
@@ -34,6 +36,8 @@ from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+# from tests.fixtures.api_fixtures import api_get_filtered_hosts
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -70,6 +74,27 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     response_status, response_data = api_get(
         HOST_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
     )
+
+    assert response_status == 200
+
+
+@pytest.mark.parametrize(
+    "query_filter",
+    (
+        "tags=SPECIAL/tag=ToFind",
+        "tags=ns1/key1=val1",
+        "display_name=test01.rhel7.jharting.local",
+        "tags=ns1/key2=val1&display_name=test01.rhel7.jharting.local",
+        "fqdn=test03.rhel7.fqdn",
+    ),
+)
+def test_hosts_bulk_xjoin_status_200(patch_xjoin_post, api_get_filtered_hosts, query_filter):
+    response = {"data": XJOIN_HOST_IDS_RESPONSE}
+    patch_xjoin_post(response, status=200)
+
+    url = build_hosts_bulk_url(query=f"?{query_filter}")
+
+    response_status, _ = api_get_filtered_hosts(url)
 
     assert response_status == 200
 
