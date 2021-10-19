@@ -106,16 +106,23 @@ def test_create_then_delete_without_insights_id(
 
 
 @pytest.mark.parametrize(
-    "query_filter", ("tags=SPECIAL/tag=ToFind", "tags=ns1/key2=val1", "tags=ns1/key1=val1", "tags=ns1/key1=val2")
+    "query_filter",
+    (
+        "tags=SPECIAL/tag=ToFind",
+        "tags=ns1/key2=val1",
+        "display_name=hbi_display.redhat.com",
+        "tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
+    ),
 )
 def test_delete_hosts_using_filter(
     event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, query_filter
 ):
+    extraData = {
+        "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
+        "display_name": "hbi_display.redhat.com",
+    }
 
-    created_hosts = db_create_multiple_hosts(
-        how_many=3,
-        extra_data={"tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}}},
-    )
+    created_hosts = db_create_multiple_hosts(how_many=3, extra_data=extraData)
 
     url = build_hosts_bulk_url(query=f"?{query_filter}")
 
