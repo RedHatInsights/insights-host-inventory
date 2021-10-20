@@ -16,8 +16,6 @@ from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
-# from tests.helpers.api_utils import build_hosts_url
-
 
 def test_delete_non_existent_host(api_delete_host):
     host_id = generate_uuid()
