@@ -9,6 +9,7 @@ from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
+from tests.helpers.graphql_utils import XJOIN_HOST_IDS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
@@ -27,6 +28,11 @@ def graphql_query(mocker):
 @pytest.fixture(scope="function")
 def graphql_query_empty_response(graphql_query):
     return graphql_query(return_value=EMPTY_HOSTS_RESPONSE)
+
+
+@pytest.fixture(scope="function")
+def graphql_query_host_id_response(graphql_query):
+    return graphql_query(return_value=XJOIN_HOST_IDS_RESPONSE)
 
 
 @pytest.fixture(scope="function")
@@ -87,6 +93,21 @@ def patch_xjoin_post(mocker, query_source_xjoin):
         )
 
     return _patch_xjoin_post
+
+
+@pytest.fixture(scope="function")
+def host_ids_xjoin_post(mocker, query_source_xjoin):
+    def _host_ids_xjoin_post(response, status=200):
+        return mocker.patch(
+            "app.xjoin.post",
+            **{
+                "return_value.text": json.dumps(response),
+                "return_value.json.return_value": response,
+                "return_value.status_code": status,
+            },
+        )
+
+    return _host_ids_xjoin_post
 
 
 @pytest.fixture(scope="function")

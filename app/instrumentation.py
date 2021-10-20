@@ -79,6 +79,10 @@ def log_get_host_list_failed(logger):
     logger.debug("hosts not found", extra={"access_rule": get_control_rule()})
 
 
+def log_get_host_id_list_failed(logger):
+    logger.debug("host ids not found", extra={"access_rule": get_control_rule()})
+
+
 # get tags
 def log_get_tags_succeeded(logger, data):
     logger.debug("Found tags: %s", data, extra={"access_rule": get_control_rule()})

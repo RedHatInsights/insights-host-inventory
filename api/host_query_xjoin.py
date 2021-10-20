@@ -2,6 +2,7 @@ from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
+from app.instrumentation import log_get_host_id_list_failed
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.serialization import deserialize_host_xjoin as deserialize_host
@@ -153,7 +154,7 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         all_filters += owner_id_filter()
 
     variables = {"filter": all_filters}
-    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
+    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_id_list_failed)["hosts"]
 
     return response["data"], response["meta"]["total"]
 

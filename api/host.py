@@ -27,6 +27,7 @@ from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_delete_filtered_hosts_failed
+from app.instrumentation import log_get_host_id_list_failed
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -183,7 +184,7 @@ def get_host_ids_list(
             filter,
         )
     except ValueError as e:
-        log_get_host_list_failed(logger)
+        log_get_host_id_list_failed(logger)
         flask.abort(400, str(e))
 
     json_data = build_host_id_list_response(total, host_list)

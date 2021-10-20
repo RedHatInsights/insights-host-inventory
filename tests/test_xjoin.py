@@ -1,6 +1,7 @@
 import pytest
 
 from api import custom_escape
+from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
@@ -32,8 +33,6 @@ from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-
-# from tests.fixtures.api_fixtures import api_get_filtered_hosts
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -84,9 +83,9 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
         "fqdn=test03.rhel7.fqdn",
     ),
 )
-def test_hosts_bulk_xjoin_status_200(patch_xjoin_post, api_get_filtered_hosts, query_filter):
+def test_hosts_bulk_xjoin_status_200(host_ids_xjoin_post, api_get_filtered_hosts, query_filter):
     response = {"data": XJOIN_HOST_IDS_RESPONSE}
-    patch_xjoin_post(response, status=200)
+    host_ids_xjoin_post(response, status=200)
 
     url = build_hosts_bulk_url(query=f"?{query_filter}")
 
@@ -114,6 +113,19 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "fields": mocker.ANY,
         },
         mocker.ANY,
+    )
+
+
+def test_bulk_filter_display_name(mocker, query_source_xjoin, graphql_query_host_id_response, api_get_filtered_hosts):
+    display_name = "my awesome host uwu"
+
+    url = build_hosts_bulk_url(query=f"?display_name={quote(display_name)}")
+    response_status, response_data = api_get_filtered_hosts(url)
+
+    assert response_status == 200
+
+    graphql_query_host_id_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": ({"display_name": {"matches_lc": f"*{display_name}*"}},)}, mocker.ANY
     )
 
 
