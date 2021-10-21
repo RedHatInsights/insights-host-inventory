@@ -184,8 +184,8 @@
         "tags": [
           "hosts"
         ],
-        "summary": "Delete the entire list of hosts fitlered by the query",
-        "description": "Delete the entire list of hosts fitlered by the query. <br /><br /> Required permissions: inventory:hosts:write",
+        "summary": "Delete the entire list of hosts filtered by the given parameters",
+        "description": "Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write",
         "security": [
           {
             "ApiKeyAuth": []

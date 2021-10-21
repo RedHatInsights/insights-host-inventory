@@ -1,3 +1,5 @@
+from requests.exceptions import ConnectionError
+
 from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
 from app.auth.identity import AuthType
@@ -151,8 +153,14 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         all_filters += owner_id_filter()
 
     variables = {"filter": all_filters}
-    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_id_list_failed)["hosts"]
+    try:
+        response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_id_list_failed)["hosts"]
+    except ConnectionError:
+        logger.error("Host search engine not accessible.  Please try later.")
+        raise ValueError("Host search engine not accessible.  Please try later.")
 
+    # TODO: return list of hosts ids, instead of the Hosts provided by GraphQL
+    # remove the 'total'.  Count the list members in the caller.
     return response["data"], response["meta"]["total"]
 
 

@@ -27,7 +27,6 @@ from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_delete_filtered_hosts_failed
-from app.instrumentation import log_get_host_id_list_failed
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -55,6 +54,9 @@ from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
+# from requests.exceptions import ConnectionError
+# from app.instrumentation import log_get_host_id_list_failed
+
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
@@ -75,11 +77,21 @@ def _get_host_list_by_id_list(host_id_list):
 
 
 # sefety check for bulk delete
-def _any_args(*args):
+# def _any_args(*args):
+#     for arg in args:
+#         if arg:
+#             return True
+#     return False
+
+
+# sefety check for bulk delete
+def _get_args(*args):
+    provided_args = []
     for arg in args:
         if arg:
-            return True
+            provided_args.append(arg)
     return False
+    return provided_args
 
 
 def get_bulk_query_source():
@@ -161,8 +173,8 @@ def get_host_ids_list(
     filter=None,
 ):
     if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
-        logger.error("Bulk operation needs at least one input property to filter on.")
-        flask.abort(400, "Bulk operation needs at least one input property to filter on.")
+        logger.error("Getting a list of host-ids need at least one input property to filter on.")
+        flask.abort(400, "Getting a list of host-ids need at least one input property to filter on.")
 
     total = 0
     host_list = ()
@@ -182,7 +194,9 @@ def get_host_ids_list(
             filter,
         )
     except ValueError as e:
-        log_get_host_id_list_failed(logger)
+        # error logged at the point of failure
+        # QUESTION: Is ValueError the correct exception? Should it be just "Exception"?
+        # When xjoin search or graphql not accessible, should the api-server abort?
         flask.abort(400, str(e))
 
     json_data = build_host_id_list_response(total, host_list)
@@ -203,8 +217,8 @@ def delete_host_list(
     filter=None,
 ):
     if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
-        logger.error("Bulk operation needs at least one input property to filter on.")
-        flask.abort(400, "Bulk operation needs at least one input property to filter on.")
+        logger.error("bulk-delete operation needs at least one input property to filter on.")
+        flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
     total = 0
     host_list = ()
@@ -224,7 +238,11 @@ def delete_host_list(
             filter,
         )
     except ValueError as e:
-        log_delete_filtered_hosts_failed(logger)
+        # error logged at the point of failure
+        # QUESTION: Is ValueError the correct exception?  Should it be just "Exception"?
+        # When xjoin search or graphql not accessible, should the api-server abort?
+        args = _get_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter)
+        log_delete_filtered_hosts_failed(logger, f"Criteria: {args}", get_control_rule())
         flask.abort(400, str(e))
 
     hl = list(host_list)  # host_list is a map
@@ -238,7 +256,7 @@ def delete_host_list(
                 logger.info(f"Host deleted: {id}")
                 dh_num += 1
         except NotFound:
-            log_delete_filtered_hosts_failed(logger, host["id"], "HOST_NOT_FOUND_IN_DB")
+            log_delete_filtered_hosts_failed(logger, host["id"], get_control_rule())
     return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
 
 

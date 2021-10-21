@@ -80,7 +80,7 @@ def log_get_host_list_failed(logger):
 
 
 def log_get_host_id_list_failed(logger):
-    logger.debug("host ids not found", extra={"access_rule": get_control_rule()})
+    logger.debug("Host search engine down or host ids not found", extra={"access_rule": get_control_rule()})
 
 
 # get tags
