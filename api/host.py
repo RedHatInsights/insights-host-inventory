@@ -235,7 +235,7 @@ def delete_host_list(
         logger.info(f"Host to delete: {id}")
         try:
             if delete_by_id([id]):
-                logger.info(f"Host Delete: {host}")
+                logger.info(f"Host deleted: {id}")
                 dh_num += 1
         except NotFound:
             log_delete_filtered_hosts_failed(logger, host["id"], "HOST_NOT_FOUND_IN_DB")
