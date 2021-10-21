@@ -105,7 +105,7 @@ paths:
       operationId: api.host.delete_host_list
       tags:
         - hosts
-      summary: Delete the entire list of hosts fitlered by the query
+      summary: Delete the entire list of hosts filtered by the given parameters
       description: >-
         Delete the entire list of hosts filtered by the given parameters.
         <br /><br />
