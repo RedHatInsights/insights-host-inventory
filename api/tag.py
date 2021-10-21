@@ -98,12 +98,12 @@ def get_tags(
     }
 
     hostfilter_and_variables = query_filters(
-        fqdn,
+        fqdn.casefold() if fqdn else None,
         display_name,
         hostname_or_id,
-        insights_id,
-        provider_id,
-        provider_type,
+        insights_id.casefold() if insights_id else None,
+        provider_id.casefold() if provider_id else None,
+        provider_type.casefold() if provider_type else None,
         tags,
         None,
         registered_with,

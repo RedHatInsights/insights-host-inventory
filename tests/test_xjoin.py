@@ -799,17 +799,20 @@ def test_tags_query_variables_default_except_staleness(
 
 
 @pytest.mark.parametrize(
-    "field,matcher,value",
+    "field,matcher,value,casefold",
     (
-        ("fqdn", "eq", "some fqdn"),
-        ("display_name", "matches_lc", "*some display name*"),
-        ("insights_id", "eq", generate_uuid()),
-        ("provider_id", "eq", "some-provider-id"),
-        ("provider_type", "eq", ProviderType.AZURE.value),
+        ("fqdn", "eq", "some fqdn", True),
+        ("fqdn", "eq", "some Capitalized FQDN", True),
+        ("display_name", "matches_lc", "*some display name*", False),
+        ("insights_id", "eq", generate_uuid(), True),
+        ("insights_id", "eq", generate_uuid().upper(), True),
+        ("provider_id", "eq", "some-provider-id", True),
+        ("provider_id", "eq", "ANOTHER-provider-id", True),
+        ("provider_type", "eq", ProviderType.AZURE.value, True),
     ),
 )
 def test_tags_query_host_filters(
-    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, field, matcher, value
+    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, field, matcher, value, casefold
 ):
     url = build_tags_url(query=f"?{field}={quote(value.replace('*',''))}")
     response_status, _ = api_get(url)
@@ -823,7 +826,7 @@ def test_tags_query_host_filters(
             "order_how": "ASC",
             "limit": 50,
             "offset": 0,
-            "hostFilter": {"AND": ({field: {matcher: value}},), "OR": mocker.ANY},
+            "hostFilter": {"AND": ({field: {matcher: value.casefold() if casefold else value}},), "OR": mocker.ANY},
         },
         mocker.ANY,
     )
