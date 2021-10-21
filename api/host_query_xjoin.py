@@ -133,9 +133,6 @@ def get_host_list(
 
 
 def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
-    # registered_with and staleness required only to build query_filters
-    registered_with = None
-    staleness = None
     all_filters = query_filters(
         fqdn,
         display_name,
@@ -144,8 +141,8 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         provider_id,
         provider_type,
         tags,
-        staleness,
-        registered_with,
+        None,
+        None,
         filter,
     )
 
