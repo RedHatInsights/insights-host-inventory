@@ -202,7 +202,7 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
-    if not _any_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
+    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
         logger.error("Bulk operation needs at least one input property to filter on.")
         flask.abort(400, "Bulk operation needs at least one input property to filter on.")
 
