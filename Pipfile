@@ -16,15 +16,15 @@ psycopg2-binary = "~=2.8.3"
 flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=19.9.0"
-connexion = {version = "~=2.6.0",extras = ["swagger-ui"]}
+connexion = {version = "~=2.7",extras = ["swagger-ui"]}
 pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
 validators = "~=0.13.0"
 marshmallow = "~=3.8.0"
 ujson = "==1.35"  # Not semver
-watchtower = "~=0.6.0"
-boto3 = "~=1.9.183"
+watchtower = ">=0.6.0"
+boto3 = "~=1.9"
 kafka-python = "~=2.0.1"
 prometheus-flask-exporter = "~=0.11.0"
 python-dateutil = "~=2.8.1"
@@ -32,6 +32,7 @@ prance = "==0.20.2"
 app-common-python = "~=0.1.2"
 honcho = "*"
 sqlalchemy = "<1.4.0"
+urllib3 = ">=1.26.5"
 
 [dev-packages]
 pytest = "~=5.0.1"
