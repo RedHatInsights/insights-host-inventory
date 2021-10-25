@@ -14,7 +14,6 @@ from api import metrics
 from api.host_query import build_host_id_list_response
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
-from api.host_query_db import get_host_ids_list as get_host_ids_list_db
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
@@ -60,10 +59,6 @@ from lib.middleware import rbac
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
 GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
-GET_HOST_IDS_LIST_FUNCTIONS = {
-    BulkQuerySource.db: get_host_ids_list_db,
-    BulkQuerySource.xjoin: get_host_ids_list_xjoin,
-}
 XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
 REFERAL_HEADER = "referer"
 
@@ -179,11 +174,8 @@ def get_host_ids_list(
     total = 0
     host_list = ()
 
-    bulk_query_source = get_bulk_query_source()
-    get_host_ids_list = GET_HOST_IDS_LIST_FUNCTIONS[bulk_query_source]
-
     try:
-        host_list, total = get_host_ids_list(
+        host_list, total = get_host_ids_list_xjoin(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,
@@ -223,11 +215,8 @@ def delete_host_list(
     total = 0
     host_list = ()
 
-    bulk_query_source = get_bulk_query_source()
-    get_host_ids_list = GET_HOST_IDS_LIST_FUNCTIONS[bulk_query_source]
-
     try:
-        host_list, total = get_host_ids_list(
+        host_list, total = get_host_ids_list_xjoin(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,

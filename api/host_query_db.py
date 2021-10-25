@@ -13,7 +13,7 @@ from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import single_canonical_fact_host_query
 from lib.host_repository import update_query_for_owner_id
 
-__all__ = ("get_host_list", "get_host_ids_list", "params_to_order_by")
+__all__ = ("get_host_list", "params_to_order_by")
 
 NULL = None
 
@@ -70,34 +70,6 @@ def get_host_list(
     log_get_host_list_succeeded(logger, query_results.items)
 
     return query_results.items, query_results.total, additional_fields
-
-
-# TODO: This function is added to get the bulk delete working.
-# Question: Should this be left in place or deleted because searches are run using xjoin?
-def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
-    if filter:
-        logger.error("xjoin-search not accessible")
-        flask.abort(503)
-
-    if fqdn:
-        query = _find_hosts_by_canonical_fact("fqdn", fqdn)
-    elif display_name:
-        query = _find_hosts_by_display_name(display_name)
-    elif hostname_or_id:
-        query = _find_hosts_by_hostname_or_id(hostname_or_id)
-    elif insights_id:
-        query = _find_hosts_by_canonical_fact("insights_id", insights_id)
-    else:
-        query = _find_all_hosts()
-
-    if tags:
-        # add tag filtering to the query
-        query = _find_hosts_by_tag(tags, query)
-
-    query_results = query.all()
-    log_get_host_list_succeeded(logger, len(query_results))
-
-    return query_results, len(query_results)
 
 
 def find_hosts_with_insights_enabled(query):
