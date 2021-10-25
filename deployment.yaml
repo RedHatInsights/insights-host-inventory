@@ -11,6 +11,8 @@ objects:
     envName: ${ENV_NAME}
     testing:
       iqePlugin: host-inventory
+    dependencies:
+    - xjoin-search
     optionalDependencies:
     - rbac
     deployments:
