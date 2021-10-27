@@ -42,13 +42,13 @@ def get_host_list(
         flask.abort(503)
 
     if fqdn:
-        query = _find_hosts_by_canonical_fact("fqdn", fqdn)
+        query = _find_hosts_by_canonical_fact("fqdn", fqdn.casefold())
     elif display_name:
         query = _find_hosts_by_display_name(display_name)
     elif hostname_or_id:
         query = _find_hosts_by_hostname_or_id(hostname_or_id)
     elif insights_id:
-        query = _find_hosts_by_canonical_fact("insights_id", insights_id)
+        query = _find_hosts_by_canonical_fact("insights_id", insights_id.casefold())
     else:
         query = _find_all_hosts()
 
