@@ -114,9 +114,6 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
-            "$ref": "#/components/parameters/reporter"
-          },
-          {
             "$ref": "#/components/parameters/tagsParam"
           },
           {
@@ -922,15 +919,6 @@
           ]
         },
         "description": "Filter by provider_type",
-        "required": false
-      },
-      "reporter": {
-        "in": "query",
-        "name": "reporter",
-        "schema": {
-          "type": "string"
-        },
-        "description": "Filter by reporter",
         "required": false
       },
       "factsNamespace": {

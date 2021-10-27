@@ -52,8 +52,6 @@ from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 
-# from requests.exceptions import ConnectionError
-# from app.instrumentation import log_get_host_id_list_failed
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -68,14 +66,6 @@ def _get_host_list_by_id_list(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
-
-
-# sefety check for bulk delete
-# def _any_args(*args):
-#     for arg in args:
-#         if arg:
-#             return True
-#     return False
 
 
 # sefety check for bulk delete
