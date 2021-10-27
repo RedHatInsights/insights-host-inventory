@@ -13,6 +13,7 @@ objects:
       iqePlugin: host-inventory
     optionalDependencies:
     - rbac
+    - xjoin-search
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
