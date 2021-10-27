@@ -784,48 +784,42 @@ def test_tags_headers_forwarded(mocker, patch_xjoin_post, api_get):
     assert_called_with_headers(mocker, post, request_id)
 
 
-def test_tags_query_variables_default_except_staleness(
-    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
-    response_status, response_data = api_get(TAGS_URL)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": {"OR": mocker.ANY}},
-        mocker.ANY,
-    )
+def test_tags_query_variables_default_except_staleness(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(TAGS_URL, {"OR": mocker.ANY})
 
 
+# Test basic query filters
 @pytest.mark.parametrize(
     "field,matcher,value",
     (
         ("fqdn", "eq", "some fqdn"),
+        ("fqdn", "eq", "some Capitalized FQDN"),
         ("display_name", "matches_lc", "*some display name*"),
         ("insights_id", "eq", generate_uuid()),
+        ("insights_id", "eq", generate_uuid().upper()),
         ("provider_id", "eq", "some-provider-id"),
+        ("provider_id", "eq", "ANOTHER-provider-id"),
         ("provider_type", "eq", ProviderType.AZURE.value),
     ),
 )
-def test_tags_query_host_filters(
-    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, field, matcher, value
-):
-    url = build_tags_url(query=f"?{field}={quote(value.replace('*',''))}")
-    response_status, _ = api_get(url)
+def test_tags_query_host_filters(assert_tag_query_host_filter_for_field, field, matcher, value):
+    assert_tag_query_host_filter_for_field(
+        build_tags_url(query=f"?{field}={quote(value.replace('*',''))}"), field, matcher, value
+    )
 
-    assert response_status == 200
 
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {"AND": ({field: {matcher: value}},), "OR": mocker.ANY},
-        },
-        mocker.ANY,
+# Test query filters for only casefolded fields
+@pytest.mark.parametrize(
+    "field,matcher,value",
+    (
+        ("fqdn", "eq", "some Capitalized FQDN"),
+        ("insights_id", "eq", generate_uuid().upper()),
+        ("provider_id", "eq", "CAPITALIZED-provider-id"),
+    ),
+)
+def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_field, field, matcher, value):
+    assert_tag_query_host_filter_for_field(
+        build_tags_url(query=f"?{field}={quote(value.replace('*',''))}"), field, matcher, value
     )
 
 
@@ -868,272 +862,131 @@ def test_tags_query_variables_default_staleness(
     ),
 )
 def test_tags_query_variables_staleness(
-    staleness, expected, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
+    staleness, expected, culling_datetime_mock, assert_tag_query_host_filter_single_call
 ):
-    url = build_tags_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {"OR": [{"stale_timestamp": expected}]},
-        },
-        mocker.ANY,
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query=f"?staleness={staleness}"), host_filter={"OR": [{"stale_timestamp": expected}]}
     )
 
 
-def test_tags_multiple_query_variables_staleness(
-    culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get, mocker
-):
+def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_tag_query_host_filter_single_call):
     staleness = "fresh,stale_warning"
-    url = build_tags_url(query=f"?staleness={staleness}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "OR": [
-                    {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
-                    {
-                        "stale_timestamp": {
-                            "gt": "2019-12-02T10:10:06.754201+00:00",
-                            "lte": "2019-12-09T10:10:06.754201+00:00",
-                        }
-                    },
-                ]
-            },
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query=f"?staleness={staleness}"),
+        host_filter={
+            "OR": [
+                {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
+                {
+                    "stale_timestamp": {
+                        "gt": "2019-12-02T10:10:06.754201+00:00",
+                        "lte": "2019-12-09T10:10:06.754201+00:00",
+                    }
+                },
+            ]
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_simple(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=insights-client/os=fedora")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "OR": mocker.ANY,
-                "AND": (
-                    {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
-                ),
-            },
+def test_query_variables_tags_simple(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=insights-client/os=fedora"),
+        host_filter={
+            "OR": mocker.ANY,
+            "AND": (
+                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+            ),
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_with_special_characters_unescaped(
-    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_query_variables_tags_with_special_characters_unescaped(mocker, assert_tag_query_host_filter_single_call):
     tags_query = quote(";?:@&+$/-_.!~*'()=#")
-    url = build_tags_url(query=f"?tags={tags_query}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": ({"tag": {"namespace": {"eq": ";?:@&+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},),
-                "OR": mocker.ANY,
-            },
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query=f"?tags={tags_query}"),
+        host_filter={
+            "AND": ({"tag": {"namespace": {"eq": ";?:@&+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_with_special_characters_escaped(
-    mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_query_variables_tags_with_special_characters_escaped(mocker, assert_tag_query_host_filter_single_call):
     namespace = quote_everything(";,/?:@&=+$")
     key = quote_everything("-_.!~*'()")
     value = quote_everything("#")
     tags_query = quote(f"{namespace}/{key}={value}")
 
-    url = build_tags_url(query=f"?tags={tags_query}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": (
-                    {"tag": {"namespace": {"eq": ";,/?:@&=+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},
-                ),
-                "OR": mocker.ANY,
-            },
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query=f"?tags={tags_query}"),
+        host_filter={
+            "AND": ({"tag": {"namespace": {"eq": ";,/?:@&=+$"}, "key": {"eq": "-_.!~*'()"}, "value": {"eq": "#"}}},),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_collection_multi(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=Sat/env=prod&tags=insights-client/os=fedora")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": (
-                    {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
-                    {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
-                ),
-                "OR": mocker.ANY,
-            },
+def test_query_variables_tags_collection_multi(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=Sat/env=prod&tags=insights-client/os=fedora"),
+        host_filter={
+            "AND": (
+                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
+                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+            ),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_collection_csv(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=Sat/env=prod,insights-client/os=fedora")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": (
-                    {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
-                    {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
-                ),
-                "OR": mocker.ANY,
-            },
+def test_query_variables_tags_collection_csv(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=Sat/env=prod,insights-client/os=fedora"),
+        host_filter={
+            "AND": (
+                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
+                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+            ),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_without_namespace(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=env=prod")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},),
-                "OR": mocker.ANY,
-            },
+def test_query_variables_tags_without_namespace(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=env=prod"),
+        host_filter={
+            "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_without_value(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=Sat/env")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": ({"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": None}}},),
-                "OR": mocker.ANY,
-            },
+def test_query_variables_tags_without_value(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=Sat/env"),
+        host_filter={
+            "AND": ({"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_query_variables_tags_with_only_key(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?tags=env")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "hostFilter": {
-                "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": None}}},),
-                "OR": mocker.ANY,
-            },
+def test_query_variables_tags_with_only_key(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=env"),
+        host_filter={
+            "AND": ({"tag": {"namespace": {"eq": None}, "key": {"eq": "env"}, "value": {"eq": None}}},),
+            "OR": mocker.ANY,
         },
-        mocker.ANY,
     )
 
 
-def test_tags_query_variables_search(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
+def test_tags_query_variables_search(mocker, assert_tag_query_host_filter_single_call):
     query = "Δwithčhar!/~|+ "
-    url = build_tags_url(query=f"?search={quote(query)}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": "tag",
-            "order_how": "ASC",
-            "limit": 50,
-            "offset": 0,
-            "filter": {"search": {"regex": f".*{custom_escape(query)}.*"}},
-            "hostFilter": {"OR": mocker.ANY},
-        },
-        mocker.ANY,
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query=f"?search={quote(query)}"),
+        host_filter={"OR": mocker.ANY},
+        filter={"search": {"regex": f".*{custom_escape(query)}.*"}},
     )
 
 
@@ -1193,22 +1046,10 @@ def test_tags_response_invalid_pagination(page, per_page, api_get):
     assert response_status == 400
 
 
-def test_tags_query_variables_registered_with(mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get):
-    url = build_tags_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "hostFilter": {"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
-        },
-        mocker.ANY,
+def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?registered_with=insights"),
+        host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
     )
 
 
@@ -1251,7 +1092,7 @@ def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphq
 
 
 def test_tags_RBAC_allowed(
-    subtests, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, enable_rbac
+    subtests, mocker, graphql_tag_query_empty_response, enable_rbac, assert_tag_query_host_filter_single_call
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -1260,10 +1101,11 @@ def test_tags_RBAC_allowed(
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = build_tags_url(query="?registered_with=insights")
-            response_status, response_data = api_get(url)
-
-            assert response_status == 200
+            assert_tag_query_host_filter_single_call(
+                build_tags_url(query="?registered_with=insights"),
+                host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
+            )
+            graphql_tag_query_empty_response.reset_mock()
 
 
 def test_tags_RBAC_denied(
@@ -1537,7 +1379,7 @@ def test_query_hosts_filter_spf_sap_system(
 
 
 def test_query_tags_filter_spf_sap_system(
-    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_tag_query_empty_response, assert_tag_query_host_filter_single_call
 ):
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
     values = ("true", "false", "nil", "not_nil")
@@ -1551,24 +1393,10 @@ def test_query_tags_filter_spf_sap_system(
     for path in filter_paths:
         for value, query in zip(values, queries):
             with subtests.test(value=value, query=query, path=path):
-                graphql_tag_query_empty_response.reset_mock()
-                url = build_tags_url(query=f"?filter{path}={value}")
-
-                response_status, response_data = api_get(url)
-
-                assert response_status == 200
-
-                graphql_tag_query_empty_response.assert_called_once_with(
-                    TAGS_QUERY,
-                    {
-                        "order_by": mocker.ANY,
-                        "order_how": mocker.ANY,
-                        "limit": mocker.ANY,
-                        "offset": mocker.ANY,
-                        "hostFilter": {"OR": mocker.ANY, "AND": query},
-                    },
-                    mocker.ANY,
+                assert_tag_query_host_filter_single_call(
+                    build_tags_url(query=f"?filter{path}={value}"), host_filter={"OR": mocker.ANY, "AND": query}
                 )
+                graphql_tag_query_empty_response.reset_mock()
 
 
 def test_query_system_profile_sap_system_filter_spf_sap_sids(
@@ -1634,7 +1462,7 @@ def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, g
 
 
 def test_query_tags_filter_spf_sap_sids(
-    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    mocker, subtests, graphql_tag_query_empty_response, assert_tag_query_host_filter_single_call
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
@@ -1647,22 +1475,9 @@ def test_query_tags_filter_spf_sap_sids(
     for path in filter_paths:
         for values, query in zip(value_sets, queries):
             with subtests.test(values=values, query=query, path=path):
-                url = build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values]))
-
-                response_status, response_data = api_get(url)
-
-                assert response_status == 200
-
-                graphql_tag_query_empty_response.assert_called_once_with(
-                    TAGS_QUERY,
-                    {
-                        "order_by": mocker.ANY,
-                        "order_how": mocker.ANY,
-                        "limit": mocker.ANY,
-                        "offset": mocker.ANY,
-                        "hostFilter": {"OR": mocker.ANY, "AND": query},
-                    },
-                    mocker.ANY,
+                assert_tag_query_host_filter_single_call(
+                    build_tags_url(query="?" + "".join([f"filter{path}={value}&" for value in values])),
+                    host_filter={"OR": mocker.ANY, "AND": query},
                 )
                 graphql_tag_query_empty_response.reset_mock()
 

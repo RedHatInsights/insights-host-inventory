@@ -141,7 +141,7 @@ def query_filters(
     filter,
 ):
     if fqdn:
-        query_filters = ({"fqdn": {"eq": fqdn}},)
+        query_filters = ({"fqdn": {"eq": fqdn.casefold()}},)
     elif display_name:
         query_filters = ({"display_name": string_contains_lc(display_name)},)
     elif hostname_or_id:
@@ -157,7 +157,7 @@ def query_filters(
             hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
     elif insights_id:
-        query_filters = ({"insights_id": {"eq": insights_id}},)
+        query_filters = ({"insights_id": {"eq": insights_id.casefold()}},)
     else:
         query_filters = ()
 
@@ -169,9 +169,9 @@ def query_filters(
     if registered_with:
         query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
     if provider_type:
-        query_filters += ({"provider_type": {"eq": provider_type}},)
+        query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
-        query_filters += ({"provider_id": {"eq": provider_id}},)
+        query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
 
     for key in filter:
         if key == "system_profile":

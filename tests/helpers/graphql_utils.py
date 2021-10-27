@@ -110,6 +110,7 @@ XJOIN_SYSTEM_PROFILE_SAP_SIDS = {
 }
 
 XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE = {"hosts": {"meta": {"count": 2, "total": 2}, "data": []}}
+CASEFOLDED_FIELDS = ("fqdn", "insights_id", "provider_type", "provider_id")
 
 
 def xjoin_host_response(timestamp):
