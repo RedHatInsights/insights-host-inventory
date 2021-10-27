@@ -136,16 +136,7 @@ def get_host_list(
 
 def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
     all_filters = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        provider_id,
-        provider_type,
-        tags,
-        None,
-        None,
-        filter,
+        fqdn, display_name, hostname_or_id, insights_id, provider_id, provider_type, tags, None, None, filter
     )
 
     current_identity = get_current_identity()
@@ -159,9 +150,7 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         logger.error("Host search engine not accessible.  Please try later.")
         raise ValueError("Host search engine not accessible.  Please try later.")
 
-    # TODO: return list of hosts ids, instead of the Hosts provided by GraphQL
-    # remove the 'total'.  Count the list members in the caller.
-    return response["data"], response["meta"]["total"]
+    return response["data"]
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):

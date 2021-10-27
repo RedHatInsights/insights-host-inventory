@@ -11,7 +11,6 @@ from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
 from api import metrics
-from api.host_query import build_host_id_list_response
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list as get_host_list_db
@@ -155,47 +154,6 @@ def get_host_list(
 
 
 @api_operation
-@rbac(Permission.READ)
-@metrics.api_request_time.time()
-def get_host_ids_list(
-    display_name=None,
-    fqdn=None,
-    hostname_or_id=None,
-    insights_id=None,
-    provider_id=None,
-    provider_type=None,
-    tags=None,
-    filter=None,
-):
-    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
-        logger.error("Getting a list of host-ids need at least one input property to filter on.")
-        flask.abort(400, "Getting a list of host-ids need at least one input property to filter on.")
-
-    total = 0
-    host_list = ()
-
-    try:
-        host_list, total = get_host_ids_list_xjoin(
-            display_name,
-            fqdn.casefold() if fqdn else None,
-            hostname_or_id,
-            insights_id.casefold() if insights_id else None,
-            provider_id.casefold() if provider_id else None,
-            provider_type.casefold() if provider_type else None,
-            tags,
-            filter,
-        )
-    except ValueError as e:
-        # error logged at the point of failure
-        # QUESTION: Is ValueError the correct exception? Should it be just "Exception"?
-        # When xjoin search or graphql not accessible, should the api-server abort?
-        flask.abort(400, str(e))
-
-    json_data = build_host_id_list_response(total, host_list)
-    return flask_json_response(str(json_data))
-
-
-@api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_host_list(
@@ -212,11 +170,10 @@ def delete_host_list(
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
-    total = 0
-    host_list = ()
+    ids_list = ()
 
     try:
-        host_list, total = get_host_ids_list_xjoin(
+        ids_list = get_host_ids_list_xjoin(
             display_name,
             fqdn.casefold() if fqdn else None,
             hostname_or_id,
@@ -234,19 +191,18 @@ def delete_host_list(
         log_delete_filtered_hosts_failed(logger, f"Criteria: {args}", get_control_rule())
         flask.abort(400, str(e))
 
-    hl = list(host_list)  # host_list is a map
+    # host counter for reporting results
     dh_num = 0
 
-    for host in hl:
-        id = str(host.id) if isinstance(host, Host) else host["id"]
-        logger.info(f"Host to delete: {id}")
+    for obj in ids_list:
+        logger.info(f'Host to delete: {obj["id"]}')
         try:
-            if delete_by_id([id]):
-                logger.info(f"Host deleted: {id}")
+            if delete_by_id([obj["id"]]):
+                logger.info(f'Host deleted: {obj["id"]}')
                 dh_num += 1
         except NotFound:
-            log_delete_filtered_hosts_failed(logger, host["id"], get_control_rule())
-    return flask.Response(f"Hosts found for deletion: {total} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
+            log_delete_filtered_hosts_failed(logger, obj["id"], get_control_rule())
+    return flask.Response(f"Hosts found for deletion: {len(ids_list)} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
 
 
 @api_operation

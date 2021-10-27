@@ -1,14 +1,12 @@
 import pytest
 
 from api import custom_escape
-from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
 from app.models import ProviderType
-from tests.helpers.api_utils import build_hosts_bulk_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
@@ -25,7 +23,6 @@ from tests.helpers.graphql_utils import assert_called_with_headers
 from tests.helpers.graphql_utils import assert_graph_query_single_call_with_staleness
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
-from tests.helpers.graphql_utils import XJOIN_HOST_IDS_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
@@ -73,27 +70,6 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     assert response_status == 200
 
 
-@pytest.mark.parametrize(
-    "query_filter",
-    (
-        "tags=SPECIAL/tag=ToFind",
-        "tags=ns1/key1=val1",
-        "display_name=test01.rhel7.jharting.local",
-        "tags=ns1/key2=val1&display_name=test01.rhel7.jharting.local",
-        "fqdn=test03.rhel7.fqdn",
-    ),
-)
-def test_hosts_bulk_xjoin_status_200(host_ids_xjoin_post, api_get_filtered_hosts, query_filter):
-    response = {"data": XJOIN_HOST_IDS_RESPONSE}
-    host_ids_xjoin_post(response, status=200)
-
-    url = build_hosts_bulk_url(query=f"?{query_filter}")
-
-    response_status, _ = api_get_filtered_hosts(url)
-
-    assert response_status == 200
-
-
 def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     fqdn = "host.DOMAIN.com"
 
@@ -113,19 +89,6 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
             "fields": mocker.ANY,
         },
         mocker.ANY,
-    )
-
-
-def test_bulk_filter_display_name(mocker, query_source_xjoin, graphql_query_host_id_response, api_get_filtered_hosts):
-    display_name = "my awesome host uwu"
-
-    url = build_hosts_bulk_url(query=f"?display_name={quote(display_name)}")
-    response_status, response_data = api_get_filtered_hosts(url)
-
-    assert response_status == 200
-
-    graphql_query_host_id_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({"display_name": {"matches_lc": f"*{display_name}*"}},)}, mocker.ANY
     )
 
 

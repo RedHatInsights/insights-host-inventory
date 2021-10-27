@@ -41,6 +41,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
+    delete:
+      operationId: api.host.delete_host_list
+      tags:
+        - hosts
+      summary: Delete the entire list of hosts filtered by the given parameters
+      description: >-
+        Delete the entire list of hosts filtered by the given parameters.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/providerId'
+        - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+          description: Successfully deleted the hosts filtered by the query.
+        '400':
+          description: Invalid request.
   /hosts/checkin:
     post:
       operationId: api.host.host_checkin
@@ -73,59 +98,6 @@ paths:
                 $ref: '#/components/schemas/CreateHostOut'
         '404':
           description: Not Found.
-  /hosts/bulk:
-    get:
-      operationId: api.host.get_host_ids_list
-      tags:
-        - hosts
-      summary: Get the entire list of hosts fitlered by the query
-      description: >-
-        Get the entire list of hosts fitlered by the query.
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/displayName'
-        - $ref: '#/components/parameters/fqdn'
-        - $ref: '#/components/parameters/hostnameOrId'
-        - $ref: '#/components/parameters/insightsId'
-        - $ref: '#/components/parameters/providerId'
-        - $ref: '#/components/parameters/providerType'
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: Successfully read the hosts list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostIdOut'
-    delete:
-      operationId: api.host.delete_host_list
-      tags:
-        - hosts
-      summary: Delete the entire list of hosts filtered by the given parameters
-      description: >-
-        Delete the entire list of hosts filtered by the given parameters.
-        <br /><br />
-        Required permissions: inventory:hosts:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/displayName'
-        - $ref: '#/components/parameters/fqdn'
-        - $ref: '#/components/parameters/hostnameOrId'
-        - $ref: '#/components/parameters/insightsId'
-        - $ref: '#/components/parameters/providerId'
-        - $ref: '#/components/parameters/providerType'
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: Successfully deleted the hosts filtered by the query.
-        '400':
-          description: Invalid request.
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -1008,8 +980,8 @@ components:
                 $ref: '#/components/schemas/FactSet'
     HostIdOut:
       description: A UUID host Id generated upon host creation
-      type: string
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+      type: object
+      example: list if UUIDs, [22cd8e39-13bb-4d02-8316-84b850dc5136]
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
