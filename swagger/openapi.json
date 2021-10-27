@@ -114,6 +114,9 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/reporter"
+          },
+          {
             "$ref": "#/components/parameters/tagsParam"
           },
           {
@@ -921,6 +924,15 @@
         "description": "Filter by provider_type",
         "required": false
       },
+      "reporter": {
+        "in": "query",
+        "name": "reporter",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by reporter",
+        "required": false
+      },
       "factsNamespace": {
         "in": "path",
         "name": "namespace",
@@ -1507,8 +1519,13 @@
       },
       "HostIdOut": {
         "description": "A UUID host Id generated upon host creation",
-        "type": "object",
-        "example": "list if UUIDs, [22cd8e39-13bb-4d02-8316-84b850dc5136]"
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "example": [
+          "22cd8e39-13bb-4d02-8316-84b850dc5136"
+        ]
       },
       "HostQueryOutput": {
         "title": "A Host Inventory query result",
