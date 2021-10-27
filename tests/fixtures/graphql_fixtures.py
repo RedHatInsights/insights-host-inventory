@@ -4,7 +4,9 @@ from datetime import timezone
 
 import pytest
 
+from api.tag import TAGS_QUERY
 from app.config import BulkQuerySource
+from tests.helpers.graphql_utils import CASEFOLDED_FIELDS
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SYSTEM_EMPTY_RESPONSE
@@ -132,3 +134,35 @@ def culling_datetime_mock(mocker):
     date = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
     mock = mocker.patch("app.culling.datetime", **{"now.return_value": date})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response, query_source_xjoin):
+    def _assert_tag_query_host_filter_single_call(url, host_filter={"OR": mocker.ANY}, filter=None, status=200):
+        response_status, _ = api_get(url)
+
+        assert response_status == status
+
+        graphql_vars = {"order_by": "tag", "order_how": "ASC", "limit": 50, "offset": 0, "hostFilter": host_filter}
+
+        if filter:
+            graphql_vars["filter"] = filter
+
+        graphql_tag_query_empty_response.assert_called_once_with(TAGS_QUERY, graphql_vars, mocker.ANY)
+
+    return _assert_tag_query_host_filter_single_call
+
+
+@pytest.fixture(scope="function")
+def assert_tag_query_host_filter_for_field(mocker, assert_tag_query_host_filter_single_call):
+    def _assert_tag_query_host_filter_for_field(url, field, matcher, value, status=200):
+        return assert_tag_query_host_filter_single_call(
+            url=url,
+            host_filter={
+                "AND": ({field: {matcher: value.casefold() if field in CASEFOLDED_FIELDS else value}},),
+                "OR": mocker.ANY,
+            },
+            status=status,
+        )
+
+    return _assert_tag_query_host_filter_for_field
