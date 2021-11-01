@@ -1163,7 +1163,7 @@
         "description": "An ID defined in /etc/insights-client/machine-id. This field is considered a canonical fact.",
         "type": "string",
         "nullable": true,
-        "example": "3f01b55457674041b75e41829bcee1dc"
+        "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "InsightsId_In": {
         "description": "An ID defined in /etc/insights-client/machine-id. This field is considered a canonical fact.",
