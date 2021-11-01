@@ -736,9 +736,6 @@ components:
       type: string
       nullable: true
       example: 3f01b55457674041b75e41829bcee1dc
-    # The schemas, with names ending in "_In", have been added for controlling uuid format used by
-    # canonical_facts.  Not controlling uuid formats lead to the creation of multiple hosts with identicle
-    # values for the same canonical_fact.
     InsightsId_In:
       description: >-
         An ID defined in /etc/insights-client/machine-id. This field is
