@@ -54,9 +54,11 @@ def _build_object_filter(field_name, input_object, field_filter):
         raise ValidationException("Invalid filter value")
 
     for name in input_object:
-        field_value = _get_field_value(input_object[name], "wildcard")
+        _check_field_in_spec(system_profile_spec()[field_name]["children"], name)
+        child_filter = system_profile_spec()[field_name]["children"][name]["filter"]
+        field_value = _get_field_value(input_object[name], child_filter)
         object_filter.update(
-            _generic_filter_builder(BUILDER_FUNCTIONS.wildcard.value, name, str(field_value), "wildcard", True)[0]
+            _generic_filter_builder(BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, True)[0]
         )
 
     return ({"OR": [{f"spf_{field_name}": object_filter}]},)
@@ -72,8 +74,8 @@ class BUILDER_FUNCTIONS(Enum):
     object = partial(_build_object_filter)
 
 
-def _check_field_in_spec(field_name):
-    if field_name not in system_profile_spec().keys():
+def _check_field_in_spec(spec, field_name):
+    if field_name not in spec.keys():
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
@@ -205,7 +207,7 @@ def build_system_profile_filter(system_profile):
     system_profile_filter = tuple()
 
     for field_name in system_profile:
-        _check_field_in_spec(field_name)
+        _check_field_in_spec(system_profile_spec(), field_name)
 
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
