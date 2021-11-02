@@ -1,11 +1,8 @@
-import copy
-import uuid
 from itertools import chain
 
 import pytest
 
 from app.auth.identity import Identity
-from app.utils import HostWrapper
 from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import single_canonical_fact_host_query
 from tests.helpers.api_utils import api_base_pagination_test
@@ -157,24 +154,6 @@ def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests
             url = build_hosts_url(host_list_or_id=host_id_list)
             response_status, response_data = api_get(url)
             assert response_status == 400
-
-
-def test_query_host_id_without_hyphens(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    host_lists = [created_hosts[0:1], created_hosts]
-
-    for original_host_list in host_lists:
-        with subtests.test(host_list=original_host_list):
-            # deepcopy host.__data to insulate original_host_list from changes.
-            host_data = (host.data() for host in original_host_list)
-            host_data = (copy.deepcopy(host) for host in host_data)
-            query_host_list = [HostWrapper(host) for host in host_data]
-
-            # Remove the hyphens from one of the valid hosts.
-            query_host_list[0].id = uuid.UUID(query_host_list[0].id, version=4).hex
-
-            url = build_hosts_url(host_list_or_id=query_host_list)
-            api_query_test(api_get, subtests, url, original_host_list)
 
 
 def test_query_host_id_with_incorrect_formats(api_get, subtests):

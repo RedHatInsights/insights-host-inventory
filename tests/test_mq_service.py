@@ -331,7 +331,7 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     """
     Tests adding a host with reporter rhsm-conduit and no cn
     """
-    sub_mangager_id = "09152341475c4671a376df609374c349"
+    sub_mangager_id = "09152341-475c-4671-a376-df609374c349"
 
     metadata_without_b64 = get_platform_metadata(identity=SYSTEM_IDENTITY)
     del metadata_without_b64["b64_identity"]
@@ -350,7 +350,7 @@ def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update
     """
     Tests adding a host with reporter rhsm-conduit
     """
-    sub_mangager_id = "09152341475c4671a376df609374c349"
+    sub_mangager_id = "09152341-475c-4671-a376-df609374c349"
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
