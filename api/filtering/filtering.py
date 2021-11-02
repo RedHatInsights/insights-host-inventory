@@ -204,8 +204,10 @@ def build_system_profile_filter(system_profile):
 
     for field_name in system_profile:
         _check_field_in_spec(field_name)
+
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
+
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
