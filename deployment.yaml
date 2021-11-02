@@ -549,6 +549,56 @@ objects:
           requests:
             cpu: 200m
             memory: ${MEMORY_REQUEST}
+    - name: floorist
+      schedule: ${FLOORIST_SCHEDULE}
+      suspend: ${{FLOORIST_SUSPEND}}
+      concurrencyPolicy: Forbid
+      podSpec:
+        image: ${FLOORIST_IMAGE}:${FLOORIST_IMAGE_TAG}
+        env:
+        - name: AWS_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: bucket
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_region
+        - name: AWS_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: endpoint
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_secret_access_key
+        - name: FLOORPLAN_FILE
+          value: "/tmp/floorplan/floorplan.yaml"
+        - name: LOGLEVEL
+          value: ${FLOORIST_LOGLEVEL}
+        volumeMounts:
+        - name: floorplan-volume
+          mountPath: "/tmp/floorplan"
+        volumes:
+          - name: floorplan-volume
+            configMap:
+              name: floorplan
+      resources:
+          limits:
+            cpu: "${CPU_LIMIT_FLOO}"
+            memory: "${MEMORY_LIMIT_FLOO}"
+          requests:
+            cpu: "${CPU_REQUEST_FLOO}"
+            memory: "${MEMORY_REQUEST_FLOO}"
     database:
       name: host-inventory
       version: 12
@@ -594,6 +644,22 @@ objects:
       targetPort: 8000
     selector:
       pod: host-inventory-service
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: floorplan
+  data:
+    floorplan.yaml: |
+      - prefix: dumps/inventory/hosts
+        query: >-
+          SELECT
+            "hosts"."id",
+            "hosts"."account" AS "account_number",
+            "hosts"."created" AS "created_at",
+            "hosts"."updated" AS "updated_at",
+            "hosts"."system_profile"->'operating_system'->'major' AS "os_major_version",
+            "hosts"."system_profile"->'operating_system'->'minor' AS "os_minor_version"
+          FROM "inventory"."hosts"
 parameters:
 - name: LOG_LEVEL
   value: INFO
@@ -697,3 +763,35 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+
+#floorist
+- name: MEMORY_LIMIT_FLOO
+  value: 200Mi
+- name: MEMORY_REQUEST_FLOO
+  value: 100Mi
+- name: CPU_LIMIT_FLOO
+  value: 100m
+- name: CPU_REQUEST_FLOO
+  value: 50m
+- name: FLOORIST_SCHEDULE
+  description: Cronjob schedule definition
+  required: true
+  value: '@daily'
+- name: FLOORIST_SUSPEND
+  description: Disable Floorist cronjob execution
+  required: true
+  value: 'true'
+- description: Floorist image name
+  name: FLOORIST_IMAGE
+  value: quay.io/cloudservices/floorist
+- description: Floorist Image tag
+  name: FLOORIST_IMAGE_TAG
+  required: true
+  value: latest
+- description: bucket secret name
+  name: FLOORIST_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-secret
+- name: FLOORIST_LOGLEVEL
+  description: Floorist loglevel config
+  value: 'INFO'
