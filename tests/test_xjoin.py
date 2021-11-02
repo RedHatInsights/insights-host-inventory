@@ -2069,6 +2069,27 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
             graphql_query_empty_response.reset_mock()
 
 
+# system_profile ansible failstate tests
+def test_query_hosts_filter_spf_ansible_exception_handling(
+    subtests, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    http_queries = (
+        "filter[system_profile][ansible][controller_version][fake_op]=7.1",
+        "filter[system_profile][ansible]=7.1",
+        "filter[system_profile][ansible][hub_version]=",
+        "filter[system_profile][ansible]=something",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
