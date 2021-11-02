@@ -46,22 +46,18 @@ def _wildcard_string_filter(field_name, field_value):
     return ({field_name: {"matches": (field_value)}},)
 
 
-def _build_ansible_filter(field_name, ansible_object, field_filter):
-    # field name is unused but here because the generic filter builders need it and this has
-    # to have the same interface
-    ansible_fields = ("controller_version", "hub_version", "catalog_version", "sso_version")
-    ansible_filter = {}
+def _build_object_filter(field_name, input_object, field_filter):
+    # field name is unused but here because the generic filter builders need it,
+    # and this has to have the same interface
+    object_filter = {}
 
-    for name in ansible_object:
-        if name not in ansible_fields:
-            raise ValidationException(f"Provided Ansible filter contains invalid field name: {name}")
-
-        field_value = _get_field_value(ansible_object[name], "wildcard")
-        ansible_filter.update(
+    for name in input_object:
+        field_value = _get_field_value(input_object[name], "wildcard")
+        object_filter.update(
             _generic_filter_builder(BUILDER_FUNCTIONS.wildcard.value, name, str(field_value), "wildcard", True)[0]
         )
 
-    return ({"OR": [{"spf_ansible": ansible_filter}]},)
+    return ({"OR": [{f"spf_{field_name}": object_filter}]},)
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -71,7 +67,7 @@ class BUILDER_FUNCTIONS(Enum):
     # integer = doesnt exist yet, no xjoin-search support yet
     # Customs under here
     operating_system = partial(build_operating_system_filter)
-    ansible = partial(_build_ansible_filter)
+    object = partial(_build_object_filter)
 
 
 def _check_field_in_spec(field_name):
@@ -208,19 +204,16 @@ def build_system_profile_filter(system_profile):
 
     for field_name in system_profile:
         _check_field_in_spec(field_name)
-
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
-
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-        if field_name in custom_filter_fields:
+        if field_name in custom_filter_fields or field_filter == "object":
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
             field_value = _get_field_value(field_input, field_filter)
-
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
 
     return system_profile_filter

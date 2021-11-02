@@ -44,7 +44,7 @@ SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_l
 
 SPEC_TYPES_LOOKUP = {"string": str, "integer": int, "boolean": bool, "array": list, "object": dict}
 
-custom_filter_fields = ["operating_system", "ansible"]
+custom_filter_fields = ["operating_system"]
 
 
 class Permission(Enum):
