@@ -1165,10 +1165,6 @@
         "nullable": true,
         "example": "3f01b55457674041b75e41829bcee1dc"
       },
-      "InsightsId_In": {
-        "description": "An ID defined in /etc/insights-client/machine-id. This field is considered a canonical fact.",
-        "$ref": "#/components/schemas/HyphenatedUuid"
-      },
       "SubscriptionManagerId": {
         "description": "A Red Hat Subcription Manager ID of a RHEL host.  This field is considered to be a canonical fact.",
         "type": "string",
