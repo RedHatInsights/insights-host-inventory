@@ -2031,84 +2031,17 @@ def test_query_hosts_filter_spf_ansible(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     http_queries = (
-        "filter[system_profile][ansible][controller_version][is]=not_nil",
-        "filter[system_profile][ansible][controller_version]=*",
+        "filter[system_profile][ansible][controller_version]=7.1",
         "filter[system_profile][ansible][hub_version]=8.0.1",
         "filter[system_profile][ansible][catalog_version]=3",
         "filter[system_profile][ansible][sso_version]=0.44.963",
-        "filter[system_profile][ansible][controller_version]=7.1",
     )
 
     graphql_queries = (
-        {"OR": [{"spf_ansible": {"controller_version": {"eq": 7.1}}}]},
-        {
-            "OR": [
-                {
-                    "AND": [
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"gte": 9, "lte": 9},
-                                        "minor": {"lt": 2},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                },
-                                {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
-                            ]
-                        },
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
-                                        "minor": {"gt": 0},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                },
-                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
-                            ]
-                        },
-                    ]
-                }
-            ]
-        },
-        {
-            "OR": [
-                {
-                    "AND": [
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
-                                        "minor": {"gte": 1},
-                                        "name": {"eq": "CENT"},
-                                    }
-                                },
-                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "CENT"}}},
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "AND": [
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"gte": 12, "lte": 12},
-                                        "minor": {"lte": 6},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                },
-                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
-                            ]
-                        }
-                    ]
-                },
-            ]
-        },
+        {"OR": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
+        {"OR": [{"spf_ansible": {"hub_version": {"matches": "8.0.1"}}}]},
+        {"OR": [{"spf_ansible": {"catalog_version": {"matches": "3"}}}]},
+        {"OR": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):

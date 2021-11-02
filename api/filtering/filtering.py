@@ -50,21 +50,18 @@ def _build_ansible_filter(field_name, ansible_object, field_filter):
     # field name is unused but here because the generic filter builders need it and this has
     # to have the same interface
     ansible_fields = ("controller_version", "hub_version", "catalog_version", "sso_version")
-
-    ansible_filter = ()
+    ansible_filter = {}
 
     for name in ansible_object:
         if name not in ansible_fields:
             raise ValidationException(f"Provided Ansible filter contains invalid field name: {name}")
 
         field_value = _get_field_value(ansible_object[name], "wildcard")
+        ansible_filter.update(
+            _generic_filter_builder(BUILDER_FUNCTIONS.wildcard.value, name, str(field_value), "wildcard", True)[0]
+        )
 
-        if not isinstance(field_value, str):
-            raise ValidationException(f"Provided Ansible filter may only contain string fields: {ansible_object} ")
-
-        ansible_filter += _generic_filter_builder(BUILDER_FUNCTIONS.wildcard.value, name, field_value, "wildcard")
-
-    return ansible_filter
+    return ({"OR": [{"spf_ansible": ansible_filter}]},)
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -114,17 +111,18 @@ def _get_list_operator(field_name):
         return "AND"
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter):
+def _base_filter_builder(builder_function, field_name, field_value, field_filter, is_child_field):
+    xjoin_field_name = field_name if is_child_field else f"spf_{field_name}"
     if isinstance(field_value, list):
         logger.debug("filter value is a list")
         foo_list = []
         for value in field_value:
-            foo_list.append(builder_function(f"spf_{field_name}", value, field_filter)[0])
+            foo_list.append(builder_function(xjoin_field_name, value, field_filter)[0])
         list_operator = _get_list_operator(field_name)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(field_value, str):
         logger.debug("filter value is a string")
-        field_filter = builder_function(f"spf_{field_name}", field_value, field_filter)
+        field_filter = builder_function(xjoin_field_name, field_value, field_filter)
     else:
         logger.debug("filter value is bad")
         raise ValidationException(f"wrong type for {field_value} filter")
@@ -132,10 +130,10 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter):
+def _generic_filter_builder(builder_function, field_name, field_value, field_filter, is_child_field=False):
     nullable_builder_function = partial(_nullable_wrapper, builder_function)
 
-    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter)
+    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, is_child_field)
 
 
 def build_tag_query_dict_tuple(tags):
