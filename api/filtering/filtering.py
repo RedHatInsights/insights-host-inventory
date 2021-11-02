@@ -46,6 +46,27 @@ def _wildcard_string_filter(field_name, field_value):
     return ({field_name: {"matches": (field_value)}},)
 
 
+def _build_ansible_filter(field_name, ansible_object, field_filter):
+    # field name is unused but here because the generic filter builders need it and this has
+    # to have the same interface
+    ansible_fields = ("controller_version", "hub_version", "catalog_version", "sso_version")
+
+    ansible_filter = ()
+
+    for name in ansible_object:
+        if name not in ansible_fields:
+            raise ValidationException(f"Provided Ansible filter contains invalid field name: {name}")
+
+        field_value = _get_field_value(ansible_object[name], "wildcard")
+
+        if not isinstance(field_value, str):
+            raise ValidationException(f"Provided Ansible filter may only contain string fields: {ansible_object} ")
+
+        ansible_filter += _generic_filter_builder(BUILDER_FUNCTIONS.wildcard.value, name, field_value, "wildcard")
+
+    return ansible_filter
+
+
 class BUILDER_FUNCTIONS(Enum):
     wildcard = partial(_wildcard_string_filter)
     string = partial(_string_filter)
@@ -53,6 +74,7 @@ class BUILDER_FUNCTIONS(Enum):
     # integer = doesnt exist yet, no xjoin-search support yet
     # Customs under here
     operating_system = partial(build_operating_system_filter)
+    ansible = partial(_build_ansible_filter)
 
 
 def _check_field_in_spec(field_name):

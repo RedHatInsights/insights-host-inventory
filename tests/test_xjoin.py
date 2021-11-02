@@ -2026,6 +2026,114 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
             assert response_data["title"] == "Validation Error"
 
 
+# system_profile ansible filtering tests
+def test_query_hosts_filter_spf_ansible(
+    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    http_queries = (
+        "filter[system_profile][ansible][controller_version][is]=not_nil",
+        "filter[system_profile][ansible][controller_version]=*",
+        "filter[system_profile][ansible][hub_version]=8.0.1",
+        "filter[system_profile][ansible][catalog_version]=3",
+        "filter[system_profile][ansible][sso_version]=0.44.963",
+        "filter[system_profile][ansible][controller_version]=7.1",
+    )
+
+    graphql_queries = (
+        {"OR": [{"spf_ansible": {"controller_version": {"eq": 7.1}}}]},
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 9, "lte": 9},
+                                        "minor": {"lt": 2},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gt": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
+                            ]
+                        },
+                    ]
+                }
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 7, "lte": 7},
+                                        "minor": {"gte": 1},
+                                        "name": {"eq": "CENT"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "CENT"}}},
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"gte": 12, "lte": 12},
+                                        "minor": {"lte": 6},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                            ]
+                        }
+                    ]
+                },
+            ]
+        },
+    )
+
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status = api_get(url)[0]
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
 def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
