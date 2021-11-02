@@ -50,6 +50,8 @@ def _build_object_filter(field_name, input_object, field_filter):
     # field name is unused but here because the generic filter builders need it,
     # and this has to have the same interface
     object_filter = {}
+    if not isinstance(input_object, dict):
+        raise ValidationException("Invalid filter value")
 
     for name in input_object:
         field_value = _get_field_value(input_object[name], "wildcard")
