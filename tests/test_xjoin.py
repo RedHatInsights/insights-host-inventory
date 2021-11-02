@@ -2027,21 +2027,23 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
 
 
 # system_profile ansible filtering tests
-def test_query_hosts_filter_spf_ansible(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
     http_queries = (
         "filter[system_profile][ansible][controller_version]=7.1",
-        "filter[system_profile][ansible][hub_version]=8.0.1",
-        "filter[system_profile][ansible][catalog_version]=3",
+        "filter[system_profile][ansible][hub_version]=8.0.*",
+        "filter[system_profile][ansible][catalog_version]=nil",
         "filter[system_profile][ansible][sso_version]=0.44.963",
+        "filter[system_profile][ansible][controller_version]=7.1&filter[system_profile][ansible][hub_version]=not_nil",
+        "filter[system_profile][ansible][catalog_version]=not_nil",
     )
 
     graphql_queries = (
         {"OR": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
-        {"OR": [{"spf_ansible": {"hub_version": {"matches": "8.0.1"}}}]},
-        {"OR": [{"spf_ansible": {"catalog_version": {"matches": "3"}}}]},
+        {"OR": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
+        {"OR": [{"spf_ansible": {"catalog_version": {"eq": None}}}]},
         {"OR": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
+        {"OR": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
+        {"OR": [{"spf_ansible": {"NOT": {"catalog_version": {"eq": None}}}}]},
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
