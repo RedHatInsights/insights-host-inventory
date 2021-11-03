@@ -150,7 +150,7 @@ def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_
         logger.error("Host search engine not accessible.  Please try later.")
         raise ValueError("Host search engine not accessible.  Please try later.")
 
-    return response["data"]
+    return [x["id"] for x in response["data"]]
 
 
 def _params_to_order(param_order_by=None, param_order_how=None):
