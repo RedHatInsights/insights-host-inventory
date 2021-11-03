@@ -1148,7 +1148,16 @@
         "type": "array",
         "items": {
           "type": "string"
-        }
+        },
+        "nullable": false
+      },
+      "HyphenatedUuid": {
+        "type": "string",
+        "nullable": true,
+        "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "minLength": 36,
+        "maxLength": 36,
+        "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "InsightsId": {
         "description": "An ID defined in /etc/insights-client/machine-id. This field is considered a canonical fact.",
@@ -1160,19 +1169,19 @@
         "description": "A Red Hat Subcription Manager ID of a RHEL host.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
-        "example": "3f01b55457674041b75e41829bcee1dc"
+        "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "SatelliteId": {
         "description": "A Red Hat Satellite ID of a RHEL host.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
-        "example": "3f01b55457674041b75e41829bcee1dc"
+        "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "BiosUuid": {
         "description": "A UUID of the host machine BIOS.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
-        "example": "3f01b55457674041b75e41829bcee1dc"
+        "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "IpAddresses": {
         "description": "Host’s network IP addresses.  This field is considered to be a canonical fact.",
@@ -1218,21 +1227,46 @@
       "CanonicalFactsIn": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/CanonicalFactsOut"
-          },
-          {
             "properties": {
               "insights_id": {
-                "$ref": "#/components/schemas/NonNullableString"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InsightsId"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HyphenatedUuid"
+                  }
+                ]
               },
               "subscription_manager_id": {
-                "$ref": "#/components/schemas/NonNullableString"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SubscriptionManagerId"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HyphenatedUuid"
+                  }
+                ]
               },
               "satellite_id": {
-                "$ref": "#/components/schemas/NonNullableString"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SatelliteId"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HyphenatedUuid"
+                  }
+                ]
               },
               "bios_uuid": {
-                "$ref": "#/components/schemas/NonNullableString"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BiosUuid"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HyphenatedUuid"
+                  }
+                ]
               },
               "ip_addresses": {
                 "$ref": "#/components/schemas/NonNullableStringArray"
