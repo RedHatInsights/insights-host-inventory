@@ -891,7 +891,8 @@
           "type": "string",
           "enum": [
             "display_name",
-            "updated"
+            "updated",
+            "operating_system"
           ]
         },
         "description": "Ordering field name"
