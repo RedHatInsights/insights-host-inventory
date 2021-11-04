@@ -5,7 +5,6 @@ import flask
 from flask import current_app
 from flask_api import status
 from marshmallow import ValidationError
-from werkzeug.exceptions import NotFound
 
 from api import api_operation
 from api import build_collection_response
@@ -24,7 +23,7 @@ from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
-from app.instrumentation import log_delete_filtered_hosts_failed
+from app.instrumentation import log_get_host_id_list_failed
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -74,7 +73,6 @@ def _get_args(*args):
     for arg in args:
         if arg:
             provided_args.append(arg)
-    return False
     return provided_args
 
 
@@ -160,8 +158,6 @@ def delete_host_list(
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
-    ids_list = ()
-
     try:
         ids_list = get_host_ids_list_xjoin(
             display_name,
@@ -173,32 +169,25 @@ def delete_host_list(
             tags,
             filter,
         )
-    except ValueError as e:
-        # error logged at the point of failure
-        # QUESTION: Is ValueError the correct exception?  Should it be just "Exception"?
-        # When xjoin search or graphql not accessible, should the api-server abort?
+    except ValueError:
         args = _get_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter)
-        log_delete_filtered_hosts_failed(logger, f"Criteria: {args}", get_control_rule())
-        flask.abort(400, str(e))
+        log_get_host_id_list_failed(logger)
+        flask.abort(400, f"No hosts found for the provided filter: {str(args)}")
+    except ConnectionError as ce:
+        logger.error("xjoin-search not accessible")
+        log_get_host_id_list_failed(logger)
+        flask.abort(503, ce)
 
-    # host counter for reporting results
-    dh_num = 0
+    if not len(ids_list):
+        flask.abort(status.HTTP_404_NOT_FOUND)
 
-    for obj in ids_list:
-        logger.info(f'Host to delete: {obj["id"]}')
-        try:
-            if delete_by_id([obj["id"]]):
-                logger.info(f'Host deleted: {obj["id"]}')
-                dh_num += 1
-        except NotFound:
-            log_delete_filtered_hosts_failed(logger, obj["id"], get_control_rule())
-    return flask.Response(f"Hosts found for deletion: {len(ids_list)} \nDeleted hosts: {dh_num}", status.HTTP_200_OK)
+    delete_count = _delete_filtered_hosts(ids_list)
+    return flask.Response(
+        f"Hosts found for deletion: {len(ids_list)} \nDeleted hosts: {delete_count}", status.HTTP_200_OK
+    )
 
 
-@api_operation
-@rbac(Permission.WRITE)
-@metrics.api_request_time.time()
-def delete_by_id(host_id_list):
+def _delete_filtered_hosts(host_id_list):
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
@@ -210,12 +199,14 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
+        deletion_count = 0
         for host_id, deleted in delete_hosts(
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
                 log_host_delete_succeeded(logger, host_id, get_control_rule())
                 tracker_message = "deleted host"
+                deletion_count += 1
             else:
                 log_host_delete_failed(logger, host_id, get_control_rule())
                 tracker_message = "not deleted host"
@@ -225,6 +216,14 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
+    return deletion_count
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def delete_by_id(host_id_list):
+    _delete_filtered_hosts(host_id_list)
     return flask.Response(None, status.HTTP_200_OK)
 
 
