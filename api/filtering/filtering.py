@@ -25,40 +25,44 @@ def _invalid_value_error(field_name, field_value):
     raise ValidationException(f"{field_value} is an invalid value for field {field_name}")
 
 
-def _boolean_filter(field_name, field_value):
+def _boolean_filter(field_name, field_value, spec=None):
     if not field_value.lower() in ("true", "false"):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def _string_filter(field_name, field_value):
+def _string_filter(field_name, field_value, spec=None):
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"eq": (field_value)}},)
 
 
-def _wildcard_string_filter(field_name, field_value):
+def _wildcard_string_filter(field_name, field_value, spec=None):
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"matches": (field_value)}},)
 
 
-def _build_object_filter(field_name, input_object, field_filter):
+def _build_object_filter(field_name, input_object, field_filter, spec=None):
     # field name is unused but here because the generic filter builders need it,
     # and this has to have the same interface
     object_filter = {}
+    spec_object = spec if spec else system_profile_spec()
     if not isinstance(input_object, dict):
         raise ValidationException("Invalid filter value")
 
     for name in input_object:
-        _check_field_in_spec(system_profile_spec()[field_name]["children"], name)
-        child_filter = system_profile_spec()[field_name]["children"][name]["filter"]
+        _check_field_in_spec(spec_object[field_name]["children"], name)
+        child_spec = spec_object[field_name]["children"][name]
+        child_filter = child_spec["filter"]
         field_value = _get_field_value(input_object[name], child_filter)
         object_filter.update(
-            _generic_filter_builder(BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, True)[0]
+            _generic_filter_builder(
+                BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, child_spec, True
+            )[0]
         )
 
     return ({"OR": [{f"spf_{field_name}": object_filter}]},)
@@ -111,7 +115,7 @@ def _get_list_operator(field_name):
         return "AND"
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter, is_child_field):
+def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None, is_child_field=False):
     xjoin_field_name = field_name if is_child_field else f"spf_{field_name}"
     if isinstance(field_value, list):
         logger.debug("filter value is a list")
@@ -130,10 +134,11 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter, is_child_field=False):
-    nullable_builder_function = partial(_nullable_wrapper, builder_function)
+def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None, is_child_field=False):
+    spec_builder_function = partial(builder_function, spec=spec)
+    nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
 
-    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, is_child_field)
+    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec, is_child_field)
 
 
 def build_tag_query_dict_tuple(tags):
