@@ -1539,16 +1539,6 @@
           }
         ]
       },
-      "HostIdOut": {
-        "description": "A UUID host Id generated upon host creation",
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "example": [
-          "22cd8e39-13bb-4d02-8316-84b850dc5136"
-        ]
-      },
       "HostQueryOutput": {
         "title": "A Host Inventory query result",
         "description": "A paginated host search query result with host entries and their Inventory metadata.",

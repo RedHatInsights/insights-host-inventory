@@ -56,14 +56,14 @@ def api_delete_host(flask_client):
     return _api_delete_host
 
 
-@pytest.fixture(scope="function")
-def api_get_filtered_hosts(flask_client):
-    def _api_get_filtered_hosts(url, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
-        return do_request(
-            flask_client.get, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
-        )
+# @pytest.fixture(scope="function")
+# def api_get_filtered_hosts(flask_client):
+#     def _api_get_filtered_hosts(url, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+#         return do_request(
+#             flask_client.get, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
+#         )
 
-    return _api_get_filtered_hosts
+#     return _api_get_filtered_hosts
 
 
 @pytest.fixture(scope="function")

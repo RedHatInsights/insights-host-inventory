@@ -62,12 +62,12 @@ def log_host_delete_failed(logger, host_id, control_rule):
     )
 
 
-def log_delete_filtered_hosts_failed(logger, host_id, control_rule):
-    logger.info(
-        "Hosts matching %s already deleted or not found. Delete event not emitted.",
-        host_id,
-        extra={"access_rule": control_rule},
-    )
+# def log_delete_filtered_hosts_failed(logger, host_id, control_rule):
+#     logger.info(
+#         "Hosts matching %s already deleted or not found. Delete event not emitted.",
+#         host_id,
+#         extra={"access_rule": control_rule},
+#     )
 
 
 # get host
