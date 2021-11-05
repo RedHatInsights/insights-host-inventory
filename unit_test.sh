@@ -38,7 +38,7 @@ result=$?
 set -e
 
 # Move back out of app virtual env
-deactivate
+source .bonfire_venv/bin/activate
 
 mkdir -p $WORKSPACE/artifacts
 cp junit-unittest.xml ${WORKSPACE}/artifacts/junit-unittest.xml
