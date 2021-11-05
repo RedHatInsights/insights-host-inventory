@@ -39,4 +39,8 @@ source $APP_ROOT/unit_test.sh
 
 # Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
+
+# Test
+curl https://raw.githubusercontent.com/RedHatInsights/bonfire/use_docker_for_mc/cicd/cji_smoke_test.sh > $CICD_ROOT/cji_smoke_test.sh
+
 source $CICD_ROOT/cji_smoke_test.sh
