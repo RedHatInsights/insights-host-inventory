@@ -151,23 +151,17 @@ def delete_host_list(
     insights_id=None,
     provider_id=None,
     provider_type=None,
+    staleness=None,
     tags=None,
     filter=None,
 ):
-    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
+    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter]):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
     try:
         ids_list = get_host_ids_list_xjoin(
-            display_name,
-            fqdn.casefold() if fqdn else None,
-            hostname_or_id,
-            insights_id.casefold() if insights_id else None,
-            provider_id.casefold() if provider_id else None,
-            provider_type.casefold() if provider_type else None,
-            tags,
-            filter,
+            display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter
         )
     except ValueError:
         args = _get_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter)

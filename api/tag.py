@@ -104,8 +104,8 @@ def get_tags(
         insights_id,
         provider_id,
         provider_type,
-        tags,
         None,
+        tags,
         registered_with,
         filter,
     )

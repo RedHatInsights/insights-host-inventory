@@ -107,10 +107,15 @@ def test_create_then_delete_without_insights_id(
 @pytest.mark.parametrize(
     "query_filter",
     (
+        "staleness=fresh",
+        "provider_type=azure",
+        f"provider_id={generate_uuid()}",
         "tags=SPECIAL/tag=ToFind",
-        "tags=ns1/key2=val1",
         "display_name=hbi_display.redhat.com",
         "tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
+        "hostname_or_id=test.server.redhat.com",
+        f"hostname_or_id={generate_uuid()}",
+        "fqdn=test.server.redhat.com",
     ),
 )
 def test_delete_hosts_using_filter(
@@ -121,6 +126,7 @@ def test_delete_hosts_using_filter(
     query_filter,
     host_ids_xjoin_post,
 ):
+
     extraData = {
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
         "display_name": "hbi_display.redhat.com",

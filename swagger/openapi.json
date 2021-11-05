@@ -114,6 +114,9 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
             "$ref": "#/components/parameters/tagsParam"
           },
           {

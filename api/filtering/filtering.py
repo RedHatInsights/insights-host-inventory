@@ -135,8 +135,8 @@ def query_filters(
     insights_id,
     provider_id,
     provider_type,
-    tags,
     staleness,
+    tags,
     registered_with,
     filter,
 ):

@@ -99,8 +99,8 @@ def get_host_list(
         insights_id,
         provider_id,
         provider_type,
-        tags,
         staleness,
+        tags,
         registered_with,
         filter,
     )
@@ -132,9 +132,11 @@ def get_host_list(
     return map(deserialize_host, response["data"]), total, additional_fields
 
 
-def get_host_ids_list(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter):
+def get_host_ids_list(
+    display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter
+):
     all_filters = query_filters(
-        fqdn, display_name, hostname_or_id, insights_id, provider_id, provider_type, tags, None, None, filter
+        fqdn, display_name, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, None, filter
     )
 
     current_identity = get_current_identity()
