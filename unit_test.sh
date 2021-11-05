@@ -32,9 +32,10 @@ fi
 # Run unit tests
 python manage.py db upgrade
 echo "Running pytest"
+set +e
 pytest --cov=. --junitxml=junit-unittest.xml --cov-report html -sv
-
 result=$?
+set -e
 
 # Move back out of app virtual env
 deactivate
@@ -44,4 +45,9 @@ cp junit-unittest.xml ${WORKSPACE}/artifacts/junit-unittest.xml
 
 cd -
 
-exit $result
+if [ $result -ne 0 ]; then
+  echo '====================================='
+  echo '====  ✖ ERROR: UNIT TEST FAILED  ===='
+  echo '====================================='
+  exit 1
+fi
