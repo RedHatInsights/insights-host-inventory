@@ -50,8 +50,13 @@ QUERY = """query Query(
         }
     }
 }"""
-ORDER_BY_MAPPING = {None: "modified_on", "updated": "modified_on", "display_name": "display_name"}
-ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC"}
+ORDER_BY_MAPPING = {
+    None: "modified_on",
+    "updated": "modified_on",
+    "display_name": "display_name",
+    "operating_system": "operating_system",
+}
+ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "ASC"}
 
 
 def get_host_list(
