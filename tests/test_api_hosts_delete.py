@@ -107,14 +107,14 @@ def test_create_then_delete_without_insights_id(
 @pytest.mark.parametrize(
     "query_filter",
     (
+        "insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
         "staleness=fresh",
         "provider_type=azure",
-        f"provider_id={generate_uuid()}",
+        "provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
         "tags=SPECIAL/tag=ToFind",
         "display_name=hbi_display.redhat.com",
         "tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
         "hostname_or_id=test.server.redhat.com",
-        f"hostname_or_id={generate_uuid()}",
         "fqdn=test.server.redhat.com",
     ),
 )
@@ -128,6 +128,12 @@ def test_delete_hosts_using_filter(
 ):
 
     extraData = {
+        "canonical_facts": {
+            "insights_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+            "provider_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+            "provider_type": "azure",
+            "fqdn": "test.server.redhat.com",
+        },
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
         "display_name": "hbi_display.redhat.com",
     }
@@ -144,6 +150,9 @@ def test_delete_hosts_using_filter(
         resp["hosts"]["data"][ind]["id"] = id
         ind += 1
     response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
     host_ids_xjoin_post(response, status=200)
 
     url = build_hosts_url(query=f"?{query_filter}")

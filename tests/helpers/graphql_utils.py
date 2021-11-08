@@ -11,48 +11,6 @@ SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE = {
     "hostSystemProfile": {"sap_sids": {"meta": {"total": 0, "count": 0}, "data": []}}
 }
 
-# XJOIN_HOST_IDS_RESPONSE = {
-#     "hosts": {
-#         "meta": {"total": 2},
-#         "data": [
-#             {
-#                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-#                 "account": "test",
-#                 "display_name": "test01.rhel7.jharting.local",
-#                 "tags": [
-#                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-#                     {"namespace": "ns1", "key": "key1", "value": "val1"},
-#                     {"namespace": "ns1", "key": "key1", "value": "val2"},
-#                     {"namespace": "ns1", "key": "key2 ", "value": "val1"},
-#                     {"namespace": "ns1", "key": "key2 ", "value": "val2"},
-#                 ],
-#             },
-#             {
-#                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
-#                 "account": "test",
-#                 "display_name": "test02.rhel7.jharting.local",
-#                 "tags": [
-#                     {"namespace": "Sat", "key": "env", "value": "prod"},
-#                     {"namespace": "aws", "key": "region", "value": "us-east-2"},
-#                     {"namespace": "insights-client", "key": "os", "value": "fedora"},
-#                     {"namespace": "insights-client", "key": "web ", "value": None},
-#                 ],
-#             },
-#             {
-#                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
-#                 "account": "test",
-#                 "fqdn": "test03.rhel7.fqdn",
-#                 "tags": [
-#                     {"namespace": "Sat", "key": "env", "value": "prod"},
-#                     {"namespace": "aws", "key": "region", "value": "us-east-2"},
-#                     {"namespace": "insights-client", "key": "os", "value": "fedora"},
-#                     {"namespace": "insights-client", "key": "web ", "value": None},
-#                 ],
-#             },
-#         ],
-#     }
-# }
-
 XJOIN_HOSTS_RESPONSE_FOR_FILTERING = {
     "hosts": {
         "meta": {"total": 2},
