@@ -26,6 +26,8 @@ def _invalid_value_error(field_name, field_value):
 
 
 def _boolean_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not field_value.lower() in ("true", "false"):
         _invalid_value_error(field_name, field_value)
 
@@ -33,6 +35,8 @@ def _boolean_filter(field_name, field_value, spec=None):
 
 
 def _string_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
@@ -40,6 +44,8 @@ def _string_filter(field_name, field_value, spec=None):
 
 
 def _wildcard_string_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
