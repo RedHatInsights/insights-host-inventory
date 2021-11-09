@@ -453,7 +453,7 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
     (
         ("updated", "modified_on", "DESC"),
         ("display_name", "display_name", "ASC"),
-        ("operating_system", "operating_system", "ASC"),
+        ("operating_system", "operating_system", "DESC"),
     ),
 )
 def test_query_variables_ordering_by(

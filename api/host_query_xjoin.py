@@ -56,7 +56,7 @@ ORDER_BY_MAPPING = {
     "display_name": "display_name",
     "operating_system": "operating_system",
 }
-ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "ASC"}
+ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
 
 
 def get_host_list(
