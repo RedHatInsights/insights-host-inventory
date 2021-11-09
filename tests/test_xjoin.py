@@ -2040,12 +2040,12 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
     )
 
     graphql_queries = (
-        {"OR": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
-        {"OR": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
-        {"OR": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
-        {"OR": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
-        {"OR": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
-        {"OR": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
+        {"AND": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
+        {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
+        {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
+        {"AND": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
@@ -2081,8 +2081,8 @@ def test_query_hosts_filter_deep_objects(
     )
 
     graphql_queries = (
-        {"OR": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
-        {"OR": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
     )
 
     with flask_app.app_context():

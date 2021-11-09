@@ -83,7 +83,7 @@ def _build_object_filter(field_name, input_object, field_filter):
 
     return (
         {
-            "OR": [
+            "AND": [
                 {
                     f"spf_{field_name}": _object_filter_builder(
                         next(iter(input_object)), input_object, "object", system_profile_spec()[field_name]
