@@ -28,10 +28,11 @@ IQE_CJI_TIMEOUT="30m"
 # ---------------------------
 
 # Get bonfire helper scripts
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/name_pr_tags_differently/cicd
 curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 # build the PR commit image
+curl -s $CICD_URL/build.sh > $CICD_ROOT/build.sh
 source $CICD_ROOT/build.sh
 
 # Run the django unit tests
