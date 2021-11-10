@@ -450,7 +450,11 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
 
 @pytest.mark.parametrize(
     "params_order_by,xjoin_order_by,default_xjoin_order_how",
-    (("updated", "modified_on", "DESC"), ("display_name", "display_name", "ASC")),
+    (
+        ("updated", "modified_on", "DESC"),
+        ("display_name", "display_name", "ASC"),
+        ("operating_system", "operating_system", "DESC"),
+    ),
 )
 def test_query_variables_ordering_by(
     params_order_by,
