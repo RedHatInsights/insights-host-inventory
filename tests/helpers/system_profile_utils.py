@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from copy import deepcopy
 from os.path import join
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
@@ -61,11 +62,29 @@ INVALID_SYSTEM_PROFILES = (
     {"rhc_client_id": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
 )
 
+MOCK_DEEPOBJECT_SPEC = {
+    "type": "object",
+    "properties": {
+        "d1n1": {
+            "type": "object",
+            "properties": {"d2n1": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}}},
+        },
+        "d1n2": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}},
+    },
+}
+
 
 def system_profile_specification():
     file_name = join(SPECIFICATION_DIR, SYSTEM_PROFILE_SPECIFICATION_FILE)
     with open(file_name) as orig_file:
         return safe_load(orig_file)
+
+
+def system_profile_deep_object_spec():
+    orig_spec = system_profile_specification()
+    mock_spec = deepcopy(orig_spec)
+    mock_spec["$defs"]["SystemProfile"]["properties"]["ansible"]["properties"]["d0n1"] = MOCK_DEEPOBJECT_SPEC
+    return mock_spec
 
 
 def clear_schema_cache():

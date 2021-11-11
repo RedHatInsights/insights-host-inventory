@@ -25,25 +25,73 @@ def _invalid_value_error(field_name, field_value):
     raise ValidationException(f"{field_value} is an invalid value for field {field_name}")
 
 
-def _boolean_filter(field_name, field_value):
+def _boolean_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not field_value.lower() in ("true", "false"):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def _string_filter(field_name, field_value):
+def _string_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"eq": (field_value)}},)
 
 
-def _wildcard_string_filter(field_name, field_value):
+def _wildcard_string_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
     return ({field_name: {"matches": (field_value)}},)
+
+
+def _object_filter_builder(field_name, input_object, field_filter, spec):
+    object_filter = {}
+
+    if not isinstance(input_object, dict):
+        raise ValidationException("Invalid filter value")
+
+    for name in input_object:
+        _check_field_in_spec(spec["children"], name)
+        child_spec = spec["children"][name]
+        child_filter = child_spec["filter"]
+        if child_filter == "object":
+            object_filter[name] = _object_filter_builder(
+                next(iter(input_object[name])), input_object[name], "object", spec=child_spec
+            )
+        else:
+            field_value = _get_field_value(input_object[name], child_filter)
+            object_filter.update(
+                _generic_filter_builder(
+                    BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, child_spec
+                )[0]
+            )
+
+    return object_filter
+
+
+def _build_object_filter(field_name, input_object, field_filter):
+    if not isinstance(input_object, dict):
+        raise ValidationException("Invalid filter value")
+
+    return (
+        {
+            "AND": [
+                {
+                    f"spf_{field_name}": _object_filter_builder(
+                        next(iter(input_object)), input_object, "object", system_profile_spec()[field_name]
+                    )
+                }
+            ]
+        },
+    )
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -53,10 +101,11 @@ class BUILDER_FUNCTIONS(Enum):
     # integer = doesnt exist yet, no xjoin-search support yet
     # Customs under here
     operating_system = partial(build_operating_system_filter)
+    object = partial(_build_object_filter)
 
 
-def _check_field_in_spec(field_name):
-    if field_name not in system_profile_spec().keys():
+def _check_field_in_spec(spec, field_name):
+    if field_name not in spec.keys():
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
@@ -92,17 +141,18 @@ def _get_list_operator(field_name):
         return "AND"
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter):
+def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+    xjoin_field_name = field_name if spec else f"spf_{field_name}"
     if isinstance(field_value, list):
         logger.debug("filter value is a list")
         foo_list = []
         for value in field_value:
-            foo_list.append(builder_function(f"spf_{field_name}", value, field_filter)[0])
+            foo_list.append(builder_function(xjoin_field_name, value, field_filter)[0])
         list_operator = _get_list_operator(field_name)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(field_value, str):
         logger.debug("filter value is a string")
-        field_filter = builder_function(f"spf_{field_name}", field_value, field_filter)
+        field_filter = builder_function(xjoin_field_name, field_value, field_filter)
     else:
         logger.debug("filter value is bad")
         raise ValidationException(f"wrong type for {field_value} filter")
@@ -110,10 +160,11 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter):
-    nullable_builder_function = partial(_nullable_wrapper, builder_function)
+def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+    spec_builder_function = partial(builder_function, spec=spec)
+    nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
 
-    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter)
+    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
 
 
 def build_tag_query_dict_tuple(tags):
@@ -187,7 +238,7 @@ def build_system_profile_filter(system_profile):
     system_profile_filter = tuple()
 
     for field_name in system_profile:
-        _check_field_in_spec(field_name)
+        _check_field_in_spec(system_profile_spec(), field_name)
 
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
@@ -196,11 +247,10 @@ def build_system_profile_filter(system_profile):
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-        if field_name in custom_filter_fields:
+        if field_name in custom_filter_fields or field_filter == "object":
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
             field_value = _get_field_value(field_input, field_filter)
-
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
 
     return system_profile_filter
