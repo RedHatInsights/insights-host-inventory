@@ -34,7 +34,6 @@ from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
-# from tests.fixtures.api_fixtures import api_get_filtered_hosts
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
