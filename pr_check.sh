@@ -39,4 +39,5 @@ source $APP_ROOT/unit_test.sh
 
 # Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
+curl -s $CICD_URL/cji_smoke_test.sh > $CICD_ROOT/cji_smoke_test.sh
 source $CICD_ROOT/cji_smoke_test.sh
