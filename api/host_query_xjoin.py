@@ -64,6 +64,7 @@ HOST_IDS_QUERY = """query Query(
         }
         data {
             id,
+            canonical_facts
         }
     }
 }"""

@@ -24,12 +24,15 @@ from tests.helpers.graphql_utils import assert_graph_query_single_call_with_stal
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
+
+# from api.host_query_xjoin import HOST_IDS_QUERY
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -1641,6 +1644,121 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
                 mocker.ANY,
             )
             graphql_query_empty_response.reset_mock()
+
+
+@pytest.mark.parametrize(
+    "query,expected_filter",
+    (
+        ("?insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d", {"insights_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}),
+        ("?staleness=fresh", {"staleness": "fresh"}),
+        ("?provider_type=azure", {"provider_type": "azure"}),
+        ("?provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d", {"provider_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}),
+        ("?tags=SPECIAL/tag=ToFind", {"tags": "SPECIAL/tag=ToFind"}),
+        ("?display_name=hbi_display.redhat.com", {"display_name": "hbi_display.redhat.com"}),
+        (
+            "?tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
+            {"tags": "ns1/key2=val1", "display_name": "hbi_display.redhat.com"},
+        ),
+        ("?hostname_or_id=test.server.redhat.com", {"hostname_or_id": "test.server.redhat.com"}),
+        ("?fqdn=test.server.redhat.com", {"fqdn": "test.server.redhat.com"}),
+    ),
+)
+def test_query_hosts_using_hostfilter(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    query,
+    expected_filter,
+    graphql_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    url = build_hosts_url(query=query)
+    print(url)
+    # api_delete_filtered_hosts
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            # "filter": ({"OR": mocker.ANY}, expected_filter),
+            # "filter": ({mocker.ANY}, expected_filter),
+            "filter": mocker.ANY,
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+    graphql_query_empty_response.reset_mock()
+
+
+@pytest.mark.parametrize(
+    "query_filter,expected_filter",
+    (
+        # ("?insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+        # {"insights_id": {"eq": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}}),\
+        # "?insights_id=a58c53e0-8000-4384-b902-c70b69faacc5",
+        ("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"),
+        # "?insights_id=a58c53e0-8000-4384-b902-c70b69faacc5&staleness=nil",
+        # "?staleness=fresh",
+        # "?provider_type=azure",
+        # "?provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+        # "?tags=SPECIAL/tag=ToFind",
+        # "?display_name=hbi_display.redhat.com",
+        # "?tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
+        # "?hostname_or_id=test.server.redhat.com",
+        # "?fqdn=test.server.redhat.com",
+    ),
+)
+def test_xjoin_search_query_using_hostfilter(
+    mocker,
+    query_source_xjoin,
+    query_filter,
+    expected_filter,
+    graphql_query_empty_response,
+    # graphql_query_host_id_response,
+    host_ids_xjoin_post,
+    api_delete_filtered_hosts,
+):
+    response = {"data": XJOIN_HOSTS_RESPONSE_FOR_FILTERING}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    host_ids_xjoin_post(response, status=200)
+
+    url = build_hosts_url(query=f"?{query_filter}={expected_filter}")
+
+    response_status, response_data = api_delete_filtered_hosts(url)
+    assert response_status == 404  # or response_status == 400
+
+    # import pdb; pdb.set_trace()
+    # graphql_query_empty_response.assert_called_once_with(
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            # 'filter': ({f'{query_filter}: {"eq": {expected_filter}}'}),
+            # 'filter': mocker.ANY,
+            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
+            #           {'OR': ({'stale_timestamp': {'gt': '2021-11-11T15:46:12.680661+00:00'}},
+            #           {'stale_timestamp': {'gt': '2021-11-04T15:46:12.680661+00:00',
+            #                                'lte': '2021-11-11T15:46:12.680661+00:00'}})},
+            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
+            #   {'OR': mocker.ANY},
+            # 'filter': ({'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}}),
+            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
+            # 'filter': ({'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}}),
+            # 'filter': ('insights_id: {"eq": a58c53e0-8000-4384-b902-c70b69faacc5}'),
+            "filter": mocker.ANY
+        },
+        # mocker.ANY,
+    )
+    graphql_query_empty_response.reset_mock()
 
 
 def test_spf_rhc_client_invalid_field_value(
