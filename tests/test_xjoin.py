@@ -1,6 +1,7 @@
 import pytest
 
 from api import custom_escape
+from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
@@ -31,8 +32,6 @@ from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-
-# from api.host_query_xjoin import HOST_IDS_QUERY
 
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
@@ -1700,19 +1699,15 @@ def test_query_hosts_using_hostfilter(
 @pytest.mark.parametrize(
     "query_filter,expected_filter",
     (
-        # ("?insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-        # {"insights_id": {"eq": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}}),\
-        # "?insights_id=a58c53e0-8000-4384-b902-c70b69faacc5",
         ("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"),
         # "?insights_id=a58c53e0-8000-4384-b902-c70b69faacc5&staleness=nil",
-        # "?staleness=fresh",
-        # "?provider_type=azure",
-        # "?provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-        # "?tags=SPECIAL/tag=ToFind",
-        # "?display_name=hbi_display.redhat.com",
-        # "?tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
-        # "?hostname_or_id=test.server.redhat.com",
-        # "?fqdn=test.server.redhat.com",
+        # ("staleness", "fresh"), # FAILS
+        # ("provider_type", "azure"),
+        # ("provider_id", "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"),
+        # ("tags", "SPECIAL/tag=ToFind"),
+        # ("tags=ns1/key2=val1&display_name=hbi_display.redhat.com"),
+        # ("hostname_or_id", "test.server.redhat.com"),
+        ("fqdn", "test.server.redhat.com"),
     ),
 )
 def test_xjoin_search_query_using_hostfilter(
@@ -1721,7 +1716,6 @@ def test_xjoin_search_query_using_hostfilter(
     query_filter,
     expected_filter,
     graphql_query_empty_response,
-    # graphql_query_host_id_response,
     host_ids_xjoin_post,
     api_delete_filtered_hosts,
 ):
@@ -1736,29 +1730,86 @@ def test_xjoin_search_query_using_hostfilter(
     response_status, response_data = api_delete_filtered_hosts(url)
     assert response_status == 404  # or response_status == 400
 
-    # import pdb; pdb.set_trace()
-    # graphql_query_empty_response.assert_called_once_with(
-
     graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            # 'filter': ({f'{query_filter}: {"eq": {expected_filter}}'}),
-            # 'filter': mocker.ANY,
-            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
-            #           {'OR': ({'stale_timestamp': {'gt': '2021-11-11T15:46:12.680661+00:00'}},
-            #           {'stale_timestamp': {'gt': '2021-11-04T15:46:12.680661+00:00',
-            #                                'lte': '2021-11-11T15:46:12.680661+00:00'}})},
-            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
-            #   {'OR': mocker.ANY},
-            # 'filter': ({'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}}),
-            # 'filter': {'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}},
-            # 'filter': ({'insights_id': {'eq': 'a58c53e0-8000-4384-b902-c70b69faacc5'}}),
-            # 'filter': ('insights_id: {"eq": a58c53e0-8000-4384-b902-c70b69faacc5}'),
-            "filter": mocker.ANY
-        },
-        # mocker.ANY,
+        HOST_IDS_QUERY, {"filter": ({query_filter: {"eq": expected_filter}}, mocker.ANY)}, mocker.ANY
     )
     graphql_query_empty_response.reset_mock()
+
+
+# arif start
+def test_xjoin_search_query_using_hostfilter_display_name(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    display_name = "my awesome host uwu"
+
+    url = build_hosts_url(query=f"?display_name={quote(display_name)}")
+    response_status, response_data = api_delete_filtered_hosts(url)
+
+    assert response_status == 404
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY)}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_xjoin_search_query_using_hostfilter_provider(
+    mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
+):
+    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
+    response_status, response_data = api_delete_filtered_hosts(url)
+
+    assert response_status == 404
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {"filter": (mocker.ANY, {"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}})},
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("fqdn", generate_uuid()),
+        ("display_name", "some display name"),
+        ("hostname_or_id", "some hostname"),
+        ("insights_id", generate_uuid()),
+        ("tags", "some/tag"),
+    ),
+)
+def test_xjoin_search_query_using_hostfilter_staleness_with_search(
+    field,
+    value,
+    mocker,
+    culling_datetime_mock,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    api_delete_filtered_hosts,
+):
+    url = build_hosts_url(query=f"?{field}={quote(value)}")
+    response_status, response_data = api_delete_filtered_hosts(url)
+
+    assert response_status == 404
+
+    search_any = mocker.ANY
+    staleness_any = mocker.ANY
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": (search_any, staleness_any)}, mocker.ANY
+    )
+
+
+# arif end
 
 
 def test_spf_rhc_client_invalid_field_value(

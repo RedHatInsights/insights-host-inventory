@@ -144,16 +144,28 @@ def query_filters(
         query_filters = ({"fqdn": {"eq": fqdn.casefold()}},)
     elif display_name:
         query_filters = ({"display_name": string_contains_lc(display_name)},)
+    # elif hostname_or_id:
+    #     try:
+    #         id = UUID(hostname_or_id)
+    #     except ValueError:
+    #         # Do not filter using the id
+    #         logger.debug("The hostname (%s) could not be converted into a UUID", hostname_or_id, exc_info=True)
+    #         hostname_or_id_filters = {"fqdn": {"eq": hostname_or_id.casefold()}}
+    #     else:
+    #         logger.debug("Adding id (uuid) to the filter list")
+    #         hostname_or_id_filters = ({"id": {"eq": str(id)}},)
+    #     query_filters = ({"OR": hostname_or_id_filters},)
     elif hostname_or_id:
+        contains_lc = string_contains_lc(hostname_or_id)
+        hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": contains_lc})
         try:
             id = UUID(hostname_or_id)
         except ValueError:
             # Do not filter using the id
             logger.debug("The hostname (%s) could not be converted into a UUID", hostname_or_id, exc_info=True)
-            hostname_or_id_filters = {"fqdn": {"eq": hostname_or_id.casefold()}}
         else:
             logger.debug("Adding id (uuid) to the filter list")
-            hostname_or_id_filters = ({"id": {"eq": str(id)}},)
+            hostname_or_id_filters += ({"id": {"eq": str(id)}},)
         query_filters = ({"OR": hostname_or_id_filters},)
     elif insights_id:
         query_filters = ({"insights_id": {"eq": insights_id.casefold()}},)
