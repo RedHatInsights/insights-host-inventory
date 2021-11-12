@@ -7,8 +7,8 @@ from app.logging import get_logger
 from app.serialization import serialize_host_system_profile_xjoin
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
-from app.xjoin import hosts_order_by_params
 from app.xjoin import pagination_params
+from app.xjoin import params_to_order
 
 
 logger = get_logger(__name__)
@@ -48,7 +48,7 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     limit, offset = pagination_params(page, per_page)
 
     try:
-        order_by, order_how = hosts_order_by_params(order_by, order_how)
+        order_by, order_how = params_to_order(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
 
