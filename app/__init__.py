@@ -114,20 +114,24 @@ def _get_field_filter(field_name, props):
     return field_type
 
 
+def process_spec(spec, process_unindexed=False):
+    system_profile_spec_processed = {}
+    for field, props in spec.items():
+        if props.get("x-indexed", True) or process_unindexed:
+            field_type = _spec_type_to_python_type(props["type"])  # cast from string to type
+            field_filter = _get_field_filter(field, props)
+            system_profile_spec_processed[field] = {"type": field_type, "filter": field_filter}
+
+            if field_filter == "object":
+                system_profile_spec_processed[field]["children"] = process_spec(props["properties"], True)
+
+    return system_profile_spec_processed
+
+
 def process_system_profile_spec():
     with open(SYSTEM_PROFILE_SPECIFICATION_FILE) as fp:
         # TODO: add some handling here for if loading fails for some reason
-        system_profile_spec = yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"]
-        system_profile_spec_processed = {}
-
-        for field, props in system_profile_spec.items():
-            if props.get("x-indexed", True):
-                field_type = _spec_type_to_python_type(props["type"])  # cast from string to type
-                field_filter = _get_field_filter(field, props)
-
-                system_profile_spec_processed[field] = {"type": field_type, "filter": field_filter}
-
-        return system_profile_spec_processed
+        return process_spec(yaml.safe_load(fp)["$defs"]["SystemProfile"]["properties"])
 
 
 def create_app(runtime_environment):

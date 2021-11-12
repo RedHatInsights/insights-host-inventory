@@ -564,6 +564,7 @@ components:
         enum:
           - display_name
           - updated
+          - operating_system
       description: Ordering field name
     orderHowParam:
       name: order_how
