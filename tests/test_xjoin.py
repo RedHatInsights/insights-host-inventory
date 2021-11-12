@@ -1646,75 +1646,13 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
 
 
 @pytest.mark.parametrize(
-    "query,expected_filter",
-    (
-        ("?insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d", {"insights_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}),
-        ("?staleness=fresh", {"staleness": "fresh"}),
-        ("?provider_type=azure", {"provider_type": "azure"}),
-        ("?provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d", {"provider_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"}),
-        ("?tags=SPECIAL/tag=ToFind", {"tags": "SPECIAL/tag=ToFind"}),
-        ("?display_name=hbi_display.redhat.com", {"display_name": "hbi_display.redhat.com"}),
-        (
-            "?tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
-            {"tags": "ns1/key2=val1", "display_name": "hbi_display.redhat.com"},
-        ),
-        ("?hostname_or_id=test.server.redhat.com", {"hostname_or_id": "test.server.redhat.com"}),
-        ("?fqdn=test.server.redhat.com", {"fqdn": "test.server.redhat.com"}),
-    ),
-)
-def test_query_hosts_using_hostfilter(
-    mocker,
-    subtests,
-    query_source_xjoin,
-    query,
-    expected_filter,
-    graphql_query_empty_response,
-    patch_xjoin_post,
-    api_get,
-):
-    url = build_hosts_url(query=query)
-    print(url)
-    # api_delete_filtered_hosts
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            # "filter": ({"OR": mocker.ANY}, expected_filter),
-            # "filter": ({mocker.ANY}, expected_filter),
-            "filter": mocker.ANY,
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
-    graphql_query_empty_response.reset_mock()
-
-
-@pytest.mark.parametrize(
-    "query_filter,expected_filter",
-    (
-        ("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"),
-        # "?insights_id=a58c53e0-8000-4384-b902-c70b69faacc5&staleness=nil",
-        # ("staleness", "fresh"), # FAILS
-        # ("provider_type", "azure"),
-        # ("provider_id", "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"),
-        # ("tags", "SPECIAL/tag=ToFind"),
-        # ("tags=ns1/key2=val1&display_name=hbi_display.redhat.com"),
-        # ("hostname_or_id", "test.server.redhat.com"),
-        ("fqdn", "test.server.redhat.com"),
-    ),
+    "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("fqdn", "test.server.redhat.com"))
 )
 def test_xjoin_search_query_using_hostfilter(
     mocker,
     query_source_xjoin,
-    query_filter,
-    expected_filter,
+    field,
+    value,
     graphql_query_empty_response,
     host_ids_xjoin_post,
     api_delete_filtered_hosts,
@@ -1725,18 +1663,18 @@ def test_xjoin_search_query_using_hostfilter(
     # for querying for deletion using filters
     host_ids_xjoin_post(response, status=200)
 
-    url = build_hosts_url(query=f"?{query_filter}={expected_filter}")
+    url = build_hosts_url(query=f"?{field}={value}")
 
     response_status, response_data = api_delete_filtered_hosts(url)
-    assert response_status == 404  # or response_status == 400
+
+    # response_status 404 because hosts in DB not used for this unit test
+    assert response_status == 404
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({query_filter: {"eq": expected_filter}}, mocker.ANY)}, mocker.ANY
+        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}}, mocker.ANY)}, mocker.ANY
     )
-    graphql_query_empty_response.reset_mock()
 
 
-# arif start
 def test_xjoin_search_query_using_hostfilter_display_name(
     mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
 ):
@@ -1745,10 +1683,46 @@ def test_xjoin_search_query_using_hostfilter_display_name(
     url = build_hosts_url(query=f"?display_name={quote(display_name)}")
     response_status, response_data = api_delete_filtered_hosts(url)
 
+    # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY, {"filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY)}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_xjoin_search_using_hostfilters_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    url = build_hosts_url(query=f"?tags={quote(query_param)}")
+    response_status, response_data = api_delete_filtered_hosts(url)
+
+    # response_status 404 because hosts in DB not used for this unit test
+    assert response_status == 404
+
+    tag_filters = tuple({"tag": item} for item in tags)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": tag_filters + (mocker.ANY,)}, mocker.ANY
     )
 
 
@@ -1768,6 +1742,7 @@ def test_xjoin_search_query_using_hostfilter_provider(
     url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
     response_status, response_data = api_delete_filtered_hosts(url)
 
+    # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
 
     graphql_query_empty_response.assert_called_once_with(
@@ -1784,7 +1759,7 @@ def test_xjoin_search_query_using_hostfilter_provider(
         ("display_name", "some display name"),
         ("hostname_or_id", "some hostname"),
         ("insights_id", generate_uuid()),
-        ("tags", "some/tag"),
+        ("tags", "SPECIAL/tag=ToFind"),
     ),
 )
 def test_xjoin_search_query_using_hostfilter_staleness_with_search(
@@ -1799,6 +1774,7 @@ def test_xjoin_search_query_using_hostfilter_staleness_with_search(
     url = build_hosts_url(query=f"?{field}={quote(value)}")
     response_status, response_data = api_delete_filtered_hosts(url)
 
+    # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
 
     search_any = mocker.ANY
@@ -1807,9 +1783,6 @@ def test_xjoin_search_query_using_hostfilter_staleness_with_search(
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY, {"filter": (search_any, staleness_any)}, mocker.ANY
     )
-
-
-# arif end
 
 
 def test_spf_rhc_client_invalid_field_value(
