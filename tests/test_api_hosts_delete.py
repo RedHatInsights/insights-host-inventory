@@ -155,18 +155,38 @@ def test_delete_hosts_using_filter(
     # for querying for deletion using filters
     host_ids_xjoin_post(response, status=200)
 
+    # build a second set of hosts, which should not be deleted
+    newData = {
+        "canonical_facts": {
+            "insights_id": generate_uuid(),
+            "provider_id": generate_uuid(),
+            "provider_type": "azure",
+            "fqdn": "dev.server.redhat.com",
+        },
+        "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
+        "display_name": "hbi_display.redhat.com",
+    }
+    new_hosts = db_create_multiple_hosts(
+        how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]), extra_data=newData
+    )
+    new_ids = [str(host.id) for host in new_hosts]
+
     url = build_hosts_url(query=f"?{query_filter}")
 
+    # delete hosts using the IDs supposedly the query_filter
     response_status, _ = api_delete_filtered_hosts(url)
 
     assert_response_status(response_status, expected_status=200)
     assert '"type": "delete"' in event_producer_mock.event
 
-    # check db for deleted hosts using their IDs
+    # check db for the deleted hosts using their IDs
     host_id_list = [str(host.id) for host in created_hosts]
-    remaining_hosts = db_get_hosts(host_id_list)
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
 
-    assert remaining_hosts.count() == 0
+    # now verify that the second set of hosts still available.
+    remaining_hosts = db_get_hosts(new_ids)
+    assert len(new_hosts) == remaining_hosts.count()
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
