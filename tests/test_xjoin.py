@@ -2048,8 +2048,13 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
         {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
         {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
+        {
+            "AND": [
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+                {"spf_ansible": {"controller_version": {"matches": "7.1"}}},
+            ]
+        },
+        {"AND": [{"NOT": {"spf_ansible": {"catalog_worker_version": {"eq": None}}}}]},
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
