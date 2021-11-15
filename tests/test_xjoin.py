@@ -131,15 +131,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (
-                {
-                    "OR": (
-                        {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
-                    )
-                },
-                mocker.ANY,
-            ),
+            "filter": ({"OR": ({"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},)}, mocker.ANY),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -162,13 +154,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (
-                {
-                    "OR": (
-                        {"display_name": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"fqdn": {"matches_lc": f"*{hostname_or_id}*"}},
-                        {"id": {"eq": hostname_or_id}},
-                    )
-                },
+                {"OR": ({"fqdn": {"matches_lc": f"*{hostname_or_id}*"}}, {"id": {"eq": hostname_or_id}})},
                 mocker.ANY,
             ),
             "fields": mocker.ANY,
