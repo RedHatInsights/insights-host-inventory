@@ -240,8 +240,8 @@ def add_host(host_data, platform_metadata):
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             raise
-        except InventoryException:
-            log_add_host_failure(logger, host_data)
+        except InventoryException as ie:
+            log_add_host_failure(logger, str(ie.detail), host_data)
             raise
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
