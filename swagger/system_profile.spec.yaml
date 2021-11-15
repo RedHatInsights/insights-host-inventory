@@ -494,3 +494,13 @@ $defs:
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
+      mssql:
+        description: Object containing data specific to the MS SQL workload
+        type: object
+        properties:
+          version:
+            description: MSSQL version number
+            type: string
+            example: '15.2.0'
+            maxLength: 30
+            x-wildcard: true
