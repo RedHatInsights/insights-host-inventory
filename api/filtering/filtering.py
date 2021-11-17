@@ -197,7 +197,9 @@ def query_filters(
         query_filters = ({"display_name": string_contains_lc(display_name)},)
     elif hostname_or_id:
         contains_lc = string_contains_lc(hostname_or_id)
-        hostname_or_id_filters = ({"fqdn": contains_lc},)
+
+        hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": {"eq": hostname_or_id.casefold()}})
+
         try:
             id = UUID(hostname_or_id)
         except ValueError:
