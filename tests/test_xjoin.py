@@ -6,6 +6,7 @@ from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
+from app import process_spec
 from app.models import ProviderType
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -25,6 +26,7 @@ from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
+from tests.helpers.system_profile_utils import system_profile_deep_object_spec
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
@@ -450,7 +452,11 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
 
 @pytest.mark.parametrize(
     "params_order_by,xjoin_order_by,default_xjoin_order_how",
-    (("updated", "modified_on", "DESC"), ("display_name", "display_name", "ASC")),
+    (
+        ("updated", "modified_on", "DESC"),
+        ("display_name", "display_name", "ASC"),
+        ("operating_system", "operating_system", "DESC"),
+    ),
 )
 def test_query_variables_ordering_by(
     params_order_by,
@@ -2014,6 +2020,110 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
         "filter[system_profile][operating_system][RHEL]=7.1",
         "filter[system_profile][operating_system][CENT]=",
         "filter[system_profile][operating_system][CENT]=something",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
+# system_profile ansible filtering tests
+def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+    http_queries = (
+        "filter[system_profile][ansible][controller_version]=7.1",
+        "filter[system_profile][ansible][hub_version]=8.0.*",
+        "filter[system_profile][ansible][catalog_worker_version]=nil",
+        "filter[system_profile][ansible][sso_version]=0.44.963",
+        "filter[system_profile][ansible][controller_version]=7.1&filter[system_profile][ansible][hub_version]=not_nil",
+        "filter[system_profile][ansible][catalog_worker_version]=not_nil",
+    )
+
+    graphql_queries = (
+        {"AND": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
+        {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
+        {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
+        {"AND": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
+    )
+
+    for http_query, graphql_query in zip(http_queries, graphql_queries):
+        with subtests.test(http_query=http_query, graphql_query=graphql_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status = api_get(url)[0]
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, graphql_query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
+# system_profile deep object filtering
+def test_query_hosts_filter_deep_objects(
+    mocker, subtests, flask_app, query_source_xjoin, graphql_query_empty_response, api_get
+):
+    http_queries = (
+        "filter[system_profile][ansible][d0n1][d1n2][name]=foo",
+        "filter[system_profile][ansible][d0n1][d1n1][d2n1][name]=bar",
+    )
+
+    graphql_queries = (
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+    )
+
+    with flask_app.app_context():
+        mocker.patch(
+            "api.filtering.filtering.system_profile_spec",
+            return_value=process_spec(system_profile_deep_object_spec()["$defs"]["SystemProfile"]["properties"]),
+        )
+
+        for http_query, graphql_query in zip(http_queries, graphql_queries):
+            with subtests.test(http_query=http_query, graphql_query=graphql_query):
+                url = build_hosts_url(query=f"?{http_query}")
+
+                response_status = api_get(url)[0]
+
+                assert response_status == 200
+
+                graphql_query_empty_response.assert_called_once_with(
+                    HOST_QUERY,
+                    {
+                        "order_by": mocker.ANY,
+                        "order_how": mocker.ANY,
+                        "limit": mocker.ANY,
+                        "offset": mocker.ANY,
+                        "filter": ({"OR": mocker.ANY}, graphql_query),
+                        "fields": mocker.ANY,
+                    },
+                    mocker.ANY,
+                )
+                graphql_query_empty_response.reset_mock()
+
+
+# system_profile ansible failstate tests
+def test_query_hosts_filter_spf_ansible_exception_handling(subtests, query_source_xjoin, api_get):
+    http_queries = (
+        "filter[system_profile][ansible][controller_version][fake_op]=7.1",
+        "filter[system_profile][ansible]=7.1",
+        "filter[system_profile][ansible]=something",
     )
 
     for http_query in http_queries:
