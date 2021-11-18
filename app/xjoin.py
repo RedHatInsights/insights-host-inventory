@@ -12,10 +12,27 @@ from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.culling import staleness_to_conditions
 
-__all__ = ("graphql_query", "pagination_params", "staleness_filter", "string_contains", "string_contains_lc", "url")
+__all__ = (
+    "graphql_query",
+    "pagination_params",
+    "staleness_filter",
+    "string_contains",
+    "string_contains_lc",
+    "url",
+    "params_to_order",
+)
 
 logger = getLogger("graphql")
 outbound_http_metric = outbound_http_response_time.labels("xjoin")
+
+ORDER_BY_MAPPING = {
+    None: "modified_on",
+    "updated": "modified_on",
+    "display_name": "display_name",
+    "operating_system": "operating_system",
+}
+
+ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
 
 
 def check_pagination(offset, total):
@@ -48,27 +65,24 @@ def pagination_params(page, per_page):
     return limit, offset
 
 
-def hosts_order_by_params(order_by, order_how):
-    if order_how and not order_by:
+def params_to_order(param_order_by, param_order_how):
+    if param_order_how and not param_order_by:
         raise ValueError(
             "Providing ordering direction without a column is not supported. "
             "Provide order_by={updated,display_name}."
         )
 
-    if not order_by:
-        order_by = "updated"
-    if not order_how:
-        order_how = "DESC"
+    try:
+        xjoin_order_by = ORDER_BY_MAPPING[param_order_by]
+    except KeyError:
+        raise ValueError(f'Unsupported ordering column: can not order by "{param_order_by}"')
 
-    if order_by not in ["display_name", "updated"]:
-        raise ValueError('Unsupported ordering column, use "updated" or "display_name".')
-    if order_how not in ["ASC", "DESC"]:
-        raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
+    try:
+        xjoin_order_how = param_order_how or ORDER_HOW_MAPPING[xjoin_order_by]
+    except KeyError:
+        raise ValueError(f'Unsupported ordering direction "{param_order_how}": use "ASC" or "DESC".')
 
-    if order_by == "updated":
-        order_by = "modified_on"
-
-    return order_by, order_how
+    return xjoin_order_by, xjoin_order_how
 
 
 def staleness_filter(staleness):

@@ -9,6 +9,7 @@ from app.serialization import deserialize_host_xjoin as deserialize_host
 from app.xjoin import check_pagination
 from app.xjoin import graphql_query
 from app.xjoin import pagination_params
+from app.xjoin import params_to_order
 
 __all__ = ("get_host_list", "get_host_ids_list", "query_filters")
 
@@ -68,13 +69,6 @@ HOST_IDS_QUERY = """query Query(
         }
     }
 }"""
-ORDER_BY_MAPPING = {
-    None: "modified_on",
-    "updated": "modified_on",
-    "display_name": "display_name",
-    "operating_system": "operating_system",
-}
-ORDER_HOW_MAPPING = {"modified_on": "DESC", "display_name": "ASC", "operating_system": "DESC"}
 
 
 def get_host_list(
@@ -95,7 +89,7 @@ def get_host_list(
     fields,
 ):
     limit, offset = pagination_params(page, per_page)
-    xjoin_order_by, xjoin_order_how = _params_to_order(param_order_by, param_order_how)
+    xjoin_order_by, xjoin_order_how = params_to_order(param_order_by, param_order_how)
 
     all_filters = query_filters(
         fqdn,
@@ -152,18 +146,6 @@ def get_host_ids_list(
     response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_id_list_failed)["hosts"]
 
     return [x["id"] for x in response["data"]]
-
-
-def _params_to_order(param_order_by=None, param_order_how=None):
-    if param_order_how and not param_order_by:
-        raise ValueError(
-            "Providing ordering direction without a column is not supported. "
-            "Provide order_by={updated,display_name}."
-        )
-
-    xjoin_order_by = ORDER_BY_MAPPING[param_order_by]
-    xjoin_order_how = param_order_how or ORDER_HOW_MAPPING[xjoin_order_by]
-    return xjoin_order_by, xjoin_order_how
 
 
 def owner_id_filter():

@@ -958,7 +958,7 @@
             "DESC"
           ]
         },
-        "description": "Direction of the ordering, defaults to ASC for display_name and to DESC for updated"
+        "description": "Direction of the ordering; defaults to ASC for display_name, and to DESC for updated and operating_system"
       },
       "stalenessParam": {
         "name": "staleness",
