@@ -2,7 +2,7 @@
 
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).If you're
 looking for API, integration or user documentation for HBI please see the [Inventory section
-in our Platform Docs site](https://internal.cloud.redhat.com/docs/services/host-inventory/).
+in our Platform Docs site](https://clouddot.pages.redhat.com/docs/dev/services/inventory.html).
 
 # Getting Started
 
