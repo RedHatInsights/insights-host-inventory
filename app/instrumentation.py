@@ -150,8 +150,8 @@ def log_add_update_host_succeeded(logger, add_result, host_data, output_host):
     )
 
 
-def log_add_host_failure(logger, host_data):
-    logger.exception("Error adding host ", extra={"host": host_data})
+def log_add_host_failure(logger, message, host_data):
+    logger.exception(f"Error adding host: {message} ", extra={"host": host_data})
     metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
 
 
