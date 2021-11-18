@@ -95,7 +95,7 @@ $defs:
         type: array
         items:
           description: The ipv4 address of the system
-          example: "123.456.789.012"
+          example: "192.0.2.146"
           type: string
           format: ipv4
       ipv6_addresses:
