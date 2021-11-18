@@ -108,7 +108,6 @@ def get_host_list(
     filter=None,
     fields=None,
 ):
-    # import pdb; pdb.set_trace()
 
     total = 0
     host_list = ()
