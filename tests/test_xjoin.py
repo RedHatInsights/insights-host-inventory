@@ -1669,9 +1669,7 @@ def test_xjoin_search_query_using_hostfilter(
     # for querying for deletion using filters
     host_ids_xjoin_post(response, status=200)
 
-    url = build_hosts_url(query=f"?{field}={value}")
-
-    response_status, response_data = api_delete_filtered_hosts(url)
+    response_status, response_data = api_delete_filtered_hosts({field: value})
 
     # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
@@ -1684,16 +1682,16 @@ def test_xjoin_search_query_using_hostfilter(
 def test_xjoin_search_query_using_hostfilter_display_name(
     mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
 ):
-    display_name = "my awesome host uwu"
+    query_params = {"display_name": "my awesome host uwu"}
 
-    url = build_hosts_url(query=f"?display_name={quote(display_name)}")
-    response_status, response_data = api_delete_filtered_hosts(url)
+    response_status, response_data = api_delete_filtered_hosts(query_params)
 
-    # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({"display_name": {"matches_lc": f"*{display_name}*"}}, mocker.ANY)}, mocker.ANY
+        HOST_IDS_QUERY,
+        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}}, mocker.ANY)},
+        mocker.ANY,
     )
 
 
@@ -1719,8 +1717,8 @@ def test_xjoin_search_query_using_hostfilter_display_name(
 def test_xjoin_search_using_hostfilters_tags(
     tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
 ):
-    url = build_hosts_url(query=f"?tags={quote(query_param)}")
-    response_status, response_data = api_delete_filtered_hosts(url)
+    query_params = {"tags": query_param}
+    response_status, response_data = api_delete_filtered_hosts(query_params)
 
     # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
@@ -1745,8 +1743,8 @@ def test_xjoin_search_using_hostfilters_tags(
 def test_xjoin_search_query_using_hostfilter_provider(
     mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
 ):
-    url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
-    response_status, response_data = api_delete_filtered_hosts(url)
+    query_params = {"provider_type": provider["type"], "provider_id": provider["id"]}
+    response_status, response_data = api_delete_filtered_hosts(query_params)
 
     # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404
@@ -1777,8 +1775,8 @@ def test_xjoin_search_query_using_hostfilter_staleness_with_search(
     graphql_query_empty_response,
     api_delete_filtered_hosts,
 ):
-    url = build_hosts_url(query=f"?{field}={quote(value)}")
-    response_status, response_data = api_delete_filtered_hosts(url)
+    query_params = {field: value}
+    response_status, response_data = api_delete_filtered_hosts(query_params)
 
     # response_status 404 because hosts in DB not used for this unit test
     assert response_status == 404

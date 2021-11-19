@@ -454,7 +454,7 @@ def create_system_profile():
         "subscription_auto_attach": "yes",
         "katello_agent_running": False,
         "satellite_managed": False,
-        "is_marketplace": True,
+        "is_marketplace": False,
         "yum_repos": [{"name": "repo1", "gpgcheck": True, "enabled": True, "base_url": "http://rpms.redhat.com"}],
         "installed_products": [
             {"name": "eap", "id": "123", "status": "UP"},

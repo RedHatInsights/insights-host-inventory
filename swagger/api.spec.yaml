@@ -63,8 +63,8 @@ paths:
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
       responses:
-        '200':
-          description: Successfully deleted the hosts filtered by the query.
+        '202':
+          description: Request for deletion of filtered hosts have been accepted.
         '400':
           description: Invalid request.
   /hosts/checkin:

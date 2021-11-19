@@ -7,7 +7,6 @@ from api.host import _get_host_list_by_id_list
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -107,15 +106,15 @@ def test_create_then_delete_without_insights_id(
 @pytest.mark.parametrize(
     "query_filter",
     (
-        "insights_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-        "staleness=fresh",
-        "provider_type=azure",
-        "provider_id=6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
-        "tags=SPECIAL/tag=ToFind",
-        "display_name=hbi_display.redhat.com",
-        "tags=ns1/key2=val1&display_name=hbi_display.redhat.com",
-        "hostname_or_id=test.server.redhat.com",
-        "fqdn=test.server.redhat.com",
+        {"insights_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"},
+        {"staleness": "fresh"},
+        {"provider_type": "azure"},
+        {"provider_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"},
+        {"tags": "SPECIAL/tag=ToFind"},
+        {"display_name": "hbi_display.redhat.com"},
+        {"tags": "ns1/key2=val1", "display_name": "hbi_display.redhat.com"},
+        {"hostname_or_id": "test.server.redhat.com"},
+        {"fqdn": "test.server.redhat.com"},
     ),
 )
 def test_delete_hosts_using_filter(
@@ -171,10 +170,8 @@ def test_delete_hosts_using_filter(
     )
     new_ids = [str(host.id) for host in new_hosts]
 
-    url = build_hosts_url(query=f"?{query_filter}")
-
     # delete hosts using the IDs supposedly the query_filter
-    response_status, _ = api_delete_filtered_hosts(url)
+    response_status, _ = api_delete_filtered_hosts(query_filter)
 
     assert_response_status(response_status, expected_status=200)
     assert '"type": "delete"' in event_producer_mock.event
