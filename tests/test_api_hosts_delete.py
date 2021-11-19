@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -143,7 +144,7 @@ def test_delete_hosts_using_filter(
     host_ids = [str(host.id) for host in created_hosts]
 
     # set the new host ids in the xjoin search reference.
-    resp = XJOIN_HOSTS_RESPONSE_FOR_FILTERING
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
     ind = 0
     for id in host_ids:
         resp["hosts"]["data"][ind]["id"] = id
@@ -154,20 +155,7 @@ def test_delete_hosts_using_filter(
     # for querying for deletion using filters
     host_ids_xjoin_post(response, status=200)
 
-    # build a second set of hosts, which should not be deleted
-    newData = {
-        "canonical_facts": {
-            "insights_id": generate_uuid(),
-            "provider_id": generate_uuid(),
-            "provider_type": "azure",
-            "fqdn": "dev.server.redhat.com",
-        },
-        "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
-        "display_name": "hbi_display.redhat.com",
-    }
-    new_hosts = db_create_multiple_hosts(
-        how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]), extra_data=newData
-    )
+    new_hosts = db_create_multiple_hosts()
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly the query_filter
