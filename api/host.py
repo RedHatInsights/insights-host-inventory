@@ -168,7 +168,7 @@ def delete_host_list(
     except ValueError:
         args = _get_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter)
         log_get_host_id_list_failed(logger)
-        flask.abort(400, f"No hosts found for the provided filter: {str(args)}")
+        flask.abort(400, f"Bad filter parameter: {str(args)}")
     except ConnectionError as ce:
         logger.error("xjoin-search not accessible")
         log_get_host_id_list_failed(logger)
@@ -178,9 +178,10 @@ def delete_host_list(
         flask.abort(status.HTTP_404_NOT_FOUND)
 
     delete_count = _delete_filtered_hosts(ids_list)
-    return flask.Response(
-        f"Hosts found for deletion: {len(ids_list)} \nDeleted hosts: {delete_count}", status.HTTP_200_OK
-    )
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
 
 
 def _delete_filtered_hosts(host_id_list):

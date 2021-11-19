@@ -1655,19 +1655,13 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
     "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("fqdn", "test.server.redhat.com"))
 )
 def test_xjoin_search_query_using_hostfilter(
-    mocker,
-    query_source_xjoin,
-    field,
-    value,
-    graphql_query_empty_response,
-    host_ids_xjoin_post,
-    api_delete_filtered_hosts,
+    mocker, query_source_xjoin, field, value, graphql_query_empty_response, patch_xjoin_post, api_delete_filtered_hosts
 ):
     response = {"data": XJOIN_HOSTS_RESPONSE_FOR_FILTERING}
 
     # Make the new hosts available in xjoin-search to make them available
     # for querying for deletion using filters
-    host_ids_xjoin_post(response, status=200)
+    patch_xjoin_post(response, status=200)
 
     response_status, response_data = api_delete_filtered_hosts({field: value})
 
