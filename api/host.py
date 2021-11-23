@@ -159,7 +159,7 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
-    return flask.Response(None, status.HTTP_200_OK)
+    return flask.Response(None, status.HTTP_202_ACCEPTED)
 
 
 @api_operation
@@ -244,7 +244,7 @@ def patch_by_id(host_id_list, body):
             _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     log_patch_host_success(logger, host_id_list)
-    return 200
+    return 202
 
 
 @api_operation
@@ -298,7 +298,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
-    return 200
+    return 202
 
 
 @api_operation
