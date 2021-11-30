@@ -146,7 +146,6 @@ def create_app(runtime_environment):
     connexion_app = connexion.App("inventory", specification_dir="./swagger/", options=connexion_options)
 
     parser = TranslatingParser(SPECIFICATION_FILE)
-    parser.parse()
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
