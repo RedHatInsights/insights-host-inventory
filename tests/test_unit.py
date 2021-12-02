@@ -16,6 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+import pytest
 from kafka.errors import KafkaError
 
 from api import api_operation
@@ -442,6 +443,24 @@ class CreateAppConnexionAppInitTestCase(TestCase):
         args = app.return_value.add_api.mock_calls[0].args
         assert len(args) == 1
         assert args[0] is not None
+
+    # TODO: test here the parsing is working with the $defs from system_profile.spec.yaml
+    # and the check parser.specification["components"]["schemas"] - this is more a library test
+    @patch("app.create_app")
+    def test_translatingparser(self, translating_parser, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+        # check if SystemProfile is in the componentes referenced
+        args = app.return_value.add_api.mock_calls[0].args
+        assert "SystemProfile" in args[0]["components"]["schemas"]
+
+    # TODO: try to create an app with bad defs assert that it wont create
+    @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
+    def test_yaml_specification(self, translating_parser, get_engine, app):
+        with patch("app.create_app", side_effect=Exception("mocked error")):
+            with self.assertRaises(Exception) as e:
+                create_app(RuntimeEnvironment.TEST)
+            if e:
+                pytest.xfail("Test fails with yml")
 
 
 class HostOrderHowTestCase(TestCase):
