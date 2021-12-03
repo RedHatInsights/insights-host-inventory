@@ -444,16 +444,19 @@ class CreateAppConnexionAppInitTestCase(TestCase):
         assert len(args) == 1
         assert args[0] is not None
 
-    # TODO: test here the parsing is working with the $defs from system_profile.spec.yaml
+    # Test here the parsing is working with the referenced schemas from system_profile.spec.yaml
     # and the check parser.specification["components"]["schemas"] - this is more a library test
-    @patch("app.create_app")
-    def test_translatingparser(self, translating_parser, get_engine, app):
+    def test_translatingparser(self, get_engine, app):
         create_app(RuntimeEnvironment.TEST)
-        # check if SystemProfile is in the componentes referenced
-        args = app.return_value.add_api.mock_calls[0].args
-        assert "SystemProfile" in args[0]["components"]["schemas"]
+        # check if SystemProfileNetworkDevices is inside the schemas section
+        # add_api uses the specification as firts argument
+        specification = app.return_value.add_api.mock_calls[0].args[0]
+        assert "SystemProfileNetworkDevices" in specification["components"]["schemas"]
 
-    # TODO: try to create an app with bad defs assert that it wont create
+        # This will pass with openapi.json because the schemas are inlined
+        # This will pass when the library acts as it should, inlining the referenced schemas
+
+    # Create an app with bad defs assert that it wont create and will raise and exception
     @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
     def test_yaml_specification(self, translating_parser, get_engine, app):
         with patch("app.create_app", side_effect=Exception("mocked error")):
