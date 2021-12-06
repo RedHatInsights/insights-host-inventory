@@ -59,12 +59,13 @@ paths:
         - $ref: '#/components/parameters/insightsId'
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
       responses:
         '202':
-          description: Request for deletion of filtered hosts have been accepted.
+          description: Request for deletion of filtered hosts has been accepted.
         '400':
           description: Invalid request.
   /hosts/checkin:

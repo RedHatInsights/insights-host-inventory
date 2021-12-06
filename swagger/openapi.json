@@ -114,6 +114,9 @@
             "$ref": "#/components/parameters/providerType"
           },
           {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
             "$ref": "#/components/parameters/stalenessParam"
           },
           {
@@ -125,7 +128,7 @@
         ],
         "responses": {
           "202": {
-            "description": "Request for deletion of filtered hosts have been accepted."
+            "description": "Request for deletion of filtered hosts has been accepted."
           },
           "400": {
             "description": "Invalid request."

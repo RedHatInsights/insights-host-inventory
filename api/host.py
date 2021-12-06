@@ -23,7 +23,6 @@ from app import Permission
 from app.auth import get_current_identity
 from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
-from app.instrumentation import log_get_host_id_list_failed
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
 from app.instrumentation import log_host_delete_failed
@@ -152,10 +151,10 @@ def delete_host_list(
     insights_id=None,
     provider_id=None,
     provider_type=None,
+    registered_with=None,
     staleness=None,
     tags=None,
     filter=None,
-    fields=None,
 ):
     if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter]):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
@@ -163,16 +162,23 @@ def delete_host_list(
 
     try:
         ids_list = get_host_ids_list_xjoin(
-            display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, staleness, tags, filter
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
         )
-    except ValueError:
-        args = _get_args(display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter)
-        log_get_host_id_list_failed(logger)
-        flask.abort(400, f"Bad filter parameter: {str(args)}")
-    except ConnectionError as ce:
+    except ValueError as err:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(err))
+    except ConnectionError:
         logger.error("xjoin-search not accessible")
-        log_get_host_id_list_failed(logger)
-        flask.abort(503, ce)
+        flask.abort(503)
 
     if not len(ids_list):
         flask.abort(status.HTTP_404_NOT_FOUND)

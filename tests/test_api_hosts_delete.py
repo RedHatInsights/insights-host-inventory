@@ -127,7 +127,7 @@ def test_delete_hosts_using_filter(
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly returned by the query_filter
-    response_status, response_data = api_delete_filtered_hosts({"insights_id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d"})
+    response_status, response_data = api_delete_filtered_hosts({"insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5"})
 
     assert '"type": "delete"' in event_producer_mock.event
     assert_response_status(response_status, expected_status=202)
