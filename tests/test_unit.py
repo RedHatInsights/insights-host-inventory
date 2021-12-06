@@ -24,7 +24,6 @@ from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from app import create_app
-from app import SPECIFICATION_FILE
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
@@ -419,29 +418,6 @@ class CreateAppConfigTestCase(TestCase):
         app = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", app.config)
         self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
-
-
-@patch("app.connexion.App")
-@patch("app.db.get_engine")
-class CreateAppConnexionAppInitTestCase(TestCase):
-    @patch("app.TranslatingParser")
-    def test_specification_is_provided(self, translating_parser, get_engine, app):
-        create_app(RuntimeEnvironment.TEST)
-
-        translating_parser.assert_called_once_with(SPECIFICATION_FILE)
-        assert "lazy" not in translating_parser.mock_calls[0].kwargs
-
-        app.return_value.add_api.assert_called_once()
-        args = app.return_value.add_api.mock_calls[0].args
-        assert len(args) == 1
-        assert args[0] is translating_parser.return_value.specification
-
-    def test_specification_is_parsed(self, get_engine, app):
-        create_app(RuntimeEnvironment.TEST)
-        app.return_value.add_api.assert_called_once()
-        args = app.return_value.add_api.mock_calls[0].args
-        assert len(args) == 1
-        assert args[0] is not None
 
 
 class HostOrderHowTestCase(TestCase):
