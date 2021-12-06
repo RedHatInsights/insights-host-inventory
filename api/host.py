@@ -144,6 +144,7 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
+        # TODO: Check if Kafka server is available, if not then  don't initiate deletion
         for host_id, deleted in delete_hosts(
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
