@@ -1739,36 +1739,6 @@ def test_xjoin_search_query_using_hostfilter_provider(
     )
 
 
-@pytest.mark.parametrize(
-    "field,value",
-    (
-        ("fqdn", generate_uuid()),
-        ("display_name", "some display name"),
-        ("hostname_or_id", "some hostname"),
-        ("insights_id", generate_uuid()),
-        ("tags", "SPECIAL/tag=ToFind"),
-    ),
-)
-def test_xjoin_search_query_using_hostfilter_staleness_with_search(
-    field,
-    value,
-    mocker,
-    culling_datetime_mock,
-    query_source_xjoin,
-    graphql_query_empty_response,
-    api_delete_filtered_hosts,
-):
-    query_params = {field: value}
-    api_delete_filtered_hosts(query_params)
-
-    search_any = mocker.ANY
-    staleness_any = mocker.ANY
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": (search_any, staleness_any)}, mocker.ANY
-    )
-
-
 def test_spf_rhc_client_invalid_field_value(
     subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
