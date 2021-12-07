@@ -95,7 +95,7 @@ $defs:
         type: array
         items:
           description: The ipv4 address of the system
-          example: "123.456.789.012"
+          example: "192.0.2.146"
           type: string
           format: ipv4
       ipv6_addresses:
@@ -493,4 +493,14 @@ $defs:
             example:  '10.11.12'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
+            x-wildcard: true
+      mssql:
+        description: Object containing data specific to the MS SQL workload
+        type: object
+        properties:
+          version:
+            description: MSSQL version number
+            type: string
+            example: '15.2.0'
+            maxLength: 30
             x-wildcard: true

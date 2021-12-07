@@ -908,7 +908,7 @@
             "DESC"
           ]
         },
-        "description": "Direction of the ordering, defaults to ASC for display_name and to DESC for updated"
+        "description": "Direction of the ordering; defaults to ASC for display_name, and to DESC for updated and operating_system"
       },
       "stalenessParam": {
         "name": "staleness",
@@ -2140,6 +2140,19 @@
                 "x-wildcard": true
               }
             }
+          },
+          "mssql": {
+            "description": "Object containing data specific to the MS SQL workload",
+            "type": "object",
+            "properties": {
+              "version": {
+                "description": "MSSQL version number",
+                "type": "string",
+                "example": "15.2.0",
+                "maxLength": 30,
+                "x-wildcard": true
+              }
+            }
           }
         }
       },
@@ -2267,7 +2280,7 @@
             "type": "array",
             "items": {
               "description": "The ipv4 address of the system",
-              "example": "123.456.789.012",
+              "example": "192.0.2.146",
               "type": "string",
               "format": "ipv4"
             }

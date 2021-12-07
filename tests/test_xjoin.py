@@ -2386,6 +2386,16 @@ def test_query_with_owner_id_satellite_identity(
             "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC&per_page=1\
                 &fields[system_profile]=field_3,field_4&page=2",
         ),
+        (
+            {
+                "fields": ["field_1", "field_2"],
+                "limit": 50,
+                "offset": 0,
+                "order_by": "operating_system",
+                "order_how": "DESC",
+            },
+            "?fields[system_profile]=field_1,field_2&order_by=operating_system&order_how=DESC&per_page=50&page=1",
+        ),
     ),
 )
 def test_sp_sparse_xjoin_query_translation(
