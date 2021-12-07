@@ -547,6 +547,34 @@ def build_qpc_payload():
     }
 
 
+def build_payload_for_bulk_delete():
+    account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
+    fqdn = random_uuid()[:6] + ".foo.redhat.com"
+    # fqdn = "fred.vm.redhat.com"
+    # fqdn = "georgevm.redhat.com"
+    payload = {
+        "account": account,
+        # "insights_id": random_uuid(),
+        "bios_uuid": random_uuid(),
+        "fqdn": fqdn,
+        # "regsitered_with": "insights",
+        # "provider_type": "aws",
+        # "provider_type": "alibaba",
+        # "provider_id": random_uuid(),
+        "display_name": "test123.server.redhat.com",
+        "tags": [
+            {"namespace": "SPECIAL", "key": "key", "value": "val"},
+            {"namespace": "NS3", "key": "key3", "value": "val3"},
+            {"namespace": "NS1", "key": "key3", "value": "val3"},
+            {"namespace": "Sat", "key": "prod", "value": None},
+        ],
+        "system_profile": create_system_profile(),
+        "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        "reporter": "puptoo",
+    }
+    return payload
+
+
 def random_uuid():
     return str(uuid.uuid4())
 
