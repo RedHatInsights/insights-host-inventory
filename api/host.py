@@ -66,15 +66,6 @@ def _get_host_list_by_id_list(host_id_list):
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
 
 
-# sefety check for bulk delete
-def _get_args(*args):
-    provided_args = []
-    for arg in args:
-        if arg:
-            provided_args.append(arg)
-    return provided_args
-
-
 def get_bulk_query_source():
     if XJOIN_HEADER in connexion.request.headers:
         if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":

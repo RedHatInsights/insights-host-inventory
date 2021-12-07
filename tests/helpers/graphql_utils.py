@@ -13,7 +13,7 @@ SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE = {
 
 XJOIN_HOSTS_RESPONSE_FOR_FILTERING = {
     "hosts": {
-        "meta": {"total": 2},
+        "meta": {"total": 3},
         "data": [
             {
                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
