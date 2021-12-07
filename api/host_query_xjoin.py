@@ -97,8 +97,8 @@ def get_host_list(
         insights_id,
         provider_id,
         provider_type,
-        staleness,
         tags,
+        staleness,
         registered_with,
         filter,
     )
@@ -149,8 +149,8 @@ def get_host_ids_list(
         insights_id,
         provider_id,
         provider_type,
-        staleness,
         tags,
+        staleness,
         registered_with,
         filter,
     )
