@@ -448,10 +448,10 @@ class CreateAppConnexionAppInitTestCase(TestCase):
     # and the check parser.specification["components"]["schemas"] - this is more a library test
     def test_translatingparser(self, get_engine, app):
         create_app(RuntimeEnvironment.TEST)
-        # check if SystemProfileNetworkDevices is inside the schemas section
+        # check if SystemProfileNetworkInterface is inside the schemas section
         # add_api uses the specification as firts argument
-        specification = app.return_value.add_api.mock_calls[0].args[0]
-        assert "SystemProfileNetworkDevices" in specification["components"]["schemas"]
+        specification = app.return_value.add_api.mock_calls[0].args
+        assert "SystemProfileNetworkInterface" in specification[0]["components"]["schemas"]
 
         # This will pass with openapi.json because the schemas are inlined
         # This will pass when the library acts as it should, inlining the referenced schemas
