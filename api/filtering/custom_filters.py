@@ -11,7 +11,6 @@ def _build_operating_system_version_filter(major, minor, name, operation):
     if operation != "eq":
         # The major operation should only ever be 'lt' or 'gt'
         major_operation = operation[0:2]
-        # os_filter.append({"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}})
         os_filter = {
             "OR": [os_filter, {"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}}]
         }
