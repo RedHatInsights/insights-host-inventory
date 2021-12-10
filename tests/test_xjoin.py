@@ -1968,21 +1968,7 @@ def test_query_hosts_filter_spf_operating_system(
                         }
                     ]
                 },
-                {
-                    "AND": [
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"eq": 12},
-                                        "minor": {"eq": 6},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                },
+                {"AND": [{"spf_operating_system": {"major": {"eq": 12}, "minor": {"eq": 6}, "name": {"eq": "RHEL"}}}]},
             ]
         },
     )

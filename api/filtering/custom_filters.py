@@ -6,16 +6,17 @@ logger = get_logger(__name__)
 
 
 def _build_operating_system_version_filter(major, minor, name, operation):
-    # for both lte and lt operation the major operation should be lt
-    # so just ignore the 3rd char to get it :)
-    # same applies to gte and gt, and doesn't break for eq.
-
-    os_filter = [{"spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}}]
+    os_filter = {"spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}}
 
     if operation != "eq":
-        os_filter.append({"spf_operating_system": {"major": {operation[0:2]: major}, "name": {"eq": name}}})
+        # The major operation should only ever be 'lt' or 'gt'
+        major_operation = operation[0:2]
+        # os_filter.append({"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}})
+        os_filter = {
+            "OR": [os_filter, {"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}}]
+        }
 
-    return {"OR": os_filter}
+    return os_filter
 
 
 def build_operating_system_filter(field_name, operating_system, field_filter):
