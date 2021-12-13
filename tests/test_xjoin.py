@@ -2110,11 +2110,13 @@ def test_query_hosts_filter_deep_objects(
     http_queries = (
         "filter[system_profile][ansible][d0n1][d1n2][name]=foo",
         "filter[system_profile][ansible][d0n1][d1n1][d2n1][name]=bar",
+        "filter[system_profile][ansible][d0n1][d1n1][d2n2][name]=nil",
     )
 
     graphql_queries = (
         {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
         {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n2": {"name": {"eq": None}}}}}}]},
     )
 
     with flask_app.app_context():

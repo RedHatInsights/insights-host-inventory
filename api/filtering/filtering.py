@@ -130,17 +130,22 @@ def _get_field_value(field_value, field_filter):
 def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
     base_value = _get_object_base_value(field_value, field_filter)
 
+    # Only do the "nullable" processing if the base value is nil or not_nil
     if not spec and base_value in {NIL_STRING, NOT_NIL_STRING}:
+        # If it's an object filter, we need to use the complete filter path in here.
+        # Otherwise, we can stick with the usual {field: {eq = None}}.
         if field_filter == "object":
-            base_filter = _create_single_record(field_value, None)
+            base_filter = _isolate_object_filter_expression(field_value, None)
         else:
             base_filter = {field_name: {lookup_graphql_operations(field_filter): None}}
 
+        # If it's nil, leave it as-is. If it's not_nil, we must negate it.
         if base_value == NIL_STRING:
             return (base_filter,)
-        elif base_value == NOT_NIL_STRING:
+        else:
             return ({"NOT": base_filter},)
     else:
+        # If it's not nullable, none of the above applies
         return filter_function(field_name, field_value)
 
 
@@ -151,10 +156,11 @@ def _get_list_operator(field_name, field_filter):
         return "AND"
 
 
-def _create_single_record(orig_object, single_value):
+def _isolate_object_filter_expression(orig_object, single_value):
+    # Creates a full filter expression given a filter object and a value to use.
     next_key = next(iter(orig_object.keys()))
     if isinstance(orig_object[next_key], dict):
-        return {next_key: _create_single_record(orig_object[next_key], single_value)}
+        return {next_key: _isolate_object_filter_expression(orig_object[next_key], single_value)}
     else:
         return {next_key: {"eq": single_value}}
 
@@ -172,8 +178,8 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
             logger.debug("filter value is a list")
             foo_list = ()
             for value in base_value:
-                single_record = _create_single_record(field_value, value)
-                foo_list += builder_function(field_name, {xjoin_field_name: single_record}, field_filter)
+                isolated_expression = _isolate_object_filter_expression(field_value, value)
+                foo_list += builder_function(field_name, {xjoin_field_name: isolated_expression}, field_filter)
             list_operator = _get_list_operator(field_name, field_filter)
             single_filter = ({list_operator: foo_list},)
         elif isinstance(base_value, str):

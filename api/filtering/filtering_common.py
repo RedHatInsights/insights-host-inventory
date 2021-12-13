@@ -21,7 +21,6 @@ GRAPHQL_OPERATIONS_LOOKUP = {
     "wildcard": OPERATION_SETS.eq.value[0],  # because on our side we want eq
     "boolean": OPERATION_SETS.is_op.value[0],
     "range": OPERATION_SETS.eq.value[0],
-    "object": OPERATION_SETS.eq.value[0],
 }
 
 
