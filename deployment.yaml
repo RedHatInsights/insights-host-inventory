@@ -654,13 +654,13 @@ objects:
       - prefix: dumps/inventory/hosts
         query: >-
           SELECT
-            "hosts"."id",
-            "hosts"."account" AS "account_number",
-            "hosts"."created" AS "created_at",
-            "hosts"."updated" AS "updated_at",
-            "hosts"."system_profile"->'operating_system'->'major' AS "os_major_version",
-            "hosts"."system_profile"->'operating_system'->'minor' AS "os_minor_version"
-          FROM "inventory"."hosts"
+            "id",
+            "account" AS "account_number",
+            "created" AS "created_at",
+            "updated" AS "updated_at",
+            "system_profile"->'operating_system'->'major' AS "os_major_version",
+            "system_profile"->'operating_system'->'minor' AS "os_minor_version"
+          FROM "hosts"
 parameters:
 - name: LOG_LEVEL
   value: INFO
