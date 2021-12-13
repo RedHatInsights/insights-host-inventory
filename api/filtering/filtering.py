@@ -127,35 +127,25 @@ def _get_field_value(field_value, field_filter):
     return field_value
 
 
-def _nullable_object_wrapper(filter_function, field_name, field_value, field_filter):
+def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
     base_value = _get_object_base_value(field_value, field_filter)
 
-    if base_value == NIL_STRING:
-        single_record = _create_single_record(field_value, None)
-        return (single_record,)
-    elif base_value == NOT_NIL_STRING:
-        single_record = _create_single_record(field_value, None)
-        return ({"NOT": single_record},)
+    if not spec and base_value in {NIL_STRING, NOT_NIL_STRING}:
+        if field_filter == "object":
+            base_filter = _create_single_record(field_value, None)
+        else:
+            base_filter = {field_name: {lookup_graphql_operations(field_filter): None}}
+
+        if base_value == NIL_STRING:
+            return (base_filter,)
+        elif base_value == NOT_NIL_STRING:
+            return ({"NOT": base_filter},)
     else:
         return filter_function(field_name, field_value)
 
 
-def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
-    if spec:
-        return filter_function(field_name, field_value)
-
-    graphql_operation = lookup_graphql_operations(field_filter)
-
-    if field_value == NIL_STRING:
-        return ({field_name: {graphql_operation: None}},)
-    elif field_value == NOT_NIL_STRING:
-        return ({"NOT": {field_name: {graphql_operation: None}}},)
-    else:
-        return filter_function(field_name, field_value)
-
-
-def _get_list_operator(field_name):
-    if field_name in OR_FIELDS:
+def _get_list_operator(field_name, field_filter):
+    if field_name in OR_FIELDS or field_filter == "object":
         return "OR"
     else:
         return "AND"
@@ -184,7 +174,7 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
             for value in base_value:
                 single_record = _create_single_record(field_value, value)
                 foo_list += builder_function(field_name, {xjoin_field_name: single_record}, field_filter)
-            list_operator = "OR"
+            list_operator = _get_list_operator(field_name, field_filter)
             single_filter = ({list_operator: foo_list},)
         elif isinstance(base_value, str):
             logger.debug("filter value is a string")
@@ -205,7 +195,7 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         foo_list = []
         for value in field_value:
             foo_list.append(builder_function(xjoin_field_name, value, field_filter)[0])
-        list_operator = _get_list_operator(field_name)
+        list_operator = _get_list_operator(field_name, field_filter)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(field_value, str):
         logger.debug("filter value is a string")
@@ -219,7 +209,7 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
 
 def _generic_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     spec_builder_function = partial(builder_function, spec=spec)
-    nullable_builder_function = partial(_nullable_object_wrapper, spec_builder_function)
+    nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
 
     return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
 
