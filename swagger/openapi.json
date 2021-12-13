@@ -81,6 +81,59 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "api.host.delete_host_list",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete the entire list of hosts filtered by the given parameters",
+        "description": "Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/providerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Request for deletion of filtered hosts has been accepted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
       }
     },
     "/hosts/checkin": {
