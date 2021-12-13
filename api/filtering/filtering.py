@@ -77,19 +77,15 @@ def _object_filter_builder(field_name, input_object, field_filter, spec):
     return object_filter
 
 
-def _build_object_filter(field_name, input_object, field_filter):
-    if not isinstance(input_object, dict):
-        raise ValidationException("Invalid filter value")
+def _build_object_filter(field_name, input_object, spec=None):
+    xjoin_field_name = field_name if spec else f"spf_{field_name}"
+    curr_spec = spec if spec else system_profile_spec()
 
     return (
         {
-            "AND": [
-                {
-                    f"spf_{field_name}": _object_filter_builder(
-                        next(iter(input_object)), input_object, "object", system_profile_spec()[field_name]
-                    )
-                }
-            ]
+            xjoin_field_name: _object_filter_builder(
+                xjoin_field_name, input_object[xjoin_field_name], "object", curr_spec[field_name]
+            )
         },
     )
 
@@ -109,10 +105,18 @@ def _check_field_in_spec(spec, field_name):
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
+def _get_object_base_value(field_value, field_filter):
+    current_value = field_value
+    while isinstance(current_value, dict):
+        current_value = next(iter(current_value.values()))
+
+    return current_value
+
+
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
 def _get_field_value(field_value, field_filter):
-    if isinstance(field_value, dict):
+    if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
             if key not in lookup_operations(field_filter):
@@ -123,7 +127,23 @@ def _get_field_value(field_value, field_filter):
     return field_value
 
 
-def _nullable_wrapper(filter_function, field_name, field_value, field_filter):
+def _nullable_object_wrapper(filter_function, field_name, field_value, field_filter):
+    base_value = _get_object_base_value(field_value, field_filter)
+
+    if base_value == NIL_STRING:
+        single_record = _create_single_record(field_value, None)
+        return (single_record,)
+    elif base_value == NOT_NIL_STRING:
+        single_record = _create_single_record(field_value, None)
+        return ({"NOT": single_record},)
+    else:
+        return filter_function(field_name, field_value)
+
+
+def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
+    if spec:
+        return filter_function(field_name, field_value)
+
     graphql_operation = lookup_graphql_operations(field_filter)
 
     if field_value == NIL_STRING:
@@ -139,6 +159,43 @@ def _get_list_operator(field_name):
         return "OR"
     else:
         return "AND"
+
+
+def _create_single_record(orig_object, single_value):
+    next_key = next(iter(orig_object.keys()))
+    if isinstance(orig_object[next_key], dict):
+        return {next_key: _create_single_record(orig_object[next_key], single_value)}
+    else:
+        return {next_key: {"eq": single_value}}
+
+
+def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+    if not isinstance(field_value, dict):
+        raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
+
+    xjoin_field_name = field_name if spec else f"spf_{field_name}"
+
+    filter_list = []
+    for key, val in field_value.items():
+        base_value = _get_object_base_value(val, field_filter)
+        if isinstance(base_value, list):
+            logger.debug("filter value is a list")
+            foo_list = ()
+            for value in base_value:
+                single_record = _create_single_record(field_value, value)
+                foo_list += builder_function(field_name, {xjoin_field_name: single_record}, field_filter)
+            list_operator = "OR"
+            single_filter = ({list_operator: foo_list},)
+        elif isinstance(base_value, str):
+            logger.debug("filter value is a string")
+            single_filter = builder_function(field_name, {xjoin_field_name: {key: val}}, field_filter)
+        else:
+            logger.debug("filter value is bad")
+            raise ValidationException(f"wrong type for {field_value} filter")
+
+        filter_list += single_filter
+
+    return ({"AND": filter_list},)
 
 
 def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
@@ -158,6 +215,13 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         raise ValidationException(f"wrong type for {field_value} filter")
 
     return field_filter
+
+
+def _generic_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+    spec_builder_function = partial(builder_function, spec=spec)
+    nullable_builder_function = partial(_nullable_object_wrapper, spec_builder_function)
+
+    return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
 
 
 def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
@@ -247,8 +311,13 @@ def build_system_profile_filter(system_profile):
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-        if field_name in custom_filter_fields or field_filter == "object":
+        if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
+        elif field_filter == "object":
+            system_profile_filter += _generic_object_filter_builder(
+                builder_function, field_name, field_input, field_filter
+            )
+
         else:
             field_value = _get_field_value(field_input, field_filter)
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)

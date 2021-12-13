@@ -2040,7 +2040,10 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         "filter[system_profile][ansible][catalog_worker_version]=nil",
         "filter[system_profile][ansible][sso_version]=0.44.963",
         "filter[system_profile][ansible][controller_version]=7.1&filter[system_profile][ansible][hub_version]=not_nil",
-        "filter[system_profile][ansible][catalog_worker_version]=not_nil",
+        "filter[system_profile][ansible][catalog_worker_version][]=8.0"
+        "&filter[system_profile][ansible][catalog_worker_version][]=9.0",
+        "filter[system_profile][ansible][hub_version]=not_nil&filter[system_profile][ansible][catalog_worker_version]"
+        "[]=8.0&filter[system_profile][ansible][catalog_worker_version][]=9.0",
     )
 
     graphql_queries = (
@@ -2054,7 +2057,27 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
                 {"spf_ansible": {"controller_version": {"matches": "7.1"}}},
             ]
         },
-        {"AND": [{"NOT": {"spf_ansible": {"catalog_worker_version": {"eq": None}}}}]},
+        {
+            "AND": [
+                {
+                    "OR": (
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                    )
+                }
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "OR": (
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                    )
+                },
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+            ]
+        },
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
