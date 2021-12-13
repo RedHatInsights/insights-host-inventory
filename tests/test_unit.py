@@ -2097,7 +2097,7 @@ class KafkaAvailabilityTests(TestCase):
 
     # provide valid bootstrap_server
     def test_one_valid_bootstrap_server(self):
-        kafka_servers = self.config.bootstrap_servers
+        kafka_servers = [self.config.bootstrap_servers]
         available = kafka_available(kafka_servers)
         assert available is True
 
@@ -2120,7 +2120,7 @@ class KafkaAvailabilityTests(TestCase):
 
     # provide invalid bootstrap server
     def test_one_invalid_bootstrap_server(self):
-        kafka_servers = "localhost29092"
+        kafka_servers = ["localhost29092"]
         available = kafka_available(kafka_servers)
         assert available is False
 
@@ -2130,7 +2130,7 @@ class KafkaAvailabilityTests(TestCase):
         assert available is False
 
     def test_bootstrap_server_with_bad_port(self):
-        kafka_servers = "localhost:22222"
+        kafka_servers = ["localhost:22222"]
         available = kafka_available(kafka_servers)
         assert available is False
 
