@@ -76,11 +76,9 @@ def _object_filter_builder(input_object, spec):
 
 
 def _build_object_filter(field_name, input_object, spec=None):
-    # If spec is not passed in, we need to trim the first 4 chars
-    spec_field_name = field_name if spec else field_name[4:]
     curr_spec = spec if spec else system_profile_spec()
-
-    return ({field_name: _object_filter_builder(input_object, curr_spec[spec_field_name])},)
+    # The filter's xjoin name starts with "spf_", but we need to trim that for the real spec
+    return ({field_name: _object_filter_builder(input_object, curr_spec[field_name[4:]])},)
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -102,11 +100,14 @@ def _check_field_in_spec(spec, field_name):
 # Uses only the first child node each time, but this is fine because
 # this is only used on objects created by _isolate_object_filter_expression().
 def _get_object_base_value(field_value, field_filter):
-    current_value = field_value
-    while isinstance(current_value, dict):
-        current_value = next(iter(current_value.values()))
+    if field_filter != "object":
+        return field_value
+    else:
+        current_value = field_value
+        while isinstance(current_value, dict):
+            current_value = next(iter(current_value.values()))
 
-    return current_value
+        return current_value
 
 
 # if operation is specified, check the operation is allowed on the field
@@ -124,22 +125,22 @@ def _get_field_value(field_value, field_filter):
 
 
 def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
+    # We need to check the deepest value, in case field_value is a deep object
     base_value = _get_object_base_value(field_value, field_filter)
 
     # Only do the "nullable" processing if the base value is nil or not_nil
     if not spec and base_value in {NIL_STRING, NOT_NIL_STRING}:
+        base_filter = {lookup_graphql_operations(field_filter): None}
+
         # If it's an object filter, we need to use the complete filter path in here.
-        # Otherwise, we can stick with the usual {field: {eq = None}}.
         if field_filter == "object":
-            base_filter = {field_name: _isolate_object_filter_expression(field_value, {"eq": None})}
-        else:
-            base_filter = {field_name: {lookup_graphql_operations(field_filter): None}}
+            base_filter = _isolate_object_filter_expression(field_value, base_filter)
 
         # If it's nil, leave it as-is. If it's not_nil, we must negate it.
         if base_value == NIL_STRING:
-            return (base_filter,)
+            return ({field_name: base_filter},)
         else:
-            return ({"NOT": base_filter},)
+            return ({"NOT": {field_name: base_filter}},)
     else:
         # If it's not nullable, none of the above applies
         return filter_function(field_name, field_value)
@@ -152,8 +153,12 @@ def _get_list_operator(field_name, field_filter):
         return "AND"
 
 
+# Creates a full filter expression given a filter object and a value to use.
+# Used primarily to divide deep object lists into full individual deep object expressions.
 def _isolate_object_filter_expression(orig_object, single_value):
-    # Creates a full filter expression given a filter object and a value to use.
+    if not isinstance(orig_object, dict):
+        return single_value
+
     next_key = next(iter(orig_object.keys()))
     if isinstance(orig_object[next_key], dict):
         return {next_key: _isolate_object_filter_expression(orig_object[next_key], single_value)}
@@ -174,24 +179,18 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
 
 def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
-    base_value = _get_object_base_value(field_value, field_filter) if field_filter == "object" else field_value
+    base_value = _get_object_base_value(field_value, field_filter)
     if isinstance(base_value, list):
         logger.debug("filter value is a list")
         foo_list = []
         for value in base_value:
-            if field_filter == "object":
-                isolated_expression = _isolate_object_filter_expression(field_value, value)
-            else:
-                isolated_expression = value
+            isolated_expression = _isolate_object_filter_expression(field_value, value)
             foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(base_value, str):
         logger.debug("filter value is a string")
-        if field_filter == "object":
-            isolated_expression = _isolate_object_filter_expression(field_value, base_value)
-        else:
-            isolated_expression = base_value
+        isolated_expression = _isolate_object_filter_expression(field_value, base_value)
         field_filter = builder_function(xjoin_field_name, isolated_expression, field_filter, spec)
     else:
         logger.debug("filter value is bad")
