@@ -657,6 +657,7 @@ parameters:
 - name: LOG_LEVEL
   value: INFO
 - descrpition: Cpu request of service
+  name: CPU_REQUEST
   value: 200m
 - description: Cpu limit of service
   name: CPU_LIMIT
