@@ -341,7 +341,7 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${MEMORY_LIMIT_REAPER}
           requests:
             cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST}
@@ -664,6 +664,9 @@ parameters:
   value: 500m
 - description: memory limit of service
   name: MEMORY_LIMIT
+  value: 512Mi
+- description: memory limit of reaper
+  name: MEMORY_LIMIT_REAPER
   value: 512Mi
 - description: request limit for service
   name: MEMORY_REQUEST
