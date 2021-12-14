@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -11,6 +12,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -100,6 +102,45 @@ def test_create_then_delete_without_insights_id(
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+
+def test_delete_hosts_using_filter(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, patch_xjoin_post
+):
+
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    ind = 0
+    for id in host_ids:
+        resp["hosts"]["data"][ind]["id"] = id
+        ind += 1
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    new_hosts = db_create_multiple_hosts()
+    new_ids = [str(host.id) for host in new_hosts]
+
+    # delete hosts using the IDs supposedly returned by the query_filter
+    response_status, response_data = api_delete_filtered_hosts({"insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5"})
+
+    assert '"type": "delete"' in event_producer_mock.event
+    assert_response_status(response_status, expected_status=202)
+    assert len(host_ids) == response_data["hosts_deleted"]
+
+    # check db for the deleted hosts using their IDs
+    host_id_list = [str(host.id) for host in created_hosts]
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
+
+    # now verify that the second set of hosts still available.
+    remaining_hosts = db_get_hosts(new_ids)
+    assert len(new_hosts) == remaining_hosts.count()
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
