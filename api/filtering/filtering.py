@@ -105,6 +105,9 @@ def _check_field_in_spec(spec, field_name):
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
+# A recursive function that gets the deepest value of a deep object.
+# Uses only the first child node each time, but this is fine because
+# this is only used on objects created by _isolate_object_filter_expression().
 def _get_object_base_value(field_value, field_filter):
     current_value = field_value
     while isinstance(current_value, dict):
@@ -213,18 +216,13 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
-    spec_builder_function = partial(builder_function, spec=spec)
-    nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
-
-    return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
-
-
 def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
-
-    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
+    if field_filter == "object":
+        return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
+    else:
+        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
 
 
 def build_tag_query_dict_tuple(tags):
@@ -309,11 +307,6 @@ def build_system_profile_filter(system_profile):
 
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
-        elif field_filter == "object":
-            system_profile_filter += _generic_object_filter_builder(
-                builder_function, field_name, field_input, field_filter
-            )
-
         else:
             field_value = _get_field_value(field_input, field_filter)
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
