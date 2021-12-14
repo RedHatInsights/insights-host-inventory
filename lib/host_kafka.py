@@ -1,4 +1,5 @@
 import socket
+from contextlib import closing
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -27,8 +28,6 @@ def _get_bootstrap_servers(kafka_socket, servers):
 
 
 def kafka_available(servers=None):
-    kafka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    kafka = _get_bootstrap_servers(kafka_socket, servers)
-    kafka_socket.close()
-
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as kafka_socket:
+        kafka = _get_bootstrap_servers(kafka_socket, servers)
     return kafka is True
