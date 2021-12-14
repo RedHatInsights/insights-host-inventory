@@ -1895,6 +1895,8 @@ def test_query_hosts_filter_spf_operating_system(
         "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
         "filter[system_profile][operating_system][RHEL][version][eq]=12.6&"
         "filter[system_profile][operating_system][CENT][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=8.0&"
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0",
     )
 
     graphql_queries = (
@@ -1969,6 +1971,32 @@ def test_query_hosts_filter_spf_operating_system(
                     ]
                 },
                 {"AND": [{"spf_operating_system": {"major": {"eq": 12}, "minor": {"eq": 6}, "name": {"eq": "RHEL"}}}]},
+            ]
+        },
+        {
+            "OR": [
+                {
+                    "AND": [
+                        {
+                            "OR": [
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"eq": 8},
+                                        "minor": {"eq": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"eq": 9},
+                                        "minor": {"eq": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
+                            ]
+                        }
+                    ]
+                }
             ]
         },
     )

@@ -18,6 +18,26 @@ def _build_operating_system_version_filter(major, minor, name, operation):
     return os_filter
 
 
+def _build_filter_from_version_string(os_value, name, operation):
+    major_version, *minor_version_list = os_value.split(".")
+
+    major_version = int(major_version)
+    minor_version = 0
+
+    if minor_version_list != []:
+        minor_version = int(minor_version_list[0])
+
+    return _build_operating_system_version_filter(major_version, minor_version, name, operation)
+
+
+def _build_operating_system_version_filter_list(version_list, name, operation):
+    os_filters_for_current_name = []
+    for version_string in version_list:
+        os_filters_for_current_name.append(_build_filter_from_version_string(version_string, name, operation))
+
+    return {"OR": os_filters_for_current_name}
+
+
 def build_operating_system_filter(field_name, operating_system, field_filter):
     # field name is unused but here because the generic filter builders need it and this has
     # to have the same interface
@@ -31,17 +51,15 @@ def build_operating_system_filter(field_name, operating_system, field_filter):
             # Check that there is an operation at all. No default it wouldn't make sense
             for operation in version_dict:
                 if operation in lookup_operations("range"):
-                    major_version, *minor_version_list = version_dict[operation].split(".")
+                    os_value = version_dict[operation]
+                    if isinstance(os_value, list):
+                        # Make a list
+                        os_filter_for_name = _build_operating_system_version_filter_list(os_value, name, operation)
+                    else:
+                        _build_filter_from_version_string(os_value, name, operation)
 
-                    major_version = int(major_version)
-                    minor_version = 0
+                    os_filters_for_current_name.append(os_filter_for_name)
 
-                    if minor_version_list != []:
-                        minor_version = int(minor_version_list[0])
-
-                    os_filters_for_current_name.append(
-                        _build_operating_system_version_filter(major_version, minor_version, name, operation)
-                    )
                 else:
                     raise ValidationException(
                         f"Specified operation '{operation}' is not on [operating_system][version] field"
