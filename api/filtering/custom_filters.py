@@ -56,7 +56,7 @@ def build_operating_system_filter(field_name, operating_system, field_filter):
                         # Make a list
                         os_filter_for_name = _build_operating_system_version_filter_list(os_value, name, operation)
                     else:
-                        _build_filter_from_version_string(os_value, name, operation)
+                        os_filter_for_name = _build_filter_from_version_string(os_value, name, operation)
 
                     os_filters_for_current_name.append(os_filter_for_name)
 
