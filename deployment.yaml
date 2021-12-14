@@ -658,7 +658,7 @@ parameters:
   value: INFO
 - descrpition: Cpu request of service
   name: CPU_REQUEST
-  value: 200m
+  value: 250m
 - description: Cpu limit of service
   name: CPU_LIMIT
   value: 500m
