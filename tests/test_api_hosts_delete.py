@@ -291,6 +291,7 @@ def test_delete_hosts_chunk_size(
     query_wraper.query.limit.assert_called_with(5)
 
 
+# comment added for checking builds failure. Nothere changes made to this branch
 @pytest.mark.parametrize(
     "send_side_effects",
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
