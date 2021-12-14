@@ -2090,35 +2090,7 @@ class KafkaAvailabilityTests(TestCase):
         super().setUp()
         self.config = Config(RuntimeEnvironment.TEST)
 
-    # test boot_servers from the config in the target test function
-    def test_local_kafka(test):
-        available = kafka_available()
-        assert available is True
-
     # provide valid bootstrap_server
-    def test_one_valid_bootstrap_server(self):
-        kafka_servers = [self.config.bootstrap_servers]
-        available = kafka_available(kafka_servers)
-        assert available is True
-
-    def test_list_of_valid_bootstrap_servers(self):
-        kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
-        available = kafka_available(kafka_servers)
-        assert available is True
-
-    # first bad with missing ':'
-    def test_list_with_first_bad_second_good_server(self):
-        kafka_servers = ["localhost29092", "127.0.0.1:29092"]
-        available = kafka_available(kafka_servers)
-        assert available is True
-
-    # second bad with missing ':'.  Returns as soon as the first kafka server found.
-    def test_list_with_first_good_second_bad_server(self):
-        kafka_servers = ["localhost:29092", "127.0.0.129092"]
-        available = kafka_available(kafka_servers)
-        assert available is True
-
-    # provide invalid bootstrap server
     def test_one_invalid_bootstrap_server(self):
         kafka_servers = ["localhost29092"]
         available = kafka_available(kafka_servers)
