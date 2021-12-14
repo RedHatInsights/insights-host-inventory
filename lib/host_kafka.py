@@ -8,7 +8,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _any_bootstrap_server_connects(kafka_socket, servers) ->  bool:
+def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
     if not servers:
         config = Config(RuntimeEnvironment.SERVICE)
         servers = [config.bootstrap_servers]
@@ -29,5 +29,5 @@ def _any_bootstrap_server_connects(kafka_socket, servers) ->  bool:
 
 def kafka_available(servers=None):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as kafka_socket:
-        kafka = _get_bootstrap_servers(kafka_socket, servers)
+        kafka = _any_bootstrap_server_connects(kafka_socket, servers)
     return kafka is True
