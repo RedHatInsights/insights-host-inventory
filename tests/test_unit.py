@@ -57,7 +57,6 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
-from lib.host_kafka import kafka_available
 from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -2083,28 +2082,6 @@ class CustomRegexMethodTestCase(TestCase):
             with self.subTest(regex_input=regex_input):
                 result = custom_escape(regex_input)
                 assert result == output
-
-
-class KafkaAvailabilityTests(TestCase):
-    def setUp(self,):
-        super().setUp()
-        self.config = Config(RuntimeEnvironment.TEST)
-
-    # provide valid bootstrap_server
-    def test_one_invalid_bootstrap_server(self):
-        kafka_servers = ["localhost29092"]
-        available = kafka_available(kafka_servers)
-        assert available is False
-
-    def test_list_of_invalid_bootstrap_servers(self):
-        kafka_servers = ["127.0.0.129092", "localhost29092"]
-        available = kafka_available(kafka_servers)
-        assert available is False
-
-    def test_bootstrap_server_with_bad_port(self):
-        kafka_servers = ["localhost:22222"]
-        available = kafka_available(kafka_servers)
-        assert available is False
 
 
 if __name__ == "__main__":
