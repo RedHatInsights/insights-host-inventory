@@ -52,7 +52,7 @@ def _wildcard_string_filter(field_name, field_value, spec=None):
     return ({field_name: {"matches": (field_value)}},)
 
 
-def _object_filter_builder(field_name, input_object, field_filter, spec):
+def _object_filter_builder(input_object, spec):
     object_filter = {}
 
     if not isinstance(input_object, dict):
@@ -63,9 +63,7 @@ def _object_filter_builder(field_name, input_object, field_filter, spec):
         child_spec = spec["children"][name]
         child_filter = child_spec["filter"]
         if child_filter == "object":
-            object_filter[name] = _object_filter_builder(
-                next(iter(input_object[name])), input_object[name], "object", spec=child_spec
-            )
+            object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
             field_value = _get_field_value(input_object[name], child_filter)
             object_filter.update(
@@ -78,16 +76,11 @@ def _object_filter_builder(field_name, input_object, field_filter, spec):
 
 
 def _build_object_filter(field_name, input_object, spec=None):
-    xjoin_field_name = field_name if spec else f"spf_{field_name}"
+    # If spec is not passed in, we need to trim the first 4 chars
+    spec_field_name = field_name if spec else field_name[4:]
     curr_spec = spec if spec else system_profile_spec()
 
-    return (
-        {
-            xjoin_field_name: _object_filter_builder(
-                xjoin_field_name, input_object[xjoin_field_name], "object", curr_spec[field_name]
-            )
-        },
-    )
+    return ({field_name: _object_filter_builder(input_object, curr_spec[spec_field_name])},)
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -138,7 +131,7 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter, sp
         # If it's an object filter, we need to use the complete filter path in here.
         # Otherwise, we can stick with the usual {field: {eq = None}}.
         if field_filter == "object":
-            base_filter = _isolate_object_filter_expression(field_value, None)
+            base_filter = {field_name: _isolate_object_filter_expression(field_value, {"eq": None})}
         else:
             base_filter = {field_name: {lookup_graphql_operations(field_filter): None}}
 
@@ -165,50 +158,41 @@ def _isolate_object_filter_expression(orig_object, single_value):
     if isinstance(orig_object[next_key], dict):
         return {next_key: _isolate_object_filter_expression(orig_object[next_key], single_value)}
     else:
-        return {next_key: {"eq": single_value}}
+        return {next_key: single_value}
 
 
 def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     if not isinstance(field_value, dict):
         raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
 
-    xjoin_field_name = field_name if spec else f"spf_{field_name}"
-
     filter_list = []
     for key, val in field_value.items():
-        base_value = _get_object_base_value(val, field_filter)
-        if isinstance(base_value, list):
-            logger.debug("filter value is a list")
-            foo_list = ()
-            for value in base_value:
-                isolated_expression = _isolate_object_filter_expression(field_value, value)
-                foo_list += builder_function(field_name, {xjoin_field_name: isolated_expression}, field_filter)
-            list_operator = _get_list_operator(field_name, field_filter)
-            single_filter = ({list_operator: foo_list},)
-        elif isinstance(base_value, str):
-            logger.debug("filter value is a string")
-            single_filter = builder_function(field_name, {xjoin_field_name: {key: val}}, field_filter)
-        else:
-            logger.debug("filter value is bad")
-            raise ValidationException(f"wrong type for {field_value} filter")
-
-        filter_list += single_filter
+        filter_list += _base_filter_builder(builder_function, field_name, {key: val}, field_filter, spec)
 
     return ({"AND": filter_list},)
 
 
 def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
-    if isinstance(field_value, list):
+    base_value = _get_object_base_value(field_value, field_filter) if field_filter == "object" else field_value
+    if isinstance(base_value, list):
         logger.debug("filter value is a list")
         foo_list = []
-        for value in field_value:
-            foo_list.append(builder_function(xjoin_field_name, value, field_filter)[0])
+        for value in base_value:
+            if field_filter == "object":
+                isolated_expression = _isolate_object_filter_expression(field_value, value)
+            else:
+                isolated_expression = value
+            foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
         field_filter = ({list_operator: foo_list},)
-    elif isinstance(field_value, str):
+    elif isinstance(base_value, str):
         logger.debug("filter value is a string")
-        field_filter = builder_function(xjoin_field_name, field_value, field_filter)
+        if field_filter == "object":
+            isolated_expression = _isolate_object_filter_expression(field_value, base_value)
+        else:
+            isolated_expression = base_value
+        field_filter = builder_function(xjoin_field_name, isolated_expression, field_filter, spec)
     else:
         logger.debug("filter value is bad")
         raise ValidationException(f"wrong type for {field_value} filter")

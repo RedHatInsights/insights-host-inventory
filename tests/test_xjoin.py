@@ -2150,20 +2150,20 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         {
             "AND": [
                 {
-                    "OR": (
+                    "OR": [
                         {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
                         {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
-                    )
+                    ]
                 }
             ]
         },
         {
             "AND": [
                 {
-                    "OR": (
+                    "OR": [
                         {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
                         {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
-                    )
+                    ]
                 },
                 {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
             ]
