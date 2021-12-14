@@ -96,18 +96,14 @@ def _check_field_in_spec(spec, field_name):
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
-# A recursive function that gets the deepest value of a deep object.
-# Uses only the first child node each time, but this is fine because
-# this is only used on objects created by _isolate_object_filter_expression().
+# A recursive function that gets the deepest value of a deep object's first branch.
+# If not used for an object-type field_filter, it just returns field_value.
 def _get_object_base_value(field_value, field_filter):
-    if field_filter != "object":
-        return field_value
-    else:
-        current_value = field_value
-        while isinstance(current_value, dict):
-            current_value = next(iter(current_value.values()))
+    current_value = field_value
+    while field_filter == "object" and isinstance(current_value, dict):
+        current_value = next(iter(current_value.values()))
 
-        return current_value
+    return current_value
 
 
 # if operation is specified, check the operation is allowed on the field
@@ -129,7 +125,7 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter, sp
     base_value = _get_object_base_value(field_value, field_filter)
 
     # Only do the "nullable" processing if the base value is nil or not_nil
-    if not spec and base_value in {NIL_STRING, NOT_NIL_STRING}:
+    if base_value in {NIL_STRING, NOT_NIL_STRING}:
         base_filter = {lookup_graphql_operations(field_filter): None}
 
         # If it's an object filter, we need to use the complete filter path in here.
@@ -166,6 +162,7 @@ def _isolate_object_filter_expression(orig_object, single_value):
         return {next_key: single_value}
 
 
+# Iterates through a deep object's keys to create filters.
 def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     if not isinstance(field_value, dict):
         raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
