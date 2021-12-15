@@ -23,6 +23,9 @@ def _build_filter_from_version_string(os_value, name, operation):
     major_version = int(os_value_split[0])
     minor_version = int(os_value_split[1]) if len(os_value_split) > 1 else 0
 
+    if len(os_value_split) > 2:
+        raise ValidationException("operating_system filter can only have a major and minor version.")
+
     return _build_operating_system_version_filter(major_version, minor_version, name, operation)
 
 

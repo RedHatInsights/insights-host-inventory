@@ -2123,6 +2123,7 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
         "filter[system_profile][operating_system][RHEL]=7.1",
         "filter[system_profile][operating_system][CENT]=",
         "filter[system_profile][operating_system][CENT]=something",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0.1",
     )
 
     for http_query in http_queries:
