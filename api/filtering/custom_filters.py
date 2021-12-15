@@ -19,13 +19,9 @@ def _build_operating_system_version_filter(major, minor, name, operation):
 
 
 def _build_filter_from_version_string(os_value, name, operation):
-    major_version, *minor_version_list = os_value.split(".")
-
-    major_version = int(major_version)
-    minor_version = 0
-
-    if minor_version_list != []:
-        minor_version = int(minor_version_list[0])
+    os_value_split = os_value.split(".")
+    major_version = int(os_value_split[0])
+    minor_version = int(os_value_split[1]) if len(os_value_split) >= 1 else 0
 
     return _build_operating_system_version_filter(major_version, minor_version, name, operation)
 
