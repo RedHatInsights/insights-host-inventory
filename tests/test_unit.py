@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import socket
+# import socket
 from base64 import b64encode
 from copy import deepcopy
 from datetime import datetime
@@ -2090,72 +2090,120 @@ class KafkaAvailabilityTests(TestCase):
     def setUp(self,):
         super().setUp()
         self.config = Config(RuntimeEnvironment.TEST)
-        self.kafka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    # ---------------------------------------------------------------------------------
+    # # following unit tests succeed when Kakfa is NOT available.
+    # ---------------------------------------------------------------------------------
+    # def test_happy_path(self):
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available()
+    #         assert available is True
+
+    # # provide valid bootstrap_server
+    # def test_one_valid_bootstrap_server(self):
+    #     kafka_servers = [self.config.bootstrap_servers]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available(kafka_servers)
+    #         assert available is True
+
+    # def test_list_of_valid_bootstrap_servers(self):
+    #     kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available(kafka_servers)
+    #         assert available is True
+
+    # # first bad with missing ':'
+    # def test_list_with_first_bad_second_good_server(self):
+    #     kafka_servers = ["localhost29092", "127.0.0.1:29092"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available(kafka_servers)
+    #         assert available is True
+
+    # # second bad with missing ':'.  Returns as soon as the first kafka server found.
+    # def test_list_with_first_good_second_bad_server(self):
+    #     kafka_servers = ["localhost:29092", "127.0.0.129092"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available(kafka_servers)
+    #         assert available is True
+
+    # # provide invalid bootstrap server
+    # def test_one_invalid_bootstrap_server(self):
+    #     kafka_servers = ["localhost29092"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         testsock.listen()
+    #         available = kafka_available(kafka_servers)
+    #         assert available is False
+
+    # def test_list_of_invalid_bootstrap_servers(self):
+    #     kafka_servers = ["127.0.0.129092", "localhost29092"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         available = kafka_available(kafka_servers)
+    #         assert available is False
+
+    # def test_bootstrap_server_with_bad_port(self):
+    #     kafka_servers = ["localhost:22222"]
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+    #         testsock.bind(("localhost", 29092))
+    #         available = kafka_available(kafka_servers)
+    #         assert available is False
+
+    # ---------------------------------------------------------------------------------
+    # # following integration tests succeed when Kakfa is available.
+    # ---------------------------------------------------------------------------------
     def test_happy_path(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available()
-            assert available is True
+        available = kafka_available()
+        assert available is True
 
     # provide valid bootstrap_server
     def test_one_valid_bootstrap_server(self):
         kafka_servers = [self.config.bootstrap_servers]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available(kafka_servers)
-            assert available is True
+        available = kafka_available(kafka_servers)
+        assert available is True
 
     def test_list_of_valid_bootstrap_servers(self):
         kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available(kafka_servers)
-            assert available is True
+        available = kafka_available(kafka_servers)
+        assert available is True
 
     # first bad with missing ':'
     def test_list_with_first_bad_second_good_server(self):
         kafka_servers = ["localhost29092", "127.0.0.1:29092"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available(kafka_servers)
-            assert available is True
+        available = kafka_available(kafka_servers)
+        assert available is True
 
     # second bad with missing ':'.  Returns as soon as the first kafka server found.
     def test_list_with_first_good_second_bad_server(self):
         kafka_servers = ["localhost:29092", "127.0.0.129092"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available(kafka_servers)
-            assert available is True
+        available = kafka_available(kafka_servers)
+        assert available is True
 
     # provide invalid bootstrap server
     def test_one_invalid_bootstrap_server(self):
         kafka_servers = ["localhost29092"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            testsock.listen()
-            available = kafka_available(kafka_servers)
-            assert available is False
+        available = kafka_available(kafka_servers)
+        assert available is False
 
     def test_list_of_invalid_bootstrap_servers(self):
         kafka_servers = ["127.0.0.129092", "localhost29092"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            available = kafka_available(kafka_servers)
-            assert available is False
+        available = kafka_available(kafka_servers)
+        assert available is False
 
     def test_bootstrap_server_with_bad_port(self):
         kafka_servers = ["localhost:22222"]
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            testsock.bind(("localhost", 29092))
-            available = kafka_available(kafka_servers)
-            assert available is False
+        available = kafka_available(kafka_servers)
+        assert available is False
 
 
 if __name__ == "__main__":
