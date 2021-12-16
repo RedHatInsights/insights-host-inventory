@@ -52,7 +52,7 @@ def _wildcard_string_filter(field_name, field_value, spec=None):
     return ({field_name: {"matches": (field_value)}},)
 
 
-def _object_filter_builder(field_name, input_object, field_filter, spec):
+def _object_filter_builder(input_object, spec):
     object_filter = {}
 
     if not isinstance(input_object, dict):
@@ -63,9 +63,7 @@ def _object_filter_builder(field_name, input_object, field_filter, spec):
         child_spec = spec["children"][name]
         child_filter = child_spec["filter"]
         if child_filter == "object":
-            object_filter[name] = _object_filter_builder(
-                next(iter(input_object[name])), input_object[name], "object", spec=child_spec
-            )
+            object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
             field_value = _get_field_value(input_object[name], child_filter)
             object_filter.update(
@@ -77,21 +75,10 @@ def _object_filter_builder(field_name, input_object, field_filter, spec):
     return object_filter
 
 
-def _build_object_filter(field_name, input_object, field_filter):
-    if not isinstance(input_object, dict):
-        raise ValidationException("Invalid filter value")
-
-    return (
-        {
-            "AND": [
-                {
-                    f"spf_{field_name}": _object_filter_builder(
-                        next(iter(input_object)), input_object, "object", system_profile_spec()[field_name]
-                    )
-                }
-            ]
-        },
-    )
+def _build_object_filter(field_name, input_object, spec=None):
+    curr_spec = spec if spec else system_profile_spec()
+    # The filter's xjoin name starts with "spf_", but we need to trim that for the real spec
+    return ({field_name: _object_filter_builder(input_object, curr_spec[field_name[4:]])},)
 
 
 class BUILDER_FUNCTIONS(Enum):
@@ -109,10 +96,20 @@ def _check_field_in_spec(spec, field_name):
         raise ValidationException(f"invalid filter field: {field_name}")
 
 
+# A recursive function that gets the deepest value of a deep object's first branch.
+# If not used for an object-type field_filter, it just returns field_value.
+def _get_object_base_value(field_value, field_filter):
+    current_value = field_value
+    while field_filter == "object" and isinstance(current_value, dict):
+        current_value = next(iter(current_value.values()))
+
+    return current_value
+
+
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
 def _get_field_value(field_value, field_filter):
-    if isinstance(field_value, dict):
+    if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
             if key not in lookup_operations(field_filter):
@@ -123,36 +120,75 @@ def _get_field_value(field_value, field_filter):
     return field_value
 
 
-def _nullable_wrapper(filter_function, field_name, field_value, field_filter):
-    graphql_operation = lookup_graphql_operations(field_filter)
+def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
+    # We need to check the deepest value, in case field_value is a deep object
+    base_value = _get_object_base_value(field_value, field_filter)
 
-    if field_value == NIL_STRING:
-        return ({field_name: {graphql_operation: None}},)
-    elif field_value == NOT_NIL_STRING:
-        return ({"NOT": {field_name: {graphql_operation: None}}},)
+    # Only do the "nullable" processing if the base value is nil or not_nil
+    if base_value in {NIL_STRING, NOT_NIL_STRING}:
+        base_filter = {lookup_graphql_operations(field_filter): None}
+
+        # If it's an object filter, we need to use the complete filter path in here.
+        if field_filter == "object":
+            base_filter = _isolate_object_filter_expression(field_value, base_filter)
+
+        # If it's nil, leave it as-is. If it's not_nil, we must negate it.
+        if base_value == NIL_STRING:
+            return ({field_name: base_filter},)
+        else:
+            return ({"NOT": {field_name: base_filter}},)
     else:
+        # If it's not nullable, none of the above applies
         return filter_function(field_name, field_value)
 
 
-def _get_list_operator(field_name):
-    if field_name in OR_FIELDS:
+def _get_list_operator(field_name, field_filter):
+    if field_name in OR_FIELDS or field_filter == "object":
         return "OR"
     else:
         return "AND"
 
 
+# Creates a full filter expression given a filter object and a value to use.
+# Used primarily to divide deep object lists into full individual deep object expressions.
+def _isolate_object_filter_expression(orig_object, single_value):
+    if not isinstance(orig_object, dict):
+        return single_value
+
+    next_key = next(iter(orig_object.keys()))
+    if isinstance(orig_object[next_key], dict):
+        return {next_key: _isolate_object_filter_expression(orig_object[next_key], single_value)}
+    else:
+        return {next_key: single_value}
+
+
+# Iterates through a deep object's keys to create filters.
+def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+    if not isinstance(field_value, dict):
+        raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
+
+    filter_list = []
+    for key, val in field_value.items():
+        filter_list += _base_filter_builder(builder_function, field_name, {key: val}, field_filter, spec)
+
+    return ({"AND": filter_list},)
+
+
 def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
-    if isinstance(field_value, list):
+    base_value = _get_object_base_value(field_value, field_filter)
+    if isinstance(base_value, list):
         logger.debug("filter value is a list")
         foo_list = []
-        for value in field_value:
-            foo_list.append(builder_function(xjoin_field_name, value, field_filter)[0])
-        list_operator = _get_list_operator(field_name)
+        for value in base_value:
+            isolated_expression = _isolate_object_filter_expression(field_value, value)
+            foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, spec)[0])
+        list_operator = _get_list_operator(field_name, field_filter)
         field_filter = ({list_operator: foo_list},)
-    elif isinstance(field_value, str):
+    elif isinstance(base_value, str):
         logger.debug("filter value is a string")
-        field_filter = builder_function(xjoin_field_name, field_value, field_filter)
+        isolated_expression = _isolate_object_filter_expression(field_value, base_value)
+        field_filter = builder_function(xjoin_field_name, isolated_expression, field_filter, spec)
     else:
         logger.debug("filter value is bad")
         raise ValidationException(f"wrong type for {field_value} filter")
@@ -163,8 +199,10 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
 def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
-
-    return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
+    if field_filter == "object":
+        return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
+    else:
+        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
 
 
 def build_tag_query_dict_tuple(tags):
@@ -247,7 +285,7 @@ def build_system_profile_filter(system_profile):
 
         builder_function = BUILDER_FUNCTIONS[field_filter].value
 
-        if field_name in custom_filter_fields or field_filter == "object":
+        if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
             field_value = _get_field_value(field_input, field_filter)

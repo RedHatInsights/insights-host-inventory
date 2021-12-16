@@ -341,10 +341,10 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${MEMORY_LIMIT_REAPER}
           requests:
             cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            memory: ${MEMORY_REQUEST_REAPER}
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -658,15 +658,21 @@ parameters:
   value: INFO
 - descrpition: Cpu request of service
   name: CPU_REQUEST
-  value: 200m
+  value: 250m
 - description: Cpu limit of service
   name: CPU_LIMIT
   value: 500m
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: memory limit of reaper
+  name: MEMORY_LIMIT_REAPER
+  value: 512Mi
 - description: request limit for service
   name: MEMORY_REQUEST
+  value: 256Mi
+- description: request limit for reaper
+  name: MEMORY_REQUEST_REAPER
   value: 256Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
