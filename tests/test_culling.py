@@ -209,7 +209,8 @@ def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
     assert response_status == 404
 
 
-def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host):
+def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+    mocker.patch("api.host.kafka_available", return_value=True)
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     response_status, response_data = api_delete_host(fresh_host.id)

@@ -450,6 +450,7 @@ def test_patch_host_with_RBAC_bypassed_as_system(api_patch, db_create_host, even
 
 def test_update_delete_race(event_producer, db_create_host, db_get_host, api_patch, api_delete_host, mocker):
     mocker.patch.object(event_producer, "write_event")
+    mocker.patch("api.host.kafka_available", return_value=True)
 
     # slow down the execution of update_display_name so that it's more likely we hit the race condition
     def sleep(data):
