@@ -32,6 +32,7 @@ def test_delete_with_invalid_host_id(api_delete_host):
     assert_response_status(response_status, expected_status=400)
 
 
+# arif: build_failure_check
 def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host):
     host = db_create_host()
 

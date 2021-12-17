@@ -1,4 +1,5 @@
 ---
+# Arif: comment added to generate new openapi.json
 openapi: 3.0.0
 info:
   description: REST interface for the Insights Platform Host Inventory application.
