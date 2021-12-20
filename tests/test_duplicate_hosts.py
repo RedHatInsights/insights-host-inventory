@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host, inventory_config, mocker):
     # make two hosts that are the same
     canonical_facts = {
         "provider_type": ProviderType.AWS,  # Doesn't matter
@@ -51,6 +51,7 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
     misc_session = Session()
 
     with multi_session_guard([accounts_session, hosts_session, misc_session]):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -71,7 +72,7 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
 
 @pytest.mark.host_delete_duplicates
 def test_delete_dupe_more_hosts_than_chunk_size(
-    event_producer_mock, db_get_host, db_create_multiple_hosts, db_create_host, inventory_config
+    event_producer_mock, db_get_host, db_create_multiple_hosts, db_create_host, inventory_config, mocker
 ):
     canonical_facts_1 = {
         "provider_id": generate_uuid(),
@@ -118,6 +119,7 @@ def test_delete_dupe_more_hosts_than_chunk_size(
     misc_session = Session()
 
     with multi_session_guard([accounts_session, hosts_session, misc_session]):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -137,7 +139,9 @@ def test_delete_dupe_more_hosts_than_chunk_size(
 
 
 @pytest.mark.host_delete_duplicates
-def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_create_multiple_hosts, inventory_config):
+def test_no_hosts_delete_when_no_dupes(
+    event_producer_mock, db_get_host, db_create_multiple_hosts, inventory_config, mocker
+):
     num_hosts = 100
     created_hosts = db_create_multiple_hosts(how_many=num_hosts)
     created_host_ids = [str(host.id) for host in created_hosts]
@@ -150,6 +154,7 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
     misc_session = Session()
 
     with multi_session_guard([accounts_session, hosts_session, misc_session]):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -166,7 +171,7 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, db_get_host, inventory_config, mocker):
     staleness_timestamps = get_staleness_timestamps()
 
     rhsm_id = generate_uuid()
@@ -224,6 +229,7 @@ def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, d
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -241,7 +247,7 @@ def test_delete_duplicates_customer_scenario_1(event_producer, db_create_host, d
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, db_get_host, inventory_config, mocker):
     staleness_timestamps = get_staleness_timestamps()
 
     rhsm_id = generate_uuid()
@@ -279,6 +285,7 @@ def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, d
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -295,7 +302,7 @@ def test_delete_duplicates_customer_scenario_2(event_producer, db_create_host, d
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("tested_id", ELEVATED_IDS)
 def test_delete_duplicates_elevated_ids_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_id
+    event_producer, db_create_host, db_get_host, inventory_config, tested_id, mocker
 ):
     def _gen_canonical_facts():
         facts = {
@@ -345,6 +352,7 @@ def test_delete_duplicates_elevated_ids_matching(
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -362,7 +370,7 @@ def test_delete_duplicates_elevated_ids_matching(
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("tested_id", ELEVATED_IDS)
 def test_delete_duplicates_elevated_ids_not_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_id
+    event_producer, db_create_host, db_get_host, inventory_config, tested_id, mocker
 ):
     canonical_facts = {
         "provider_id": generate_uuid(),
@@ -407,6 +415,7 @@ def test_delete_duplicates_elevated_ids_not_matching(
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -421,7 +430,9 @@ def test_delete_duplicates_elevated_ids_not_matching(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_without_elevated_matching(event_producer, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicates_without_elevated_matching(
+    event_producer, db_create_host, db_get_host, inventory_config, mocker
+):
     canonical_facts = {
         "bios_uuid": generate_uuid(),
         "satellite_id": generate_uuid(),
@@ -459,6 +470,7 @@ def test_delete_duplicates_without_elevated_matching(event_producer, db_create_h
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -478,7 +490,7 @@ def test_delete_duplicates_without_elevated_matching(event_producer, db_create_h
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("tested_fact", CANONICAL_FACTS)
 def test_delete_duplicates_without_elevated_not_matching(
-    event_producer, db_create_host, db_get_host, inventory_config, tested_fact
+    event_producer, db_create_host, db_get_host, inventory_config, tested_fact, mocker
 ):
     def _generate_fact(fact_name):
         if fact_name == "fqdn":
@@ -531,6 +543,7 @@ def test_delete_duplicates_without_elevated_not_matching(
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -545,7 +558,9 @@ def test_delete_duplicates_without_elevated_not_matching(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_last_modified(event_producer, db_create_multiple_hosts, db_get_host, inventory_config):
+def test_delete_duplicates_last_modified(
+    event_producer, db_create_multiple_hosts, db_get_host, inventory_config, mocker
+):
     """Test that the deletion script always keeps host with the latest 'modified_on' date"""
     canonical_facts = {
         "provider_id": generate_uuid(),
@@ -567,6 +582,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
@@ -586,7 +602,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("script_function", ["run", "main"])
 def test_delete_duplicates_multiple_scenarios(
-    event_producer, db_create_host, db_create_multiple_hosts, db_get_host, inventory_config, script_function
+    event_producer, db_create_host, db_create_multiple_hosts, db_get_host, inventory_config, script_function, mocker
 ):
     chunk_size = inventory_config.script_chunk_size
 
@@ -760,6 +776,7 @@ def test_delete_duplicates_multiple_scenarios(
     for host in without_elevated_not_matching_created_hosts:
         assert db_get_host(host)
 
+    mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
     if script_function == "run":
         Session = _init_db(inventory_config)
         sessions = [Session() for _ in range(3)]
@@ -797,7 +814,7 @@ def test_delete_duplicates_multiple_scenarios(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_get_host, inventory_config, mocker):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -813,6 +830,7 @@ def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_
     Session = _init_db(inventory_config)
     sessions = [Session() for _ in range(3)]
     with multi_session_guard(sessions):
+        mocker.patch("host_delete_duplicates.kafka_available", return_value=True)
         deleted_hosts_count = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),

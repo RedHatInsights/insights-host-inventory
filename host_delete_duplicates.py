@@ -1,6 +1,8 @@
 import sys
 from functools import partial
 
+import flask
+from flask_api import status
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
@@ -16,6 +18,7 @@ from app.queue.event_producer import EventProducer
 from lib.db import multi_session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+from lib.host_kafka import kafka_available
 from lib.host_remove_duplicates import delete_duplicate_hosts
 from lib.metrics import delete_duplicate_host_count
 
@@ -47,17 +50,21 @@ def _excepthook(logger, type, value, traceback):
 
 
 def run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler):
-    num_deleted = delete_duplicate_hosts(
-        accounts_session,
-        hosts_session,
-        misc_session,
-        config.script_chunk_size,
-        logger,
-        event_producer,
-        shutdown_handler.shut_down,
-    )
-    logger.info(f"Total number of hosts deleted: {num_deleted}")
-    return num_deleted
+    if kafka_available():
+        num_deleted = delete_duplicate_hosts(
+            accounts_session,
+            hosts_session,
+            misc_session,
+            config.script_chunk_size,
+            logger,
+            event_producer,
+            shutdown_handler.shut_down,
+        )
+        logger.info(f"Total number of hosts deleted: {num_deleted}")
+        return num_deleted
+    else:
+        logger.error("Kafka server not available.")
+        flask.abort(status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 def main(logger):
