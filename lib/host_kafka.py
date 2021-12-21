@@ -18,9 +18,11 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
             try:
                 host, port = server.split(":")
                 new_addr = (host, int(port))
-                may_be_errcode = kafka_socket.connect_ex(new_addr)
-                if may_be_errcode == 0:
+
+                # connect_ex() returns zero when the socket is open and accessible
+                if not kafka_socket.connect_ex(new_addr):
                     return True
+
             except ValueError as ve:
                 logger.error(f"Invalid server address: {str(ve)}")
     except ValueError as ve:
@@ -29,5 +31,4 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
 
 def kafka_available(servers=None):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as kafka_socket:
-        kafka = _any_bootstrap_server_connects(kafka_socket, servers)
-    return kafka is True
+        return _any_bootstrap_server_connects(kafka_socket, servers)

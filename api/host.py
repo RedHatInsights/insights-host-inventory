@@ -145,7 +145,6 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
-        deletion_count = 0
         # Check for the availability of a kafka server
         if kafka_available():
             for host_id, deleted in delete_hosts(
@@ -154,7 +153,6 @@ def delete_by_id(host_id_list):
                 if deleted:
                     log_host_delete_succeeded(logger, host_id, get_control_rule())
                     tracker_message = "deleted host"
-                    deletion_count += 1
                 else:
                     log_host_delete_failed(logger, host_id, get_control_rule())
                     tracker_message = "not deleted host"

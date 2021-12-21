@@ -2092,70 +2092,52 @@ class KafkaAvailabilityTests(TestCase):
         self.config = Config(RuntimeEnvironment.TEST)
 
     def test_happy_path(self):
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = True
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = True
 
-        available = real.kafka_available()
-
-        assert available is True
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, None)
+        assert host_kafka.kafka_available()
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, None)
 
     def test_valid_server(self):
         akafka = [self.config.bootstrap_servers]
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = True
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = True
 
-        available = real.kafka_available(akafka)
-
-        assert available is True
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, akafka)
+        assert host_kafka.kafka_available(akafka)
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, akafka)
 
     def test_list_of_valid_servers(self):
         kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = True
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = True
 
-        available = real.kafka_available(kafka_servers)
-
-        assert available is True
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
+        assert host_kafka.kafka_available(kafka_servers)
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
 
     def test_list_with_first_bad_second_good_server(self):
         kafka_servers = ["localhost29092", "127.0.0.1:29092"]
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = True
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = True
 
-        available = real.kafka_available(kafka_servers)
-
-        assert available is True
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
+        assert host_kafka.kafka_available(kafka_servers)
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
 
     # second bad with missing ':'.  Returns as soon as the first kafka server found.
     def test_list_with_first_good_second_bad_server(self):
         kafka_servers = ["localhost:29092", "127.0.0.129092"]
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = True
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = True
 
-        available = real.kafka_available(kafka_servers)
-
-        assert available is True
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
+        assert host_kafka.kafka_available(kafka_servers)
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
 
     def test_one_invalid_bootstrap_server(self):
         kafka_servers = ["localhos.129092"]
-        real = host_kafka
-        real._any_bootstrap_server_connects = MagicMock()
-        real._any_bootstrap_server_connects.return_value = False
+        host_kafka._any_bootstrap_server_connects = MagicMock()
+        host_kafka._any_bootstrap_server_connects.return_value = None
 
-        available = real.kafka_available(kafka_servers)
-
-        assert available is False
-        real._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
+        assert host_kafka.kafka_available(kafka_servers) is None
+        host_kafka._any_bootstrap_server_connects.assert_called_once_with(mock.ANY, kafka_servers)
 
 
 if __name__ == "__main__":
