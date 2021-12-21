@@ -20,7 +20,8 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
                 new_addr = (host, int(port))
 
                 # connect_ex() returns zero when the socket is open and accessible
-                if not kafka_socket.connect_ex(new_addr):
+                errcode = kafka_socket.connect_ex(new_addr)
+                if not errcode:
                     return True
 
             except ValueError as ve:
