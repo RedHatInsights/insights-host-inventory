@@ -67,7 +67,10 @@ MOCK_DEEPOBJECT_SPEC = {
     "properties": {
         "d1n1": {
             "type": "object",
-            "properties": {"d2n1": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}}},
+            "properties": {
+                "d2n1": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}},
+                "d2n2": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}},
+            },
         },
         "d1n2": {"type": "object", "properties": {"name": {"type": "string", "x-wildcard": True}}},
     },

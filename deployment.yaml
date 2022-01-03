@@ -80,8 +80,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -168,8 +168,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
@@ -233,8 +233,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
@@ -292,8 +292,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     jobs:
     - name: reaper
       schedule: '@hourly'
@@ -341,10 +341,10 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${MEMORY_LIMIT_REAPER}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST_REAPER}
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -413,8 +413,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
       suspend: ${{PENDO_SYNCHER_SUSPEND}}
@@ -452,8 +452,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: synchronizer
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -500,8 +500,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: events-topic-rebuilder
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -548,8 +548,58 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
+            cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST}
+    - name: floorist
+      schedule: ${FLOORIST_SCHEDULE}
+      suspend: ${{FLOORIST_SUSPEND}}
+      concurrencyPolicy: Forbid
+      podSpec:
+        image: ${FLOORIST_IMAGE}:${FLOORIST_IMAGE_TAG}
+        env:
+        - name: AWS_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: bucket
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_region
+        - name: AWS_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: endpoint
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_secret_access_key
+        - name: FLOORPLAN_FILE
+          value: "/tmp/floorplan/floorplan.yaml"
+        - name: LOGLEVEL
+          value: ${FLOORIST_LOGLEVEL}
+        volumeMounts:
+        - name: floorplan-volume
+          mountPath: "/tmp/floorplan"
+        volumes:
+          - name: floorplan-volume
+            configMap:
+              name: floorplan
+      resources:
+          limits:
+            cpu: "${CPU_LIMIT_FLOO}"
+            memory: "${MEMORY_LIMIT_FLOO}"
+          requests:
+            cpu: "${CPU_REQUEST_FLOO}"
+            memory: "${MEMORY_REQUEST_FLOO}"
     database:
       name: host-inventory
       version: 12
@@ -564,14 +614,6 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: duplicate-hosts-remover-${CJI_RANDOM_SUFFIX}
-  spec:
-    appName: host-inventory
-    jobs:
-      - duplicate-hosts-remover
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -595,21 +637,43 @@ objects:
       targetPort: 8000
     selector:
       pod: host-inventory-service
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: floorplan
+  data:
+    floorplan.yaml: |
+      - prefix: dumps/inventory/hosts
+        query: >-
+          SELECT
+            "id",
+            "account" AS "account_number",
+            "created" AS "created_at",
+            "updated" AS "updated_at",
+            "system_profile"->'operating_system'->'major' AS "os_major_version",
+            "system_profile"->'operating_system'->'minor' AS "os_minor_version"
+          FROM "hosts"
 parameters:
 - name: LOG_LEVEL
   value: INFO
+- descrpition: Cpu request of service
+  name: CPU_REQUEST
+  value: 250m
 - description: Cpu limit of service
   name: CPU_LIMIT
   value: 500m
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: memory limit of reaper
+  name: MEMORY_LIMIT_REAPER
+  value: 512Mi
 - description: request limit for service
   name: MEMORY_REQUEST
   value: 256Mi
-- description: memory limit for dedup job
-  name: DEDUP_MEMORY_LIMIT
-  value: 1Gi
+- description: request limit for reaper
+  name: MEMORY_REQUEST_REAPER
+  value: 256Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
@@ -698,3 +762,35 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+
+#floorist
+- name: MEMORY_LIMIT_FLOO
+  value: 200Mi
+- name: MEMORY_REQUEST_FLOO
+  value: 100Mi
+- name: CPU_LIMIT_FLOO
+  value: 100m
+- name: CPU_REQUEST_FLOO
+  value: 50m
+- name: FLOORIST_SCHEDULE
+  description: Cronjob schedule definition
+  required: true
+  value: '@daily'
+- name: FLOORIST_SUSPEND
+  description: Disable Floorist cronjob execution
+  required: true
+  value: 'true'
+- description: Floorist image name
+  name: FLOORIST_IMAGE
+  value: quay.io/cloudservices/floorist
+- description: Floorist Image tag
+  name: FLOORIST_IMAGE_TAG
+  required: true
+  value: latest
+- description: bucket secret name
+  name: FLOORIST_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-secret
+- name: FLOORIST_LOGLEVEL
+  description: Floorist loglevel config
+  value: 'INFO'

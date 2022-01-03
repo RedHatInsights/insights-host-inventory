@@ -1774,9 +1774,10 @@
                 "description": "Name of the distro/os",
                 "example": "RHEL",
                 "type": "string",
-                "maxLength": 4,
+                "maxLength": 6,
                 "enum": [
-                  "RHEL"
+                  "RHEL",
+                  "CentOS"
                 ]
               }
             }
