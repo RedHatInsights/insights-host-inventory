@@ -648,10 +648,30 @@ objects:
           SELECT
             "id",
             "account" AS "account_number",
-            "created" AS "created_at",
-            "updated" AS "updated_at",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+            "ansible_host" AS "ansible_host",
             "system_profile"->'operating_system'->'major' AS "os_major_version",
-            "system_profile"->'operating_system'->'minor' AS "os_minor_version"
+            "system_profile"->'operating_system'->'minor' AS "os_minor_version",
+            "system_profile"->'operating_system'->'name' AS "os_name",
+            "system_profile"->'sap_system' AS "is_sap_system",
+            "system_profile"->'sap_sids' AS "sap_system_ids",
+            "system_profile"->'sap_instance_number' AS "sap_hana_instance_number",
+            "system_profile"->'sap_version' AS "sap_hana_version",
+            "system_profile"->'host_type' AS "host_type",
+            "system_profile"->'system_purpose'->'usage' AS "system_purpose_usage",
+            "system_profile"->'system_purpose'->'role' AS "system_purpose_role",
+            "system_profile"->'system_purpose'->'sla' AS "system_purpose_sla",
+            "system_profile"->'ansible'->'controller_version' AS "ansible_controller_version",
+            "system_profile"->'ansible'->'hub_version' AS "ansible_hub_version",
+            "system_profile"->'ansible'->'catalog_worker_version' AS "ansible_catalog_worker_version",
+            "system_profile"->'ansible'->'sso_version' AS "ansible_sso_version",
+            "system_profile"->'rhsm'->'version' AS "rhsm_version",
+            "system_profile"->'is_marketplace' AS "is_marketplace_installation",
+            "system_profile"->'insights_client_version' AS "insights_client_version",
+            "system_profile"->'insights_egg_version' AS "insights_egg_version",
+            "system_profile"->'satellite_managed' AS "is_satellite_managed",
+            "system_profile"->'subscription_status' AS "subscription_status"
           FROM "hosts"
 parameters:
 - name: LOG_LEVEL
