@@ -1,7 +1,8 @@
-FROM registry.access.redhat.com/ubi8/python-38:1-74
+FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
+RUN dnf config-manager --disable rhel-8-for-x86_64-baseos-beta-rpms rhel-8-for-x86_64-appstream-beta-rpms
 RUN dnf module install -y postgresql:13
 
 # remove packages not used by host-inventory to avoid security vulnerabilityes
