@@ -11,6 +11,31 @@ SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE = {
     "hostSystemProfile": {"sap_sids": {"meta": {"total": 0, "count": 0}, "data": []}}
 }
 
+XJOIN_HOSTS_RESPONSE_FOR_FILTERING = {
+    "hosts": {
+        "meta": {"total": 3},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test01.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5",
+                },
+            },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "canonical_facts": {
+                    "fqdn": "fqdn.test02.rhel7.jharting.local",
+                    "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
+                    "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
+                },
+            },
+            {"id": "22cd8e39-13bb-4d02-8316-84b850dc5136", "canonical_facts": {"fqdn": "test03.rhel7.fqdn"}},
+        ],
+    }
+}
+
 XJOIN_HOSTS_RESPONSE = {
     "hosts": {
         "meta": {"total": 2},
