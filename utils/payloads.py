@@ -595,6 +595,69 @@ def build_host_chunk():
     return payload
 
 
+# def build_host_chunk():
+#     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
+#     payload = {
+#         "account": account,
+#         "insights_id": "5455a663-eed9-40c3-9c4f-0abb9e1d89a9",
+#         "subscription_manager_id": "90f2e709-1a5e-4ec3-9119-a9d6772c6d53",
+#         "satellite_id": "90f2e709-1a5e-4ec3-9119-a9d6772c6d53",
+#         "bios_uuid": "42324947-116a-3008-a1b1-46f5b3657efc",
+#         "mac_addresses": ["00:50:56:b2:43:3a", "00:00:00:00:00:00"],
+#         "reporter": "puptoo",
+#         "stale_timestamp": "2021-12-26T05:05:24.943346+00:00",
+#         "tags": {
+#             "insights-client": {"group": ["BIS-Net"]},
+#             "Satellite": {
+#                 "Organization": ["BIS"],
+#                 "Location": ["Basel-Zurich"],
+#                 "Host Group": ["VLAN55_10-55--Development--RHEL7"],
+#                 "Host Collection": [
+#                     "HC_VM",
+#                     "HC_RHEL7",
+#                     "HC_Development",
+#                     "HC_patching-G1-C-testdev",
+#                     "HC_Centrify",
+#                     "HC_Non-FM-Secure-Zones",
+#                 ],
+#             },
+#         },
+#     }
+#     return payload
+
+
+# def build_host_chunk():
+#     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
+#     shared_id = random_uuid()
+#     payload = {
+#         "account": account,
+#         "insights_id": "5455a663-eed9-40c3-9c4f-0abb9e1d89a9",
+#         "subscription_manager_id": shared_id,
+#         "satellite_id": shared_id,
+#         "bios_uuid": random_uuid(),
+#         "mac_addresses": ["00:50:56:b2:43:3a", "00:00:00:00:00:00"],
+#         "reporter": "puptoo",
+#         "stale_timestamp": "2021-12-26T05:05:24.943346+00:00",
+#         "tags": {
+#             "insights-client": {"group": ["BIS-Net"]},
+#             "Satellite": {
+#                 "Organization": ["BIS"],
+#                 "Location": ["Basel-Zurich"],
+#                 "Host Group": ["VLAN55_10-55--Development--RHEL7"],
+#                 "Host Collection": [
+#                     "HC_VM",
+#                     "HC_RHEL7",
+#                     "HC_Development",
+#                     "HC_patching-G1-C-testdev",
+#                     "HC_Centrify",
+#                     "HC_Non-FM-Secure-Zones",
+#                 ],
+#             },
+#         },
+#     }
+#     return payload
+
+
 def build_host_payload(payload_builder=build_host_chunk):
     return payload_builder()
 
