@@ -1,6 +1,7 @@
 import pytest
 
 from api import custom_escape
+from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
@@ -25,6 +26,7 @@ from tests.helpers.graphql_utils import assert_graph_query_single_call_with_stal
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.system_profile_utils import system_profile_deep_object_spec
 from tests.helpers.test_utils import generate_uuid
@@ -1649,6 +1651,94 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
             graphql_query_empty_response.reset_mock()
 
 
+@pytest.mark.parametrize(
+    "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("fqdn", "test.server.redhat.com"))
+)
+def test_xjoin_search_query_using_hostfilter(
+    mocker, query_source_xjoin, field, value, graphql_query_empty_response, patch_xjoin_post, api_delete_filtered_hosts
+):
+    response = {"data": XJOIN_HOSTS_RESPONSE_FOR_FILTERING}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    api_delete_filtered_hosts({field: value})
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}}, mocker.ANY)}, mocker.ANY
+    )
+
+
+def test_xjoin_search_query_using_hostfilter_display_name(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    query_params = {"display_name": "my awesome host uwu"}
+
+    api_delete_filtered_hosts(query_params)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}}, mocker.ANY)},
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_xjoin_search_using_hostfilters_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    query_params = {"tags": query_param}
+    api_delete_filtered_hosts(query_params)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": tag_filters + (mocker.ANY,)}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_xjoin_search_query_using_hostfilter_provider(
+    mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
+):
+    query_params = {"provider_type": provider["type"], "provider_id": provider["id"]}
+    api_delete_filtered_hosts(query_params)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {"filter": (mocker.ANY, {"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}})},
+        mocker.ANY,
+    )
+
+
 def test_spf_rhc_client_invalid_field_value(
     subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
@@ -1893,8 +1983,10 @@ def test_query_hosts_filter_spf_operating_system(
         "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
         "filter[system_profile][operating_system][RHEL][version][gt]=7&"
         "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
-        "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
+        "filter[system_profile][operating_system][RHEL][version][eq]=12.6&"
         "filter[system_profile][operating_system][CENT][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=8.0&"
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0",
     )
 
     graphql_queries = (
@@ -1906,7 +1998,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
+                                        "major": {"eq": 7},
                                         "minor": {"gte": 1},
                                         "name": {"eq": "RHEL"},
                                     }
@@ -1926,7 +2018,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 9, "lte": 9},
+                                        "major": {"eq": 9},
                                         "minor": {"lt": 2},
                                         "name": {"eq": "RHEL"},
                                     }
@@ -1938,7 +2030,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
+                                        "major": {"eq": 7},
                                         "minor": {"gt": 0},
                                         "name": {"eq": "RHEL"},
                                     }
@@ -1958,7 +2050,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
+                                        "major": {"eq": 7},
                                         "minor": {"gte": 1},
                                         "name": {"eq": "CENT"},
                                     }
@@ -1968,22 +2060,33 @@ def test_query_hosts_filter_spf_operating_system(
                         }
                     ]
                 },
+                {"AND": [{"spf_operating_system": {"major": {"eq": 12}, "minor": {"eq": 6}, "name": {"eq": "RHEL"}}}]},
+            ]
+        },
+        {
+            "OR": [
                 {
                     "AND": [
                         {
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 12, "lte": 12},
-                                        "minor": {"lte": 6},
+                                        "major": {"eq": 8},
+                                        "minor": {"eq": 0},
                                         "name": {"eq": "RHEL"},
                                     }
                                 },
-                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"eq": 9},
+                                        "minor": {"eq": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
                             ]
                         }
                     ]
-                },
+                }
             ]
         },
     )
@@ -2020,6 +2123,7 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
         "filter[system_profile][operating_system][RHEL]=7.1",
         "filter[system_profile][operating_system][CENT]=",
         "filter[system_profile][operating_system][CENT]=something",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0.1",
     )
 
     for http_query in http_queries:
@@ -2040,7 +2144,10 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         "filter[system_profile][ansible][catalog_worker_version]=nil",
         "filter[system_profile][ansible][sso_version]=0.44.963",
         "filter[system_profile][ansible][controller_version]=7.1&filter[system_profile][ansible][hub_version]=not_nil",
-        "filter[system_profile][ansible][catalog_worker_version]=not_nil",
+        "filter[system_profile][ansible][catalog_worker_version][]=8.0"
+        "&filter[system_profile][ansible][catalog_worker_version][]=9.0",
+        "filter[system_profile][ansible][hub_version]=not_nil&filter[system_profile][ansible][catalog_worker_version]"
+        "[]=8.0&filter[system_profile][ansible][catalog_worker_version][]=9.0",
     )
 
     graphql_queries = (
@@ -2048,8 +2155,33 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
         {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
         {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
+        {
+            "AND": [
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+                {"spf_ansible": {"controller_version": {"matches": "7.1"}}},
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "OR": [
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                    ]
+                }
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "OR": [
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                    ]
+                },
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+            ]
+        },
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
@@ -2082,11 +2214,13 @@ def test_query_hosts_filter_deep_objects(
     http_queries = (
         "filter[system_profile][ansible][d0n1][d1n2][name]=foo",
         "filter[system_profile][ansible][d0n1][d1n1][d2n1][name]=bar",
+        "filter[system_profile][ansible][d0n1][d1n1][d2n2][name]=nil",
     )
 
     graphql_queries = (
         {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
         {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n2": {"name": {"eq": None}}}}}}]},
     )
 
     with flask_app.app_context():
