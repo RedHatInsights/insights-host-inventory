@@ -69,7 +69,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
                 except Exception:
                     # TODO: Metrics
                     # metrics.ingress_message_handler_failure.inc()
-                    logger.exception("Unable to process message", extra={"incoming_message": message})
+                    logger.exception("Unable to process message", extra={"incoming_message": message.value})
 
             num_messages += len(messages)
 
