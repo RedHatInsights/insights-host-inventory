@@ -39,7 +39,7 @@ def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_
 
     response_status, response_data = api_delete_host(host.id)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
@@ -53,7 +53,7 @@ def test_create_then_delete_with_branch_id(
 
     response_status, response_data = api_delete_host(host.id, query_parameters={"branch_id": "1234"})
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
@@ -68,7 +68,7 @@ def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_
 
     response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, expected_request_id=request_id
@@ -82,7 +82,7 @@ def test_create_then_delete_without_request_id(
 
     response_status, response_data = api_delete_host(host.id)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(
         event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, expected_request_id="-1"
@@ -99,7 +99,7 @@ def test_create_then_delete_without_insights_id(
 
     response_status, response_data = api_delete_host(host.id)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
@@ -153,7 +153,7 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
 
     response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert_delete_event_is_valid(
         event_producer=event_producer_mock,
@@ -172,10 +172,10 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock([host.id]))
 
     # One host queried, but deleted by a different process. No event emitted yet returning
-    # 200 OK.
+    # 202 OK.
     response_status, response_data = api_delete_host(host.id)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert event_producer_mock.event is None
 
@@ -187,10 +187,10 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list))
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
-    # returning 200 OK.
+    # returning 202 OK.
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert event_producer_mock.event is None
 
@@ -202,10 +202,10 @@ def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multip
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list[0:1]))
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
-    # returning 200 OK.
+    # returning 202 OK.
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     assert host_id_list[1] == event_producer_mock.key
 
@@ -231,7 +231,7 @@ def test_delete_host_with_RBAC_allowed(
 
             response_status, response_data = api_delete_host(host.id)
 
-            assert_response_status(response_status, 200)
+            assert_response_status(response_status, 202)
 
             assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
@@ -266,7 +266,7 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 
     response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
 
-    assert_response_status(response_status, 200)
+    assert_response_status(response_status, 202)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
@@ -286,7 +286,7 @@ def test_delete_hosts_chunk_size(
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=202)
 
     query_wraper.query.limit.assert_called_with(5)
 

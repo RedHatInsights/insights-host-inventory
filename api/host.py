@@ -218,7 +218,7 @@ def _delete_filtered_hosts(host_id_list):
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
     _delete_filtered_hosts(host_id_list)
-    return flask.Response(None, status.HTTP_200_OK)
+    return flask.Response(None, status.HTTP_202_ACCEPTED)
 
 
 @api_operation
@@ -326,7 +326,6 @@ def merge_facts(host_id_list, namespace, body):
 
 
 def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
-
     current_identity = get_current_identity()
     query = Host.query.filter(
         (Host.account == current_identity.account_number)

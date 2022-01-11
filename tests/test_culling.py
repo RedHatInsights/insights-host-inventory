@@ -214,7 +214,7 @@ def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_ho
 
     response_status, response_data = api_delete_host(fresh_host.id)
 
-    assert response_status == 200
+    assert response_status == 202
 
 
 def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_hosts_in_all_states, api_get):
