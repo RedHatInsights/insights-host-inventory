@@ -172,7 +172,7 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock([host.id]))
 
     # One host queried, but deleted by a different process. No event emitted yet returning
-    # 202 OK.
+    # 202 ACCEPTED.
     response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=202)
@@ -187,7 +187,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list))
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
-    # returning 202 OK.
+    # returning 202 ACCEPTED.
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=202)
@@ -202,7 +202,7 @@ def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multip
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list[0:1]))
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
-    # returning 202 OK.
+    # returning 202 ACCEPTED.
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=202)
