@@ -45,7 +45,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
-from lib.host_kafka import kafka_available
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
@@ -194,27 +193,22 @@ def _delete_filtered_hosts(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
-        # Check for the availability of a kafka server
-        if kafka_available():
-            deletion_count = 0
-            for host_id, deleted in delete_hosts(
-                query, current_app.event_producer, inventory_config().host_delete_chunk_size
-            ):
-                if deleted:
-                    log_host_delete_succeeded(logger, host_id, get_control_rule())
-                    tracker_message = "deleted host"
-                    deletion_count += 1
-                else:
-                    log_host_delete_failed(logger, host_id, get_control_rule())
-                    tracker_message = "not deleted host"
+        deletion_count = 0
+        for host_id, deleted in delete_hosts(
+            query, current_app.event_producer, inventory_config().host_delete_chunk_size
+        ):
+            if deleted:
+                log_host_delete_succeeded(logger, host_id, get_control_rule())
+                tracker_message = "deleted host"
+                deletion_count += 1
+            else:
+                log_host_delete_failed(logger, host_id, get_control_rule())
+                tracker_message = "not deleted host"
 
-                with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message=tracker_message
-                ) as payload_tracker_processing_ctx:
-                    payload_tracker_processing_ctx.inventory_id = host_id
-        else:
-            logger.error("Kafka server not available.")
-            flask.abort(status.HTTP_503_SERVICE_UNAVAILABLE)
+            with PayloadTrackerProcessingContext(
+                payload_tracker, processing_status_message=tracker_message
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = host_id
 
     return deletion_count
 

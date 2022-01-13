@@ -49,7 +49,7 @@ def api_get(flask_client):
 def api_delete_host(flask_client):
     def _api_delete_host(mocker, host_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         url = f"{HOST_URL}/{host_id}"
-        _kafka_patch(mocker, "api.host.kafka_available")
+        _kafka_patch(mocker, "lib.host_delete.kafka_available")
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
