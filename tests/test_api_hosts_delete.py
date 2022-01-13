@@ -1,4 +1,3 @@
-# from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -15,8 +14,6 @@ from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-
-# from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 
 
 def test_delete_non_existent_host(mocker, api_delete_host):
