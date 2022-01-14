@@ -21,4 +21,6 @@ RUN pip install --upgrade pip && \
     pip install pipenv && \
     pipenv install --system --dev
 
+RUN pip install python-snappy
+
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'
