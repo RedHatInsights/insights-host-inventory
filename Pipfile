@@ -17,7 +17,6 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=19.9.0"
 connexion = {version = "~=2.7",extras = ["swagger-ui"]}
-openapi-schema-validator = "< 0.2"
 pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
@@ -34,7 +33,6 @@ app-common-python = "~=0.1.2"
 honcho = "*"
 sqlalchemy = "<1.4.0"
 urllib3 = ">=1.26.5"
-python-snappy = "*"
 
 [dev-packages]
 pytest = "~=5.0.1"
