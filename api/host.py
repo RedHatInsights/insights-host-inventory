@@ -146,10 +146,36 @@ def delete_host_list(
     staleness=None,
     tags=None,
     filter=None,
+    delete_all=None,
+    confirm=None,
 ):
-    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
-        logger.error("bulk-delete operation needs at least one input property to filter on.")
-        flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
+    if not any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            tags,
+            filter,
+            delete_all,
+            confirm,
+        ]
+    ):
+        logger.error(
+            "bulk-delete operation needs EITHER at least one input property to filter on OR \
+                delete_all=true&confirm=true"
+        )
+        flask.abort(
+            400,
+            "bulk-delete operation needs EITHER at least one input property to filter on OR \
+                delete_all=true&confirm=true.",
+        )
+
+    if (delete_all and not confirm) or (confirm and not delete_all):
+        logger.error("Deleting every host requires delete_all=true&confirm=true")
+        flask.abort(400, "Deleting every host requires delete_all=true&confirm=true")
 
     try:
         ids_list = get_host_ids_list_xjoin(

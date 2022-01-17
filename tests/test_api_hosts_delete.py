@@ -143,6 +143,69 @@ def test_delete_hosts_using_filter(
     assert len(new_hosts) == remaining_hosts.count()
 
 
+def test_delete_all_hosts(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, patch_xjoin_post
+):
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    ind = 0
+    for id in host_ids:
+        resp["hosts"]["data"][ind]["id"] = id
+        ind += 1
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    new_hosts = db_create_multiple_hosts()
+    new_ids = [str(host.id) for host in new_hosts]
+
+    # delete hosts using the IDs supposedly returned by the query_filter
+    response_status, response_data = api_delete_filtered_hosts({"delete_all": True, "confirm": True})
+
+    assert '"type": "delete"' in event_producer_mock.event
+    assert_response_status(response_status, expected_status=202)
+    assert len(host_ids) == response_data["hosts_deleted"]
+
+    # check db for the deleted hosts using their IDs
+    host_id_list = [str(host.id) for host in created_hosts]
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
+
+    # now verify that the second set of hosts still available.
+    remaining_hosts = db_get_hosts(new_ids)
+    assert len(new_hosts) == remaining_hosts.count()
+
+
+def test_delete_all_hosts_no_delete_all_provided(
+    db_create_multiple_hosts, api_delete_filtered_hosts, patch_xjoin_post
+):
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    ind = 0
+    for id in host_ids:
+        resp["hosts"]["data"][ind]["id"] = id
+        ind += 1
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    # delete all hosts using incomplete filter
+    response_status, response_data = api_delete_filtered_hosts({"confirm": True})
+
+    assert_response_status(response_status, expected_status=400)
+    assert "Deleting every host requires delete_all=true&confirm=true" in response_data["detail"]
+
+
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}

@@ -63,6 +63,8 @@ paths:
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/deleteAll'
+        - $ref: '#/components/parameters/confirm'
       responses:
         '202':
           description: Request for deletion of filtered hosts has been accepted.
@@ -663,6 +665,20 @@ components:
       explode: true
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
+    deleteAll:
+      in: query
+      name: delete_all
+      schema:
+        type: boolean
+      description: delete all option without further filter param
+      required: false
+    confirm:
+      in: query
+      name: confirm
+      schema:
+        type: boolean
+      description: Confirm for additional caution
+      required: false
 
   schemas:
     SystemProfileSapSystemOut:
