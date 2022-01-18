@@ -670,14 +670,14 @@ components:
       name: delete_all
       schema:
         type: boolean
-      description: delete all option without further filter param
+      description: The option to delete all hosts in an account.
       required: false
     confirm:
       in: query
       name: confirm
       schema:
         type: boolean
-      description: Confirm for additional caution
+      description: The Confirm option provided for additional caution
       required: false
 
   schemas:

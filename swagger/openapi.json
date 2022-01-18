@@ -1082,7 +1082,7 @@
         "schema": {
           "type": "boolean"
         },
-        "description": "delete all option without further filter param",
+        "description": "The option to delete all hosts in an account.",
         "required": false
       },
       "confirm": {
@@ -1091,7 +1091,7 @@
         "schema": {
           "type": "boolean"
         },
-        "description": "Confirm for additional caution",
+        "description": "The Confirm option provided for additional caution",
         "required": false
       }
     },
