@@ -105,7 +105,8 @@ def test_create_then_delete_without_insights_id(
 
 
 @pytest.mark.parametrize(
-    "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("registered_with", "insights"))
+    "field,value",
+    (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("registered_with", "insights"), ("staleness", "stale")),
 )
 def test_delete_hosts_using_filter(
     event_producer_mock,

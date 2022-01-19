@@ -147,7 +147,8 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
-    if not any(
+    # "unknown" in staleness means staleness has default values and is not being used as a filter parameter
+    if "unknown" in staleness and not any(
         [display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, registered_with, tags, filter]
     ):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
