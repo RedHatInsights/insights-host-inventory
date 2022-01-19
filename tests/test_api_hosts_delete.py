@@ -104,8 +104,17 @@ def test_create_then_delete_without_insights_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
+@pytest.mark.parametrize(
+    "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("registered_with", "insights"))
+)
 def test_delete_hosts_using_filter(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, patch_xjoin_post
+    event_producer_mock,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    api_delete_filtered_hosts,
+    patch_xjoin_post,
+    field,
+    value,
 ):
 
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
@@ -127,7 +136,7 @@ def test_delete_hosts_using_filter(
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly returned by the query_filter
-    response_status, response_data = api_delete_filtered_hosts({"insights_id": "a58c53e0-8000-4384-b902-c70b69faacc5"})
+    response_status, response_data = api_delete_filtered_hosts({field: value})
 
     assert '"type": "delete"' in event_producer_mock.event
     assert_response_status(response_status, expected_status=202)
