@@ -87,6 +87,8 @@ def params_to_order(param_order_by, param_order_how):
 
 def staleness_filter(staleness):
     config = inventory_config()
+    if not staleness:
+        staleness = ["fresh", "stale", "unknown"]
     return staleness_to_conditions(config, staleness, _stale_timestamp_filter)
 
 

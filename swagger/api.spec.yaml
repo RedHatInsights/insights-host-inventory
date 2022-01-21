@@ -592,10 +592,6 @@ components:
             - stale
             - stale_warning
             - unknown
-        default:
-          - fresh
-          - stale
-          - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
     tagsParam:
       name: tags

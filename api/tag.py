@@ -96,7 +96,6 @@ def get_tags(
             "OR": list(staleness_filter(staleness))
         },
     }
-
     hostfilter_and_variables = query_filters(
         fqdn,
         display_name,
@@ -105,7 +104,7 @@ def get_tags(
         provider_id,
         provider_type,
         tags,
-        None,
+        [],  # use kwargs later
         registered_with,
         filter,
     )

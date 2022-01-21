@@ -252,6 +252,8 @@ def query_filters(
 
     if tags:
         query_filters += build_tag_query_dict_tuple(tags)
+    if staleness is None:
+        staleness = ["fresh", "stale", "unknown"]
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
