@@ -56,6 +56,8 @@ def get_host_list(
         # add tag filtering to the query
         query = _find_hosts_by_tag(tags, query)
 
+    if staleness is None:
+        staleness = ["fresh", "stale", "unknown"]
     if staleness:
         query = find_hosts_by_staleness(staleness, query)
 
