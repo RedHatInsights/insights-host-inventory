@@ -622,6 +622,14 @@ objects:
     appName: host-inventory
     jobs:
       - events-topic-rebuilder
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: synchronizer-${SYNCHRONIZER_CJI_RANDOM_SUFFIX}
+  spec:
+    appName: host-inventory
+    jobs:
+      - synchronizer
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -780,6 +788,9 @@ parameters:
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: CJI_RANDOM_SUFFIX
+  required: true
+  value: '123456'
+- name: SYNCHRONIZER_CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
 
