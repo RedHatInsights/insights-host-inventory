@@ -2689,7 +2689,7 @@ def test_generic_filtering_string(
                         query_mock.reset_mock()
 
 
-# having both system_profile endpoints creates a moching issue right now.
+# having both system_profile endpoints creates a mocking issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_string_sap_sids(
     mocker,
@@ -2905,6 +2905,156 @@ def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin,
         "[contains]=true"
         # bad value
         "[eq]=foo",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
+
+
+def test_generic_filtering_integer(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    operations = ("", "[eq]")
+    values = ("1", "18446744073709551615", "nil", "not_nil")
+    number_of_cpus_queries = (
+        {"spf_number_of_cpus": {"eq": 1}},
+        {"spf_number_of_cpus": {"eq": 18446744073709551615}},
+        {"spf_number_of_cpus": {"eq": None}},
+        {"NOT": {"spf_number_of_cpus": {"eq": None}}},
+    )
+    number_of_sockets_queries = (
+        {"spf_number_of_sockets": {"eq": 1}},
+        {"spf_number_of_sockets": {"eq": 18446744073709551615}},
+        {"spf_number_of_sockets": {"eq": None}},
+        {"NOT": {"spf_number_of_sockets": {"eq": None}}},
+    )
+    system_memory_bytes_queries = (
+        {"spf_system_memory_bytes": {"eq": 1}},
+        {"spf_system_memory_bytes": {"eq": 18446744073709551615}},
+        {"spf_system_memory_bytes": {"eq": None}},
+        {"NOT": {"spf_system_memory_bytes": {"eq": None}}},
+    )
+    query_dicts = (number_of_cpus_queries, number_of_sockets_queries, system_memory_bytes_queries)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+# having both system_profile endpoints creates a moching issue right now.
+# Just going to split one off until I can refactor the whole test suite
+def test_generic_filtering_integer_sap_sids(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_system_profile_sap_sids_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    operations = ("", "[eq]")
+    values = ("1", "18446744073709551615", "nil", "not_nil")
+    number_of_cpus_queries = (
+        {"spf_number_of_cpus": {"eq": 1}},
+        {"spf_number_of_cpus": {"eq": 18446744073709551615}},
+        {"spf_number_of_cpus": {"eq": None}},
+        {"NOT": {"spf_number_of_cpus": {"eq": None}}},
+    )
+    number_of_sockets_queries = (
+        {"spf_number_of_sockets": {"eq": 1}},
+        {"spf_number_of_sockets": {"eq": 18446744073709551615}},
+        {"spf_number_of_sockets": {"eq": None}},
+        {"NOT": {"spf_number_of_sockets": {"eq": None}}},
+    )
+    system_memory_bytes_queries = (
+        {"spf_system_memory_bytes": {"eq": 1}},
+        {"spf_system_memory_bytes": {"eq": 18446744073709551615}},
+        {"spf_system_memory_bytes": {"eq": None}},
+        {"NOT": {"spf_system_memory_bytes": {"eq": None}}},
+    )
+    query_dicts = (number_of_cpus_queries, number_of_sockets_queries, system_memory_bytes_queries)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefixes = (
+        "?filter[system_profile][number_of_cpus]",
+        "?filter[system_profile][number_of_sockets]",
+        "?filter[system_profile][system_memory_bytes]",
+    )
+    suffixes = (
+        # bad operation
+        "[foo]=123",
+        "[bar][]=123",
+        "[eq][foo]=123",
+        "[is]=123",
+        "[lt]=123",
+        "[gt]=123",
+        "[lte]=123",
+        "[gte]=123",
+        "[matches]=123",
+        "[contains]=123"
+        # bad value
+        "[eq]=foo",
+        "[eq]=true",
     )
     endpoint_url_builders = (
         build_hosts_url,

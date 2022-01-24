@@ -34,6 +34,18 @@ def _boolean_filter(field_name, field_value, spec=None):
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
+def _integer_filter(field_name, field_value, spec=None):
+    # The "spec" param is defined but unused,
+    # because this is called from the BUILDER_FUNCTIONS enum.
+    try:
+        field_value = int(field_value)
+    except Exception as e:
+        logger.debug("Exception while creating integer filter. Cannot cast field value to int. Detail: %s", e)
+        _invalid_value_error(field_name, field_value)
+
+    return ({field_name: {"eq": field_value}},)
+
+
 def _string_filter(field_name, field_value, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
@@ -85,6 +97,7 @@ class BUILDER_FUNCTIONS(Enum):
     wildcard = partial(_wildcard_string_filter)
     string = partial(_string_filter)
     boolean = partial(_boolean_filter)
+    integer = partial(_integer_filter)
     # integer = doesnt exist yet, no xjoin-search support yet
     # Customs under here
     operating_system = partial(build_operating_system_filter)
