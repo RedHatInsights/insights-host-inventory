@@ -201,7 +201,7 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     response_status, response_data = api_delete_host(culled_host.id)
@@ -209,7 +209,7 @@ def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host, m
     assert response_status == 404
 
 
-def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host):
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     response_status, response_data = api_delete_host(fresh_host.id)
