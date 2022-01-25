@@ -6,6 +6,7 @@ from flask import request
 from requests import post
 
 from api.metrics import outbound_http_response_time
+from api.utils import staleness_defaults
 from app import IDENTITY_HEADER
 from app import inventory_config
 from app import REQUEST_ID_HEADER
@@ -88,7 +89,7 @@ def params_to_order(param_order_by, param_order_how):
 def staleness_filter(staleness):
     config = inventory_config()
     if not staleness:
-        staleness = ["fresh", "stale", "unknown"]
+        staleness = staleness_defaults()
     return staleness_to_conditions(config, staleness, _stale_timestamp_filter)
 
 

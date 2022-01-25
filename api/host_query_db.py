@@ -4,6 +4,7 @@ import flask
 from sqlalchemy import and_
 from sqlalchemy import or_
 
+from api.utils import staleness_defaults
 from app.auth import get_current_identity
 from app.instrumentation import log_get_host_list_succeeded
 from app.logging import get_logger
@@ -57,7 +58,7 @@ def get_host_list(
         query = _find_hosts_by_tag(tags, query)
 
     if staleness is None:
-        staleness = ["fresh", "stale", "unknown"]
+        staleness = staleness_defaults()
     if staleness:
         query = find_hosts_by_staleness(staleness, query)
 

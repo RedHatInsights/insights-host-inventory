@@ -5,6 +5,7 @@ from uuid import UUID
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
+from api.utils import staleness_defaults
 from app import custom_filter_fields
 from app import system_profile_spec
 from app.exceptions import ValidationException
@@ -253,7 +254,7 @@ def query_filters(
     if tags:
         query_filters += build_tag_query_dict_tuple(tags)
     if staleness is None:
-        staleness = ["fresh", "stale", "unknown"]
+        staleness = staleness_defaults()
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
