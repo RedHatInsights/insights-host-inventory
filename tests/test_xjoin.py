@@ -2983,7 +2983,7 @@ def test_generic_filtering_integer(
                         query_mock.reset_mock()
 
 
-# having both system_profile endpoints creates a moching issue right now.
+# having both system_profile endpoints creates a mocking issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_integer_sap_sids(
     mocker,
