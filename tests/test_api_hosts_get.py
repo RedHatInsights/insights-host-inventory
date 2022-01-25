@@ -1116,3 +1116,33 @@ def test_unindexed_fields_fail_gracefully(query_source_xjoin, api_get):
         for query in ("?filter[system_profile][installed_packages_delta]=foo",):
             response_status, _ = api_get(url_builder(query=query))
             assert response_status == 400
+
+
+# This test verifies that the [contains] operation is accepted for a string array field such as cpu_flags
+def test_get_hosts_contains_works_on_string_array(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+
+    for url_builder in url_builders:
+        for query in ("?filter[system_profile][cpu_flags][contains]=ex1",):
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 200
+
+
+# This test verifies that the [contains] operation is denied for a non-array string field such as cpu_model
+def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+
+    for url_builder in url_builders:
+        for query in ("?filter[system_profile][cpu_model][contains]=Intel(R) I7(R) CPU I7-10900k 0 @ 4.90GHz",):
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 400
