@@ -305,7 +305,7 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                         sys.exit(3)
                     except Exception:
                         metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": message})
+                        logger.exception("Unable to process message", extra={"incoming_message": message.value})
 
 
 def initialize_thread_local_storage(request_id):

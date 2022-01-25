@@ -1,10 +1,20 @@
 # Host Based Inventory
 
-You've arrived at the repo for the backend of the Host Based Inventory (HBI).If you're
-looking for API, integration or user documentation for HBI please see the [Inventory section
-in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
+You've arrived at the repo for the backend of the Host Based Inventory (HBI).
+If you're looking for API, integration or user documentation for HBI please see the [Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
 
-# Getting Started
+## Getting Started
+
+### Snappy
+
+This project uses [Snappy compression](http://google.github.io/snappy/) to enhance its Kafka usage.
+The `python-snappy` package requires the core Snappy library to be installed on the machine, so start off by running the following:
+
+```
+sudo dnf install snappy
+```
+
+### Install dependencies
 
 This project uses pipenv to manage the development and deployment environments.
 To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.8.x), pip and pipenv version. Once you have pipenv, do the following:
@@ -26,7 +36,7 @@ useful for development.
 docker-compose -f dev.yml up
 ```
 
-## Initialize the database
+### Initialize the database
 
 Run the following commands to run the db migration scripts which will
 maintain the db tables.
