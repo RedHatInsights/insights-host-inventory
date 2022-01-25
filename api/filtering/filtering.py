@@ -53,9 +53,6 @@ def _wildcard_string_filter(field_name, field_value, spec=None):
 
 
 def _object_filter_builder(input_object, spec):
-    print("SPEECC!!!")
-    print(spec)
-
     object_filter = {}
 
     if not isinstance(input_object, dict):
