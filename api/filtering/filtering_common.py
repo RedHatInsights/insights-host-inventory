@@ -14,6 +14,7 @@ SPEC_OPERATIONS_LOOKUP = {
     "boolean": OPERATION_SETS.eq.value,
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
+    "integer": OPERATION_SETS.eq.value[0],
 }
 
 GRAPHQL_OPERATIONS_LOOKUP = {
@@ -22,6 +23,7 @@ GRAPHQL_OPERATIONS_LOOKUP = {
     "boolean": OPERATION_SETS.is_op.value[0],
     "range": OPERATION_SETS.eq.value[0],
     "object": OPERATION_SETS.eq.value[0],
+    "integer": OPERATION_SETS.eq.value[0],
 }
 
 
