@@ -19,8 +19,8 @@ SPEC_OPERATIONS_LOOKUP = {
 ARRAY_SPEC_OPERATIONS_LOOKUP = {
     "string": OPERATION_SETS.eq.value,
     "wildcard": OPERATION_SETS.eq.value,  # because on our side we want eq
-    "boolean": OPERATION_SETS.eq.value,
-    "range": OPERATION_SETS.range.value,
+    "boolean": OPERATION_SETS.eq.value[0],
+    "range": OPERATION_SETS.range.value[0],
     "operating_system": OPERATION_SETS.range.value,
 }
 
