@@ -47,9 +47,9 @@ def api_get(flask_client):
 
 @pytest.fixture(scope="function")
 def api_delete_host(flask_client):
-    def _api_delete_host(mocker, host_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+    def _api_delete_host(host_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         url = f"{HOST_URL}/{host_id}"
-        _kafka_patch(mocker, "lib.host_delete.kafka_available")
+        kafka_patch("lib.host_delete.kafka_available")
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
@@ -79,13 +79,16 @@ def user_identity_mock(flask_app):
     # flask_app.user_identity = None
 
 
-def _kafka_patch(mocker, method):
-    return mocker.patch(method, return_value=True)
+def kafka_patch(mocker):
+    def _kafka_patch(method):
+        return mocker.patch(method, return_value=True)
+
+    return _kafka_patch
 
 
 @pytest.fixture(scope="function")
-def patch_kafka_available(mocker):
+def patch_kafka_available():
     def _patch_kafka_available(method):
-        _kafka_patch(mocker, method)
+        kafka_patch(method)
 
     return _patch_kafka_available

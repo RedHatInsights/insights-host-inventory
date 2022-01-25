@@ -468,7 +468,7 @@ def test_update_delete_race(event_producer, db_create_host, db_get_host, api_pat
     patchThread.start()
 
     # as PATCH is running, concurrently delete the host
-    response_status, response_data = api_delete_host(mocker, host.id)
+    response_status, response_data = api_delete_host(host.id)
     assert_response_status(response_status, expected_status=200)
 
     # wait for PATCH to finish
