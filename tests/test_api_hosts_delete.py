@@ -19,7 +19,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 def test_delete_non_existent_host(mocker, api_delete_host):
     host_id = generate_uuid()
 
-    response_status, response_data = api_delete_host(mocker, host_id)
+    response_status, response_data = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=404)
 
@@ -27,7 +27,7 @@ def test_delete_non_existent_host(mocker, api_delete_host):
 def test_delete_with_invalid_host_id(mocker, api_delete_host):
     host_id = "notauuid"
 
-    response_status, response_data = api_delete_host(mocker, host_id)
+    response_status, response_data = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=400)
 
@@ -37,7 +37,7 @@ def test_create_then_delete(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(mocker, host.id)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -51,7 +51,7 @@ def test_create_then_delete_with_branch_id(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(mocker, host.id, query_parameters={"branch_id": "1234"})
+    response_status, response_data = api_delete_host(host.id, query_parameters={"branch_id": "1234"})
 
     assert_response_status(response_status, expected_status=200)
 
@@ -68,7 +68,7 @@ def test_create_then_delete_with_request_id(
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(mocker, host.id, extra_headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -82,7 +82,7 @@ def test_create_then_delete_without_request_id(
 ):
     host = db_create_host()
 
-    response_status, response_data = api_delete_host(mocker, host.id)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -99,7 +99,7 @@ def test_create_then_delete_without_insights_id(
 
     db_create_host(host=host)
 
-    response_status, response_data = api_delete_host(mocker, host.id)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -116,7 +116,7 @@ def test_create_then_delete_check_metadata(
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
 
-    response_status, response_data = api_delete_host(mocker, host.id, extra_headers=headers)
+    response_status, response_data = api_delete_host(host.id, extra_headers=headers)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -138,7 +138,7 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
 
     # One host queried, but deleted by a different process. No event emitted yet returning
     # 200 OK.
-    response_status, response_data = api_delete_host(mocker, host.id)
+    response_status, response_data = api_delete_host(host.id)
 
     assert_response_status(response_status, expected_status=200)
 
@@ -153,7 +153,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
     # returning 200 OK.
-    response_status, response_data = api_delete_host(mocker, ",".join(host_id_list))
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -168,7 +168,7 @@ def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multip
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
     # returning 200 OK.
-    response_status, response_data = api_delete_host(mocker, ",".join(host_id_list))
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -194,7 +194,7 @@ def test_delete_host_with_RBAC_allowed(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(mocker, host.id)
+            response_status, response_data = api_delete_host(host.id)
 
             assert_response_status(response_status, 200)
 
@@ -215,7 +215,7 @@ def test_delete_host_with_RBAC_denied(
 
             host = db_create_host()
 
-            response_status, response_data = api_delete_host(mocker, host.id)
+            response_status, response_data = api_delete_host(host.id)
 
             assert_response_status(response_status, 403)
 
@@ -229,7 +229,7 @@ def test_delete_host_with_RBAC_bypassed_as_system(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
 
-    response_status, response_data = api_delete_host(mocker, host.id, SYSTEM_IDENTITY)
+    response_status, response_data = api_delete_host(host.id, SYSTEM_IDENTITY)
 
     assert_response_status(response_status, 200)
 
@@ -249,7 +249,7 @@ def test_delete_hosts_chunk_size(
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(host.id) for host in hosts]
 
-    response_status, response_data = api_delete_host(mocker, ",".join(host_id_list))
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=200)
 
@@ -268,7 +268,7 @@ def test_delete_stops_after_kafka_producer_error(
     hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
 
-    response_status, response_data = api_delete_host(mocker, ",".join(host_id_list))
+    response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=500)
 
