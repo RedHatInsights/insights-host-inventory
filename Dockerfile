@@ -4,6 +4,7 @@ USER root
 
 RUN dnf config-manager --disable rhel-8-for-x86_64-baseos-beta-rpms rhel-8-for-x86_64-appstream-beta-rpms
 RUN dnf module install -y postgresql:13
+RUN dnf install -y snappy
 
 # remove packages not used by host-inventory to avoid security vulnerabilityes
 RUN dnf remove -y npm
