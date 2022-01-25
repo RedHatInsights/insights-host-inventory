@@ -3,7 +3,7 @@ from enum import Enum
 
 class OPERATION_SETS(Enum):
     eq = ["eq", "contains"]  # add contains for when it's a list
-    matches = ["matches", "contains"]
+    matches = ["matches"]
     is_op = ["is"]  # "is" is reserved
     range = ["eq", "lt", "gt", "lte", "gte"]
 
@@ -11,7 +11,7 @@ class OPERATION_SETS(Enum):
 SPEC_OPERATIONS_LOOKUP = {
     "string": OPERATION_SETS.eq.value[0],
     "wildcard": OPERATION_SETS.eq.value[0],  # because on our side we want eq
-    "boolean": OPERATION_SETS.eq.value,
+    "boolean": OPERATION_SETS.eq.value[0],
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
 }
