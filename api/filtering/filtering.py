@@ -49,7 +49,10 @@ def _wildcard_string_filter(field_name, field_value, spec=None):
     if not isinstance(field_value, str):
         _invalid_value_error(field_name, field_value)
 
-    return ({field_name: {"matches": (field_value)}},)
+    if "*" in field_value:
+        return ({field_name: {"matches": (field_value)}},)
+    else:
+        return ({field_name: {"eq": (field_value)}},)
 
 
 def _object_filter_builder(input_object, spec):
