@@ -1945,7 +1945,7 @@ def test_query_hosts_filter_spf_insights_client_version(
     filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
     values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
     queries = (
-        {"spf_insights_client_version": {"matches": "3.0.6-2.el7_6"}},
+        {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
         {"spf_insights_client_version": {"matches": "3.*"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
@@ -2151,22 +2151,22 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
     )
 
     graphql_queries = (
-        {"AND": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"controller_version": {"eq": "7.1"}}}]},
         {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
         {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
-        {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
+        {"AND": [{"spf_ansible": {"sso_version": {"eq": "0.44.963"}}}]},
         {
             "AND": [
                 {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
-                {"spf_ansible": {"controller_version": {"matches": "7.1"}}},
+                {"spf_ansible": {"controller_version": {"eq": "7.1"}}},
             ]
         },
         {
             "AND": [
                 {
                     "OR": [
-                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
-                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "9.0"}}},
                     ]
                 }
             ]
@@ -2175,8 +2175,8 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
             "AND": [
                 {
                     "OR": [
-                        {"spf_ansible": {"catalog_worker_version": {"matches": "8.0"}}},
-                        {"spf_ansible": {"catalog_worker_version": {"matches": "9.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "9.0"}}},
                     ]
                 },
                 {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
@@ -2218,8 +2218,8 @@ def test_query_hosts_filter_deep_objects(
     )
 
     graphql_queries = (
-        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
-        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"eq": "foo"}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"eq": "bar"}}}}}}]},
         {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n2": {"name": {"eq": None}}}}}}]},
     )
 
@@ -2937,7 +2937,7 @@ def test_generic_filtering_wildcard(
     values = ("8.*", "7.3", "nil", "not_nil")
     insights_client_version_queries = (
         {"spf_insights_client_version": {"matches": "8.*"}},
-        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": "7.3"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
     )
@@ -2982,7 +2982,7 @@ def test_generic_filtering_wildcard_sap_sids(
     values = ("8.*", "7.3", "nil", "not_nil")
     insights_client_version_queries = (
         {"spf_insights_client_version": {"matches": "8.*"}},
-        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": "7.3"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
     )
