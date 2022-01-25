@@ -16,7 +16,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_delete_non_existent_host(mocker, api_delete_host):
+def test_delete_non_existent_host(api_delete_host):
     host_id = generate_uuid()
 
     response_status, response_data = api_delete_host(host_id)
@@ -24,7 +24,7 @@ def test_delete_non_existent_host(mocker, api_delete_host):
     assert_response_status(response_status, expected_status=404)
 
 
-def test_delete_with_invalid_host_id(mocker, api_delete_host):
+def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
     response_status, response_data = api_delete_host(host_id)
@@ -32,9 +32,7 @@ def test_delete_with_invalid_host_id(mocker, api_delete_host):
     assert_response_status(response_status, expected_status=400)
 
 
-def test_create_then_delete(
-    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host, mocker
-):
+def test_create_then_delete(event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host):
     host = db_create_host()
 
     response_status, response_data = api_delete_host(host.id)
@@ -47,7 +45,7 @@ def test_create_then_delete(
 
 
 def test_create_then_delete_with_branch_id(
-    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, db_get_host, api_delete_host
 ):
     host = db_create_host()
 
@@ -60,9 +58,7 @@ def test_create_then_delete_with_branch_id(
     assert not db_get_host(host.id)
 
 
-def test_create_then_delete_with_request_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
-):
+def test_create_then_delete_with_request_id(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
     host = db_create_host(extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}})
 
     request_id = generate_uuid()
@@ -78,7 +74,7 @@ def test_create_then_delete_with_request_id(
 
 
 def test_create_then_delete_without_request_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_create_host()
 
@@ -92,7 +88,7 @@ def test_create_then_delete_without_request_id(
 
 
 def test_create_then_delete_without_insights_id(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
+    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
     del host.canonical_facts["insights_id"]
@@ -106,9 +102,7 @@ def test_create_then_delete_without_insights_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
-def test_create_then_delete_check_metadata(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
-):
+def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
@@ -223,7 +217,7 @@ def test_delete_host_with_RBAC_denied(
 
 
 def test_delete_host_with_RBAC_bypassed_as_system(
-    api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac, mocker
+    api_delete_host, event_datetime_mock, event_producer_mock, db_get_host, db_create_host, enable_rbac
 ):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
@@ -261,7 +255,7 @@ def test_delete_hosts_chunk_size(
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_delete_stops_after_kafka_producer_error(
-    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts, mocker
+    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
