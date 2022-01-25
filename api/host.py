@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 
 import connexion
@@ -132,6 +133,41 @@ def get_host_list(
     return flask_json_response(json_data)
 
 
+def _validate_filter(**kwargs):
+    temp = deepcopy(kwargs)
+    for key, value in temp.items():
+        if not value:
+            del kwargs[key]
+
+    # check if any filter provided
+    if len(kwargs) == 0:
+        logger.error(
+            "bulk-delete operation needs EITHER at least one input property to filter on OR \
+                delete_all=true&confirm=true to delete every host"
+        )
+        flask.abort(
+            400,
+            "bulk-delete operation needs EITHER at least one input property to filter on OR \
+                delete_all=true&confirm=true to delete every host.",
+        )
+
+    # delete_all and confirm both are required for deleting all.
+    if (kwargs.get("delete_all") and not kwargs.get("confirm")) or (
+        kwargs.get("confirm") and not kwargs.get("delete_all")
+    ):
+        logger.error("Deleting every host requires delete_all=true&confirm=true")
+        flask.abort(400, "Deleting every host requires delete_all=true&confirm=true")
+
+    # ensure delete_all is not being used with anyother filter to avoid mass deletion.
+    if "delete_all" in kwargs.keys() and len(kwargs) > 2:
+        logger.error("bulk-delete operation not allowed using delete_all and confirm with any other filter parameters")
+        flask.abort(
+            400, "bulk-delete operation not allowed using delete_all and confirm with any other filter parameters"
+        )
+
+    return True
+
+
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
@@ -149,53 +185,43 @@ def delete_host_list(
     delete_all=None,
     confirm=None,
 ):
-    if not any(
-        [
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            tags,
-            filter,
-            delete_all,
-            confirm,
-        ]
+    ids_list = []
+
+    # TODO: add staleness filter after the merging of PR #1070 essntl-1993: \
+    # Add staleness and registered_with as params for deleting filtered hosts #1071
+    if _validate_filter(
+        display_name=display_name,
+        fqdn=fqdn,
+        hostname_or_id=hostname_or_id,
+        insights_id=insights_id,
+        provider_id=provider_id,
+        provider_type=provider_type,
+        registered_with=registered_with,
+        tags=tags,
+        filter=filter,
+        delete_all=delete_all,
+        confirm=confirm,
     ):
-        logger.error(
-            "bulk-delete operation needs EITHER at least one input property to filter on OR \
-                delete_all=true&confirm=true"
-        )
-        flask.abort(
-            400,
-            "bulk-delete operation needs EITHER at least one input property to filter on OR \
-                delete_all=true&confirm=true.",
-        )
 
-    if (delete_all and not confirm) or (confirm and not delete_all):
-        logger.error("Deleting every host requires delete_all=true&confirm=true")
-        flask.abort(400, "Deleting every host requires delete_all=true&confirm=true")
-
-    try:
-        ids_list = get_host_ids_list_xjoin(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            registered_with,
-            staleness,
-            tags,
-            filter,
-        )
-    except ValueError as err:
-        log_get_host_list_failed(logger)
-        flask.abort(400, str(err))
-    except ConnectionError:
-        logger.error("xjoin-search not accessible")
-        flask.abort(503)
+        try:
+            ids_list = get_host_ids_list_xjoin(
+                display_name,
+                fqdn,
+                hostname_or_id,
+                insights_id,
+                provider_id,
+                provider_type,
+                registered_with,
+                staleness,
+                tags,
+                filter,
+            )
+        except ValueError as err:
+            log_get_host_list_failed(logger)
+            flask.abort(400, str(err))
+        except ConnectionError:
+            logger.error("xjoin-search not accessible")
+            flask.abort(503)
 
     if not len(ids_list):
         flask.abort(status.HTTP_404_NOT_FOUND)
