@@ -185,23 +185,10 @@ def delete_host_list(
     delete_all=None,
     confirm=None,
 ):
+    args = locals()
     ids_list = []
 
-    # TODO: add staleness filter after the merging of PR #1070 essntl-1993: \
-    # Add staleness and registered_with as params for deleting filtered hosts #1071
-    if _validate_filter(
-        display_name=display_name,
-        fqdn=fqdn,
-        hostname_or_id=hostname_or_id,
-        insights_id=insights_id,
-        provider_id=provider_id,
-        provider_type=provider_type,
-        registered_with=registered_with,
-        tags=tags,
-        filter=filter,
-        delete_all=delete_all,
-        confirm=confirm,
-    ):
+    if _validate_filter(args):
 
         try:
             ids_list = get_host_ids_list_xjoin(
