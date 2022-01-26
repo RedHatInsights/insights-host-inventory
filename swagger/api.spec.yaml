@@ -677,7 +677,7 @@ components:
       name: confirm
       schema:
         type: boolean
-      description: The Confirm option provided for additional caution
+      description: Confirmation to delete all hosts on an account. Combine with `delete_all=true` to confirm deletion of all hosts.
       required: false
 
   schemas:
