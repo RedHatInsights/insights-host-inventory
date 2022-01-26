@@ -151,7 +151,7 @@ def test_delete_all_hosts(
 
     # set the new host ids in the xjoin search reference.
     resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    for ind, id in enumerate(host_ids)
+    for ind, id in enumerate(host_ids):
         resp["hosts"]["data"][ind]["id"] = id
     response = {"data": resp}
 
@@ -179,9 +179,13 @@ def test_delete_all_hosts(
     assert len(new_hosts) == remaining_hosts.count()
 
 
-def test_delete_all_hosts_no_delete_all_provided(api_delete_filtered_hosts):
-    # delete all hosts using incomplete filter
-    response_status, response_data = api_delete_filtered_hosts({"confirm": True})
+@pytest.mark.parametrize("filter", ({"confirm": True}, {"delete_all": True}))
+def test_delete_all_hosts_no_delete_all_provided(
+    db_create_multiple_hosts, api_delete_filtered_hosts, patch_xjoin_post, filter
+):
+    # delete all hosts using incomplete filte
+    response_status, response_data = api_delete_filtered_hosts(filter)
+
     assert_response_status(response_status, expected_status=400)
     assert "Deleting every host requires delete_all=true&confirm=true" in response_data["detail"]
 

@@ -133,7 +133,7 @@ def get_host_list(
     return flask_json_response(json_data)
 
 
-def _validate_filter(**kwargs):
+def _delete_all_hosts_filter(**kwargs):
     temp = deepcopy(kwargs)
     for key, value in temp.items():
         if not value:
@@ -188,7 +188,21 @@ def delete_host_list(
     args = locals()
     ids_list = []
 
-    if _validate_filter(args):
+    # TODO: add staleness filter after the merging of PR #1070 essntl-1993: \
+    # Add staleness and registered_with as params for deleting filtered hosts #1071
+    if _delete_all_hosts_filter(
+        display_name=display_name,
+        fqdn=fqdn,
+        hostname_or_id=hostname_or_id,
+        insights_id=insights_id,
+        provider_id=provider_id,
+        provider_type=provider_type,
+        registered_with=registered_with,
+        tags=tags,
+        filter=filter,
+        delete_all=delete_all,
+        confirm=confirm,
+    ):
 
         try:
             ids_list = get_host_ids_list_xjoin(
