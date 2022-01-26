@@ -9,20 +9,21 @@ class OPERATION_SETS(Enum):
 
 
 SPEC_OPERATIONS_LOOKUP = {
-    "string": OPERATION_SETS.eq.value[0],
-    "wildcard": OPERATION_SETS.eq.value[0],  # because on our side we want eq
-    "boolean": OPERATION_SETS.eq.value[0],
+    "string": [OPERATION_SETS.eq.value[0]],
+    "wildcard": [OPERATION_SETS.eq.value[0]],  # because on our side we want eq
+    "boolean": [OPERATION_SETS.eq.value[0]],
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
+    "integer": [OPERATION_SETS.eq.value[0]],
 }
 
 ARRAY_SPEC_OPERATIONS_LOOKUP = {
     "string": OPERATION_SETS.eq.value,
     "wildcard": OPERATION_SETS.eq.value,  # because on our side we want eq
-    "boolean": OPERATION_SETS.eq.value[0],
-    "range": OPERATION_SETS.range.value[0],
+    "boolean": [OPERATION_SETS.eq.value[0]],
+    "range": [OPERATION_SETS.range.value[0]],
     "operating_system": OPERATION_SETS.range.value,
-    "integer": OPERATION_SETS.eq.value[0],
+    "integer": [OPERATION_SETS.eq.value[0]],
 }
 
 GRAPHQL_OPERATIONS_LOOKUP = {

@@ -114,10 +114,6 @@ def _get_field_filter(field_name, props):
     return field_type
 
 
-def _get_field_is_array(field_name, props):
-    return "array" == props.get("type")
-
-
 def process_spec(spec, process_unindexed=False):
     system_profile_spec_processed = {}
     for field, props in spec.items():
@@ -126,7 +122,7 @@ def process_spec(spec, process_unindexed=False):
             system_profile_spec_processed[field] = {
                 "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
                 "filter": field_filter,
-                "is_array": _get_field_is_array(field, props),
+                "is_array": "array" == props.get("type"),
             }
 
             if field_filter == "object":
