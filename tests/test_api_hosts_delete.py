@@ -151,10 +151,8 @@ def test_delete_all_hosts(
 
     # set the new host ids in the xjoin search reference.
     resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    ind = 0
-    for id in host_ids:
+    for ind, id in enumerate(host_ids)
         resp["hosts"]["data"][ind]["id"] = id
-        ind += 1
     response = {"data": resp}
 
     # Make the new hosts available in xjoin-search to make them available
