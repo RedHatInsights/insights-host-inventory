@@ -185,7 +185,7 @@ def delete_host_list(
         flask.abort(503)
 
     if not len(ids_list):
-        flask.abort(status.HTTP_404_NOT_FOUND)
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
     delete_count = _delete_filtered_hosts(ids_list)
 
