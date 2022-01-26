@@ -670,7 +670,7 @@ components:
       name: delete_all
       schema:
         type: boolean
-      description: The option to delete all hosts in an account.
+      description: The option to delete all hosts in an account. Combine with `confirm=true` to confirm deletion of all hosts.
       required: false
     confirm:
       in: query
