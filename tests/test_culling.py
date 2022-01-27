@@ -305,7 +305,7 @@ def test_culled_timestamp(
 
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config, patch_kafka_available
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
 ):
     staleness_timestamps = get_staleness_timestamps()
 
@@ -315,7 +315,6 @@ def test_culled_host_is_removed(
     assert db_get_host(created_host.id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    patch_kafka_available("lib.host_delete.kafka_available")
 
     host_reaper_run(
         inventory_config,
@@ -390,7 +389,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, patch_kafka_available):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config):
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -406,7 +405,6 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
     event_producer_mock = mock.Mock()
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    patch_kafka_available("lib.host_delete.kafka_available")
 
     host_reaper_run(
         inventory_config,
@@ -462,7 +460,7 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, patch_kafka_available
+    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
@@ -478,7 +476,6 @@ def test_reaper_stops_after_kafka_producer_error(
     assert hosts.count() == host_count
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-    patch_kafka_available("lib.host_delete.kafka_available")
 
     with pytest.raises(KafkaError):
         host_reaper_run(

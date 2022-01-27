@@ -86,7 +86,7 @@ def kafka_patch(mocker):
     return _kafka_patch
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def patch_kafka_available():
     def _patch_kafka_available(method):
         kafka_patch(method)
