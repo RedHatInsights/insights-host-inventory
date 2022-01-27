@@ -1,8 +1,6 @@
 import sys
 from functools import partial
 
-import flask
-from flask_api import status
 from prometheus_client import CollectorRegistry
 from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
@@ -64,7 +62,6 @@ def run(config, logger, accounts_session, hosts_session, misc_session, event_pro
         return num_deleted
     else:
         logger.error("Kafka server not available.")
-        flask.abort(status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 def main(logger):

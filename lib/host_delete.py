@@ -1,5 +1,3 @@
-import flask
-from flask_api import status
 from sqlalchemy.orm.base import instance_state
 
 from app.logging import get_logger
@@ -40,10 +38,13 @@ def _delete_host(session, event_producer, host):
             headers = message_headers(EventType.delete, insights_id)
             event_producer.write_event(event, str(host.id), headers, wait=True)
             delete_query.session.commit()
-            return True
+            return host_deleted
+        else:
+            delete_query.session.rollback()
+            return host_deleted
     else:
-        logger.error(f"host with {host.id} because Kafka server not available.")
-        flask.abort(status.HTTP_503_SERVICE_UNAVAILABLE)
+        logger.error(f"host with {host.id} NOT deleted because Kafka server not available.")
+        return False
 
 
 def _deleted_by_this_query(host):
