@@ -104,7 +104,6 @@ def test_create_then_delete_without_insights_id(
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
 
 
-# add deleted test
 def test_delete_hosts_using_filter(
     event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_filtered_hosts, patch_xjoin_post
 ):
@@ -140,9 +139,6 @@ def test_delete_hosts_using_filter(
     # now verify that the second set of hosts still available.
     remaining_hosts = db_get_hosts(new_ids)
     assert len(new_hosts) == remaining_hosts.count()
-
-
-# end of deleted test
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
