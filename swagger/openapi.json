@@ -117,7 +117,7 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
-            "$ref": "#/components/parameters/stalenessParam"
+            "$ref": "#/components/parameters/stalenessNoDefaultsParam"
           },
           {
             "$ref": "#/components/parameters/tagsParam"
@@ -985,6 +985,24 @@
           ]
         },
         "description": "Culling states of the hosts. Default: fresh,stale,unknown"
+      },
+      "stalenessNoDefaultsParam": {
+        "name": "staleness",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "stale_warning",
+              "unknown"
+            ]
+          }
+        },
+        "description": "stalenessNoDefaultsParam reference used for deleting hosts using staleness"
       },
       "tagsParam": {
         "name": "tags",
