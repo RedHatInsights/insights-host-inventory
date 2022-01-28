@@ -77,10 +77,11 @@ def _object_filter_builder(input_object, spec):
         _check_field_in_spec(spec["children"], name)
         child_spec = spec["children"][name]
         child_filter = child_spec["filter"]
+        child_is_array = child_spec["is_array"]
         if child_filter == "object":
             object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
-            field_value = _get_field_value(input_object[name], child_filter)
+            field_value = _get_field_value(input_object[name], child_filter, child_is_array)
             object_filter.update(
                 _generic_filter_builder(
                     BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, child_spec
@@ -124,11 +125,11 @@ def _get_object_base_value(field_value, field_filter):
 
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
-def _get_field_value(field_value, field_filter):
+def _get_field_value(field_value, field_filter, is_array):
     if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
-            if key not in lookup_operations(field_filter):
+            if key not in lookup_operations(field_filter, is_array):
                 raise ValidationException(f"invalid operation for {field_filter}")
 
             field_value = field_value[key]
@@ -296,6 +297,7 @@ def build_system_profile_filter(system_profile):
 
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
+        is_array = system_profile_spec()[field_name]["is_array"]
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
@@ -304,7 +306,7 @@ def build_system_profile_filter(system_profile):
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
-            field_value = _get_field_value(field_input, field_filter)
+            field_value = _get_field_value(field_input, field_filter, is_array)
             system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
 
     return system_profile_filter
