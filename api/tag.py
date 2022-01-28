@@ -104,7 +104,7 @@ def get_tags(
         provider_id,
         provider_type,
         tags,
-        [],  # use kwargs later
+        None,
         registered_with,
         filter,
     )
