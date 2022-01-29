@@ -231,6 +231,38 @@ def _delete_filtered_hosts(host_id_list):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
+def delete_all_hosts(delete_all=None, confirm_delete_all=None):
+    if not any([delete_all, confirm_delete_all]):
+        logger.error("To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
+        flask.abort(400, "To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
+    if (delete_all and not confirm_delete_all) or (confirm_delete_all and not delete_all):
+        logger.error("Deleting all hosts requires delete_all=true and confirm_delete_all=true.")
+        flask.abort(400, "Deleting all hosts requires delete_all=true and confirm_delete_all=true.")
+
+    try:
+        # Send None for all filter params, except {} for the filter expected for checking system_profile presence
+        # Sending no filter, gets all hosts on the account
+        ids_list = get_host_ids_list_xjoin(None, None, None, None, None, None, None, None, None, {})
+    except ValueError as err:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(err))
+    except ConnectionError:
+        logger.error("xjoin-search not accessible")
+        flask.abort(503)
+
+    if not len(ids_list):
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+
+    delete_count = _delete_filtered_hosts(ids_list)
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
 def delete_by_id(host_id_list):
     _delete_filtered_hosts(host_id_list)
     return flask.Response(None, status.HTTP_200_OK)

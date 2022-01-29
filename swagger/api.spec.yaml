@@ -68,6 +68,26 @@ paths:
           description: Request for deletion of filtered hosts has been accepted.
         '400':
           description: Invalid request.
+  /hosts/delete_all_hosts:
+    delete:
+      operationId: api.host.delete_all_hosts
+      tags:
+        - hosts
+      summary: Delete all hosts on the account
+      description: >-
+        Delete all hosts on the account.  The request must include "delete_all=true&confirm_delete_all=true".
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/deleteAll'
+        - $ref: '#/components/parameters/confirmDeleteAll'
+      responses:
+        '202':
+          description: Request for deleting all hosts has been accepted.
+        '400':
+          description: Invalid request.
   /hosts/checkin:
     post:
       operationId: api.host.host_checkin
@@ -677,6 +697,20 @@ components:
       explode: true
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
+    deleteAll:
+      in: query
+      name: delete_all
+      schema:
+        type: boolean
+      description: The option to delete all hosts on an account. Combine with `confirm_delete_all=true` to confirm deletion of all hosts.
+      required: false
+    confirmDeleteAll:
+      in: query
+      name: confirm_delete_all
+      schema:
+        type: boolean
+      description: Confirmation to delete all hosts on an account. Combine with `delete_all=true` to confirm deletion of all hosts.
+      required: false
 
   schemas:
     SystemProfileSapSystemOut:
