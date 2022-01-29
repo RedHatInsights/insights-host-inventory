@@ -158,26 +158,11 @@ def delete_host_list(
     filter=None,
 ):
     input_args = deepcopy(locals())
+
+    # count the passed in arguments with 'non-None' values
     args_count = _get_input_args_count(input_args)
 
     if not args_count:
-        logger.error("bulk-delete operation needs at least one input property to filter on.")
-        flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
-
-    if not any(
-        [
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            provider_id,
-            provider_type,
-            registered_with,
-            staleness,
-            tags,
-            filter,
-        ]
-    ):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 

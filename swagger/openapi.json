@@ -1002,7 +1002,7 @@
             ]
           }
         },
-        "description": "stalenessNoDefaultsParam reference used for deleting hosts using staleness"
+        "description": "Culling states of the hosts."
       },
       "tagsParam": {
         "name": "tags",
