@@ -36,6 +36,9 @@ class Timestamps(_WithConfig):
     def culled_timestamp(self, stale_timestamp):
         return self._add_time(stale_timestamp, self.config.culled_offset_delta)
 
+    def always_fresh_timestamp(self, stale_timestamp):
+        return self._add_time(stale_timestamp, self.config.culling_offset_delta_infiniti)
+
 
 class Conditions(_WithConfig):
     def __init__(self, config):
