@@ -60,7 +60,7 @@ paths:
         - $ref: '#/components/parameters/providerId'
         - $ref: '#/components/parameters/providerType'
         - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/filter_param'
       responses:
@@ -597,6 +597,20 @@ components:
           - stale
           - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
+    stalenessNoDefaultsParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+            - unknown
+      description: "Culling states of the hosts."
     tagsParam:
       name: tags
       in: query
