@@ -148,7 +148,20 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
-    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
+    if not any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+        ]
+    ):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
@@ -180,10 +193,10 @@ def delete_host_list(
         flask.abort(400, str(err))
     except ConnectionError:
         logger.error("xjoin-search not accessible")
-        flask.abort(503, "xjoin-search not accessible")
+        flask.abort(503)
     except KafkaError as ke:
         logger.error("Kafka server not available")
-        flask.abort(503, str(ke))
+        flask.abort(503)
 
 
 def _delete_filtered_hosts(host_id_list):
