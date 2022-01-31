@@ -229,7 +229,12 @@ def add_host(host_data, platform_metadata):
                 host_data = _set_owner(host_data, identity)
 
             input_host = deserialize_host(host_data)
-            staleness_timestamps = Timestamps.from_config(inventory_config())
+            # staleness_timestamps = Timestamps.from_config(inventory_config())
+            if host_data.get("system_profile").get("host_type") == "edge":
+                staleness_timestamps = Timestamps.edge_system_timestamp(inventory_config())
+            else:
+                staleness_timestamps = Timestamps.from_config(inventory_config())
+
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
                 input_host, identity, staleness_timestamps, fields=EGRESS_HOST_FIELDS
@@ -246,7 +251,8 @@ def add_host(host_data, platform_metadata):
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
-        except Exception:
+        except Exception as exc:
+            logger.exception(str(exc))
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise

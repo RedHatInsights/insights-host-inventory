@@ -61,6 +61,9 @@ class Conditions(_WithConfig):
     def culled(self):
         return None, self._culled_timestamp()
 
+    def infinite(self):
+        return self.max, None
+
     def _stale_warning_timestamp(self):
         offset = self.config.stale_warning_offset_delta
         return self.now - offset
