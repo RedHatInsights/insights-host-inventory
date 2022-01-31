@@ -1,4 +1,3 @@
-from copy import deepcopy
 from enum import Enum
 
 import connexion
@@ -65,15 +64,6 @@ def _get_host_list_by_id_list(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
-
-
-# how many args have values
-def _get_input_args_count(args):
-    input = deepcopy(args)
-    for key, value in input.items():
-        if not value:
-            del args[key]
-    return len(args)
 
 
 def get_bulk_query_source():
@@ -157,12 +147,20 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
-    input_args = deepcopy(locals())
-
-    # count the passed in arguments with 'non-None' values
-    args_count = _get_input_args_count(input_args)
-
-    if not args_count:
+    if not any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+        ]
+    ):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
