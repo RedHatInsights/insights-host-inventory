@@ -230,12 +230,9 @@ def _delete_filtered_hosts(host_id_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_all_hosts(delete_all=None, confirm_delete_all=None):
-    if not any([delete_all, confirm_delete_all]):
+    if not all([delete_all, confirm_delete_all]):
         logger.error("To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
         flask.abort(400, "To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
-    if (delete_all and not confirm_delete_all) or (confirm_delete_all and not delete_all):
-        logger.error("Deleting all hosts requires delete_all=true and confirm_delete_all=true.")
-        flask.abort(400, "Deleting all hosts requires delete_all=true and confirm_delete_all=true.")
 
     try:
         # Send None for all filter params, except {} for the filter expected for checking system_profile presence
