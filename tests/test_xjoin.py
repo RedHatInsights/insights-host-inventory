@@ -1742,7 +1742,7 @@ def test_xjoin_search_query_to_delete_all_hosts(mocker, graphql_query_empty_resp
     api_delete_all_hosts(query_params)
 
     # using mocker.ANY because no filter is used to fetch all hosts.
-    graphql_query_empty_response.assert_called_once_with(HOST_IDS_QUERY, {"filter": (mocker.ANY)}, mocker.ANY)
+    graphql_query_empty_response.assert_called_once_with(HOST_IDS_QUERY, {"filter": ()}, mocker.ANY)
 
 
 def test_spf_rhc_client_invalid_field_value(
