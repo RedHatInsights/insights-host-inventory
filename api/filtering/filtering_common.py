@@ -15,6 +15,7 @@ SPEC_OPERATIONS_LOOKUP = {
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
     "integer": OPERATION_SETS.range.value,
+    "date-time": OPERATION_SETS.range.value,
 }
 
 ARRAY_SPEC_OPERATIONS_LOOKUP = {
@@ -23,7 +24,8 @@ ARRAY_SPEC_OPERATIONS_LOOKUP = {
     "boolean": [OPERATION_SETS.eq.value[0]],
     "range": [OPERATION_SETS.range.value[0]],
     "operating_system": OPERATION_SETS.range.value,
-    "integer": [OPERATION_SETS.eq.value[0]],
+    "integer": OPERATION_SETS.range.value,
+    "date-time": OPERATION_SETS.range.value,
 }
 
 GRAPHQL_OPERATIONS_LOOKUP = {
@@ -36,9 +38,12 @@ GRAPHQL_OPERATIONS_LOOKUP = {
 }
 
 
-def lookup_operations(filter_type, is_array=False):
+def lookup_operations(filter_type, filter_format=None, is_array=False):
     if is_array:
         return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_type]
+    if filter_format == "date-time":
+        return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_format]
+
     return SPEC_OPERATIONS_LOOKUP[filter_type]
 
 

@@ -90,7 +90,9 @@ def _object_filter_builder(input_object, spec):
         if child_filter == "object":
             object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
-            field_value, operation = _get_field_value_and_operation(input_object[name], child_filter, child_is_array)
+            field_value, operation = _get_field_value_and_operation(
+                input_object[name], child_filter, child_format, child_is_array
+            )
             object_filter.update(
                 _generic_filter_builder(
                     _get_builder_function(child_filter, child_format),
@@ -146,13 +148,13 @@ def _get_object_base_value(field_value, field_filter):
 
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
-def _get_field_value_and_operation(field_value, field_filter, is_array):
+def _get_field_value_and_operation(field_value, field_filter, field_format, is_array):
     # Selecting 0th element from lookup_operations because it is always eq or equivalent
-    operation = None if field_filter == "object" else lookup_operations(field_filter, is_array)[0]
+    operation = None if field_filter == "object" else lookup_operations(field_filter, field_format, is_array)[0]
     if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
-            if key not in lookup_operations(field_filter, is_array):
+            if key not in lookup_operations(field_filter, field_format, is_array):
                 raise ValidationException(f"invalid operation for {field_filter}")
             operation = key
             field_value = field_value[key]
@@ -330,7 +332,7 @@ def build_system_profile_filter(system_profile):
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
-            field_value, operation = _get_field_value_and_operation(field_input, field_filter, is_array)
+            field_value, operation = _get_field_value_and_operation(field_input, field_filter, field_format, is_array)
             system_profile_filter += _generic_filter_builder(
                 builder_function, field_name, field_value, field_filter, operation
             )
