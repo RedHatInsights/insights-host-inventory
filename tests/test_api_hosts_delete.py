@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 from kafka.errors import KafkaError
 
-from api.host import _get_host_list_by_id_list
+from api.host import _get_host_list_by_id_list_db
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
@@ -288,8 +288,8 @@ def test_delete_hosts_chunk_size(
 ):
     inventory_config.host_delete_chunk_size = 5
 
-    query_wraper = DeleteQueryWrapper(mocker)
-    mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
+    query_wrapper = DeleteQueryWrapper(mocker)
+    mocker.patch("api.host._get_host_list_by_id_list_db", query_wrapper.mock_get_host_list_by_id_list)
 
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(host.id) for host in hosts]
@@ -298,7 +298,7 @@ def test_delete_hosts_chunk_size(
 
     assert_response_status(response_status, expected_status=200)
 
-    query_wraper.query.limit.assert_called_with(5)
+    query_wrapper.query.limit.assert_called_with(5)
 
 
 @pytest.mark.parametrize(
@@ -361,6 +361,6 @@ class DeleteQueryWrapper:
         self.mocker = mocker
 
     def mock_get_host_list_by_id_list(self, host_id_list):
-        self.query = _get_host_list_by_id_list(host_id_list)
+        self.query = _get_host_list_by_id_list_db(host_id_list)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query

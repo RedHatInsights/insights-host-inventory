@@ -251,6 +251,10 @@ def build_tag_query_dict_tuple(tags):
     return query_tag_tuple
 
 
+def host_id_list_query_filter(host_id_list):
+    return ({"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]},)
+
+
 def query_filters(
     fqdn,
     display_name,

@@ -62,7 +62,11 @@ XJOIN_HOSTS_RESPONSE = {
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
-                "system_profile_facts": {"test_data": "1.2.3", "random": ["data"]},
+                "system_profile_facts": {
+                    "test_data": "1.2.3",
+                    "random": ["data"],
+                    "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+                },
             },
             {
                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
