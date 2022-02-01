@@ -146,7 +146,20 @@ def delete_host_list(
     tags=None,
     filter=None,
 ):
-    if not any([display_name, fqdn, hostname_or_id, insights_id, provider_id, provider_type, tags, filter]):
+    if not any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+        ]
+    ):
         logger.error("bulk-delete operation needs at least one input property to filter on.")
         flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
 
@@ -171,7 +184,7 @@ def delete_host_list(
         flask.abort(503)
 
     if not len(ids_list):
-        flask.abort(status.HTTP_404_NOT_FOUND)
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
     delete_count = _delete_filtered_hosts(ids_list)
 

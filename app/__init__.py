@@ -118,9 +118,12 @@ def process_spec(spec, process_unindexed=False):
     system_profile_spec_processed = {}
     for field, props in spec.items():
         if props.get("x-indexed", True) or process_unindexed:
-            field_type = _spec_type_to_python_type(props["type"])  # cast from string to type
             field_filter = _get_field_filter(field, props)
-            system_profile_spec_processed[field] = {"type": field_type, "filter": field_filter}
+            system_profile_spec_processed[field] = {
+                "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
+                "filter": field_filter,
+                "is_array": "array" == props.get("type"),
+            }
 
             if field_filter == "object":
                 system_profile_spec_processed[field]["children"] = process_spec(props["properties"], True)
