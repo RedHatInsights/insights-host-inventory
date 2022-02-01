@@ -176,6 +176,7 @@ def test_delete_all_hosts(
     response_status, response_data = api_delete_all_hosts({"delete_all": True, "confirm_delete_all": True})
 
     assert '"type": "delete"' in event_producer_mock.event
+    assert event_producer_mock.write_event.call_count == len(created_hosts)
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
 
