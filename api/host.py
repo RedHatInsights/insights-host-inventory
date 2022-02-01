@@ -194,7 +194,7 @@ def delete_host_list(
     except ConnectionError:
         logger.error("xjoin-search not accessible")
         flask.abort(503)
-    except KafkaError as ke:
+    except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
 

@@ -130,7 +130,7 @@ def test_delete_hosts_using_filter(
     patch_xjoin_post,
     field,
     value,
-    mocker
+    mocker,
 ):
     mocker.patch("lib.host_delete.kafka_available")
 
