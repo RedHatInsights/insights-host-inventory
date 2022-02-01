@@ -172,7 +172,7 @@ def test_delete_all_hosts(
     new_hosts = db_create_multiple_hosts()
     new_ids = [str(host.id) for host in new_hosts]
 
-    # delete hosts using the IDs supposedly returned by the query_filter
+    # delete all hosts on the account
     response_status, response_data = api_delete_all_hosts({"delete_all": True, "confirm_delete_all": True})
 
     assert '"type": "delete"' in event_producer_mock.event
