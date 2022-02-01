@@ -16,6 +16,7 @@ from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.graphql_utils import xjoin_host_response
+from tests.helpers.graphql_utils import XJOIN_INVALID_SYSTEM_PROFILE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.mq_utils import create_kafka_consumer_mock
@@ -221,11 +222,11 @@ def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, enable_rbac):
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_host_with_invalid_system_profile(api_get, db_create_host):
-    # create a host with invalid system_profile in the db
-    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}})
-
-    response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+def test_get_host_with_invalid_system_profile(api_get, patch_xjoin_post):
+    # patch xjoin post to respond with graphql_utils.XJOIN_INVALID_SYSTEM_PROFILE
+    patch_xjoin_post(XJOIN_INVALID_SYSTEM_PROFILE)
+    url = build_system_profile_url(host_list_or_id=generate_uuid())
+    response_status, _ = api_get(url)
 
     assert_response_status(response_status, 500)
 

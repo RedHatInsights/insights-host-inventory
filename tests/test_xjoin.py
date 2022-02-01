@@ -3,7 +3,7 @@ import pytest
 from api import custom_escape
 from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
-from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
+from api.sparse_host_list_system_profile import SYSTEM_PROFILE_SPARSE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
@@ -2421,7 +2421,9 @@ def test_sp_sparse_xjoin_query_translation(
     response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
 
     assert response_status == 200
-    graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)
+    graphql_sparse_system_profile_empty_response.assert_called_once_with(
+        SYSTEM_PROFILE_SPARSE_QUERY, variables, mocker.ANY
+    )
 
 
 @pytest.mark.parametrize(

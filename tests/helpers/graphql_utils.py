@@ -103,6 +103,23 @@ XJOIN_HOSTS_RESPONSE = {
     }
 }
 
+XJOIN_INVALID_SYSTEM_PROFILE = {
+    "hosts": {
+        "meta": {"total": 1},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "system_profile_facts": {
+                    "test_data": "1.2.3",
+                    "random": ["data"],
+                    "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+                    "disk_devices": [{"options": {"": "invalid"}}],
+                },
+            }
+        ],
+    }
+}
+
 XJOIN_TAGS_RESPONSE = {
     "hostTags": {
         "meta": {"count": 3, "total": 3},
