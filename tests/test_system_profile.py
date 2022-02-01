@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from app.config import Config
@@ -42,7 +40,6 @@ def test_system_profile_includes_owner_id(api_get, patch_xjoin_post):
 
     response_status, response_data = api_get(url)
 
-    print(json.dumps(response_data))
     assert "owner_id" in response_data["results"][0]["system_profile"]
     assert response_status == 200
 
