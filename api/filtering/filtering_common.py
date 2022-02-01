@@ -8,6 +8,8 @@ class OPERATION_SETS(Enum):
     range = ["eq", "lt", "gt", "lte", "gte"]
 
 
+SUPPORTED_FORMATS = ["date-time"]
+
 SPEC_OPERATIONS_LOOKUP = {
     "string": [OPERATION_SETS.eq.value[0]],
     "wildcard": [OPERATION_SETS.eq.value[0]],  # because on our side we want eq
@@ -41,7 +43,7 @@ GRAPHQL_OPERATIONS_LOOKUP = {
 def lookup_operations(filter_type, filter_format=None, is_array=False):
     if is_array:
         return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_type]
-    if filter_format == "date-time":
+    if filter_format in SUPPORTED_FORMATS:
         return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_format]
 
     return SPEC_OPERATIONS_LOOKUP[filter_type]

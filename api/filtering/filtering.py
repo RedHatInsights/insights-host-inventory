@@ -5,6 +5,7 @@ from uuid import UUID
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
+from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
 from app import system_profile_spec
 from app.exceptions import ValidationException
@@ -125,7 +126,7 @@ class BUILDER_FUNCTIONS(Enum):
 
 
 def _get_builder_function(filter, format):
-    if format in ["date-time"]:
+    if format in SUPPORTED_FORMATS:
         return BUILDER_FUNCTIONS["timestamp"].value
 
     return BUILDER_FUNCTIONS[filter].value
