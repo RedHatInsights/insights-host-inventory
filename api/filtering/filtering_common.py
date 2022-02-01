@@ -14,7 +14,7 @@ SPEC_OPERATIONS_LOOKUP = {
     "boolean": [OPERATION_SETS.eq.value[0]],
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
-    "integer": [OPERATION_SETS.range.value],
+    "integer": OPERATION_SETS.range.value,
 }
 
 ARRAY_SPEC_OPERATIONS_LOOKUP = {

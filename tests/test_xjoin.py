@@ -3044,10 +3044,6 @@ def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, 
         "[bar][]=123",
         "[eq][foo]=123",
         "[is]=123",
-        "[lt]=123",
-        "[gt]=123",
-        "[lte]=123",
-        "[gte]=123",
         "[matches]=123",
         "[contains]=123"
         # bad value
