@@ -2,6 +2,8 @@ from enum import Enum
 from functools import partial
 from uuid import UUID
 
+from filtering_common import OPERATION_SETS
+
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
@@ -14,7 +16,6 @@ from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 
-
 logger = get_logger(__name__)
 
 NIL_STRING = "nil"
@@ -26,7 +27,7 @@ def _invalid_value_error(field_name, field_value):
     raise ValidationException(f"{field_value} is an invalid value for field {field_name}")
 
 
-def _boolean_filter(field_name, field_value, spec=None):
+def _boolean_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not field_value.lower() in ("true", "false"):
@@ -35,7 +36,7 @@ def _boolean_filter(field_name, field_value, spec=None):
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def _integer_filter(field_name, field_value, spec=None):
+def _integer_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     try:
@@ -44,7 +45,7 @@ def _integer_filter(field_name, field_value, spec=None):
         logger.debug("Exception while creating integer filter. Cannot cast field value to int. Detail: %s", e)
         _invalid_value_error(field_name, field_value)
 
-    return ({field_name: {"eq": field_value}},)
+    return ({field_name: {operation: field_value}},)
 
 
 def _timestamp_filter(field_name, field_value, spec=None):
@@ -55,7 +56,7 @@ def _timestamp_filter(field_name, field_value, spec=None):
     return ({field_name: {"eq": (field_value)}},)
 
 
-def _string_filter(field_name, field_value, spec=None):
+def _string_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
@@ -64,7 +65,7 @@ def _string_filter(field_name, field_value, spec=None):
     return ({field_name: {"eq": (field_value)}},)
 
 
-def _wildcard_string_filter(field_name, field_value, spec=None):
+def _wildcard_string_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
@@ -91,10 +92,15 @@ def _object_filter_builder(input_object, spec):
         if child_filter == "object":
             object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
-            field_value = _get_field_value(input_object[name], child_filter, child_is_array)
+            field_value, operation = _get_field_value_and_operation(input_object[name], child_filter, child_is_array)
             object_filter.update(
                 _generic_filter_builder(
-                    _get_builder_function(child_filter, child_format), name, field_value, child_filter, child_spec
+                    _get_builder_function(child_filter, child_format),
+                    name,
+                    field_value,
+                    child_filter,
+                    operation,
+                    child_spec,
                 )[0]
             )
 
@@ -142,16 +148,17 @@ def _get_object_base_value(field_value, field_filter):
 
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
-def _get_field_value(field_value, field_filter, is_array):
+def _get_field_value_and_operation(field_value, field_filter, is_array):
+    operation = OPERATION_SETS.eq.value[0]
     if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
             if key not in lookup_operations(field_filter, is_array):
                 raise ValidationException(f"invalid operation for {field_filter}")
-
+            operation = key
             field_value = field_value[key]
 
-    return field_value
+    return (field_value, operation)
 
 
 def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
@@ -324,7 +331,9 @@ def build_system_profile_filter(system_profile):
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
-            field_value = _get_field_value(field_input, field_filter, is_array)
-            system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
+            field_value, operation = _get_field_value_and_operation(field_input, field_filter, is_array)
+            system_profile_filter += _generic_filter_builder(
+                builder_function, field_name, field_value, operation, field_filter
+            )
 
     return system_profile_filter
