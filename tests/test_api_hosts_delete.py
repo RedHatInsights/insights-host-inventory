@@ -169,14 +169,11 @@ def test_delete_all_hosts(
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
 
-    new_hosts = db_create_multiple_hosts()
-    new_ids = [str(host.id) for host in new_hosts]
-
     # delete all hosts on the account
     response_status, response_data = api_delete_all_hosts({"delete_all": True, "confirm_delete_all": True})
 
     assert '"type": "delete"' in event_producer_mock.event
-    assert event_producer_mock.write_event.call_count == len(created_hosts)
+    assert response_data.get("hosts_deleted") == len(created_hosts)
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
 
@@ -184,10 +181,6 @@ def test_delete_all_hosts(
     host_id_list = [str(host.id) for host in created_hosts]
     deleted_hosts = db_get_hosts(host_id_list)
     assert deleted_hosts.count() == 0
-
-    # now verify that the second set of hosts still available.
-    remaining_hosts = db_get_hosts(new_ids)
-    assert len(new_hosts) == remaining_hosts.count()
 
 
 @pytest.mark.parametrize("filter", ({}, {"confirm_delete_all": True}, {"delete_all": True}))
