@@ -10,6 +10,7 @@ from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.utils import Tag
+from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
 
@@ -46,6 +47,14 @@ def _integer_filter(field_name, field_value, spec=None):
     return ({field_name: {"eq": field_value}},)
 
 
+def _timestamp_filter(field_name, field_value, spec=None):
+
+    if not is_timestamp(field_value):
+        _invalid_value_error(field_name, field_value)
+
+    return ({field_name: {"eq": (field_value)}},)
+
+
 def _string_filter(field_name, field_value, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
@@ -77,6 +86,7 @@ def _object_filter_builder(input_object, spec):
         _check_field_in_spec(spec["children"], name)
         child_spec = spec["children"][name]
         child_filter = child_spec["filter"]
+        child_format = child_spec["format"]
         child_is_array = child_spec["is_array"]
         if child_filter == "object":
             object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
@@ -84,7 +94,7 @@ def _object_filter_builder(input_object, spec):
             field_value = _get_field_value(input_object[name], child_filter, child_is_array)
             object_filter.update(
                 _generic_filter_builder(
-                    BUILDER_FUNCTIONS[child_filter].value, name, field_value, child_filter, child_spec
+                    _get_builder_function(child_filter, child_format), name, field_value, child_filter, child_spec
                 )[0]
             )
 
@@ -102,10 +112,17 @@ class BUILDER_FUNCTIONS(Enum):
     string = partial(_string_filter)
     boolean = partial(_boolean_filter)
     integer = partial(_integer_filter)
-    # integer = doesnt exist yet, no xjoin-search support yet
+    timestamp = partial(_timestamp_filter)
+    object = partial(_build_object_filter)
     # Customs under here
     operating_system = partial(build_operating_system_filter)
-    object = partial(_build_object_filter)
+
+
+def _get_builder_function(filter, format):
+    if format in ["date-time"]:
+        return BUILDER_FUNCTIONS["timestamp"].value
+
+    return BUILDER_FUNCTIONS[filter].value
 
 
 def _check_field_in_spec(spec, field_name):
@@ -297,11 +314,12 @@ def build_system_profile_filter(system_profile):
 
         field_input = system_profile[field_name]
         field_filter = system_profile_spec()[field_name]["filter"]
+        field_format = system_profile_spec()[field_name]["format"]
         is_array = system_profile_spec()[field_name]["is_array"]
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
-        builder_function = BUILDER_FUNCTIONS[field_filter].value
+        builder_function = _get_builder_function(field_filter, field_format)
 
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
