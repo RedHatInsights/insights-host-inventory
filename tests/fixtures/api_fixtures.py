@@ -49,7 +49,6 @@ def api_get(flask_client):
 def api_delete_host(flask_client):
     def _api_delete_host(host_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         url = f"{HOST_URL}/{host_id}"
-        kafka_patch("lib.host_delete.kafka_available")
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )

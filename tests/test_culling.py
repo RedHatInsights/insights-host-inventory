@@ -209,7 +209,9 @@ def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
     assert response_status == 404
 
 
-def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host):
+def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+    mocker.patch("lib.host_delete.kafka_available")
+
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     response_status, response_data = api_delete_host(fresh_host.id)
@@ -305,8 +307,10 @@ def test_culled_timestamp(
 
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config, mocker
 ):
+    mocker.patch("lib.host_delete.kafka_available")
+
     staleness_timestamps = get_staleness_timestamps()
 
     host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
@@ -389,7 +393,9 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, mocker):
+    mocker.patch("lib.host_delete.kafka_available")
+
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -460,8 +466,10 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config
+    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
 ):
+    mocker.patch("lib.host_delete.kafka_available")
+
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
