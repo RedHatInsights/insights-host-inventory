@@ -314,44 +314,21 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
 
 
 @pytest.mark.parametrize(
-    "filters,query",
+    "query",
     (
-        (("fqdn", "display_name"), f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
-        (("fqdn", "OR"), f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        (("fqdn", "insights_id"), f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        (("display_name", "OR"), f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        (
-            ("display_name", "insights_id"),
-            f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}",
-        ),
-        (("OR", "insights_id"), f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
     ),
 )
-def test_query_variables_combination(
-    filters, query, mocker, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
-    mocked_filter = ()
-
-    for filter in filters:
-        mocked_filter += ({filter: mocker.ANY},)
-
-    mocked_filter += (mocker.ANY,)
     response_status, response_data = api_get(url)
-    assert response_status == 200
 
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": mocked_filter,
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
+    assert response_status == 400
 
 
 @pytest.mark.parametrize(
