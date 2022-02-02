@@ -52,11 +52,9 @@ QUERY = """query Query(
     }
 }"""
 HOST_IDS_QUERY = """query Query(
-    $limit: Int!,
     $filter: [HostFilter!],
 ) {
     hosts(
-        limit: $limit,
         filter: {
             AND: $filter,
         }
@@ -161,7 +159,7 @@ def get_host_ids_list(
     if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
         all_filters += owner_id_filter()
 
-    variables = {"filter": all_filters, "limit": 100}  # max limit 100 allowed by xjoin-search
+    variables = {"filter": all_filters}
     response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
 
     return [x["id"] for x in response["data"]]
