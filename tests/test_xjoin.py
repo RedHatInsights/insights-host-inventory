@@ -1737,14 +1737,6 @@ def test_xjoin_search_query_using_hostfilter_provider(
     )
 
 
-def test_xjoin_search_query_to_delete_all_hosts(mocker, graphql_query_empty_response, api_delete_all_hosts):
-    query_params = {"delete_all": True, "confirm_delete_all": True}
-    api_delete_all_hosts(query_params)
-
-    # using mocker.ANY because no filter is used to fetch all hosts.
-    graphql_query_empty_response.assert_called_once_with(HOST_IDS_QUERY, {"filter": ()}, mocker.ANY)
-
-
 def test_spf_rhc_client_invalid_field_value(
     subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):

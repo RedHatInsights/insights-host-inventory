@@ -12,6 +12,7 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
+from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
@@ -235,9 +236,8 @@ def delete_all_hosts(delete_all=None, confirm_delete_all=None):
         flask.abort(400, "To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
 
     try:
-        # Send None for all filter params, except {} for the filter expected for checking system_profile presence
-        # Sending no filter, gets all hosts on the account
-        ids_list = get_host_ids_list_xjoin(None, None, None, None, None, None, None, None, None, {})
+        # get all hosts from the DB; bypasses xjoin-search, which limits the number hosts to 10 by default.
+        ids_list = get_all_hosts()
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))
