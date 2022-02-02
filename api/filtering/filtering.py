@@ -263,11 +263,12 @@ def query_filters(
     registered_with,
     filter,
 ):
+    query_filters = tuple()
     if fqdn:
-        query_filters = ({"fqdn": {"eq": fqdn.casefold()}},)
-    elif display_name:
-        query_filters = ({"display_name": string_contains_lc(display_name)},)
-    elif hostname_or_id:
+        query_filters += ({"fqdn": {"eq": fqdn.casefold()}},)
+    if display_name:
+        query_filters += ({"display_name": string_contains_lc(display_name)},)
+    if hostname_or_id:
         contains_lc = string_contains_lc(hostname_or_id)
         hostname_or_id_filters = ({"display_name": contains_lc}, {"fqdn": contains_lc})
         try:
@@ -278,11 +279,9 @@ def query_filters(
         else:
             logger.debug("Adding id (uuid) to the filter list")
             hostname_or_id_filters += ({"id": {"eq": str(id)}},)
-        query_filters = ({"OR": hostname_or_id_filters},)
-    elif insights_id:
-        query_filters = ({"insights_id": {"eq": insights_id.casefold()}},)
-    else:
-        query_filters = ()
+        query_filters += ({"OR": hostname_or_id_filters},)
+    if insights_id:
+        query_filters += ({"insights_id": {"eq": insights_id.casefold()}},)
 
     if tags:
         query_filters += build_tag_query_dict_tuple(tags)
