@@ -68,7 +68,7 @@ paths:
           description: Request for deletion of filtered hosts has been accepted.
         '400':
           description: Invalid request.
-  /hosts/delete_all_hosts:
+  /hosts/all:
     delete:
       operationId: api.host.delete_all_hosts
       tags:

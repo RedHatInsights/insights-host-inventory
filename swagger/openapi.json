@@ -136,7 +136,7 @@
         }
       }
     },
-    "/hosts/delete_all_hosts": {
+    "/hosts/all": {
       "delete": {
         "operationId": "api.host.delete_all_hosts",
         "tags": [

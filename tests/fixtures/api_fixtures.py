@@ -69,7 +69,7 @@ def api_delete_filtered_hosts(flask_client):
 @pytest.fixture(scope="function")
 def api_delete_all_hosts(flask_client):
     def _api_delete_all_hosts(query_parameters, identity=USER_IDENTITY, extra_headers=None):
-        url = f"{HOST_URL}/delete_all_hosts"
+        url = f"{HOST_URL}/all"
         return do_request(
             flask_client.delete, url, identity, query_parameters=query_parameters, extra_headers=extra_headers
         )
