@@ -167,13 +167,49 @@ def test_delete_hosts_using_filter(
     assert len(new_hosts) == remaining_hosts.count()
 
 
-def test_create_then_delete_check_metadata(
-    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
+def test_delete_all_hosts(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post
 ):
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    for ind, id in enumerate(host_ids):
+        resp["hosts"]["data"][ind]["id"] = id
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    # delete all hosts on the account
+    response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
+
+    assert '"type": "delete"' in event_producer_mock.event
+    assert response_data.get("hosts_deleted") == len(created_hosts)
+    assert_response_status(response_status, expected_status=202)
+    assert len(host_ids) == response_data["hosts_deleted"]
+
+    # check db for the deleted hosts using their IDs
+    host_id_list = [str(host.id) for host in created_hosts]
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
+
+
+def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
+    # delete all hosts using incomplete filter
+    response_status, response_data = api_delete_all_hosts({})
+
+    assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.event is None
+
+
+def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
-    mocker.patch("lib.host_delete.kafka_available")
+    # mocker.patch("lib.host_delete.kafka_available")
 
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
