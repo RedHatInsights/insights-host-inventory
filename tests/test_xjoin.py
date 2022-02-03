@@ -2912,7 +2912,7 @@ def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin,
                     assert response_data["title"] == "Validation Error"
 
 
-def test_generic_filtering_integer(
+def test_generic_filtering_integer_equality(
     mocker,
     subtests,
     query_source_xjoin,
@@ -2971,6 +2971,133 @@ def test_generic_filtering_integer(
 
                         query_verifier(mocker, query_mock, query)
                         query_mock.reset_mock()
+
+
+def test_generic_filtering_integer_range(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    graphql_filters = ("spf_number_of_cpus", "spf_number_of_sockets", "spf_system_memory_bytes")
+    api_operations = ("[lt]", "[lte]", "[gt]", "[gte]")
+    graphql_operations = ("lt", "lte", "gt", "gte")
+    values = ("1", "18446744073709551615")
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, graphql_filter in zip(filter_paths, graphql_filters):
+            for api_operation, graphql_operation in zip(api_operations, graphql_operations):
+                for value in values:
+                    query = {graphql_filter: {graphql_operation: int(value)}}
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{api_operation}={value}")
+
+                        response_status, _ = api_get(url)
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+def test_generic_filtering_timestamp_equality(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    path = "[system_profile][last_boot_time]"
+
+    operations = ("", "[eq]")
+    values = ("2021-01-10T15:10:10.000Z", "nil", "not_nil")
+    queries = (
+        {"spf_last_boot_time": {"eq": "2021-01-10T15:10:10.000Z"}},
+        {"spf_last_boot_time": {"eq": None}},
+        {"NOT": {"spf_last_boot_time": {"eq": None}}},
+    )
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                    url = url_builder(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+                    assert response_status == 200
+
+                    query_verifier(mocker, query_mock, query)
+                    query_mock.reset_mock()
+
+
+def test_generic_filtering_timestamp_range(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    path = "[system_profile][last_boot_time]"
+    graphql_filter = "spf_last_boot_time"
+    api_operations = ("[lt]", "[lte]", "[gt]", "[gte]")
+    graphql_operations = ("lt", "lte", "gt", "gte")
+    value = "2021-01-10T15:10:10.000Z"
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for api_operation, graphql_operation in zip(api_operations, graphql_operations):
+            query = {graphql_filter: {graphql_operation: value}}
+            with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                url = url_builder(query=f"?filter{path}{api_operation}={value}")
+
+                response_status, _ = api_get(url)
+                assert response_status == 200
+
+                query_verifier(mocker, query_mock, query)
+                query_mock.reset_mock()
 
 
 # having both system_profile endpoints creates a mocking issue right now.
@@ -3036,10 +3163,6 @@ def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, 
         "[bar][]=123",
         "[eq][foo]=123",
         "[is]=123",
-        "[lt]=123",
-        "[gt]=123",
-        "[lte]=123",
-        "[gte]=123",
         "[matches]=123",
         "[contains]=123"
         # bad value
@@ -3060,6 +3183,36 @@ def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, 
                     response_status, response_data = api_get(url)
                     assert response_status == 400
                     assert response_data["title"] == "Validation Error"
+
+
+def test_generic_filtering_timestamp_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefix = "?filter[system_profile][last_boot_time]"
+    suffixes = (
+        # bad operation
+        "[foo]=123",
+        "[bar][]=123",
+        "[eq][foo]=123",
+        "[is]=123",
+        "[matches]=123",
+        "[contains]=123"
+        # bad value
+        "[eq]=foo",
+        "[eq]=true",
+        "[eq]=123",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for suffix in suffixes:
+            with subtests.test(prefix=prefix, suffix=suffix):
+                url = url_builder(query=prefix + suffix)
+                response_status, response_data = api_get(url)
+                assert response_status == 400
+                assert response_data["title"] == "Validation Error"
 
 
 def test_generic_filtering_wildcard(

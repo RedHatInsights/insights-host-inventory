@@ -8,13 +8,16 @@ class OPERATION_SETS(Enum):
     range = ["eq", "lt", "gt", "lte", "gte"]
 
 
+SUPPORTED_FORMATS = ["date-time"]
+
 SPEC_OPERATIONS_LOOKUP = {
     "string": [OPERATION_SETS.eq.value[0]],
     "wildcard": [OPERATION_SETS.eq.value[0]],  # because on our side we want eq
     "boolean": [OPERATION_SETS.eq.value[0]],
     "range": OPERATION_SETS.range.value,
     "operating_system": OPERATION_SETS.range.value,
-    "integer": [OPERATION_SETS.eq.value[0]],
+    "integer": OPERATION_SETS.range.value,
+    "date-time": OPERATION_SETS.range.value,
 }
 
 ARRAY_SPEC_OPERATIONS_LOOKUP = {
@@ -23,7 +26,8 @@ ARRAY_SPEC_OPERATIONS_LOOKUP = {
     "boolean": [OPERATION_SETS.eq.value[0]],
     "range": [OPERATION_SETS.range.value[0]],
     "operating_system": OPERATION_SETS.range.value,
-    "integer": [OPERATION_SETS.eq.value[0]],
+    "integer": OPERATION_SETS.range.value,
+    "date-time": OPERATION_SETS.range.value,
 }
 
 GRAPHQL_OPERATIONS_LOOKUP = {
@@ -36,9 +40,12 @@ GRAPHQL_OPERATIONS_LOOKUP = {
 }
 
 
-def lookup_operations(filter_type, is_array=False):
+def lookup_operations(filter_type, filter_format=None, is_array=False):
     if is_array:
         return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_type]
+    if filter_format in SUPPORTED_FORMATS:
+        return ARRAY_SPEC_OPERATIONS_LOOKUP[filter_format]
+
     return SPEC_OPERATIONS_LOOKUP[filter_type]
 
 
