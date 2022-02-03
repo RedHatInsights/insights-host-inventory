@@ -168,8 +168,9 @@ def test_delete_hosts_using_filter(
 
 
 def test_delete_all_hosts(
-    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post, mocker
 ):
+    mocker.patch("lib.host_delete.kafka_available")
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
     host_ids = [str(host.id) for host in created_hosts]
 
@@ -205,7 +206,10 @@ def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, eve
     assert event_producer_mock.event is None
 
 
-def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
+def test_create_then_delete_check_metadata(
+    event_datetime_mock, event_producer_mock, db_create_host, api_delete_host, mocker
+):
+    mocker.patch("lib.host_delete.kafka_available")
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
