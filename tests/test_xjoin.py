@@ -1653,7 +1653,7 @@ def test_xjoin_search_query_using_hostfilter(
     api_delete_filtered_hosts({field: value})
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},)}, mocker.ANY
+        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},), "limit": mocker.ANY}, mocker.ANY
     )
 
 
@@ -1666,7 +1666,7 @@ def test_xjoin_search_query_using_hostfilter_display_name(
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
-        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},)},
+        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},), "limit": mocker.ANY},
         mocker.ANY,
     )
 
@@ -1698,7 +1698,9 @@ def test_xjoin_search_using_hostfilters_tags(
 
     tag_filters = tuple({"tag": item} for item in tags)
 
-    graphql_query_empty_response.assert_called_once_with(HOST_IDS_QUERY, {"filter": tag_filters}, mocker.ANY)
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": tag_filters, "limit": mocker.ANY}, mocker.ANY
+    )
 
 
 @pytest.mark.parametrize(
@@ -1719,7 +1721,10 @@ def test_xjoin_search_query_using_hostfilter_provider(
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
-        {"filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}})},
+        {
+            "filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}}),
+            "limit": mocker.ANY,
+        },
         mocker.ANY,
     )
 
