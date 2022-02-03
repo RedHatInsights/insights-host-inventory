@@ -272,6 +272,16 @@ def query_filters(
     registered_with,
     filter,
 ):
+    num_ids = 0
+    for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
+        if id_param:
+            num_ids += 1
+
+    if num_ids > 1:
+        raise ValidationException(
+            "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        )
+
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn.casefold()}},)
     elif display_name:
