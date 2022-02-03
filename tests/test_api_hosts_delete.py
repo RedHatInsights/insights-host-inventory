@@ -209,7 +209,6 @@ def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_m
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
-    # mocker.patch("lib.host_delete.kafka_available")
 
     request_id = generate_uuid()
     headers = {"x-rh-insights-request-id": request_id}
