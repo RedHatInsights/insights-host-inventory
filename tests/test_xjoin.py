@@ -314,34 +314,21 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
 
 
 @pytest.mark.parametrize(
-    "filter_,query",
+    "query",
     (
-        ("fqdn", f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("OR", f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
     ),
 )
-def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": ({filter_: mocker.ANY}, mocker.ANY),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
+    assert response_status == 400
 
 
 @pytest.mark.parametrize(
