@@ -230,7 +230,7 @@ def _delete_filtered_hosts(host_id_list):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_all_hosts(delete_all=None, confirm_delete_all=None):
+def delete_all_hosts(confirm_delete_all=None):
     if not confirm_delete_all:
         logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
         flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
