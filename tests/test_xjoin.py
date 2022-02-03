@@ -314,34 +314,21 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
 
 
 @pytest.mark.parametrize(
-    "filter_,query",
+    "query",
     (
-        ("fqdn", f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("OR", f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
     ),
 )
-def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": ({filter_: mocker.ANY}, mocker.ANY),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
+    assert response_status == 400
 
 
 @pytest.mark.parametrize(
@@ -1666,7 +1653,7 @@ def test_xjoin_search_query_using_hostfilter(
     api_delete_filtered_hosts({field: value})
 
     graphql_query_empty_response.assert_called_once_with(
-        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},)}, mocker.ANY
+        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},), "limit": mocker.ANY}, mocker.ANY
     )
 
 
@@ -1679,7 +1666,7 @@ def test_xjoin_search_query_using_hostfilter_display_name(
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
-        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},)},
+        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},), "limit": mocker.ANY},
         mocker.ANY,
     )
 
@@ -1711,7 +1698,9 @@ def test_xjoin_search_using_hostfilters_tags(
 
     tag_filters = tuple({"tag": item} for item in tags)
 
-    graphql_query_empty_response.assert_called_once_with(HOST_IDS_QUERY, {"filter": tag_filters}, mocker.ANY)
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": tag_filters, "limit": mocker.ANY}, mocker.ANY
+    )
 
 
 @pytest.mark.parametrize(
@@ -1732,7 +1721,10 @@ def test_xjoin_search_query_using_hostfilter_provider(
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_IDS_QUERY,
-        {"filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}})},
+        {
+            "filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}}),
+            "limit": mocker.ANY,
+        },
         mocker.ANY,
     )
 
