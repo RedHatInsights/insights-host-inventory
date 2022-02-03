@@ -170,7 +170,7 @@ def test_delete_all_hosts(
     patch_xjoin_post(response, status=200)
 
     # delete all hosts on the account
-    response_status, response_data = api_delete_all_hosts({"delete_all": True, "confirm_delete_all": True})
+    response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
 
     assert '"type": "delete"' in event_producer_mock.event
     assert response_data.get("hosts_deleted") == len(created_hosts)
@@ -183,10 +183,9 @@ def test_delete_all_hosts(
     assert deleted_hosts.count() == 0
 
 
-@pytest.mark.parametrize("filter", ({}, {"confirm_delete_all": True}, {"delete_all": True}))
-def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, filter, event_producer_mock):
+def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
     # delete all hosts using incomplete filter
-    response_status, response_data = api_delete_all_hosts(filter)
+    response_status, response_data = api_delete_all_hosts({})
 
     assert_response_status(response_status, expected_status=400)
     assert event_producer_mock.event is None

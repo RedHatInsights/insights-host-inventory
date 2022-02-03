@@ -231,9 +231,9 @@ def _delete_filtered_hosts(host_id_list):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_all_hosts(delete_all=None, confirm_delete_all=None):
-    if not all([delete_all, confirm_delete_all]):
-        logger.error("To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
-        flask.abort(400, "To delete all hosts, provide delete_all=true and confirm_delete_all=true in the request.")
+    if not confirm_delete_all:
+        logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
+        flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
 
     try:
         # get all hosts from the DB; bypasses xjoin-search, which limits the number hosts to 10 by default.

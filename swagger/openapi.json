@@ -143,16 +143,13 @@
           "hosts"
         ],
         "summary": "Delete all hosts on the account",
-        "description": "Delete all hosts on the account.  The request must include \"delete_all=true&confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
+        "description": "Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
         "security": [
           {
             "ApiKeyAuth": []
           }
         ],
         "parameters": [
-          {
-            "$ref": "#/components/parameters/deleteAll"
-          },
           {
             "$ref": "#/components/parameters/confirmDeleteAll"
           }
@@ -1119,22 +1116,13 @@
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
-      "deleteAll": {
-        "in": "query",
-        "name": "delete_all",
-        "schema": {
-          "type": "boolean"
-        },
-        "description": "The option to delete all hosts on an account. Combine with `confirm_delete_all=true` to confirm deletion of all hosts.",
-        "required": false
-      },
       "confirmDeleteAll": {
         "in": "query",
         "name": "confirm_delete_all",
         "schema": {
           "type": "boolean"
         },
-        "description": "Confirmation to delete all hosts on an account. Combine with `delete_all=true` to confirm deletion of all hosts.",
+        "description": "Confirmation to delete all hosts on an account",
         "required": false
       }
     },
