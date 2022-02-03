@@ -13,7 +13,7 @@ from lib.host_repository import find_hosts_by_staleness
 from lib.host_repository import single_canonical_fact_host_query
 from lib.host_repository import update_query_for_owner_id
 
-__all__ = ("get_host_list", "params_to_order_by")
+__all__ = ("get_host_list", "get_all_hosts", "params_to_order_by")
 
 NULL = None
 
@@ -70,6 +70,15 @@ def get_host_list(
     log_get_host_list_succeeded(logger, query_results.items)
 
     return query_results.items, query_results.total, additional_fields
+
+
+def get_all_hosts():
+    query = _find_all_hosts()
+    query_results = query.all()
+    ids_list = [str(host.id) for host in query_results]
+
+    log_get_host_list_succeeded(logger, ids_list)
+    return ids_list
 
 
 def find_hosts_with_insights_enabled(query):

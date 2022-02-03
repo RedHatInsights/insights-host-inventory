@@ -12,6 +12,7 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
+from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
@@ -224,6 +225,34 @@ def _delete_filtered_hosts(host_id_list):
                 payload_tracker_processing_ctx.inventory_id = host_id
 
     return deletion_count
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def delete_all_hosts(confirm_delete_all=None):
+    if not confirm_delete_all:
+        logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
+        flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
+
+    try:
+        # get all hosts from the DB; bypasses xjoin-search, which limits the number hosts to 10 by default.
+        ids_list = get_all_hosts()
+    except ValueError as err:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(err))
+    except ConnectionError:
+        logger.error("xjoin-search not accessible")
+        flask.abort(503)
+
+    if len(ids_list) == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+
+    delete_count = _delete_filtered_hosts(ids_list)
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
 
 
 @api_operation
