@@ -410,7 +410,6 @@ def rpm_list():
 
 def create_system_profile():
     return {
-        "host_type": "edge",
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",

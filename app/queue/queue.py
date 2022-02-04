@@ -254,8 +254,7 @@ def add_host(host_data, platform_metadata):
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
-        except Exception as exc:
-            logger.exception(str(exc))
+        except Exception:
             logger.exception("Error while adding host", extra={"host": host_data})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
             raise

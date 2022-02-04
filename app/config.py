@@ -194,11 +194,6 @@ class Config:
             minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
         )
 
-        self.culling_offset_delta_infiniti = timedelta(
-            days=int(os.environ.get("CULLING_CULLED_OFFSET_DAYS", "999999999")),
-            minutes=int(os.environ.get("CULLING_CULLED_OFFSET_MINUTES", "0")),
-        )
-
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
         self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))
         self.bulk_query_source_beta = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE_BETA", "db"))
