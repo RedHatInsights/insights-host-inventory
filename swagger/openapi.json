@@ -117,7 +117,7 @@
             "$ref": "#/components/parameters/registered_with"
           },
           {
-            "$ref": "#/components/parameters/stalenessParam"
+            "$ref": "#/components/parameters/stalenessNoDefaultsParam"
           },
           {
             "$ref": "#/components/parameters/tagsParam"
@@ -129,6 +129,34 @@
         "responses": {
           "202": {
             "description": "Request for deletion of filtered hosts has been accepted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/hosts/all": {
+      "delete": {
+        "operationId": "api.host.delete_all_hosts",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete all hosts on the account",
+        "description": "Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/confirmDeleteAll"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Request for deleting all hosts has been accepted."
           },
           "400": {
             "description": "Invalid request."
@@ -986,6 +1014,24 @@
         },
         "description": "Culling states of the hosts. Default: fresh,stale,unknown"
       },
+      "stalenessNoDefaultsParam": {
+        "name": "staleness",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "stale_warning",
+              "unknown"
+            ]
+          }
+        },
+        "description": "Culling states of the hosts."
+      },
       "tagsParam": {
         "name": "tags",
         "in": "query",
@@ -1069,6 +1115,15 @@
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
+      },
+      "confirmDeleteAll": {
+        "in": "query",
+        "name": "confirm_delete_all",
+        "schema": {
+          "type": "boolean"
+        },
+        "description": "Confirmation to delete all hosts on an account",
+        "required": false
       }
     },
     "schemas": {

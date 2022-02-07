@@ -122,6 +122,7 @@ def process_spec(spec, process_unindexed=False):
             system_profile_spec_processed[field] = {
                 "type": _spec_type_to_python_type(props["type"]),  # cast from string to type
                 "filter": field_filter,
+                "format": props.get("format"),
                 "is_array": "array" == props.get("type"),
             }
 
