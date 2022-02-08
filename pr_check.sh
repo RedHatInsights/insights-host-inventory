@@ -40,6 +40,3 @@ source $APP_ROOT/unit_test.sh
 # Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
 source $CICD_ROOT/cji_smoke_test.sh
-
-# Run SonarQube scan
-make scan_project
