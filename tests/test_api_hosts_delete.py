@@ -132,8 +132,6 @@ def test_delete_hosts_using_filter(
     value,
     mocker,
 ):
-    mocker.patch("lib.host_delete.kafka_available")
-
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
     host_ids = [str(host.id) for host in created_hosts]
 
@@ -146,6 +144,7 @@ def test_delete_hosts_using_filter(
     # Make the new hosts available in xjoin-search to make them available
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
+    mocker.patch("lib.host_delete.kafka_available")
 
     new_hosts = db_create_multiple_hosts()
     new_ids = [str(host.id) for host in new_hosts]
@@ -170,7 +169,6 @@ def test_delete_hosts_using_filter(
 def test_delete_all_hosts(
     event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post, mocker
 ):
-    mocker.patch("lib.host_delete.kafka_available")
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
     host_ids = [str(host.id) for host in created_hosts]
 
@@ -183,6 +181,7 @@ def test_delete_all_hosts(
     # Make the new hosts available in xjoin-search to make them available
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
+    mocker.patch("lib.host_delete.kafka_available")
 
     # delete all hosts on the account
     response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
@@ -198,7 +197,8 @@ def test_delete_all_hosts(
     assert deleted_hosts.count() == 0
 
 
-def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
+def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock, mocker):
+    mocker.patch("lib.host_delete.kafka_available")
     # delete all hosts using incomplete filter
     response_status, response_data = api_delete_all_hosts({})
 
@@ -231,6 +231,7 @@ def test_create_then_delete_check_metadata(
 
 
 def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, api_delete_host, mocker):
+    mocker.patch("lib.host_delete.kafka_available")
     host = db_create_host(
         SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
     )
@@ -251,6 +252,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list))
+    mocker.patch("lib.host_delete.kafka_available")
 
     # Two hosts queried, but both deleted by a different process. No event emitted yet
     # returning 200 OK.
@@ -262,12 +264,11 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
 
 
 def test_delete_when_some_hosts_is_deleted(event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker):
-    mocker.patch("lib.host_delete.kafka_available")
-
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(hosts[0].id), str(hosts[1].id)]
 
     mocker.patch("api.host.delete_hosts", DeleteHostsMock.create_mock(host_id_list[0:1]))
+    mocker.patch("lib.host_delete.kafka_available")
 
     # Two hosts queried, one of them deleted by a different process. Only one event emitted,
     # returning 200 OK.
@@ -289,7 +290,6 @@ def test_delete_host_with_RBAC_allowed(
     enable_rbac,
 ):
     mocker.patch("lib.host_delete.kafka_available")
-
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -311,6 +311,7 @@ def test_delete_host_with_RBAC_allowed(
 def test_delete_host_with_RBAC_denied(
     subtests, mocker, api_delete_host, event_producer_mock, db_create_host, db_get_host, enable_rbac
 ):
+    mocker.patch("lib.host_delete.kafka_available")
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -384,7 +385,7 @@ def test_delete_stops_after_kafka_producer_error(
     assert_response_status(response_status, expected_status=500)
 
     remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.send.call_count == 2
 
 

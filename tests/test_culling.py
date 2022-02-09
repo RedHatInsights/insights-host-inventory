@@ -201,7 +201,8 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
+def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+    mocker.patch("lib.host_delete.kafka_available")
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     response_status, response_data = api_delete_host(culled_host.id)
@@ -355,7 +356,7 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert db_get_host(created_host.id)
+    assert event_producer_mock.event is None
 
 
 @pytest.mark.host_reaper
@@ -445,7 +446,6 @@ def test_unknown_host_is_not_removed(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert db_get_host(created_host.id)
     assert event_producer_mock.event is None
 
 
@@ -495,5 +495,5 @@ def test_reaper_stops_after_kafka_producer_error(
         )
 
     remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.send.call_count == 2

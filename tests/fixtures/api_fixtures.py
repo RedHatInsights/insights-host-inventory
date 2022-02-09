@@ -87,18 +87,3 @@ def user_identity_mock(flask_app):
     flask_app.user_identity = MockUserIdentity()
     yield flask_app.user_identity
     # flask_app.user_identity = None
-
-
-def kafka_patch(mocker):
-    def _kafka_patch(method):
-        return mocker.patch(method, return_value=True)
-
-    return _kafka_patch
-
-
-@pytest.fixture(scope="session")
-def patch_kafka_available():
-    def _patch_kafka_available(method):
-        kafka_patch(method)
-
-    return _patch_kafka_available

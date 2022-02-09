@@ -6,6 +6,7 @@ from app.models import Host
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
+from lib.db import session_guard
 from lib.host_kafka import kafka_available
 from lib.metrics import delete_host_count
 from lib.metrics import delete_host_processing_time
@@ -15,16 +16,17 @@ logger = get_logger(__name__)
 
 
 def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: False):
-    while select_query.count():
-        for host in select_query.limit(chunk_size):
-            host_id = host.id
-            with delete_host_processing_time.time():
-                host_deleted = _delete_host(select_query.session, event_producer, host)
+    with session_guard(select_query.session):
+        while select_query.count():
+            for host in select_query.limit(chunk_size):
+                host_id = host.id
+                with delete_host_processing_time.time():
+                    host_deleted = _delete_host(select_query.session, event_producer, host)
 
-            yield host_id, host_deleted
+                yield host_id, host_deleted
 
-            if interrupt():
-                return
+                if interrupt():
+                    return
 
 
 def _delete_host(session, event_producer, host):
@@ -49,5 +51,5 @@ def _delete_host(session, event_producer, host):
 
 
 def _deleted_by_this_query(host):
-    # Before committing the change, verify that the host has been marked 'expired'
+    # Before committing the change, verify that the host has been marked for deletion.
     return not instance_state(host).expired
