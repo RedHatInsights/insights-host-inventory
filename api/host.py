@@ -12,7 +12,7 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
-from api.host_query_db import params_to_order_by
+from api.host_query_db import params_to_order_by as params_to_order_by_db
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
@@ -369,7 +369,7 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     query = _get_host_list_by_id_list_db(host_id_list)
 
     try:
-        order_by = params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by_db(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
@@ -407,7 +407,7 @@ def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=N
     query = _get_host_list_by_id_list_db(host_id_list)
 
     try:
-        order_by = params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by_db(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
