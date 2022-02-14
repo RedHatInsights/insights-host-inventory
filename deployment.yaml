@@ -589,7 +589,7 @@ objects:
           - name: floorplan-volume
             configMap:
               name: floorplan
-      resources:
+        resources:
           limits:
             cpu: "${CPU_LIMIT_FLOO}"
             memory: "${MEMORY_LIMIT_FLOO}"
@@ -639,7 +639,7 @@ objects:
     name: floorplan
   data:
     floorplan.yaml: |
-      - prefix: dumps/inventory/hosts
+      - prefix: insights/inventory/hosts
         query: >-
           SELECT
             "id",

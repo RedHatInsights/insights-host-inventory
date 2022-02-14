@@ -5,6 +5,7 @@ from uuid import UUID
 from api.filtering.custom_filters import build_operating_system_filter
 from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
+from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
 from app import system_profile_spec
 from app.exceptions import ValidationException
@@ -13,7 +14,6 @@ from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
-
 
 logger = get_logger(__name__)
 
@@ -26,7 +26,7 @@ def _invalid_value_error(field_name, field_value):
     raise ValidationException(f"{field_value} is an invalid value for field {field_name}")
 
 
-def _boolean_filter(field_name, field_value, spec=None):
+def _boolean_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not field_value.lower() in ("true", "false"):
@@ -35,7 +35,7 @@ def _boolean_filter(field_name, field_value, spec=None):
     return ({field_name: {"is": (field_value.lower() == "true")}},)
 
 
-def _integer_filter(field_name, field_value, spec=None):
+def _integer_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     try:
@@ -44,18 +44,18 @@ def _integer_filter(field_name, field_value, spec=None):
         logger.debug("Exception while creating integer filter. Cannot cast field value to int. Detail: %s", e)
         _invalid_value_error(field_name, field_value)
 
-    return ({field_name: {"eq": field_value}},)
+    return ({field_name: {operation: field_value}},)
 
 
-def _timestamp_filter(field_name, field_value, spec=None):
+def _timestamp_filter(field_name, field_value, operation, spec=None):
 
     if not is_timestamp(field_value):
         _invalid_value_error(field_name, field_value)
 
-    return ({field_name: {"eq": (field_value)}},)
+    return ({field_name: {operation: (field_value)}},)
 
 
-def _string_filter(field_name, field_value, spec=None):
+def _string_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
@@ -64,7 +64,7 @@ def _string_filter(field_name, field_value, spec=None):
     return ({field_name: {"eq": (field_value)}},)
 
 
-def _wildcard_string_filter(field_name, field_value, spec=None):
+def _wildcard_string_filter(field_name, field_value, operation, spec=None):
     # The "spec" param is defined but unused,
     # because this is called from the BUILDER_FUNCTIONS enum.
     if not isinstance(field_value, str):
@@ -91,17 +91,24 @@ def _object_filter_builder(input_object, spec):
         if child_filter == "object":
             object_filter[name] = _object_filter_builder(input_object[name], spec=child_spec)
         else:
-            field_value = _get_field_value(input_object[name], child_filter, child_is_array)
+            field_value, operation = _get_field_value_and_operation(
+                input_object[name], child_filter, child_format, child_is_array
+            )
             object_filter.update(
                 _generic_filter_builder(
-                    _get_builder_function(child_filter, child_format), name, field_value, child_filter, child_spec
+                    _get_builder_function(child_filter, child_format),
+                    name,
+                    field_value,
+                    child_filter,
+                    operation,
+                    child_spec,
                 )[0]
             )
 
     return object_filter
 
 
-def _build_object_filter(field_name, input_object, spec=None):
+def _build_object_filter(field_name, input_object, operation, spec=None):
     curr_spec = spec if spec else system_profile_spec()
     # The filter's xjoin name starts with "spf_", but we need to trim that for the real spec
     return ({field_name: _object_filter_builder(input_object, curr_spec[field_name[4:]])},)
@@ -119,7 +126,7 @@ class BUILDER_FUNCTIONS(Enum):
 
 
 def _get_builder_function(filter, format):
-    if format in ["date-time"]:
+    if format in SUPPORTED_FORMATS:
         return BUILDER_FUNCTIONS["timestamp"].value
 
     return BUILDER_FUNCTIONS[filter].value
@@ -142,19 +149,21 @@ def _get_object_base_value(field_value, field_filter):
 
 # if operation is specified, check the operation is allowed on the field
 # and find the actual value
-def _get_field_value(field_value, field_filter, is_array):
+def _get_field_value_and_operation(field_value, field_filter, field_format, is_array):
+    # Selecting 0th element from lookup_operations because it is always eq or equivalent
+    operation = None if field_filter == "object" else lookup_operations(field_filter, field_format, is_array)[0]
     if isinstance(field_value, dict) and field_filter != "object":
         for key in field_value:
             # check if the operation is valid for the field.
-            if key not in lookup_operations(field_filter, is_array):
+            if key not in lookup_operations(field_filter, field_format, is_array):
                 raise ValidationException(f"invalid operation for {field_filter}")
-
+            operation = key
             field_value = field_value[key]
 
-    return field_value
+    return (field_value, operation)
 
 
-def _nullable_wrapper(filter_function, field_name, field_value, field_filter, spec=None):
+def _nullable_wrapper(filter_function, field_name, field_value, field_filter, operation, spec=None):
     # We need to check the deepest value, in case field_value is a deep object
     base_value = _get_object_base_value(field_value, field_filter)
 
@@ -173,7 +182,7 @@ def _nullable_wrapper(filter_function, field_name, field_value, field_filter, sp
             return ({"NOT": {field_name: base_filter}},)
     else:
         # If it's not nullable, none of the above applies
-        return filter_function(field_name, field_value)
+        return filter_function(field_name, field_value, operation)
 
 
 def _get_list_operator(field_name, field_filter):
@@ -208,7 +217,7 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
     return ({"AND": filter_list},)
 
 
-def _base_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+def _base_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
     xjoin_field_name = field_name if spec else f"spf_{field_name}"
     base_value = _get_object_base_value(field_value, field_filter)
     if isinstance(base_value, list):
@@ -216,13 +225,13 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
         foo_list = []
         for value in base_value:
             isolated_expression = _isolate_object_filter_expression(field_value, value)
-            foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, spec)[0])
+            foo_list.append(builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)[0])
         list_operator = _get_list_operator(field_name, field_filter)
         field_filter = ({list_operator: foo_list},)
     elif isinstance(base_value, str):
         logger.debug("filter value is a string")
         isolated_expression = _isolate_object_filter_expression(field_value, base_value)
-        field_filter = builder_function(xjoin_field_name, isolated_expression, field_filter, spec)
+        field_filter = builder_function(xjoin_field_name, isolated_expression, field_filter, operation, spec)
     else:
         logger.debug("filter value is bad")
         raise ValidationException(f"wrong type for {field_value} filter")
@@ -230,13 +239,13 @@ def _base_filter_builder(builder_function, field_name, field_value, field_filter
     return field_filter
 
 
-def _generic_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
+def _generic_filter_builder(builder_function, field_name, field_value, field_filter, operation, spec=None):
     spec_builder_function = partial(builder_function, spec=spec)
     nullable_builder_function = partial(_nullable_wrapper, spec_builder_function)
     if field_filter == "object":
         return _base_object_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
     else:
-        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, spec)
+        return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
 
 
 def build_tag_query_dict_tuple(tags):
@@ -267,6 +276,16 @@ def query_filters(
     registered_with,
     filter,
 ):
+    num_ids = 0
+    for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
+        if id_param:
+            num_ids += 1
+
+    if num_ids > 1:
+        raise ValidationException(
+            "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        )
+
     if fqdn:
         query_filters = ({"fqdn": {"eq": fqdn.casefold()}},)
     elif display_name:
@@ -328,7 +347,9 @@ def build_system_profile_filter(system_profile):
         if field_name in custom_filter_fields:
             system_profile_filter += builder_function(field_name, field_input, field_filter)
         else:
-            field_value = _get_field_value(field_input, field_filter, is_array)
-            system_profile_filter += _generic_filter_builder(builder_function, field_name, field_value, field_filter)
+            field_value, operation = _get_field_value_and_operation(field_input, field_filter, field_format, is_array)
+            system_profile_filter += _generic_filter_builder(
+                builder_function, field_name, field_value, field_filter, operation
+            )
 
     return system_profile_filter
