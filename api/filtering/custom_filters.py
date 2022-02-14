@@ -7,7 +7,13 @@ logger = get_logger(__name__)
 
 def _build_operating_system_version_filter(major, minor, name, operation):
     if minor is None:
+        # minor not provided in the request
         os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+    elif minor == 0:
+        # use major and minor
+        os_filter = {
+            "spf_operating_system": {"major": {operation: major}, "minor": {operation: minor}, "name": {"eq": name}}
+        }
     else:
         os_filter = {
             "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
