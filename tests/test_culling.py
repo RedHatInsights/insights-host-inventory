@@ -17,8 +17,6 @@ from tests.helpers.api_utils import HOST_URL
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
-from tests.helpers.test_utils import minimal_host
-from tests.helpers.test_utils import now
 
 
 def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
@@ -181,56 +179,6 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_hosts_in_all_st
     response_status, response_data = api_get(url, query_parameters={"staleness": "fresh"})
 
     assert response_status == 400
-
-
-@pytest.mark.parametrize("culling_stale_warning_offset_days", (1, 7, 12))
-@pytest.mark.parametrize("culling_stale_warning_offset_minutes", (0, 45, 90))
-def test_stale_warning_timestamp(
-    culling_stale_warning_offset_days,
-    culling_stale_warning_offset_minutes,
-    inventory_config,
-    mq_create_or_update_host,
-    api_get,
-):
-    inventory_config.culling_stale_warning_offset_delta = timedelta(
-        days=culling_stale_warning_offset_days, minutes=culling_stale_warning_offset_minutes
-    )
-
-    stale_timestamp = now() + timedelta(hours=1)
-    host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
-    created_host = mq_create_or_update_host(host)
-
-    url = build_hosts_url(created_host.id)
-    response_status, response_data = api_get(url)
-    assert response_status == 200
-
-    stale_warning_timestamp = stale_timestamp + timedelta(
-        days=culling_stale_warning_offset_days, minutes=culling_stale_warning_offset_minutes
-    )
-    assert stale_warning_timestamp.isoformat() == response_data["results"][0]["stale_warning_timestamp"]
-
-
-@pytest.mark.parametrize("culling_culled_offset_days", (8, 14, 20))
-@pytest.mark.parametrize("culling_culled_offset_minutes", (0, 45, 90))
-def test_culled_timestamp(
-    culling_culled_offset_days, culling_culled_offset_minutes, inventory_config, mq_create_or_update_host, api_get
-):
-    inventory_config.culling_culled_offset_delta = timedelta(
-        days=culling_culled_offset_days, minutes=culling_culled_offset_minutes
-    )
-
-    stale_timestamp = now() + timedelta(hours=1)
-    host = minimal_host(stale_timestamp=stale_timestamp.isoformat())
-    created_host = mq_create_or_update_host(host)
-
-    url = build_hosts_url(created_host.id)
-    response_status, response_data = api_get(url)
-    assert response_status == 200
-
-    culled_timestamp = stale_timestamp + timedelta(
-        days=culling_culled_offset_days, minutes=culling_culled_offset_minutes
-    )
-    assert culled_timestamp.isoformat() == response_data["results"][0]["culled_timestamp"]
 
 
 @pytest.mark.host_reaper
