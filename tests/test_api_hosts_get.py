@@ -3,12 +3,10 @@ from itertools import chain
 import pytest
 
 from lib.host_repository import find_hosts_by_staleness
-from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_query_test
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import build_expected_host_list
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -26,18 +24,6 @@ from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
-
-
-def test_query_all(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    expected_host_list = build_expected_host_list(created_hosts)
-
-    response_status, response_data = api_get(HOST_URL)
-
-    assert response_status == 200
-    assert expected_host_list == response_data["results"]
-
-    api_base_pagination_test(api_get, subtests, HOST_URL, expected_total=len(created_hosts))
 
 
 def test_query_single_non_existent_host(api_get, subtests):

@@ -74,6 +74,26 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     assert response_status == 200
 
 
+def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
+    url = build_hosts_url()
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": ({"stale_timestamp": mocker.ANY}, {"stale_timestamp": mocker.ANY})},),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 def test_query_variables_fqdn(mocker, graphql_query_empty_response, api_get):
     fqdn = "host.DOMAIN.com"
 
