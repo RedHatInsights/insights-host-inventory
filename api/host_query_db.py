@@ -20,10 +20,6 @@ def get_all_hosts():
     return ids_list
 
 
-def find_hosts_with_insights_enabled(query):
-    return query.filter(Host.canonical_facts["insights_id"].isnot(NULL))
-
-
 def params_to_order_by(order_by=None, order_how=None):
     modified_on_ordering = (Host.modified_on.desc(),)
     ordering = ()
