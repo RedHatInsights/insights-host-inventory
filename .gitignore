@@ -12,3 +12,5 @@ tags
 
 swagger/inventory-schemas/
 coverage.xml
+
+sonarqube/
