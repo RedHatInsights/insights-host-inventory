@@ -6,7 +6,13 @@ logger = get_logger(__name__)
 
 
 def _build_operating_system_version_filter(major, minor, name, operation):
-    os_filter = {"spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}}
+    if minor is None:
+        # minor not provided in the request
+        os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+    else:
+        os_filter = {
+            "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
+        }
 
     if operation != "eq":
         # The major operation should only ever be 'lt' or 'gt'
@@ -21,7 +27,7 @@ def _build_operating_system_version_filter(major, minor, name, operation):
 def _build_filter_from_version_string(os_value, name, operation):
     os_value_split = os_value.split(".")
     major_version = int(os_value_split[0])
-    minor_version = int(os_value_split[1]) if len(os_value_split) > 1 else 0
+    minor_version = int(os_value_split[1]) if len(os_value_split) > 1 else None
 
     if len(os_value_split) > 2:
         raise ValidationException("operating_system filter can only have a major and minor version.")
