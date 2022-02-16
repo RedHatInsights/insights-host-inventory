@@ -79,15 +79,9 @@ variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
 ## Sonar Integration
 
-This project uses Sonar for static code analysis. To set up sonar-scanner on your machine, [download the CLI](https://sonarqube.corp.redhat.com/documentation/analysis/scan/sonarscanner/) and set the `SONAR_PATH` env var like this:
-
-``` sh
-export SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-${SONAR_CLI_VERSION_NUMBER}.jar
-```
-
-Then, run `sh sonar_scan.sh` to generate the `.sonar/sonar-scanner.properties` file. Replace the `$token$` placeholder at the bottom of the file with your own personal Sonar token. Instructions on how to do this are located [here](https://source.redhat.com/groups/public/cloud-services-platform-cloudredhatcom/cloudredhatcom_wiki/setting_up_sonarqube_scanner_for_vulnerability_scanning_of_code#).
-
-After making that replacement, run `sh sonar_scan.sh` again. It should run and upload to Red Hat's SonarQube instance, providing you a link to the results.
+This project uses Sonar for static code analysis, monitoring test coverage and potential issues in our codebase.
+The analysis is run automatically for each PR by the ["host-inventory pr security scan" Jenkins job](https://ci.int.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/).
+The results are uploaded to RedHat's SonarQube server, on the [console.redhat.com:insights-host-inventory project](https://sonarqube.corp.redhat.com/dashboard?id=console.redhat.com%3Ainsights-host-inventory).
 
 ## Contributing
 
