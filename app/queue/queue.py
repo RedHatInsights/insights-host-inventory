@@ -2,9 +2,6 @@ import base64
 import json
 import sys
 from copy import deepcopy
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 from uuid import UUID
 
 from marshmallow import fields
@@ -231,12 +228,7 @@ def add_host(host_data, platform_metadata):
             if identity.identity_type == IdentityType.SYSTEM:
                 host_data = _set_owner(host_data, identity)
 
-            if host_data.get("system_profile").get("host_type") == "edge":
-                # edge system should not be deleted.  To avoid deletion, set the stale_timestamp to 4760-01-01
-                host_data["stale_timestamp"] = (datetime.now(timezone.utc) + timedelta(days=999999)).isoformat()
-
             input_host = deserialize_host(host_data)
-
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
