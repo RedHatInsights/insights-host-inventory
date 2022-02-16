@@ -2018,13 +2018,7 @@ def test_query_hosts_filter_spf_operating_system(
                         },
                         {
                             "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"eq": 7},
-                                        "minor": {"gt": 0},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                },
+                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
                                 {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
                             ]
                         },

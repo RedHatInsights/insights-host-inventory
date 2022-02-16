@@ -286,29 +286,29 @@ def test_add_host_simple(event_datetime_mock, mq_create_or_update_host):
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_host):
-    """
-    Tests adding an edge host
-    """
-    expected_insights_id = generate_uuid()
+# def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_host):
+#     """
+#     Tests adding an edge host
+#     """
+#     expected_insights_id = generate_uuid()
 
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile={"owner_id": OWNER_ID, "host_type": "edge"},
-    )
+#     host = minimal_host(
+#         account=SYSTEM_IDENTITY["account_number"],
+#         insights_id=expected_insights_id,
+#         system_profile={"owner_id": OWNER_ID, "host_type": "edge"},
+#     )
 
-    expected_results = {"host": {**host.data()}}
+#     expected_results = {"host": {**host.data()}}
 
-    host_keys_to_check = ["display_name", "insights_id", "account"]
+#     host_keys_to_check = ["display_name", "insights_id", "account"]
 
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+#     key, event, headers = mq_create_or_update_host(host, return_all_data=True)
 
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+#     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
-    # verify that the edge host has stale_timestamp set in 4760, way out in the future to avoid culling.
-    saved_host_from_db = db_get_host(event["host"]["id"])
-    assert "4760-01-01" in saved_host_from_db.stale_timestamp.isoformat()
+#     # verify that the edge host has stale_timestamp set in 4760, way out in the future to avoid culling.
+#     saved_host_from_db = db_get_host(event["host"]["id"])
+#     assert "4760-01-01" in saved_host_from_db.stale_timestamp.isoformat()
 
 
 def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_host):

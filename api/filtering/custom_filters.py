@@ -5,14 +5,24 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
+# build filter based on the operation and OS name and version
 def _build_operating_system_version_filter(major, minor, name, operation):
-    if minor is None:
-        # minor not provided in the request
-        os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
-    else:
-        os_filter = {
-            "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
-        }
+    if operation == "eq":
+        if minor is None:
+            os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+        else:
+            os_filter = {
+                "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
+            }
+
+    if operation in ["lt", "gt", "lte", "gte"]:
+        if minor is None:
+            os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+        else:
+            # handle 'eq' here and 'gt' 'lt' in !='eq'
+            os_filter = {
+                "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
+            }
 
     if operation != "eq":
         # The major operation should only ever be 'lt' or 'gt'
