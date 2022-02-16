@@ -38,7 +38,7 @@ COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 
 sonar-scanner \
   -Dsonar.projectKey=console.redhat.com:insights-host-inventory \
-  -Dsonar.sources=./host-inventory \
+  -Dsonar.sources=$PWD \
   -Dsonar.host.url=$SONARQUBE_REPORT_URL \
   -Dsonar.projectVersion=$COMMIT_SHORT \
   -Dsonar.login=$SONARQUBE_TOKEN
