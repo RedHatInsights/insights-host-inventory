@@ -5,24 +5,28 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _build_no_minor_filter(operation, major, name):
+    return {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+
+
+def _build_major_equality_filter(major, minor, name, operation):
+    return {"spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}}
+
+
 # build filter based on the operation and OS name and version
 def _build_operating_system_version_filter(major, minor, name, operation):
     if operation == "eq":
         if minor is None:
-            os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+            os_filter = _build_no_minor_filter(operation, major, name)
         else:
-            os_filter = {
-                "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
-            }
+            os_filter = _build_major_equality_filter(major, minor, name, operation)
 
     if operation in ["lt", "gt", "lte", "gte"]:
         if minor is None:
-            os_filter = {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
+            os_filter = _build_no_minor_filter(operation, major, name)
         else:
             # handle 'eq' here and 'gt' 'lt' in !='eq'
-            os_filter = {
-                "spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}
-            }
+            os_filter = _build_major_equality_filter(major, minor, name, operation)
 
     if operation != "eq":
         # The major operation should only ever be 'lt' or 'gt'
