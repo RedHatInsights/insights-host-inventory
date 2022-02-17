@@ -1649,7 +1649,6 @@ def test_xjoin_search_query_using_hostfilter(
     # Make the new hosts available in xjoin-search to make them available
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
-    mocker.patch("lib.host_delete.kafka_available")
 
     api_delete_filtered_hosts({field: value})
 
@@ -1661,7 +1660,6 @@ def test_xjoin_search_query_using_hostfilter(
 def test_xjoin_search_query_using_hostfilter_display_name(
     mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
 ):
-    mocker.patch("lib.host_delete.kafka_available")
     query_params = {"display_name": "my awesome host uwu"}
 
     api_delete_filtered_hosts(query_params)
@@ -1695,7 +1693,6 @@ def test_xjoin_search_query_using_hostfilter_display_name(
 def test_xjoin_search_using_hostfilters_tags(
     tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
 ):
-    mocker.patch("lib.host_delete.kafka_available")
     query_params = {"tags": query_param}
     api_delete_filtered_hosts(query_params)
 
@@ -1719,7 +1716,6 @@ def test_xjoin_search_using_hostfilters_tags(
 def test_xjoin_search_query_using_hostfilter_provider(
     mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
 ):
-    mocker.patch("lib.host_delete.kafka_available")
     query_params = {"provider_type": provider["type"], "provider_id": provider["id"]}
     api_delete_filtered_hosts(query_params)
 
