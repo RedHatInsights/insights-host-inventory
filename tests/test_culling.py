@@ -43,7 +43,7 @@ def test_with_stale_timestamp(mq_create_or_update_host, api_get):
     assert_system_culling_data(response_data["results"][0], stale_timestamp, reporter)
 
 
-def test_dont_get_only_culled(mq_create_hosts_in_all_states, event_producer_mock, api_get):
+def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
     url = build_hosts_url(query="?staleness=culled")
     response_status, response_data = api_get(url)
 
@@ -201,7 +201,7 @@ def test_put_facts_works_on_non_culled(mq_create_hosts_in_all_states, api_put):
     assert response_status == 200
 
 
-def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host):
     culled_host = mq_create_hosts_in_all_states["culled"]
 
     response_status, response_data = api_delete_host(culled_host.id)
@@ -209,7 +209,7 @@ def test_delete_ignores_culled(mq_create_hosts_in_all_states, api_delete_host, m
     assert response_status == 404
 
 
-def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host, mocker):
+def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_host):
     fresh_host = mq_create_hosts_in_all_states["fresh"]
 
     response_status, response_data = api_delete_host(fresh_host.id)
@@ -305,7 +305,7 @@ def test_culled_timestamp(
 
 @pytest.mark.host_reaper
 def test_culled_host_is_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config, mocker
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, inventory_config
 ):
     staleness_timestamps = get_staleness_timestamps()
 
@@ -351,6 +351,8 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
+    created_host_id = db_create_host(host=host).id
+    assert db_get_host(created_host_id)
     assert event_producer_mock.event is None
 
 
@@ -389,7 +391,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, mocker, event_producer_mock):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -421,7 +423,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
 
 @pytest.mark.host_reaper
 def test_unknown_host_is_not_removed(
-    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config
+    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config, db_create_host
 ):
     created_host = db_create_host_in_unknown_state
     retrieved_host = db_get_host(created_host.id)
@@ -439,6 +441,8 @@ def test_unknown_host_is_not_removed(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
+    created_host_id = db_create_host(host=created_host).id
+    assert db_get_host(created_host_id)
     assert event_producer_mock.event is None
 
 
