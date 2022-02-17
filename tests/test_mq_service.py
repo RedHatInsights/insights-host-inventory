@@ -308,7 +308,9 @@ def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_hos
 
     # verify that the edge host has stale_timestamp set in 4760, way out in the future to avoid culling.
     saved_host_from_db = db_get_host(event["host"]["id"])
-    assert "4760-01-01" in saved_host_from_db.stale_timestamp.isoformat()
+
+    # verify that the saved host stale_timestamp is past Year 4700. The actual year should be 4760
+    assert saved_host_from_db.stale_timestamp.year > 4700
 
 
 def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_host):
