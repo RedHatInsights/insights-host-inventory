@@ -545,6 +545,7 @@ def build_qpc_payload():
             "number_of_sockets": 2,
             "cores_per_socket": 1,
         },
+        "reporter": "yupana",
     }
 
 
