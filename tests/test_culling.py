@@ -338,9 +338,9 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         reporter="some reporter",
         system_profile_facts={"host_type": "edge"},
     )
-    created_host = db_create_host(host=host)
+    created_host_id = db_create_host(host=host).id
 
-    assert db_get_host(created_host.id)
+    assert db_get_host(created_host_id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
@@ -351,7 +351,6 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    created_host_id = db_create_host(host=host).id
     assert db_get_host(created_host_id)
     assert event_producer_mock.event is None
 
@@ -441,8 +440,6 @@ def test_unknown_host_is_not_removed(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    created_host_id = db_create_host(host=created_host).id
-    assert db_get_host(created_host_id)
     assert event_producer_mock.event is None
 
 
