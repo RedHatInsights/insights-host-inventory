@@ -618,7 +618,7 @@ objects:
   kind: ClowdJobInvocation
   metadata:
     labels:
-      app: insights-inventory
+      app: host-inventory
     name: events-topic-rebuilder-${CJI_RANDOM_SUFFIX}
   spec:
     appName: host-inventory
