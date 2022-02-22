@@ -403,7 +403,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
 
-    event_producer_mock = mock.Mock()
+    facke_event_producer = mock.Mock()
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
@@ -411,13 +411,13 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
         inventory_config,
         mock.Mock(),
         db.session,
-        event_producer_mock,
+        facke_event_producer,
         shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
     )
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 1
-    assert event_producer_mock.write_event.call_count == 2
+    assert facke_event_producer.write_event.call_count == 2
 
 
 @pytest.mark.host_reaper
