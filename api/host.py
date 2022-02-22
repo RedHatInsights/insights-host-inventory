@@ -244,16 +244,18 @@ def delete_by_id(host_id_list):
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     try:
-        host_list, total, _ = get_host_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
+        host_list, total, additional_fields = get_host_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, fields
+        )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
     log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(total, page, per_page, host_list)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
     return flask_json_response(json_data)
 
 

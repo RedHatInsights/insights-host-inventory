@@ -2469,6 +2469,38 @@ def test_query_variables_system_profile(query, fields, mocker, graphql_query_emp
     )
 
 
+@pytest.mark.parametrize(
+    "query,fields",
+    (
+        ("?fields[system_profile]=sp_field1", ["sp_field1"]),
+        ("?fields[system_profile]=sp_field1,sp_field2,sp_field3", ["sp_field1", "sp_field2", "sp_field3"]),
+        (
+            "?fields[system_profile]=sp_field1&fields[system_profile]=sp_field2,sp_field3",
+            ["sp_field1", "sp_field2", "sp_field3"],
+        ),
+    ),
+)
+def test_get_hosts_by_ids_fields_param(query, fields, mocker, graphql_query_empty_response, api_get):
+    hosts = [minimal_host(id=generate_uuid()), minimal_host(id=generate_uuid())]
+    url = build_hosts_url(host_list_or_id=hosts, query=query)
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": mocker.ANY,
+            "fields": fields,
+        },
+        mocker.ANY,
+    )
+
+
 # Generic filtering tests
 def _verify_hosts_query(mocker, graphql_query_empty_response, query):
     graphql_query_empty_response.assert_called_once_with(

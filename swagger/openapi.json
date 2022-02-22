@@ -239,6 +239,9 @@
           },
           {
             "$ref": "#/components/parameters/orderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/fields_param"
           }
         ],
         "responses": {
