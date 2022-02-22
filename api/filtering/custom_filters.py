@@ -5,7 +5,6 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
-# build filter based on the operation and OS name and version
 def _build_operating_system_version_filter(major, minor, name, operation):
     if minor is None:
         return {"spf_operating_system": {"major": {operation: major}, "name": {"eq": name}}}
@@ -13,6 +12,10 @@ def _build_operating_system_version_filter(major, minor, name, operation):
     os_filter = {"spf_operating_system": {"major": {"eq": major}, "minor": {operation: minor}, "name": {"eq": name}}}
 
     if operation != "eq":
+        # This portion of the query is filtering only on major version to select all hosts with a major version
+        # greater or lesser than the target. If GTE or LTE were used in this portion it would render the previous
+        # portion of the query useless. To prevent this and get the desired behavior we use a sub-string of the first
+        # two characters of the supplied operation so that the major operation is always GT or LT.
         major_operation = operation[0:2]
         os_filter = {
             "OR": [os_filter, {"spf_operating_system": {"major": {major_operation: major}, "name": {"eq": name}}}]
