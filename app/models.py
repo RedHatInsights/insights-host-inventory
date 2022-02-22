@@ -2,6 +2,7 @@ import uuid
 from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from enum import Enum
 from os.path import join
@@ -47,6 +48,9 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
+
+# set edge host stale_timestamp way out in future to Year 4760
+EDGE_HOST_STALE_TIMESTAMP = datetime.now(timezone.utc) + timedelta(days=999999)
 
 
 class ProviderType(str, Enum):
@@ -220,7 +224,11 @@ class Host(LimitedHost):
             raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
 
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
-        self.stale_timestamp = stale_timestamp
+
+        if system_profile_facts and system_profile_facts.get("host_type") == "edge":
+            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
+        else:
+            self.stale_timestamp = stale_timestamp
         self.reporter = reporter
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
@@ -244,8 +252,12 @@ class Host(LimitedHost):
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
 
-        self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
-        self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
+        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
+            self._update_stale_timestamp(EDGE_HOST_STALE_TIMESTAMP, input_host.reporter)
+            self._update_per_reporter_staleness(EDGE_HOST_STALE_TIMESTAMP, input_host.reporter)
+        else:
+            self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
+            self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
