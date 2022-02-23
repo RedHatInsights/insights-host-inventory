@@ -229,7 +229,6 @@ def add_host(host_data, platform_metadata):
                 host_data = _set_owner(host_data, identity)
 
             input_host = deserialize_host(host_data)
-
             staleness_timestamps = Timestamps.from_config(inventory_config())
             log_add_host_attempt(logger, input_host)
             output_host, host_id, insights_id, add_result = host_repository.add_host(
