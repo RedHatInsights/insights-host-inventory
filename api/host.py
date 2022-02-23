@@ -180,24 +180,25 @@ def delete_host_list(
             filter,
         )
 
-        if len(ids_list) == 0:
-            flask.abort(status.HTTP_404_NOT_FOUND)
-
-        delete_count = _delete_filtered_hosts(ids_list)
-
-        json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
-
-        return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
-
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))
     except ConnectionError:
         logger.error("xjoin-search not accessible")
         flask.abort(503)
+
+    if len(ids_list) == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND)
+
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
 
 
 def _delete_filtered_hosts(host_id_list):
