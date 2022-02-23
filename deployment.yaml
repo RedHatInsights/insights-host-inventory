@@ -613,6 +613,8 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
+    labels:
+      app: host-inventory
     name: events-topic-rebuilder-${CJI_RANDOM_SUFFIX}
   spec:
     appName: host-inventory
