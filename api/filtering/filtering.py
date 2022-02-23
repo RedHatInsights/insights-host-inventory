@@ -205,10 +205,30 @@ def _isolate_object_filter_expression(orig_object, single_value):
         return {next_key: single_value}
 
 
+def _create_object_nil_query(field_name):
+    child_queries = {}
+    for child_field in system_profile_spec()[field_name]["children"]:
+        child_queries[child_field] = {"eq": None}
+
+    return {f"spf_{field_name}": child_queries}
+
+
+def _create_object_existance_query(field_name, field_value):
+    # TODO: this will break with more than one level of object nesting
+    # The plan is to make the interface in xjoin simpler to offload the complexity
+    # before something gets added to the system profile that will cause an issue
+    if not isinstance(field_value, str) or field_value not in (NIL_STRING, NOT_NIL_STRING):
+        raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
+
+    nil_query = _create_object_nil_query(field_name)
+
+    return {"NOT": nil_query} if field_value == NOT_NIL_STRING else nil_query
+
+
 # Iterates through a deep object's keys to create filters.
 def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
     if not isinstance(field_value, dict):
-        raise ValidationException(f"value '{field_value}'' not valid for field '{field_name}'")
+        return (_create_object_existance_query(field_name, field_value),)
 
     filter_list = []
     for key, val in field_value.items():
