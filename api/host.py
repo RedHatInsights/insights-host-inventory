@@ -254,7 +254,11 @@ def delete_all_hosts(confirm_delete_all=None):
     if len(ids_list) == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
-    delete_count = _delete_filtered_hosts(ids_list)
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
+    except KafkaError:
+        logger.error("Kafka server not available")
+        flask.abort(503)
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
