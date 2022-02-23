@@ -1161,3 +1161,6 @@ def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_ge
 
 def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get, query_source_xjoin):
     assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]
+
+
+# def test
