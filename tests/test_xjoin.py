@@ -3311,3 +3311,139 @@ def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin,
 
                     assert response_status == 400
                     assert response_data["title"] == "Validation Error"
+
+
+# Test generic filtering for object fields (the object itself, not its properties)
+def test_generic_filtering_objects(
+    mocker,
+    subtests,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = ("[system_profile][ansible]", "[system_profile][mssql]")
+    operations = ("", "[eq]")
+    values = ("nil", "not_nil")
+    ansible_queries = (
+        {
+            "spf_ansible": {
+                "sso_version": {"eq": None},
+                "hub_version": {"eq": None},
+                "controller_version": {"eq": None},
+                "catalog_worker_version": {"eq": None},
+            }
+        },
+        {
+            "NOT": {
+                "spf_ansible": {
+                    "sso_version": {"eq": None},
+                    "hub_version": {"eq": None},
+                    "controller_version": {"eq": None},
+                    "catalog_worker_version": {"eq": None},
+                }
+            }
+        },
+    )
+    mssql_queries = ({"spf_mssql": {"version": {"eq": None}}}, {"NOT": {"spf_mssql": {"version": {"eq": None}}}})
+    query_dicts = (ansible_queries, mssql_queries)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+def test_generic_filtering_objects_sap_sids(
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][ansible]", "[system_profile][mssql]")
+    operations = ("", "[eq]")
+    values = ("nil", "not_nil")
+    ansible_queries = (
+        {
+            "spf_ansible": {
+                "sso_version": {"eq": None},
+                "hub_version": {"eq": None},
+                "controller_version": {"eq": None},
+                "catalog_worker_version": {"eq": None},
+            }
+        },
+        {
+            "NOT": {
+                "spf_ansible": {
+                    "sso_version": {"eq": None},
+                    "hub_version": {"eq": None},
+                    "controller_version": {"eq": None},
+                    "catalog_worker_version": {"eq": None},
+                }
+            }
+        },
+    )
+    mssql_queries = ({"spf_mssql": {"version": {"eq": None}}}, {"NOT": {"spf_mssql": {"version": {"eq": None}}}})
+    query_dicts = (ansible_queries, mssql_queries)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_objects_invalid_values(subtests, patch_xjoin_post, api_get):
+    prefixes = ("?filter[system_profile][ansible]",)
+    suffixes = (
+        # bad operation
+        "[foo]=bar",
+        "[bar][]=bar",
+        "[eq][foo]=bar",
+        "[is]=bar",
+        "[lt]=bar",
+        "[gt]=bar",
+        "[lte]=bar",
+        "[gte]=bar",
+        # bad value
+        "=foo",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
