@@ -3356,12 +3356,7 @@ def test_generic_filtering_objects(
         graphql_tag_query_empty_response,
         graphql_system_profile_sap_system_query_empty_response,
     )
-    endpoint_url_builders = (
-        build_hosts_url,
-        build_tags_url,
-        build_system_profile_sap_system_url,
-        # build_system_profile_sap_sids_url
-    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
     for query_verifier, query_mock, endpoint, url_builder in zip(
         endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
     ):

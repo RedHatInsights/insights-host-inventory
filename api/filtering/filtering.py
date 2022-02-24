@@ -227,9 +227,6 @@ def _create_object_existence_query(field_name, field_value):
 
 # Iterates through a deep object's keys to create filters.
 def _base_object_filter_builder(builder_function, field_name, field_value, field_filter, spec=None):
-    # TODO: this doesn't seem to catch when [eq] is used because it appears as a dict.
-    # Wondering if that was always a bug
-    logger.debug(field_value)
     if not isinstance(field_value, dict):
         return (_create_object_existence_query(field_name, field_value),)
     if all(key in ("eq") for key in field_value.keys()):
