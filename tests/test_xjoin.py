@@ -3313,7 +3313,7 @@ def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin,
                     assert response_data["title"] == "Validation Error"
 
 
-# Test generic filtering for object fields (the object itself not it's properties)
+# Test generic filtering for object fields (the object itself, not its properties)
 def test_generic_filtering_objects(
     mocker,
     subtests,

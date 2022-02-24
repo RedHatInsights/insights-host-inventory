@@ -213,7 +213,7 @@ def _create_object_nil_query(field_name):
     return {f"spf_{field_name}": child_queries}
 
 
-def _create_object_existance_query(field_name, field_value):
+def _create_object_existence_query(field_name, field_value):
     # TODO: this will break with more than one level of object nesting
     # The plan is to make the interface in xjoin simpler to offload the complexity
     # before something gets added to the system profile that will cause an issue
@@ -231,9 +231,9 @@ def _base_object_filter_builder(builder_function, field_name, field_value, field
     # Wondering if that was always a bug
     logger.debug(field_value)
     if not isinstance(field_value, dict):
-        return (_create_object_existance_query(field_name, field_value),)
+        return (_create_object_existence_query(field_name, field_value),)
     if all(key in ("eq") for key in field_value.keys()):
-        return (_create_object_existance_query(field_name, field_value["eq"]),)
+        return (_create_object_existence_query(field_name, field_value["eq"]),)
 
     filter_list = []
     for key, val in field_value.items():
