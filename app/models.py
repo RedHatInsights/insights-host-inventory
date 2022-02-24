@@ -49,8 +49,8 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
-# set edge host stale_timestamp way out in future to Year 4760
-EDGE_HOST_STALE_TIMESTAMP = datetime.now(timezone.utc) + timedelta(days=999999)
+# set edge host stale_timestamp way out in future to Year 2222
+EDGE_HOST_STALE_TIMESTAMP = datetime.now(timezone.utc) + timedelta(days=73000)
 
 
 class ProviderType(str, Enum):
