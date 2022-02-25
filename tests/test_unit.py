@@ -2130,13 +2130,21 @@ class KafkaAvailabilityTests(TestCase):
         assert host_kafka.kafka_available(kafka_servers)
         host_kafka._any_bootstrap_server_connects.assert_called_once_with(ANY, kafka_servers)
 
-    def test_one_invalid_bootstrap_server(self):
+    def test_invalid_kafka_server(self):
         kafka_servers = ["localhos.129092"]
         host_kafka._any_bootstrap_server_connects = MagicMock()
         host_kafka._any_bootstrap_server_connects.return_value = None
 
         assert host_kafka.kafka_available(kafka_servers) is None
         host_kafka._any_bootstrap_server_connects.assert_called_once_with(ANY, kafka_servers)
+
+    def test_bogus_kafka_server(self):
+        kafka_servers = ["bogus-kafka:29092"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+
+    def test_wrong_kafka_server_post(self):
+        kafka_servers = ["localhost:54321"]
+        assert host_kafka.kafka_available(kafka_servers) is None
 
 
 if __name__ == "__main__":
