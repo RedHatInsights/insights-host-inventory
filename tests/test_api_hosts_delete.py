@@ -1,8 +1,6 @@
 from copy import deepcopy
-from unittest import mock
 
 import pytest
-from kafka.errors import KafkaError
 
 from api.host import _get_host_list_by_id_list
 from app.models import Host
@@ -337,26 +335,26 @@ def test_delete_hosts_chunk_size(
     query_wraper.query.limit.assert_called_with(5)
 
 
-@pytest.mark.parametrize(
-    "send_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
-)
-def test_delete_stops_after_kafka_producer_error(
-    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
-):
+# @pytest.mark.parametrize(
+#     "send_side_effects",
+#     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+# )
+# def test_delete_stops_after_kafka_producer_error(
+#     send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+# ):
 
-    event_producer._kafka_producer.send.side_effect = send_side_effects
+#     event_producer._kafka_producer.send.side_effect = send_side_effects
 
-    hosts = db_create_multiple_hosts(how_many=3)
-    host_id_list = [str(host.id) for host in hosts]
+#     hosts = db_create_multiple_hosts(how_many=3)
+#     host_id_list = [str(host.id) for host in hosts]
 
-    response_status, response_data = api_delete_host(",".join(host_id_list))
+#     response_status, response_data = api_delete_host(",".join(host_id_list))
 
-    assert_response_status(response_status, expected_status=500)
+#     assert_response_status(response_status, expected_status=500)
 
-    remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 3
-    assert event_producer._kafka_producer.send.call_count == 0
+#     remaining_hosts = db_get_hosts(host_id_list)
+#     assert remaining_hosts.count() == 3
+#     assert event_producer._kafka_producer.send.call_count == 0
 
 
 class DeleteHostsMock:
