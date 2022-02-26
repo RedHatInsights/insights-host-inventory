@@ -8,6 +8,10 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _connect(kafka_socket, new_addr):
+    return kafka_socket.connect_ex(new_addr)
+
+
 def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
     if not servers:
         config = Config(RuntimeEnvironment.SERVICE)
@@ -19,9 +23,9 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
                 host, port = server.split(":")
                 new_addr = (host, int(port))
 
-                # connect_ex() returns zero when the socket is open and accessible.
+                # _connect() returns zero when the socket is open and accessible.
                 # For wrong port errrcode > 0 returned.
-                errcode = kafka_socket.connect_ex(new_addr)
+                errcode = _connect(kafka_socket, new_addr)
                 if errcode == 0:
                     return True
 
