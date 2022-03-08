@@ -403,7 +403,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
 
-    facke_event_producer = mock.Mock()
+    fake_event_producer = mock.Mock()
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
@@ -411,18 +411,18 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
         inventory_config,
         mock.Mock(),
         db.session,
-        facke_event_producer,
+        fake_event_producer,
         shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
     )
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 1
-    assert facke_event_producer.write_event.call_count == 2
+    assert fake_event_producer.write_event.call_count == 2
 
 
 @pytest.mark.host_reaper
 def test_unknown_host_is_not_removed(
-    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config, db_create_host
+    event_producer_mock, db_create_host_in_unknown_state, db_get_host, inventory_config
 ):
     created_host = db_create_host_in_unknown_state
     retrieved_host = db_get_host(created_host.id)
