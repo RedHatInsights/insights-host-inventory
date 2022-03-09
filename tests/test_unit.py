@@ -23,6 +23,7 @@ from api import custom_escape
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
+from api.parsing import customURIParser
 from app import create_app
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
@@ -2069,6 +2070,19 @@ class QueryParameterParsingTestCase(TestCase):
             assert root_key == parser_input[0]
             assert response == output
             assert is_deep_object is True
+
+    def test_valid_deep_object_list(self):
+        for key, value in (("asdf[foo]", ["bar"]), ("system_profile[field1][field2]", ["value1"])):
+            _, _, is_deep_object = customURIParser._make_deep_object(key, value)
+            assert is_deep_object
+
+    def test_invalid_deep_object_list(self):
+        for key, value in (
+            ("asdf[foo]", ["bar", "baz"]),
+            ("system_profile[field1][field2]", ["value1", "value2", "value3"]),
+        ):
+            with self.assertRaises(ValidationException):
+                customURIParser._make_deep_object(key, value)
 
 
 class CustomRegexMethodTestCase(TestCase):
