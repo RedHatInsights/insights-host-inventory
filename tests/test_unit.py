@@ -58,6 +58,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from lib import host_kafka
 from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -1185,8 +1186,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
             with self.subTest(additional_data=additional_data):
-                for mock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
-                    mock.reset_mock()
+                for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
+                    thismock.reset_mock()
 
                 all_data = {**common_data, **additional_data}
                 host_schema = Mock(
@@ -2096,6 +2097,66 @@ class CustomRegexMethodTestCase(TestCase):
             with self.subTest(regex_input=regex_input):
                 result = custom_escape(regex_input)
                 assert result == output
+
+
+class KafkaAvailabilityTests(TestCase):
+    def setUp(self,):
+        super().setUp()
+        self.config = Config(RuntimeEnvironment.TEST)
+
+    @patch("socket.socket.connect_ex")
+    def test_happy_path(self, connect_ex):
+        connect_ex.return_value = 0
+        assert host_kafka.kafka_available()
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_valid_server(self, connect_ex):
+        connect_ex.return_value = 0
+        akafka = [self.config.bootstrap_servers]
+        assert host_kafka.kafka_available(akafka)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_of_valid_servers(self, connect_ex):
+        connect_ex.return_value = 0
+        kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_with_first_bad_second_good_server(self, connect_ex):
+        connect_ex.return_value = 0
+        kafka_servers = ["localhost29092", "127.0.0.1:29092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_with_first_good_second_bad_server(self, connect_ex):
+        # second bad with missing ':'.  Returns as soon as the first kafka server found.
+        connect_ex.return_value = 0
+        kafka_servers = ["localhost:29092", "127.0.0.129092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_invalid_kafka_server(self, connect_ex):
+        kafka_servers = ["localhos.129092"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_not_called()
+
+    @patch("socket.socket.connect_ex")
+    def test_bogus_kafka_server(self, connect_ex):
+        kafka_servers = ["bogus-kafka29092"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_not_called()
+
+    @patch("socket.socket.connect_ex")
+    def test_wrong_kafka_server_post(self, connect_ex):
+        connect_ex.return_value = 61
+        kafka_servers = ["localhost:54321"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_called_once()
 
 
 if __name__ == "__main__":
