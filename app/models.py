@@ -314,7 +314,7 @@ class Host(LimitedHost):
             self.per_reporter_staleness[reporter] = {}
 
         self.per_reporter_staleness[reporter].update(
-            stale_timestamp=stale_timestamp.isoformat(),
+            stale_timestamp=self.stale_timestamp.isoformat(),
             last_check_in=datetime.now(timezone.utc).isoformat(),
             check_in_succeeded=True,
         )
