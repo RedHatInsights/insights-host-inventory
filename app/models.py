@@ -223,11 +223,13 @@ class Host(LimitedHost):
             raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
 
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
-        self.stale_timestamp = stale_timestamp
-        self.reporter = reporter
+
+        # without reporter and stale_timestamp host payload is invalid.
+        self._update_stale_timestamp(stale_timestamp, reporter)
+
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
-            self._update_per_reporter_staleness(stale_timestamp, reporter)
+            self._update_per_reporter_staleness(reporter)
 
     def save(self):
         self._cleanup_tags()
@@ -248,7 +250,7 @@ class Host(LimitedHost):
             self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
-        self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
+        self._update_per_reporter_staleness(input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -300,13 +302,7 @@ class Host(LimitedHost):
             self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
-    def _update_per_reporter_staleness(self, stale_timestamp, reporter):
-
-        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
-            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
-        else:
-            self.stale_timestamp = stale_timestamp
-
+    def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
