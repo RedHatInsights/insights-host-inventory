@@ -13,26 +13,23 @@ def _any_bootstrap_server_connects(kafka_socket, servers) -> bool:
         config = Config(RuntimeEnvironment.SERVICE)
         servers = [config.bootstrap_servers] if isinstance(config.bootstrap_servers, str) else config.bootstrap_servers
 
-    try:
-        for server in servers:
-            try:
-                host, port = server.split(":")
-                new_addr = (host, int(port))
+    for server in servers:
+        try:
+            host, port = server.split(":")
+            new_addr = (host, int(port))
 
-                # _connect() returns zero when the socket is open and accessible.
-                # For wrong port errrcode > 0 returned.
-                errcode = kafka_socket.connect_ex(new_addr)
-                if errcode == 0:
-                    return True
+            # _connect() returns zero when the socket is open and accessible.
+            # For wrong port errrcode > 0 returned.
+            errcode = kafka_socket.connect_ex(new_addr)
+            if errcode == 0:
+                return True
 
-            except ValueError as ve:
-                # when wrongly formatted address provided
-                logger.error(f"Invalid server address: {str(ve)}")
-            except socket.gaierror as sgai:
-                # thrown when wrong server name is used.
-                logger.error(f"Invalid server name: {str(sgai)}")
-    except ValueError as ve:
-        logger.error(f"No servers available: {str(ve)}")
+        except ValueError as ve:
+            # when wrongly formatted address provided
+            logger.error(f"Invalid server address: {str(ve)}")
+        except socket.gaierror as sgai:
+            # thrown when wrong server name is used.
+            logger.error(f"Invalid server name: {str(sgai)}")
 
 
 def kafka_available(servers=None):
