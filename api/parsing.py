@@ -2,6 +2,8 @@ import re
 
 from connexion.decorators.uri_parsing import OpenAPIURIParser
 
+from app.exceptions import ValidationException
+
 
 def custom_fields_parser(root_key, key_path, val):
     """ consumes values like ("a",["foo"],["baz,hello","world"])
@@ -43,5 +45,7 @@ class customURIParser(OpenAPIURIParser):
         if k == "":
             prev[prev_k] = v
         else:
+            if len(v) > 1:
+                raise ValidationException(f"Param {root_key} must be appended with [] to accept multiple values.")
             prev[k] = v[0]
         return (root_key, [root], True)
