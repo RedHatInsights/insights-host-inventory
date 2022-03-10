@@ -48,6 +48,9 @@ TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 
+# set edge host stale_timestamp way out in future to Year 2260
+EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
+
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -220,11 +223,13 @@ class Host(LimitedHost):
             raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
 
         super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
-        self.stale_timestamp = stale_timestamp
-        self.reporter = reporter
+
+        # without reporter and stale_timestamp host payload is invalid.
+        self._update_stale_timestamp(stale_timestamp, reporter)
+
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
-            self._update_per_reporter_staleness(stale_timestamp, reporter)
+            self._update_per_reporter_staleness(reporter)
 
     def save(self):
         self._cleanup_tags()
@@ -245,7 +250,7 @@ class Host(LimitedHost):
             self.update_system_profile(input_host.system_profile_facts)
 
         self._update_stale_timestamp(input_host.stale_timestamp, input_host.reporter)
-        self._update_per_reporter_staleness(input_host.stale_timestamp, input_host.reporter)
+        self._update_per_reporter_staleness(input_host.reporter)
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -291,10 +296,13 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_stale_timestamp(self, stale_timestamp, reporter):
-        self.stale_timestamp = stale_timestamp
+        if self.system_profile_facts and self.system_profile_facts.get("host_type") == "edge":
+            self.stale_timestamp = EDGE_HOST_STALE_TIMESTAMP
+        else:
+            self.stale_timestamp = stale_timestamp
         self.reporter = reporter
 
-    def _update_per_reporter_staleness(self, stale_timestamp, reporter):
+    def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
@@ -302,7 +310,7 @@ class Host(LimitedHost):
             self.per_reporter_staleness[reporter] = {}
 
         self.per_reporter_staleness[reporter].update(
-            stale_timestamp=stale_timestamp.isoformat(),
+            stale_timestamp=self.stale_timestamp.isoformat(),
             last_check_in=datetime.now(timezone.utc).isoformat(),
             check_in_succeeded=True,
         )

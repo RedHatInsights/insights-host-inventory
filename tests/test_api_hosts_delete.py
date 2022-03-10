@@ -117,16 +117,13 @@ def test_delete_hosts_using_filter(
     field,
     value,
 ):
-
     created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
     host_ids = [str(host.id) for host in created_hosts]
 
     # set the new host ids in the xjoin search reference.
     resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
-    ind = 0
-    for id in host_ids:
+    for ind, id in enumerate(host_ids):
         resp["hosts"]["data"][ind]["id"] = id
-        ind += 1
     response = {"data": resp}
 
     # Make the new hosts available in xjoin-search to make them available
@@ -324,6 +321,7 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 def test_delete_hosts_chunk_size(
     event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker, inventory_config
 ):
+
     inventory_config.host_delete_chunk_size = 5
 
     query_wrapper = DeleteQueryWrapper(mocker)
@@ -344,7 +342,7 @@ def test_delete_hosts_chunk_size(
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_delete_stops_after_kafka_producer_error(
-    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+    send_side_effects, event_producer_mock, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
@@ -356,7 +354,7 @@ def test_delete_stops_after_kafka_producer_error(
     assert_response_status(response_status, expected_status=500)
 
     remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.send.call_count == 2
 
 

@@ -193,6 +193,7 @@ def test_culled_host_is_removed(
     assert db_get_host(created_host.id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+
     host_reaper_run(
         inventory_config,
         mock.Mock(),
@@ -215,9 +216,9 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         reporter="some reporter",
         system_profile_facts={"host_type": "edge"},
     )
-    created_host = db_create_host(host=host)
+    created_host_id = db_create_host(host=host).id
 
-    assert db_get_host(created_host.id)
+    assert db_get_host(created_host_id)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
@@ -228,13 +229,12 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert db_get_host(created_host.id)
+    assert db_get_host(created_host_id)
+    assert event_producer_mock.event is None
 
 
 @pytest.mark.host_reaper
-def test_non_culled_host_is_not_removed(
-    event_producer_mock, event_datetime_mock, db_create_host, db_get_hosts, inventory_config
-):
+def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_get_hosts, inventory_config):
     staleness_timestamps = get_staleness_timestamps()
     created_hosts = []
 
@@ -268,7 +268,7 @@ def test_non_culled_host_is_not_removed(
 
 
 @pytest.mark.host_reaper
-def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hosts, inventory_config):
+def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config, event_producer_mock):
     staleness_timestamps = get_staleness_timestamps()
     created_host_ids = []
 
@@ -281,20 +281,21 @@ def test_reaper_shutdown_handler(event_datetime_mock, db_create_host, db_get_hos
     created_hosts = db_get_hosts(created_host_ids)
     assert created_hosts.count() == host_count
 
-    event_producer_mock = mock.Mock()
+    fake_event_producer = mock.Mock()
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+
     host_reaper_run(
         inventory_config,
         mock.Mock(),
         db.session,
-        event_producer_mock,
+        fake_event_producer,
         shutdown_handler=mock.Mock(**{"shut_down.side_effect": (False, True)}),
     )
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 1
-    assert event_producer_mock.write_event.call_count == 2
+    assert fake_event_producer.write_event.call_count == 2
 
 
 @pytest.mark.host_reaper
@@ -317,7 +318,6 @@ def test_unknown_host_is_not_removed(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert db_get_host(created_host.id)
     assert event_producer_mock.event is None
 
 
@@ -338,14 +338,10 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    send_side_effects,
-    kafka_producer,
-    event_producer,
-    event_datetime_mock,
-    db_create_multiple_hosts,
-    db_get_hosts,
-    inventory_config,
+    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
 ):
+    mocker.patch("lib.host_delete.kafka_available")
+
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
@@ -371,5 +367,5 @@ def test_reaper_stops_after_kafka_producer_error(
         )
 
     remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.send.call_count == 2

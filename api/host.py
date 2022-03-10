@@ -3,6 +3,7 @@ from enum import Enum
 import flask
 from flask import current_app
 from flask_api import status
+from kafka.errors import KafkaError
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -156,6 +157,7 @@ def delete_host_list(
             tags,
             filter,
         )
+
     except ValueError as err:
         log_get_host_list_failed(logger)
         flask.abort(400, str(err))
@@ -163,10 +165,14 @@ def delete_host_list(
         logger.error("xjoin-search not accessible")
         flask.abort(503)
 
-    if not len(ids_list):
-        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+    if len(ids_list) == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND)
 
-    delete_count = _delete_filtered_hosts(ids_list)
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
+    except KafkaError:
+        logger.error("Kafka server not available")
+        flask.abort(503)
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 
@@ -226,7 +232,11 @@ def delete_all_hosts(confirm_delete_all=None):
     if len(ids_list) == 0:
         flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
-    delete_count = _delete_filtered_hosts(ids_list)
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
+    except KafkaError:
+        logger.error("Kafka server not available")
+        flask.abort(503)
 
     json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
 

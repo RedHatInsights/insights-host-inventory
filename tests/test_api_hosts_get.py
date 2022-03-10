@@ -264,6 +264,21 @@ def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get):
     assert_response_status(eq_response_status, 400)
 
 
+@pytest.mark.parametrize(
+    "query_params",
+    (
+        "?filter[foo]=bar&filter[foo]=baz&filter[foo]=asdf",
+        "?filter[system_profile][number_of_cpus]=1&filter[system_profile][number_of_cpus]=2",
+        "?asdf[foo]=bar&asdf[foo]=baz",
+    ),
+)
+def test_get_hosts_invalid_deep_object_params(query_params, api_get):
+    invalid_url = build_hosts_url(query=query_params)
+
+    response_code, _ = api_get(invalid_url)
+    assert_response_status(response_code, 400)
+
+
 def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, api_get):
     host_one_id, host_two_id = generate_uuid(), generate_uuid()
 

@@ -11,10 +11,10 @@ objects:
     envName: ${ENV_NAME}
     testing:
       iqePlugin: host-inventory
-    optionalDependencies:
-    - rbac
-    - xjoin-search
-    - ingress
+    dependencies:
+      - rbac
+      - xjoin-search
+      - ingress
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
