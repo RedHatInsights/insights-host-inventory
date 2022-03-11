@@ -1,6 +1,5 @@
 from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
-from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
@@ -106,7 +105,7 @@ def get_host_list(
     )
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
     additional_fields = tuple()
@@ -158,7 +157,7 @@ def get_host_ids_list(
     )
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
     variables = {"limit": 100, "filter": all_filters}  # maximum limit handled by xjoin.

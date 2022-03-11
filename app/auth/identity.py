@@ -27,7 +27,6 @@ def from_bearer_token(token):
 class AuthType(str, Enum):
     BASIC = "basic-auth"
     CERT = "cert-auth"
-    CLASSIC = "classic-proxy"
     JWT = "jwt-auth"
     UHC = "uhc-auth"
 
@@ -88,17 +87,16 @@ class Identity:
 
             elif self.identity_type == IdentityType.SYSTEM:
                 self.system = obj.get("system")
-                if self.auth_type != AuthType.CLASSIC:
-                    if not self.system:
-                        raise ValueError("The identity.system field is mandatory for system-type identities")
-                    elif not self.system.get("cert_type"):
-                        raise ValueError("The cert_type field is mandatory for system-type identities")
-                    elif self.system["cert_type"].lower() not in CertType.__members__.values():
-                        raise ValueError(f"The cert_type {self.system['cert_type']} is invalid.")
-                    elif not self.system.get("cn"):
-                        raise ValueError("The cn field is mandatory for system-type identities")
-                    else:
-                        self.system["cert_type"] = self.system["cert_type"].lower()
+                if not self.system:
+                    raise ValueError("The identity.system field is mandatory for system-type identities")
+                elif not self.system.get("cert_type"):
+                    raise ValueError("The cert_type field is mandatory for system-type identities")
+                elif self.system["cert_type"].lower() not in CertType.__members__.values():
+                    raise ValueError(f"The cert_type {self.system['cert_type']} is invalid.")
+                elif not self.system.get("cn"):
+                    raise ValueError("The cn field is mandatory for system-type identities")
+                else:
+                    self.system["cert_type"] = self.system["cert_type"].lower()
 
             threadctx.account_number = obj["account_number"]
 

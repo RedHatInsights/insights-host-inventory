@@ -247,7 +247,7 @@ class AuthIdentityValidateTestCase(TestCase):
     def test_case_insensitive_auth_types(self):
         # Validate that auth_type is case-insensitive
         test_identity = deepcopy(SYSTEM_IDENTITY)
-        auth_types = ["CLASSIC-PROXY", "Cert-Auth", "basic-auth", None]
+        auth_types = ["JWT-AUTH", "Cert-Auth", "basic-auth", None]
         for auth_type in auth_types:
             with self.subTest(auth_type=auth_type):
                 test_identity["auth_type"] = auth_type
