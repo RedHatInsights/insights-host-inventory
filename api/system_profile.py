@@ -298,25 +298,6 @@ def get_operating_system(
     )
 
 
-################################################################################
-# xjoin-search returns non-existant or null OS fields as a key,value pair with
-# a None value. We cannot send those as output beca
-# def _process_OS_data(os_data: List[dict]) -> List[dict]:
-#     processed = {}
-
-#     for i, result in enumerate(os_data):
-#         for count, version_dict in result.items():
-#             for key, value in version_dict.items():
-#                 print(f'key: {key}, value: {value}')
-#                 if value != None:
-#                     processed[i][key] = value
-
-#     print("!!! PROCESSED !!!")
-#     print(processed)
-
-#     return processed
-
-
 @api_operation
 @rbac(Permission.READ)
 @metrics.schema_validation_time.time()
