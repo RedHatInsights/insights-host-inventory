@@ -95,6 +95,7 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
             existing_host = (
                 multiple_canonical_facts_host_query(identity, elevated_facts, False)
                 .order_by(Host.modified_on.desc())
+                .with_for_update()
                 .first()
             )
             if existing_host:
@@ -134,6 +135,7 @@ def find_host_by_multiple_canonical_facts(identity, canonical_facts):
     host = (
         multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=False)
         .order_by(Host.modified_on.desc())
+        .with_for_update()
         .first()
     )
 
