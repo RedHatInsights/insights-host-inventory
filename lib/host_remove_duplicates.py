@@ -82,7 +82,7 @@ def find_host_list_by_regular_canonical_facts(canonical_facts, query, logger):
 
 
 def _delete_hosts_by_id_list(session, host_id_list):
-    delete_query = session.query(Host).filter(Host.id.in_(host_id_list))
+    delete_query = session.query(Host).filter(Host.id.in_(host_id_list)).with_for_update()
     delete_query.delete(synchronize_session="fetch")
     delete_query.session.commit()
 

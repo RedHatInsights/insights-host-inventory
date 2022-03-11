@@ -30,7 +30,7 @@ def delete_hosts(select_query, event_producer, chunk_size, interrupt=lambda: Fal
 
 
 def _delete_host(session, event_producer, host):
-    delete_query = session.query(Host).filter(Host.id == host.id)
+    delete_query = session.query(Host).filter(Host.id == host.id).with_for_update()
     if kafka_available():
         delete_query.delete(synchronize_session="fetch")
         host_deleted = _deleted_by_this_query(host)
