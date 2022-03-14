@@ -13,7 +13,6 @@ from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_count_url
-from tests.helpers.api_utils import HOST_URL
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
@@ -24,25 +23,6 @@ def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
     response_status, response_data = api_get(url)
 
     assert response_status == 400
-
-
-def test_get_hosts_list_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
-    created_hosts = mq_create_hosts_in_all_states
-
-    response_status, response_data = api_get(HOST_URL)
-
-    assert response_status == 200
-    assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
-
-
-def test_get_hosts_by_id_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
-    created_hosts = mq_create_hosts_in_all_states
-
-    url = build_hosts_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
 
 
 def test_tags_default_ignores_culled(mq_create_hosts_in_all_states, api_get):
@@ -63,16 +43,6 @@ def test_tags_count_default_ignores_culled(mq_create_hosts_in_all_states, api_ge
 
     assert response_status == 200
     assert created_hosts["culled"].id not in tuple(response_data["results"].keys())
-
-
-def test_get_system_profile_ignores_culled(mq_create_hosts_in_all_states, api_get):
-    created_hosts = mq_create_hosts_in_all_states
-
-    url = build_system_profile_url(host_list_or_id=created_hosts)
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert created_hosts["culled"].id not in [host["id"] for host in response_data["results"]]
 
 
 def test_patch_ignores_culled(mq_create_hosts_in_all_states, api_patch):
