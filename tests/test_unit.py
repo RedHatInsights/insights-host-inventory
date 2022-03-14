@@ -257,6 +257,13 @@ class AuthIdentityValidateTestCase(TestCase):
                 except Exception:
                     self.fail()
 
+    def test_case_obsolete_auth_type(self):
+        # Validate that removed auth_type not working anymore
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        test_identity["auth_type"] = "CLASSIC-PROXY"
+        with self.assertRaises(ValueError):
+            Identity(test_identity)
+
 
 class TrustedIdentityTestCase(TestCase):
     shared_secret = "ImaSecret"
