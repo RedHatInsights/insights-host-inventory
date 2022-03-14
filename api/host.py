@@ -56,7 +56,7 @@ TAG_OPERATIONS = ("apply", "remove")
 logger = get_logger(__name__)
 
 
-def _get_host_list_by_id_list_db(host_id_list):
+def _get_host_list_by_id_list_from_db(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
@@ -186,7 +186,7 @@ def _delete_filtered_hosts(host_id_list):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = _get_host_list_by_id_list_db(host_id_list)
+        query = _get_host_list_by_id_list_from_db(host_id_list)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
@@ -299,7 +299,7 @@ def patch_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = _get_host_list_by_id_list_db(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     hosts_to_update = query.all()
 
@@ -378,7 +378,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
 
-    query = _get_host_list_by_id_list_db(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     try:
         order_by = params_to_order_by_db(order_by, order_how)
@@ -416,7 +416,7 @@ def _count_tags(host_list):
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
 
-    query = _get_host_list_by_id_list_db(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     try:
         order_by = params_to_order_by_db(order_by, order_how)

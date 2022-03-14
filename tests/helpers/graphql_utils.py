@@ -113,7 +113,7 @@ XJOIN_INVALID_SYSTEM_PROFILE = {
                     "test_data": "1.2.3",
                     "random": ["data"],
                     "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
-                    "disk_devices": [{"options": {"": "invalid"}}],
+                    "disk_devices": [{"options": {"": "invalid"}}],  # Invalid key (empty)
                 },
             }
         ],
