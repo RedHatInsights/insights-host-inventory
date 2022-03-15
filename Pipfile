@@ -17,6 +17,7 @@ flask-migrate = "~=2.5.2"
 itsdangerous = "~=1.1.0"
 gunicorn = "~=19.9.0"
 connexion = {version = "~=2.7",extras = ["swagger-ui"]}
+markupsafe = "==2.0.1" # Using v2.1.0 breaks Jinja2
 openapi-schema-validator = "< 0.2"
 pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
