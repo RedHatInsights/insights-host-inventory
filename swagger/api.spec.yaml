@@ -386,7 +386,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get operating system values
+      summary: get all sap system values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -398,6 +398,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/stalenessParam'
         - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
             description: sap_system values and counts for account
@@ -414,7 +415,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get sap system values
+      summary: get all sap sids values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -444,7 +445,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get sap system values
+      summary: get all operating system versions and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_operating_system
@@ -741,7 +742,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         results:
-          description: The list of sap_system values on the account
+          description: The list of operating_system values on the account
           type: array
           items:
             type: object

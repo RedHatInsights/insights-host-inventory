@@ -3316,7 +3316,7 @@ def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin,
     for url_builder in endpoint_url_builders:
         for prefix in prefixes:
             for suffix in suffixes:
-                with subtests.test(prefix=prefix, suffix=suffix):
+                with subtests.test(url_builder=url_builder, prefix=prefix, suffix=suffix):
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
 
