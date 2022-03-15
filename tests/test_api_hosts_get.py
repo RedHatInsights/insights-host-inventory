@@ -32,6 +32,9 @@ from tests.helpers.api_utils import UUID_3
 from tests.helpers.db_utils import serialize_db_host
 from tests.helpers.db_utils import update_host_in_db
 from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE
+from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
+from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
+from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
@@ -997,6 +1000,21 @@ def test_get_hosts_unsupported_filter(patch_xjoin_post, api_get, query_source_xj
     assert_response_status(eq_response_status, 400)
 
 
+@pytest.mark.parametrize(
+    "query_params",
+    (
+        "?filter[foo]=bar&filter[foo]=baz&filter[foo]=asdf",
+        "?filter[system_profile][number_of_cpus]=1&filter[system_profile][number_of_cpus]=2",
+        "?asdf[foo]=bar&asdf[foo]=baz",
+    ),
+)
+def test_get_hosts_invalid_deep_object_params(query_params, api_get):
+    invalid_url = build_hosts_url(query=query_params)
+
+    response_code, _ = api_get(invalid_url)
+    assert_response_status(response_code, 400)
+
+
 def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, query_source_xjoin, api_get):
     host_one_id, host_two_id = generate_uuid(), generate_uuid()
 
@@ -1116,3 +1134,45 @@ def test_unindexed_fields_fail_gracefully(query_source_xjoin, api_get):
         for query in ("?filter[system_profile][installed_packages_delta]=foo",):
             response_status, _ = api_get(url_builder(query=query))
             assert response_status == 400
+
+
+# This test verifies that the [contains] operation is accepted for a string array field such as cpu_flags
+def test_get_hosts_contains_works_on_string_array(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+    responses = (
+        XJOIN_HOSTS_RESPONSE,
+        XJOIN_SYSTEM_PROFILE_SAP_SIDS,
+        XJOIN_TAGS_RESPONSE,
+        XJOIN_SYSTEM_PROFILE_SAP_SYSTEM,
+    )
+    query = "?filter[system_profile][cpu_flags][contains]=ex1"
+    for url_builder, response in zip(url_builders, responses):
+        with subtests.test(url_builder=url_builder, response=response, query=query):
+            patch_xjoin_post(response={"data": response})
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 200
+
+
+# This test verifies that the [contains] operation is denied for a non-array string field such as cpu_model
+def test_get_hosts_contains_invalid_on_string_not_array(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+    url_builders = (
+        build_hosts_url,
+        build_system_profile_sap_sids_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+    )
+    query = "?filter[system_profile][cpu_model][contains]=Intel(R) I7(R) CPU I7-10900k 0 @ 4.90GHz"
+    for url_builder in url_builders:
+        with subtests.test(url_builder=url_builder, query=query):
+            response_status, _ = api_get(url_builder(query=query))
+            assert response_status == 400
+
+
+def test_get_hosts_timestamp_invalid_value_graceful_rejection(patch_xjoin_post, api_get, query_source_xjoin):
+    assert 400 == api_get(build_hosts_url(query="?filter[system_profile][last_boot_time][eq]=foo"))[0]

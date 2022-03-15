@@ -10,7 +10,7 @@ from app.xjoin import graphql_query
 from app.xjoin import pagination_params
 from app.xjoin import params_to_order
 
-__all__ = ("get_host_list", "query_filters")
+__all__ = ("get_host_list", "get_host_ids_list", "query_filters")
 
 logger = get_logger(__name__)
 
@@ -48,6 +48,25 @@ QUERY = """query Query(
             stale_timestamp,
             reporter,
             system_profile_facts (filter: $fields),
+        }
+    }
+}"""
+HOST_IDS_QUERY = """query Query(
+    $limit: Int!,
+    $filter: [HostFilter!],
+) {
+    hosts(
+        limit: $limit,
+        filter: {
+            AND: $filter,
+        }
+    ) {
+        meta {
+            total,
+        }
+        data {
+            id,
+            canonical_facts
         }
     }
 }"""
@@ -111,6 +130,41 @@ def get_host_list(
     check_pagination(offset, total)
 
     return map(deserialize_host, response["data"]), total, additional_fields
+
+
+def get_host_ids_list(
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    registered_with,
+    staleness,
+    tags,
+    filter,
+):
+    all_filters = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
+    )
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+        all_filters += owner_id_filter()
+
+    variables = {"limit": 100, "filter": all_filters}  # maximum limit handled by xjoin.
+    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
+
+    return [x["id"] for x in response["data"]]
 
 
 def owner_id_filter():

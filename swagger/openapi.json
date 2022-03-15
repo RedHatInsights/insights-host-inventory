@@ -81,6 +81,87 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "api.host.delete_host_list",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete the entire list of hosts filtered by the given parameters",
+        "description": "Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/providerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessNoDefaultsParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Request for deletion of filtered hosts has been accepted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/hosts/all": {
+      "delete": {
+        "operationId": "api.host.delete_all_hosts",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "Delete all hosts on the account",
+        "description": "Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/confirmDeleteAll"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Request for deleting all hosts has been accepted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
       }
     },
     "/hosts/checkin": {
@@ -933,6 +1014,24 @@
         },
         "description": "Culling states of the hosts. Default: fresh,stale,unknown"
       },
+      "stalenessNoDefaultsParam": {
+        "name": "staleness",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "stale_warning",
+              "unknown"
+            ]
+          }
+        },
+        "description": "Culling states of the hosts."
+      },
       "tagsParam": {
         "name": "tags",
         "in": "query",
@@ -1016,6 +1115,15 @@
         "schema": {
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
+      },
+      "confirmDeleteAll": {
+        "in": "query",
+        "name": "confirm_delete_all",
+        "schema": {
+          "type": "boolean"
+        },
+        "description": "Confirmation to delete all hosts on an account",
+        "required": false
       }
     },
     "schemas": {
@@ -1755,6 +1863,11 @@
           "operating_system": {
             "description": "Object for OS details. Supports range operations",
             "type": "object",
+            "required": [
+              "major",
+              "minor",
+              "name"
+            ],
             "properties": {
               "major": {
                 "description": "Major release of OS (aka the x version)",
@@ -1774,9 +1887,10 @@
                 "description": "Name of the distro/os",
                 "example": "RHEL",
                 "type": "string",
-                "maxLength": 4,
+                "maxLength": 6,
                 "enum": [
-                  "RHEL"
+                  "RHEL",
+                  "CentOS"
                 ]
               }
             }

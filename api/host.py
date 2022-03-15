@@ -4,6 +4,7 @@ import connexion
 import flask
 from flask import current_app
 from flask_api import status
+from kafka.errors import KafkaError
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -12,8 +13,10 @@ from api import flask_json_response
 from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
+from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_list as get_host_list_db
 from api.host_query_db import params_to_order_by
+from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
@@ -48,6 +51,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
+
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -96,6 +100,7 @@ def get_host_list(
     filter=None,
     fields=None,
 ):
+
     total = 0
     host_list = ()
 
@@ -132,7 +137,71 @@ def get_host_list(
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_by_id(host_id_list):
+def delete_host_list(
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    provider_id=None,
+    provider_type=None,
+    registered_with=None,
+    staleness=None,
+    tags=None,
+    filter=None,
+):
+    if not any(
+        [
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+        ]
+    ):
+        logger.error("bulk-delete operation needs at least one input property to filter on.")
+        flask.abort(400, "bulk-delete operation needs at least one input property to filter on.")
+
+    try:
+        ids_list = get_host_ids_list_xjoin(
+            display_name,
+            fqdn,
+            hostname_or_id,
+            insights_id,
+            provider_id,
+            provider_type,
+            registered_with,
+            staleness,
+            tags,
+            filter,
+        )
+
+    except ValueError as err:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(err))
+    except ConnectionError:
+        logger.error("xjoin-search not accessible")
+        flask.abort(503)
+
+    if len(ids_list) == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND)
+
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
+    except KafkaError:
+        logger.error("Kafka server not available")
+        flask.abort(503)
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
+
+
+def _delete_filtered_hosts(host_id_list):
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
@@ -144,12 +213,14 @@ def delete_by_id(host_id_list):
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
 
+        deletion_count = 0
         for host_id, deleted in delete_hosts(
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
             if deleted:
                 log_host_delete_succeeded(logger, host_id, get_control_rule())
                 tracker_message = "deleted host"
+                deletion_count += 1
             else:
                 log_host_delete_failed(logger, host_id, get_control_rule())
                 tracker_message = "not deleted host"
@@ -159,6 +230,46 @@ def delete_by_id(host_id_list):
             ) as payload_tracker_processing_ctx:
                 payload_tracker_processing_ctx.inventory_id = host_id
 
+    return deletion_count
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def delete_all_hosts(confirm_delete_all=None):
+    if not confirm_delete_all:
+        logger.error("To delete all hosts, provide confirm_delete_all=true in the request.")
+        flask.abort(400, "To delete all hosts, provide confirm_delete_all=true in the request.")
+
+    try:
+        # get all hosts from the DB; bypasses xjoin-search, which limits the number hosts to 10 by default.
+        ids_list = get_all_hosts()
+    except ValueError as err:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(err))
+    except ConnectionError:
+        logger.error("xjoin-search not accessible")
+        flask.abort(503)
+
+    if len(ids_list) == 0:
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+
+    try:
+        delete_count = _delete_filtered_hosts(ids_list)
+    except KafkaError:
+        logger.error("Kafka server not available")
+        flask.abort(503)
+
+    json_data = {"hosts_found": len(ids_list), "hosts_deleted": delete_count}
+
+    return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
+
+
+@api_operation
+@rbac(Permission.WRITE)
+@metrics.api_request_time.time()
+def delete_by_id(host_id_list):
+    _delete_filtered_hosts(host_id_list)
     return flask.Response(None, status.HTTP_200_OK)
 
 

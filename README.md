@@ -1,10 +1,20 @@
 # Host Based Inventory
 
-You've arrived at the repo for the backend of the Host Based Inventory (HBI).If you're
-looking for API, integration or user documentation for HBI please see the [Inventory section
-in our Platform Docs site](https://clouddot.pages.redhat.com/docs/dev/services/inventory.html).
+You've arrived at the repo for the backend of the Host Based Inventory (HBI).
+If you're looking for API, integration or user documentation for HBI please see the [Inventory section in our Platform Docs site](https://consoledot.pages.redhat.com/docs/dev/services/inventory.html).
 
-# Getting Started
+## Getting Started
+
+### Snappy
+
+This project uses [Snappy compression](http://google.github.io/snappy/) to enhance its Kafka usage.
+The `python-snappy` package requires the core Snappy library to be installed on the machine, so start off by running the following:
+
+```
+sudo dnf install snappy
+```
+
+### Install dependencies
 
 This project uses pipenv to manage the development and deployment environments.
 To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.8.x), pip and pipenv version. Once you have pipenv, do the following:
@@ -26,7 +36,7 @@ useful for development.
 docker-compose -f dev.yml up
 ```
 
-## Initialize the database
+### Initialize the database
 
 Run the following commands to run the db migration scripts which will
 maintain the db tables.
@@ -69,15 +79,9 @@ variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).
 
 ## Sonar Integration
 
-This project uses Sonar for static code analysis. To set up sonar-scanner on your machine, [download the CLI](https://sonarqube.corp.redhat.com/documentation/analysis/scan/sonarscanner/) and set the `SONAR_PATH` env var like this:
-
-``` sh
-export SONAR_PATH=/path/to/sonar-scanner/lib/sonar-scanner-cli-${SONAR_CLI_VERSION_NUMBER}.jar
-```
-
-Then, run `sh sonar_scan.sh` to generate the `.sonar/sonar-scanner.properties` file. Replace the `$token$` placeholder at the bottom of the file with your own personal Sonar token. Instructions on how to do this are located [here](https://source.redhat.com/groups/public/cloud-services-platform-cloudredhatcom/cloudredhatcom_wiki/setting_up_sonarqube_scanner_for_vulnerability_scanning_of_code#).
-
-After making that replacement, run `sh sonar_scan.sh` again. It should run and upload to Red Hat's SonarQube instance, providing you a link to the results.
+This project uses SonarQube to perform static code analysis, monitor test coverage, and find potential issues in the Host Inventory codebase.
+The analysis is run automatically for each PR by the ["host-inventory pr security scan" Jenkins job](https://ci.int.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/).
+The results are uploaded to RedHat's SonarQube server, on the [console.redhat.com:insights-host-inventory project](https://sonarqube.corp.redhat.com/dashboard?id=console.redhat.com%3Ainsights-host-inventory).
 
 ## Contributing
 

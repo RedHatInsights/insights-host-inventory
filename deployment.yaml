@@ -11,10 +11,10 @@ objects:
     envName: ${ENV_NAME}
     testing:
       iqePlugin: host-inventory
-    optionalDependencies:
-    - rbac
-    - xjoin-search
-    - ingress
+    dependencies:
+      - rbac
+      - xjoin-search
+      - ingress
     deployments:
     - name: service
       minReplicas: ${{REPLICAS_SVC}}
@@ -80,8 +80,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -168,8 +168,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: mq-p1
       minReplicas: ${{REPLICAS_P1}}
       podSpec:
@@ -233,8 +233,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: mq-sp
       minReplicas: ${{REPLICAS_SP}}
       podSpec:
@@ -292,8 +292,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     jobs:
     - name: reaper
       schedule: '@hourly'
@@ -341,10 +341,10 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${MEMORY_LIMIT_REAPER}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST_REAPER}
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -413,8 +413,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: pendo-syncher
       schedule: ${PENDO_CRON_SCHEDULE}
       suspend: ${{PENDO_SYNCHER_SUSPEND}}
@@ -452,8 +452,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: synchronizer
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -500,8 +500,8 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
     - name: events-topic-rebuilder
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -548,7 +548,7 @@ objects:
             cpu: ${CPU_LIMIT}
             memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 200m
+            cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST}
     - name: floorist
       schedule: ${FLOORIST_SCHEDULE}
@@ -593,7 +593,7 @@ objects:
           - name: floorplan-volume
             configMap:
               name: floorplan
-      resources:
+        resources:
           limits:
             cpu: "${CPU_LIMIT_FLOO}"
             memory: "${MEMORY_LIMIT_FLOO}"
@@ -617,14 +617,8 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: duplicate-hosts-remover-${CJI_RANDOM_SUFFIX}
-  spec:
-    appName: host-inventory
-    jobs:
-      - duplicate-hosts-remover
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
+    labels:
+      app: host-inventory
     name: events-topic-rebuilder-${CJI_RANDOM_SUFFIX}
   spec:
     appName: host-inventory
@@ -651,31 +645,46 @@ objects:
     name: floorplan
   data:
     floorplan.yaml: |
-      - prefix: dumps/inventory/hosts
+      - prefix: insights/inventory/hosts
         query: >-
           SELECT
-            "hosts"."id",
-            "hosts"."account" AS "account_number",
-            "hosts"."created" AS "created_at",
-            "hosts"."updated" AS "updated_at",
-            "hosts"."system_profile"->'operating_system'->'major' AS "os_major_version",
-            "hosts"."system_profile"->'operating_system'->'minor' AS "os_minor_version"
-          FROM "inventory"."hosts"
+            "id",
+            "account" AS "account_number",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+            "ansible_host" AS "ansible_host",
+            CONCAT_WS('.',"system_profile_facts"->'operating_system'->>'name',"system_profile_facts"->'operating_system'->'major',"system_profile_facts"->'operating_system'->'minor') AS "os_version",
+            "system_profile_facts"->'host_type' AS "host_type",
+            "system_profile_facts"->'ansible'->'controller_version' AS "ansible_controller_version",
+            "system_profile_facts"->'ansible'->'hub_version' AS "ansible_hub_version",
+            "system_profile_facts"->'rhsm'->'version' AS "rhsm_version",
+            "system_profile_facts"->'is_marketplace' AS "is_marketplace_installation",
+            "system_profile_facts"->'insights_client_version' AS "insights_client_version",
+            "system_profile_facts"->'insights_egg_version' AS "insights_egg_version",
+            "system_profile_facts"->'satellite_managed' AS "is_satellite_managed",
+            "system_profile_facts"->'subscription_status' AS "subscription_status"
+          FROM "hosts"
 parameters:
 - name: LOG_LEVEL
   value: INFO
+- descrpition: Cpu request of service
+  name: CPU_REQUEST
+  value: 250m
 - description: Cpu limit of service
   name: CPU_LIMIT
   value: 500m
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: memory limit of reaper
+  name: MEMORY_LIMIT_REAPER
+  value: 512Mi
 - description: request limit for service
   name: MEMORY_REQUEST
   value: 256Mi
-- description: memory limit for dedup job
-  name: DEDUP_MEMORY_LIMIT
-  value: 1Gi
+- description: request limit for reaper
+  name: MEMORY_REQUEST_REAPER
+  value: 256Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"

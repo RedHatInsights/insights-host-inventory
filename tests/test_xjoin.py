@@ -1,6 +1,7 @@
 import pytest
 
 from api import custom_escape
+from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
 from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
@@ -25,6 +26,7 @@ from tests.helpers.graphql_utils import assert_graph_query_single_call_with_stal
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import TAGS_EMPTY_RESPONSE
 from tests.helpers.graphql_utils import xjoin_host_response
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.system_profile_utils import system_profile_deep_object_spec
 from tests.helpers.test_utils import generate_uuid
@@ -312,34 +314,21 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
 
 
 @pytest.mark.parametrize(
-    "filter_,query",
+    "query",
     (
-        ("fqdn", f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("fqdn", f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
-        ("display_name", f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
-        ("OR", f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&display_name={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"fqdn={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&hostname_or_id={quote(generate_uuid())}"),
+        (f"display_name={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
+        (f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
     ),
 )
-def test_query_variables_priority(filter_, query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": ({filter_: mocker.ANY}, mocker.ANY),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
+    assert response_status == 400
 
 
 @pytest.mark.parametrize(
@@ -1649,6 +1638,97 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
             graphql_query_empty_response.reset_mock()
 
 
+@pytest.mark.parametrize(
+    "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("fqdn", "test.server.redhat.com"))
+)
+def test_xjoin_search_query_using_hostfilter(
+    mocker, query_source_xjoin, field, value, graphql_query_empty_response, patch_xjoin_post, api_delete_filtered_hosts
+):
+    response = {"data": XJOIN_HOSTS_RESPONSE_FOR_FILTERING}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    api_delete_filtered_hosts({field: value})
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": ({field: {"eq": value}},), "limit": mocker.ANY}, mocker.ANY
+    )
+
+
+def test_xjoin_search_query_using_hostfilter_display_name(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    query_params = {"display_name": "my awesome host uwu"}
+
+    api_delete_filtered_hosts(query_params)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {"filter": ({"display_name": {"matches_lc": f"*{query_params['display_name']}*"}},), "limit": mocker.ANY},
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize(
+    "tags,query_param",
+    (
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (
+            (
+                {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
+                {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
+            ),
+            "a/b=c,d/e=f",
+        ),
+        (
+            ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
+            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+        ),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+    ),
+)
+def test_xjoin_search_using_hostfilters_tags(
+    tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+):
+    query_params = {"tags": query_param}
+    api_delete_filtered_hosts(query_params)
+
+    tag_filters = tuple({"tag": item} for item in tags)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY, {"filter": tag_filters, "limit": mocker.ANY}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize(
+    "provider",
+    (
+        {"type": "alibaba", "id": generate_uuid()},
+        {"type": "aws", "id": "i-05d2313e6b9a42b16"},
+        {"type": "azure", "id": generate_uuid()},
+        {"type": "gcp", "id": generate_uuid()},
+        {"type": "ibm", "id": generate_uuid()},
+    ),
+)
+def test_xjoin_search_query_using_hostfilter_provider(
+    mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
+):
+    query_params = {"provider_type": provider["type"], "provider_id": provider["id"]}
+    api_delete_filtered_hosts(query_params)
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_IDS_QUERY,
+        {
+            "filter": ({"provider_type": {"eq": provider["type"]}}, {"provider_id": {"eq": provider["id"]}}),
+            "limit": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 def test_spf_rhc_client_invalid_field_value(
     subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
@@ -1855,7 +1935,7 @@ def test_query_hosts_filter_spf_insights_client_version(
     filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
     values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
     queries = (
-        {"spf_insights_client_version": {"matches": "3.0.6-2.el7_6"}},
+        {"spf_insights_client_version": {"eq": "3.0.6-2.el7_6"}},
         {"spf_insights_client_version": {"matches": "3.*"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
@@ -1893,8 +1973,10 @@ def test_query_hosts_filter_spf_operating_system(
         "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
         "filter[system_profile][operating_system][RHEL][version][gt]=7&"
         "filter[system_profile][operating_system][RHEL][version][lt]=9.2",
-        "filter[system_profile][operating_system][RHEL][version][lte]=12.6&"
+        "filter[system_profile][operating_system][RHEL][version][eq]=12.6&"
         "filter[system_profile][operating_system][CENT][version][gte]=7.1",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=8.0&"
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0",
     )
 
     graphql_queries = (
@@ -1906,7 +1988,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
+                                        "major": {"eq": 7},
                                         "minor": {"gte": 1},
                                         "name": {"eq": "RHEL"},
                                     }
@@ -1926,7 +2008,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 9, "lte": 9},
+                                        "major": {"eq": 9},
                                         "minor": {"lt": 2},
                                         "name": {"eq": "RHEL"},
                                     }
@@ -1934,18 +2016,7 @@ def test_query_hosts_filter_spf_operating_system(
                                 {"spf_operating_system": {"major": {"lt": 9}, "name": {"eq": "RHEL"}}},
                             ]
                         },
-                        {
-                            "OR": [
-                                {
-                                    "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
-                                        "minor": {"gt": 0},
-                                        "name": {"eq": "RHEL"},
-                                    }
-                                },
-                                {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
-                            ]
-                        },
+                        {"spf_operating_system": {"major": {"gt": 7}, "name": {"eq": "RHEL"}}},
                     ]
                 }
             ]
@@ -1958,7 +2029,7 @@ def test_query_hosts_filter_spf_operating_system(
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 7, "lte": 7},
+                                        "major": {"eq": 7},
                                         "minor": {"gte": 1},
                                         "name": {"eq": "CENT"},
                                     }
@@ -1968,22 +2039,33 @@ def test_query_hosts_filter_spf_operating_system(
                         }
                     ]
                 },
+                {"AND": [{"spf_operating_system": {"major": {"eq": 12}, "minor": {"eq": 6}, "name": {"eq": "RHEL"}}}]},
+            ]
+        },
+        {
+            "OR": [
                 {
                     "AND": [
                         {
                             "OR": [
                                 {
                                     "spf_operating_system": {
-                                        "major": {"gte": 12, "lte": 12},
-                                        "minor": {"lte": 6},
+                                        "major": {"eq": 8},
+                                        "minor": {"eq": 0},
                                         "name": {"eq": "RHEL"},
                                     }
                                 },
-                                {"spf_operating_system": {"major": {"lt": 12}, "name": {"eq": "RHEL"}}},
+                                {
+                                    "spf_operating_system": {
+                                        "major": {"eq": 9},
+                                        "minor": {"eq": 0},
+                                        "name": {"eq": "RHEL"},
+                                    }
+                                },
                             ]
                         }
                     ]
-                },
+                }
             ]
         },
     )
@@ -2020,6 +2102,7 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
         "filter[system_profile][operating_system][RHEL]=7.1",
         "filter[system_profile][operating_system][CENT]=",
         "filter[system_profile][operating_system][CENT]=something",
+        "filter[system_profile][operating_system][RHEL][version][eq][]=9.0.1",
     )
 
     for http_query in http_queries:
@@ -2040,16 +2123,44 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
         "filter[system_profile][ansible][catalog_worker_version]=nil",
         "filter[system_profile][ansible][sso_version]=0.44.963",
         "filter[system_profile][ansible][controller_version]=7.1&filter[system_profile][ansible][hub_version]=not_nil",
-        "filter[system_profile][ansible][catalog_worker_version]=not_nil",
+        "filter[system_profile][ansible][catalog_worker_version][]=8.0"
+        "&filter[system_profile][ansible][catalog_worker_version][]=9.0",
+        "filter[system_profile][ansible][hub_version]=not_nil&filter[system_profile][ansible][catalog_worker_version]"
+        "[]=8.0&filter[system_profile][ansible][catalog_worker_version][]=9.0",
     )
 
     graphql_queries = (
-        {"AND": [{"spf_ansible": {"controller_version": {"matches": "7.1"}}}]},
+        {"AND": [{"spf_ansible": {"controller_version": {"eq": "7.1"}}}]},
         {"AND": [{"spf_ansible": {"hub_version": {"matches": "8.0.*"}}}]},
         {"AND": [{"spf_ansible": {"catalog_worker_version": {"eq": None}}}]},
-        {"AND": [{"spf_ansible": {"sso_version": {"matches": "0.44.963"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"hub_version": {"eq": None}}, "controller_version": {"matches": "7.1"}}}]},
-        {"AND": [{"spf_ansible": {"NOT": {"catalog_worker_version": {"eq": None}}}}]},
+        {"AND": [{"spf_ansible": {"sso_version": {"eq": "0.44.963"}}}]},
+        {
+            "AND": [
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+                {"spf_ansible": {"controller_version": {"eq": "7.1"}}},
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "OR": [
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "9.0"}}},
+                    ]
+                }
+            ]
+        },
+        {
+            "AND": [
+                {
+                    "OR": [
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "8.0"}}},
+                        {"spf_ansible": {"catalog_worker_version": {"eq": "9.0"}}},
+                    ]
+                },
+                {"NOT": {"spf_ansible": {"hub_version": {"eq": None}}}},
+            ]
+        },
     )
 
     for http_query, graphql_query in zip(http_queries, graphql_queries):
@@ -2082,11 +2193,13 @@ def test_query_hosts_filter_deep_objects(
     http_queries = (
         "filter[system_profile][ansible][d0n1][d1n2][name]=foo",
         "filter[system_profile][ansible][d0n1][d1n1][d2n1][name]=bar",
+        "filter[system_profile][ansible][d0n1][d1n1][d2n2][name]=nil",
     )
 
     graphql_queries = (
-        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"matches": "foo"}}}}}]},
-        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"matches": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n2": {"name": {"eq": "foo"}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n1": {"name": {"eq": "bar"}}}}}}]},
+        {"AND": [{"spf_ansible": {"d0n1": {"d1n1": {"d2n2": {"name": {"eq": None}}}}}}]},
     )
 
     with flask_app.app_context():
@@ -2555,7 +2668,7 @@ def test_generic_filtering_string(
                         query_mock.reset_mock()
 
 
-# having both system_profile endpoints creates a moching issue right now.
+# having both system_profile endpoints creates a mocking issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_string_sap_sids(
     mocker,
@@ -2788,6 +2901,309 @@ def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin,
                     assert response_data["title"] == "Validation Error"
 
 
+def test_generic_filtering_integer_equality(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    operations = ("", "[eq]")
+    values = ("1", "18446744073709551615", "nil", "not_nil")
+    number_of_cpus_queries = (
+        {"spf_number_of_cpus": {"eq": 1}},
+        {"spf_number_of_cpus": {"eq": 18446744073709551615}},
+        {"spf_number_of_cpus": {"eq": None}},
+        {"NOT": {"spf_number_of_cpus": {"eq": None}}},
+    )
+    number_of_sockets_queries = (
+        {"spf_number_of_sockets": {"eq": 1}},
+        {"spf_number_of_sockets": {"eq": 18446744073709551615}},
+        {"spf_number_of_sockets": {"eq": None}},
+        {"NOT": {"spf_number_of_sockets": {"eq": None}}},
+    )
+    system_memory_bytes_queries = (
+        {"spf_system_memory_bytes": {"eq": 1}},
+        {"spf_system_memory_bytes": {"eq": 18446744073709551615}},
+        {"spf_system_memory_bytes": {"eq": None}},
+        {"NOT": {"spf_system_memory_bytes": {"eq": None}}},
+    )
+    query_dicts = (number_of_cpus_queries, number_of_sockets_queries, system_memory_bytes_queries)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+def test_generic_filtering_integer_range(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    graphql_filters = ("spf_number_of_cpus", "spf_number_of_sockets", "spf_system_memory_bytes")
+    api_operations = ("[lt]", "[lte]", "[gt]", "[gte]")
+    graphql_operations = ("lt", "lte", "gt", "gte")
+    values = ("1", "18446744073709551615")
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, graphql_filter in zip(filter_paths, graphql_filters):
+            for api_operation, graphql_operation in zip(api_operations, graphql_operations):
+                for value in values:
+                    query = {graphql_filter: {graphql_operation: int(value)}}
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{api_operation}={value}")
+
+                        response_status, _ = api_get(url)
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+def test_generic_filtering_timestamp_equality(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    path = "[system_profile][last_boot_time]"
+
+    operations = ("", "[eq]")
+    values = ("2021-01-10T15:10:10.000Z", "nil", "not_nil")
+    queries = (
+        {"spf_last_boot_time": {"eq": "2021-01-10T15:10:10.000Z"}},
+        {"spf_last_boot_time": {"eq": None}},
+        {"NOT": {"spf_last_boot_time": {"eq": None}}},
+    )
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                    url = url_builder(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+                    assert response_status == 200
+
+                    query_verifier(mocker, query_mock, query)
+                    query_mock.reset_mock()
+
+
+def test_generic_filtering_timestamp_range(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    path = "[system_profile][last_boot_time]"
+    graphql_filter = "spf_last_boot_time"
+    api_operations = ("[lt]", "[lte]", "[gt]", "[gte]")
+    graphql_operations = ("lt", "lte", "gt", "gte")
+    value = "2021-01-10T15:10:10.000Z"
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for api_operation, graphql_operation in zip(api_operations, graphql_operations):
+            query = {graphql_filter: {graphql_operation: value}}
+            with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                url = url_builder(query=f"?filter{path}{api_operation}={value}")
+
+                response_status, _ = api_get(url)
+                assert response_status == 200
+
+                query_verifier(mocker, query_mock, query)
+                query_mock.reset_mock()
+
+
+# having both system_profile endpoints creates a mocking issue right now.
+# Just going to split one off until I can refactor the whole test suite
+def test_generic_filtering_integer_sap_sids(
+    mocker,
+    subtests,
+    query_source_xjoin,
+    graphql_system_profile_sap_sids_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = (
+        "[system_profile][number_of_cpus]",
+        "[system_profile][number_of_sockets]",
+        "[system_profile][system_memory_bytes]",
+    )
+    operations = ("", "[eq]")
+    values = ("1", "18446744073709551615", "nil", "not_nil")
+    number_of_cpus_queries = (
+        {"spf_number_of_cpus": {"eq": 1}},
+        {"spf_number_of_cpus": {"eq": 18446744073709551615}},
+        {"spf_number_of_cpus": {"eq": None}},
+        {"NOT": {"spf_number_of_cpus": {"eq": None}}},
+    )
+    number_of_sockets_queries = (
+        {"spf_number_of_sockets": {"eq": 1}},
+        {"spf_number_of_sockets": {"eq": 18446744073709551615}},
+        {"spf_number_of_sockets": {"eq": None}},
+        {"NOT": {"spf_number_of_sockets": {"eq": None}}},
+    )
+    system_memory_bytes_queries = (
+        {"spf_system_memory_bytes": {"eq": 1}},
+        {"spf_system_memory_bytes": {"eq": 18446744073709551615}},
+        {"spf_system_memory_bytes": {"eq": None}},
+        {"NOT": {"spf_system_memory_bytes": {"eq": None}}},
+    )
+    query_dicts = (number_of_cpus_queries, number_of_sockets_queries, system_memory_bytes_queries)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefixes = (
+        "?filter[system_profile][number_of_cpus]",
+        "?filter[system_profile][number_of_sockets]",
+        "?filter[system_profile][system_memory_bytes]",
+    )
+    suffixes = (
+        # bad operation
+        "[foo]=123",
+        "[bar][]=123",
+        "[eq][foo]=123",
+        "[is]=123",
+        "[matches]=123",
+        "[contains]=123"
+        # bad value
+        "[eq]=foo",
+        "[eq]=true",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
+
+
+def test_generic_filtering_timestamp_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+    prefix = "?filter[system_profile][last_boot_time]"
+    suffixes = (
+        # bad operation
+        "[foo]=123",
+        "[bar][]=123",
+        "[eq][foo]=123",
+        "[is]=123",
+        "[matches]=123",
+        "[contains]=123"
+        # bad value
+        "[eq]=foo",
+        "[eq]=true",
+        "[eq]=123",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for suffix in suffixes:
+            with subtests.test(prefix=prefix, suffix=suffix):
+                url = url_builder(query=prefix + suffix)
+                response_status, response_data = api_get(url)
+                assert response_status == 400
+                assert response_data["title"] == "Validation Error"
+
+
 def test_generic_filtering_wildcard(
     mocker,
     subtests,
@@ -2803,7 +3219,7 @@ def test_generic_filtering_wildcard(
     values = ("8.*", "7.3", "nil", "not_nil")
     insights_client_version_queries = (
         {"spf_insights_client_version": {"matches": "8.*"}},
-        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": "7.3"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
     )
@@ -2848,7 +3264,7 @@ def test_generic_filtering_wildcard_sap_sids(
     values = ("8.*", "7.3", "nil", "not_nil")
     insights_client_version_queries = (
         {"spf_insights_client_version": {"matches": "8.*"}},
-        {"spf_insights_client_version": {"matches": "7.3"}},
+        {"spf_insights_client_version": {"eq": "7.3"}},
         {"spf_insights_client_version": {"eq": None}},
         {"NOT": {"spf_insights_client_version": {"eq": None}}},
     )
@@ -2879,6 +3295,142 @@ def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin,
         "[gt]=bar",
         "[lte]=bar",
         "[gte]=bar",
+    )
+    endpoint_url_builders = (
+        build_hosts_url,
+        build_tags_url,
+        build_system_profile_sap_system_url,
+        build_system_profile_sap_sids_url,
+    )
+    for url_builder in endpoint_url_builders:
+        for prefix in prefixes:
+            for suffix in suffixes:
+                with subtests.test(prefix=prefix, suffix=suffix):
+                    url = url_builder(query=prefix + suffix)
+                    response_status, response_data = api_get(url)
+
+                    assert response_status == 400
+                    assert response_data["title"] == "Validation Error"
+
+
+# Test generic filtering for object fields (the object itself, not its properties)
+def test_generic_filtering_objects(
+    mocker,
+    subtests,
+    graphql_query_empty_response,
+    graphql_tag_query_empty_response,
+    graphql_system_profile_sap_system_query_empty_response,
+    patch_xjoin_post,
+    api_get,
+):
+    filter_paths = ("[system_profile][ansible]", "[system_profile][mssql]")
+    operations = ("", "[eq]")
+    values = ("nil", "not_nil")
+    ansible_queries = (
+        {
+            "spf_ansible": {
+                "sso_version": {"eq": None},
+                "hub_version": {"eq": None},
+                "controller_version": {"eq": None},
+                "catalog_worker_version": {"eq": None},
+            }
+        },
+        {
+            "NOT": {
+                "spf_ansible": {
+                    "sso_version": {"eq": None},
+                    "hub_version": {"eq": None},
+                    "controller_version": {"eq": None},
+                    "catalog_worker_version": {"eq": None},
+                }
+            }
+        },
+    )
+    mssql_queries = ({"spf_mssql": {"version": {"eq": None}}}, {"NOT": {"spf_mssql": {"version": {"eq": None}}}})
+    query_dicts = (ansible_queries, mssql_queries)
+
+    endpoints = ("hosts", "tags", "sap_system")
+    endpoint_query_verifiers = (_verify_hosts_query, _verify_tags_query, _verify_sap_system_query)
+    endpoint_query_mocks = (
+        graphql_query_empty_response,
+        graphql_tag_query_empty_response,
+        graphql_system_profile_sap_system_query_empty_response,
+    )
+    endpoint_url_builders = (build_hosts_url, build_tags_url, build_system_profile_sap_system_url)
+    for query_verifier, query_mock, endpoint, url_builder in zip(
+        endpoint_query_verifiers, endpoint_query_mocks, endpoints, endpoint_url_builders
+    ):
+        for path, queries in zip(filter_paths, query_dicts):
+            for op in operations:
+                for value, query in zip(values, queries):
+                    with subtests.test(value=value, query=query, path=path, endpoint=endpoint):
+                        url = url_builder(query=f"?filter{path}{op}={value}")
+
+                        response_status, _ = api_get(url)
+
+                        assert response_status == 200
+
+                        query_verifier(mocker, query_mock, query)
+                        query_mock.reset_mock()
+
+
+def test_generic_filtering_objects_sap_sids(
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
+):
+    filter_paths = ("[system_profile][ansible]", "[system_profile][mssql]")
+    operations = ("", "[eq]")
+    values = ("nil", "not_nil")
+    ansible_queries = (
+        {
+            "spf_ansible": {
+                "sso_version": {"eq": None},
+                "hub_version": {"eq": None},
+                "controller_version": {"eq": None},
+                "catalog_worker_version": {"eq": None},
+            }
+        },
+        {
+            "NOT": {
+                "spf_ansible": {
+                    "sso_version": {"eq": None},
+                    "hub_version": {"eq": None},
+                    "controller_version": {"eq": None},
+                    "catalog_worker_version": {"eq": None},
+                }
+            }
+        },
+    )
+    mssql_queries = ({"spf_mssql": {"version": {"eq": None}}}, {"NOT": {"spf_mssql": {"version": {"eq": None}}}})
+    query_dicts = (ansible_queries, mssql_queries)
+
+    for path, queries in zip(filter_paths, query_dicts):
+        for op in operations:
+            for value, query in zip(values, queries):
+                with subtests.test(value=value, query=query, path=path, endpoint="sap_sids"):
+                    url = build_system_profile_sap_sids_url(query=f"?filter{path}{op}={value}")
+
+                    response_status, _ = api_get(url)
+
+                    assert response_status == 200
+
+                    _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_response, query)
+                    graphql_system_profile_sap_sids_query_empty_response.reset_mock()
+
+
+def test_generic_filtering_objects_invalid_values(subtests, patch_xjoin_post, api_get):
+    prefixes = ("?filter[system_profile][ansible]",)
+    suffixes = (
+        # bad operation
+        "[foo]=bar",
+        "[bar][]=bar",
+        "[eq][foo]=bar",
+        "[is]=bar",
+        "[lt]=bar",
+        "[gt]=bar",
+        "[lte]=bar",
+        "[gte]=bar",
+        # bad value
+        "=foo",
     )
     endpoint_url_builders = (
         build_hosts_url,

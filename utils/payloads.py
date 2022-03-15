@@ -470,6 +470,7 @@ def create_system_profile():
         "enabled_services": ["ndb", "krb5"],
         "selinux_current_mode": "enforcing",
         "selinux_config_file": "enforcing",
+        "operating_system": {"name": "RHEL", "major": 8, "minor": 1},
     }
 
 
@@ -544,6 +545,7 @@ def build_qpc_payload():
             "number_of_sockets": 2,
             "cores_per_socket": 1,
         },
+        "reporter": "yupana",
     }
 
 

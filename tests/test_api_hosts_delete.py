@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -11,6 +12,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.db_utils import db_host
+from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -100,6 +102,90 @@ def test_create_then_delete_without_insights_id(
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("registered_with", "insights"), ("staleness", "stale")),
+)
+def test_delete_hosts_using_filter(
+    event_producer_mock,
+    db_create_multiple_hosts,
+    db_get_hosts,
+    api_delete_filtered_hosts,
+    patch_xjoin_post,
+    field,
+    value,
+):
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    for ind, id in enumerate(host_ids):
+        resp["hosts"]["data"][ind]["id"] = id
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    new_hosts = db_create_multiple_hosts()
+    new_ids = [str(host.id) for host in new_hosts]
+
+    # delete hosts using the IDs supposedly returned by the query_filter
+    response_status, response_data = api_delete_filtered_hosts({field: value})
+
+    assert '"type": "delete"' in event_producer_mock.event
+    assert_response_status(response_status, expected_status=202)
+    assert len(host_ids) == response_data["hosts_deleted"]
+
+    # check db for the deleted hosts using their IDs
+    host_id_list = [str(host.id) for host in created_hosts]
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
+
+    # now verify that the second set of hosts still available.
+    remaining_hosts = db_get_hosts(new_ids)
+    assert len(new_hosts) == remaining_hosts.count()
+
+
+def test_delete_all_hosts(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post
+):
+    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    host_ids = [str(host.id) for host in created_hosts]
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    for ind, id in enumerate(host_ids):
+        resp["hosts"]["data"][ind]["id"] = id
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patch_xjoin_post(response, status=200)
+
+    # delete all hosts on the account
+    response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
+
+    assert '"type": "delete"' in event_producer_mock.event
+    assert response_data.get("hosts_deleted") == len(created_hosts)
+    assert_response_status(response_status, expected_status=202)
+    assert len(host_ids) == response_data["hosts_deleted"]
+
+    # check db for the deleted hosts using their IDs
+    host_id_list = [str(host.id) for host in created_hosts]
+    deleted_hosts = db_get_hosts(host_id_list)
+    assert deleted_hosts.count() == 0
+
+
+def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
+    # delete all hosts using incomplete filter
+    response_status, response_data = api_delete_all_hosts({})
+
+    assert_response_status(response_status, expected_status=400)
+    assert event_producer_mock.event is None
 
 
 def test_create_then_delete_check_metadata(event_datetime_mock, event_producer_mock, db_create_host, api_delete_host):
@@ -235,6 +321,7 @@ def test_delete_host_with_RBAC_bypassed_as_system(
 def test_delete_hosts_chunk_size(
     event_producer_mock, db_create_multiple_hosts, api_delete_host, mocker, inventory_config
 ):
+
     inventory_config.host_delete_chunk_size = 5
 
     query_wraper = DeleteQueryWrapper(mocker)
@@ -255,7 +342,7 @@ def test_delete_hosts_chunk_size(
     ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
 )
 def test_delete_stops_after_kafka_producer_error(
-    send_side_effects, kafka_producer, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+    send_side_effects, event_producer_mock, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
 ):
     event_producer._kafka_producer.send.side_effect = send_side_effects
 
@@ -267,7 +354,7 @@ def test_delete_stops_after_kafka_producer_error(
     assert_response_status(response_status, expected_status=500)
 
     remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 1
+    assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.send.call_count == 2
 
 

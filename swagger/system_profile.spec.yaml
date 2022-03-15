@@ -252,6 +252,10 @@ $defs:
       operating_system:
         description: Object for OS details. Supports range operations
         type: object
+        required:
+          - major
+          - minor
+          - name
         properties:
           major:
             description: Major release of OS (aka the x version)
@@ -269,8 +273,8 @@ $defs:
             description: Name of the distro/os
             example: "RHEL"
             type: string
-            maxLength: 4
-            enum: [RHEL]
+            maxLength: 6
+            enum: [RHEL, CentOS]
       os_release:
         type: string
         maxLength: 100
