@@ -155,6 +155,24 @@ def xjoin_host_response(timestamp):
     }
 
 
+def xjoin_response_with_per_reporter_staleness(timestamp, newprs):
+    return {
+        "hosts": {
+            **XJOIN_HOSTS_RESPONSE["hosts"],
+            "meta": {"total": 1},
+            "data": [
+                {
+                    **XJOIN_HOSTS_RESPONSE["hosts"]["data"][0],
+                    "created_on": timestamp,
+                    "modified_on": timestamp,
+                    "stale_timestamp": timestamp,
+                    "per_reporter_staleness": newprs,
+                }
+            ],
+        }
+    }
+
+
 def assert_graph_query_single_call_with_staleness(mocker, graphql_query, staleness_conditions):
     conditions = tuple({"stale_timestamp": staleness_condition} for staleness_condition in staleness_conditions)
     graphql_query.assert_called_once_with(
