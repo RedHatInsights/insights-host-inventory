@@ -759,20 +759,13 @@ def test_valid_with_offset_timezone(query_source_xjoin, graphql_query, api_get):
 
 def test_valid_per_reporter_staleness(query_source_xjoin, graphql_query, api_get):
     # For testing, create a different per_reporter_staleness from the one in XJOIN_HOSTS_RESPONSE
-    test_per_reporter_staleness = {
-        "test_reporter": {
-            "check_in_succeeded": True,
-            "last_check_in": "2020-02-10T08:07:03.354307+01:00",
-            "stale_timestamp": "2260-01-01T00:00:00",
-        }
-    }
-    response = xjoin_host_response("2020-02-10T08:07:03Z", test_per_reporter_staleness)
+    response = xjoin_host_response("2020-02-10T08:07:03Z")
 
     graphql_query(return_value=response)
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
-    assert response_data["results"][0]["per_reporter_staleness"] == test_per_reporter_staleness
+    assert response_data["results"][0]["per_reporter_staleness"]["yupana"]["stale_timestamp"] == "2020-02-10T08:07:03Z"
 
 
 def test_invalid_without_timezone(query_source_xjoin, graphql_query, api_get):
