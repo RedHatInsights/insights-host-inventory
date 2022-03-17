@@ -7,6 +7,7 @@ from connexion.resolver import RestyResolver
 from flask import current_app
 from flask import jsonify
 from flask import request
+from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter import PrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
@@ -27,7 +28,6 @@ from app.queue.metrics import event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.validators import verify_uuid_format  # noqa: 401
 from lib.handlers import register_shutdown
-from lib.translating_parser.parser import TranslatingParser
 
 
 logger = get_logger(__name__)

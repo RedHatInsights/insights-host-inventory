@@ -16,6 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+import pytest
 from kafka.errors import KafkaError
 
 from api import api_operation
@@ -25,6 +26,7 @@ from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
 from app import create_app
+from app import SPECIFICATION_FILE
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
@@ -427,6 +429,50 @@ class CreateAppConfigTestCase(TestCase):
         app = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", app.config)
         self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
+
+
+@patch("app.connexion.App")
+@patch("app.db.get_engine")
+class CreateAppConnexionAppInitTestCase(TestCase):
+    @patch("app.TranslatingParser")
+    def test_specification_is_provided(self, translating_parser, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+
+        translating_parser.assert_called_once_with(SPECIFICATION_FILE)
+        assert "lazy" not in translating_parser.mock_calls[0].kwargs
+
+        app.return_value.add_api.assert_called_once()
+        args = app.return_value.add_api.mock_calls[0].args
+        assert len(args) == 1
+        assert args[0] is translating_parser.return_value.specification
+
+    def test_specification_is_parsed(self, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+        app.return_value.add_api.assert_called_once()
+        args = app.return_value.add_api.mock_calls[0].args
+        assert len(args) == 1
+        assert args[0] is not None
+
+    # Test here the parsing is working with the referenced schemas from system_profile.spec.yaml
+    # and the check parser.specification["components"]["schemas"] - this is more a library test
+    def test_translatingparser(self, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+        # Check whether SystemProfileNetworkInterface is inside the schemas section
+        # add_api uses the specification as firts argument
+        specification = app.return_value.add_api.mock_calls[0].args
+        assert "SystemProfileNetworkInterface" in specification[0]["components"]["schemas"]
+
+        # This will pass with openapi.json because the schemas are inlined
+        # This will pass when the library acts as it should, inlining the referenced schemas
+
+    # Create an app with bad defs assert that it wont create and will raise and exception
+    @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
+    def test_yaml_specification(self, translating_parser, get_engine, app):
+        with patch("app.create_app", side_effect=Exception("mocked error")):
+            with self.assertRaises(Exception) as e:
+                create_app(RuntimeEnvironment.TEST)
+            if e:
+                pytest.xfail("Test fails with yml")
 
 
 class HostOrderHowTestCase(TestCase):
