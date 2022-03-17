@@ -19,6 +19,7 @@ gunicorn = "~=19.9.0"
 connexion = {version = "~=2.7",extras = ["swagger-ui"]}
 markupsafe = "==2.0.1" # Using v2.1.0 breaks Jinja2
 openapi-schema-validator = "< 0.2"
+openapi-spec-validator = "*"
 pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
