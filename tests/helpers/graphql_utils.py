@@ -138,7 +138,7 @@ XJOIN_SPARSE_SYSTEM_PROFILE_EMPTY_RESPONSE = {"hosts": {"meta": {"count": 2, "to
 CASEFOLDED_FIELDS = ("fqdn", "insights_id", "provider_type", "provider_id")
 
 
-def xjoin_host_response(timestamp, trs=None):
+def xjoin_host_response(timestamp, test_per_reporter_staleness=None):
     return {
         "hosts": {
             **XJOIN_HOSTS_RESPONSE["hosts"],
@@ -149,7 +149,7 @@ def xjoin_host_response(timestamp, trs=None):
                     "created_on": timestamp,
                     "modified_on": timestamp,
                     "stale_timestamp": timestamp,
-                    "per_reporter_staleness": trs,
+                    "per_reporter_staleness": test_per_reporter_staleness,
                 }
             ],
         }
