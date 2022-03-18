@@ -149,13 +149,6 @@ def xjoin_host_response(timestamp):
                     "created_on": timestamp,
                     "modified_on": timestamp,
                     "stale_timestamp": timestamp,
-                    "per_reporter_staleness": {
-                        "yupana": {
-                            "check_in_succeeded": True,
-                            "last_check_in": timestamp,
-                            "stale_timestamp": timestamp,
-                        }
-                    },
                 }
             ],
         }
