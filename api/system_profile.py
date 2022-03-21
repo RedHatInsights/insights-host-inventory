@@ -247,10 +247,6 @@ def get_operating_system(
     registered_with: Optional[str] = None,
     filter=None,
 ):
-    if not xjoin_enabled():
-        logger.error("xjoin-search not enabled")
-        flask.abort(503)
-
     limit, offset = pagination_params(page, per_page)
 
     variables = {
