@@ -16,6 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+import pytest
 from kafka.errors import KafkaError
 
 from api import api_operation
@@ -23,7 +24,9 @@ from api import custom_escape
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
+from api.parsing import customURIParser
 from app import create_app
+from app import SPECIFICATION_FILE
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
 from app.auth.identity import Identity
@@ -57,6 +60,7 @@ from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
+from lib import host_kafka
 from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -418,6 +422,50 @@ class CreateAppConfigTestCase(TestCase):
         app = create_app(RuntimeEnvironment.TEST)
         self.assertIn("INVENTORY_CONFIG", app.config)
         self.assertEqual(config.return_value, app.config["INVENTORY_CONFIG"])
+
+
+@patch("app.connexion.App")
+@patch("app.db.get_engine")
+class CreateAppConnexionAppInitTestCase(TestCase):
+    @patch("app.TranslatingParser")
+    def test_specification_is_provided(self, translating_parser, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+
+        translating_parser.assert_called_once_with(SPECIFICATION_FILE)
+        assert "lazy" not in translating_parser.mock_calls[0].kwargs
+
+        app.return_value.add_api.assert_called_once()
+        args = app.return_value.add_api.mock_calls[0].args
+        assert len(args) == 1
+        assert args[0] is translating_parser.return_value.specification
+
+    def test_specification_is_parsed(self, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+        app.return_value.add_api.assert_called_once()
+        args = app.return_value.add_api.mock_calls[0].args
+        assert len(args) == 1
+        assert args[0] is not None
+
+    # Test here the parsing is working with the referenced schemas from system_profile.spec.yaml
+    # and the check parser.specification["components"]["schemas"] - this is more a library test
+    def test_translatingparser(self, get_engine, app):
+        create_app(RuntimeEnvironment.TEST)
+        # Check whether SystemProfileNetworkInterface is inside the schemas section
+        # add_api uses the specification as firts argument
+        specification = app.return_value.add_api.mock_calls[0].args
+        assert "SystemProfileNetworkInterface" in specification[0]["components"]["schemas"]
+
+        # This will pass with openapi.json because the schemas are inlined
+        # This will pass when the library acts as it should, inlining the referenced schemas
+
+    # Create an app with bad defs assert that it wont create and will raise and exception
+    @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
+    def test_yaml_specification(self, translating_parser, get_engine, app):
+        with patch("app.create_app", side_effect=Exception("mocked error")):
+            with self.assertRaises(Exception) as e:
+                create_app(RuntimeEnvironment.TEST)
+            if e:
+                pytest.xfail("Test fails with yml")
 
 
 class HostOrderHowTestCase(TestCase):
@@ -1184,8 +1232,8 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         }
         for additional_data in ({"stale_timestamp": "2019-12-16T10:10:06.754201+00:00"}, {"reporter": "puptoo"}):
             with self.subTest(additional_data=additional_data):
-                for mock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
-                    mock.reset_mock()
+                for thismock in (deserialize_canonical_facts, deserialize_facts, deserialize_tags):
+                    thismock.reset_mock()
 
                 all_data = {**common_data, **additional_data}
                 host_schema = Mock(
@@ -2069,6 +2117,19 @@ class QueryParameterParsingTestCase(TestCase):
             assert response == output
             assert is_deep_object is True
 
+    def test_valid_deep_object_list(self):
+        for key, value in (("asdf[foo]", ["bar"]), ("system_profile[field1][field2]", ["value1"])):
+            _, _, is_deep_object = customURIParser._make_deep_object(key, value)
+            assert is_deep_object
+
+    def test_invalid_deep_object_list(self):
+        for key, value in (
+            ("asdf[foo]", ["bar", "baz"]),
+            ("system_profile[field1][field2]", ["value1", "value2", "value3"]),
+        ):
+            with self.assertRaises(ValidationException):
+                customURIParser._make_deep_object(key, value)
+
 
 class CustomRegexMethodTestCase(TestCase):
     def test_custom_regex_escape(self):
@@ -2082,6 +2143,66 @@ class CustomRegexMethodTestCase(TestCase):
             with self.subTest(regex_input=regex_input):
                 result = custom_escape(regex_input)
                 assert result == output
+
+
+class KafkaAvailabilityTests(TestCase):
+    def setUp(self,):
+        super().setUp()
+        self.config = Config(RuntimeEnvironment.TEST)
+
+    @patch("socket.socket.connect_ex")
+    def test_happy_path(self, connect_ex):
+        connect_ex.return_value = 0
+        assert host_kafka.kafka_available()
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_valid_server(self, connect_ex):
+        connect_ex.return_value = 0
+        akafka = [self.config.bootstrap_servers]
+        assert host_kafka.kafka_available(akafka)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_of_valid_servers(self, connect_ex):
+        connect_ex.return_value = 0
+        kafka_servers = ["127.0.0.1:29092", "localhost:29092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_with_first_bad_second_good_server(self, connect_ex):
+        connect_ex.return_value = 0
+        kafka_servers = ["localhost29092", "127.0.0.1:29092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_list_with_first_good_second_bad_server(self, connect_ex):
+        # second bad with missing ':'.  Returns as soon as the first kafka server found.
+        connect_ex.return_value = 0
+        kafka_servers = ["localhost:29092", "127.0.0.129092"]
+        assert host_kafka.kafka_available(kafka_servers)
+        connect_ex.assert_called_once()
+
+    @patch("socket.socket.connect_ex")
+    def test_invalid_kafka_server(self, connect_ex):
+        kafka_servers = ["localhos.129092"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_not_called()
+
+    @patch("socket.socket.connect_ex")
+    def test_bogus_kafka_server(self, connect_ex):
+        kafka_servers = ["bogus-kafka29092"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_not_called()
+
+    @patch("socket.socket.connect_ex")
+    def test_wrong_kafka_server_post(self, connect_ex):
+        connect_ex.return_value = 61
+        kafka_servers = ["localhost:54321"]
+        assert host_kafka.kafka_available(kafka_servers) is None
+        connect_ex.assert_called_once()
 
 
 if __name__ == "__main__":

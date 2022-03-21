@@ -38,6 +38,9 @@ run_pendo_syncher:
 style:
 	pre-commit run --all-files
 
+scan_project:
+	./sonarqube.sh
+
 validate-dashboard:
 	python utils/validate_dashboards.py
 

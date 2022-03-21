@@ -95,8 +95,9 @@ def event_producer(flask_app, kafka_producer):
 
 
 @pytest.fixture(scope="function")
-def event_producer_mock(flask_app):
+def event_producer_mock(flask_app, mocker):
     flask_app.event_producer = MockEventProducer()
+    mocker.patch("lib.host_delete.kafka_available")
     yield flask_app.event_producer
     flask_app.event_producer = None
 
