@@ -249,7 +249,7 @@ class AuthIdentityValidateTestCase(TestCase):
     def test_case_insensitive_auth_types(self):
         # Validate that auth_type is case-insensitive
         test_identity = deepcopy(SYSTEM_IDENTITY)
-        auth_types = ["JWT-AUTH", "Cert-Auth", "basic-auth", None]
+        auth_types = ["JWT-AUTH", "Cert-Auth", "basic-auth"]
         for auth_type in auth_types:
             with self.subTest(auth_type=auth_type):
                 test_identity["auth_type"] = auth_type
@@ -259,10 +259,17 @@ class AuthIdentityValidateTestCase(TestCase):
                 except Exception:
                     self.fail()
 
-    def test_case_obsolete_auth_type(self):
+    def test_obsolete_auth_type(self):
         # Validate that removed auth_type not working anymore
         test_identity = deepcopy(SYSTEM_IDENTITY)
         test_identity["auth_type"] = "CLASSIC-PROXY"
+        with self.assertRaises(ValueError):
+            Identity(test_identity)
+
+    def test_missing_auth_type(self):
+        # auth_type must be provided
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        test_identity["auth_type"] = None
         with self.assertRaises(ValueError):
             Identity(test_identity)
 
