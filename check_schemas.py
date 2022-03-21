@@ -3,9 +3,9 @@ import sys
 from difflib import unified_diff
 
 import yaml
+from prance import _TranslatingParser as TranslatingParser
 
 from app.models import SPECIFICATION_DIR
-from lib.translating_parser.parser import TranslatingParser
 
 OAPI = SPECIFICATION_DIR + "openapi.json"
 
