@@ -16,7 +16,6 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-import pytest
 from kafka.errors import KafkaError
 
 from api import api_operation
@@ -476,10 +475,8 @@ class CreateAppConnexionAppInitTestCase(TestCase):
     @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
     def test_yaml_specification(self, translating_parser, get_engine, app):
         with patch("app.create_app", side_effect=Exception("mocked error")):
-            with self.assertRaises(Exception) as e:
+            with self.assertRaises(Exception):
                 create_app(RuntimeEnvironment.TEST)
-            if e:
-                pytest.xfail("Test fails with yml")
 
 
 class HostOrderHowTestCase(TestCase):
