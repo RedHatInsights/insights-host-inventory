@@ -47,6 +47,7 @@ QUERY = """query Query(
             facts,
             stale_timestamp,
             reporter,
+            per_reporter_staleness,
             system_profile_facts (filter: $fields),
         }
     }
