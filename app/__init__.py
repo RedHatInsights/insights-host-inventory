@@ -26,7 +26,7 @@ from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
 from app.queue.metrics import rbac_access_denied
-from app.validators import verify_uuid_format  # noqa: 401
+from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
 
 
@@ -180,7 +180,17 @@ def create_app(runtime_environment):
 
     flask_app.config["SYSTEM_PROFILE_SPEC"] = process_system_profile_spec()
 
+    # Configure Unleash (feature flags)
+    flask_app.config[
+        "UNLEASH_URL"
+    ] = f"{app_config.unleash_prefix}://{app_config.unleash_host}:{app_config.unleash_port}/api"
+    flask_app.config["UNLEASH_APP_NAME"] = "Host Inventory"
+    flask_app.config["UNLEASH_ENVIRONMENT"] = app_config.unleash_environment
+    if app_config.unleash_token:
+        flask_app.config["UNLEASH_CUSTOM_HEADERS"] = f"Bearer {app_config.unleash_token}"
+
     db.init_app(flask_app)
+    init_unleash_app(flask_app)
 
     register_shutdown(db.get_engine(flask_app).dispose, "Closing database")
 
