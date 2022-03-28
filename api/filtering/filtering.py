@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 from functools import partial
 from uuid import UUID
@@ -14,6 +15,8 @@ from app.utils import Tag
 from app.validators import is_custom_date as is_timestamp
 from app.xjoin import staleness_filter
 from app.xjoin import string_contains_lc
+from lib.feature_flags import FLAG_HIDE_EDGE_BY_DEFAULT
+from lib.feature_flags import UNLEASH
 
 logger = get_logger(__name__)
 
@@ -337,9 +340,15 @@ def query_filters(
     if provider_id:
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
 
-    for key in filter:
+    # FEATURE FLAG: Edge hosts should be hidden by default.
+    # If the feature flag "hbi.api-hide-edge-default" is enabled, filter here on the API side.
+    sp_filter = deepcopy(filter)
+    if UNLEASH.client.is_enabled(FLAG_HIDE_EDGE_BY_DEFAULT):
+        sp_filter.setdefault("system_profile", []).append({"host_type": "edge"})
+
+    for key in sp_filter:
         if key == "system_profile":
-            query_filters += build_system_profile_filter(filter["system_profile"])
+            query_filters += build_system_profile_filter(sp_filter["system_profile"])
         else:
             raise ValidationException("filter key is invalid")
 
