@@ -331,7 +331,17 @@ def query_filters(
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
     if registered_with:
-        query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+        for item in registered_with:
+            if item == "insights":
+                query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+            elif item == "cloud-connector":
+                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}}
+            elif item == "puptoo":
+                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}}
+            elif item == "rhsm-conduit":
+                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}}
+            else:
+                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}}
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
