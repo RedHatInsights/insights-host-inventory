@@ -61,8 +61,8 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
                     # TODO: Metrics
                     # metrics.ingress_message_handler_success.inc()
                 except OperationalError as oe:
-                    """ sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
+                    """sqlalchemy.exc.OperationalError: This error occurs when an
+                    authentication failure occurs or the DB is not accessible.
                     """
                     logger.error(f"Could not access DB {str(oe)}")
                     sys.exit(3)
