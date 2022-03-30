@@ -91,6 +91,24 @@ def xjoin_enabled():
     return get_bulk_query_source() == BulkQuerySource.xjoin
 
 
+def _build_registered_with_per_reporter_filter(registered_with):
+    hostFilter = {}
+    for item in registered_with:
+        if item == "insights":
+            hostFilter["NOT"] = {"insights_id": {"eq": None}}
+        elif item == "cloud-connector":
+            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}
+        elif item == "puptoo":
+            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}
+        elif item == "rhsm-conduit":
+            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}
+        elif item == "yupana":
+            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}
+        else:
+            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": item}}}
+    return hostFilter
+
+
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
@@ -115,7 +133,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+        variables["hostFilter"] = _build_registered_with_per_reporter_filter(registered_with)
 
     if filter:
         for key in filter:
@@ -168,7 +186,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+        variables["hostFilter"] = _build_registered_with_per_reporter_filter(registered_with)
 
     if search:
         variables["filter"] = {

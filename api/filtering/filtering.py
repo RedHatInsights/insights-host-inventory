@@ -335,13 +335,15 @@ def query_filters(
             if item == "insights":
                 query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
             elif item == "cloud-connector":
-                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}}
+                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}},)
             elif item == "puptoo":
-                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}}
+                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}},)
             elif item == "rhsm-conduit":
-                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}}
+                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}},)
+            elif item == "yupana":
+                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}},)
             else:
-                query_filters += {"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}}
+                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": item}}}},)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:

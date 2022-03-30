@@ -865,6 +865,37 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
     assert non_expected_id not in expected_ids
 
 
+# TODO update tests to use per_reporter_staleness
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("registered_with", "insights"),
+        ("registered_with", "cloud-connector"),
+        ("registered_with", "puptoo"),
+        ("registered_with", "rhsm-conduit"),
+        ("registered_with", "yupana"),
+    ),
+)
+def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_update_host, api_get, field, value):
+    created_hosts_with_insights_id = mq_create_three_specific_hosts
+
+    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
+    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
+
+    url = build_hosts_url(query=f"?{field}={value}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 3
+
+    result_ids = sorted([host["id"] for host in response_data["results"]])
+    expected_ids = sorted([host.id for host in created_hosts_with_insights_id])
+    non_expected_id = created_host_without_insights_id.id
+
+    assert expected_ids == result_ids
+    assert non_expected_id not in expected_ids
+
+
 def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 

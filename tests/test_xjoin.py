@@ -418,6 +418,29 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
     )
 
 
+@pytest.mark.parametrize("reporter", ("cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
+def test_query_variables_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporter
+):
+    url = build_hosts_url(query=f"?registered_with={reporter}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (mocker.ANY, {"OR": {"per_reporter_staleness": {reporter: {"eq": reporter}}}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
 @pytest.mark.parametrize("direction", ("ASC", "DESC"))
 def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?order_by=updated&order_how={quote(direction)}")
@@ -1244,8 +1267,22 @@ def test_system_profile_sap_system_endpoint_registered_with_insights(
 
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
+        SAP_SYSTEM_QUERY, {"hostFilter": {"NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize("reporter", ("cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
+def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get, reporter
+):
+    url = build_system_profile_sap_system_url(query=f"?registered_with={reporter}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
-        {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0},
+        {"hostFilter": {"OR": {"per_reporter_staleness": {reporter: {"eq": reporter}}}}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
@@ -1331,8 +1368,22 @@ def test_system_profile_sap_sids_endpoint_registered_with_insights(
 
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
+        SAP_SIDS_QUERY, {"hostFilter": {"NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0}, mocker.ANY
+    )
+
+
+@pytest.mark.parametrize("reporter", ("cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
+def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get, reporter
+):
+    url = build_system_profile_sap_sids_url(query=f"?registered_with={reporter}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY,
-        {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0},
+        {"hostFilter": {"OR": {"per_reporter_staleness": {reporter: {"eq": reporter}}}}, "limit": 50, "offset": 0},
         mocker.ANY,
     )
 
