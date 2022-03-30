@@ -1,7 +1,6 @@
 from api.filtering.filtering import host_id_list_query_filter
 from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
-from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
@@ -48,6 +47,7 @@ QUERY = """query Query(
             facts,
             stale_timestamp,
             reporter,
+            per_reporter_staleness,
             system_profile_facts (filter: $fields),
         }
     }
@@ -131,7 +131,7 @@ def get_host_list(
     )
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
@@ -140,7 +140,7 @@ def get_host_list(
 def get_host_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, fields=None):
     all_filters = host_id_list_query_filter(host_id_list)
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
@@ -172,7 +172,7 @@ def get_host_ids_list(
     )
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
     variables = {"limit": 100, "filter": all_filters}  # maximum limit handled by xjoin.

@@ -11,7 +11,6 @@ from api.filtering.filtering import build_tag_query_dict_tuple
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
-from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -115,7 +114,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
                 raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
@@ -170,7 +169,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
                 raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
