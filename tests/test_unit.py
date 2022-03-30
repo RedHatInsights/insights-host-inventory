@@ -16,7 +16,6 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-import pytest
 from kafka.errors import KafkaError
 
 from api import api_operation
@@ -249,7 +248,7 @@ class AuthIdentityValidateTestCase(TestCase):
     def test_case_insensitive_auth_types(self):
         # Validate that auth_type is case-insensitive
         test_identity = deepcopy(SYSTEM_IDENTITY)
-        auth_types = ["CLASSIC-PROXY", "Cert-Auth", "basic-auth", None]
+        auth_types = ["JWT-AUTH", "Cert-Auth", "basic-auth"]
         for auth_type in auth_types:
             with self.subTest(auth_type=auth_type):
                 test_identity["auth_type"] = auth_type
@@ -258,6 +257,20 @@ class AuthIdentityValidateTestCase(TestCase):
                     self.assertTrue(True)
                 except Exception:
                     self.fail()
+
+    def test_obsolete_auth_type(self):
+        # Validate that removed auth_type not working anymore
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        test_identity["auth_type"] = "CLASSIC-PROXY"
+        with self.assertRaises(ValueError):
+            Identity(test_identity)
+
+    def test_missing_auth_type(self):
+        # auth_type must be provided
+        test_identity = deepcopy(SYSTEM_IDENTITY)
+        test_identity["auth_type"] = None
+        with self.assertRaises(ValueError):
+            Identity(test_identity)
 
 
 class TrustedIdentityTestCase(TestCase):
@@ -462,10 +475,8 @@ class CreateAppConnexionAppInitTestCase(TestCase):
     @patch("app.SPECIFICATION_FILE", value="./swagger/api.spec.yaml")
     def test_yaml_specification(self, translating_parser, get_engine, app):
         with patch("app.create_app", side_effect=Exception("mocked error")):
-            with self.assertRaises(Exception) as e:
+            with self.assertRaises(Exception):
                 create_app(RuntimeEnvironment.TEST)
-            if e:
-                pytest.xfail("Test fails with yml")
 
 
 class HostOrderHowTestCase(TestCase):

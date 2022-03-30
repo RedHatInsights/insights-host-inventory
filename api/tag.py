@@ -10,7 +10,6 @@ from api.host import get_bulk_query_source
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
-from app.auth.identity import AuthType
 from app.auth.identity import IdentityType
 from app.config import BulkQuerySource
 from app.instrumentation import log_get_tags_failed
@@ -117,7 +116,7 @@ def get_tags(
         }
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
