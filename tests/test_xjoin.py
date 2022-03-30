@@ -2231,9 +2231,7 @@ def test_query_system_profile_sap_system_system_identity(
     )
 
 
-def test_query_with_owner_id_satellite_identity(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_with_owner_id_satellite_identity(mocker, subtests, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
     response_status, response_data = api_get(url, SATELLITE_IDENTITY)
