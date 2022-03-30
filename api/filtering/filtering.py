@@ -341,10 +341,11 @@ def query_filters(
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
 
     # FEATURE FLAG: Edge hosts should be hidden by default.
-    # If the feature flag "hbi.api-hide-edge-default" is enabled, filter here on the API side.
+    # If the feature flag is enabled, filter here on the API side.
     sp_filter = deepcopy(filter)
     if UNLEASH.client.is_enabled(FLAG_HIDE_EDGE_BY_DEFAULT):
-        sp_filter.setdefault("system_profile", []).append({"host_type": "edge"})
+        if sp_filter.get("system_profile", {}).get("host_type") is None:
+            sp_filter.setdefault("system_profile", {}).update({"host_type": "nil"})
 
     for key in sp_filter:
         if key == "system_profile":

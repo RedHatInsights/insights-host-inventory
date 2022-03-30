@@ -1,7 +1,7 @@
 from flask_unleash import Unleash
 
 UNLEASH = Unleash()
-FLAG_HIDE_EDGE_BY_DEFAULT = "hbi.api-hide-edge-default"
+FLAG_HIDE_EDGE_BY_DEFAULT = "hbi.api.hide-edge-by-default"
 
 
 def init_unleash_app(app):

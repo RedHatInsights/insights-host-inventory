@@ -1843,6 +1843,9 @@ def test_spf_owner_id_invalid_field_value(
 def test_query_hosts_filter_spf_host_type(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
+    # Validate functionality when feature flag is disabled
+    mocker.patch("api.filtering.filtering.UNLEASH.client.is_enabled", return_value=False)
+
     filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
     values = ("edge", "nil", "not_nil")
     queries = (
@@ -1878,6 +1881,7 @@ def test_query_hosts_filter_spf_host_type(
 def test_query_hosts_filter_spf_host_type_multiple(
     mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
+    feature_flag_values = (True, False)
     query_params = (
         "?filter[system_profile][host_type][eq][]=random-type",
         "?filter[system_profile][host_type][eq][]=edge" "&filter[system_profile][host_type][eq][]=random-type",
@@ -1887,8 +1891,12 @@ def test_query_hosts_filter_spf_host_type_multiple(
         {"OR": [{"spf_host_type": {"eq": "edge"}}, {"spf_host_type": {"eq": "random-type"}}]},
     )
 
-    for param, query in zip(query_params, queries):
-        with subtests.test(param=param, query=query):
+    for param, query, flag_enabled in zip(query_params, queries, feature_flag_values):
+        with subtests.test(param=param, query=query, flag_enabled=flag_enabled):
+            # Since these requests are filtering by host_type, the feature flag
+            # that hides edge hosts by default should not affect the query
+            mocker.patch("api.filtering.filtering.UNLEASH.client.is_enabled", return_value=flag_enabled)
+
             url = build_hosts_url(query=param)
 
             response_status, response_data = api_get(url)
@@ -1925,6 +1933,28 @@ def test_spf_host_type_invalid_field_value(
             response_status, response_data = api_get(url)
             assert response_status == 400
             assert response_data["title"] == "Validation Error"
+
+
+def test_query_hosts_hide_edge_feature_flag_enabled(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    # Validate functionality when feature flag is enabled
+    mocker.patch("api.filtering.filtering.UNLEASH.client.is_enabled", return_value=True)
+
+    response_status, response_data = api_get(HOST_URL)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": ({"OR": mocker.ANY}, {"spf_host_type": {"eq": None}}),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
 
 
 # system_profile insights_client_version tests
