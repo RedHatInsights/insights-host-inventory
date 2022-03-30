@@ -181,11 +181,9 @@ def create_app(runtime_environment):
     flask_app.config["SYSTEM_PROFILE_SPEC"] = process_system_profile_spec()
 
     # Configure Unleash (feature flags)
-    flask_app.config[
-        "UNLEASH_URL"
-    ] = f"{app_config.unleash_prefix}://{app_config.unleash_host}:{app_config.unleash_port}/api"
+    flask_app.config["UNLEASH_URL"] = app_config.unleash_url
     flask_app.config["UNLEASH_APP_NAME"] = "Host Inventory"
-    flask_app.config["UNLEASH_ENVIRONMENT"] = app_config.unleash_environment
+    flask_app.config["UNLEASH_ENVIRONMENT"] = None
     if app_config.unleash_token:
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = f"Bearer {app_config.unleash_token}"
 

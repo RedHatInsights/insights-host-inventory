@@ -75,6 +75,13 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -149,6 +156,13 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -214,6 +228,13 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -273,6 +294,13 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: UNLEASH_URL
+          value: ${UNLEASH_URL}
+        - name: UNLEASH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ${UNLEASH_SECRET_NAME}
+              key: CLIENT_ACCESS_TOKEN
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -338,6 +366,13 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -408,6 +443,13 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - name: UNLEASH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${UNLEASH_SECRET_NAME}
+                key: CLIENT_ACCESS_TOKEN
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -773,6 +815,14 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+
+# Feature flags
+- description: Unleash secret name
+  name: UNLEASH_SECRET_NAME
+  value: unleash-ephemeral
+- description: Unleash API url
+  name: UNLEASH_URL
+  value: ''
 
 #floorist
 - name: MEMORY_LIMIT_FLOO

@@ -213,11 +213,8 @@ class Config:
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = "true"
 
-        self.unleash_host = os.environ.get("UNLEASH_HOST", "unleash")
-        self.unleash_port = os.environ.get("UNLEASH_PORT", "4242")
-        self.unleash_prefix = "https" if str(self.unleash_port) == "443" else "http"
+        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
         self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
-        self.unleash_environment = os.environ.get("ENV_NAME")
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
