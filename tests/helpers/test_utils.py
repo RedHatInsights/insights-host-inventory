@@ -25,14 +25,6 @@ SYSTEM_IDENTITY = {
     "type": "System",
 }
 
-INSIGHTS_CLASSIC_IDENTITY = {
-    "account_number": "test",
-    "auth_type": "classic-proxy",
-    "internal": {"auth_time": 6300, "org_id": "3340851"},
-    "system": {"cert_type": "system", "cn": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
-    "type": "System",
-}
-
 USER_IDENTITY = {
     "account_number": "test",
     "type": "User",
