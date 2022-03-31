@@ -297,9 +297,9 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                         handler(message.value, event_producer)
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
-                        """ sqlalchemy.exc.OperationalError: This error occurs when an
-                            authentication failure occurs or the DB is not accessible.
-                            Exit the process to restart the pod
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
                         """
                         logger.error(f"Could not access DB {str(oe)}")
                         sys.exit(3)
