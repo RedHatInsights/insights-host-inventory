@@ -162,8 +162,8 @@ def assert_host_response_status(response, expected_status=201, host_index=None):
 
 
 def assert_host_ids_in_response(response, expected_hosts):
-    response_ids = sorted([host["id"] for host in response["results"]])
-    expected_ids = sorted([str(host.id) for host in expected_hosts])
+    response_ids = sorted(host["id"] for host in response["results"])
+    expected_ids = sorted(str(host.id) for host in expected_hosts)
     assert response_ids == expected_ids
 
 
@@ -401,7 +401,7 @@ def quote_everything(string):
 
 
 def create_mock_rbac_response(permissions_response_file):
-    with open(permissions_response_file, "r") as rbac_response:
+    with open(permissions_response_file) as rbac_response:
         resp_data = json.load(rbac_response)
         return resp_data["data"]
 

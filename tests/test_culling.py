@@ -217,10 +217,10 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
         created_host = db_create_host(host=host)
         created_hosts.append(created_host)
 
-    created_host_ids = sorted([host.id for host in created_hosts])
+    created_host_ids = sorted(host.id for host in created_hosts)
     retrieved_hosts = db_get_hosts(created_host_ids)
 
-    assert created_host_ids == sorted([host.id for host in retrieved_hosts])
+    assert created_host_ids == sorted(host.id for host in retrieved_hosts)
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     host_reaper_run(
@@ -233,7 +233,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
     retrieved_hosts = db_get_hosts(created_host_ids)
 
-    assert created_host_ids == sorted([host.id for host in retrieved_hosts])
+    assert created_host_ids == sorted(host.id for host in retrieved_hosts)
     assert event_producer_mock.event is None
 
 
