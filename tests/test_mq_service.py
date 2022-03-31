@@ -315,7 +315,7 @@ def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_hos
 
 def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_host):
     """
-     Tests adding a host with message containing system profile
+    Tests adding a host with message containing system profile
     """
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
@@ -338,7 +338,7 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
 
 def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host):
     """
-     Tests adding a host with message containing system profile
+    Tests adding a host with message containing system profile
     """
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
@@ -394,7 +394,7 @@ def test_add_host_rhsm_conduit_owner_id(event_datetime_mock, mq_create_or_update
 
 def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
     """
-     Tests adding a host with message containing tags
+    Tests adding a host with message containing tags
     """
     expected_insights_id = generate_uuid()
     expected_tags = [
@@ -438,7 +438,7 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
 )
 def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
     """
-     Tests adding a host with message containing invalid tags
+    Tests adding a host with message containing invalid tags
     """
     insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=[tag])

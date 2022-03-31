@@ -19,7 +19,7 @@ gunicorn = "~=19.9.0"
 connexion = {version = "~=2.7",extras = ["swagger-ui"]}
 markupsafe = "==2.0.1" # Using v2.1.0 breaks Jinja2
 openapi-schema-validator = "< 0.2"
-openapi-spec-validator = "*"
+openapi-spec-validator = "< 0.4.0" # those are a pain
 pyyaml = "~=5.4"
 prometheus-client = "~=0.7.1"
 logstash-formatter = "~=0.5.17"
@@ -45,12 +45,7 @@ pytest-cov = "~=2.7.1"
 pytest-mock = "~=3.1.0"
 pytest-subtests = "~=0.3.0"
 coverage = "~=4.5.3"
-flake8 = "~=3.7.7"
-pyupgrade = "~=1.21.0"
-reorder-python-imports = "~=1.6.1"
-pre-commit-hooks = "~=2.2.3"
-black = "==19.3b0"  # Pre-release, not semver
-pre-commit = "~=1.18.1"
+pre-commit = "~=2.17.0"
 ttictoc = "~=0.4.1"
 sqlalchemy-utils = "==0.36.7"
 
