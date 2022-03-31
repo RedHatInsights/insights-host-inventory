@@ -2157,7 +2157,7 @@ class CustomRegexMethodTestCase(TestCase):
 
 
 class KafkaAvailabilityTests(TestCase):
-    def setUp(self,):
+    def setUp(self):
         super().setUp()
         self.config = Config(RuntimeEnvironment.TEST)
 
