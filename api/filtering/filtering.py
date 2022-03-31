@@ -351,7 +351,7 @@ def query_filters(
         if key == "system_profile":
             query_filters += build_system_profile_filter(sp_filter["system_profile"])
         else:
-            raise ValidationException("filter key is invalid")
+            raise ValidationException(f"filter key {key!r} is invalid")
 
     logger.debug(query_filters)
     return query_filters
