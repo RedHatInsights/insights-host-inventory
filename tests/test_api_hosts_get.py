@@ -888,8 +888,8 @@ def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_
     assert response_status == 200
     assert len(response_data["results"]) == 3
 
-    result_ids = sorted([host["id"] for host in response_data["results"]])
-    expected_ids = sorted([host.id for host in created_hosts_with_insights_id])
+    result_ids = sorted(host["id"] for host in response_data["results"])
+    expected_ids = sorted(host.id for host in created_hosts_with_insights_id)
     non_expected_id = created_host_without_insights_id.id
 
     assert expected_ids == result_ids
