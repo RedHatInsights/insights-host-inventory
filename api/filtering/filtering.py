@@ -340,24 +340,31 @@ def query_filters(
     if provider_id:
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
 
+    query_filters += process_system_profile_filters(filter)
+
+    logger.debug(query_filters)
+    return query_filters
+
+
+def process_system_profile_filters(filter: dict) -> tuple:
+    processed_filters = ()
+    sp_filter = deepcopy(filter)
     # FEATURE FLAG: Edge hosts should be hidden by default.
     # If the feature flag is enabled, filter here on the API side.
-    sp_filter = deepcopy(filter)
     if UNLEASH.client.is_enabled(FLAG_HIDE_EDGE_BY_DEFAULT):
         if sp_filter.get("system_profile", {}).get("host_type") is None:
             sp_filter.setdefault("system_profile", {}).update({"host_type": "nil"})
 
     for key in sp_filter:
         if key == "system_profile":
-            query_filters += build_system_profile_filter(sp_filter["system_profile"])
+            processed_filters += build_system_profile_filter(sp_filter["system_profile"])
         else:
             raise ValidationException(f"filter key {key!r} is invalid")
 
-    logger.debug(query_filters)
-    return query_filters
+    return processed_filters
 
 
-def build_system_profile_filter(system_profile):
+def build_system_profile_filter(system_profile: dict) -> tuple:
     system_profile_filter = tuple()
 
     for field_name in system_profile:
