@@ -673,7 +673,7 @@ components:
       in: query
       name: registered_with
       required: false
-      description: Filters out any host not registered by the specified reporter
+      description: Filters out any host not registered by the specified reporters
       schema:
         type: array
         items:
