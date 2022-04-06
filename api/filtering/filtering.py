@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone
 from enum import Enum
 from functools import partial
 from uuid import UUID
@@ -330,20 +332,20 @@ def query_filters(
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
+
     if registered_with:
+        prs_list = []
         for item in registered_with:
-            if item == "insights":
-                query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
-            elif item == "cloud-connector":
-                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}},)
-            elif item == "puptoo":
-                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}},)
-            elif item == "rhsm-conduit":
-                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}},)
-            elif item == "yupana":
-                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}},)
-            else:
-                query_filters += ({"OR": {"per_reporter_staleness": {item.casefold(): {"eq": item}}}},)
+            prs_list.append(
+                {
+                    "AND": {
+                        "per_reporter_staleness": {item: {"eq": item}},
+                        f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
+                    }
+                }
+            )
+        query_filters += ({"OR": prs_list},)
+
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:

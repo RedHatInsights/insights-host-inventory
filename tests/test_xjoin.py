@@ -397,27 +397,17 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
     )
 
 
-def test_query_variables_registered_with_insights(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query="?registered_with=insights")
+def test_query_variables_registered_with_using_unknown_reporter(api_get):
+    MSG = "'unknown' is not one of ['insights', 'yupana', 'puptoo', 'rhsm-conduit', 'cloud-connector']"
+    url = build_hosts_url(query="?registered_with=unknown")
+
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": (mocker.ANY, {"NOT": {"insights_id": {"eq": None}}}),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
+    assert response_status == 400
+    assert MSG in str(response_data)
 
 
-@pytest.mark.parametrize("reporter", ("cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
+@pytest.mark.parametrize("reporter", ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
 def test_query_variables_registered_with_per_reporter(
     mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporter
 ):
@@ -433,7 +423,19 @@ def test_query_variables_registered_with_per_reporter(
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (mocker.ANY, {"OR": {"per_reporter_staleness": {reporter: {"eq": reporter}}}}),
+            "filter": (
+                mocker.ANY,
+                {
+                    "OR": [
+                        {
+                            "AND": {
+                                "per_reporter_staleness": {reporter: {"eq": reporter}},
+                                f"per_reporter_staleness[{reporter}]": {"stale_timestamp": {"gt": mocker.ANY}},
+                            }
+                        }
+                    ]
+                },
+            ),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -1066,7 +1068,21 @@ def test_tags_response_invalid_pagination(page, per_page, api_get):
 def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filter_single_call):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?registered_with=insights"),
-        host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
+        host_filter={
+            "OR": mocker.ANY,
+            "AND": (
+                {
+                    "OR": [
+                        {
+                            "AND": {
+                                "per_reporter_staleness": {"insights": {"eq": "insights"}},
+                                "per_reporter_staleness[insights]": {"stale_timestamp": {"gt": mocker.ANY}},
+                            }
+                        }
+                    ]
+                },
+            ),
+        },
     )
 
 
@@ -1120,7 +1136,21 @@ def test_tags_RBAC_allowed(
 
             assert_tag_query_host_filter_single_call(
                 build_tags_url(query="?registered_with=insights"),
-                host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
+                host_filter={
+                    "OR": mocker.ANY,
+                    "AND": (
+                        {
+                            "OR": [
+                                {
+                                    "AND": {
+                                        "per_reporter_staleness": {"insights": {"eq": "insights"}},
+                                        "per_reporter_staleness[insights]": {"stale_timestamp": {"gt": mocker.ANY}},
+                                    }
+                                }
+                            ]
+                        },
+                    ),
+                },
             )
             graphql_tag_query_empty_response.reset_mock()
 
