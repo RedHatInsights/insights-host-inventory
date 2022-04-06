@@ -865,11 +865,9 @@ def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_up
     assert non_expected_id not in expected_ids
 
 
-# TODO update tests to use per_reporter_staleness
 @pytest.mark.parametrize(
     "field,value",
     (
-        ("registered_with", "insights"),
         ("registered_with", "cloud-connector"),
         ("registered_with", "puptoo"),
         ("registered_with", "rhsm-conduit"),

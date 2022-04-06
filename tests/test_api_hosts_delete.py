@@ -153,7 +153,6 @@ def test_delete_hosts_using_filter(
 @pytest.mark.parametrize(
     "field,value",
     (
-        ("registered_with", "insights"),
         ("registered_with", "cloud-connector"),
         ("registered_with", "puptoo"),
         ("registered_with", "rhsm-conduit"),

@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 import flask
 from kafka import KafkaConsumer
 
@@ -91,21 +94,17 @@ def xjoin_enabled():
 
 
 def _build_registered_with_per_reporter_filter(registered_with):
-    hostFilter = {}
+    prs_list = []
     for item in registered_with:
-        if item == "insights":
-            hostFilter["NOT"] = {"insights_id": {"eq": None}}
-        elif item == "cloud-connector":
-            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "cloud-connector"}}}
-        elif item == "puptoo":
-            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "puptoo"}}}
-        elif item == "rhsm-conduit":
-            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "rhsm-conduit"}}}
-        elif item == "yupana":
-            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": "yupana"}}}
-        else:
-            hostFilter["OR"] = {"per_reporter_staleness": {item.casefold(): {"eq": item}}}
-    return hostFilter
+        prs_list.append(
+            {
+                "AND": {
+                    "per_reporter_staleness": {item: {"eq": item}},
+                    f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
+                }
+            }
+        )
+    return ({"OR": prs_list},)
 
 
 @api_operation
