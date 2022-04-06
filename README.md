@@ -163,13 +163,13 @@ When testing the API, it must be provided in the authentication header `x-rh-ide
 For testing purposes, this required identity header can be set to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19
+x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsImF1dGhfdHlwZSI6ImJhc2ljLWF1dGgiLCJ1c2VyIjp7InVzZXJuYW1lIjoidHVzZXJAcmVkaGF0LmNvbSIsImVtYWlsIjoidHVzZXJAcmVkaGF0LmNvbSIsImZpcnN0X25hbWUiOiJ0ZXN0IiwibGFzdF9uYW1lIjoidXNlciIsImlzX2FjdGl2ZSI6dHJ1ZSwiaXNfb3JnX2FkbWluIjpmYWxzZSwiaXNfaW50ZXJuYWwiOnRydWUsImxvY2FsZSI6ImVuX1VTIn19fQo=
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity":{"account_number":"test","type":"User","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
+{"identity":{"account_number":"test","type":"User","auth_type":"basic-auth","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
 ```
 
 The above header has the "User" identity type, but it's possible to use a "System" type header as well.
