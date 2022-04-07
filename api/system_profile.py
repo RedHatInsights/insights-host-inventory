@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timezone
-
 import flask
 from kafka import KafkaConsumer
 
@@ -9,6 +6,7 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.filtering.filtering import _build_registered_with_per_reporter_filter
 from api.filtering.filtering import build_system_profile_filter
 from api.filtering.filtering import build_tag_query_dict_tuple
 from api.host import get_bulk_query_source
@@ -91,20 +89,6 @@ SAP_SIDS_QUERY = """
 
 def xjoin_enabled():
     return get_bulk_query_source() == BulkQuerySource.xjoin
-
-
-def _build_registered_with_per_reporter_filter(registered_with):
-    prs_list = []
-    for item in registered_with:
-        prs_list.append(
-            {
-                "AND": {
-                    "per_reporter_staleness": {item: {"eq": item}},
-                    f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
-                }
-            }
-        )
-    return ({"OR": prs_list},)
 
 
 @api_operation

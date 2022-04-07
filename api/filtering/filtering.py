@@ -272,6 +272,20 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
         return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
 
 
+def _build_registered_with_per_reporter_filter(registered_with):
+    prs_list = []
+    for item in registered_with:
+        prs_list.append(
+            {
+                "AND": {
+                    "per_reporter_staleness": {item: {"eq": item}},
+                    f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
+                }
+            }
+        )
+    return ({"OR": prs_list},)
+
+
 def build_tag_query_dict_tuple(tags):
     query_tag_tuple = ()
     for string_tag in tags:
@@ -334,18 +348,7 @@ def query_filters(
         query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        prs_list = []
-        for item in registered_with:
-            prs_list.append(
-                {
-                    "AND": {
-                        "per_reporter_staleness": {item: {"eq": item}},
-                        f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
-                    }
-                }
-            )
-        query_filters += ({"OR": prs_list},)
-
+        query_filters += _build_registered_with_per_reporter_filter(registered_with)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
