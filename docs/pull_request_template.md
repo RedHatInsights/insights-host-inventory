@@ -11,6 +11,7 @@ This PR is being created to address [ESSNTL-xxxx](https://issues.redhat.com/brow
 - [ ] Tests: validate exceptions and failure scenarios
 - [ ] Tests: edge cases
 - [ ] Recovers or fails gracefully during potential resource outages (e.g. DB, Kafka)
+- [ ] Uses [type hinting](https://docs.python.org/3/library/typing.html), if convenient
 - [ ] Documentation, if this PR changes the way other services interact with host inventory
 - [ ] Links to related PRs
 
