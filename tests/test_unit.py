@@ -47,6 +47,7 @@ from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
+from app.serialization import _deserialize_per_reporter_staleness
 from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
@@ -1829,6 +1830,81 @@ class SerializationDeserializeTags(TestCase):
                     with self.assertRaises(ValueError):
                         nested_tags = {"namespace": {key: ["value"]}}
                         function(nested_tags)
+
+
+class SerializationDeserializePRS(TestCase):
+    def test_deserialize_per_reporter_staleness_xjoin(self):
+        for input, expected_output in (
+            (
+                # Input: basic PRS in xjoin's list format
+                [
+                    {
+                        "reporter": "puptoo",
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "check_in_succeeded": True,
+                    },
+                    {
+                        "reporter": "yupana",
+                        "last_check_in": "2019-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2019-02-10T08:07:03.354307+00:00",
+                        "check_in_succeeded": False,
+                    },
+                ],
+                # Expected output: same PRS, but in HBI's object format
+                {
+                    "puptoo": {
+                        "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "check_in_succeeded": True,
+                    },
+                    "yupana": {
+                        "last_check_in": "2019-02-10T08:07:03.354307+00:00",
+                        "stale_timestamp": "2019-02-10T08:07:03.354307+00:00",
+                        "check_in_succeeded": False,
+                    },
+                },
+            ),
+            (
+                # Input: PRS that only has reporter and stale_timestamp
+                [
+                    {
+                        "reporter": "puptoo",
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                    }
+                ],
+                # Expected output: deserialized PRS that uses None for missing values
+                {
+                    "puptoo": {
+                        "last_check_in": None,
+                        "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                        "check_in_succeeded": None,
+                    }
+                },
+            ),
+            (
+                # Input: Empty list
+                [],
+                # Expected output: empty object
+                {},
+            ),
+        ):
+            with self.subTest(input=input, expected_output=expected_output):
+                self.assertDictEqual(_deserialize_per_reporter_staleness(input), expected_output)
+
+    def test_deserialize_per_reporter_staleness_missing_reporter(self):
+        # "reporter" field not set
+        input_prs = [
+            {
+                "last_check_in": "2020-02-10T08:07:03.354307+00:00",
+                "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
+                "check_in_succeeded": True,
+            }
+        ]
+
+        # If any PRS entry is missing the reporter, it's invalid, and we expect deserialization to raise an error
+        with self.assertRaises(KeyError):
+            _deserialize_per_reporter_staleness(input_prs)
 
 
 class EventProducerTests(TestCase):

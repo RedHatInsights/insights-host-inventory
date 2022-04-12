@@ -46,7 +46,12 @@ QUERY = """query Query(
             facts,
             stale_timestamp,
             reporter,
-            per_reporter_staleness,
+            per_reporter_staleness {
+                reporter,
+                stale_timestamp,
+                last_check_in,
+                check_in_succeeded
+            },
             system_profile_facts (filter: $fields),
         }
     }

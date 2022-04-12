@@ -73,7 +73,7 @@ def deserialize_host_xjoin(data):
         system_profile_facts=data["system_profile_facts"] or {},
         stale_timestamp=_deserialize_datetime(data["stale_timestamp"]),
         reporter=data["reporter"],
-        per_reporter_staleness=data.get("per_reporter_staleness", {}) or {},
+        per_reporter_staleness=_deserialize_per_reporter_staleness(data.get("per_reporter_staleness", [])),
     )
     for field in ("created_on", "modified_on"):
         setattr(host, field, _deserialize_datetime(data[field]))
@@ -252,3 +252,15 @@ def _deserialize_tags_dict(tags):
 
 def _serialize_tags(tags):
     return [tag.data() for tag in Tag.create_tags_from_nested(tags)]
+
+
+def _deserialize_per_reporter_staleness(prs_input: list) -> dict:
+    # Convert PRS from Xjoin's list format to HBI's dict format
+    return {
+        prs["reporter"]: {
+            "stale_timestamp": prs.get("stale_timestamp"),
+            "last_check_in": prs.get("last_check_in"),
+            "check_in_succeeded": prs.get("check_in_succeeded"),
+        }
+        for prs in prs_input
+    }
