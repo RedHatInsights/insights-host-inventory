@@ -845,42 +845,17 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
             assert response_status == 400
 
 
-def test_get_hosts_only_insights(mq_create_three_specific_hosts, mq_create_or_update_host, api_get):
-    created_hosts_with_insights_id = mq_create_three_specific_hosts
-
-    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
-    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
-
-    url = build_hosts_url(query="?registered_with=insights")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 3
-
-    result_ids = sorted(host["id"] for host in response_data["results"])
-    expected_ids = sorted(host.id for host in created_hosts_with_insights_id)
-    non_expected_id = created_host_without_insights_id.id
-
-    assert expected_ids == result_ids
-    assert non_expected_id not in expected_ids
-
-
 @pytest.mark.parametrize(
-    "field,value",
-    (
-        ("registered_with", "cloud-connector"),
-        ("registered_with", "puptoo"),
-        ("registered_with", "rhsm-conduit"),
-        ("registered_with", "yupana"),
-    ),
+    "value",
+    ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana"),
 )
-def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_update_host, api_get, field, value):
+def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_update_host, api_get, value):
     created_hosts_with_insights_id = mq_create_three_specific_hosts
 
     host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
 
-    url = build_hosts_url(query=f"?{field}={value}")
+    url = build_hosts_url(query=f"?registered_with={value}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
