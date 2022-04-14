@@ -407,7 +407,30 @@ def test_query_variables_registered_with_using_unknown_reporter(api_get):
     assert MSG in str(response_data)
 
 
-@pytest.mark.parametrize("reporter", ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
+def test_query_variables_registered_with_insights(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+    url = build_hosts_url(query="?registered_with=insights")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                mocker.ANY,
+                {"NOT": {"insights_id": {"eq": None}}},
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize("reporter", ("cloud-connector", "puptoo", "rhsm-conduit", "yupana"))
 def test_query_variables_registered_with_per_reporter(
     mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporter
 ):
@@ -428,9 +451,9 @@ def test_query_variables_registered_with_per_reporter(
                 {
                     "OR": [
                         {
-                            "AND": {
-                                "per_reporter_staleness": {reporter: {"eq": reporter}},
-                                f"per_reporter_staleness[{reporter}]": {"stale_timestamp": {"gt": mocker.ANY}},
+                            "per_reporter_staleness": {
+                                "reporter": {"eq": reporter},
+                                "stale_timestamp": {"gt": mocker.ANY},
                             }
                         }
                     ]
@@ -1070,18 +1093,7 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
         build_tags_url(query="?registered_with=insights"),
         host_filter={
             "OR": mocker.ANY,
-            "AND": (
-                {
-                    "OR": [
-                        {
-                            "AND": {
-                                "per_reporter_staleness": {"insights": {"eq": "insights"}},
-                                "per_reporter_staleness[insights]": {"stale_timestamp": {"gt": mocker.ANY}},
-                            }
-                        }
-                    ]
-                },
-            ),
+            "AND": ({"NOT": {"insights_id": {"eq": None}}},),
         },
     )
 
@@ -1138,18 +1150,7 @@ def test_tags_RBAC_allowed(
                 build_tags_url(query="?registered_with=insights"),
                 host_filter={
                     "OR": mocker.ANY,
-                    "AND": (
-                        {
-                            "OR": [
-                                {
-                                    "AND": {
-                                        "per_reporter_staleness": {"insights": {"eq": "insights"}},
-                                        "per_reporter_staleness[insights]": {"stale_timestamp": {"gt": mocker.ANY}},
-                                    }
-                                }
-                            ]
-                        },
-                    ),
+                    "AND": ({"NOT": {"insights_id": {"eq": None}}},),
                 },
             )
             graphql_tag_query_empty_response.reset_mock()
@@ -1303,10 +1304,10 @@ def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
                 {
                     "OR": [
                         {
-                            "AND": {
-                                "per_reporter_staleness": {reporter: {"eq": reporter}},
-                                f"per_reporter_staleness[{reporter}]": {"stale_timestamp": {"gt": mocker.ANY}},
-                            }
+                            "per_reporter_staleness": {
+                                "reporter": {"eq": reporter},
+                                "stale_timestamp": {"gt": mocker.ANY},
+                            },
                         }
                     ]
                 },
@@ -1406,10 +1407,10 @@ def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
                 {
                     "OR": [
                         {
-                            "AND": {
-                                "per_reporter_staleness": {reporter: {"eq": reporter}},
-                                f"per_reporter_staleness[{reporter}]": {"stale_timestamp": {"gt": mocker.ANY}},
-                            }
+                            "per_reporter_staleness": {
+                                "reporter": {"eq": reporter},
+                                "stale_timestamp": {"gt": mocker.ANY},
+                            },
                         }
                     ]
                 },

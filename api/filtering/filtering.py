@@ -9,6 +9,7 @@ from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
 from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
+from app import inventory_config
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -272,18 +273,27 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
         return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
 
 
-def _build_registered_with_per_reporter_filter(registered_with):
-    prs_list = []
-    for item in registered_with:
-        prs_list.append(
-            {
-                "AND": {
-                    "per_reporter_staleness": {item: {"eq": item}},
-                    f"per_reporter_staleness[{item}]": {"stale_timestamp": {"gt": datetime.now(timezone.utc)}},
+def build_registered_with_filter(registered_with):
+    regwith_filter = ()
+    if "insights" in registered_with:
+        regwith_filter = ({"NOT": {"insights_id": {"eq": None}}},)
+        registered_with.remove("insights")
+    if registered_with:
+        prs_list = []
+        for item in registered_with:
+            prs_list.append(
+                {
+                    "per_reporter_staleness": {
+                        "reporter": {"eq": item},
+                        "stale_timestamp": {
+                            "gt": str(datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta)
+                        },
+                    },
                 }
-            }
-        )
-    return ({"OR": prs_list},)
+            )
+        regwith_filter += ({"OR": prs_list},)
+
+    return regwith_filter
 
 
 def build_tag_query_dict_tuple(tags):
@@ -348,7 +358,7 @@ def query_filters(
         query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        query_filters += _build_registered_with_per_reporter_filter(registered_with)
+        query_filters += build_registered_with_filter(registered_with)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
