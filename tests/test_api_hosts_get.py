@@ -869,6 +869,38 @@ def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_
     assert non_expected_id not in expected_ids
 
 
+def test_get_hosts_registered_with_multiple_reporters(
+    mq_create_three_specific_hosts, mq_create_or_update_host, api_get
+):
+    created_hosts_with_insights_id = mq_create_three_specific_hosts
+
+    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
+    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
+
+    url = build_hosts_url(query="?registered_with=puptoo&registered_with=yupana")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 3
+
+    result_ids = sorted(host["id"] for host in response_data["results"])
+    expected_ids = sorted(host.id for host in created_hosts_with_insights_id)
+    non_expected_id = created_host_without_insights_id.id
+
+    assert expected_ids == result_ids
+    assert non_expected_id not in expected_ids
+
+
+def test_query_variables_registered_with_using_unknown_reporter(api_get):
+    MSG = "'unknown' is not one of ['insights', 'yupana', 'puptoo', 'rhsm-conduit', 'cloud-connector']"
+    url = build_hosts_url(query="?registered_with=unknown")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert MSG in str(response_data)
+
+
 def test_get_hosts_with_RBAC_allowed(subtests, mocker, db_create_host, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 

@@ -117,7 +117,7 @@ def test_create_then_delete_without_insights_id(
         ("registered_with", ["puptoo", "yupana"]),
     ),
 )
-def test_delete_hosts_using_filter_and_regisered_with(
+def test_delete_hosts_using_filter_and_registered_with(
     event_producer_mock,
     db_create_multiple_hosts,
     db_get_hosts,
@@ -148,6 +148,7 @@ def test_delete_hosts_using_filter_and_regisered_with(
     assert '"type": "delete"' in event_producer_mock.event
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
+    assert len(host_ids) > 0
 
     # check db for the deleted hosts using their IDs
     host_id_list = [str(host.id) for host in created_hosts]

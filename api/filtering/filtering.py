@@ -274,13 +274,14 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
 
 
 def build_registered_with_filter(registered_with):
+    reg_with_no_insights = registered_with
     regwith_filter = ()
-    if "insights" in registered_with:
+    if "insights" in reg_with_no_insights:
         regwith_filter = ({"NOT": {"insights_id": {"eq": None}}},)
-        registered_with.remove("insights")
-    if registered_with:
+        reg_with_no_insights.remove("insights")
+    if reg_with_no_insights:
         prs_list = []
-        for item in registered_with:
+        for item in reg_with_no_insights:
             prs_list.append(
                 {
                     "per_reporter_staleness": {
