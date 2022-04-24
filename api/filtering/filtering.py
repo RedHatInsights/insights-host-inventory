@@ -287,7 +287,11 @@ def build_registered_with_filter(registered_with):
                     "per_reporter_staleness": {
                         "reporter": {"eq": item},
                         "stale_timestamp": {
-                            "gt": str(datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta)
+                            "gt": str(
+                                (
+                                    datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta
+                                ).isoformat()
+                            )
                         },
                     },
                 }
