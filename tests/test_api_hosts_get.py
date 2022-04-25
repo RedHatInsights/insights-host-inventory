@@ -847,7 +847,7 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
 
 @pytest.mark.parametrize(
     "value",
-    ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana"),
+    ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana", "puptoo&registered_with=yupana"),
 )
 def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_update_host, api_get, value):
     created_hosts_with_insights_id = mq_create_three_specific_hosts
@@ -856,28 +856,6 @@ def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_
     created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
 
     url = build_hosts_url(query=f"?registered_with={value}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 3
-
-    result_ids = sorted(host["id"] for host in response_data["results"])
-    expected_ids = sorted(host.id for host in created_hosts_with_insights_id)
-    non_expected_id = created_host_without_insights_id.id
-
-    assert expected_ids == result_ids
-    assert non_expected_id not in expected_ids
-
-
-def test_get_hosts_registered_with_multiple_reporters(
-    mq_create_three_specific_hosts, mq_create_or_update_host, api_get
-):
-    created_hosts_with_insights_id = mq_create_three_specific_hosts
-
-    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
-    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
-
-    url = build_hosts_url(query="?registered_with=puptoo&registered_with=yupana")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
