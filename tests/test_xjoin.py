@@ -412,7 +412,7 @@ def test_query_variables_registered_with_insights(mocker, query_source_xjoin, gr
             "offset": mocker.ANY,
             "filter": (
                 mocker.ANY,
-                {"NOT": {"insights_id": {"eq": None}}},
+                {"OR": [{"NOT": {"insights_id": {"eq": None}}}]},
             ),
             "fields": mocker.ANY,
         },
@@ -1129,7 +1129,7 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
         build_tags_url(query="?registered_with=insights"),
         host_filter={
             "OR": mocker.ANY,
-            "AND": ({"NOT": {"insights_id": {"eq": None}}},),
+            "AND": ({"OR": [{"NOT": {"insights_id": {"eq": None}}}]},),
         },
     )
 
@@ -1235,7 +1235,7 @@ def test_tags_RBAC_allowed(
                 build_tags_url(query="?registered_with=insights"),
                 host_filter={
                     "OR": mocker.ANY,
-                    "AND": ({"NOT": {"insights_id": {"eq": None}}},),
+                    "AND": ({"OR": [{"NOT": {"insights_id": {"eq": None}}}]},),
                 },
             )
             graphql_tag_query_empty_response.reset_mock()

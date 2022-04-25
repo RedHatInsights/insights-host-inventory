@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
@@ -274,14 +275,13 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
 
 
 def build_registered_with_filter(registered_with):
-    reg_with_no_insights = registered_with
-    regwith_filter = ()
-    if "insights" in reg_with_no_insights:
-        regwith_filter = ({"NOT": {"insights_id": {"eq": None}}},)
-        reg_with_no_insights.remove("insights")
-    if reg_with_no_insights:
-        prs_list = []
-        for item in reg_with_no_insights:
+    reg_with_copy = deepcopy(registered_with)
+    prs_list = []
+    if "insights" in reg_with_copy:
+        prs_list.append({"NOT": {"insights_id": {"eq": None}}})
+        reg_with_copy.remove("insights")
+    if reg_with_copy:
+        for item in reg_with_copy:
             prs_list.append(
                 {
                     "per_reporter_staleness": {
@@ -296,9 +296,8 @@ def build_registered_with_filter(registered_with):
                     },
                 }
             )
-        regwith_filter += ({"OR": prs_list},)
 
-    return regwith_filter
+    return ({"OR": prs_list},)
 
 
 def build_tag_query_dict_tuple(tags):
