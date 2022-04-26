@@ -272,7 +272,7 @@ def get_operating_system(
                 raise ValidationException("filter key is invalid")
 
     current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM and current_identity.auth_type != AuthType.CLASSIC:
+    if current_identity.identity_type == IdentityType.SYSTEM:
         hostfilter_and_variables += owner_id_filter()
 
     if hostfilter_and_variables != ():
