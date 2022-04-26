@@ -30,7 +30,6 @@ from tests.helpers.graphql_utils import XJOIN_HOSTS_RESPONSE_FOR_FILTERING
 from tests.helpers.graphql_utils import XJOIN_TAGS_RESPONSE
 from tests.helpers.system_profile_utils import system_profile_deep_object_spec
 from tests.helpers.test_utils import generate_uuid
-from tests.helpers.test_utils import INSIGHTS_CLASSIC_IDENTITY
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -2319,81 +2318,6 @@ def test_query_system_profile_sap_system_system_identity(
         SAP_SYSTEM_QUERY,
         {"hostFilter": {"OR": mocker.ANY, "AND": ({"spf_owner_id": {"eq": OWNER_ID}},)}, "limit": 50, "offset": 0},
         mocker.ANY,
-    )
-
-
-# TODO: Remove the tests related to insights classic workaround (the next 4 below)
-# once we no longer need it
-def test_query_hosts_insights_classic_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
-):
-    url = build_hosts_url()
-
-    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
-
-    assert response_status == 200
-
-    graphql_query_empty_response.assert_called_once_with(
-        HOST_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "filter": ({"OR": mocker.ANY},),
-            "fields": mocker.ANY,
-        },
-        mocker.ANY,
-    )
-
-
-def test_query_tags_insights_classic_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
-    url = build_tags_url()
-
-    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "hostFilter": {"OR": mocker.ANY},
-        },
-        mocker.ANY,
-    )
-
-
-def test_query_system_profile_sap_sids_insights_classic_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
-):
-    url = build_system_profile_sap_sids_url()
-
-    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
-
-    assert response_status == 200
-
-    graphql_system_profile_sap_sids_query_with_response.assert_called_once_with(
-        SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": 50, "offset": 0}, mocker.ANY
-    )
-
-
-def test_query_system_profile_sap_system_insights_classic_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
-):
-    url = build_system_profile_sap_system_url()
-
-    response_status, response_data = api_get(url, INSIGHTS_CLASSIC_IDENTITY)
-
-    assert response_status == 200
-
-    graphql_system_profile_sap_system_query_with_response.assert_called_once_with(
-        SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY}, "limit": 50, "offset": 0}, mocker.ANY
     )
 
 
