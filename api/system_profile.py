@@ -6,6 +6,7 @@ from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
+from api.filtering.filtering import build_registered_with_filter
 from api.filtering.filtering import build_system_profile_filter
 from api.filtering.filtering import build_tag_query_dict_tuple
 from api.host import get_bulk_query_source
@@ -114,7 +115,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+        variables["hostFilter"] = build_registered_with_filter(registered_with)
 
     if filter:
         for key in filter:
@@ -167,7 +168,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+        variables["hostFilter"] = build_registered_with_filter(registered_with)
 
     if search:
         variables["filter"] = {
