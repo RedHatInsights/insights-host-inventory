@@ -297,7 +297,7 @@ def build_registered_with_filter(registered_with):
                 }
             )
 
-    return ({"OR": prs_list},)
+    return {"OR": prs_list}
 
 
 def build_tag_query_dict_tuple(tags):
@@ -362,7 +362,7 @@ def query_filters(
         query_filters += ({"OR": staleness_filters},)
 
     if registered_with:
-        query_filters += build_registered_with_filter(registered_with)
+        query_filters += (build_registered_with_filter(registered_with),)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:
