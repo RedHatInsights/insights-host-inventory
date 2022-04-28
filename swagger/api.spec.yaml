@@ -703,11 +703,17 @@ components:
       in: query
       name: registered_with
       required: false
-      description: Filters out any host not registered with the specified service
+      description: Filters out any host not registered by the specified reporters
       schema:
-        type: string
-        enum:
-          - insights
+        type: array
+        items:
+          type: string
+          enum:
+            - insights
+            - yupana
+            - puptoo
+            - rhsm-conduit
+            - cloud-connector
     filter_param:
       in: query
       name: filter
