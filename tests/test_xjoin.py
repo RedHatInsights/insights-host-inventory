@@ -436,7 +436,7 @@ def test_query_variables_registered_with_per_reporter(
             "limit": mocker.ANY,
             "offset": mocker.ANY,
             "filter": (
-                mocker.ANY,
+                {"OR": mocker.ANY},
                 {"OR": prs_array},
             ),
             "fields": mocker.ANY,
@@ -1309,7 +1309,7 @@ def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
         {
-            "hostFilter": ({"OR": prs_array},),
+            "hostFilter": {"OR": mocker.ANY, "AND": ({"OR": prs_array},)},
             "limit": 50,
             "offset": 0,
         },
@@ -1415,7 +1415,10 @@ def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY,
         {
-            "hostFilter": ({"OR": prs_array},),
+            "hostFilter": {
+                "OR": mocker.ANY,
+                "AND": ({"OR": prs_array},),
+            },
             "limit": 50,
             "offset": 0,
         },

@@ -149,7 +149,7 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"] = build_registered_with_filter(registered_with)
+        hostfilter_and_variables += build_registered_with_filter(registered_with)
 
     if filter:
         for key in filter:
@@ -202,7 +202,7 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
         hostfilter_and_variables = build_tag_query_dict_tuple(tags)
 
     if registered_with:
-        variables["hostFilter"] = build_registered_with_filter(registered_with)
+        hostfilter_and_variables += build_registered_with_filter(registered_with)
 
     if search:
         variables["filter"] = {
