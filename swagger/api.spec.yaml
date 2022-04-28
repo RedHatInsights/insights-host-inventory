@@ -385,8 +385,8 @@ paths:
   /system_profile/sap_system:
     get:
       tags:
-        - sap_system
-      summary: get sap system values
+        - system_profile
+      summary: get all sap system values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -414,8 +414,8 @@ paths:
   /system_profile/sap_sids:
     get:
       tags:
-        - sap_system
-      summary: get sap system values
+        - system_profile
+      summary: get all sap sids values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -436,6 +436,36 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/SystemProfileSapSystemOut'
+        '400':
+            description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/operating_system:
+    get:
+      tags:
+        - system_profile
+      summary: get all operating system versions and counts on an account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.system_profile.get_operating_system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+            description: sap_system values and counts for account
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SystemProfileOperatingSystemOut'
         '400':
             description: Invalid request.
         '404':
@@ -711,6 +741,32 @@ components:
       required: false
 
   schemas:
+    SystemProfileOperatingSystemOut:
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        results:
+          description: The list of operating_system values on the account
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  major:
+                    type: integer
+                    nullable: true
+                  minor:
+                    type: integer
+                    nullable: true
+              count:
+                type: integer
+
     SystemProfileSapSystemOut:
       type: object
       properties:

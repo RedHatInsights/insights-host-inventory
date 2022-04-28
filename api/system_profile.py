@@ -1,3 +1,5 @@
+from typing import Optional
+
 import flask
 from kafka import KafkaConsumer
 
@@ -18,6 +20,8 @@ from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
+from app.instrumentation import log_get_operating_system_failed
+from app.instrumentation import log_get_operating_system_succeeded
 from app.instrumentation import log_get_sap_sids_failed
 from app.instrumentation import log_get_sap_sids_succeeded
 from app.instrumentation import log_get_sap_system_failed
@@ -79,6 +83,36 @@ SAP_SIDS_QUERY = """
                 }
                 data {
                     value
+                    count
+                }
+            }
+        }
+    }
+"""
+
+OPERATING_SYSTEM_QUERY = """
+    query hostSystemProfile (
+        $hostFilter: HostFilter
+        $limit: Int
+        $offset: Int
+    ) {
+        hostSystemProfile (
+            hostFilter: $hostFilter
+        ) {
+            operating_system (
+                limit: $limit
+                offset: $offset
+            ) {
+                meta {
+                    total
+                    count
+                }
+                data {
+                    value {
+                        name
+                        major
+                        minor
+                    }
                     count
                 }
             }
@@ -199,6 +233,64 @@ def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=Non
     log_get_sap_sids_succeeded(logger, data)
     return flask_json_response(
         build_collection_response(data["sap_sids"]["data"], page, per_page, data["sap_sids"]["meta"]["total"])
+    )
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def get_operating_system(
+    tags=None,
+    page: Optional[int] = None,
+    per_page: Optional[int] = None,
+    staleness: Optional[str] = None,
+    registered_with: Optional[str] = None,
+    filter=None,
+):
+    limit, offset = pagination_params(page, per_page)
+
+    variables = {
+        "hostFilter": {
+            # we're not indexing null timestamps in ES
+            "OR": list(staleness_filter(staleness))
+        },
+        "limit": limit,
+        "offset": offset,
+    }
+    hostfilter_and_variables = ()
+
+    if tags:
+        hostfilter_and_variables = build_tag_query_dict_tuple(tags)
+
+    if registered_with:
+        variables["hostFilter"]["NOT"] = {"insights_id": {"eq": None}}
+
+    if filter:
+        for key in filter:
+            if key == "system_profile":
+                hostfilter_and_variables += build_system_profile_filter(filter["system_profile"])
+            else:
+                raise ValidationException("filter key is invalid")
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        hostfilter_and_variables += owner_id_filter()
+
+    if hostfilter_and_variables != ():
+        variables["hostFilter"]["AND"] = hostfilter_and_variables
+
+    response = graphql_query(OPERATING_SYSTEM_QUERY, variables, log_get_operating_system_failed)
+
+    data = response["hostSystemProfile"]
+
+    check_pagination(offset, data["operating_system"]["meta"]["total"])
+
+    log_get_operating_system_succeeded(logger, data)
+
+    return flask_json_response(
+        build_collection_response(
+            data["operating_system"]["data"], page, per_page, data["operating_system"]["meta"]["total"]
+        )
     )
 
 
