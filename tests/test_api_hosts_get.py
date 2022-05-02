@@ -156,24 +156,11 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
     "value",
     ("insights", "cloud-connector", "puptoo", "rhsm-conduit", "yupana", "puptoo&registered_with=yupana"),
 )
-def test_get_hosts_registered_with(mq_create_three_specific_hosts, mq_create_or_update_host, api_get, value):
-    created_hosts_with_insights_id = mq_create_three_specific_hosts
-
-    host_without_insights_id = minimal_host(subscription_manager_id=generate_uuid(), fqdn="different.fqdn.com")
-    created_host_without_insights_id = mq_create_or_update_host(host_without_insights_id)
-
+def test_get_hosts_registered_with(api_get, value):
     url = build_hosts_url(query=f"?registered_with={value}")
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 200
-    assert len(response_data["results"]) == 3
-
-    result_ids = sorted(host["id"] for host in response_data["results"])
-    expected_ids = sorted(host.id for host in created_hosts_with_insights_id)
-    non_expected_id = created_host_without_insights_id.id
-
-    assert expected_ids == result_ids
-    assert non_expected_id not in expected_ids
 
 
 def test_query_variables_registered_with_using_unknown_reporter(api_get):

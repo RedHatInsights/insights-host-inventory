@@ -431,9 +431,7 @@ def _build_prs_array(mocker, reporters):
     "reporters",
     (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
 )
-def test_query_variables_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporters
-):
+def test_query_variables_registered_with_per_reporter(mocker, graphql_query_empty_response, api_get, reporters):
     url = build_hosts_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
 
     response_status, response_data = api_get(url)
@@ -1220,7 +1218,7 @@ def test_system_profile_sap_system_endpoint_tags(
     (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
 )
 def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
+    mocker, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
 ):
     url = build_system_profile_sap_system_url(
         query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
@@ -1324,7 +1322,7 @@ def test_system_profile_sap_sids_endpoint_tags(
     ),
 )
 def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get, reporters
+    mocker, graphql_system_profile_sap_sids_query_empty_response, api_get, reporters
 ):
     url = build_system_profile_sap_sids_url(
         query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
