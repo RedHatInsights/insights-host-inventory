@@ -411,11 +411,36 @@ def test_query_variables_tags_with_search(field, mocker, graphql_query_empty_res
     )
 
 
-def test_query_variables_registered_with_insights(mocker, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query="?registered_with=insights")
+# Build the expected PRS filter based on reporters
+def _build_prs_array(mocker, reporters):
+    prs_array = []
+    for reporter in reporters:
+        prs_array.append(
+            {
+                "per_reporter_staleness": {
+                    "reporter": {"eq": reporter},
+                    "stale_timestamp": {"gt": mocker.ANY},
+                }
+            }
+        )
+
+    return prs_array
+
+
+@pytest.mark.parametrize(
+    "reporters",
+    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+)
+def test_query_variables_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporters
+):
+    url = build_hosts_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
+
     response_status, response_data = api_get(url)
 
     assert response_status == 200
+
+    prs_array = _build_prs_array(mocker, reporters)
 
     graphql_query_empty_response.assert_called_once_with(
         HOST_QUERY,
@@ -424,7 +449,10 @@ def test_query_variables_registered_with_insights(mocker, graphql_query_empty_re
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": (mocker.ANY, {"NOT": {"insights_id": {"eq": None}}}),
+            "filter": (
+                {"OR": mocker.ANY},
+                {"OR": prs_array},
+            ),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -699,9 +727,9 @@ def test_response_processed_properly(graphql_query_with_response, api_get):
                 "satellite_id": "ce87bfac-a6cb-43a0-80ce-95d9669db71f",
                 "insights_id": "17c52679-f0b9-4e9b-9bac-a3c7fae5070c",
                 "stale_timestamp": "2020-01-10T08:07:03.354307+00:00",
-                "reporter": "puptoo",
+                "reporter": "yupana",
                 "per_reporter_staleness": {
-                    "puptoo": {
+                    "yupana": {
                         "check_in_succeeded": True,
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
@@ -1041,7 +1069,31 @@ def test_tags_response_invalid_pagination(page, per_page, api_get):
 def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filter_single_call):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?registered_with=insights"),
-        host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
+        host_filter={
+            "OR": mocker.ANY,
+            "AND": ({"OR": [{"NOT": {"insights_id": {"eq": None}}}]},),
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "reporters",
+    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+)
+def test_tags_query_variables_registered_with_per_reporter(
+    mocker, assert_tag_query_host_filter_single_call, reporters
+):
+
+    tags_url = build_tags_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
+
+    prs_array = _build_prs_array(mocker, reporters)
+
+    assert_tag_query_host_filter_single_call(
+        tags_url,
+        host_filter={
+            "OR": mocker.ANY,
+            "AND": ({"OR": prs_array},),
+        },
     )
 
 
@@ -1095,7 +1147,10 @@ def test_tags_RBAC_allowed(
 
             assert_tag_query_host_filter_single_call(
                 build_tags_url(query="?registered_with=insights"),
-                host_filter={"OR": mocker.ANY, "AND": ({"NOT": {"insights_id": {"eq": None}}},)},
+                host_filter={
+                    "OR": mocker.ANY,
+                    "AND": ({"OR": [{"NOT": {"insights_id": {"eq": None}}}]},),
+                },
             )
             graphql_tag_query_empty_response.reset_mock()
 
@@ -1160,17 +1215,30 @@ def test_system_profile_sap_system_endpoint_tags(
     )
 
 
-def test_system_profile_sap_system_endpoint_registered_with_insights(
-    mocker, graphql_system_profile_sap_system_query_empty_response, api_get
+@pytest.mark.parametrize(
+    "reporters",
+    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+)
+def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
 ):
-    url = build_system_profile_sap_system_url(query="?registered_with=insights")
+    url = build_system_profile_sap_system_url(
+        query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
+    )
 
     response_status, response_data = api_get(url)
 
     assert response_status == 200
+
+    prs_array = _build_prs_array(mocker, reporters)
+
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
         SAP_SYSTEM_QUERY,
-        {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0},
+        {
+            "hostFilter": {"OR": mocker.ANY, "AND": ({"OR": prs_array},)},
+            "limit": 50,
+            "offset": 0,
+        },
         mocker.ANY,
     )
 
@@ -1245,17 +1313,39 @@ def test_system_profile_sap_sids_endpoint_tags(
     )
 
 
-def test_system_profile_sap_sids_endpoint_registered_with_insights(
-    mocker, graphql_system_profile_sap_sids_query_empty_response, api_get
+@pytest.mark.parametrize(
+    "reporters",
+    (
+        ["cloud-connector"],
+        ["puptoo"],
+        ["rhsm-conduit"],
+        ["yupana"],
+        ["cloud-connector", "puptoo", "rhsm-conduit", "yupana"],
+    ),
+)
+def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
+    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get, reporters
 ):
-    url = build_system_profile_sap_sids_url(query="?registered_with=insights")
+    url = build_system_profile_sap_sids_url(
+        query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
+    )
 
     response_status, response_data = api_get(url)
 
     assert response_status == 200
+
+    prs_array = _build_prs_array(mocker, reporters)
+
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY,
-        {"hostFilter": {"OR": mocker.ANY, "NOT": {"insights_id": {"eq": None}}}, "limit": 50, "offset": 0},
+        {
+            "hostFilter": {
+                "OR": mocker.ANY,
+                "AND": ({"OR": prs_array},),
+            },
+            "limit": 50,
+            "offset": 0,
+        },
         mocker.ANY,
     )
 
@@ -3142,7 +3232,7 @@ def test_generic_filtering_wildcard_invalid_values(subtests, patch_xjoin_post, a
     for url_builder in endpoint_url_builders:
         for prefix in prefixes:
             for suffix in suffixes:
-                with subtests.test(prefix=prefix, suffix=suffix):
+                with subtests.test(url_builder=url_builder, prefix=prefix, suffix=suffix):
                     url = url_builder(query=prefix + suffix)
                     response_status, response_data = api_get(url)
 

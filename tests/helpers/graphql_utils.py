@@ -89,9 +89,9 @@ XJOIN_HOSTS_RESPONSE = {
                     },
                 },
                 "stale_timestamp": "2020-01-10T08:07:03.354307Z",
-                "reporter": "puptoo",
+                "reporter": "yupana",
                 "per_reporter_staleness": {
-                    "puptoo": {
+                    "yupana": {
                         "check_in_succeeded": True,
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
