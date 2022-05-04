@@ -11,6 +11,8 @@ COPY . .
 RUN chown -R 1001:0 ./
 USER 1001
 
+# Set pipenv to version 2022.4.8 to prevent pip from updating and
+# failing a rootless image build
 RUN pip install pipenv==2022.4.8  && \
     pipenv install --system --dev
 

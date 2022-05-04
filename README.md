@@ -309,6 +309,8 @@ s2i build . centos/python-36-centos7 inventory -e ENABLE_PIPENV=true
 In addition, a [Dockerfile](./dev.dockerfile) is provided.
 The container image built this way is only intended for development purposes (e.g. orchestrating the container using docker-compose) and must not be used for production deployment.
 
+**Note** some of the packages require a subscription, make sure the host building the image is attached to a valid subscription providing RHEL
+
 ```
 docker build . -f dev.dockerfile -t inventory:dev
 ```
