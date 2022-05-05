@@ -98,6 +98,13 @@ def culling_datetime_mock(mocker):
 
 
 @pytest.fixture(scope="function")
+def filtering_datetime_mock(mocker):
+    date = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+    mock = mocker.patch("api.filtering.filtering.datetime", **{"now.return_value": date})
+    return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
 def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response):
     def _assert_tag_query_host_filter_single_call(url, host_filter={"OR": mocker.ANY}, filter=None, status=200):
         response_status, _ = api_get(url)

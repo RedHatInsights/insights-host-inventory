@@ -315,23 +315,15 @@ def build_tag_query_dict_tuple(tags):
 def host_id_list_query_filter(host_id_list):
     return (
         {
+            "staleness_timestamp": {
+                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
+            },
             "OR": [
                 {
-                    "AND": [
-                        {
-                            "id": {"eq": host_id},
-                            "staleness_timestamp": {
-                                "lte": str(
-                                    (
-                                        datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta
-                                    ).isoformat()
-                                )
-                            },
-                        }
-                    ]
+                    "id": {"eq": host_id},
                 }
                 for host_id in host_id_list
-            ]
+            ],
         },
     )
 
