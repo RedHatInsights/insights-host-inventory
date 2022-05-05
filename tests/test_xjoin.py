@@ -2491,7 +2491,7 @@ def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_qu
             "offset": mocker.ANY,
             "filter": (
                 {
-                    "staleness_timestamp": {
+                    "stale_timestamp": {
                         "gt": "2019-12-02T10:10:06.754201+00:00",
                     },
                     "OR": [

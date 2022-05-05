@@ -315,7 +315,7 @@ def build_tag_query_dict_tuple(tags):
 def host_id_list_query_filter(host_id_list):
     return (
         {
-            "staleness_timestamp": {
+            "stale_timestamp": {
                 "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
             },
             "OR": [
