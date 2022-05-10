@@ -210,7 +210,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
 
-# TODO: This test uses org_id
+# This test uses org_id
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()

@@ -72,9 +72,6 @@ class Identity:
             self.account_number = obj.get("account_number")
             self.auth_type = obj.get("auth_type")
             self.identity_type = obj.get("type")
-
-            # TODO: Make sure obj.get("org_id") does not encounter "KeyError" when `org_id` is not present in identity
-            # if "org_id" in obj.keys():
             self.org_id = obj.get("org_id")
 
             if not self.account_number:
