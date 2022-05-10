@@ -12,7 +12,7 @@ paths:
         - hosts
       summary: Read the entire list of hosts
       description: >-
-        Read the entire list of all hosts available to the account/org_id.
+        Read the entire list of all hosts available to the account.
         <br /><br />
         Required permissions: inventory:hosts:read
       security:
@@ -73,9 +73,9 @@ paths:
       operationId: api.host.delete_all_hosts
       tags:
         - hosts
-      summary: Delete all hosts on the account/org_id
+      summary: Delete all hosts on the account
       description: >-
-        Delete all hosts on the account/org_id.  The request must include "confirm_delete_all=true".
+        Delete all hosts on the account.  The request must include "confirm_delete_all=true".
         <br /><br />
         Required permissions: inventory:hosts:write
       security:
@@ -348,7 +348,7 @@ paths:
     get:
       tags:
         - tags
-      summary: Get the active host tags for a given account/org_id
+      summary: Get the active host tags for a given account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.tag.get_tags
@@ -386,7 +386,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap system values and counts on an account/org_id
+      summary: get all sap system values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -401,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account/org_id
+            description: sap_system values and counts for account
             content:
               application/json:
                 schema:
@@ -415,7 +415,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap sids values and counts on an account/org_id
+      summary: get all sap sids values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -431,7 +431,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account/org_id
+            description: sap_system values and counts for account
             content:
               application/json:
                 schema:
@@ -445,7 +445,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all operating system versions and counts on an account/org_id
+      summary: get all operating system versions and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_operating_system
@@ -461,7 +461,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account/org_id
+            description: sap_system values and counts for account
             content:
               application/json:
                 schema:
@@ -737,7 +737,7 @@ components:
       name: confirm_delete_all
       schema:
         type: boolean
-      description: Confirmation to delete all hosts on an account/org_id
+      description: Confirmation to delete all hosts on an account
       required: false
 
   schemas:
@@ -748,7 +748,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         results:
-          description: The list of operating_system values on the account/org_id
+          description: The list of operating_system values on the account
           type: array
           items:
             type: object
@@ -775,7 +775,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         results:
-          description: The list of sap_system values on the account/org_id
+          description: The list of sap_system values on the account
           type: array
           items:
             type: object
@@ -1015,7 +1015,7 @@ components:
     CreateHostOut:
       title: Create Host Out
       description: >-
-        Data of a single host belonging to an account/org_id. Represents the hosts
+        Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
       type: object
       allOf:
@@ -1039,7 +1039,7 @@ components:
               type: string
               example: '000102'
             org_id:
-              description: An org_id is Red Hat Account number linked to a customer that owns the host.
+              description: The Org ID of the tenant that owns the host.
               type: string
               example: '000102'
             id:

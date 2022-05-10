@@ -118,22 +118,18 @@ def log_get_sparse_system_profile_failed(logger):
 
 # add host
 def log_add_host_attempt(logger, input_host):
-    log_host = {
-        "account": input_host.account,
-        "display_name": input_host.display_name,
-        "canonical_facts": input_host.canonical_facts,
-        "reporter": input_host.reporter,
-        "stale_timestamp": input_host.stale_timestamp.isoformat(),
-        "tags": json.dumps(input_host.tags),
-    }
-
-    if input_host.org_id:
-        log_host["org_id"] = input_host.org_id
-
     logger.info(
         "Attempting to add host",
         extra={
-            "input_host": log_host,
+            "input_host": {
+                "account": input_host.account,
+                "org_id": input_host.org_id,
+                "display_name": input_host.display_name,
+                "canonical_facts": input_host.canonical_facts,
+                "reporter": input_host.reporter,
+                "stale_timestamp": input_host.stale_timestamp.isoformat(),
+                "tags": json.dumps(input_host.tags),
+            },
             "access_rule": get_control_rule(),
         },
     )

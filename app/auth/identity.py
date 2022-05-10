@@ -73,8 +73,9 @@ class Identity:
             self.auth_type = obj.get("auth_type")
             self.identity_type = obj.get("type")
 
-            if "org_id" in obj.keys():
-                self.org_id = obj.get("org_id")
+            # TODO: Make sure obj.get("org_id") does not encounter "KeyError" when `org_id` is not present in identity
+            # if "org_id" in obj.keys():
+            self.org_id = obj.get("org_id")
 
             if not self.account_number:
                 raise ValueError("The account_number is mandatory.")
@@ -104,25 +105,24 @@ class Identity:
                     self.system["cert_type"] = self.system["cert_type"].lower()
 
             threadctx.account_number = obj["account_number"]
+            if obj.get("org_id"):
+                threadctx.org_id = obj["org_id"]
 
         else:
             raise ValueError("Neither the account_number or token has been set")
 
     def _asdict(self):
+        ident = {"type": self.identity_type, "auth_type": self.auth_type, "account_number": self.account_number}
+
+        if hasattr(self, "org_id"):
+            ident["org_id"] = self.org_id
+
         if self.identity_type == IdentityType.USER:
-            return {
-                "account_number": self.account_number,
-                "type": self.identity_type,
-                "auth_type": self.auth_type,
-                "user": self.user.copy(),
-            }
+            ident["user"] = self.user.copy()
+            return ident
         if self.identity_type == IdentityType.SYSTEM:
-            return {
-                "account_number": self.account_number,
-                "type": self.identity_type,
-                "auth_type": self.auth_type,
-                "system": self.system.copy(),
-            }
+            ident["system"] = self.system.copy()
+            return ident
 
     def __eq__(self, other):
         return self.account_number == other.account_number

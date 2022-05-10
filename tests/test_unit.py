@@ -905,6 +905,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             {
                 "account": "someacct",
+                "org_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
+                "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
                 "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,

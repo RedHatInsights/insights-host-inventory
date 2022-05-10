@@ -111,6 +111,13 @@ class ContextualFilter(logging.Filter):
             # of a request
             log_record.account_number = None
 
+        try:
+            log_record.org_id = threadctx.org_id
+        except Exception:
+            # TODO: need to decide what to do when you log outside the context
+            # of a request
+            log_record.org_id = None
+
         return True
 
 

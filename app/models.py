@@ -147,7 +147,7 @@ class LimitedHost(db.Model):
         Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
         Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxaccount", "account"),
-        Index("idxorg", "org_id"),
+        Index("idxorgid", "org_id"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
     )
 

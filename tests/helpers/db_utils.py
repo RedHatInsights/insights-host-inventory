@@ -42,7 +42,7 @@ def clean_tables():
 def minimal_db_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
-        "org_id": "3340851",
+        "org_id": USER_IDENTITY["org_id"],
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
