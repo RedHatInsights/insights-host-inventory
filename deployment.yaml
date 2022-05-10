@@ -147,6 +147,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -212,6 +214,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -271,6 +275,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -773,6 +779,12 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+- name: TENANT_TRANSLATOR_HOST
+  value: 'apicast.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: TENANT_TRANSLATOR_PROTOCOL
+  value: 'http'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
