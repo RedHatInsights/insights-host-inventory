@@ -210,12 +210,17 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
 
+# TODO: This test uses org_id
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
-    metadata = {"request_id": generate_uuid(), "archive_url": "https://some.url", "b64_identity": get_encoded_idstr()}
+    metadata = {
+        "request_id": generate_uuid(),
+        "archive_url": "https://some.url",
+        "b64_identity": get_encoded_idstr(org_id="1234567890"),
+    }
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
 

@@ -73,6 +73,9 @@ class Identity:
             self.auth_type = obj.get("auth_type")
             self.identity_type = obj.get("type")
 
+            if "org_id" in obj.keys():
+                self.org_id = obj.get("org_id")
+
             if not self.account_number:
                 raise ValueError("The account_number is mandatory.")
             elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():

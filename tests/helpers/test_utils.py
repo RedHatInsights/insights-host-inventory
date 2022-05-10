@@ -72,14 +72,18 @@ def set_environment(new_env=None):
 def minimal_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
+        "org_id": "3340851",
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
         "reporter": "test" + generate_random_string(),
         **values,
     }
+    # Which test(s) use different account number than USER_IDENTITY["account_number"]
     if "account" in values:
         data["account"] = values.get("account")
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
 
     return HostWrapper(data)
 
@@ -152,7 +156,9 @@ def valid_system_profile():
     }
 
 
-def get_encoded_idstr(identity=SYSTEM_IDENTITY):
+def get_encoded_idstr(identity=SYSTEM_IDENTITY, org_id=None):
+    if org_id:
+        identity["org_id"] = org_id
     id = {"identity": identity}
     SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
 

@@ -13,7 +13,7 @@
           "hosts"
         ],
         "summary": "Read the entire list of hosts",
-        "description": "Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read",
+        "description": "Read the entire list of all hosts available to the account/org_id. <br /><br /> Required permissions: inventory:hosts:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -142,8 +142,8 @@
         "tags": [
           "hosts"
         ],
-        "summary": "Delete all hosts on the account",
-        "description": "Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
+        "summary": "Delete all hosts on the account/org_id",
+        "description": "Delete all hosts on the account/org_id.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -588,7 +588,7 @@
         "tags": [
           "tags"
         ],
-        "summary": "Get the active host tags for a given account",
+        "summary": "Get the active host tags for a given account/org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.tag.get_tags",
         "security": [
@@ -668,7 +668,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap system values and counts on an account",
+        "summary": "get all sap system values and counts on an account/org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_system",
         "security": [
@@ -698,7 +698,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for account/org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -721,7 +721,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap sids values and counts on an account",
+        "summary": "get all sap sids values and counts on an account/org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_sids",
         "security": [
@@ -754,7 +754,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for account/org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -777,7 +777,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all operating system versions and counts on an account",
+        "summary": "get all operating system versions and counts on an account/org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_operating_system",
         "security": [
@@ -810,7 +810,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for account/org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -1185,7 +1185,7 @@
         "schema": {
           "type": "boolean"
         },
-        "description": "Confirmation to delete all hosts on an account",
+        "description": "Confirmation to delete all hosts on an account/org_id",
         "required": false
       }
     },
@@ -1199,7 +1199,7 @@
             "$ref": "#/components/schemas/Count"
           },
           "results": {
-            "description": "The list of operating_system values on the account",
+            "description": "The list of operating_system values on the account/org_id",
             "type": "array",
             "items": {
               "type": "object",
@@ -1238,7 +1238,7 @@
             "$ref": "#/components/schemas/Count"
           },
           "results": {
-            "description": "The list of sap_system values on the account",
+            "description": "The list of sap_system values on the account/org_id",
             "type": "array",
             "items": {
               "type": "object",
@@ -1597,7 +1597,7 @@
       },
       "CreateHostOut": {
         "title": "Create Host Out",
-        "description": "Data of a single host belonging to an account. Represents the hosts without its Inventory metadata.",
+        "description": "Data of a single host belonging to an account/org_id. Represents the hosts without its Inventory metadata.",
         "type": "object",
         "allOf": [
           {
@@ -1619,6 +1619,11 @@
               },
               "account": {
                 "description": "A Red Hat Account number that owns the host.",
+                "type": "string",
+                "example": "000102"
+              },
+              "org_id": {
+                "description": "An org_id is Red Hat Account number linked to a customer that owns the host.",
                 "type": "string",
                 "example": "000102"
               },

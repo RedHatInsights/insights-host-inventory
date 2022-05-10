@@ -686,6 +686,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
             {
                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test01.rhel7.jharting.local",
                 "ansible_host": "test01.rhel7.jharting.local",
                 "created": "2019-02-10T08:07:03.354307+00:00",
@@ -715,6 +716,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
             {
                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test02.rhel7.jharting.local",
                 "ansible_host": "test02.rhel7.jharting.local",
                 "created": "2019-01-10T08:07:03.354307+00:00",

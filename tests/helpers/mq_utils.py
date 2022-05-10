@@ -124,6 +124,7 @@ def assert_patch_event_is_valid(
         "host": {
             "id": str(host.id),
             "account": host.account,
+            "org_id": host.org_id,
             "display_name": display_name,
             "ansible_host": host.ansible_host,
             "fqdn": host.canonical_facts.get("fqdn"),
