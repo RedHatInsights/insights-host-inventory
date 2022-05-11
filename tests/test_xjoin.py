@@ -592,6 +592,7 @@ def test_query_variables_default_staleness(
         (
             {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
             {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+            {"eq": None},  # unknown
         ),
     )
 
@@ -868,6 +869,7 @@ def test_tags_query_variables_default_staleness(
                             "lte": "2019-12-16T10:10:06.754201+00:00",
                         }
                     },
+                    {"stale_timestamp": {"eq": None}},
                 ]
             },
         },
