@@ -109,6 +109,8 @@ class Config:
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
+        self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL")
+
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
 

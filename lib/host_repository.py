@@ -16,6 +16,7 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
+from lib.middleware import translate_account_to_org_id
 
 
 __all__ = (
@@ -54,6 +55,10 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
      - at least one of the canonical facts fields is required
      - account number
     """
+
+    # If there's no org_id, populate it using the 3scale endpoint
+    if not input_host.org_id:
+        input_host.org_id = translate_account_to_org_id(input_host.account)
 
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)

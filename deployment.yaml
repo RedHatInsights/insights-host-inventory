@@ -148,7 +148,7 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -215,7 +215,7 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -276,7 +276,7 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
