@@ -592,6 +592,7 @@ def test_query_variables_default_staleness(
         (
             {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
             {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+            {"eq": None},  # unknown
         ),
     )
 
@@ -602,6 +603,7 @@ def test_query_variables_default_staleness(
         ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ("unknown", {"eq": None}),
     ),
 )
 def test_query_variables_staleness(
@@ -868,6 +870,7 @@ def test_tags_query_variables_default_staleness(
                             "lte": "2019-12-16T10:10:06.754201+00:00",
                         }
                     },
+                    {"stale_timestamp": {"eq": None}},
                 ]
             },
         },
@@ -881,6 +884,7 @@ def test_tags_query_variables_default_staleness(
         ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ("unknown", {"eq": None}),
     ),
 )
 def test_tags_query_variables_staleness(
