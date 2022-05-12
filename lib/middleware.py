@@ -37,7 +37,7 @@ def rbac_url():
     return inventory_config().rbac_endpoint + ROUTE
 
 
-def tenant_translator_url():
+def tenant_translator_url() -> str:
     return inventory_config().tenant_translator_url
 
 

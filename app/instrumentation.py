@@ -186,7 +186,7 @@ def rbac_permission_denied(logger, required_permission, user_permissions):
     rbac_access_denied.labels(required_permission=required_permission).inc()
 
 
-def tenant_translator_failure(logger, error_message=None):
+def tenant_translator_failure(logger: str, error_message: str = None):
     logger.error("Failed to access 3scale tenant translator service: %s", error_message)
     tenant_translator_fetching_failure.inc()
 
