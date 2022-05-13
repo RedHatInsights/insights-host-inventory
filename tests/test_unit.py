@@ -1391,7 +1391,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "account": None, "org_id": None, "reporter": "yupana"}
+        unchanged_data = {"display_name": None, "account": None, "reporter": "yupana"}
         host_init_data = {
             "stale_timestamp": datetime.now(timezone.utc),
             "canonical_facts": {"fqdn": "some fqdn"},

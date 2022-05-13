@@ -99,7 +99,7 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["id"] = _serialize_uuid(host.id)
     if "account" in fields:
         serialized_host["account"] = host.account
-    if "org_id" in fields:
+    if "org_id" in fields and host.org_id:
         serialized_host["org_id"] = host.org_id
     if "display_name" in fields:
         serialized_host["display_name"] = host.display_name
