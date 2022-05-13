@@ -554,21 +554,21 @@ components:
       name: display_name
       schema:
         type: string
-      description: Filter by display_name
+      description: Filter by display_name (case-insensitive)
       required: false
     fqdn:
       in: query
       name: fqdn
       schema:
         type: string
-      description: Filter by FQDN
+      description: Filter by FQDN (case-insensitive)
       required: false
     hostnameOrId:
       in: query
       name: hostname_or_id
       schema:
         type: string
-      description: Filter by display_name, fqdn, id
+      description: Filter by display_name, fqdn, id (case-insensitive)
       required: false
     insightsId:
       in: query
