@@ -83,7 +83,7 @@
         }
       },
       "delete": {
-        "operationId": "api.host.delete_host_list",
+        "operationId": "api.host.delete_hosts_by_filter",
         "tags": [
           "hosts"
         ],
