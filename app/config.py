@@ -110,6 +110,7 @@ class Config:
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
         self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL")
+        self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
@@ -214,6 +215,7 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = "true"
+            self.bypass_tenant_translation = "true"
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -278,6 +280,10 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+
+            self.logger.info(
+                "Populating missing org_ids on incoming hosts with dummy data: %s", self.bypass_tenant_translation
+            )
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
             self.logger.info("Kafka Bootstrap Servers: %s", self.bootstrap_servers)

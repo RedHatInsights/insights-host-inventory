@@ -148,7 +148,9 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -215,7 +217,9 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -276,7 +280,9 @@ objects:
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
         - name: TENANT_TRANSLATOR_URL
-          value: ${TENANT_TRANSLATOR_PROTOCOL}://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -730,8 +736,11 @@ parameters:
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer
-- description: activate RBAC middleware
+- description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable account -> org_id translation, and use dummy data instead
+  name: BYPASS_TENANT_TRANSLATION
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: '1'
@@ -783,8 +792,6 @@ parameters:
   value: 'apicast.3scale-dev.svc.cluster.local'
 - name: TENANT_TRANSLATOR_PORT
   value: '8892'
-- name: TENANT_TRANSLATOR_PROTOCOL
-  value: 'http'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO

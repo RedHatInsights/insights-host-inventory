@@ -104,6 +104,9 @@ def rbac(required_permission):
 
 
 def translate_account_to_org_id(account: str) -> str:
+    if inventory_config().bypass_org_id_translation:
+        return "test-org-id"
+
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE),

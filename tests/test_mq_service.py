@@ -982,7 +982,7 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
 @pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
 def test_add_host_stale_timestamp_missing_culling_fields(field_to_remove, mq_create_or_update_host):
     """
-    tests to check the API will reject a host if it doesn’t have both
+    tests to check the API will reject a host if it doesn't have both
     culling fields. This should raise InventoryException.
     """
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
@@ -1440,3 +1440,30 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     host_from_db = db_get_host(created_host.id)
 
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
+
+
+def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id_translation):
+    """
+    Tests adding a host that's missing org_id.
+    Enables org_id translation, but patches the translator's response.
+    """
+    # We don't actually need Session.post to return a value; we just don't want it to make an actual HTTP request.
+    mocker.patch("lib.middleware.Session.post")
+    tenant_translator_post_mock = mocker.patch("lib.middleware.translator_response.json")
+
+    account_number = SYSTEM_IDENTITY["account_number"]
+
+    tenant_translator_post_mock.return_value = {str(account_number): "test-org-id"}
+
+    host = minimal_host(
+        account=account_number,
+        system_profile={"owner_id": OWNER_ID},
+    )
+
+    expected_results = {"host": {**host.data(), "org_id": "testorgid"}}
+
+    host_keys_to_check = ["display_name", "insights_id", "account", "org_id"]
+
+    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
+
+    assert_mq_host_data(key, event, expected_results, host_keys_to_check)

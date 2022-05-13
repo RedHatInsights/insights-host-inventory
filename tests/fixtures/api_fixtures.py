@@ -83,6 +83,11 @@ def enable_rbac(inventory_config):
 
 
 @pytest.fixture(scope="function")
+def enable_org_id_translation(inventory_config):
+    inventory_config.bypass_org_id_translation = False
+
+
+@pytest.fixture(scope="function")
 def user_identity_mock(flask_app):
     flask_app.user_identity = MockUserIdentity()
     yield flask_app.user_identity
