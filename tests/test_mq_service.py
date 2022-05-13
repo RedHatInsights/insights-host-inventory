@@ -210,7 +210,6 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
 
-# This test uses org_id
 def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
@@ -219,7 +218,25 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     metadata = {
         "request_id": generate_uuid(),
         "archive_url": "https://some.url",
-        "b64_identity": get_encoded_idstr(org_id="1234567890"),
+        "b64_identity": get_encoded_idstr(),
+    }
+
+    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
+
+    assert event["platform_metadata"] == metadata
+
+
+def test_handle_message_verify_org_id(mq_create_or_update_host):
+    host_id = generate_uuid()
+    insights_id = generate_uuid()
+
+    org_identity = deepcopy(SYSTEM_IDENTITY)
+    org_identity["org_id"] = "1234567890"
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
+    metadata = {
+        "request_id": generate_uuid(),
+        "archive_url": "https://some.url",
+        "b64_identity": get_encoded_idstr(identity=org_identity),
     }
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)

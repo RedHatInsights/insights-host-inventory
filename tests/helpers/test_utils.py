@@ -156,9 +156,7 @@ def valid_system_profile():
     }
 
 
-def get_encoded_idstr(identity=SYSTEM_IDENTITY, org_id=None):
-    if org_id:
-        identity["org_id"] = org_id
+def get_encoded_idstr(identity=SYSTEM_IDENTITY):
     id = {"identity": identity}
     SYSTEM_API_KEY = base64.b64encode(json.dumps(id).encode("utf-8"))
 

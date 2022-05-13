@@ -556,13 +556,9 @@ def random_uuid():
 def build_host_chunk():
     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
-    # fqdn = "fred"
-    # fqdn = "george"
-    # fqdn = "0b9e8d.foo.redhat.com"
     payload = {
-        "account": account,
-        "org_id": "3340851",
         "bios_uuid": random_uuid(),
+        "account": account,
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
@@ -572,7 +568,6 @@ def build_host_chunk():
         ],
         "system_profile": create_system_profile(),
         "stale_timestamp": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-        # "reporter": "rhsm-conduit",
         "reporter": "puptoo",
     }
     return payload
