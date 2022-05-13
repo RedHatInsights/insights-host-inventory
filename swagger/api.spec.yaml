@@ -42,7 +42,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     delete:
-      operationId: api.host.delete_host_list
+      operationId: api.host.delete_hosts_by_filter
       tags:
         - hosts
       summary: Delete the entire list of hosts filtered by the given parameters
