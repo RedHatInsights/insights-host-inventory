@@ -282,20 +282,22 @@ def build_registered_with_filter(registered_with):
         reg_with_copy.remove("insights")
     if reg_with_copy:
         for item in reg_with_copy:
-            prs_list.append(
-                {
-                    "per_reporter_staleness": {
-                        "reporter": {"eq": item},
-                        "stale_timestamp": {
-                            "gt": str(
-                                (
-                                    datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta
-                                ).isoformat()
-                            )
-                        },
+            prs_item = {
+                "per_reporter_staleness": {
+                    "reporter": {"eq": item.replace("!", "")},
+                    "stale_timestamp": {
+                        "gt": str(
+                            (datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat()
+                        )
                     },
-                }
-            )
+                },
+            }
+
+            # If registered_with starts with "!", we want to invert the condition.
+            if item.startswith("!"):
+                prs_item = {"NOT": prs_item}
+
+            prs_list.append(prs_item)
 
     return ({"OR": prs_list},)
 
