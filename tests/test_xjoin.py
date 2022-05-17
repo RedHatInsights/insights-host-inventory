@@ -86,7 +86,15 @@ def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
             "order_how": mocker.ANY,
             "limit": mocker.ANY,
             "offset": mocker.ANY,
-            "filter": ({"OR": ({"stale_timestamp": mocker.ANY}, {"stale_timestamp": mocker.ANY})},),
+            "filter": (
+                {
+                    "OR": (
+                        {"stale_timestamp": mocker.ANY},
+                        {"stale_timestamp": mocker.ANY},
+                        {"stale_timestamp": mocker.ANY},
+                    )
+                },
+            ),
             "fields": mocker.ANY,
         },
         mocker.ANY,
@@ -2437,9 +2445,25 @@ def test_sp_sparse_xjoin_query_translation(
 
     hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
-    variables["host_ids"] = [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]
+    # Test with user identity first
+    variables["hostFilter"] = [{"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]}]
 
-    response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
+    response_status, _ = api_get(build_system_profile_url(hosts, query=query))
+
+    assert response_status == 200
+    graphql_sparse_system_profile_empty_response.assert_called_once_with(
+        SYSTEM_PROFILE_SPARSE_QUERY, variables, mocker.ANY
+    )
+
+    graphql_sparse_system_profile_empty_response.reset_mock()
+
+    # Now test with system identity
+    variables["hostFilter"] = [
+        {"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
+        {"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},
+    ]
+
+    response_status, _ = api_get(build_system_profile_url(hosts, query=query), identity=SYSTEM_IDENTITY)
 
     assert response_status == 200
     graphql_sparse_system_profile_empty_response.assert_called_once_with(

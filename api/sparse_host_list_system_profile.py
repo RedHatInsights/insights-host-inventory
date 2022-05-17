@@ -1,6 +1,9 @@
 import flask
 from flask_api import status
 
+from api.host_query_xjoin import owner_id_filter
+from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.instrumentation import log_get_sparse_system_profile_failed
 from app.instrumentation import log_get_sparse_system_profile_succeeded
 from app.logging import get_logger
@@ -15,7 +18,7 @@ logger = get_logger(__name__)
 
 SYSTEM_PROFILE_SPARSE_QUERY = """
     query hosts(
-        $host_ids: [HostFilter!],
+        $hostFilter: [HostFilter!],
         $fields: [String!],
         $limit: Int,
         $offset: Int,
@@ -24,7 +27,7 @@ SYSTEM_PROFILE_SPARSE_QUERY = """
     ){
         hosts (
             filter:{
-                OR:$host_ids
+                AND:$hostFilter
             },
             limit: $limit,
             offset: $offset,
@@ -42,7 +45,7 @@ SYSTEM_PROFILE_SPARSE_QUERY = """
 
 SYSTEM_PROFILE_FULL_QUERY = """
     query hosts(
-        $host_ids: [HostFilter!],
+        $hostFilter: [HostFilter!],
         $limit: Int,
         $offset: Int,
         $order_by: HOSTS_ORDER_BY,
@@ -50,7 +53,7 @@ SYSTEM_PROFILE_FULL_QUERY = """
     ){
         hosts (
             filter:{
-                OR:$host_ids
+                AND:$hostFilter
             },
             limit: $limit,
             offset: $offset,
@@ -78,9 +81,19 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     except ValueError as e:
         flask.abort(400, str(e))
 
-    host_ids = [{"id": {"eq": host_id}} for host_id in host_id_list]
+    host_filter = [{"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]}]
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        host_filter.append(owner_id_filter()[0])
+
     sp_query = SYSTEM_PROFILE_FULL_QUERY
-    variables = {"host_ids": host_ids, "limit": limit, "offset": offset, "order_by": order_by, "order_how": order_how}
+    variables = {
+        "hostFilter": host_filter,
+        "limit": limit,
+        "offset": offset,
+        "order_by": order_by,
+        "order_how": order_how,
+    }
 
     if fields.get("system_profile"):
         variables["fields"] = list(fields.get("system_profile").keys())
