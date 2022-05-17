@@ -115,7 +115,7 @@ def get_host_list(
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_host_list(
+def delete_hosts_by_filter(
     display_name=None,
     fqdn=None,
     hostname_or_id=None,
@@ -169,7 +169,7 @@ def delete_host_list(
         flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
     try:
-        delete_count = _delete_filtered_hosts(ids_list)
+        delete_count = _delete_host_list(ids_list)
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
@@ -179,7 +179,7 @@ def delete_host_list(
     return flask_json_response(json_data, status.HTTP_202_ACCEPTED)
 
 
-def _delete_filtered_hosts(host_id_list):
+def _delete_host_list(host_id_list):
     current_identity = get_current_identity()
     payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
 
@@ -233,7 +233,7 @@ def delete_all_hosts(confirm_delete_all=None):
         flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
 
     try:
-        delete_count = _delete_filtered_hosts(ids_list)
+        delete_count = _delete_host_list(ids_list)
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
@@ -247,7 +247,7 @@ def delete_all_hosts(confirm_delete_all=None):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    _delete_filtered_hosts(host_id_list)
+    _delete_host_list(host_id_list)
     return flask.Response(None, status.HTTP_200_OK)
 
 
