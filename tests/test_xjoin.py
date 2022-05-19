@@ -424,6 +424,7 @@ def _build_prs_array(mocker, reporters):
         ["cloud-connector", "puptoo", "rhsm-conduit"],
         ["!puptoo"],
         ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
 def test_query_variables_registered_with_per_reporter(
@@ -1099,6 +1100,7 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
         ["cloud-connector", "puptoo", "rhsm-conduit"],
         ["!puptoo"],
         ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
 def test_tags_query_variables_registered_with_per_reporter(
@@ -1316,6 +1318,7 @@ def test_system_profile_sap_system_endpoint_tags(
         ["cloud-connector", "puptoo", "rhsm-conduit"],
         ["!puptoo"],
         ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
 def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
@@ -1422,6 +1425,7 @@ def test_system_profile_sap_sids_endpoint_tags(
         ["cloud-connector", "puptoo", "rhsm-conduit", "yupana"],
         ["!puptoo"],
         ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
 def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
