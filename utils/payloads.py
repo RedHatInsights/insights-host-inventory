@@ -9,6 +9,7 @@ from datetime import timezone
 # complete system identity
 IDENTITY = {
     "account_number": "test",
+    "org_id": "test",
     "type": "System",
     "auth_type": "cert-auth",
     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
@@ -555,10 +556,12 @@ def random_uuid():
 
 def build_host_chunk():
     account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
+    org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["org_id"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "bios_uuid": random_uuid(),
         "account": account,
+        "org_id": org_id,
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
