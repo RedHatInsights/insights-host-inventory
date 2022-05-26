@@ -253,6 +253,9 @@ class Host(LimitedHost):
 
         self._update_tags(input_host.tags)
 
+        if input_host.org_id:
+            self.org_id = input_host.org_id
+
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
 

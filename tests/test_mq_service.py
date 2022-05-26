@@ -226,13 +226,46 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     assert event["platform_metadata"] == metadata
 
 
+def test_add_org_id_to_existing_host(mq_create_or_update_host, db_get_host):
+    expected_insights_id = generate_uuid()
+    expected_fqdn = "d44533.foo.redhat.co"
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, fqdn=expected_fqdn
+    )
+
+    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+
+    assert created_event["host"]["account"] == SYSTEM_IDENTITY["account_number"]
+
+    # check original host does not have an org_id
+    assert "org_id" not in created_event["host"].keys()
+
+    new_id = deepcopy(SYSTEM_IDENTITY)
+    org_id = "1234567890"
+    platform_metadata = get_platform_metadata(new_id)
+
+    host = minimal_host(
+        account=new_id["account_number"],
+        org_id=org_id,
+        insights_id=expected_insights_id,
+        fqdn=expected_fqdn,
+    )
+
+    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+        host, platform_metadata=platform_metadata, return_all_data=True
+    )
+    assert updated_key == created_key
+    assert updated_event["host"]["org_id"] == org_id
+
+
 def test_handle_message_verify_org_id(mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
+    org_id = "1234567890"
 
     org_identity = deepcopy(SYSTEM_IDENTITY)
-    org_identity["org_id"] = "1234567890"
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], id=host_id, insights_id=insights_id)
+    org_identity["org_id"] = org_id
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], org_id=org_id, id=host_id, insights_id=insights_id)
     metadata = {
         "request_id": generate_uuid(),
         "archive_url": "https://some.url",
