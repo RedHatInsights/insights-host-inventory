@@ -401,21 +401,31 @@ def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, gra
 def _build_prs_array(mocker, reporters):
     prs_array = []
     for reporter in reporters:
-        prs_array.append(
-            {
-                "per_reporter_staleness": {
-                    "reporter": {"eq": reporter},
-                    "stale_timestamp": {"gt": mocker.ANY},
-                }
+        prs_item = {
+            "per_reporter_staleness": {
+                "reporter": {"eq": reporter.replace("!", "")},
+                "stale_timestamp": {"gt": mocker.ANY},
             }
-        )
+        }
+
+        if reporter.startswith("!"):
+            prs_item = {"NOT": prs_item}
+
+        prs_array.append(prs_item)
 
     return prs_array
 
 
 @pytest.mark.parametrize(
     "reporters",
-    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+    (
+        ["cloud-connector"],
+        ["puptoo", "yupana"],
+        ["cloud-connector", "puptoo", "rhsm-conduit"],
+        ["!puptoo"],
+        ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
+    ),
 )
 def test_query_variables_registered_with_per_reporter(
     mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporters
@@ -1086,7 +1096,14 @@ def test_tags_query_variables_registered_with(mocker, assert_tag_query_host_filt
 
 @pytest.mark.parametrize(
     "reporters",
-    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+    (
+        ["cloud-connector"],
+        ["puptoo", "yupana"],
+        ["cloud-connector", "puptoo", "rhsm-conduit"],
+        ["!puptoo"],
+        ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
+    ),
 )
 def test_tags_query_variables_registered_with_per_reporter(
     mocker, assert_tag_query_host_filter_single_call, reporters
@@ -1297,7 +1314,14 @@ def test_system_profile_sap_system_endpoint_tags(
 
 @pytest.mark.parametrize(
     "reporters",
-    (["cloud-connector"], ["puptoo"], ["rhsm-conduit"], ["yupana"], ["cloud-connector", "puptoo", "rhsm-conduit"]),
+    (
+        ["cloud-connector"],
+        ["puptoo", "yupana"],
+        ["cloud-connector", "puptoo", "rhsm-conduit"],
+        ["!puptoo"],
+        ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
+    ),
 )
 def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
     mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
@@ -1399,10 +1423,11 @@ def test_system_profile_sap_sids_endpoint_tags(
     "reporters",
     (
         ["cloud-connector"],
-        ["puptoo"],
-        ["rhsm-conduit"],
-        ["yupana"],
+        ["puptoo", "yupana"],
         ["cloud-connector", "puptoo", "rhsm-conduit", "yupana"],
+        ["!puptoo"],
+        ["!yupana", "puptoo"],
+        ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
 def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
