@@ -178,6 +178,7 @@ def test_host_schema_valid_tags(tags):
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
         "account": USER_IDENTITY["account_number"],
+        "org_id": "3340851",
         "tags": tags,
         "stale_timestamp": now().isoformat(),
         "reporter": "test",

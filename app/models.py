@@ -147,6 +147,7 @@ class LimitedHost(db.Model):
         Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
         Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxaccount", "account"),
+        Index("idxorgid", "org_id"),
         Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
     )
 
@@ -156,6 +157,7 @@ class LimitedHost(db.Model):
         display_name=None,
         ansible_host=None,
         account=None,
+        org_id=None,
         facts=None,
         tags={},
         system_profile_facts=None,
@@ -170,6 +172,7 @@ class LimitedHost(db.Model):
             self.display_name = display_name
         self._update_ansible_host(ansible_host)
         self.account = account
+        self.org_id = org_id
         self.facts = facts or {}
         self.tags = tags
         self.system_profile_facts = system_profile_facts or {}
@@ -181,6 +184,7 @@ class LimitedHost(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
+    org_id = db.Column(db.String(36))
     display_name = db.Column(db.String(200), default=_set_display_name_on_save)
     ansible_host = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
@@ -202,6 +206,7 @@ class Host(LimitedHost):
         display_name=None,
         ansible_host=None,
         account=None,
+        org_id=None,
         facts=None,
         tags={},
         system_profile_facts=None,
@@ -222,7 +227,9 @@ class Host(LimitedHost):
         if tags is None:
             raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
 
-        super().__init__(canonical_facts, display_name, ansible_host, account, facts, tags, system_profile_facts)
+        super().__init__(
+            canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts
+        )
 
         # without reporter and stale_timestamp host payload is invalid.
         self._update_stale_timestamp(stale_timestamp, reporter)
@@ -245,6 +252,9 @@ class Host(LimitedHost):
         self.update_facts(input_host.facts)
 
         self._update_tags(input_host.tags)
+
+        if input_host.org_id:
+            self.org_id = input_host.org_id
 
         if update_system_profile:
             self.update_system_profile(input_host.system_profile_facts)
@@ -374,7 +384,7 @@ class Host(LimitedHost):
 
     def __repr__(self):
         return (
-            f"<Host id='{self.id}' account='{self.account}' display_name='{self.display_name}' "
+            f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
 
@@ -482,6 +492,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=10))
+    org_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw()
@@ -549,6 +560,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
+            org_id=data.get("org_id"),
             facts=facts,
             tags=tags,
             system_profile_facts=data.get("system_profile", {}),
@@ -590,6 +602,7 @@ class HostSchema(LimitedHostSchema):
             data.get("display_name"),
             data.get("ansible_host"),
             data.get("account"),
+            data.get("org_id"),
             facts,
             tags,
             data.get("system_profile", {}),

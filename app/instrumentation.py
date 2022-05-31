@@ -124,6 +124,7 @@ def log_add_host_attempt(logger, input_host):
         extra={
             "input_host": {
                 "account": input_host.account,
+                "org_id": input_host.org_id,
                 "display_name": input_host.display_name,
                 "canonical_facts": input_host.canonical_facts,
                 "reporter": input_host.reporter,

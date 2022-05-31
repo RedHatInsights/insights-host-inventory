@@ -592,6 +592,7 @@ def test_query_variables_default_staleness(
         (
             {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
             {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
+            {"eq": None},  # unknown
         ),
     )
 
@@ -602,6 +603,7 @@ def test_query_variables_default_staleness(
         ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ("unknown", {"eq": None}),
     ),
 )
 def test_query_variables_staleness(
@@ -686,6 +688,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
             {
                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test01.rhel7.jharting.local",
                 "ansible_host": "test01.rhel7.jharting.local",
                 "created": "2019-02-10T08:07:03.354307+00:00",
@@ -715,6 +718,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
             {
                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test02.rhel7.jharting.local",
                 "ansible_host": "test02.rhel7.jharting.local",
                 "created": "2019-01-10T08:07:03.354307+00:00",
@@ -868,6 +872,7 @@ def test_tags_query_variables_default_staleness(
                             "lte": "2019-12-16T10:10:06.754201+00:00",
                         }
                     },
+                    {"stale_timestamp": {"eq": None}},
                 ]
             },
         },
@@ -881,6 +886,7 @@ def test_tags_query_variables_default_staleness(
         ("fresh", {"gt": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale", {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"}),
         ("stale_warning", {"gt": "2019-12-02T10:10:06.754201+00:00", "lte": "2019-12-09T10:10:06.754201+00:00"}),
+        ("unknown", {"eq": None}),
     ),
 )
 def test_tags_query_variables_staleness(

@@ -160,6 +160,31 @@ def test_payload_tracker_set_account_and_request_id(payload_tracker, tracker_dat
             producer.reset_mock()
 
 
+def test_payload_tracker_set_org_id_and_request_id(payload_tracker, tracker_datetime_mock, subtests):
+    expected_org_id = "789"
+    expected_request_id = "1234567890"
+    producer = Mock()
+
+    tracker = payload_tracker(org_id=expected_org_id, request_id=expected_request_id, producer=producer)
+
+    methods_to_test = get_payload_tracker_methods(tracker)
+
+    for method_to_test, expected_status in methods_to_test:
+        with subtests.test(method_to_test=method_to_test):
+            method_to_test()
+
+            expected_msg = build_expected_tracker_message(
+                org_id=expected_org_id,
+                status=expected_status,
+                request_id=expected_request_id,
+                datetime_mock=tracker_datetime_mock,
+            )
+
+            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+
+            producer.reset_mock()
+
+
 def test_payload_tracker_context_error(payload_tracker, tracker_datetime_mock, subtests):
     expected_request_id = "REQUEST_ID"
     expected_received_status_msg = "ima received msg"
