@@ -282,20 +282,22 @@ def build_registered_with_filter(registered_with):
         reg_with_copy.remove("insights")
     if reg_with_copy:
         for item in reg_with_copy:
-            prs_list.append(
-                {
-                    "per_reporter_staleness": {
-                        "reporter": {"eq": item},
-                        "stale_timestamp": {
-                            "gt": str(
-                                (
-                                    datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta
-                                ).isoformat()
-                            )
-                        },
+            prs_item = {
+                "per_reporter_staleness": {
+                    "reporter": {"eq": item.replace("!", "")},
+                    "stale_timestamp": {
+                        "gt": str(
+                            (datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat()
+                        )
                     },
-                }
-            )
+                },
+            }
+
+            # If registered_with starts with "!", we want to invert the condition.
+            if item.startswith("!"):
+                prs_item = {"NOT": prs_item}
+
+            prs_list.append(prs_item)
 
     return ({"OR": prs_list},)
 
@@ -310,6 +312,22 @@ def build_tag_query_dict_tuple(tags):
         query_tag_tuple += ({"tag": query_tag_dict},)
     logger.debug("query_tag_tuple: %s", query_tag_tuple)
     return query_tag_tuple
+
+
+def host_id_list_query_filter(host_id_list):
+    return (
+        {
+            "stale_timestamp": {
+                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
+            },
+            "OR": [
+                {
+                    "id": {"eq": host_id},
+                }
+                for host_id in host_id_list
+            ],
+        },
+    )
 
 
 def query_filters(

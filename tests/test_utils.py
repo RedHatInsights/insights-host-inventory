@@ -71,13 +71,11 @@ resourceTemplates:
     ref: master
     parameters:
       IMAGE_TAG: 626ae85
-      BULK_QUERY_SOURCE: xjoin
   - namespace:
       $ref: /stage-host-inventory-stage.yml
     ref: master
     parameters:
       IMAGE_TAG: 626ae85
-      BULK_QUERY_SOURCE: xjoin
 """
 
 

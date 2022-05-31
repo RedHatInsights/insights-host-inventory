@@ -5,7 +5,6 @@ from datetime import timezone
 import pytest
 
 from api.tag import TAGS_QUERY
-from app.config import BulkQuerySource
 from tests.helpers.graphql_utils import CASEFOLDED_FIELDS
 from tests.helpers.graphql_utils import EMPTY_HOSTS_RESPONSE
 from tests.helpers.graphql_utils import SYSTEM_PROFILE_SAP_SIDS_EMPTY_RESPONSE
@@ -77,7 +76,7 @@ def graphql_sparse_system_profile_empty_response(graphql_query):
 
 
 @pytest.fixture(scope="function")
-def patch_xjoin_post(mocker, query_source_xjoin):
+def patch_xjoin_post(mocker):
     def _patch_xjoin_post(response, status=200):
         return mocker.patch(
             "app.xjoin.post",
@@ -92,23 +91,6 @@ def patch_xjoin_post(mocker, query_source_xjoin):
 
 
 @pytest.fixture(scope="function")
-def query_source_xjoin(inventory_config):
-    inventory_config.bulk_query_source = BulkQuerySource.xjoin
-
-
-@pytest.fixture(scope="function")
-def query_source_xjoin_beta_db(inventory_config):
-    inventory_config.bulk_query_source = BulkQuerySource.xjoin
-    inventory_config.bulk_query_source_beta = BulkQuerySource.db
-
-
-@pytest.fixture(scope="function")
-def query_source_db_beta_xjoin(inventory_config):
-    inventory_config.bulk_query_source = BulkQuerySource.db
-    inventory_config.bulk_query_source_beta = BulkQuerySource.xjoin
-
-
-@pytest.fixture(scope="function")
 def culling_datetime_mock(mocker):
     date = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
     mock = mocker.patch("app.culling.datetime", **{"now.return_value": date})
@@ -116,7 +98,14 @@ def culling_datetime_mock(mocker):
 
 
 @pytest.fixture(scope="function")
-def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response, query_source_xjoin):
+def filtering_datetime_mock(mocker):
+    date = datetime(2019, 12, 16, 10, 10, 6, 754201, tzinfo=timezone.utc)
+    mock = mocker.patch("api.filtering.filtering.datetime", **{"now.return_value": date})
+    return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def assert_tag_query_host_filter_single_call(mocker, api_get, graphql_tag_query_empty_response):
     def _assert_tag_query_host_filter_single_call(url, host_filter={"OR": mocker.ANY}, filter=None, status=200):
         response_status, _ = api_get(url)
 

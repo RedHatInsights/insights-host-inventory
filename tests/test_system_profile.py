@@ -15,6 +15,8 @@ from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
+from tests.helpers.graphql_utils import xjoin_host_response
+from tests.helpers.graphql_utils import XJOIN_INVALID_SYSTEM_PROFILE
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SIDS
 from tests.helpers.graphql_utils import XJOIN_SYSTEM_PROFILE_SAP_SYSTEM
 from tests.helpers.mq_utils import create_kafka_consumer_mock
@@ -29,16 +31,17 @@ OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
 # system_profile tests
-def test_system_profile_includes_owner_id(mq_create_or_update_host, api_get):
-    system_profile = valid_system_profile()
-    system_profile["owner_id"] = OWNER_ID
-    host = minimal_host(system_profile=system_profile)
-    created_host = mq_create_or_update_host(host)
+def test_system_profile_includes_owner_id(api_get, patch_xjoin_post):
+    host_id = generate_uuid()
+    response = xjoin_host_response("2021-02-10T08:07:03Z")
+    response["hosts"]["data"][0]["id"] = host_id
+    patch_xjoin_post({"data": response})
 
-    url = build_system_profile_url(host_list_or_id=created_host.id)
+    url = build_system_profile_url(host_list_or_id=host_id)
 
     response_status, response_data = api_get(url)
-    assert response_data["results"][0]["system_profile"] == system_profile
+
+    assert "owner_id" in response_data["results"][0]["system_profile"]
     assert response_status == 200
 
 
@@ -86,7 +89,7 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
 
 # sap endpoint tests
 def test_system_profile_sap_system_endpoint_response(
-    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
+    mocker, graphql_system_profile_sap_system_query_with_response, api_get
 ):
     url = build_system_profile_sap_system_url()
 
@@ -103,7 +106,7 @@ def test_system_profile_sap_system_endpoint_response(
 
 
 def test_system_profile_sap_sids_endpoint_response(
-    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+    mocker, graphql_system_profile_sap_sids_query_with_response, api_get
 ):
     url = build_system_profile_sap_sids_url()
 
@@ -116,7 +119,7 @@ def test_system_profile_sap_sids_endpoint_response(
 
 
 def test_get_system_profile_sap_system_with_RBAC_allowed(
-    subtests, mocker, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
+    subtests, mocker, graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -133,7 +136,7 @@ def test_get_system_profile_sap_system_with_RBAC_allowed(
 
 
 def test_get_system_profile_sap_sids_with_RBAC_allowed(
-    subtests, mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
+    subtests, mocker, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
@@ -149,7 +152,7 @@ def test_get_system_profile_sap_sids_with_RBAC_allowed(
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoin, api_get, enable_rbac):
+def test_get_system_profile_with_RBAC_denied(subtests, mocker, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     urls = (build_system_profile_sap_system_url(), build_system_profile_sap_sids_url())
@@ -166,7 +169,7 @@ def test_get_system_profile_with_RBAC_denied(subtests, mocker, query_source_xjoi
 
 
 def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
-    query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
+    graphql_system_profile_sap_system_query_with_response, api_get, enable_rbac
 ):
     url = build_system_profile_sap_system_url()
 
@@ -176,7 +179,7 @@ def test_get_system_profile_sap_system_with_RBAC_bypassed_as_system(
 
 
 def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
-    query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
+    graphql_system_profile_sap_sids_query_with_response, api_get, enable_rbac
 ):
     url = build_system_profile_sap_sids_url()
 
@@ -185,45 +188,45 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(
     assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, db_create_host, enable_rbac):
+def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    host = db_create_host()
+    host_id = generate_uuid()
 
     for response_file in READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+            response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
             assert_response_status(response_status, 200)
 
 
-def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, db_create_host, enable_rbac):
+def test_get_system_profile_RBAC_denied(mocker, subtests, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     find_hosts_by_staleness_mock = mocker.patch(
         "lib.host_repository.find_hosts_by_staleness", wraps=find_hosts_by_staleness
     )
 
-    host = db_create_host()
+    host_id = generate_uuid()
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
 
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+            response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
 
             assert_response_status(response_status, 403)
             find_hosts_by_staleness_mock.assert_not_called()
 
 
-def test_get_host_with_invalid_system_profile(api_get, db_create_host):
-    # create a host with invalid system_profile in the db
-    host = db_create_host(extra_data={"system_profile_facts": {"disk_devices": [{"options": {"": "invalid"}}]}})
-
-    response_status, response_data = api_get(f"{HOST_URL}/{host.id}/system_profile")
+def test_get_host_with_invalid_system_profile(api_get, patch_xjoin_post):
+    # patch xjoin post to respond with graphql_utils.XJOIN_INVALID_SYSTEM_PROFILE
+    patch_xjoin_post(XJOIN_INVALID_SYSTEM_PROFILE)
+    url = build_system_profile_url(host_list_or_id=generate_uuid())
+    response_status, _ = api_get(url)
 
     assert_response_status(response_status, 500)
 
@@ -284,7 +287,7 @@ def test_validate_sp_for_branch(mocker, partitions, messages_per_partition_per_p
     assert pass_count == min(partitions * messages_per_partition_per_poll * number_of_polls, max_messages_to_poll)
 
 
-def test_validate_sp_no_data(api_post, mocker):
+def test_validate_sp_no_data(mocker):
     config = Config(RuntimeEnvironment.SERVICE)
     fake_consumer = create_kafka_consumer_mock(mocker, config, 1, 0)
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
@@ -302,7 +305,7 @@ def test_validate_sp_no_data(api_post, mocker):
     assert "No data available at the provided date." in str(excinfo.value)
 
 
-def test_validate_sp_for_missing_branch_or_repo(api_post, mocker):
+def test_validate_sp_for_missing_branch_or_repo(mocker):
     # Mock schema fetch
     get_schema_from_url_mock = mocker.patch("lib.system_profile_validate.get_schema_from_url")
     get_schema_from_url_mock.side_effect = ValueError("Schema not found at URL!")

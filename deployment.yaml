@@ -57,10 +57,6 @@ objects:
           value: 'true'
         - name: XJOIN_GRAPHQL_URL
           value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
-        - name: BULK_QUERY_SOURCE
-          value: ${BULK_QUERY_SOURCE}
-        - name: BULK_QUERY_SOURCE_BETA
-          value: ${BULK_QUERY_SOURCE_BETA}
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -729,10 +725,6 @@ parameters:
   value: localhost
 - name: XJOIN_SEARCH_PORT
   value: '4000'
-- name: BULK_QUERY_SOURCE
-  value: db
-- name: BULK_QUERY_SOURCE_BETA
-  value: db
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer

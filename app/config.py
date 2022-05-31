@@ -1,13 +1,11 @@
 import os
 import tempfile
 from datetime import timedelta
-from enum import Enum
 
 from app.common import get_build_version
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
-BulkQuerySource = Enum("BulkQuerySource", ("db", "xjoin"))
 PRODUCER_ACKS = {"0": 0, "1": 1, "all": "all"}
 
 
@@ -198,8 +196,6 @@ class Config:
         )
 
         self.xjoin_graphql_url = os.environ.get("XJOIN_GRAPHQL_URL", "http://localhost:4000/graphql")
-        self.bulk_query_source = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE", "db"))
-        self.bulk_query_source_beta = getattr(BulkQuerySource, os.environ.get("BULK_QUERY_SOURCE_BETA", "db"))
 
         self.host_delete_chunk_size = int(os.getenv("HOST_DELETE_CHUNK_SIZE", "1000"))
         self.script_chunk_size = int(os.getenv("SCRIPT_CHUNK_SIZE", "1000"))

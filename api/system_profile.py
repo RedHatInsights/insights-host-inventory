@@ -11,12 +11,10 @@ from api import metrics
 from api.filtering.filtering import build_registered_with_filter
 from api.filtering.filtering import build_system_profile_filter
 from api.filtering.filtering import build_tag_query_dict_tuple
-from api.host import get_bulk_query_source
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
-from app.config import BulkQuerySource
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
@@ -121,18 +119,10 @@ OPERATING_SYSTEM_QUERY = """
 """
 
 
-def xjoin_enabled():
-    return get_bulk_query_source() == BulkQuerySource.xjoin
-
-
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_sap_system(tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
-    if not xjoin_enabled():
-        logger.error("xjoin-search not enabled")
-        flask.abort(503)
-
     limit, offset = pagination_params(page, per_page)
 
     variables = {
@@ -181,10 +171,6 @@ def get_sap_system(tags=None, page=None, per_page=None, staleness=None, register
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_sap_sids(search=None, tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None):
-    if not xjoin_enabled():
-        logger.error("xjoin-search not enabled")
-        flask.abort(503)
-
     limit, offset = pagination_params(page, per_page)
 
     variables = {
