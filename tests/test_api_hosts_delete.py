@@ -126,7 +126,10 @@ def test_delete_hosts_using_filter_and_registered_with(
     field,
     value,
 ):
-    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    num = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
+    ed = {"org_id": "3340851"}
+
+    created_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
     host_ids = [str(host.id) for host in created_hosts]
 
     # set the new host ids in the xjoin search reference.
@@ -139,7 +142,7 @@ def test_delete_hosts_using_filter_and_registered_with(
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
 
-    new_hosts = db_create_multiple_hosts()
+    new_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly returned by the query_filter

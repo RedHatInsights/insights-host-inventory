@@ -1038,6 +1038,10 @@ components:
               description: A Red Hat Account number that owns the host.
               type: string
               example: '000102'
+            org_id:
+              description: The Org ID of the tenant that owns the host.
+              type: string
+              example: '000102'
             id:
               description: >-
                 A durable and reliable platform-wide host identifier. Applications

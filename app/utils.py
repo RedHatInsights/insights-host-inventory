@@ -134,6 +134,14 @@ class HostWrapper:
         self.__data["account"] = account
 
     @property
+    def org_id(self):
+        return self.__data.get("org_id", None)
+
+    @org_id.setter
+    def org_id(self, org_id):
+        self.__data["org_id"] = org_id
+
+    @property
     def display_name(self):
         return self.__data.get("display_name", None)
 

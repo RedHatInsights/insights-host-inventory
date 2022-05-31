@@ -28,6 +28,7 @@ class SerializedHostSchema(Schema):
     display_name = fields.Str()
     ansible_host = fields.Str()
     account = fields.Str(required=True)
+    org_id = fields.Str(required=False)
     insights_id = fields.Str()
     subscription_manager_id = fields.Str()
     satellite_id = fields.Str()
@@ -65,6 +66,7 @@ class HostDeleteEvent(Schema):
     timestamp = fields.DateTime(format="iso8601")
     type = fields.Str()
     account = fields.Str()
+    org_id = fields.Str()
     insights_id = fields.Str()
     request_id = fields.Str()
     metadata = fields.Nested(HostEventMetadataSchema())
@@ -93,18 +95,22 @@ def host_create_update_event(event_type, host, platform_metadata=None):
 
 
 def host_delete_event(event_type, host):
-    return (
-        HostDeleteEvent,
-        {
-            "timestamp": datetime.now(timezone.utc),
-            "type": event_type.name,
-            "id": host.id,
-            **serialize_canonical_facts(host.canonical_facts),
-            "account": host.account,
-            "request_id": threadctx.request_id,
-            "metadata": {"request_id": threadctx.request_id},
-        },
-    )
+    delete_event = {
+        "timestamp": datetime.now(timezone.utc),
+        "type": event_type.name,
+        "id": host.id,
+        **serialize_canonical_facts(host.canonical_facts),
+        "request_id": threadctx.request_id,
+        "metadata": {"request_id": threadctx.request_id},
+    }
+
+    # a valid host must have an account or org_id or both
+    if host.account:
+        delete_event["account"] = host.account
+    if host.org_id:
+        delete_event["org_id"] = host.org_id
+
+    return (HostDeleteEvent, delete_event)
 
 
 EVENT_TYPE_MAP = {

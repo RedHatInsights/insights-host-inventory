@@ -38,6 +38,7 @@ QUERY = """query Query(
         data {
             id,
             account,
+            org_id,
             display_name,
             ansible_host,
             created_on,
