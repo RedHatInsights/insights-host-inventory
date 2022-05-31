@@ -491,7 +491,7 @@ def test_no_event_on_noop(event_producer, db_create_host, db_get_host, api_patch
     assert event_producer.write_event.call_count == 0
 
 
-def test_patch_updated_timestamp(event_producer, db_create_host, api_get, api_patch, mocker):
+def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, api_patch, mocker):
     mocker.patch.object(event_producer, "write_event")
     host = db_create_host()
     patch_doc = {"display_name": "update_test"}
@@ -500,8 +500,8 @@ def test_patch_updated_timestamp(event_producer, db_create_host, api_get, api_pa
 
     assert_response_status(patch_response_status, expected_status=200)
 
-    get_response_status, get_response_data = api_get(build_hosts_url(host_list_or_id=host.id))
+    record = db_get_host(host.id)
 
     updated_timestamp_from_event = json.loads(event_producer.write_event.call_args_list[0][0][0])["host"]["updated"]
 
-    assert updated_timestamp_from_event == get_response_data["results"][0]["updated"]
+    assert updated_timestamp_from_event == record.modified_on.isoformat()

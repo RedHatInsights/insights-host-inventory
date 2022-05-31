@@ -7,7 +7,8 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def flask_client(flask_app):
+def flask_client(flask_app, patch_xjoin_post):
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 0}, "data": []}}})
     return flask_app.test_client()
 
 

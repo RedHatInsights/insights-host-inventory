@@ -314,6 +314,22 @@ def build_tag_query_dict_tuple(tags):
     return query_tag_tuple
 
 
+def host_id_list_query_filter(host_id_list):
+    return (
+        {
+            "stale_timestamp": {
+                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
+            },
+            "OR": [
+                {
+                    "id": {"eq": host_id},
+                }
+                for host_id in host_id_list
+            ],
+        },
+    )
+
+
 def query_filters(
     fqdn,
     display_name,

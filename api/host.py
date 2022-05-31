@@ -1,6 +1,5 @@
 from enum import Enum
 
-import connexion
 import flask
 from flask import current_app
 from flask_api import status
@@ -14,16 +13,15 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
-from api.host_query_db import get_host_list as get_host_list_db
-from api.host_query_db import params_to_order_by
+from api.host_query_db import params_to_order_by as params_to_order_by_db
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
+from api.host_query_xjoin import get_host_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
 from app import inventory_config
 from app import Permission
 from app.auth import get_current_identity
-from app.config import BulkQuerySource
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_list_failed
 from app.instrumentation import log_get_host_list_succeeded
@@ -44,7 +42,6 @@ from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
-from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
@@ -55,29 +52,14 @@ from lib.middleware import rbac
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
-GET_HOST_LIST_FUNCTIONS = {BulkQuerySource.db: get_host_list_db, BulkQuerySource.xjoin: get_host_list_xjoin}
-XJOIN_HEADER = "x-rh-cloud-bulk-query-source"  # will be xjoin or db
-REFERAL_HEADER = "referer"
 
 logger = get_logger(__name__)
 
 
-def _get_host_list_by_id_list(host_id_list):
+def _get_host_list_by_id_list_from_db(host_id_list):
     current_identity = get_current_identity()
     query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
-
-
-def get_bulk_query_source():
-    if XJOIN_HEADER in connexion.request.headers:
-        if connexion.request.headers[XJOIN_HEADER].lower() == "xjoin":
-            return BulkQuerySource.xjoin
-        elif connexion.request.headers[XJOIN_HEADER].lower() == "db":
-            return BulkQuerySource.db
-    if REFERAL_HEADER in connexion.request.headers:
-        if "/beta" in connexion.request.headers[REFERAL_HEADER]:
-            return inventory_config().bulk_query_source_beta
-    return inventory_config().bulk_query_source
 
 
 @api_operation
@@ -104,12 +86,8 @@ def get_host_list(
     total = 0
     host_list = ()
 
-    bulk_query_source = get_bulk_query_source()
-
-    get_host_list = GET_HOST_LIST_FUNCTIONS[bulk_query_source]
-
     try:
-        host_list, total, additional_fields = get_host_list(
+        host_list, total, additional_fields = get_host_list_xjoin(
             display_name,
             fqdn,
             hostname_or_id,
@@ -208,7 +186,7 @@ def _delete_host_list(host_id_list):
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
     ):
-        query = _get_host_list_by_id_list(host_id_list)
+        query = _get_host_list_by_id_list_from_db(host_id_list)
 
         if not query.count():
             flask.abort(status.HTTP_404_NOT_FOUND)
@@ -276,20 +254,18 @@ def delete_by_id(host_id_list):
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
-def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
-    query = _get_host_list_by_id_list(host_id_list)
-
+def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
     try:
-        order_by = params_to_order_by(order_by, order_how)
+        host_list, total, additional_fields = get_host_list_by_id_list(
+            host_id_list, page, per_page, order_by, order_how, fields
+        )
     except ValueError as e:
+        log_get_host_list_failed(logger)
         flask.abort(400, str(e))
-    else:
-        query = query.order_by(*order_by)
-    query_results = query.paginate(page, per_page, True)
 
-    log_get_host_list_succeeded(logger, query_results.items)
+    log_get_host_list_succeeded(logger, host_list)
 
-    json_data = build_paginated_host_list_response(query_results.total, page, per_page, query_results.items)
+    json_data = build_paginated_host_list_response(total, page, per_page, host_list, additional_fields)
     return flask_json_response(json_data)
 
 
@@ -297,26 +273,11 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
-    if fields:
-        if not get_bulk_query_source() == BulkQuerySource.xjoin:
-            logger.error("xjoin-search not accessible")
-            flask.abort(503)
-
+    try:
         total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
-    else:
-        query = _get_host_list_by_id_list(host_id_list)
-
-        try:
-            order_by = params_to_order_by(order_by, order_how)
-        except ValueError as e:
-            flask.abort(400, str(e))
-        else:
-            query = query.order_by(*order_by)
-        query_results = query.paginate(page, per_page, True)
-
-        total = query_results.total
-
-        response_list = [serialize_host_system_profile(host) for host in query_results.items]
+    except ValueError as e:
+        log_get_host_list_failed(logger)
+        flask.abort(400, str(e))
 
     json_output = build_collection_response(response_list, page, per_page, total)
     return flask_json_response(json_output)
@@ -338,7 +299,7 @@ def patch_by_id(host_id_list, body):
         logger.exception(f"Input validation error while patching host: {host_id_list} - {body}")
         return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
-    query = _get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     hosts_to_update = query.all()
 
@@ -417,10 +378,10 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
 
-    query = _get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     try:
-        order_by = params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by_db(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:
@@ -455,10 +416,10 @@ def _count_tags(host_list):
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
 
-    query = _get_host_list_by_id_list(host_id_list)
+    query = _get_host_list_by_id_list_from_db(host_id_list)
 
     try:
-        order_by = params_to_order_by(order_by, order_how)
+        order_by = params_to_order_by_db(order_by, order_how)
     except ValueError as e:
         flask.abort(400, str(e))
     else:

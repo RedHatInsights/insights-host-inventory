@@ -138,6 +138,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
           description: Successfully searched for hosts.

@@ -3,7 +3,7 @@ import pytest
 from api import custom_escape
 from api.host_query_xjoin import HOST_IDS_QUERY
 from api.host_query_xjoin import QUERY as HOST_QUERY
-from api.sparse_host_list_system_profile import SYSTEM_PROFILE_QUERY
+from api.sparse_host_list_system_profile import SYSTEM_PROFILE_SPARSE_QUERY
 from api.system_profile import SAP_SIDS_QUERY
 from api.system_profile import SAP_SYSTEM_QUERY
 from api.tag import TAGS_QUERY
@@ -73,7 +73,35 @@ def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     assert response_status == 200
 
 
-def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
+    url = build_hosts_url()
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                {
+                    "OR": (
+                        {"stale_timestamp": mocker.ANY},
+                        {"stale_timestamp": mocker.ANY},
+                        {"stale_timestamp": mocker.ANY},
+                    )
+                },
+            ),
+            "fields": mocker.ANY,
+        },
+        mocker.ANY,
+    )
+
+
+def test_query_variables_fqdn(mocker, graphql_query_empty_response, api_get):
     fqdn = "host.DOMAIN.com"
 
     url = build_hosts_url(query=f"?fqdn={quote(fqdn)}")
@@ -95,7 +123,7 @@ def test_query_variables_fqdn(mocker, query_source_xjoin, graphql_query_empty_re
     )
 
 
-def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_display_name(mocker, graphql_query_empty_response, api_get):
     display_name = "my awesome host uwu"
 
     url = build_hosts_url(query=f"?display_name={quote(display_name)}")
@@ -117,7 +145,7 @@ def test_query_variables_display_name(mocker, query_source_xjoin, graphql_query_
     )
 
 
-def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_hostname_or_id_non_uuid(mocker, graphql_query_empty_response, api_get):
     hostname_or_id = "host.domain.com"
 
     url = build_hosts_url(query=f"?hostname_or_id={quote(hostname_or_id)}")
@@ -147,7 +175,7 @@ def test_query_variables_hostname_or_id_non_uuid(mocker, query_source_xjoin, gra
     )
 
 
-def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_hostname_or_id_uuid(mocker, graphql_query_empty_response, api_get):
     hostname_or_id = generate_uuid()
 
     url = build_hosts_url(query=f"?hostname_or_id={quote(hostname_or_id)}")
@@ -178,7 +206,7 @@ def test_query_variables_hostname_or_id_uuid(mocker, query_source_xjoin, graphql
     )
 
 
-def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_insights_id(mocker, graphql_query_empty_response, api_get):
     insights_id = generate_uuid().upper()
 
     url = build_hosts_url(query=f"?insights_id={quote(insights_id)}")
@@ -201,9 +229,7 @@ def test_query_variables_insights_id(mocker, query_source_xjoin, graphql_query_e
 
 
 @pytest.mark.parametrize("provider_type", ("alibaba", "aws", "azure", "gcp", "ibm"))
-def test_query_variables_provider_type(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
-):
+def test_query_variables_provider_type(mocker, graphql_query_empty_response, api_get, provider_type):
     url = build_hosts_url(query=f"?provider_type={provider_type}")
     response_status, response_data = api_get(url)
 
@@ -223,7 +249,7 @@ def test_query_variables_provider_type(
     )
 
 
-def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_provider_id(mocker, graphql_query_empty_response, api_get):
     provider_id = generate_uuid()
 
     url = build_hosts_url(query=f"?provider_id={quote(provider_id)}")
@@ -255,9 +281,7 @@ def test_query_variables_provider_id(mocker, query_source_xjoin, graphql_query_e
         {"type": "ibm", "id": generate_uuid()},
     ),
 )
-def test_query_variables_provider_type_and_id(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider
-):
+def test_query_variables_provider_type_and_id(mocker, graphql_query_empty_response, api_get, provider):
     url = build_hosts_url(query=f'?provider_type={provider["type"]}&provider_id={provider["id"]}')
     response_status, response_data = api_get(url)
 
@@ -282,9 +306,7 @@ def test_query_variables_provider_type_and_id(
 
 
 @pytest.mark.parametrize("provider_type", ("invalid", " ", "\t"))
-def test_query_using_invalid_provider_type(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_get, provider_type
-):
+def test_query_using_invalid_provider_type(mocker, graphql_query_empty_response, api_get, provider_type):
     url = build_hosts_url(query=f"?provider_type={provider_type}")
     response_status, response_data = api_get(url)
 
@@ -293,7 +315,7 @@ def test_query_using_invalid_provider_type(
     graphql_query_empty_response.assert_not_called()
 
 
-def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_none(mocker, graphql_query_empty_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
@@ -323,7 +345,7 @@ def test_query_variables_none(mocker, query_source_xjoin, graphql_query_empty_re
         (f"hostname_or_id={quote(generate_uuid())}&insights_id={quote(generate_uuid())}"),
     ),
 )
-def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_invalid(query, mocker, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?{query}")
     response_status, response_data = api_get(url)
 
@@ -349,7 +371,7 @@ def test_query_variables_invalid(query, mocker, query_source_xjoin, graphql_quer
         (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
     ),
 )
-def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_tags(tags, query_param, mocker, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?tags={quote(query_param)}")
     response_status, response_data = api_get(url)
 
@@ -372,7 +394,7 @@ def test_query_variables_tags(tags, query_param, mocker, query_source_xjoin, gra
 
 
 @pytest.mark.parametrize("field", ("fqdn", "display_name", "hostname_or_id", "insights_id"))
-def test_query_variables_tags_with_search(field, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_tags_with_search(field, mocker, graphql_query_empty_response, api_get):
     value = quote(generate_uuid())
 
     url = build_hosts_url(query=f"?{field}={value}&tags=a/b=c")
@@ -427,9 +449,7 @@ def _build_prs_array(mocker, reporters):
         ["!yupana", "!puptoo", "rhsm-conduit"],
     ),
 )
-def test_query_variables_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_get, reporters
-):
+def test_query_variables_registered_with_per_reporter(mocker, graphql_query_empty_response, api_get, reporters):
     url = build_hosts_url(query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters]))
 
     response_status, response_data = api_get(url)
@@ -456,7 +476,7 @@ def test_query_variables_registered_with_per_reporter(
 
 
 @pytest.mark.parametrize("direction", ("ASC", "DESC"))
-def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_ordering_dir(direction, mocker, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?order_by=updated&order_how={quote(direction)}")
     response_status, response_data = api_get(url)
 
@@ -485,13 +505,7 @@ def test_query_variables_ordering_dir(direction, mocker, query_source_xjoin, gra
     ),
 )
 def test_query_variables_ordering_by(
-    params_order_by,
-    xjoin_order_by,
-    default_xjoin_order_how,
-    mocker,
-    query_source_xjoin,
-    graphql_query_empty_response,
-    api_get,
+    params_order_by, xjoin_order_by, default_xjoin_order_how, mocker, graphql_query_empty_response, api_get
 ):
     url = build_hosts_url(query=f"?order_by={quote(params_order_by)}")
     response_status, response_data = api_get(url)
@@ -512,7 +526,7 @@ def test_query_variables_ordering_by(
     )
 
 
-def test_query_variables_ordering_by_invalid(query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_ordering_by_invalid(graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_by=fqdn")
     response_status, response_data = api_get(url)
 
@@ -521,7 +535,7 @@ def test_query_variables_ordering_by_invalid(query_source_xjoin, graphql_query_e
     graphql_query_empty_response.assert_not_called()
 
 
-def test_query_variables_ordering_dir_invalid(query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_ordering_dir_invalid(graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_by=updated&order_how=REVERSE")
     response_status, response_data = api_get(url)
 
@@ -530,7 +544,7 @@ def test_query_variables_ordering_dir_invalid(query_source_xjoin, graphql_query_
     graphql_query_empty_response.assert_not_called()
 
 
-def test_query_variables_ordering_dir_without_by(query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_ordering_dir_without_by(graphql_query_empty_response, api_get):
     url = build_hosts_url(query="?order_how=ASC")
     response_status, response_data = api_get(url)
 
@@ -540,7 +554,7 @@ def test_query_variables_ordering_dir_without_by(query_source_xjoin, graphql_que
 
 
 @pytest.mark.parametrize("page,limit,offset", ((1, 2, 0), (2, 2, 2), (4, 50, 150)))
-def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_response_pagination(page, limit, offset, mocker, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?per_page={quote(limit)}&page={quote(page)}")
     response_status, response_data = api_get(url)
 
@@ -561,7 +575,7 @@ def test_response_pagination(page, limit, offset, mocker, query_source_xjoin, gr
 
 
 @pytest.mark.parametrize("page,per_page", ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)))
-def test_response_invalid_pagination(page, per_page, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_response_invalid_pagination(page, per_page, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?per_page={quote(per_page)}&page={quote(page)}")
     response_status, response_data = api_get(url)
 
@@ -570,7 +584,7 @@ def test_response_invalid_pagination(page, per_page, query_source_xjoin, graphql
     graphql_query_empty_response.assert_not_called()
 
 
-def test_query_variables_default_except_staleness(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_variables_default_except_staleness(mocker, graphql_query_empty_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
@@ -589,9 +603,7 @@ def test_query_variables_default_except_staleness(mocker, query_source_xjoin, gr
     )
 
 
-def test_query_variables_default_staleness(
-    mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_variables_default_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
@@ -617,7 +629,7 @@ def test_query_variables_default_staleness(
     ),
 )
 def test_query_variables_staleness(
-    staleness, expected, mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
+    staleness, expected, mocker, culling_datetime_mock, graphql_query_empty_response, api_get
 ):
     url = build_hosts_url(query=f"?staleness={staleness}")
     response_status, response_data = api_get(url)
@@ -627,9 +639,7 @@ def test_query_variables_staleness(
     assert_graph_query_single_call_with_staleness(mocker, graphql_query_empty_response, (expected,))
 
 
-def test_query_multiple_staleness(
-    mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
     staleness = "fresh,stale_warning"
 
     url = build_hosts_url(query=f"?staleness={staleness}")
@@ -658,7 +668,7 @@ def test_query_multiple_staleness(
     ),
 )
 def test_query_variables_staleness_with_search(
-    field, value, mocker, culling_datetime_mock, query_source_xjoin, graphql_query_empty_response, api_get
+    field, value, mocker, culling_datetime_mock, graphql_query_empty_response, api_get
 ):
     url = build_hosts_url(query=f"?{field}={quote(value)}")
     response_status, response_data = api_get(url)
@@ -682,7 +692,7 @@ def test_query_variables_staleness_with_search(
     )
 
 
-def test_response_processed_properly(query_source_xjoin, graphql_query_with_response, api_get):
+def test_response_processed_properly(graphql_query_with_response, api_get):
     response_status, response_data = api_get(HOST_URL)
 
     assert response_status == 200
@@ -769,7 +779,7 @@ def test_response_processed_properly(query_source_xjoin, graphql_query_with_resp
     }
 
 
-def test_response_pagination_index_error(query_source_xjoin, graphql_query_with_response, api_get):
+def test_response_pagination_index_error(graphql_query_with_response, api_get):
     url = build_hosts_url(query="?per_page=2&page=3")
     response_status, response_data = api_get(url)
 
@@ -778,7 +788,7 @@ def test_response_pagination_index_error(query_source_xjoin, graphql_query_with_
     graphql_query_with_response.assert_called_once()
 
 
-def test_valid_without_decimal_part(query_source_xjoin, graphql_query, api_get):
+def test_valid_without_decimal_part(graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03Z")
 
     graphql_query(return_value=response)
@@ -788,7 +798,7 @@ def test_valid_without_decimal_part(query_source_xjoin, graphql_query, api_get):
     assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T08:07:03+00:00"
 
 
-def test_valid_with_offset_timezone(query_source_xjoin, graphql_query, api_get):
+def test_valid_with_offset_timezone(graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03.354307+01:00")
 
     graphql_query(return_value=response)
@@ -798,7 +808,7 @@ def test_valid_with_offset_timezone(query_source_xjoin, graphql_query, api_get):
     assert response_data["results"][0]["stale_timestamp"] == "2020-02-10T07:07:03.354307+00:00"
 
 
-def test_invalid_without_timezone(query_source_xjoin, graphql_query, api_get):
+def test_invalid_without_timezone(graphql_query, api_get):
     response = xjoin_host_response("2020-02-10T08:07:03.354307")
 
     graphql_query(return_value=response)
@@ -860,7 +870,7 @@ def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_fi
 
 
 def test_tags_query_variables_default_staleness(
-    mocker, culling_datetime_mock, query_source_xjoin, graphql_tag_query_empty_response, api_get
+    mocker, culling_datetime_mock, graphql_tag_query_empty_response, api_get
 ):
     response_status, response_data = api_get(TAGS_URL)
 
@@ -1029,9 +1039,7 @@ def test_tags_query_variables_search(mocker, assert_tag_query_host_filter_single
 
 
 @pytest.mark.parametrize("direction", ["ASC", "DESC"])
-def test_tags_query_variables_ordering_dir(
-    direction, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_tags_query_variables_ordering_dir(direction, mocker, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query=f"?order_how={direction}")
     response_status, response_data = api_get(url)
 
@@ -1045,9 +1053,7 @@ def test_tags_query_variables_ordering_dir(
 
 
 @pytest.mark.parametrize("ordering", ["tag", "count"])
-def test_tags_query_variables_ordering_by(
-    ordering, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_tags_query_variables_ordering_by(ordering, mocker, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query=f"?order_by={ordering}")
     response_status, response_data = api_get(url)
 
@@ -1061,9 +1067,7 @@ def test_tags_query_variables_ordering_by(
 
 
 @pytest.mark.parametrize("page,limit,offset", [(1, 2, 0), (2, 2, 2), (4, 50, 150)])
-def test_tags_response_pagination(
-    page, limit, offset, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get
-):
+def test_tags_response_pagination(page, limit, offset, mocker, graphql_tag_query_empty_response, api_get):
     url = build_tags_url(query=f"?per_page={limit}&page={page}")
     response_status, response_data = api_get(url)
 
@@ -1129,7 +1133,7 @@ def test_tags_response_invalid_registered_with(api_get):
     assert response_status == 400
 
 
-def test_tags_response_processed_properly(query_source_xjoin, graphql_tag_query_with_response, api_get):
+def test_tags_response_processed_properly(graphql_tag_query_with_response, api_get):
     expected = XJOIN_TAGS_RESPONSE["hostTags"]
 
     response_status, response_data = api_get(TAGS_URL)
@@ -1147,7 +1151,7 @@ def test_tags_response_processed_properly(query_source_xjoin, graphql_tag_query_
     }
 
 
-def test_tags_response_pagination_index_error(mocker, query_source_xjoin, graphql_tag_query_with_response, api_get):
+def test_tags_response_pagination_index_error(mocker, graphql_tag_query_with_response, api_get):
     url = build_tags_url(query="?per_page=2&page=3")
     response_status, response_data = api_get(url)
 
@@ -1180,9 +1184,7 @@ def test_tags_RBAC_allowed(
             graphql_tag_query_empty_response.reset_mock()
 
 
-def test_tags_RBAC_denied(
-    subtests, mocker, query_source_xjoin, graphql_tag_query_empty_response, api_get, enable_rbac
-):
+def test_tags_RBAC_denied(subtests, mocker, graphql_tag_query_empty_response, api_get, enable_rbac):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in READ_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -1198,77 +1200,7 @@ def test_tags_RBAC_denied(
             graphql_tag_query_empty_response.assert_not_called()
 
 
-def test_bulk_source_header_set_to_db(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
-    assert response_status == 200
-    graphql_query_with_response.assert_not_called()
-
-
-def test_bulk_source_header_set_to_xjoin(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
-    assert response_status == 200
-    graphql_query_with_response.assert_called_once()
-
-
-def test_referer_header_set_to_beta(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
-    )
-    assert response_status == 200
-    graphql_query_with_response.assert_not_called()
-
-
-def test_referer_not_beta(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
-    )
-    assert response_status == 200
-    graphql_query_with_response.assert_called_once()
-
-
-def test_no_header_env_var_xjoin(query_source_xjoin_beta_db, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL)
-    assert response_status == 200
-    graphql_query_with_response.assert_called_once()
-
-
-def test_bulk_source_header_set_to_db_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "db"})
-    assert response_status == 200
-    graphql_query_with_response.assert_not_called()
-
-
-def test_bulk_source_header_set_to_xjoin_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL, extra_headers={"x-rh-cloud-bulk-query-source": "xjoin"})
-    assert response_status == 200
-    graphql_query_with_response.assert_called_once()
-
-
-def test_referer_not_beta_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/something"}
-    )
-    assert response_status == 200
-    graphql_query_with_response.assert_not_called()
-
-
-def test_referer_header_set_to_beta_2(query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(
-        HOST_URL, extra_headers={"referer": "http://www.cloud.redhat.com/beta/something"}
-    )
-    assert response_status == 200
-    graphql_query_with_response.assert_called_once()
-
-
-def test_no_header_env_var_db(inventory_config, query_source_db_beta_xjoin, graphql_query_with_response, api_get):
-    response_status, response_data = api_get(HOST_URL)
-    assert response_status == 200
-    graphql_query_with_response.assert_not_called()
-
-
-def test_system_profile_sap_system_endpoint(
-    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
-):
+def test_system_profile_sap_system_endpoint(mocker, graphql_system_profile_sap_system_query_empty_response, api_get):
     url = build_system_profile_sap_system_url()
 
     response_status, response_data = api_get(url)
@@ -1299,7 +1231,7 @@ def test_system_profile_sap_system_endpoint(
     ),
 )
 def test_system_profile_sap_system_endpoint_tags(
-    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+    tags, query_param, mocker, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
     url = build_system_profile_sap_system_url(query=f"?tags={quote(query_param)}")
 
@@ -1324,7 +1256,7 @@ def test_system_profile_sap_system_endpoint_tags(
     ),
 )
 def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
+    mocker, graphql_system_profile_sap_system_query_empty_response, api_get, reporters
 ):
     url = build_system_profile_sap_system_url(
         query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
@@ -1348,7 +1280,7 @@ def test_system_profile_sap_system_endpoint_registered_with_per_reporter(
 
 
 def test_system_profile_sap_system_endpoint_pagination(
-    mocker, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+    mocker, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
     page, per_page = 1, 20
     url = build_system_profile_sap_system_url(query=f"?page={page}&per_page={per_page}")
@@ -1361,7 +1293,7 @@ def test_system_profile_sap_system_endpoint_pagination(
 
 
 def test_system_profile_sap_sids_endpoint_pagination(
-    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+    mocker, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
     page, per_page = 1, 85
     url = build_system_profile_sap_sids_url(query=f"?page={page}&per_page={per_page}")
@@ -1373,9 +1305,7 @@ def test_system_profile_sap_sids_endpoint_pagination(
     )
 
 
-def test_system_profile_sap_sids_endpoint(
-    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
-):
+def test_system_profile_sap_sids_endpoint(mocker, graphql_system_profile_sap_sids_query_empty_response, api_get):
     url = build_system_profile_sap_sids_url()
 
     response_status, response_data = api_get(url)
@@ -1406,7 +1336,7 @@ def test_system_profile_sap_sids_endpoint(
     ),
 )
 def test_system_profile_sap_sids_endpoint_tags(
-    tags, query_param, mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+    tags, query_param, mocker, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
     url = build_system_profile_sap_sids_url(query=f"?tags={quote(query_param)}")
 
@@ -1431,7 +1361,7 @@ def test_system_profile_sap_sids_endpoint_tags(
     ),
 )
 def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
-    mocker, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get, reporters
+    mocker, graphql_system_profile_sap_sids_query_empty_response, api_get, reporters
 ):
     url = build_system_profile_sap_sids_url(
         query="?" + "&".join([f"registered_with={reporter}" for reporter in reporters])
@@ -1457,9 +1387,7 @@ def test_system_profile_sap_sids_endpoint_registered_with_per_reporter(
     )
 
 
-def test_query_hosts_filter_spf_sap_system(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_filter_spf_sap_system(mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
     values = ("true", "false", "nil", "not_nil")
     queries = (
@@ -1515,7 +1443,7 @@ def test_query_tags_filter_spf_sap_system(
 
 
 def test_query_system_profile_sap_system_filter_spf_sap_sids(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_empty_response, api_get
+    mocker, subtests, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
     filter_paths = ("[system_profile][sap_system]", "[system_profile][sap_system][eq]")
     values = ("true", "false", "nil", "not_nil")
@@ -1543,7 +1471,7 @@ def test_query_system_profile_sap_system_filter_spf_sap_sids(
                 )
 
 
-def test_query_hosts_filter_spf_sap_sids(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_hosts_filter_spf_sap_sids(mocker, subtests, graphql_query_empty_response, api_get):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
     queries = (
@@ -1598,7 +1526,7 @@ def test_query_tags_filter_spf_sap_sids(
 
 
 def test_query_system_profile_sap_sids_filter_spf_sap_sids(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_empty_response, api_get
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
     value_sets = (("XQC",), ("ABC", "A12"), ("M80", "BEN"))
@@ -1629,7 +1557,7 @@ def test_query_system_profile_sap_sids_filter_spf_sap_sids(
 
 
 def test_query_system_profile_sap_sids_with_search(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+    mocker, subtests, graphql_system_profile_sap_sids_query_with_response, api_get
 ):
     url = build_system_profile_sap_sids_url(query="?search=C2")
 
@@ -1646,7 +1574,7 @@ def test_query_system_profile_sap_sids_with_search(
 
 # system_profile is_marketplace tests
 def test_query_hosts_filter_spf_is_marketplace(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = ("[system_profile][is_marketplace]", "[system_profile][is_marketplace][eq]")
     values = ("true", "false", "nil", "not_nil")
@@ -1683,7 +1611,7 @@ def test_query_hosts_filter_spf_is_marketplace(
 
 # system_profile rhc_client_id tests
 def test_query_hosts_filter_spf_rhc_client_id(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = ("[system_profile][rhc_client_id]", "[system_profile][rhc_client_id][eq]")
     values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "nil", "not_nil")
@@ -1718,7 +1646,7 @@ def test_query_hosts_filter_spf_rhc_client_id(
 
 
 def test_query_hosts_filter_spf_rhc_client_id_multiple(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     query_params = (
         "?filter[system_profile][rhc_client_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
@@ -1762,7 +1690,7 @@ def test_query_hosts_filter_spf_rhc_client_id_multiple(
     "field,value", (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("fqdn", "test.server.redhat.com"))
 )
 def test_xjoin_search_query_using_hostfilter(
-    mocker, query_source_xjoin, field, value, graphql_query_empty_response, patch_xjoin_post, api_delete_filtered_hosts
+    mocker, field, value, graphql_query_empty_response, patch_xjoin_post, api_delete_filtered_hosts
 ):
     response = {"data": XJOIN_HOSTS_RESPONSE_FOR_FILTERING}
 
@@ -1778,7 +1706,7 @@ def test_xjoin_search_query_using_hostfilter(
 
 
 def test_xjoin_search_query_using_hostfilter_display_name(
-    mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+    mocker, graphql_query_empty_response, api_delete_filtered_hosts
 ):
     query_params = {"display_name": "my awesome host uwu"}
 
@@ -1811,7 +1739,7 @@ def test_xjoin_search_query_using_hostfilter_display_name(
     ),
 )
 def test_xjoin_search_using_hostfilters_tags(
-    tags, query_param, mocker, query_source_xjoin, graphql_query_empty_response, api_delete_filtered_hosts
+    tags, query_param, mocker, graphql_query_empty_response, api_delete_filtered_hosts
 ):
     query_params = {"tags": query_param}
     api_delete_filtered_hosts(query_params)
@@ -1834,7 +1762,7 @@ def test_xjoin_search_using_hostfilters_tags(
     ),
 )
 def test_xjoin_search_query_using_hostfilter_provider(
-    mocker, query_source_xjoin, graphql_query_empty_response, provider, api_delete_filtered_hosts
+    mocker, graphql_query_empty_response, provider, api_delete_filtered_hosts
 ):
     query_params = {"provider_type": provider["type"], "provider_id": provider["id"]}
     api_delete_filtered_hosts(query_params)
@@ -1849,9 +1777,7 @@ def test_xjoin_search_query_using_hostfilter_provider(
     )
 
 
-def test_spf_rhc_client_invalid_field_value(
-    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_spf_rhc_client_invalid_field_value(subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     query_params = (
         "?filter[system_profile][rhc_client_id][foo]=basicid",
         "?filter[system_profile][rhc_client_id][bar][]=basicid",
@@ -1867,9 +1793,7 @@ def test_spf_rhc_client_invalid_field_value(
 
 
 # system_profile owner_id tests
-def test_query_hosts_filter_spf_owner_id(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_filter_spf_owner_id(mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     filter_paths = ("[system_profile][owner_id]", "[system_profile][owner_id][eq]")
     values = ("8dd97934-8ce4-11eb-8dcd-0242ac130003", "nil", "not_nil")
     queries = (
@@ -1903,7 +1827,7 @@ def test_query_hosts_filter_spf_owner_id(
 
 
 def test_query_hosts_filter_spf_owner_id_multiple(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     query_params = (
         "?filter[system_profile][owner_id][eq][]=8dd97934-8ce4-11eb-8dcd-0242ac130003",
@@ -1943,9 +1867,7 @@ def test_query_hosts_filter_spf_owner_id_multiple(
             graphql_query_empty_response.reset_mock()
 
 
-def test_spf_owner_id_invalid_field_value(
-    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_spf_owner_id_invalid_field_value(subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     query_params = (
         "?filter[system_profile][owner_id][foo]=issasecret",
         "?filter[system_profile][owner_id][bar][]=issasecret",
@@ -1961,9 +1883,7 @@ def test_spf_owner_id_invalid_field_value(
 
 
 # system_profile host_type tests
-def test_query_hosts_filter_spf_host_type(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_query_hosts_filter_spf_host_type(mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     filter_paths = ("[system_profile][host_type]", "[system_profile][host_type][eq]")
     values = ("edge", "nil", "not_nil")
     queries = (
@@ -1997,7 +1917,7 @@ def test_query_hosts_filter_spf_host_type(
 
 
 def test_query_hosts_filter_spf_host_type_multiple(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     query_params = (
         "?filter[system_profile][host_type][eq][]=random-type",
@@ -2031,9 +1951,7 @@ def test_query_hosts_filter_spf_host_type_multiple(
             graphql_query_empty_response.reset_mock()
 
 
-def test_spf_host_type_invalid_field_value(
-    subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
-):
+def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     query_params = (
         "?filter[system_profile][host_type][foo]=what",
         "?filter[system_profile][host_type][bar][]=barbar",
@@ -2050,7 +1968,7 @@ def test_spf_host_type_invalid_field_value(
 
 # system_profile insights_client_version tests
 def test_query_hosts_filter_spf_insights_client_version(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = ("[system_profile][insights_client_version]", "[system_profile][insights_client_version][eq]")
     values = ("3.0.6-2.el7_6", "3.*", "nil", "not_nil")
@@ -2087,7 +2005,7 @@ def test_query_hosts_filter_spf_insights_client_version(
 
 # system_profile operating_system tests
 def test_query_hosts_filter_spf_operating_system(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     http_queries = (
         "filter[system_profile][operating_system][RHEL][version][gte]=7.1",
@@ -2215,7 +2133,7 @@ def test_query_hosts_filter_spf_operating_system(
 
 # system_profile operating_system tests
 def test_query_hosts_filter_spf_operating_system_exception_handling(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, patch_xjoin_post, api_get
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     http_queries = (
         "filter[system_profile][operating_system][RHEL][version][fake_op]=7.1",
@@ -2236,7 +2154,7 @@ def test_query_hosts_filter_spf_operating_system_exception_handling(
 
 
 # system_profile ansible filtering tests
-def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_hosts_filter_spf_ansible(mocker, subtests, graphql_query_empty_response, api_get):
     http_queries = (
         "filter[system_profile][ansible][controller_version]=7.1",
         "filter[system_profile][ansible][hub_version]=8.0.*",
@@ -2307,9 +2225,7 @@ def test_query_hosts_filter_spf_ansible(mocker, subtests, query_source_xjoin, gr
 
 
 # system_profile deep object filtering
-def test_query_hosts_filter_deep_objects(
-    mocker, subtests, flask_app, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_hosts_filter_deep_objects(mocker, subtests, flask_app, graphql_query_empty_response, api_get):
     http_queries = (
         "filter[system_profile][ansible][d0n1][d1n2][name]=foo",
         "filter[system_profile][ansible][d0n1][d1n1][d2n1][name]=bar",
@@ -2352,7 +2268,7 @@ def test_query_hosts_filter_deep_objects(
 
 
 # system_profile ansible failstate tests
-def test_query_hosts_filter_spf_ansible_exception_handling(subtests, query_source_xjoin, api_get):
+def test_query_hosts_filter_spf_ansible_exception_handling(subtests, api_get):
     http_queries = (
         "filter[system_profile][ansible][controller_version][fake_op]=7.1",
         "filter[system_profile][ansible]=7.1",
@@ -2369,7 +2285,7 @@ def test_query_hosts_filter_spf_ansible_exception_handling(subtests, query_sourc
             assert response_data["title"] == "Validation Error"
 
 
-def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_hosts_system_identity(mocker, subtests, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -2390,7 +2306,7 @@ def test_query_hosts_system_identity(mocker, subtests, query_source_xjoin, graph
     )
 
 
-def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphql_tag_query_empty_response, api_get):
+def test_query_tags_system_identity(mocker, subtests, graphql_tag_query_empty_response, api_get):
     url = build_tags_url()
 
     response_status, response_data = api_get(url, SYSTEM_IDENTITY)
@@ -2411,7 +2327,7 @@ def test_query_tags_system_identity(mocker, subtests, query_source_xjoin, graphq
 
 
 def test_query_system_profile_sap_sids_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_sids_query_with_response, api_get
+    mocker, subtests, graphql_system_profile_sap_sids_query_with_response, api_get
 ):
     url = build_system_profile_sap_sids_url()
 
@@ -2427,7 +2343,7 @@ def test_query_system_profile_sap_sids_system_identity(
 
 
 def test_query_system_profile_sap_system_system_identity(
-    mocker, subtests, query_source_xjoin, graphql_system_profile_sap_system_query_with_response, api_get
+    mocker, subtests, graphql_system_profile_sap_system_query_with_response, api_get
 ):
     url = build_system_profile_sap_system_url()
 
@@ -2442,9 +2358,7 @@ def test_query_system_profile_sap_system_system_identity(
     )
 
 
-def test_query_with_owner_id_satellite_identity(
-    mocker, subtests, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_query_with_owner_id_satellite_identity(mocker, subtests, graphql_query_empty_response, api_get):
     url = build_hosts_url()
 
     response_status, response_data = api_get(url, SATELLITE_IDENTITY)
@@ -2552,18 +2466,36 @@ def test_query_with_owner_id_satellite_identity(
     ),
 )
 def test_sp_sparse_xjoin_query_translation(
-    variables, query, mocker, query_source_xjoin, graphql_sparse_system_profile_empty_response, api_get
+    variables, query, mocker, graphql_sparse_system_profile_empty_response, api_get
 ):
     host_one_id, host_two_id = generate_uuid(), generate_uuid()
 
     hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
-    variables["host_ids"] = [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]
+    # Test with user identity first
+    variables["hostFilter"] = [{"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]}]
 
-    response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
+    response_status, _ = api_get(build_system_profile_url(hosts, query=query))
 
     assert response_status == 200
-    graphql_sparse_system_profile_empty_response.assert_called_once_with(SYSTEM_PROFILE_QUERY, variables, mocker.ANY)
+    graphql_sparse_system_profile_empty_response.assert_called_once_with(
+        SYSTEM_PROFILE_SPARSE_QUERY, variables, mocker.ANY
+    )
+
+    graphql_sparse_system_profile_empty_response.reset_mock()
+
+    # Now test with system identity
+    variables["hostFilter"] = [
+        {"OR": [{"id": {"eq": host_one_id}}, {"id": {"eq": host_two_id}}]},
+        {"spf_owner_id": {"eq": SYSTEM_IDENTITY["system"]["cn"]}},
+    ]
+
+    response_status, _ = api_get(build_system_profile_url(hosts, query=query), identity=SYSTEM_IDENTITY)
+
+    assert response_status == 200
+    graphql_sparse_system_profile_empty_response.assert_called_once_with(
+        SYSTEM_PROFILE_SPARSE_QUERY, variables, mocker.ANY
+    )
 
 
 @pytest.mark.parametrize(
@@ -2577,9 +2509,7 @@ def test_sp_sparse_xjoin_query_translation(
         ),
     ),
 )
-def test_query_variables_system_profile(
-    query, fields, mocker, query_source_xjoin, graphql_query_empty_response, api_get
-):
+def test_get_hosts_fields_param(query, fields, mocker, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=query)
     response_status, response_data = api_get(url)
 
@@ -2594,6 +2524,40 @@ def test_query_variables_system_profile(
             "offset": mocker.ANY,
             "filter": mocker.ANY,
             "fields": fields,
+        },
+        mocker.ANY,
+    )
+
+
+@pytest.mark.parametrize("num_hosts", (1, 3, 5))
+def test_get_hosts_by_ids(num_hosts, mocker, filtering_datetime_mock, graphql_query_empty_response, api_get):
+    host_id_list = [generate_uuid() for h in range(num_hosts)]
+    url = build_hosts_url(query=f"/{','.join(host_id_list)}")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+    graphql_query_empty_response.assert_called_once_with(
+        HOST_QUERY,
+        {
+            "order_by": mocker.ANY,
+            "order_how": mocker.ANY,
+            "limit": mocker.ANY,
+            "offset": mocker.ANY,
+            "filter": (
+                {
+                    "stale_timestamp": {
+                        "gt": "2019-12-02T10:10:06.754201+00:00",
+                    },
+                    "OR": [
+                        {
+                            "id": {"eq": host_id},
+                        }
+                        for host_id in host_id_list
+                    ],
+                },
+            ),
+            "fields": mocker.ANY,
         },
         mocker.ANY,
     )
@@ -2649,7 +2613,6 @@ def _verify_sap_sids_query(mocker, graphql_system_profile_sap_sids_query_empty_r
 def test_generic_filtering_string(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -2716,12 +2679,7 @@ def test_generic_filtering_string(
 # having both system_profile endpoints creates a mocking issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_string_sap_sids(
-    mocker,
-    subtests,
-    query_source_xjoin,
-    graphql_system_profile_sap_sids_query_empty_response,
-    patch_xjoin_post,
-    api_get,
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = (
         "[system_profile][rhc_client_id]",
@@ -2764,7 +2722,7 @@ def test_generic_filtering_string_sap_sids(
                     graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
 
-def test_generic_filtering_string_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+def test_generic_filtering_string_invalid_values(subtests, patch_xjoin_post, api_get):
     prefixes = (
         "?filter[system_profile][rhc_client_id]",
         "?filter[system_profile][rhc_config_state]",
@@ -2800,7 +2758,6 @@ def test_generic_filtering_string_invalid_values(subtests, query_source_xjoin, p
 def test_generic_filtering_boolean(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -2861,12 +2818,7 @@ def test_generic_filtering_boolean(
 # having both system_profile endpoints creates a moching issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_boolean_sap_sids(
-    mocker,
-    subtests,
-    query_source_xjoin,
-    graphql_system_profile_sap_sids_query_empty_response,
-    patch_xjoin_post,
-    api_get,
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = (
         "[system_profile][sap_system]",
@@ -2909,7 +2861,7 @@ def test_generic_filtering_boolean_sap_sids(
                     graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
 
-def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+def test_generic_filtering_booleans_invalid_values(subtests, patch_xjoin_post, api_get):
     prefixes = (
         "?filter[system_profile][sap_system]",
         "?filter[system_profile][satellite_managed]",
@@ -2949,7 +2901,6 @@ def test_generic_filtering_booleans_invalid_values(subtests, query_source_xjoin,
 def test_generic_filtering_integer_equality(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -3010,7 +2961,6 @@ def test_generic_filtering_integer_equality(
 def test_generic_filtering_integer_range(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -3055,7 +3005,6 @@ def test_generic_filtering_integer_range(
 def test_generic_filtering_timestamp_equality(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -3098,7 +3047,6 @@ def test_generic_filtering_timestamp_equality(
 def test_generic_filtering_timestamp_range(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -3137,12 +3085,7 @@ def test_generic_filtering_timestamp_range(
 # having both system_profile endpoints creates a mocking issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_integer_sap_sids(
-    mocker,
-    subtests,
-    query_source_xjoin,
-    graphql_system_profile_sap_sids_query_empty_response,
-    patch_xjoin_post,
-    api_get,
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = (
         "[system_profile][number_of_cpus]",
@@ -3185,7 +3128,7 @@ def test_generic_filtering_integer_sap_sids(
                     graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
 
-def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+def test_generic_filtering_integer_invalid_values(subtests, patch_xjoin_post, api_get):
     prefixes = (
         "?filter[system_profile][number_of_cpus]",
         "?filter[system_profile][number_of_sockets]",
@@ -3219,7 +3162,7 @@ def test_generic_filtering_integer_invalid_values(subtests, query_source_xjoin, 
                     assert response_data["title"] == "Validation Error"
 
 
-def test_generic_filtering_timestamp_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+def test_generic_filtering_timestamp_invalid_values(subtests, patch_xjoin_post, api_get):
     prefix = "?filter[system_profile][last_boot_time]"
     suffixes = (
         # bad operation
@@ -3252,7 +3195,6 @@ def test_generic_filtering_timestamp_invalid_values(subtests, query_source_xjoin
 def test_generic_filtering_wildcard(
     mocker,
     subtests,
-    query_source_xjoin,
     graphql_query_empty_response,
     graphql_tag_query_empty_response,
     graphql_system_profile_sap_system_query_empty_response,
@@ -3297,12 +3239,7 @@ def test_generic_filtering_wildcard(
 # having both system_profile endpoints creates a moching issue right now.
 # Just going to split one off until I can refactor the whole test suite
 def test_generic_filtering_wildcard_sap_sids(
-    mocker,
-    subtests,
-    query_source_xjoin,
-    graphql_system_profile_sap_sids_query_empty_response,
-    patch_xjoin_post,
-    api_get,
+    mocker, subtests, graphql_system_profile_sap_sids_query_empty_response, patch_xjoin_post, api_get
 ):
     filter_paths = ("[system_profile][insights_client_version]",)
     operations = ("", "[eq]")
@@ -3328,7 +3265,7 @@ def test_generic_filtering_wildcard_sap_sids(
                     graphql_system_profile_sap_sids_query_empty_response.reset_mock()
 
 
-def test_generic_filtering_wildcard_invalid_values(subtests, query_source_xjoin, patch_xjoin_post, api_get):
+def test_generic_filtering_wildcard_invalid_values(subtests, patch_xjoin_post, api_get):
     prefixes = ("?filter[system_profile][insights_client_version]",)
     suffixes = (
         # bad operation
