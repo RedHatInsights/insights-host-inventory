@@ -28,13 +28,13 @@ def init_payload_tracker(config, producer=None):
         _PRODUCER = KafkaProducer(**config.payload_tracker_kafka_producer)
 
 
-def get_payload_tracker(account=None, request_id=None):
+def get_payload_tracker(account=None, org_id=None, request_id=None):
 
     if _CFG.payload_tracker_enabled is False or request_id is None or request_id == _UNKNOWN_REQUEST_ID:
         return NullPayloadTracker()
 
     payload_tracker = KafkaPayloadTracker(
-        _PRODUCER, _CFG.payload_tracker_kafka_topic, _CFG.payload_tracker_service_name, account, request_id
+        _PRODUCER, _CFG.payload_tracker_kafka_topic, _CFG.payload_tracker_service_name, account, org_id, request_id
     )
 
     return payload_tracker
@@ -103,11 +103,12 @@ class NullPayloadTracker(PayloadTracker):
 
 
 class KafkaPayloadTracker(PayloadTracker):
-    def __init__(self, producer, topic, service_name, account, request_id):
+    def __init__(self, producer, topic, service_name, account, org_id, request_id):
         self._producer = producer
         self._topic = topic
         self._service_name = service_name
         self._account = account
+        self._org_id = org_id
         self._request_id = request_id
         self._inventory_id = None
 
@@ -163,6 +164,9 @@ class KafkaPayloadTracker(PayloadTracker):
 
             if self._account:
                 message["account"] = self._account
+
+            if self._org_id:
+                message["org_id"] = self._org_id
 
             if self.inventory_id:
                 message["inventory_id"] = "%s" % (self.inventory_id)

@@ -190,6 +190,16 @@ If you want to encode other JSON documents, you can use the following command:
 echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64 -w0
 ```
 
+### Identity using org_id
+Here in example of identity using "org_id":
+```json
+echo {"identity": {"account_number": "test", "org_id": "00000001", "type": "User", "auth_type": "basic-auth", "user": {"username": "tuser@redhat.com", "email": "tuser@redhat.com", "first_name": "test", "last_name": "user", "is_active": "true", "is_org_admin": "false", "is_internal": "true", "locale": "en_US"}}} | base64
+```
+```
+x-rh-identity:
+eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAidGVzdCIsICJvcmdfaWQiOiAiMDAwMDAwMDEiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7InVzZXJuYW1lIjogInR1c2VyQHJlZGhhdC5jb20iLCAiZW1haWwiOiAidHVzZXJAcmVkaGF0LmNvbSIsICJmaXJzdF9uYW1lIjogInRlc3QiLCAibGFzdF9uYW1lIjogInVzZXIiLCAiaXNfYWN0aXZlIjogInRydWUiLCAiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgImlzX2ludGVybmFsIjogInRydWUiLCAibG9jYWxlIjogImVuX1VTIn19fQ==
+```
+
 ### Identity Enforcement
 
 The Identity provided limits access to specific hosts. For API requests, the user can only access

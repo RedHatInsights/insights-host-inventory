@@ -27,6 +27,7 @@ SYSTEM_IDENTITY = {
 
 USER_IDENTITY = {
     "account_number": "test",
+    "org_id": "3340851",
     "type": "User",
     "auth_type": "basic-auth",
     "user": {"email": "tuser@redhat.com", "first_name": "test"},
@@ -80,6 +81,8 @@ def minimal_host(**values):
     }
     if "account" in values:
         data["account"] = values.get("account")
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
 
     return HostWrapper(data)
 
