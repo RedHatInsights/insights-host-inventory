@@ -164,7 +164,7 @@ def test_get_hosts_registered_with(api_get, value):
 
 
 def test_query_variables_registered_with_using_unknown_reporter(api_get):
-    MSG = "'unknown' is not one of ['insights', 'yupana', 'puptoo', 'rhsm-conduit', 'cloud-connector']"
+    MSG = "'unknown' is not one of ["
     url = build_hosts_url(query="?registered_with=unknown")
 
     response_status, response_data = api_get(url)

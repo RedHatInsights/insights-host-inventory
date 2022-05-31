@@ -715,6 +715,10 @@ components:
             - puptoo
             - rhsm-conduit
             - cloud-connector
+            - "!yupana"
+            - "!puptoo"
+            - "!rhsm-conduit"
+            - "!cloud-connector"
     filter_param:
       in: query
       name: filter
