@@ -4,7 +4,7 @@ DEFAULT_TOPIC = "platform.payload-status"
 
 
 def build_expected_tracker_message(
-    status="received", status_msg=None, request_id="1357924680", account=None, datetime_mock=None
+    status="received", status_msg=None, request_id="1357924680", account=None, org_id=None, datetime_mock=None
 ):
     expected_msg = {
         "service": "inventory",
@@ -18,6 +18,9 @@ def build_expected_tracker_message(
 
     if account:
         expected_msg["account"] = account
+
+    if org_id:
+        expected_msg["org_id"] = org_id
 
     return expected_msg
 
