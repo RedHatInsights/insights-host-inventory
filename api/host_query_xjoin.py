@@ -93,7 +93,11 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
         "filter": all_filters,
         "fields": system_profile_fields,
     }
-    response = graphql_query(QUERY, variables, log_get_host_list_failed)["hosts"]
+    response = graphql_query(QUERY, variables, log_get_host_list_failed)
+    if response is None:
+        return iter([]), 0, additional_fields
+
+    response = response["hosts"]
 
     total = response["meta"]["total"]
     check_pagination(offset, total)
