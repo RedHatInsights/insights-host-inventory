@@ -1526,3 +1526,25 @@ def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+
+
+def test_add_host_missing_org_id_error(mocker, mq_create_or_update_host, enable_org_id_translation):
+    """
+    Tests adding a host that's missing org_id.
+    Enables org_id translation, but patches the translator's response.
+    """
+    # Mock the post() functionality
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
+    # Bypass the session mounting
+    mocker.patch("lib.middleware.Session.mount")
+    account_number = SYSTEM_IDENTITY["account_number"]
+
+    session_post_mock.side_effect = Exception("Something went wrong with the request!")
+
+    host = minimal_host(
+        account=account_number,
+        system_profile={"owner_id": OWNER_ID},
+    )
+
+    with pytest.raises(InventoryException):
+        mq_create_or_update_host(host, return_all_data=True)
