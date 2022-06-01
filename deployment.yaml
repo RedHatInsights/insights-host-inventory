@@ -731,7 +731,7 @@ parameters:
 - description: disable RBAC middleware
   name: BYPASS_RBAC
   value: 'false'
-- description: disable account -> org_id translation, and use dummy data instead
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
   name: BYPASS_TENANT_TRANSLATION
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS

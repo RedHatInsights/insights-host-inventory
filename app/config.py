@@ -278,7 +278,7 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
             self.logger.info(
-                "Populating missing org_ids on incoming hosts with dummy data: %s", self.bypass_tenant_translation
+                "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation
             )
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
