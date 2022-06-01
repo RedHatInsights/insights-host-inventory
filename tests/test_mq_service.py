@@ -26,6 +26,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_encoded_idstr
 from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import MockResponseObject
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -1502,13 +1503,16 @@ def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id
     Tests adding a host that's missing org_id.
     Enables org_id translation, but patches the translator's response.
     """
-    # We don't actually need Session.post to return a value; we just don't want it to make an actual HTTP request.
-    mocker.patch("lib.middleware.Session.post")
-    tenant_translator_post_mock = mocker.patch("lib.middleware.translator_response.json")
-
+    # Mock the post() functionality
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
+    # Bypass the session mounting
+    mocker.patch("lib.middleware.Session.mount")
     account_number = SYSTEM_IDENTITY["account_number"]
 
-    tenant_translator_post_mock.return_value = {str(account_number): "test-org-id"}
+    mock_response = MockResponseObject()
+    mock_response.content = json.dumps({str(account_number): "testorgid"})
+
+    session_post_mock.side_effect = mock_response
 
     host = minimal_host(
         account=account_number,
@@ -1517,7 +1521,7 @@ def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id
 
     expected_results = {"host": {**host.data(), "org_id": "testorgid"}}
 
-    host_keys_to_check = ["display_name", "insights_id", "account", "org_id"]
+    host_keys_to_check = ["account", "org_id"]
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
