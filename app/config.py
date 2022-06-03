@@ -28,9 +28,13 @@ class Config:
             self._db_ssl_cert = cfg.rds_ca()
 
         self.rbac_endpoint = ""
+        self.tenant_translator_url = ""
         for endpoint in cfg.endpoints:
             if endpoint.app == "rbac":
                 self.rbac_endpoint = f"http://{endpoint.hostname}:{endpoint.port}"
+                break
+            elif endpoint.app == "gateway":
+                self.tenant_translator_url = f"http://{endpoint.hostname}:{endpoint.port}/internal/orgIds"
                 break
 
         broker_cfg = cfg.kafka.brokers[0]
@@ -67,6 +71,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL", "http://localhost:8892/internal/orgIds")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
@@ -107,7 +112,6 @@ class Config:
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
-        self.tenant_translator_url = os.environ.get("TENANT_TRANSLATOR_URL")
         self.bypass_tenant_translation = os.environ.get("BYPASS_TENANT_TRANSLATION", "false").lower() == "true"
 
         self.host_ingress_consumer_group = os.environ.get("KAFKA_HOST_INGRESS_GROUP", "inventory-mq")

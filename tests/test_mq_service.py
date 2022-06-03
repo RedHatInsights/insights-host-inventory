@@ -1503,15 +1503,12 @@ def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id
     Tests adding a host that's missing org_id.
     Enables org_id translation, but patches the translator's response.
     """
-    # Mock the post() functionality
-    session_post_mock = mocker.patch("lib.middleware.Session.post")
-    # Bypass the session mounting
-    mocker.patch("lib.middleware.Session.mount")
     account_number = SYSTEM_IDENTITY["account_number"]
 
+    # Mock the post() functionality so it returns the expected response format
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
     mock_response = MockResponseObject()
     mock_response.content = json.dumps({str(account_number): "testorgid"})
-
     session_post_mock.side_effect = mock_response
 
     host = minimal_host(
@@ -1533,12 +1530,10 @@ def test_add_host_missing_org_id_error(mocker, mq_create_or_update_host, enable_
     Tests adding a host that's missing org_id.
     Enables org_id translation, but patches the translator's response.
     """
-    # Mock the post() functionality
-    session_post_mock = mocker.patch("lib.middleware.Session.post")
-    # Bypass the session mounting
-    mocker.patch("lib.middleware.Session.mount")
     account_number = SYSTEM_IDENTITY["account_number"]
 
+    # Mock the post() so it generates an error
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
     session_post_mock.side_effect = Exception("Something went wrong with the request!")
 
     host = minimal_host(
