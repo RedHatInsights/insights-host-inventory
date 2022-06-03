@@ -18,7 +18,7 @@ run_inv_web_service:
 	INVENTORY_LOG_LEVEL=DEBUG BYPASS_RBAC=true BYPASS_TENANT_TRANSLATION=true gunicorn -b :8080 run
 
 run_inv_mq_service:
-	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG python inv_mq_service.py
+	KAFKA_EVENT_TOPIC=platform.inventory.events PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service INVENTORY_LOG_LEVEL=DEBUG BYPASS_TENANT_TRANSLATION=true python inv_mq_service.py
 
 run_inv_mq_service_test_producer:
 	python utils/kafka_producer.py
