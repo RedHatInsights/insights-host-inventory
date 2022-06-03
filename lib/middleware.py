@@ -129,4 +129,4 @@ def translate_account_to_org_id(account: str) -> str:
 
     resp_data = translator_response.json()
 
-    return resp_data[account]
+    return resp_data.get(account)
