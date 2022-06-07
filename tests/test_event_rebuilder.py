@@ -35,7 +35,12 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert event_producer_mock.write_event.call_count == 0
+    # Event rebuilder should just write 4 "updated" events
+    # It should not write any "delete" events since none are missing
+    assert event_producer_mock.write_event.call_count == 4
+    for i in range(4):
+        produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
+        assert produced_event["type"] == "updated"
 
 
 @pytest.mark.parametrize("num_existing", (0, 3, 4))
@@ -73,9 +78,15 @@ def test_creates_delete_event_when_missing_from_db(
         shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
     )
 
-    assert event_producer_mock.write_event.call_count == num_missing
+    # The event producer should write one "delete" event for each missing host,
+    # and one "updated" event for each host that's present.
+    assert event_producer_mock.write_event.call_count == (num_missing + num_existing)
 
     for i in range(num_missing):
         produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
         assert produced_event["type"] == "delete"
         assert produced_event["id"] in missing_hosts_id_list
+
+    for i in range(num_missing, num_missing + num_existing):
+        produced_event = json.loads(event_producer_mock.write_event.call_args_list[i][0][0])
+        assert produced_event["type"] == "updated"

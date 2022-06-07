@@ -8,6 +8,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
 from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
@@ -31,6 +32,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
+from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -164,7 +166,7 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def sync_event_message(message, session, event_producer):
+def sync_deleted_event_message(message, session, event_producer):
     if message["type"] != EventType.delete.name:
         query = session.query(Host).filter(
             (Host.account == message["host"]["account"]) & (Host.id == UUID(message["host"]["id"]))
@@ -179,6 +181,24 @@ def sync_event_message(message, session, event_producer):
             event_producer.write_event(event, host.id, headers, wait=True)
 
     return
+
+
+def send_update_messages_for_existing_hosts(session: Session, event_producer: EventProducer):
+    total_updates_produced = 0
+
+    # Get the full, unfiltered list of hosts from the DB
+    query = session.query(Host)
+
+    # For each host in the DB, produce an "updated" message.
+    # This is run in batches of 1000 to reduce memory consumption.
+    for host in query.yield_per(1000):
+        event = build_event(EventType.updated, host)
+        insights_id = host.canonical_facts.get("insights_id")
+        headers = message_headers(EventType.updated, insights_id)
+        event_producer.write_event(event, host.id, headers, wait=True)
+        total_updates_produced += 1
+
+    return total_updates_produced
 
 
 def update_system_profile(host_data, platform_metadata):
