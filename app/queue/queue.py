@@ -166,7 +166,7 @@ def parse_operation_message(message):
     return parsed_operation
 
 
-def sync_deleted_event_message(message, session, event_producer):
+def sync_event_message(message, session, event_producer):
     if message["type"] != EventType.delete.name:
         query = session.query(Host).filter(
             (Host.account == message["host"]["account"]) & (Host.id == UUID(message["host"]["id"]))

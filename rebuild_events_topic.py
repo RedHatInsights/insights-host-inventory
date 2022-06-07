@@ -16,7 +16,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
 from app.queue.queue import send_update_messages_for_existing_hosts
-from app.queue.queue import sync_deleted_event_message
+from app.queue.queue import sync_event_message
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
@@ -58,7 +58,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
             for message in messages:
                 logger.debug("Message received")
                 try:
-                    sync_deleted_event_message(json.loads(message.value), session, event_producer)
+                    sync_event_message(json.loads(message.value), session, event_producer)
                     # TODO: Metrics
                     # metrics.ingress_message_handler_success.inc()
                 except OperationalError as oe:
