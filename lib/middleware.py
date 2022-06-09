@@ -111,7 +111,7 @@ def translate_account_to_org_id(account: str) -> str:
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(tenant_translator_url(), HTTPAdapter(max_retries=retry_config))
-    body = dumps({"body": "[{" + account + "}]"})
+    body = dumps({"body": f"[{account}]"})
 
     try:
         with outbound_http_metric.time():
