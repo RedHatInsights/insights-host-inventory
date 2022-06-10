@@ -64,10 +64,10 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
                     # If neither the existing host nor input host has an org_id,
                     # populate it on the input_host using the 3scale endpoint.
                     input_host.org_id = translate_account_to_org_id(input_host.account)
-                else:
-                    # If the existing host has an org_id but the input host does not,
-                    # set the input host's org_id to match the existing host.
-                    input_host.org_id = existing_host.org_id
+            elif not input_host.org_id:
+                # If the existing host has an org_id but the input host does not,
+                # set the input host's org_id to match the existing host.
+                input_host.org_id = existing_host.org_id
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
             # If we're making a new host and the input host has no org_id,
