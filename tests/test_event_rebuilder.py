@@ -45,9 +45,7 @@ def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
 
 @pytest.mark.parametrize("num_existing", (0, 3, 4))
 @pytest.mark.parametrize("num_missing", (1, 3, 5))
-def test_creates_delete_event_when_missing_from_db(
-    mocker, db_create_host, inventory_config, num_existing, num_missing
-):
+def test_creates_delete_and_update_events(mocker, db_create_host, inventory_config, num_existing, num_missing):
     event_producer_mock = mock.Mock()
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
     event_list = []

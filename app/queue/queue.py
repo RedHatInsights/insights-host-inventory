@@ -39,6 +39,7 @@ from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
+from app.serialization import serialize_host
 from lib import host_repository
 
 
@@ -192,7 +193,8 @@ def send_update_messages_for_existing_hosts(session: Session, event_producer: Ev
     # For each host in the DB, produce an "updated" message.
     # This is run in batches of 1000 to reduce memory consumption.
     for host in query.yield_per(1000):
-        event = build_event(EventType.updated, host)
+        serialized_host = serialize_host(host, Timestamps.from_config(inventory_config()), EGRESS_HOST_FIELDS)
+        event = build_event(EventType.updated, serialized_host)
         insights_id = host.canonical_facts.get("insights_id")
         headers = message_headers(EventType.updated, insights_id)
         event_producer.write_event(event, host.id, headers, wait=True)
