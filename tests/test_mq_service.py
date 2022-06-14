@@ -227,14 +227,14 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     assert event["platform_metadata"] == metadata
 
 
-def test_add_org_id_to_existing_host(mq_create_or_update_host, db_get_host):
+def test_add_org_id_to_existing_host(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
     expected_fqdn = "d44533.foo.redhat.co"
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id, fqdn=expected_fqdn
     )
 
-    created_key, created_event, created_headers = mq_create_or_update_host(host, return_all_data=True)
+    created_key, created_event, _ = mq_create_or_update_host(host, return_all_data=True)
 
     assert created_event["host"]["account"] == SYSTEM_IDENTITY["account_number"]
 
@@ -252,7 +252,7 @@ def test_add_org_id_to_existing_host(mq_create_or_update_host, db_get_host):
         fqdn=expected_fqdn,
     )
 
-    updated_key, updated_event, updated_headers = mq_create_or_update_host(
+    updated_key, updated_event, _ = mq_create_or_update_host(
         host, platform_metadata=platform_metadata, return_all_data=True
     )
     assert updated_key == created_key
@@ -1498,12 +1498,15 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
 
 
-def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id_translation):
+def test_add_host_missing_org_id_translation(mocker, mq_create_or_update_host, db_get_host, enable_org_id_translation):
     """
-    Tests adding a host that's missing org_id.
     Enables org_id translation, but patches the translator's response.
+    Tests adding a host that's missing org_id.
+    Next, it tests that if that host is updated with a missing org_id,
+    it does not make a request to the tenant-translator.
     """
     account_number = SYSTEM_IDENTITY["account_number"]
+    insights_id = generate_uuid()
 
     # Mock the post() functionality so it returns the expected response format
     session_post_mock = mocker.patch("lib.middleware.Session.post")
@@ -1513,16 +1516,56 @@ def test_add_host_missing_org_id(mocker, mq_create_or_update_host, enable_org_id
 
     host = minimal_host(
         account=account_number,
+        insights_id=insights_id,
         system_profile={"owner_id": OWNER_ID},
     )
 
-    expected_results = {"host": {**host.data(), "org_id": "testorgid"}}
+    # Verify that the newly created host had its org_id correctly set
+    created_host = mq_create_or_update_host(host)
+    session_post_mock.assert_called_once()
+    assert created_host.org_id == "testorgid"
 
-    host_keys_to_check = ["account", "org_id"]
+    # Since this host now has an org_id, it should not send a tenant-translator
+    # request if the input host is missing org_id.
+    session_post_mock.reset_mock()
+    updated_host = mq_create_or_update_host(host)
+    session_post_mock.assert_not_called()
+    assert updated_host.org_id == "testorgid"
 
-    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
+def test_update_host_missing_org_id_on_both(mocker, mq_create_or_update_host, db_get_host, enable_org_id_translation):
+    """
+    Enables org_id translation, but patches the translator's response.
+    Tests updating an existing host, but neither it nor the input host has an org_id.
+    """
+    account_number = SYSTEM_IDENTITY["account_number"]
+    insights_id = generate_uuid()
+
+    # Mock the post() functionality so it returns the expected response format
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
+    mock_response = MockResponseObject()
+    mock_response.content = json.dumps({str(account_number): None})
+    session_post_mock.side_effect = mock_response
+
+    host = minimal_host(
+        account=account_number,
+        insights_id=insights_id,
+        system_profile={"owner_id": OWNER_ID},
+    )
+
+    # Verify that the newly created host doesn't have an org_id
+    created_host = mq_create_or_update_host(host)
+    assert created_host.org_id is None
+
+    # Since this host now has an org_id, it should not send a tenant-translator
+    # request if the input host is missing org_id.
+    session_post_mock.reset_mock()
+    mock_response.content = json.dumps({str(account_number): "testorgid"})
+    session_post_mock.side_effect = mock_response
+
+    updated_host = mq_create_or_update_host(host)
+    session_post_mock.assert_called_once()
+    assert updated_host.org_id == "testorgid"
 
 
 def test_add_host_missing_org_id_error(mocker, mq_create_or_update_host, enable_org_id_translation):

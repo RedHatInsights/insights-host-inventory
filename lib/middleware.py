@@ -1,5 +1,4 @@
 from functools import wraps
-from json import dumps
 
 from flask import abort
 from flask import g
@@ -111,12 +110,11 @@ def translate_account_to_org_id(account: str) -> str:
     request_session = Session()
     retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(tenant_translator_url(), HTTPAdapter(max_retries=retry_config))
-    body = dumps({"body": "[{" + account + "}]"})
 
     try:
         with outbound_http_metric.time():
             translator_response = request_session.post(
-                url=tenant_translator_url(), timeout=inventory_config().rbac_timeout, data=body
+                url=tenant_translator_url(), timeout=inventory_config().rbac_timeout, json=[account]
             )
     except Exception as e:
         tenant_translator_failure(logger, e)
