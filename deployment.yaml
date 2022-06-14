@@ -143,6 +143,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -208,6 +212,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -267,6 +275,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
@@ -716,8 +728,11 @@ parameters:
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer
-- description: activate RBAC middleware
+- description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
+  name: BYPASS_TENANT_TRANSLATION
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: '1'
@@ -765,6 +780,10 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+- name: TENANT_TRANSLATOR_HOST
+  value: 'apicast.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
