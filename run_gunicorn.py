@@ -13,12 +13,13 @@ LISTEN_PORT = getenv("LISTEN_PORT", 8080)
 @contextmanager
 def prometheus_temp_dir():
     """
-    Creates a new temporary folder and sets it to the Prometheus’ environment variable.
+    Creates a new temporary folder and sets it to the Prometheus' environment variable.
     """
     with TemporaryDirectory() as temp_dir:
         orig = getenv(PROMETHEUS_ENV_VAR)
         putenv(PROMETHEUS_ENV_VAR, temp_dir)
         putenv("BYPASS_RBAC", "true")
+        putenv("BYPASS_TENANT_TRANSLATION", "true")
         try:
             yield
         finally:

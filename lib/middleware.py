@@ -16,8 +16,10 @@ from app import REQUEST_ID_HEADER
 from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.exceptions import InventoryException
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
+from app.instrumentation import tenant_translator_failure
 from app.logging import get_logger
 
 
@@ -32,6 +34,10 @@ outbound_http_metric = outbound_http_response_time.labels("rbac")
 
 def rbac_url():
     return inventory_config().rbac_endpoint + ROUTE
+
+
+def tenant_translator_url() -> str:
+    return inventory_config().tenant_translator_url
 
 
 def get_rbac_permissions():
@@ -94,3 +100,31 @@ def rbac(required_permission):
         return modified_func
 
     return other_func
+
+
+def translate_account_to_org_id(account: str) -> str:
+    # If translation is bypassed, set the org_id to None
+    if inventory_config().bypass_tenant_translation:
+        return None
+
+    request_session = Session()
+    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    request_session.mount(tenant_translator_url(), HTTPAdapter(max_retries=retry_config))
+
+    try:
+        with outbound_http_metric.time():
+            translator_response = request_session.post(
+                url=tenant_translator_url(), timeout=inventory_config().rbac_timeout, json=[account]
+            )
+    except Exception as e:
+        tenant_translator_failure(logger, e)
+        raise InventoryException(
+            title="Network Error",
+            detail="Failed to reach 3scale tenant translator endpoint; request cannot be fulfilled",
+        )
+    finally:
+        request_session.close()
+
+    resp_data = translator_response.json()
+
+    return resp_data.get(account)
