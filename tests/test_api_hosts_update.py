@@ -303,7 +303,7 @@ def test_add_facts_without_fact_dict(api_patch, db_create_host):
     assert_error_response(response_data, expected_status=400, expected_detail="Request body is not valid JSON")
 
 
-def test_add_facts_to_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_patch):
+def test_add_facts_to_multiple_hosts(event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_patch):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
@@ -318,7 +318,9 @@ def test_add_facts_to_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
 
 
-def test_add_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db_get_hosts, api_patch):
+def test_add_facts_to_multiple_hosts_with_branch_id(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_patch
+):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
@@ -343,7 +345,9 @@ def test_add_facts_to_multiple_hosts_including_nonexistent_host(db_create_multip
     assert_response_status(response_status, expected_status=400)
 
 
-def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(db_create_multiple_hosts, db_get_hosts, api_patch):
+def test_add_facts_to_multiple_hosts_overwrite_empty_key_value_pair(
+    event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_patch
+):
     facts = {DB_FACTS_NAMESPACE: {}}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": facts})
