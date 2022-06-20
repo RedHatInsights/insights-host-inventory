@@ -453,7 +453,6 @@ paths:
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/searchParam'
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -697,7 +696,7 @@ components:
       in: query
       name: search
       required: false
-      description: Only include tags that match the given search string. The value is matched against namespace, key and value.
+      description: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
       schema:
         type: string
     registered_with:
