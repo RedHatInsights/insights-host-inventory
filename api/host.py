@@ -166,7 +166,7 @@ def delete_hosts_by_filter(
         flask.abort(503)
 
     try:
-        delete_count = _delete_host_list(ids_list) if len(ids_list) else 0
+        delete_count = _delete_host_list(ids_list) if ids_list else 0
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
