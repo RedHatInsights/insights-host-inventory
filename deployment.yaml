@@ -26,8 +26,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         command:
         - gunicorn
-        - --workers=4
-        - --threads=8
+        - --workers=1
+        - --threads=2
         - --worker-tmp-dir=/gunicorn
         - -c
         - gunicorn.conf.py
