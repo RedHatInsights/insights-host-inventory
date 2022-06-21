@@ -558,6 +558,12 @@ objects:
           requests:
             cpu: ${CPU_REQUEST}
             memory: ${MEMORY_REQUEST}
+
+    # This job populates the org_id field on all hosts that are missing a value for it.
+    # After executing this job, the host-synchronizer should be run to sync Cyndi DBs.
+    # After all hosts have been updated in Stage and Prod, we can remove this job.
+    # Documentation for this job can be found here:
+    # https://github.com/RedHatInsights/tenant-utils/blob/main/cmd/org-id-column-populator/README.md
     - name: org-id-populator
       podSpec:
         image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
