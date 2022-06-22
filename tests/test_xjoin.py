@@ -1974,7 +1974,7 @@ def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_respons
             assert response_data["title"] == "Validation Error"
 
 
-def test_query_hosts_hide_edge_feature_flag_enabled(mocker, query_source_xjoin, graphql_query_empty_response, api_get):
+def test_query_hosts_hide_edge_feature_flag_enabled(mocker, graphql_query_empty_response, api_get):
     # Validate functionality when feature flag is enabled
     mocker.patch("api.filtering.filtering.UNLEASH.client.is_enabled", return_value=True)
 
