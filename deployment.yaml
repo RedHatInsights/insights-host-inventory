@@ -65,7 +65,7 @@ objects:
           value: ${KAFKA_PRODUCER_RETRIES}
         - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
           value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-        - name: KAFKA_SECURITY_PROTOCOLsr
+        - name: KAFKA_SECURITY_PROTOCOL
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
@@ -73,11 +73,11 @@ objects:
           value: "true"
         resources:
           limits:
-            cpu: 1000m
-            memory: 1024Mi
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
           requests:
-            cpu: 500m
-            memory: 512Mi
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
         livenessProbe:
           failureThreshold: 3
           httpGet:
