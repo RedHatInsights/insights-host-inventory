@@ -18,7 +18,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_delete_non_existent_host(event_producer_mock, api_delete_host):
+def test_delete_non_existent_host(api_delete_host):
     host_id = generate_uuid()
 
     response_status, response_data = api_delete_host(host_id)
