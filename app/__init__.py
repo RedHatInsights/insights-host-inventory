@@ -8,7 +8,7 @@ from flask import current_app
 from flask import jsonify
 from flask import request
 from prance import _TranslatingParser as TranslatingParser
-from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
+from prometheus_flask_exporter.multiprocess import MultiprocessPrometheusMetrics
 
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
@@ -213,7 +213,7 @@ def create_app(runtime_environment):
 
     # HTTP request metrics
     if runtime_environment.metrics_endpoint_enabled:
-        metrics = GunicornPrometheusMetrics(
+        metrics = MultiprocessPrometheusMetrics(
             flask_app,
             defaults_prefix="inventory",
             group_by="url_rule",
