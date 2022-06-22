@@ -11,6 +11,7 @@ export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export GIT_COMMIT=$(git rev-parse HEAD)
+export QUAY_EXPIRE_TIME="40d"
 cat /etc/redhat-release
 
 # --------------------------------------------
@@ -40,3 +41,4 @@ source $APP_ROOT/unit_test.sh
 # Run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
 source $CICD_ROOT/cji_smoke_test.sh
+source $CICD_ROOT/post_test_results.sh

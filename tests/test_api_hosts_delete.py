@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 from kafka.errors import KafkaError
 
-from api.host import _get_host_list_by_id_list
+from api.host import _get_host_list_by_id_list_from_db
 from app.models import Host
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
@@ -106,9 +106,18 @@ def test_create_then_delete_without_insights_id(
 
 @pytest.mark.parametrize(
     "field,value",
-    (("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"), ("registered_with", "insights"), ("staleness", "stale")),
+    (
+        ("insights_id", "a58c53e0-8000-4384-b902-c70b69faacc5"),
+        ("staleness", "stale"),
+        ("registered_with", "insights"),
+        ("registered_with", "cloud-connector"),
+        ("registered_with", "puptoo"),
+        ("registered_with", "rhsm-conduit"),
+        ("registered_with", "yupana"),
+        ("registered_with", ["puptoo", "yupana"]),
+    ),
 )
-def test_delete_hosts_using_filter(
+def test_delete_hosts_using_filter_and_registered_with(
     event_producer_mock,
     db_create_multiple_hosts,
     db_get_hosts,
@@ -117,7 +126,10 @@ def test_delete_hosts_using_filter(
     field,
     value,
 ):
-    created_hosts = db_create_multiple_hosts(how_many=len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"]))
+    num = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
+    ed = {"org_id": "3340851"}
+
+    created_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
     host_ids = [str(host.id) for host in created_hosts]
 
     # set the new host ids in the xjoin search reference.
@@ -130,7 +142,7 @@ def test_delete_hosts_using_filter(
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
 
-    new_hosts = db_create_multiple_hosts()
+    new_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly returned by the query_filter
@@ -139,6 +151,7 @@ def test_delete_hosts_using_filter(
     assert '"type": "delete"' in event_producer_mock.event
     assert_response_status(response_status, expected_status=202)
     assert len(host_ids) == response_data["hosts_deleted"]
+    assert len(host_ids) > 0
 
     # check db for the deleted hosts using their IDs
     host_id_list = [str(host.id) for host in created_hosts]
@@ -324,8 +337,8 @@ def test_delete_hosts_chunk_size(
 
     inventory_config.host_delete_chunk_size = 5
 
-    query_wraper = DeleteQueryWrapper(mocker)
-    mocker.patch("api.host._get_host_list_by_id_list", query_wraper.mock_get_host_list_by_id_list)
+    query_wrapper = DeleteQueryWrapper(mocker)
+    mocker.patch("api.host._get_host_list_by_id_list_from_db", query_wrapper.mock_get_host_list_by_id_list)
 
     hosts = db_create_multiple_hosts(how_many=2)
     host_id_list = [str(host.id) for host in hosts]
@@ -334,7 +347,7 @@ def test_delete_hosts_chunk_size(
 
     assert_response_status(response_status, expected_status=200)
 
-    query_wraper.query.limit.assert_called_with(5)
+    query_wrapper.query.limit.assert_called_with(5)
 
 
 @pytest.mark.parametrize(
@@ -397,6 +410,6 @@ class DeleteQueryWrapper:
         self.mocker = mocker
 
     def mock_get_host_list_by_id_list(self, host_id_list):
-        self.query = _get_host_list_by_id_list(host_id_list)
+        self.query = _get_host_list_by_id_list_from_db(host_id_list)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query

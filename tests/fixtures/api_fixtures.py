@@ -7,7 +7,8 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def flask_client(flask_app):
+def flask_client(flask_app, patch_xjoin_post):
+    patch_xjoin_post(response={"data": {"hosts": {"meta": {"total": 0}, "data": []}}})
     return flask_app.test_client()
 
 
@@ -80,6 +81,11 @@ def api_delete_all_hosts(flask_client):
 @pytest.fixture(scope="function")
 def enable_rbac(inventory_config):
     inventory_config.bypass_rbac = False
+
+
+@pytest.fixture(scope="function")
+def enable_org_id_translation(inventory_config):
+    inventory_config.bypass_tenant_translation = False
 
 
 @pytest.fixture(scope="function")

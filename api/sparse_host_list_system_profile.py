@@ -1,6 +1,9 @@
 import flask
 from flask_api import status
 
+from api.host_query_xjoin import owner_id_filter
+from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.instrumentation import log_get_sparse_system_profile_failed
 from app.instrumentation import log_get_sparse_system_profile_succeeded
 from app.logging import get_logger
@@ -13,9 +16,9 @@ from app.xjoin import params_to_order
 
 logger = get_logger(__name__)
 
-SYSTEM_PROFILE_QUERY = """
+SYSTEM_PROFILE_SPARSE_QUERY = """
     query hosts(
-        $host_ids: [HostFilter!],
+        $hostFilter: [HostFilter!],
         $fields: [String!],
         $limit: Int,
         $offset: Int,
@@ -24,7 +27,7 @@ SYSTEM_PROFILE_QUERY = """
     ){
         hosts (
             filter:{
-                OR:$host_ids
+                AND:$hostFilter
             },
             limit: $limit,
             offset: $offset,
@@ -40,9 +43,35 @@ SYSTEM_PROFILE_QUERY = """
     }
 """
 
+SYSTEM_PROFILE_FULL_QUERY = """
+    query hosts(
+        $hostFilter: [HostFilter!],
+        $limit: Int,
+        $offset: Int,
+        $order_by: HOSTS_ORDER_BY,
+        $order_how: ORDER_DIR,
+    ){
+        hosts (
+            filter:{
+                AND:$hostFilter
+            },
+            limit: $limit,
+            offset: $offset,
+            order_by: $order_by,
+            order_how: $order_how
+        ) {
+            meta { count, total }
+            data {
+                id
+                system_profile_facts
+            }
+        }
+    }
+"""
+
 
 def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields):
-    if not fields.get("system_profile"):
+    if fields and not fields.get("system_profile"):
         flask.abort(400, status.HTTP_400_BAD_REQUEST)
 
     limit, offset = pagination_params(page, per_page)
@@ -52,27 +81,30 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     except ValueError as e:
         flask.abort(400, str(e))
 
-    host_ids = [{"id": {"eq": host_id}} for host_id in host_id_list]
-    system_profile_fields = list(fields.get("system_profile").keys())
-    if len(system_profile_fields) > 0:
-        variables = {
-            "host_ids": host_ids,
-            "fields": system_profile_fields,
-            "limit": limit,
-            "offset": offset,
-            "order_by": order_by,
-            "order_how": order_how,
-        }
-        response = graphql_query(SYSTEM_PROFILE_QUERY, variables, log_get_sparse_system_profile_failed)
+    host_filter = [{"OR": [{"id": {"eq": host_id}} for host_id in host_id_list]}]
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        host_filter.append(owner_id_filter()[0])
 
-        response_data = response["hosts"]
+    sp_query = SYSTEM_PROFILE_FULL_QUERY
+    variables = {
+        "hostFilter": host_filter,
+        "limit": limit,
+        "offset": offset,
+        "order_by": order_by,
+        "order_how": order_how,
+    }
 
-        check_pagination(offset, response_data["meta"]["total"])
+    if fields.get("system_profile"):
+        variables["fields"] = list(fields.get("system_profile").keys())
+        sp_query = SYSTEM_PROFILE_SPARSE_QUERY
 
-        total = response_data["meta"]["total"]
+    response = graphql_query(sp_query, variables, log_get_sparse_system_profile_failed)
+    response_data = response["hosts"]
+    check_pagination(offset, response_data["meta"]["total"])
 
-        response_list = [serialize_host_system_profile_xjoin(host_data) for host_data in response_data["data"]]
-
-        log_get_sparse_system_profile_succeeded(logger, response_data)
+    total = response_data["meta"]["total"]
+    response_list = [serialize_host_system_profile_xjoin(host_data) for host_data in response_data["data"]]
+    log_get_sparse_system_profile_succeeded(logger, response_data)
 
     return total, response_list

@@ -43,6 +43,7 @@ XJOIN_HOSTS_RESPONSE = {
             {
                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test01.rhel7.jharting.local",
                 "ansible_host": "test01.rhel7.jharting.local",
                 "created_on": "2019-02-10T08:07:03.354307Z",
@@ -62,11 +63,16 @@ XJOIN_HOSTS_RESPONSE = {
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
-                "system_profile_facts": {"test_data": "1.2.3", "random": ["data"]},
+                "system_profile_facts": {
+                    "test_data": "1.2.3",
+                    "random": ["data"],
+                    "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+                },
             },
             {
                 "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
                 "account": "test",
+                "org_id": "3340851",
                 "display_name": "test02.rhel7.jharting.local",
                 "ansible_host": "test02.rhel7.jharting.local",
                 "created_on": "2019-01-10T08:07:03.354307Z",
@@ -85,9 +91,9 @@ XJOIN_HOSTS_RESPONSE = {
                     },
                 },
                 "stale_timestamp": "2020-01-10T08:07:03.354307Z",
-                "reporter": "puptoo",
+                "reporter": "yupana",
                 "per_reporter_staleness": {
-                    "puptoo": {
+                    "yupana": {
                         "check_in_succeeded": True,
                         "last_check_in": "2020-02-10T08:07:03.354307+00:00",
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
@@ -95,6 +101,23 @@ XJOIN_HOSTS_RESPONSE = {
                 },
                 "system_profile_facts": {"test_data": "1.2.3", "random": ["data"]},
             },
+        ],
+    }
+}
+
+XJOIN_INVALID_SYSTEM_PROFILE = {
+    "hosts": {
+        "meta": {"total": 1},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "system_profile_facts": {
+                    "test_data": "1.2.3",
+                    "random": ["data"],
+                    "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+                    "disk_devices": [{"options": {"": "invalid"}}],  # Invalid key (empty)
+                },
+            }
         ],
     }
 }

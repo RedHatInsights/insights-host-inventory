@@ -1,17 +1,13 @@
-import flask
-
 from api import api_operation
 from api import build_collection_response
 from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api.filtering.filtering import query_filters
-from api.host import get_bulk_query_source
 from api.host_query_xjoin import owner_id_filter
 from app import Permission
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
-from app.config import BulkQuerySource
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
 from app.logging import get_logger
@@ -55,10 +51,6 @@ TAGS_QUERY = """
 """
 
 
-def xjoin_enabled():
-    return get_bulk_query_source() == BulkQuerySource.xjoin
-
-
 @api_operation
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
@@ -79,10 +71,6 @@ def get_tags(
     registered_with=None,
     filter=None,
 ):
-    if not xjoin_enabled():
-        logger.error("xjoin-search not enabled")
-        flask.abort(503)
-
     limit, offset = pagination_params(page, per_page)
 
     variables = {

@@ -87,7 +87,10 @@ def params_to_order(param_order_by, param_order_how):
 
 def staleness_filter(staleness):
     config = inventory_config()
-    return staleness_to_conditions(config, staleness, _stale_timestamp_filter)
+    staleness_conditions = tuple(staleness_to_conditions(config, staleness, _stale_timestamp_filter))
+    if "unknown" in staleness:
+        staleness_conditions += ({"stale_timestamp": {"eq": None}},)
+    return staleness_conditions
 
 
 def string_contains(string):

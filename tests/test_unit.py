@@ -904,6 +904,13 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             {
                 "account": "someacct",
+                "org_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
+                "tags": [{"namespace": "namespace", "value": "value"}],
+                "stale_timestamp": stale_timestamp,
+                "reporter": "some reporter",
+            },
+            {
+                "account": "someacct",
                 "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
@@ -948,6 +955,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "org_id": "3340851",
             "reporter": "puptoo",
         }
         stale_timestamp = datetime.now(timezone.utc)
@@ -989,6 +997,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         host = deserialize_host(
             {
                 "account": "some acct",
+                "org_id": "3340851",
                 "stale_timestamp": datetime.now(timezone.utc).isoformat(),
                 "reporter": "puptoo",
                 "fqdn": "some fqdn",
@@ -1025,6 +1034,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "org_id": "3340851",
             "insights_id": str(uuid4()),
             "subscription_manager_id": str(uuid4()),
             "satellite_id": str(uuid4()),
@@ -1063,6 +1073,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
+            host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             host_input["system_profile"],
@@ -1075,6 +1086,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
+            "org_id": "3340851",
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -1101,6 +1113,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
+            host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             host_input["system_profile"],
@@ -1113,6 +1126,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
+            "org_id": "3340851",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1139,6 +1153,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
+            host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             host_input["system_profile"],
@@ -1150,6 +1165,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         host_input = {
             "ansible_host": "some ansible host",
             "account": "some account",
+            "org_id": "3340851",
             "facts": {
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
@@ -1180,6 +1196,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             None,
             host_input["ansible_host"],
             host_input["account"],
+            host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             host_input["system_profile"],
@@ -1192,6 +1209,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some account",
+            "org_id": "3340851",
             "tags": [
                 {"namespace": "NS1", "key": "key1", "value": "value1"},
                 {"namespace": "NS2", "key": "key2", "value": "value2"},
@@ -1216,6 +1234,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
+            host_input["org_id"],
             deserialize_facts.return_value,
             deserialize_tags.return_value,
             {},
@@ -1318,6 +1337,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "org_id": "3340851",
             "reporter": "insights",
         }
         host_init_data = {
@@ -1469,6 +1489,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "org_id": "3340851",
             "reporter": "some reporter",
         }
         host_init_data = {
@@ -1847,6 +1868,7 @@ class EventProducerTests(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "test_reporter",
             "account": "test",
+            "org_id": "3340851",
             "fqdn": "fqdn",
         }
 
@@ -2040,6 +2062,7 @@ class ModelsSystemProfileTestCase(TestCase):
     def _payload(self, system_profile):
         return {
             "account": "0000001",
+            "org_id": "3340851",
             "system_profile": system_profile,
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "test",

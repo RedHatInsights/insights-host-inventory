@@ -1,3 +1,4 @@
+from api.filtering.filtering import host_id_list_query_filter
 from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
@@ -38,6 +39,7 @@ QUERY = """query Query(
         data {
             id,
             account,
+            org_id,
             display_name,
             ansible_host,
             created_on,
@@ -72,47 +74,14 @@ HOST_IDS_QUERY = """query Query(
 }"""
 
 
-def get_host_list(
-    display_name,
-    fqdn,
-    hostname_or_id,
-    insights_id,
-    provider_id,
-    provider_type,
-    tags,
-    page,
-    per_page,
-    param_order_by,
-    param_order_how,
-    staleness,
-    registered_with,
-    filter,
-    fields,
-):
+def get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields=None):
     limit, offset = pagination_params(page, per_page)
     xjoin_order_by, xjoin_order_how = params_to_order(param_order_by, param_order_how)
-
-    all_filters = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        provider_id,
-        provider_type,
-        tags,
-        staleness,
-        registered_with,
-        filter,
-    )
-
-    current_identity = get_current_identity()
-    if current_identity.identity_type == IdentityType.SYSTEM:
-        all_filters += owner_id_filter()
 
     additional_fields = tuple()
 
     system_profile_fields = []
-    if fields.get("system_profile"):
+    if fields and fields.get("system_profile"):
         additional_fields = ("system_profile",)
         system_profile_fields = list(fields.get("system_profile").keys())
 
@@ -130,6 +99,52 @@ def get_host_list(
     check_pagination(offset, total)
 
     return map(deserialize_host, response["data"]), total, additional_fields
+
+
+def get_host_list(
+    display_name,
+    fqdn,
+    hostname_or_id,
+    insights_id,
+    provider_id,
+    provider_type,
+    tags,
+    page,
+    per_page,
+    param_order_by,
+    param_order_how,
+    staleness,
+    registered_with,
+    filter,
+    fields,
+):
+    all_filters = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        provider_id,
+        provider_type,
+        tags,
+        staleness,
+        registered_with,
+        filter,
+    )
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        all_filters += owner_id_filter()
+
+    return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+
+
+def get_host_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how, fields=None):
+    all_filters = host_id_list_query_filter(host_id_list)
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        all_filters += owner_id_filter()
+
+    return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
 
 
 def get_host_ids_list(

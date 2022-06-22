@@ -26,8 +26,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         command:
         - gunicorn
-        - --workers=4
-        - --threads=8
+        - --workers=1
+        - --threads=2
         - --worker-tmp-dir=/gunicorn
         - -c
         - gunicorn.conf.py
@@ -57,10 +57,6 @@ objects:
           value: 'true'
         - name: XJOIN_GRAPHQL_URL
           value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
-        - name: BULK_QUERY_SOURCE
-          value: ${BULK_QUERY_SOURCE}
-        - name: BULK_QUERY_SOURCE_BETA
-          value: ${BULK_QUERY_SOURCE_BETA}
         - name: BYPASS_RBAC
           value: ${BYPASS_RBAC}
         - name: KAFKA_PRODUCER_ACKS
@@ -154,6 +150,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: UNLEASH_URL
@@ -226,6 +226,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: UNLEASH_URL
@@ -292,6 +296,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: UNLEASH_URL
@@ -759,15 +767,14 @@ parameters:
   value: localhost
 - name: XJOIN_SEARCH_PORT
   value: '4000'
-- name: BULK_QUERY_SOURCE
-  value: db
-- name: BULK_QUERY_SOURCE_BETA
-  value: db
 - description: SSL validation mode for the DB
   name: INVENTORY_DB_SSL_MODE
   value: prefer
-- description: activate RBAC middleware
+- description: disable RBAC middleware
   name: BYPASS_RBAC
+  value: 'false'
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
+  name: BYPASS_TENANT_TRANSLATION
   value: 'false'
 - name: KAFKA_PRODUCER_ACKS
   value: '1'
@@ -815,6 +822,10 @@ parameters:
 - name: CJI_RANDOM_SUFFIX
   required: true
   value: '123456'
+- name: TENANT_TRANSLATOR_HOST
+  value: 'apicast.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
 
 # Feature flags
 - description: Unleash secret name

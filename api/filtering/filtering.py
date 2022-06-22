@@ -1,4 +1,6 @@
 from copy import deepcopy
+from datetime import datetime
+from datetime import timezone
 from enum import Enum
 from functools import partial
 from uuid import UUID
@@ -8,6 +10,7 @@ from api.filtering.filtering_common import lookup_graphql_operations
 from api.filtering.filtering_common import lookup_operations
 from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
+from app import inventory_config
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -273,6 +276,34 @@ def _generic_filter_builder(builder_function, field_name, field_value, field_fil
         return _base_filter_builder(nullable_builder_function, field_name, field_value, field_filter, operation, spec)
 
 
+def build_registered_with_filter(registered_with):
+    reg_with_copy = deepcopy(registered_with)
+    prs_list = []
+    if "insights" in reg_with_copy:
+        prs_list.append({"NOT": {"insights_id": {"eq": None}}})
+        reg_with_copy.remove("insights")
+    if reg_with_copy:
+        for item in reg_with_copy:
+            prs_item = {
+                "per_reporter_staleness": {
+                    "reporter": {"eq": item.replace("!", "")},
+                    "stale_timestamp": {
+                        "gt": str(
+                            (datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat()
+                        )
+                    },
+                },
+            }
+
+            # If registered_with starts with "!", we want to invert the condition.
+            if item.startswith("!"):
+                prs_item = {"NOT": prs_item}
+
+            prs_list.append(prs_item)
+
+    return ({"OR": prs_list},)
+
+
 def build_tag_query_dict_tuple(tags):
     query_tag_tuple = ()
     for string_tag in tags:
@@ -283,6 +314,22 @@ def build_tag_query_dict_tuple(tags):
         query_tag_tuple += ({"tag": query_tag_dict},)
     logger.debug("query_tag_tuple: %s", query_tag_tuple)
     return query_tag_tuple
+
+
+def host_id_list_query_filter(host_id_list):
+    return (
+        {
+            "stale_timestamp": {
+                "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
+            },
+            "OR": [
+                {
+                    "id": {"eq": host_id},
+                }
+                for host_id in host_id_list
+            ],
+        },
+    )
 
 
 def query_filters(
@@ -333,8 +380,9 @@ def query_filters(
     if staleness:
         staleness_filters = tuple(staleness_filter(staleness))
         query_filters += ({"OR": staleness_filters},)
+
     if registered_with:
-        query_filters += ({"NOT": {"insights_id": {"eq": None}}},)
+        query_filters += build_registered_with_filter(registered_with)
     if provider_type:
         query_filters += ({"provider_type": {"eq": provider_type.casefold()}},)
     if provider_id:

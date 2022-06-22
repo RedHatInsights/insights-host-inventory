@@ -9,10 +9,10 @@ from tests.helpers.test_utils import now
 
 @pytest.fixture(scope="function")
 def payload_tracker():
-    def _payload_tracker(account=None, request_id=None, producer=None):
+    def _payload_tracker(account=None, org_id=None, request_id=None, producer=None):
         config = Config(RuntimeEnvironment.SERVER)
         init_payload_tracker(config, producer=producer)
-        return get_payload_tracker(account=account, request_id=request_id)
+        return get_payload_tracker(account=account, org_id=org_id, request_id=request_id)
 
     return _payload_tracker
 

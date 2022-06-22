@@ -42,7 +42,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
     delete:
-      operationId: api.host.delete_host_list
+      operationId: api.host.delete_hosts_by_filter
       tags:
         - hosts
       summary: Delete the entire list of hosts filtered by the given parameters
@@ -138,6 +138,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/orderByParam'
         - $ref: '#/components/parameters/orderHowParam'
+        - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -385,8 +386,8 @@ paths:
   /system_profile/sap_system:
     get:
       tags:
-        - sap_system
-      summary: get sap system values
+        - system_profile
+      summary: get all sap system values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -414,8 +415,8 @@ paths:
   /system_profile/sap_sids:
     get:
       tags:
-        - sap_system
-      summary: get sap system values
+        - system_profile
+      summary: get all sap sids values and counts on an account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -436,6 +437,35 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/SystemProfileSapSystemOut'
+        '400':
+            description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/operating_system:
+    get:
+      tags:
+        - system_profile
+      summary: get all operating system versions and counts on an account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.system_profile.get_operating_system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+            description: sap_system values and counts for account
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SystemProfileOperatingSystemOut'
         '400':
             description: Invalid request.
         '404':
@@ -524,21 +554,21 @@ components:
       name: display_name
       schema:
         type: string
-      description: Filter by display_name
+      description: Filter by display_name (case-insensitive)
       required: false
     fqdn:
       in: query
       name: fqdn
       schema:
         type: string
-      description: Filter by FQDN
+      description: Filter by FQDN (case-insensitive)
       required: false
     hostnameOrId:
       in: query
       name: hostname_or_id
       schema:
         type: string
-      description: Filter by display_name, fqdn, id
+      description: Filter by display_name, fqdn, id (case-insensitive)
       required: false
     insightsId:
       in: query
@@ -666,18 +696,28 @@ components:
       in: query
       name: search
       required: false
-      description: Only include tags that match the given search string. The value is matched against namespace, key and value.
+      description: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
       schema:
         type: string
     registered_with:
       in: query
       name: registered_with
       required: false
-      description: Filters out any host not registered with the specified service
+      description: Filters out any host not registered by the specified reporters
       schema:
-        type: string
-        enum:
-          - insights
+        type: array
+        items:
+          type: string
+          enum:
+            - insights
+            - yupana
+            - puptoo
+            - rhsm-conduit
+            - cloud-connector
+            - "!yupana"
+            - "!puptoo"
+            - "!rhsm-conduit"
+            - "!cloud-connector"
     filter_param:
       in: query
       name: filter
@@ -705,6 +745,32 @@ components:
       required: false
 
   schemas:
+    SystemProfileOperatingSystemOut:
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        results:
+          description: The list of operating_system values on the account
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  major:
+                    type: integer
+                    nullable: true
+                  minor:
+                    type: integer
+                    nullable: true
+              count:
+                type: integer
+
     SystemProfileSapSystemOut:
       type: object
       properties:
@@ -974,6 +1040,10 @@ components:
               nullable: true
             account:
               description: A Red Hat Account number that owns the host.
+              type: string
+              example: '000102'
+            org_id:
+              description: The Org ID of the tenant that owns the host.
               type: string
               example: '000102'
             id:

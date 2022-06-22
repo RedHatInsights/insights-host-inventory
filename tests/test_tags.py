@@ -61,7 +61,7 @@ def test_get_tags_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_
     assert {} == response_data["results"]
 
 
-def test_get_list_of_tags_with_host_filters(patch_xjoin_post, query_source_xjoin, api_get, subtests):
+def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests):
     patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
     """
     Validate that the /tags endpoint doesn't break when we supply it with various filters.
@@ -406,7 +406,7 @@ def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get, ena
     assert_response_status(response_status, 200)
 
 
-def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests):
     patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
 
     values = ("true", "false", "nil", "not_nil")
@@ -425,7 +425,7 @@ def test_get_tags_sap_system(patch_xjoin_post, api_get, subtests, query_source_x
             assert eq_response_data["total"] == 1
 
 
-def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests, query_source_xjoin):
+def test_get_tags_sap_sids(patch_xjoin_post, api_get, subtests):
     patch_xjoin_post(response={"data": {"hostTags": {"meta": {"total": 1}, "data": []}}})
 
     filter_paths = ("[system_profile][sap_sids][]", "[system_profile][sap_sids][contains][]")
