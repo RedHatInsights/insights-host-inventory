@@ -186,22 +186,22 @@ def _delete_host_list(host_id_list):
         query = _get_host_list_by_id_list_from_db(host_id_list)
 
         deletion_count = 0
-        if query.first():
-            for host_id, deleted in delete_hosts(
-                query, current_app.event_producer, inventory_config().host_delete_chunk_size
-            ):
-                if deleted:
-                    log_host_delete_succeeded(logger, host_id, get_control_rule())
-                    tracker_message = "deleted host"
-                    deletion_count += 1
-                else:
-                    log_host_delete_failed(logger, host_id, get_control_rule())
-                    tracker_message = "not deleted host"
 
-                with PayloadTrackerProcessingContext(
-                    payload_tracker, processing_status_message=tracker_message
-                ) as payload_tracker_processing_ctx:
-                    payload_tracker_processing_ctx.inventory_id = host_id
+        for host_id, deleted in delete_hosts(
+            query, current_app.event_producer, inventory_config().host_delete_chunk_size
+        ):
+            if deleted:
+                log_host_delete_succeeded(logger, host_id, get_control_rule())
+                tracker_message = "deleted host"
+                deletion_count += 1
+            else:
+                log_host_delete_failed(logger, host_id, get_control_rule())
+                tracker_message = "not deleted host"
+
+            with PayloadTrackerProcessingContext(
+                payload_tracker, processing_status_message=tracker_message
+            ) as payload_tracker_processing_ctx:
+                payload_tracker_processing_ctx.inventory_id = host_id
 
     return deletion_count
 
