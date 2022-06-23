@@ -847,9 +847,9 @@ parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
 - name: GUNICORN_WORKERS
-  value: '1'
+  value: '4'
 - name: GUNICORN_THREADS
-  value: '2'
+  value: '8'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO

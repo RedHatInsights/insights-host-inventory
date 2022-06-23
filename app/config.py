@@ -114,6 +114,8 @@ class Config:
         self.sp_validator_max_messages = int(os.environ.get("KAFKA_SP_VALIDATOR_MAX_MESSAGES", "10000"))
 
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
+        self.prometheus_multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR", "./prometheus_multiproc_dir/")
+        self.prometheus_regsitry = os.environ.get("prometheus_multiproc_dir", "./prometheus_multiproc_dir/")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         self.kafka_ssl_configs = {
