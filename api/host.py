@@ -165,11 +165,8 @@ def delete_hosts_by_filter(
         logger.error("xjoin-search not accessible")
         flask.abort(503)
 
-    if len(ids_list) == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
-
     try:
-        delete_count = _delete_host_list(ids_list)
+        delete_count = _delete_host_list(ids_list) if ids_list else 0
     except KafkaError:
         logger.error("Kafka server not available")
         flask.abort(503)
@@ -188,10 +185,8 @@ def _delete_host_list(host_id_list):
     ):
         query = _get_host_list_by_id_list_from_db(host_id_list)
 
-        if not query.count():
-            flask.abort(status.HTTP_404_NOT_FOUND)
-
         deletion_count = 0
+
         for host_id, deleted in delete_hosts(
             query, current_app.event_producer, inventory_config().host_delete_chunk_size
         ):
@@ -247,7 +242,11 @@ def delete_all_hosts(confirm_delete_all=None):
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
 def delete_by_id(host_id_list):
-    _delete_host_list(host_id_list)
+    delete_count = _delete_host_list(host_id_list)
+
+    if not delete_count:
+        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
+
     return flask.Response(None, status.HTTP_200_OK)
 
 
