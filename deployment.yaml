@@ -26,8 +26,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         command:
         - gunicorn
-        - --workers=1
-        - --threads=2
+        - --workers=${GUNICORN_WORKERS}
+        - --threads=${GUNICORN_THREADS}
         - --worker-tmp-dir=/gunicorn
         - -c
         - gunicorn.conf.py
@@ -846,6 +846,10 @@ parameters:
   value: '1'
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
+- name: GUNICORN_WORKERS
+  value: '1'
+- name: GUNICORN_THREADS
+  value: '2'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
