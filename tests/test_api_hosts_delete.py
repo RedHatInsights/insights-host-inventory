@@ -18,7 +18,7 @@ from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_delete_non_existent_host(api_delete_host):
+def test_delete_non_existent_host(event_producer_mock, api_delete_host):
     host_id = generate_uuid()
 
     response_status, response_data = api_delete_host(host_id)
@@ -233,7 +233,7 @@ def test_delete_when_one_host_is_deleted(event_producer_mock, db_create_host, ap
     # 200 OK.
     response_status, response_data = api_delete_host(host.id)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=404)
 
     assert event_producer_mock.event is None
 
@@ -248,7 +248,7 @@ def test_delete_when_all_hosts_are_deleted(event_producer_mock, db_create_multip
     # returning 200 OK.
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=404)
 
     assert event_producer_mock.event is None
 
