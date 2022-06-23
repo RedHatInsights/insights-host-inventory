@@ -366,7 +366,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         else:
             host.merge_facts_in_namespace(namespace, fact_dict)
 
-        db.session.commit()
+    db.session.commit()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
