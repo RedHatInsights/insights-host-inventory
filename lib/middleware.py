@@ -1,3 +1,4 @@
+import json
 from functools import wraps
 
 from flask import abort
@@ -125,6 +126,16 @@ def translate_account_to_org_id(account: str) -> str:
     finally:
         request_session.close()
 
-    resp_data = translator_response.json()
+    try:
+        resp_data = translator_response.json()
+    except json.decoder.JSONDecodeError as e:
+        tenant_translator_failure(logger, e)
+        raise InventoryException(
+            title="Network Error",
+            detail=(
+                "Could not decode response body received from tenant translator endpoint "
+                f"with status {translator_response.status_code}: {translator_response.content}"
+            ),
+        )
 
     return resp_data.get(account)
