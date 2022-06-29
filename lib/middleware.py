@@ -131,7 +131,7 @@ def translate_account_to_org_id(account: str) -> str:
     except json.decoder.JSONDecodeError as e:
         tenant_translator_failure(logger, e)
         raise InventoryException(
-            title="Network Error",
+            title="Bad Response",
             detail=(
                 "Could not decode response body received from tenant translator endpoint "
                 f"with status {translator_response.status_code}: {translator_response.content}"

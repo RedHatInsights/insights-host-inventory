@@ -1597,7 +1597,7 @@ def test_translate_org_id_unexpected_response(mocker, mq_create_or_update_host, 
     # Mock the post() so it generates an error
     session_post_mock = mocker.patch("lib.middleware.Session.post")
     mock_response = MockResponseObject()
-    mock_response.status_code = 403
+    mock_response.status_code = 417
     mock_response.content = "asdf"
     session_post_mock.side_effect = mock_response
 
@@ -1611,5 +1611,5 @@ def test_translate_org_id_unexpected_response(mocker, mq_create_or_update_host, 
 
     assert (
         str(exception.value.detail)
-        == "Could not decode response body received from tenant translator endpoint with status 403: asdf"
+        == "Could not decode response body received from tenant translator endpoint with status 417: asdf"
     )
