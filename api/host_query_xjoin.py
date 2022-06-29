@@ -1,3 +1,5 @@
+import flask
+
 from api.filtering.filtering import host_id_list_query_filter
 from api.filtering.filtering import query_filters
 from app.auth import get_current_identity
@@ -94,8 +96,10 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
         "fields": system_profile_fields,
     }
     response = graphql_query(QUERY, variables, log_get_host_list_failed)
-    if response is None:
-        return iter([]), 0, additional_fields
+    if response is None or "hosts" not in response:
+        # Log an error implicating xjoin, then abort with status 503
+        logger.error("xjoin-search responded with invalid format")
+        flask.abort(503)
 
     response = response["hosts"]
 
