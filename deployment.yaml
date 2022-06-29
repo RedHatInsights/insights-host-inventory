@@ -703,7 +703,7 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: events-topic-rebuilder-${CJI_RANDOM_SUFFIX}
+    name: events-topic-rebuilder-${EVENTS_REBUILDER_RUN_NUMBER}
   spec:
     appName: host-inventory
     jobs:
@@ -871,9 +871,6 @@ parameters:
   value: 'true'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
-- name: CJI_RANDOM_SUFFIX
-  required: true
-  value: '123456'
 - name: TENANT_TRANSLATOR_HOST
   value: 'apicast.3scale-dev.svc.cluster.local'
 - name: TENANT_TRANSLATOR_PORT
@@ -887,6 +884,8 @@ parameters:
 - name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
   value: '1'
 - name: SYNCHRONIZER_RUN_NUMBER
+  value: '1'
+- name: EVENTS_REBUILDER_RUN_NUMBER
   value: '1'
 - name: GUNICORN_WORKERS
   value: '1'
