@@ -1586,3 +1586,30 @@ def test_add_host_missing_org_id_error(mocker, mq_create_or_update_host, enable_
 
     with pytest.raises(InventoryException):
         mq_create_or_update_host(host, return_all_data=True)
+
+
+def test_translate_org_id_unexpected_response(mocker, mq_create_or_update_host, enable_org_id_translation):
+    """
+    Tests the error handling for org_id translation when the 3scale response is invalid.
+    """
+    account_number = SYSTEM_IDENTITY["account_number"]
+
+    # Mock the post() so it generates an error
+    session_post_mock = mocker.patch("lib.middleware.Session.post")
+    mock_response = MockResponseObject()
+    mock_response.status_code = 417
+    mock_response.content = "asdf"
+    session_post_mock.side_effect = mock_response
+
+    host = minimal_host(
+        account=account_number,
+        system_profile={"owner_id": OWNER_ID},
+    )
+
+    with pytest.raises(InventoryException) as exception:
+        mq_create_or_update_host(host, return_all_data=True)
+
+    assert (
+        str(exception.value.detail)
+        == "Could not decode response body received from tenant translator endpoint with status 417: asdf"
+    )
