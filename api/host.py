@@ -224,9 +224,6 @@ def delete_all_hosts(confirm_delete_all=None):
         logger.error("xjoin-search not accessible")
         flask.abort(503)
 
-    if len(ids_list) == 0:
-        flask.abort(status.HTTP_404_NOT_FOUND, "No hosts found for deletion.")
-
     try:
         delete_count = _delete_host_list(ids_list)
     except KafkaError:
