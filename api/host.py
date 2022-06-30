@@ -365,10 +365,10 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
         else:
             host.merge_facts_in_namespace(namespace, fact_dict)
 
-    if db.session.is_modified(host):
-        db.session.commit()
-        serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
-        _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
+        if db.session.is_modified(host):
+            db.session.commit()
+            serialized_host = serialize_host(host, staleness_timestamps(), EGRESS_HOST_FIELDS)
+            _emit_patch_event(serialized_host, host.id, host.canonical_facts.get("insights_id"))
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 

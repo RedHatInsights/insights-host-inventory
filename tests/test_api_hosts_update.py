@@ -271,6 +271,25 @@ def test_patch_produces_update_event_no_insights_id(
     )
 
 
+def test_patch_by_namespace_produces_update_event(
+    event_producer_mock, event_datetime_mock, db_create_host, db_get_host, api_patch
+):
+    host = db_host()
+    created_host = db_create_host(host=host, extra_data={"facts": DB_FACTS})
+
+    facts_url = build_facts_url(host_list_or_id=created_host.id, namespace=DB_FACTS_NAMESPACE)
+    response_status, response_data = api_patch(facts_url, DB_NEW_FACTS)
+    assert_response_status(response_status, expected_status=200)
+
+    assert_patch_event_is_valid(
+        host=created_host,
+        event_producer=event_producer_mock,
+        expected_request_id="-1",
+        expected_timestamp=event_datetime_mock,
+        display_name="test-display-name",
+    )
+
+
 def test_event_producer_instrumentation(mocker, event_producer, future_mock, db_create_host, api_patch):
     created_host = db_create_host()
     patch_doc = {"display_name": "patch_event_test"}
