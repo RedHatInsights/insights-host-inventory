@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 flask = "~=1.1.0"
+waitress = "~=1.1.0" # WSGI server for production env
 jsonify = "==0.5"  # Not semver
 flask-restful = "~=0.3.7"
 requests = "~=2.25.1"

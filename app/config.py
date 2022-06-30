@@ -116,6 +116,7 @@ class Config:
         self.prometheus_pushgateway = os.environ.get("PROMETHEUS_PUSHGATEWAY", "localhost:9091")
         self.prometheus_multiproc_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR", "./prometheus_multiproc_dir/")
         self.prometheus_regsitry = os.environ.get("prometheus_multiproc_dir", "./prometheus_multiproc_dir/")
+        self.flask_env = os.environ.get("FLASK_ENV", "production")
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         self.kafka_ssl_configs = {

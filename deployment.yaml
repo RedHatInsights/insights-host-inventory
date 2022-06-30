@@ -37,6 +37,8 @@ objects:
         - '60'
         - run
         env:
+        - name: FLASK_ENV
+          value: ${FLASK_ENV}
         - name: APP_NAME
           value: ${APP_NAME}
         - name: PATH_PREFIX
@@ -849,6 +851,8 @@ parameters:
   value: '4'
 - name: GUNICORN_THREADS
   value: '8'
+- name: FLASK_ENV
+  value: 'production'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
