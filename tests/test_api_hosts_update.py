@@ -287,6 +287,20 @@ def test_patch_by_namespace_produces_update_event(event_producer_mock, event_dat
     )
 
 
+def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
+    event_producer, db_create_multiple_hosts, api_patch, mocker
+):
+    mocker.patch.object(event_producer, "write_event")
+
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
+
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
+    response_status, _ = api_patch(facts_url, DB_NEW_FACTS)
+    assert_response_status(response_status, expected_status=200)
+
+    assert event_producer.write_event.call_count == 2
+
+
 def test_event_producer_instrumentation(mocker, event_producer, future_mock, db_create_host, api_patch):
     created_host = db_create_host()
     patch_doc = {"display_name": "patch_event_test"}
