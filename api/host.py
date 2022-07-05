@@ -48,6 +48,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
+from lib.middleware import translate_account_to_org_id
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -470,3 +471,11 @@ def host_checkin(body):
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
+
+
+@api_operation
+@rbac(Permission.READ)
+@metrics.api_request_time.time()
+def translate_to_org_id(account):
+    org_id = translate_account_to_org_id(account)
+    return flask.Response(f"{account} translates to {org_id}", status.HTTP_200_OK)

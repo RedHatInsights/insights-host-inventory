@@ -586,6 +586,37 @@
         }
       }
     },
+    "/orgid/{account}": {
+      "get": {
+        "tags": [
+          "orgid"
+        ],
+        "summary": "Translate account to Org ID",
+        "description": "Translates an account number to its Org ID <br /><br /> Required permissions: inventory:hosts:read",
+        "operationId": "api.host.translate_to_org_id",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The account number to translate"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully translated."
+          }
+        }
+      }
+    },
     "/tags": {
       "get": {
         "tags": [
