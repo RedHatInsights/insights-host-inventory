@@ -17,7 +17,9 @@ from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
-def test_replace_facts_to_multiple_hosts_with_branch_id(db_create_multiple_hosts, db_get_hosts, api_put):
+def test_replace_facts_to_multiple_hosts_with_branch_id(
+    db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock
+):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
@@ -43,7 +45,9 @@ def test_replace_facts_to_multiple_hosts_including_nonexistent_host(db_create_mu
     assert_response_status(response_status, expected_status=400)
 
 
-def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(db_create_multiple_hosts, db_get_hosts, api_put):
+def test_replace_facts_to_multiple_hosts_with_empty_key_value_pair(
+    db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock
+):
     new_facts = {}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
@@ -78,7 +82,7 @@ def test_replace_facts_without_fact_dict(api_put):
     assert_error_response(response_data, expected_status=400, expected_detail="Request body is not valid JSON")
 
 
-def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
+def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock):
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
     host_id_list = get_id_list_from_hosts(created_hosts)
@@ -92,7 +96,7 @@ def test_replace_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts,
     assert all(host.facts == expected_facts for host in db_get_hosts(host_id_list))
 
 
-def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put):
+def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_hosts, api_put, event_producer_mock):
     new_facts = {}
 
     created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
@@ -131,7 +135,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, db_get
     assert_response_status(response_status, expected_status=400)
 
 
-def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac):
+def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, enable_rbac, event_producer_mock):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in WRITE_ALLOWED_RBAC_RESPONSE_FILES:
@@ -147,7 +151,9 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host, 
             assert_response_status(response_status, 200)
 
 
-def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, db_get_host, enable_rbac):
+def test_put_facts_with_RBAC_denied(
+    subtests, mocker, api_put, db_create_host, db_get_host, enable_rbac, event_producer_mock
+):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     updated_facts = {"updatedfact1": "updatedvalue1", "updatedfact2": "updatedvalue2"}
@@ -167,7 +173,7 @@ def test_put_facts_with_RBAC_denied(subtests, mocker, api_put, db_create_host, d
             assert db_get_host(host.id).facts[DB_FACTS_NAMESPACE] != updated_facts
 
 
-def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac):
+def test_put_facts_with_RBAC_bypassed_as_system(api_put, db_create_host, enable_rbac, event_producer_mock):
     host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={"facts": DB_FACTS, "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"].get("cn")}},

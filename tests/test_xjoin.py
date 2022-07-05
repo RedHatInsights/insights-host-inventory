@@ -62,6 +62,18 @@ def test_host_request_xjoin_status_403(patch_xjoin_post, api_get):
     assert response_status == 500
 
 
+@pytest.mark.parametrize("response_data", (None, {}))
+def test_host_request_xjoin_invalid_response(patch_xjoin_post, api_get, response_data):
+    patch_xjoin_post(response={"data": response_data}, status=200)
+    request_id = generate_uuid()
+
+    response_status, response_data = api_get(
+        HOST_URL, extra_headers={"x-rh-insights-request-id": request_id, "foo": "bar"}
+    )
+
+    assert response_status == 503
+
+
 def test_host_request_xjoin_status_200(patch_xjoin_post, api_get):
     patch_xjoin_post(response={"data": EMPTY_HOSTS_RESPONSE}, status=200)
     request_id = generate_uuid()

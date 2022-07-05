@@ -69,6 +69,10 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
         - name: UNLEASH_URL
@@ -511,55 +515,7 @@ objects:
         command:
           - /bin/sh
           - -c
-          - python host_synchronizer.py
-        env:
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: platform.payload-status
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: CLOWDER_ENABLED
-            value: "true"
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
-          requests:
-            cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
-    - name: events-topic-rebuilder
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        restartPolicy: OnFailure
-        command:
-          - /bin/sh
-          - -c
-          - python rebuild_events_topic.py
+          - python rebuild_events_topic.py && python host_synchronizer.py
         env:
           - name: INVENTORY_LOG_LEVEL
             value: ${LOG_LEVEL}
@@ -698,16 +654,6 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: events-topic-rebuilder-${EVENTS_REBUILDER_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - events-topic-rebuilder
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -884,8 +830,6 @@ parameters:
 - name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
   value: '1'
 - name: SYNCHRONIZER_RUN_NUMBER
-  value: '1'
-- name: EVENTS_REBUILDER_RUN_NUMBER
   value: '1'
 - name: GUNICORN_WORKERS
   value: '1'
