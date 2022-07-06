@@ -113,10 +113,16 @@ def host_delete_event(event_type, host):
     return (HostDeleteEvent, delete_event)
 
 
+def host_validation_error_event(event_type, host):
+    # figure out how this works if the host isn't created
+    pass
+
+
 EVENT_TYPE_MAP = {
     EventType.created: host_create_update_event,
     EventType.updated: host_create_update_event,
     EventType.delete: host_delete_event,
+    EventType.validation_error: host_validation_error_event,
 }
 
 

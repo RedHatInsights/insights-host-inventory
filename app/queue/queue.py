@@ -14,7 +14,9 @@ from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import create_mock_identity_with_account
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
+from app.config import Config
 from app.culling import Timestamps
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
@@ -31,6 +33,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
+from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -45,6 +48,13 @@ logger = get_logger(__name__)
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
+RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
+
+
+def _init_config():
+    config = Config(RUNTIME_ENVIRONMENT)
+    config.log_configuration()
+    return config
 
 
 class OperationSchema(Schema):
@@ -203,6 +213,7 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
+            send_kafka_error_message(event_type=EventType.updated, host=input_host)
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -240,6 +251,8 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
+            send_kafka_error_message(event_type=EventType.created, host=input_host)
+            # ensure input_host is reliable
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -311,3 +324,14 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
 
 def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
+
+
+def send_kafka_error_message(host):
+    # just trying to get all the elements before sorting what goes where
+    # ref: lib/host_remove_duplicates.py and host_delete_duplicates.py
+    config = _init_config()
+    event = build_event(EventType.validation_error, host)
+    event_producer = EventProducer(config)
+    insights_id = host.canonical_facts.get("insights_id")  # again, see how this works when the host is now created
+    headers = message_headers(EventType.validation_error, insights_id)
+    event_producer.write_event(event, str(host.id), headers, wait=True)
