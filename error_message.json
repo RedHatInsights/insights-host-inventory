@@ -1,8 +1,8 @@
 {
     "version": "v1.0.0",
-    "bundle": "***bundle from registration***",
-    "application": "***application name from registration***",
-    "event_type": "***from application registration***",
+    "bundle": "rhel",
+    "application": "inventory",
+    "event_type": "validation-error",
     "timestamp": "2020-12-08T09:31:39Z",
     "account_id": "00000000",
     "org_id": "12345",
