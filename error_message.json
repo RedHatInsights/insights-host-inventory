@@ -1,0 +1,31 @@
+{
+    "version": "v1.0.0",
+    "bundle": "***bundle from registration***",
+    "application": "***application name from registration***",
+    "event_type": "***from application registration***",
+    "timestamp": "2020-12-08T09:31:39Z",
+    "account_id": "00000000",
+    "org_id": "12345",
+    "context": {},
+    "events": [
+        {
+            "metadata": {},
+            "payload": {
+                "error": {
+                    "code": "machine readable error code",
+                    "message": "Something went worng while validating host information",
+                    "stack_trace": "optional",
+                    "severity": "error"
+                }
+            }
+        }
+    ],
+    "recipients": [
+        {
+            "only-admins": false,
+            "ignore_user_preferences": false,
+            "users": []
+        }
+    ],
+    "id": "uuid of the message"
+}
