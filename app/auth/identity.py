@@ -65,17 +65,18 @@ class Identity:
                 raise ValueError("Invalid credentials")
 
             threadctx.account_number = "<<TRUSTED IDENTITY>>"
+            threadctx.org_id = "<<TRUSTED IDENTITY>>"
 
         elif obj:
-            # Ensure account number availability
             self.is_trusted_system = False
             self.account_number = obj.get("account_number")
             self.auth_type = obj.get("auth_type")
             self.identity_type = obj.get("type")
             self.org_id = obj.get("org_id")
 
-            if not self.account_number:
-                raise ValueError("The account_number is mandatory.")
+            # Ensure org_id availability
+            if not self.org_id:
+                raise ValueError("The org_id is mandatory.")
             elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():
                 raise ValueError("Identity type invalid or missing in provided Identity")
             elif self.auth_type is None:
@@ -101,18 +102,19 @@ class Identity:
                 else:
                     self.system["cert_type"] = self.system["cert_type"].lower()
 
-            threadctx.account_number = obj["account_number"]
-            if obj.get("org_id"):
-                threadctx.org_id = obj["org_id"]
+            threadctx.org_id = obj["org_id"]
+
+            if obj.get("account_number"):
+                threadctx.org_id = obj["account_number"]
 
         else:
-            raise ValueError("Neither the account_number or token has been set")
+            raise ValueError("Neither the org_id or token has been set")
 
     def _asdict(self):
-        ident = {"type": self.identity_type, "auth_type": self.auth_type, "account_number": self.account_number}
+        ident = {"type": self.identity_type, "auth_type": self.auth_type, "org_id": self.org_id}
 
-        if hasattr(self, "org_id"):
-            ident["org_id"] = self.org_id
+        if hasattr(self, "account_number"):
+            ident["account_number"] = self.account_number
 
         if self.identity_type == IdentityType.USER:
             ident["user"] = self.user.copy()
@@ -122,10 +124,10 @@ class Identity:
             return ident
 
     def __eq__(self, other):
-        return self.account_number == other.account_number
+        return self.org_id == other.org_id
 
 
 # Messages from the system_profile topic don't need to provide a real Identity,
 # So this helper function creates a basic User-type identity from the host data.
-def create_mock_identity_with_account(account):
-    return Identity({"account_number": account, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
+def create_mock_identity_with_org_id(org_id):
+    return Identity({"org_id": org_id, "type": IdentityType.USER, "auth_type": AuthType.BASIC})

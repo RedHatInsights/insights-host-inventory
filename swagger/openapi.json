@@ -13,7 +13,7 @@
           "hosts"
         ],
         "summary": "Read the entire list of hosts",
-        "description": "Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read",
+        "description": "Read the entire list of all hosts with the current org_id. <br /><br /> Required permissions: inventory:hosts:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -142,8 +142,8 @@
         "tags": [
           "hosts"
         ],
-        "summary": "Delete all hosts on the account",
-        "description": "Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
+        "summary": "Delete all hosts with the current org_id",
+        "description": "Delete all hosts with the current org_id.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -586,43 +586,12 @@
         }
       }
     },
-    "/orgid/{account}": {
-      "get": {
-        "tags": [
-          "orgid"
-        ],
-        "summary": "Translate account to Org ID",
-        "description": "Translates an account number to its Org ID <br /><br /> Required permissions: inventory:hosts:read",
-        "operationId": "api.host.translate_to_org_id",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "The account number to translate"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully translated."
-          }
-        }
-      }
-    },
     "/tags": {
       "get": {
         "tags": [
           "tags"
         ],
-        "summary": "Get the active host tags for a given account",
+        "summary": "Get the active host tags with the current org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.tag.get_tags",
         "security": [
@@ -702,7 +671,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap system values and counts on an account",
+        "summary": "get all sap system values and counts for the current org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_system",
         "security": [
@@ -732,7 +701,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for this org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -755,7 +724,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap sids values and counts on an account",
+        "summary": "get all sap sids values and counts for this org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_sids",
         "security": [
@@ -788,7 +757,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for this org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -811,7 +780,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all operating system versions and counts on an account",
+        "summary": "get all operating system versions and counts for this org_id",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_operating_system",
         "security": [
@@ -841,7 +810,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for this org_id",
             "content": {
               "application/json": {
                 "schema": {
@@ -929,7 +898,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-rh-identity",
-        "description": "Base64-encoded JSON identity header provided by 3Scale. Contains an account number of the user issuing the request. Format of the JSON: {\"identity\": {\"account_number\": \"12345678\"}}",
+        "description": "Base64-encoded JSON identity header provided by 3Scale. Contains an org_id of the user issuing the request. Format of the JSON: {\"identity\": {\"org_id\": \"12345678\"}}",
         "x-apikeyInfoFunc": "app.auth.authentication_header_handler"
       }
     },
@@ -1220,7 +1189,7 @@
         "schema": {
           "type": "boolean"
         },
-        "description": "Confirmation to delete all hosts on an account",
+        "description": "Confirmation to delete all hosts for this org_id",
         "required": false
       }
     },
@@ -1234,7 +1203,7 @@
             "$ref": "#/components/schemas/Count"
           },
           "results": {
-            "description": "The list of operating_system values on the account",
+            "description": "The list of operating_system values on this org_id",
             "type": "array",
             "items": {
               "type": "object",
@@ -1273,7 +1242,7 @@
             "$ref": "#/components/schemas/Count"
           },
           "results": {
-            "description": "The list of sap_system values on the account",
+            "description": "The list of sap_system values for the current org_id",
             "type": "array",
             "items": {
               "type": "object",
@@ -1632,7 +1601,7 @@
       },
       "CreateHostOut": {
         "title": "Create Host Out",
-        "description": "Data of a single host belonging to an account. Represents the hosts without its Inventory metadata.",
+        "description": "Data of a single host belonging to an org_id. Represents the hosts without its Inventory metadata.",
         "type": "object",
         "allOf": [
           {
@@ -1655,6 +1624,7 @@
               "account": {
                 "description": "A Red Hat Account number that owns the host.",
                 "type": "string",
+                "nullable": true,
                 "example": "000102"
               },
               "org_id": {
@@ -1716,7 +1686,7 @@
               }
             },
             "required": [
-              "account"
+              "org_id"
             ]
           }
         ]

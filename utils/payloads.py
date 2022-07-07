@@ -13,7 +13,7 @@ IDENTITY = {
     "type": "System",
     "auth_type": "cert-auth",
     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"org_id": "3340851", "auth_time": 6300},
+    "internal": {"org_id": "test", "auth_time": 6300},
 }
 
 # system identity: invalid or incomplete for testing
@@ -22,7 +22,7 @@ IDENTITY = {
 #     "type": "System",
 #     "auth_type": "invalid-auth",
 #     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#     "internal": {"org_id": "3340851", "auth_time": 6300},
+#     "internal": {"org_id": "test", "auth_time": 6300},
 # }
 
 # complete user identity

@@ -186,12 +186,12 @@ class AuthIdentityValidateTestCase(TestCase):
         except ValueError:
             self.fail()
 
-    def test_invalid_account(self):
+    def test_invalid_org_id(self):
         test_identity = deepcopy(USER_IDENTITY)
-        account_numbers = [None, ""]
-        for account_number in account_numbers:
-            with self.subTest(account_number=account_number):
-                test_identity["account_number"] = account_number
+        org_ids = [None, ""]
+        for org_id in org_ids:
+            with self.subTest(org_id=org_id):
+                test_identity["org_id"] = org_id
                 with self.assertRaises(ValueError):
                     Identity(test_identity)
 
@@ -306,11 +306,11 @@ class TrustedIdentityTestCase(TestCase):
 
         self.assertEqual(identity.is_trusted_system, True)
 
-    def test_account_number_is_not_set_for_trusted_system(self):
+    def test_org_id_is_not_set_for_trusted_system(self):
         with set_environment({SHARED_SECRET_ENV_VAR: self.shared_secret}):
             identity = self._build_id()
 
-        self.assertFalse(hasattr(identity, "account_number"))
+        self.assertFalse(hasattr(identity, "org_id"))
 
 
 class ConfigTestCase(TestCase):
@@ -786,7 +786,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
+            "org_id": "some org_id",
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -824,7 +824,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertEqual(value, getattr(actual, key))
 
     def test_with_only_required_fields(self):
-        account = "some acct"
+        org_id = "some org_id"
         stale_timestamp = datetime.now(timezone.utc)
         reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
@@ -832,7 +832,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         with self.subTest(schema=HostSchema):
             host = deserialize_host(
                 {
-                    "account": account,
+                    "org_id": org_id,
                     "stale_timestamp": stale_timestamp.isoformat(),
                     "reporter": reporter,
                     **canonical_facts,
@@ -843,7 +843,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertEqual(canonical_facts, host.canonical_facts)
             self.assertIsNone(host.display_name)
             self.assertIsNone(host.ansible_host)
-            self.assertEqual(account, host.account)
+            self.assertEqual(org_id, host.org_id)
             self.assertEqual(stale_timestamp, host.stale_timestamp)
             self.assertEqual(reporter, host.reporter)
             self.assertEqual({}, host.facts)
@@ -854,68 +854,67 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         stale_timestamp = datetime.now(timezone.utc).isoformat()
         inputs = (
             {},
-            {"account": "someacct", "stale_timestamp": stale_timestamp},
-            {"account": "someacct", "reporter": "some reporter"},
+            {"org_id": "some org_id", "stale_timestamp": stale_timestamp},
+            {"org_id": "some org_id", "reporter": "some reporter"},
             {"stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {"account": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {"org_id": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
             {
-                "account": "some account",
+                "org_id": "some org_id that's wayyyyyyyyyy too long",
                 "fqdn": "some fqdn",
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
-            {"account": "someacct", "fqdn": None, "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
-            {"account": "someacct", "fqdn": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {"org_id": "some org_id", "fqdn": None, "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
+            {"org_id": "some org_id", "fqdn": "", "stale_timestamp": stale_timestamp, "reporter": "some reporter"},
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "fqdn": "x" * 256,
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "fqdn": "some fqdn",
                 "facts": {"some ns": {"some key": "some value"}},
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "fqdn": "some fqdn",
                 "mac_addresses": ["00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44"],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "fqdn": "some fqdn",
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "insights_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
                 "org_id": str(uuid4()) + str(uuid4()),  # longer than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "bios_uuid": "01234567890abcd",  # test shorter than 36 chars
                 "tags": [{"namespace": "namespace", "value": "value"}],
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "subscription_manager_id": str(uuid4()).replace(
                     "-", ""
                 ),  # uuid witout dashes not allowed for dedup control
@@ -923,7 +922,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
                 "reporter": "some reporter",
             },
             {
-                "account": "someacct",
+                "org_id": "some org_id",
                 "satellite_id": None,  # test for null
                 "stale_timestamp": stale_timestamp,
                 "reporter": "some reporter",
@@ -952,8 +951,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
-            "account": "some acct",
-            "org_id": "3340851",
+            "org_id": "some org_id",
             "reporter": "puptoo",
         }
         stale_timestamp = datetime.now(timezone.utc)
@@ -994,7 +992,6 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         }
         host = deserialize_host(
             {
-                "account": "some acct",
                 "org_id": "3340851",
                 "stale_timestamp": datetime.now(timezone.utc).isoformat(),
                 "reporter": "puptoo",
@@ -1279,7 +1276,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 host.assert_not_called()
 
     def test_host_validation(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        host_input = {"ansible_host": "some ansible host", "account": "some acct"}
+        host_input = {"ansible_host": "some ansible host", "org_id": "some org_id"}
 
         host_schema = MagicMock()
         deserialize_host(host_input, host_schema)
@@ -1391,7 +1388,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
         self.assertEqual(expected, actual)
 
     def test_with_only_required_fields(self):
-        unchanged_data = {"display_name": None, "account": None, "reporter": "yupana"}
+        unchanged_data = {"display_name": None, "org_id": "some org_id", "account": None, "reporter": "yupana"}
         host_init_data = {
             "stale_timestamp": datetime.now(timezone.utc),
             "canonical_facts": {"fqdn": "some fqdn"},
@@ -1437,6 +1434,11 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
+
+        print(">>> Expected:")
+        print(expected)
+        print(">>> Actual:")
+        print(actual)
 
         self.assertEqual(expected, actual)
 
@@ -1866,7 +1868,7 @@ class EventProducerTests(TestCase):
             "stale_timestamp": datetime.now(timezone.utc).isoformat(),
             "reporter": "test_reporter",
             "account": "test",
-            "org_id": "3340851",
+            "org_id": "test",
             "fqdn": "fqdn",
         }
 

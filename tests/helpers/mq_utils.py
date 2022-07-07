@@ -82,7 +82,7 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
 
     assert isinstance(event, dict)
 
-    expected_keys = {"timestamp", "type", "id", "account", "insights_id", "request_id", "metadata"}
+    expected_keys = {"timestamp", "type", "id", "org_id", "insights_id", "request_id", "metadata"}
     assert set(event.keys()) == expected_keys
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]
@@ -123,6 +123,7 @@ def assert_patch_event_is_valid(
         "type": "updated",
         "host": {
             "id": str(host.id),
+            "org_id": host.org_id,
             "account": host.account,
             "display_name": display_name,
             "ansible_host": host.ansible_host,
@@ -148,6 +149,11 @@ def assert_patch_event_is_valid(
         "metadata": {"request_id": expected_request_id},
         "timestamp": expected_timestamp.isoformat(),
     }
+
+    print(">>> Event:")
+    print(event)
+    print(">>> Expected event:")
+    print(expected_event)
 
     # We don't have this information without retrieving the host after the patch request
     del event["host"]["updated"]

@@ -68,8 +68,8 @@ def deserialize_host_xjoin(data):
         canonical_facts=data["canonical_facts"],
         display_name=data["display_name"],
         ansible_host=data["ansible_host"],
-        account=data["account"],
-        org_id=data.get("org_id"),
+        account=data.get("account"),
+        org_id=data["org_id"],
         facts=data["facts"] or {},
         tags={},  # Not a part of host list output
         system_profile_facts=data["system_profile_facts"] or {},
@@ -99,7 +99,7 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
         serialized_host["id"] = _serialize_uuid(host.id)
     if "account" in fields:
         serialized_host["account"] = host.account
-    if "org_id" in fields and host.org_id:
+    if "org_id" in fields:
         serialized_host["org_id"] = host.org_id
     if "display_name" in fields:
         serialized_host["display_name"] = host.display_name

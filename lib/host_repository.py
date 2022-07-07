@@ -16,7 +16,6 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import serialize_host
 from lib import metrics
 from lib.db import session_guard
-from lib.middleware import translate_account_to_org_id
 
 
 __all__ = (
@@ -53,27 +52,14 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
 
     Required parameters:
      - at least one of the canonical facts fields is required
-     - account number
+     - org_id
     """
     with session_guard(db.session):
         existing_host = find_existing_host(identity, input_host.canonical_facts)
 
         if existing_host:
-            if not existing_host.org_id:
-                if not input_host.org_id:
-                    # If neither the existing host nor input host has an org_id,
-                    # populate it on the input_host using the 3scale endpoint.
-                    input_host.org_id = translate_account_to_org_id(input_host.account)
-            elif not input_host.org_id:
-                # If the existing host has an org_id but the input host does not,
-                # set the input host's org_id to match the existing host.
-                input_host.org_id = existing_host.org_id
             return update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields)
         else:
-            # If we're making a new host and the input host has no org_id,
-            # populate it using the 3scale endpoint
-            if not input_host.org_id:
-                input_host.org_id = translate_account_to_org_id(input_host.account)
             return create_new_host(input_host, staleness_offset, fields)
 
 
@@ -89,7 +75,7 @@ def find_existing_host(identity, canonical_facts):
 
 
 def find_existing_host_by_id(identity, host_id):
-    query = Host.query.filter((Host.account == identity.account_number) & (Host.id == UUID(host_id)))
+    query = Host.query.filter((Host.org_id == identity.org_id) & (Host.id == UUID(host_id)))
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
 
@@ -119,7 +105,7 @@ def _find_host_by_elevated_ids(identity, canonical_facts):
 
 def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_to_owner_id=True):
     query = Host.query.filter(
-        (Host.account == identity.account_number) & (Host.canonical_facts[canonical_fact].astext == value)
+        (Host.org_id == identity.org_id) & (Host.canonical_facts[canonical_fact].astext == value)
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
@@ -128,7 +114,7 @@ def single_canonical_fact_host_query(identity, canonical_fact, value, restrict_t
 
 def multiple_canonical_facts_host_query(identity, canonical_facts, restrict_to_owner_id=True):
     query = Host.query.filter(
-        (Host.account == identity.account_number)
+        (Host.org_id == identity.org_id)
         & (contains_no_incorrect_facts_filter(canonical_facts))
         & (matches_at_least_one_canonical_fact_filter(canonical_facts))
     )

@@ -54,5 +54,5 @@ def _order_how(column, order_how):
 
 def _find_all_hosts():
     identity = get_current_identity()
-    query = Host.query.filter(Host.account == identity.account_number)
+    query = Host.query.filter(Host.org_id == identity.org_id)
     return update_query_for_owner_id(identity, query)

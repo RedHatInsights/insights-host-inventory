@@ -27,8 +27,8 @@ class SerializedHostSchema(Schema):
     id = fields.UUID()
     display_name = fields.Str()
     ansible_host = fields.Str()
-    account = fields.Str(required=True)
-    org_id = fields.Str(required=False)
+    account = fields.Str(required=False)
+    org_id = fields.Str(required=True)
     insights_id = fields.Str()
     subscription_manager_id = fields.Str()
     satellite_id = fields.Str()
@@ -100,15 +100,14 @@ def host_delete_event(event_type, host):
         "type": event_type.name,
         "id": host.id,
         **serialize_canonical_facts(host.canonical_facts),
+        "org_id": host.org_id,
         "request_id": threadctx.request_id,
         "metadata": {"request_id": threadctx.request_id},
     }
 
-    # a valid host must have an account or org_id or both
+    # Set the account as well, if provided
     if host.account:
         delete_event["account"] = host.account
-    if host.org_id:
-        delete_event["org_id"] = host.org_id
 
     return (HostDeleteEvent, delete_event)
 
