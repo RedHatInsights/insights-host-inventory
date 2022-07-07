@@ -150,11 +150,6 @@ def assert_patch_event_is_valid(
         "timestamp": expected_timestamp.isoformat(),
     }
 
-    print(">>> Event:")
-    print(event)
-    print(">>> Expected event:")
-    print(expected_event)
-
     # We don't have this information without retrieving the host after the patch request
     del event["host"]["updated"]
 

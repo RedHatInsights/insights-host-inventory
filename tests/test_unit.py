@@ -1435,11 +1435,6 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
 
-        print(">>> Expected:")
-        print(expected)
-        print(">>> Actual:")
-        print(actual)
-
         self.assertEqual(expected, actual)
 
     def test_stale_timestamp_config(self):
