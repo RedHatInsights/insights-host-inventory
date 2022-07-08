@@ -787,6 +787,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "display_name": "some display name",
             "ansible_host": "some ansible host",
             "account": "some acct",
+            "org_id": "some org_id",
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -825,6 +826,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
     def test_with_only_required_fields(self):
         account = "some acct"
+        org_id = "some org_id"
         stale_timestamp = datetime.now(timezone.utc)
         reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
@@ -833,6 +835,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             host = deserialize_host(
                 {
                     "account": account,
+                    "org_id": org_id,
                     "stale_timestamp": stale_timestamp.isoformat(),
                     "reporter": reporter,
                     **canonical_facts,
@@ -844,6 +847,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertIsNone(host.display_name)
             self.assertIsNone(host.ansible_host)
             self.assertEqual(account, host.account)
+            self.assertEqual(org_id, host.org_id)
             self.assertEqual(stale_timestamp, host.stale_timestamp)
             self.assertEqual(reporter, host.reporter)
             self.assertEqual({}, host.facts)
