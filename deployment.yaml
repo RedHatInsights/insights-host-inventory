@@ -28,6 +28,7 @@ objects:
         - gunicorn
         - --workers=${GUNICORN_WORKERS}
         - --threads=${GUNICORN_THREADS}
+        - --limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}
         - --worker-tmp-dir=/gunicorn
         - -c
         - gunicorn.conf.py
@@ -795,6 +796,8 @@ parameters:
   value: '1'
 - name: GUNICORN_THREADS
   value: '2'
+- name: GUNICORN_REQUEST_FIELD_LIMIT
+  value: 16380
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
