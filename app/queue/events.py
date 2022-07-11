@@ -101,13 +101,10 @@ def host_delete_event(event_type, host):
         "id": host.id,
         **serialize_canonical_facts(host.canonical_facts),
         "org_id": host.org_id,
+        "account": host.account,
         "request_id": threadctx.request_id,
         "metadata": {"request_id": threadctx.request_id},
     }
-
-    # Set the account as well, if provided
-    if host.account:
-        delete_event["account"] = host.account
 
     return (HostDeleteEvent, delete_event)
 

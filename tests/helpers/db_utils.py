@@ -56,6 +56,7 @@ def minimal_db_host(**values):
 
 def db_host(**values):
     data = {
+        "account": USER_IDENTITY["account_number"],
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "test-display-name",
         "ansible_host": "test-ansible-host",

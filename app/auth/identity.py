@@ -105,7 +105,7 @@ class Identity:
             threadctx.org_id = obj["org_id"]
 
             if obj.get("account_number"):
-                threadctx.org_id = obj["account_number"]
+                threadctx.account_number = obj["account_number"]
 
         else:
             raise ValueError("Neither the org_id or token has been set")
