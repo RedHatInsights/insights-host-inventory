@@ -82,7 +82,7 @@ def assert_delete_event_is_valid(event_producer, host, timestamp, expected_reque
 
     assert isinstance(event, dict)
 
-    expected_keys = {"timestamp", "type", "id", "org_id", "insights_id", "request_id", "metadata"}
+    expected_keys = {"timestamp", "type", "id", "account", "org_id", "insights_id", "request_id", "metadata"}
     assert set(event.keys()) == expected_keys
 
     assert timestamp.replace(tzinfo=timezone.utc).isoformat() == event["timestamp"]

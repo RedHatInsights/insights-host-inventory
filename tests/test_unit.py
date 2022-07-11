@@ -786,6 +786,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         unchanged_input = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
+            "account": "some acct",
             "org_id": "some org_id",
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},

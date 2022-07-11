@@ -68,7 +68,9 @@ def db_get_host_by_insights_id(flask_app):
 def db_create_host(flask_app):
     def _db_create_host(identity=SYSTEM_IDENTITY, host=None, extra_data=None):
         extra_data = extra_data or {}
-        host = host or minimal_db_host(org_id=identity["org_id"], **extra_data)
+        host = host or minimal_db_host(
+            org_id=identity["account_number"], account=identity["account_number"], **extra_data
+        )
         db.session.add(host)
         db.session.commit()
         return host
