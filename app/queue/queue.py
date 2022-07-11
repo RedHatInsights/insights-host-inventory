@@ -1,6 +1,7 @@
 import base64
 import json
 import sys
+import uuid
 from copy import deepcopy
 from uuid import UUID
 
@@ -213,7 +214,7 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(event_type=EventType.updated, host=input_host)
+            send_kafka_error_message(host=input_host)
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -251,7 +252,7 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(event_type=EventType.created, host=input_host)
+            send_kafka_error_message(host=input_host)
             # ensure input_host is reliable
             raise
         except InventoryException as ie:
@@ -332,6 +333,15 @@ def send_kafka_error_message(host):
     config = _init_config()
     event = build_event(EventType.validation_error, host)
     event_producer = EventProducer(config)
-    insights_id = host.canonical_facts.get("insights_id")  # again, see how this works when the host is now created
-    headers = message_headers(EventType.validation_error, insights_id)
-    event_producer.write_event(event, str(host.id), headers, wait=True)
+    insights_id = host.canonical_facts.get("insights_id")  # again, see how this works when the host is not created
+    headers = message_headers(
+        EventType.validation_error,
+        insights_id,
+        rh_message_id=create_message_id(),  # will this need to be saved somewhere?
+    )
+    event_producer.write_event(event, str(host.id), headers, wait=True)  # how to set egress_topic?
+
+
+def create_message_id():
+    encoded_id = str(uuid.uuid4()).encode()
+    return bytearray(encoded_id)

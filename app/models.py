@@ -622,3 +622,14 @@ class PatchHostSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class HostValidationErrorSchema(MarshmallowSchema):
+    code = fields.Str()
+    message = fields.Str()
+    stack_trace = fields.Str(required=False)
+    severity = fields.Str()
+
+
+class ErrorPayloadSchema(MarshmallowSchema):
+    error = fields.Nested(HostValidationErrorSchema)

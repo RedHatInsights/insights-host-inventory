@@ -22,7 +22,7 @@
     ],
     "recipients": [
         {
-            "only-admins": false,
+            "only_admins": false,
             "ignore_user_preferences": false,
             "users": []
         }

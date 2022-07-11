@@ -8,6 +8,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
+from app.models import ErrorPayloadSchema
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -15,7 +16,7 @@ from app.serialization import serialize_canonical_facts
 logger = logging.getLogger(__name__)
 
 
-EventType = Enum("EventType", ("created", "updated", "delete"))
+EventType = Enum("EventType", ("created", "updated", "delete", "validation_error"))
 
 
 def hostname():
@@ -72,13 +73,36 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
-def message_headers(event_type: EventType, insights_id: str):
-    return {
+class HostValidationErrorMetadataSchema(Schema):
+    metadata = fields.Dict()
+    payload = fields.Nested(ErrorPayloadSchema)
+
+
+class HostValidationErrorEvent(Schema):
+    version = fields.Str()
+    bundle = fields.Str(required=True)
+    application = fields.Str(required=True)
+    event_type = fields.Str(required=True)
+    timestamp = fields.DateTime(required=True, format="iso8601")
+    account_id = fields.Str(required=True)
+    org_id = fields.Str()
+    context = fields.Dict()
+    events = fields.List(HostValidationErrorMetadataSchema())
+
+
+def message_headers(event_type: EventType, insights_id: str, rh_message_id: bytearray = None):
+    header = {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
         "insights_id": insights_id,
     }
+
+    # rh_message_id ensures the message is only going to be processed once by notifications
+    if rh_message_id:
+        header["rh-message-id"] = rh_message_id
+
+    return header
 
 
 def host_create_update_event(event_type, host, platform_metadata=None):
