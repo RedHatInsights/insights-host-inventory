@@ -73,6 +73,7 @@ def set_environment(new_env=None):
 def minimal_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
+        "org_id": USER_IDENTITY["account_number"],
         "display_name": "test" + generate_random_string(),
         "ip_addresses": ["10.10.0.1"],
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))).isoformat(),
