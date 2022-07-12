@@ -660,6 +660,8 @@ objects:
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
+      - topicName: platform.notifications.ingress
+        partitions: 1
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -808,6 +810,9 @@ parameters:
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
+- name: KAFKA_NOTIFICATION_TOPIC
+  description: The topic containing messages to be sent as notifications
+  value: platform.notification.ingress
 - name: KAFKA_SECURITY_PROTOCOL
   description: The Kafka Security Protocol
   value: PLAINTEXT

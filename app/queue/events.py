@@ -137,9 +137,32 @@ def host_delete_event(event_type, host):
     return (HostDeleteEvent, delete_event)
 
 
-def host_validation_error_event(event_type, host):
+def host_validation_error_event(event_type, host, error):
     # figure out how this works if the host isn't created
-    pass
+    validation_error_event = {
+        "version": "v1.0.0",
+        "bundle": "rhel",
+        "application": "inventory",
+        "event_type": event_type,  # need to change _ for -
+        "timestamp": datetime.now(timezone.utc),
+        "account_id": host.account,
+        "org_id": host.org_id if host.org_id else None,
+        "context": {},
+        "events": {
+            "metadata": {},
+            "payload": {
+                # get infos from error
+                "error": {
+                    "code": error.code,
+                    "message": error.message,
+                    "stack_trace": error.stack_trace,
+                    "severity": error.severity,
+                },
+            },
+        },
+    }
+
+    return (HostValidationErrorEvent, validation_error_event)
 
 
 EVENT_TYPE_MAP = {
