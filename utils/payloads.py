@@ -8,26 +8,25 @@ from datetime import timezone
 
 # complete system identity
 IDENTITY = {
-    "account_number": "test",
     "org_id": "test",
     "type": "System",
     "auth_type": "cert-auth",
     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-    "internal": {"org_id": "test", "auth_time": 6300},
+    "internal": {"auth_time": 6300},
 }
 
 # system identity: invalid or incomplete for testing
 # IDENTITY = {
-#     "account_number": "sysaccount",
+#     "org_id": "sysorgid",
 #     "type": "System",
 #     "auth_type": "invalid-auth",
 #     "system": {"cn": "1b36b20f-7fa0-4454-a6d2-008294e06378", "cert_type": "system"},
-#     "internal": {"org_id": "test", "auth_time": 6300},
+#     "internal": {"auth_time": 6300},
 # }
 
 # complete user identity
 # IDENTITY = {
-#     "account_number": "test",
+#     "org_id": "test",
 #     "type": "User",
 #     "auth_type": "basic-auth",
 #     "user": {"email": "tuser@redhat.com", "first_name": "test"},
@@ -35,7 +34,7 @@ IDENTITY = {
 
 # incomplete or invalid user identity for testing
 # IDENTITY = {
-#     "account_number": "test",
+#     "org_id": "test",
 #     "type": "User",
 #     "auth_type": "basic-auth",
 # }
@@ -477,7 +476,7 @@ def create_system_profile():
 
 def build_rhsm_payload():
     return {
-        "account": "rhsaccount",
+        "org_id": "rhsorgid",
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -555,12 +554,10 @@ def random_uuid():
 
 
 def build_host_chunk():
-    account = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["account_number"])
     org_id = os.environ.get("INVENTORY_HOST_ACCOUNT", IDENTITY["org_id"])
     fqdn = random_uuid()[:6] + ".foo.redhat.com"
     payload = {
         "bios_uuid": random_uuid(),
-        "account": account,
         "org_id": org_id,
         "display_name": fqdn,
         "tags": [
