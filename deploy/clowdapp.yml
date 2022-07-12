@@ -1,0 +1,810 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: insights-host-inventory
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: host-inventory
+  spec:
+    envName: ${ENV_NAME}
+    testing:
+      iqePlugin: host-inventory
+    dependencies:
+      - rbac
+      - xjoin-search
+      - ingress
+    deployments:
+    - name: service
+      minReplicas: ${{REPLICAS_SVC}}
+      webServices:
+        public:
+          enabled: true
+          apiPath: inventory
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        command:
+        - gunicorn
+        - --workers=${GUNICORN_WORKERS}
+        - --threads=${GUNICORN_THREADS}
+        - --limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}
+        - --worker-tmp-dir=/gunicorn
+        - -c
+        - gunicorn.conf.py
+        - -b
+        - 0.0.0.0:8000
+        - -t
+        - '60'
+        - run
+        env:
+        - name: APP_NAME
+          value: ${APP_NAME}
+        - name: PATH_PREFIX
+          value: ${PATH_PREFIX}
+        - name: INVENTORY_LEGACY_API_URL
+          value: /r/insights/platform/inventory/v1/
+        - name: prometheus_multiproc_dir
+          value: /tmp/inventory/prometheus
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: URLLIB3_LOG_LEVEL
+          value: ${URLLIB3_LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: XJOIN_GRAPHQL_URL
+          value: http://${XJOIN_SEARCH_HOST}:${XJOIN_SEARCH_PORT}/graphql
+        - name: BYPASS_RBAC
+          value: ${BYPASS_RBAC}
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 60
+        volumeMounts:
+        - mountPath: /tmp/inventory/prometheus
+          name: prometheus-volume
+        - mountPath: /gunicorn
+          name: gunicorn-worker-dir
+        volumes:
+        - emptyDir: {}
+          name: prometheus-volume
+        - emptyDir:
+            medium: Memory
+          name: gunicorn-worker-dir
+    - name: mq-pmin
+      minReplicas: ${{REPLICAS_PMIN}}
+      podSpec:
+        command:
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: inventory-mq
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+    - name: mq-p1
+      minReplicas: ${{REPLICAS_P1}}
+      podSpec:
+        initContainers:
+        - command:
+          - /bin/sh
+          - -c
+          - python manage.py db upgrade
+          inheritEnv: true
+        command:
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: inventory-mq
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+    - name: mq-sp
+      minReplicas: ${{REPLICAS_SP}}
+      podSpec:
+        command:
+        - /bin/sh
+        - -c
+        - python inv_mq_service.py
+        env:
+        - name: INVENTORY_LOG_LEVEL
+          value: ${LOG_LEVEL}
+        - name: INVENTORY_DB_SSL_MODE
+          value: ${INVENTORY_DB_SSL_MODE}
+        - name: INVENTORY_DB_SSL_CERT
+          value: ${INVENTORY_DB_SSL_CERT}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_HOST_INGRESS_GROUP
+          value: inventory-mq
+        - name: PAYLOAD_TRACKER_SERVICE_NAME
+          value: inventory-mq-service
+        - name: PAYLOAD_TRACKER_ENABLED
+          value: 'true'
+        - name: KAFKA_PRODUCER_ACKS
+          value: ${KAFKA_PRODUCER_ACKS}
+        - name: KAFKA_PRODUCER_RETRIES
+          value: ${KAFKA_PRODUCER_RETRIES}
+        - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+          value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+        - name: KAFKA_SECURITY_PROTOCOL
+          value: ${KAFKA_SECURITY_PROTOCOL}
+        - name: KAFKA_SASL_MECHANISM
+          value: ${KAFKA_SASL_MECHANISM}
+        - name: TENANT_TRANSLATOR_URL
+          value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
+        - name: BYPASS_TENANT_TRANSLATION
+          value: ${BYPASS_TENANT_TRANSLATION}
+        - name: CLOWDER_ENABLED
+          value: "true"
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+    jobs:
+    - name: reaper
+      schedule: '@hourly'
+      suspend: ${{REAPER_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - python host_reaper.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT_REAPER}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST_REAPER}
+    - name: sp-validator
+      schedule: '@hourly'
+      suspend: ${{SP_VALIDATOR_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - python system_profile_validator.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: GIT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: token
+                name: dippy-bot
+          - name: GIT_USER
+            valueFrom:
+              secretKeyRef:
+                key: user
+                name: dippy-bot
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: KAFKA_HOST_INGRESS_TOPIC
+            value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+            value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
+          - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
+            value: ${KAFKA_SP_VALIDATOR_MAX_MESSAGES}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+    - name: pendo-syncher
+      schedule: ${PENDO_CRON_SCHEDULE}
+      suspend: ${{PENDO_SYNCHER_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: Never
+        command:
+          - /bin/sh
+          - -c
+          - python pendo_syncher.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: PENDO_SYNC_ACTIVE
+            value: ${PENDO_SYNC_ACTIVE}
+          - name: PENDO_INTEGRATION_KEY
+            valueFrom:
+              secretKeyRef:
+                key: apikey
+                name: pendo-creds
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+    - name: synchronizer
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        restartPolicy: OnFailure
+        command:
+          - /bin/sh
+          - -c
+          - python rebuild_events_topic.py && python host_synchronizer.py
+        env:
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: platform.payload-status
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES
+            value: '3145728'
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT}
+            memory: ${MEMORY_LIMIT}
+          requests:
+            cpu: ${CPU_REQUEST}
+            memory: ${MEMORY_REQUEST}
+
+    # This job populates the org_id field on all hosts that are missing a value for it.
+    # After executing this job, the host-synchronizer should be run to sync Cyndi DBs.
+    # After all hosts have been updated in Stage and Prod, we can remove this job.
+    # Documentation for this job can be found here:
+    # https://github.com/RedHatInsights/tenant-utils/blob/main/cmd/org-id-column-populator/README.md
+    - name: org-id-populator
+      podSpec:
+        image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
+        command:
+          - ./org-id-column-populator
+          - -C
+          - -a
+          - account
+          - -o
+          - org_id
+          - -t
+          - hosts
+          - --ean-translator-addr
+          - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          - --prometheus-push-addr
+          - ${PROMETHEUS_PUSHGATEWAY}
+        env:
+          - name: LOG_FORMAT
+            value: ${POPULATOR_LOG_FORMAT}
+          - name: LOG_BATCH_FREQUENCY
+            value: '1s'
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 512Mi
+    - name: floorist
+      schedule: ${FLOORIST_SCHEDULE}
+      suspend: ${{FLOORIST_SUSPEND}}
+      concurrencyPolicy: Forbid
+      podSpec:
+        image: ${FLOORIST_IMAGE}:${FLOORIST_IMAGE_TAG}
+        env:
+        - name: AWS_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: bucket
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_region
+        - name: AWS_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: endpoint
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ${FLOORIST_BUCKET_SECRET_NAME}
+              key: aws_secret_access_key
+        - name: FLOORPLAN_FILE
+          value: "/tmp/floorplan/floorplan.yaml"
+        - name: LOGLEVEL
+          value: ${FLOORIST_LOGLEVEL}
+        volumeMounts:
+        - name: floorplan-volume
+          mountPath: "/tmp/floorplan"
+        volumes:
+          - name: floorplan-volume
+            configMap:
+              name: floorplan
+        resources:
+          limits:
+            cpu: "${CPU_LIMIT_FLOO}"
+            memory: "${MEMORY_LIMIT_FLOO}"
+          requests:
+            cpu: "${CPU_REQUEST_FLOO}"
+            memory: "${MEMORY_REQUEST_FLOO}"
+    database:
+      name: host-inventory
+      version: 12
+    kafkaTopics:
+      - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        partitions: 1
+      - topicName: platform.payload-status
+        partitions: 1
+      - topicName: platform.inventory.events
+        partitions: 1
+      - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
+        partitions: 1
+      - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
+        partitions: 1
+# this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: insights-inventory
+    name: insights-inventory
+  spec:
+    ports:
+    - name: port-8080
+      port: 8080
+      protocol: TCP
+      targetPort: 8000
+    selector:
+      pod: host-inventory-service
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: floorplan
+  data:
+    floorplan.yaml: |
+      - prefix: insights/inventory/hosts
+        query: >-
+          SELECT
+            "id",
+            "account" AS "account_number",
+            "created_on" AS "created_at",
+            "modified_on" AS "updated_at",
+            "ansible_host" AS "ansible_host",
+            CONCAT_WS('.',"system_profile_facts"->'operating_system'->>'name',"system_profile_facts"->'operating_system'->'major',"system_profile_facts"->'operating_system'->'minor') AS "os_version",
+            "system_profile_facts"->'host_type' AS "host_type",
+            "system_profile_facts"->'ansible'->'controller_version' AS "ansible_controller_version",
+            "system_profile_facts"->'ansible'->'hub_version' AS "ansible_hub_version",
+            "system_profile_facts"->'rhsm'->'version' AS "rhsm_version",
+            "system_profile_facts"->'is_marketplace' AS "is_marketplace_installation",
+            "system_profile_facts"->'insights_client_version' AS "insights_client_version",
+            "system_profile_facts"->'insights_egg_version' AS "insights_egg_version",
+            "system_profile_facts"->'satellite_managed' AS "is_satellite_managed",
+            "system_profile_facts"->'subscription_status' AS "subscription_status"
+          FROM "hosts"
+parameters:
+- name: LOG_LEVEL
+  value: INFO
+- descrpition: Cpu request of service
+  name: CPU_REQUEST
+  value: 250m
+- description: Cpu limit of service
+  name: CPU_LIMIT
+  value: 500m
+- description: memory limit of service
+  name: MEMORY_LIMIT
+  value: 512Mi
+- description: memory limit of reaper
+  name: MEMORY_LIMIT_REAPER
+  value: 512Mi
+- description: request limit for service
+  name: MEMORY_REQUEST
+  value: 256Mi
+- description: request limit for reaper
+  name: MEMORY_REQUEST_REAPER
+  value: 256Mi
+- description: Replica count for p1 consumer
+  name: REPLICAS_P1
+  value: "5"
+- description: Replica count for pmin consumer
+  name: REPLICAS_PMIN
+  value: "3"
+- description: Replica count for sp consumer
+  name: REPLICAS_SP
+  value: "2"
+- description: Replica count for webservice
+  name: REPLICAS_SVC
+  value: "10"
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: Image NAME
+  name: IMAGE
+  required: true
+  value: quay.io/cloudservices/insights-inventory
+- description : ClowdEnvironment name
+  name: ENV_NAME
+  value: stage
+- name: APP_NAME
+  value: inventory
+- name: PATH_PREFIX
+  value: api
+- name: URLLIB3_LOG_LEVEL
+  value: WARNING
+- name: XJOIN_SEARCH_HOST
+  value: localhost
+- name: XJOIN_SEARCH_PORT
+  value: '4000'
+- description: SSL validation mode for the DB
+  name: INVENTORY_DB_SSL_MODE
+  value: prefer
+- description: disable RBAC middleware
+  name: BYPASS_RBAC
+  value: 'false'
+- description: disable account-to-org_id translation, defaulting to None where org_id is not provided
+  name: BYPASS_TENANT_TRANSLATION
+  value: 'false'
+- name: KAFKA_PRODUCER_ACKS
+  value: '1'
+- name: KAFKA_PRODUCER_RETRIES
+  value: '0'
+- name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+  value: '100'
+- name: KAFKA_HOST_INGRESS_TOPIC
+  description: The topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress
+- name: KAFKA_HOST_INGRESS_P1_TOPIC
+  description: The TOP-PRIORITY topic containing Host data sent by reporters
+  value: platform.inventory.host-ingress-p1
+- name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+  description: Used by system_profile_validator
+  value: platform.inventory.host-ingress-p1
+- name: KAFKA_SYSTEM_PROFILE_TOPIC
+  description: The topic containing Host data for System Profile updates
+  value: platform.inventory.system-profile
+- name: KAFKA_SECURITY_PROTOCOL
+  description: The Kafka Security Protocol
+  value: PLAINTEXT
+- name: KAFKA_SASL_MECHANISM
+  value: 'PLAIN'
+- name: PROMETHEUS_PUSHGATEWAY
+  value: 'localhost:9091'
+- name: KAFKA_BOOTSTRAP_HOST
+  value: 'localhost'
+- name: KAFKA_BOOTSTRAP_PORT
+  value: '29092'
+- name: INVENTORY_DB_SSL_CERT
+  value: ''
+- name: PENDO_SYNCHER_SUSPEND
+  value: 'true'
+- name: PENDO_CRON_SCHEDULE
+  value: '@daily'
+- name: PENDO_SYNC_ACTIVE
+  value: 'false'
+- name: SP_VALIDATOR_SUSPEND
+  value: 'true'
+- name: REAPER_SUSPEND
+  value: 'true'
+- name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
+  value: '10000'
+- name: TENANT_TRANSLATOR_HOST
+  value: 'apicast.3scale-dev.svc.cluster.local'
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: POPULATOR_LOG_FORMAT
+  value: cloudwatch
+- name: POPULATOR_IMAGE
+  value: quay.io/cloudservices/tenant-utils
+- name: POPULATOR_IMAGE_TAG
+  value: latest
+- name: GUNICORN_WORKERS
+  value: '1'
+- name: GUNICORN_THREADS
+  value: '2'
+- name: GUNICORN_REQUEST_FIELD_LIMIT
+  value: '16380'
+
+#floorist
+- name: MEMORY_LIMIT_FLOO
+  value: 200Mi
+- name: MEMORY_REQUEST_FLOO
+  value: 100Mi
+- name: CPU_LIMIT_FLOO
+  value: 100m
+- name: CPU_REQUEST_FLOO
+  value: 50m
+- name: FLOORIST_SCHEDULE
+  description: Cronjob schedule definition
+  required: true
+  value: '@daily'
+- name: FLOORIST_SUSPEND
+  description: Disable Floorist cronjob execution
+  required: true
+  value: 'true'
+- description: Floorist image name
+  name: FLOORIST_IMAGE
+  value: quay.io/cloudservices/floorist
+- description: Floorist Image tag
+  name: FLOORIST_IMAGE_TAG
+  required: true
+  value: latest
+- description: bucket secret name
+  name: FLOORIST_BUCKET_SECRET_NAME
+  required: true
+  value: dummy-secret
+- name: FLOORIST_LOGLEVEL
+  description: Floorist loglevel config
+  value: 'INFO'
