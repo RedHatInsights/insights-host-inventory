@@ -16,4 +16,4 @@ class InputFormatException(InventoryException):
 
 class ValidationException(InventoryException):
     def __init__(self, detail):
-        InventoryException.__init__(self, title="Validation Error", detail=detail)
+        InventoryException.__init__(self, title="Validation Error", detail=detail, severity="error")

@@ -34,11 +34,13 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import EventProducer
+from app.queue.event_producer import NotificationEventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
+from app.queue.notifications import build_notification_event
+from app.queue.notifications import notification_message_headers
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -75,6 +77,12 @@ def _decode_id(encoded_id):
 # receives an uuid string w/o dashes and outputs an uuid string with dashes
 def _formatted_uuid(uuid_string):
     return str(UUID(uuid_string))
+
+
+# ensures correct processing of the notification
+def _create_message_id():
+    encoded_id = str(uuid.uuid4()).encode()
+    return bytearray(encoded_id)
 
 
 def _get_identity(host, metadata):
@@ -214,7 +222,7 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(host=input_host)
+            send_kafka_error_message(host=input_host, error=ValidationException)
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -252,7 +260,7 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(host=input_host)
+            send_kafka_error_message(host=input_host, error=ValidationException)
             # ensure input_host is reliable
             raise
         except InventoryException as ie:
@@ -327,21 +335,15 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(host):
+def send_kafka_error_message(host, error):
     # just trying to get all the elements before sorting what goes where
-    # ref: lib/host_remove_duplicates.py and host_delete_duplicates.py
     config = _init_config()
-    event = build_event(EventType.validation_error, host)
-    event_producer = EventProducer(config)
+    event = build_notification_event(EventType.validation_error, host, error)
+    event_producer = NotificationEventProducer(config)
     insights_id = host.canonical_facts.get("insights_id")  # again, see how this works when the host is not created
-    headers = message_headers(
+    headers = notification_message_headers(
         EventType.validation_error,
         insights_id,
-        rh_message_id=create_message_id(),  # will this need to be saved somewhere?
+        rh_message_id=_create_message_id(),
     )
-    event_producer.write_event(event, str(host.id), headers, wait=True)  # how to set egress_topic?
-
-
-def create_message_id():
-    encoded_id = str(uuid.uuid4()).encode()
-    return bytearray(encoded_id)
+    event_producer.write_event(event, str(host.id), headers, wait=True)

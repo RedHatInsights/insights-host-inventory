@@ -8,7 +8,6 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
-from app.models import ErrorPayloadSchema
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -16,7 +15,7 @@ from app.serialization import serialize_canonical_facts
 logger = logging.getLogger(__name__)
 
 
-EventType = Enum("EventType", ("created", "updated", "delete", "validation_error"))
+EventType = Enum("EventType", ("created", "updated", "delete"))
 
 
 def hostname():
@@ -73,36 +72,13 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
-class HostValidationErrorMetadataSchema(Schema):
-    metadata = fields.Dict()
-    payload = fields.Nested(ErrorPayloadSchema)
-
-
-class HostValidationErrorEvent(Schema):
-    version = fields.Str()
-    bundle = fields.Str(required=True)
-    application = fields.Str(required=True)
-    event_type = fields.Str(required=True)
-    timestamp = fields.DateTime(required=True, format="iso8601")
-    account_id = fields.Str(required=True)
-    org_id = fields.Str()
-    context = fields.Dict()
-    events = fields.List(HostValidationErrorMetadataSchema())
-
-
-def message_headers(event_type: EventType, insights_id: str, rh_message_id: bytearray = None):
-    header = {
+def message_headers(event_type: EventType, insights_id: str):
+    return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
         "insights_id": insights_id,
     }
-
-    # rh_message_id ensures the message is only going to be processed once by notifications
-    if rh_message_id:
-        header["rh-message-id"] = rh_message_id
-
-    return header
 
 
 def host_create_update_event(event_type, host, platform_metadata=None):
@@ -137,39 +113,10 @@ def host_delete_event(event_type, host):
     return (HostDeleteEvent, delete_event)
 
 
-def host_validation_error_event(event_type, host, error):
-    # figure out how this works if the host isn't created
-    validation_error_event = {
-        "version": "v1.0.0",
-        "bundle": "rhel",
-        "application": "inventory",
-        "event_type": event_type,  # need to change _ for -
-        "timestamp": datetime.now(timezone.utc),
-        "account_id": host.account,
-        "org_id": host.org_id if host.org_id else None,
-        "context": {},
-        "events": {
-            "metadata": {},
-            "payload": {
-                # get infos from error
-                "error": {
-                    "code": error.code,
-                    "message": error.message,
-                    "stack_trace": error.stack_trace,
-                    "severity": error.severity,
-                },
-            },
-        },
-    }
-
-    return (HostValidationErrorEvent, validation_error_event)
-
-
 EVENT_TYPE_MAP = {
     EventType.created: host_create_update_event,
     EventType.updated: host_create_update_event,
     EventType.delete: host_delete_event,
-    EventType.validation_error: host_validation_error_event,
 }
 
 
