@@ -3,48 +3,50 @@ from datetime import timezone
 from enum import Enum
 
 from marshmallow import fields
-from marshmallow import Schema
+from marshmallow import Schema as MarshmallowSchema
+from marshmallow import validate as marshmallow_validate
 
 from app.logging import threadctx
 from app.queue.events import hostname
 from app.queue.metrics import event_serialization_time
 
 NotificationType = Enum("NotificationType", ("validation_error"), "error")
+event_severity = Enum("warning", "error", "critical")
 
 
 # Schemas
-class HostValidationErrorSchema(Schema):
-    code = fields.Str()
-    message = fields.Str()
-    stack_trace = fields.Str(required=False)
-    severity = fields.Str()
+class HostValidationErrorSchema(MarshmallowSchema):
+    code = fields.Str(required=True)
+    message = fields.Str(required=True, validate=marshmallow_validate.Length(max=1024))
+    stack_trace = fields.Str()
+    severity = fields.Str(required=True, validate=marshmallow_validate.OneOf(event_severity))
 
 
-class ErrorPayloadSchema(Schema):
+class ErrorPayloadSchema(MarshmallowSchema):
     error = fields.Nested(HostValidationErrorSchema())
 
 
-class HostValidationErrorMetadataSchema(Schema):
-    metadata = fields.Dict()
+class HostValidationErrorMetadataSchema(MarshmallowSchema):
+    metadata = fields.Dict(validate=marshmallow_validate.Equal({}))
     payload = fields.Nested(ErrorPayloadSchema())
 
 
-class HostValidationErrorNotificationEvent(Schema):
-    id: fields.UUID()
-    version = fields.Str()
-    bundle = fields.Str(required=True)
-    application = fields.Str(required=True)
-    event_type = fields.Str(required=True)
+class HostValidationErrorNotificationEvent(MarshmallowSchema):
+    id: fields.UUID(required=True)
+    version = fields.Str(required=True, validate=marshmallow_validate.Length(max=10))
+    bundle = fields.Str(required=True, validate=marshmallow_validate.Equal("rhel"))
+    application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
+    event_type = fields.Str(required=True, validate=marshmallow_validate.Length(max=256))
     timestamp = fields.DateTime(required=True, format="iso8601")
-    account_id = fields.Str(required=True)
-    org_id = fields.Str()
+    account_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
+    org_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     context = fields.Dict()
     events = fields.List(HostValidationErrorMetadataSchema())
 
 
 # can be reused from events.py if I import the altered version that includes rh_message_id
 def notification_message_headers(event_type: NotificationType, insights_id: str, rh_message_id: bytearray = None):
-    return {
+    return {  # do I need all this information?
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),

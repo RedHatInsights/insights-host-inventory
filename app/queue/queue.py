@@ -261,7 +261,6 @@ def add_host(host_data, platform_metadata):
         except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
             send_kafka_error_message(host=input_host, error=ValidationException)
-            # ensure input_host is reliable
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -340,7 +339,7 @@ def send_kafka_error_message(host, error):
     config = _init_config()
     event = build_notification_event(EventType.validation_error, host, error)
     event_producer = NotificationEventProducer(config)
-    insights_id = host.canonical_facts.get("insights_id")  # again, see how this works when the host is not created
+    insights_id = host.canonical_facts.get("insights_id")
     headers = notification_message_headers(
         EventType.validation_error,
         insights_id,
