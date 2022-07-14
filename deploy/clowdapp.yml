@@ -133,7 +133,7 @@ objects:
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
+          value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
@@ -202,7 +202,7 @@ objects:
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
+          value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
@@ -265,7 +265,7 @@ objects:
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
-          value: ${KAFKA_HOST_INGRESS_GROUP}
+          value: inventory-mq
         - name: PAYLOAD_TRACKER_SERVICE_NAME
           value: inventory-mq-service
         - name: PAYLOAD_TRACKER_ENABLED
@@ -609,30 +609,12 @@ objects:
         partitions: 1
       - topicName: platform.payload-status
         partitions: 1
-      - topicName: ${KAFKA_EVENT_TOPIC}
+      - topicName: platform.inventory.events
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         partitions: 1
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: host-synchronizer-${SYNCHRONIZER_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - synchronizer
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - org-id-populator
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -747,18 +729,12 @@ parameters:
 - name: KAFKA_HOST_INGRESS_P1_TOPIC
   description: The TOP-PRIORITY topic containing Host data sent by reporters
   value: platform.inventory.host-ingress-p1
-- name: KAFKA_EVENT_TOPIC
-  description: The topic for Host data that were processed by Inventory
-  value: platform.inventory.events
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
 - name: KAFKA_SYSTEM_PROFILE_TOPIC
   description: The topic containing Host data for System Profile updates
   value: platform.inventory.system-profile
-- name: KAFKA_HOST_INGRESS_GROUP
-  description: The Kafka consumer group name
-  value: inventory-mq
 - name: KAFKA_SECURITY_PROTOCOL
   description: The Kafka Security Protocol
   value: PLAINTEXT
@@ -794,10 +770,6 @@ parameters:
   value: quay.io/cloudservices/tenant-utils
 - name: POPULATOR_IMAGE_TAG
   value: latest
-- name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
-  value: '1'
-- name: SYNCHRONIZER_RUN_NUMBER
-  value: '1'
 - name: GUNICORN_WORKERS
   value: '1'
 - name: GUNICORN_THREADS
