@@ -12,7 +12,7 @@ paths:
         - hosts
       summary: Read the entire list of hosts
       description: >-
-        Read the entire list of all hosts with the current org_id.
+        Read the entire list of all hosts available to the account.
         <br /><br />
         Required permissions: inventory:hosts:read
       security:
@@ -73,9 +73,9 @@ paths:
       operationId: api.host.delete_all_hosts
       tags:
         - hosts
-      summary: Delete all hosts with the current org_id
+      summary: Delete all hosts on the account
       description: >-
-        Delete all hosts with the current org_id.  The request must include "confirm_delete_all=true".
+        Delete all hosts on the account.  The request must include "confirm_delete_all=true".
         <br /><br />
         Required permissions: inventory:hosts:write
       security:
@@ -348,7 +348,7 @@ paths:
     get:
       tags:
         - tags
-      summary: Get the active host tags with the current org_id
+      summary: Get the active host tags for a given account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.tag.get_tags
@@ -386,7 +386,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap system values and counts for the current org_id
+      summary: get all sap system values and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -401,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for this org_id
+            description: sap_system values and counts for the account
             content:
               application/json:
                 schema:
@@ -415,7 +415,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap sids values and counts for this org_id
+      summary: get all sap sids values and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -431,7 +431,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for this org_id
+            description: sap_system values and counts for the account
             content:
               application/json:
                 schema:
@@ -445,7 +445,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all operating system versions and counts for this org_id
+      summary: get all operating system versions and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_operating_system
@@ -460,7 +460,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for this org_id
+            description: operating system versions and counts on the account
             content:
               application/json:
                 schema:
@@ -740,7 +740,7 @@ components:
       name: confirm_delete_all
       schema:
         type: boolean
-      description: Confirmation to delete all hosts for this org_id
+      description: Confirmation to delete all hosts on the account
       required: false
 
   schemas:
@@ -751,7 +751,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         results:
-          description: The list of operating_system values on this org_id
+          description: The list of operating_system values on the account
           type: array
           items:
             type: object
@@ -778,7 +778,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         results:
-          description: The list of sap_system values for the current org_id
+          description: The list of sap_system values on the account
           type: array
           items:
             type: object
@@ -1018,7 +1018,7 @@ components:
     CreateHostOut:
       title: Create Host Out
       description: >-
-        Data of a single host belonging to an org_id. Represents the hosts
+        Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
       type: object
       allOf:
