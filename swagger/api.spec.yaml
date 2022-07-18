@@ -1042,6 +1042,7 @@ components:
               type: string
               nullable: true
               example: '000102'
+              deprecated: true
             org_id:
               description: The Org ID of the tenant that owns the host.
               type: string

@@ -1625,7 +1625,8 @@
                 "description": "A Red Hat Account number that owns the host.",
                 "type": "string",
                 "nullable": true,
-                "example": "000102"
+                "example": "000102",
+                "deprecated": true
               },
               "org_id": {
                 "description": "The Org ID of the tenant that owns the host.",
