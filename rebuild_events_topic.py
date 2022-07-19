@@ -2,8 +2,8 @@ import json
 import sys
 from functools import partial
 
-from kafka import KafkaConsumer
-from kafka import TopicPartition
+from confluent_kafka import Consumer as KafkaConsumer
+from confluent_kafka import TopicPartition
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
@@ -19,6 +19,9 @@ from app.queue.queue import sync_event_message
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
+
+# from kafka import KafkaConsumer
+# from kafka import TopicPartition
 
 # from prometheus_client import start_http_server
 

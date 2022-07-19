@@ -39,11 +39,14 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
 
+# from select import KQ_NOTE_RENAME
+# from confluent_kafka import KafkaException
+
 
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
-CONSUMER_POLL_TIMEOUT_MS = 1000
+CONSUMER_POLL_TIMEOUT_SECONDS = 1
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -287,26 +290,30 @@ def handle_message(message, event_producer, message_operation=add_host):
             raise
 
 
+# close() check it out it takes 2 args but not sure what is provided.
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
-            msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
-            for topic_partition, messages in msgs.items():
-                for message in messages:
-                    logger.debug("Message received")
-                    try:
-                        handler(message.value, event_producer)
-                        metrics.ingress_message_handler_success.inc()
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
-                        metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": message.value})
+            message = consumer.poll(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+            if message is None or message.error() is not None:
+                # TODO:
+                # 'Subscribed topic not available' in message.error().str()
+                # what other errors are available?
+                continue
+            logger.debug("Message received")
+            try:
+                handler(message.value(), event_producer)
+                metrics.ingress_message_handler_success.inc()
+            except OperationalError as oe:
+                """sqlalchemy.exc.OperationalError: This error occurs when an
+                authentication failure occurs or the DB is not accessible.
+                Exit the process to restart the pod
+                """
+                logger.error(f"Could not access DB {str(oe)}")
+                sys.exit(3)
+            except Exception:
+                metrics.ingress_message_handler_failure.inc()
+                logger.exception("Unable to process message", extra={"incoming_message": message.value})
 
 
 def initialize_thread_local_storage(request_id):

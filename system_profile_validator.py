@@ -3,8 +3,8 @@ import sys
 from functools import partial
 from os import getenv
 
+from confluent_kafka import Consumer as KafkaConsumer
 from dateutil import parser
-from kafka import KafkaConsumer
 from requests import get
 from requests import post
 from requests.auth import HTTPBasicAuth
@@ -18,6 +18,8 @@ from app.logging import threadctx
 from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
 from lib.system_profile_validate import validate_sp_schemas
+
+# from kafka import KafkaConsumer
 
 
 __all__ = "main"

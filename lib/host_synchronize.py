@@ -1,4 +1,5 @@
-from kafka.errors import KafkaTimeoutError
+# from kafka.errors import KafkaTimeoutError
+from confluent_kafka.error import ProduceError as KafkaTimeoutError
 
 from app.culling import Timestamps
 from app.logging import get_logger
@@ -36,6 +37,7 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
         try:
             # pace the events production speed as flush completes sending all buffered records.
             event_producer._kafka_producer.flush(300)
+        # TODO check KafkaTimeoutError working in confluent-kafka
         except KafkaTimeoutError:
             raise KafkaTimeoutError(f"KafkaTimeoutError: failure to flush {chunk_size} records within 300 seconds")
 

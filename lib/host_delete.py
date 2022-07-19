@@ -1,4 +1,4 @@
-from kafka.errors import KafkaError
+from confluent_kafka.error import KafkaError
 from sqlalchemy.orm.base import instance_state
 
 from app.logging import get_logger

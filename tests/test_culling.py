@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from kafka.errors import KafkaError
+from confluent_kafka.error import KafkaError
 
 from app import db
 from app import threadctx
@@ -16,6 +16,8 @@ from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
+
+# from kafka.errors import KafkaError
 
 
 def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):

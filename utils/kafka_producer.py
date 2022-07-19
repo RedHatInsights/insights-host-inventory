@@ -1,9 +1,14 @@
 import logging
 import os
+import sys
 
 import payloads
-from kafka import KafkaProducer
+from confluent_kafka import Producer as KafkaProducer
 from ttictoc import TicToc
+
+# from unittest.loader import VALID_MODULE_NAME
+
+# from kafka import KafkaProducer
 
 
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
@@ -18,12 +23,20 @@ def main():
         all_payloads = [payloads.build_mq_payload() for _ in range(NUM_HOSTS)]
     print("Number of hosts (payloads): ", len(all_payloads))
 
-    producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
+    # producer = KafkaProducer({"bootstrap.servers": BOOTSTRAP_SERVERS}, api_version=(0, 10))
+    producer = KafkaProducer({"bootstrap.servers": BOOTSTRAP_SERVERS})
     print("HOST_INGRESS_TOPIC:", HOST_INGRESS_TOPIC)
+
+    def delivery_callback(err, msg):
+        if err:
+            sys.stderr.write("%% Message failed delivery: %s\n" % err)
+        else:
+            sys.stderr.write("%% Message delivered to %s [%d] @ %d\n" % (msg.topic(), msg.partition(), msg.offset()))
 
     with TicToc("Send all hosts to queue"):
         for payload in all_payloads:
-            producer.send(HOST_INGRESS_TOPIC, value=payload)
+            # producer.send(HOST_INGRESS_TOPIC, value=payload)
+            producer.produce(HOST_INGRESS_TOPIC, value=payload, callback=delivery_callback)
     producer.flush()
 
 

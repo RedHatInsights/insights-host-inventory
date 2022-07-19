@@ -1,9 +1,9 @@
 from enum import Enum
 
 import flask
+from confluent_kafka.error import KafkaError
 from flask import current_app
 from flask_api import status
-from kafka.errors import KafkaError
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -49,6 +49,8 @@ from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
 from lib.middleware import translate_account_to_org_id
+
+# from kafka.errors import KafkaError
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))

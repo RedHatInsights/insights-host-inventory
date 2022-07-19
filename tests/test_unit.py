@@ -16,7 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-from kafka.errors import KafkaError
+from confluent_kafka.error import KafkaError
 
 from api import api_operation
 from api import custom_escape
@@ -67,6 +67,8 @@ from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+
+# from kafka.errors import KafkaError
 
 
 class ApiOperationTestCase(TestCase):

@@ -184,7 +184,10 @@ class Config:
             **self.kafka_ssl_configs,
         }
 
-        self.payload_tracker_kafka_producer = {"bootstrap_servers": self.bootstrap_servers, **self.kafka_ssl_configs}
+        # TODO: how not including/using self.kafka_ssl_configs handled by confluent-kafka
+        # self.payload_tracker_kafka_producer = {"bootstrap_servers": self.bootstrap_servers, **self.kafka_ssl_configs}
+
+        self.payload_tracker_kafka_producer = {"bootstrap.servers": self.bootstrap_servers}
 
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
