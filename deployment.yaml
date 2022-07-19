@@ -6,7 +6,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
-    name: host-inventory
+    name: ${CLOWDAPP_NAME}
   spec:
     envName: ${ENV_NAME}
     testing:
@@ -70,6 +70,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+          value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -148,6 +150,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+          value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -217,6 +221,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+          value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -280,6 +286,8 @@ objects:
           value: ${KAFKA_SECURITY_PROTOCOL}
         - name: KAFKA_SASL_MECHANISM
           value: ${KAFKA_SASL_MECHANISM}
+        - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+          value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -349,6 +357,8 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+            value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
           - name: CLOWDER_ENABLED
             value: "true"
         resources:
@@ -508,6 +518,8 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
+            value: ${KAFKA_ADDITIONAL_VALIDATION_TOPIC}
           - name: CLOWDER_ENABLED
             value: "true"
         resources:
@@ -602,7 +614,7 @@ objects:
             cpu: "${CPU_REQUEST_FLOO}"
             memory: "${MEMORY_REQUEST_FLOO}"
     database:
-      name: host-inventory
+      name: ${DB_NAME}
       version: 12
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
@@ -718,6 +730,12 @@ parameters:
   value: stage
 - name: APP_NAME
   value: inventory
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory
+- description: Database name
+  name: DB_NAME
+  value: host-inventory
 - name: PATH_PREFIX
   value: api
 - name: URLLIB3_LOG_LEVEL
