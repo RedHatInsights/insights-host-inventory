@@ -6,7 +6,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
-    name: host-inventory
+    name: ${CLOWDAPP_NAME}
   spec:
     envName: ${ENV_NAME}
     testing:
@@ -614,7 +614,7 @@ objects:
             cpu: "${CPU_REQUEST_FLOO}"
             memory: "${MEMORY_REQUEST_FLOO}"
     database:
-      name: host-inventory
+      name: ${DB_NAME}
       version: 12
     kafkaTopics:
       - topicName: ${KAFKA_SYSTEM_PROFILE_TOPIC}
@@ -730,6 +730,12 @@ parameters:
   value: stage
 - name: APP_NAME
   value: inventory
+- description: ClowdApp name
+  name: CLOWDAPP_NAME
+  value: host-inventory
+- description: Database name
+  name: DB_NAME
+  value: host-inventory
 - name: PATH_PREFIX
   value: api
 - name: URLLIB3_LOG_LEVEL
