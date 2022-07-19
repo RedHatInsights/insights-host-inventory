@@ -47,7 +47,7 @@ class Config:
             os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
         )
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
-        self.event_topic = topic("platform.inventory.events")
+        self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         # certificates are required in fedramp, but not in managed kafka
         try:
