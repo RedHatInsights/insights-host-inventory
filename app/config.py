@@ -37,17 +37,13 @@ class Config:
         self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
 
         def topic(t):
-            return app_common_python.KafkaTopics[t].name
+            return app_common_python.KafkaTopics[t].name if t else None
 
-        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress"))
-        self.additional_validation_topic = topic(
-            os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1")
-        )
-        self.system_profile_topic = topic(
-            os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
-        )
-        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
-        self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events"))
+        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC"))
+        self.additional_validation_topic = topic(os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC"))
+        self.system_profile_topic = topic(os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC"))
+        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
+        self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         # certificates are required in fedramp, but not in managed kafka
         try:
