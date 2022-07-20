@@ -163,48 +163,38 @@ When testing the API, it must be provided in the authentication header `x-rh-ide
 For testing purposes, this required identity header can be set to the following:
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsImF1dGhfdHlwZSI6ImJhc2ljLWF1dGgiLCJ1c2VyIjp7InVzZXJuYW1lIjoidHVzZXJAcmVkaGF0LmNvbSIsImVtYWlsIjoidHVzZXJAcmVkaGF0LmNvbSIsImZpcnN0X25hbWUiOiJ0ZXN0IiwibGFzdF9uYW1lIjoidXNlciIsImlzX2FjdGl2ZSI6dHJ1ZSwiaXNfb3JnX2FkbWluIjpmYWxzZSwiaXNfaW50ZXJuYWwiOnRydWUsImxvY2FsZSI6ImVuX1VTIn19fQo=
+x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiJ0ZXN0IiwidHlwZSI6IlVzZXIiLCJhdXRoX3R5cGUiOiJiYXNpYy1hdXRoIiwidXNlciI6eyJ1c2VybmFtZSI6InR1c2VyQHJlZGhhdC5jb20iLCJlbWFpbCI6InR1c2VyQHJlZGhhdC5jb20iLCJmaXJzdF9uYW1lIjoidGVzdCIsImxhc3RfbmFtZSI6InVzZXIiLCJpc19hY3RpdmUiOnRydWUsImlzX29yZ19hZG1pbiI6ZmFsc2UsImlzX2ludGVybmFsIjp0cnVlLCJsb2NhbGUiOiJlbl9VUyJ9fX0=
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity":{"account_number":"test","type":"User","auth_type":"basic-auth","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
+{"identity":{"org_id":"test","type":"User","auth_type":"basic-auth","user":{"username":"tuser@redhat.com","email":"tuser@redhat.com","first_name":"test","last_name":"user","is_active":true,"is_org_admin":false,"is_internal":true,"locale":"en_US"}}}
 ```
 
 The above header has the "User" identity type, but it's possible to use a "System" type header as well.
 
 ```
-x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6ICJ0ZXN0IiwgImF1dGhfdHlwZSI6ICJjZXJ0LWF1dGgiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICIzMzQwODUxIn0sICJzeXN0ZW0iOiB7ImNlcnRfdHlwZSI6ICJzeXN0ZW0iLCAiY24iOiAicGx4aTEzeTEtOTl1dC0zcmRmLWJjMTAtODRvcGY5MDRsZmFkIn0sInR5cGUiOiAiU3lzdGVtIn19
+x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiAidGVzdCIsICJhdXRoX3R5cGUiOiAiY2VydC1hdXRoIiwgInN5c3RlbSI6IHsiY2VydF90eXBlIjogInN5c3RlbSIsICJjbiI6ICJwbHhpMTN5MS05OXV0LTNyZGYtYmMxMC04NG9wZjkwNGxmYWQifSwidHlwZSI6ICJTeXN0ZW0ifX0=
 ```
 
 This is the Base64 encoding of the following JSON document:
 
 ```json
-{"identity":{"account_number": "test", "auth_type": "cert-auth", "internal": {"org_id": "3340851"}, "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},"type": "System"}}
+{"identity":{"org_id": "test", "auth_type": "cert-auth", "system": {"cert_type": "system", "cn": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},"type": "System"}}
 ```
 
 If you want to encode other JSON documents, you can use the following command:
 
 ```shell
-echo '{"identity": {"account_number": "0000001", "type": "System", "internal": {"org_id": "000001"}}}' | base64 -w0
-```
-
-### Identity using org_id
-Here in example of identity using "org_id":
-```json
-echo {"identity": {"account_number": "test", "org_id": "00000001", "type": "User", "auth_type": "basic-auth", "user": {"username": "tuser@redhat.com", "email": "tuser@redhat.com", "first_name": "test", "last_name": "user", "is_active": "true", "is_org_admin": "false", "is_internal": "true", "locale": "en_US"}}} | base64
-```
-```
-x-rh-identity:
-eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAidGVzdCIsICJvcmdfaWQiOiAiMDAwMDAwMDEiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7InVzZXJuYW1lIjogInR1c2VyQHJlZGhhdC5jb20iLCAiZW1haWwiOiAidHVzZXJAcmVkaGF0LmNvbSIsICJmaXJzdF9uYW1lIjogInRlc3QiLCAibGFzdF9uYW1lIjogInVzZXIiLCAiaXNfYWN0aXZlIjogInRydWUiLCAiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgImlzX2ludGVybmFsIjogInRydWUiLCAibG9jYWxlIjogImVuX1VTIn19fQ==
+echo -n '{"identity": {"org_id": "0000001", "type": "System"}}' | base64 -w0
 ```
 
 ### Identity Enforcement
 
 The Identity provided limits access to specific hosts. For API requests, the user can only access
-Hosts which have the same Account as the provided Identity. For Host updates via Kafka messages,
-A Host can only be updated if not only the Account matches, but also the `Host.system_profile.owner_id`
+Hosts which have the same Org ID as the provided Identity. For Host updates via Kafka messages,
+A Host can only be updated if not only the Org ID matches, but also the `Host.system_profile.owner_id`
 matches the provided `identity.system.cn` value.
 
 ## Using the legacy api
@@ -285,7 +275,7 @@ make run_inv_mq_service_test_producer
 curl \
 -H 'Content-Type: application/json' \
 -H 'x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19' \
---data-binary '{"query":"{hosts(limit:10,offset:0){meta{count,total}data{id account display_name}}}"}' \
+--data-binary '{"query":"{hosts(limit:10,offset:0){meta{count,total}data{id org_id display_name}}}"}' \
 http://localhost:4000/graphql
 ```
 

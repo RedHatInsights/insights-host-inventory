@@ -69,7 +69,7 @@ def _process_response(pendo_response, logger):
     logger.info(f"Total: {resp_data['total']} Updated: {resp_data['updated']}, Failed: {resp_data['failed']}")
 
     if resp_data.get("missing"):
-        logger.debug("Some accounts failed to sync.", extra={"sync_failed_accounts": resp_data["missing"]})
+        logger.debug("Some org IDs failed to sync.", extra={"sync_failed_accounts": resp_data["missing"]})
 
 
 def _make_request(request_body, config, logger):
@@ -93,32 +93,32 @@ def _make_request(request_body, config, logger):
         request_session.close()
 
 
-def _pendo_update(account_list, config, logger):
+def _pendo_update(org_id_list, config, logger):
     request_body = []
-    for account_info in account_list:
-        account_number, host_count = account_info
+    for org_id_info in org_id_list:
+        org_id, host_count = org_id_info
 
-        request_data = {"accountId": account_number, "values": {"hostCount": host_count}}
+        request_data = {"accountId": org_id, "values": {"hostCount": host_count}}
         request_body.append(request_data)
 
-        logger.debug(f"Account Number: {account_number}, Host Count: {host_count}")
+        logger.debug(f"Org ID: {org_id}, Host Count: {host_count}")
     request_body = json.dumps(request_body)
     if config.pendo_sync_active:
         _make_request(request_body, config, logger)
 
 
 def pendo_sync(select_query, config, logger, interrupt=lambda: False):
-    query = select_query.group_by(Host.account).order_by(Host.account)
-    account_list = query.limit(config.pendo_request_size).all()
+    query = select_query.group_by(Host.org_id).order_by(Host.org_id)
+    org_id_list = query.limit(config.pendo_request_size).all()
 
-    while len(account_list) > 0 and not interrupt():
-        _pendo_update(account_list, config, logger)
-        account_list = query.filter(Host.account > account_list[-1].account).limit(config.pendo_request_size).all()
+    while len(org_id_list) > 0 and not interrupt():
+        _pendo_update(org_id_list, config, logger)
+        org_id_list = query.filter(Host.org_id > org_id_list[-1].org_id).limit(config.pendo_request_size).all()
 
 
 def run(config, logger, session, shutdown_handler):
 
-    query = session.query(Host.account, func.count(Host.id))
+    query = session.query(Host.org_id, func.count(Host.id))
 
     pendo_sync(query, config, logger, shutdown_handler.shut_down)
     logger.info("Pendo Syncher Run Complete.")

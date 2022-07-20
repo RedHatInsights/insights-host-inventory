@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
 from app import UNKNOWN_REQUEST_ID_VALUE
-from app.auth.identity import create_mock_identity_with_account
+from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
@@ -84,8 +84,8 @@ def _get_identity(host, metadata):
         else:
             raise ValidationException("platform_metadata is mandatory")
 
-    if host.get("account") != identity["account_number"]:
-        raise ValidationException("The account number in identity does not match the number in the host.")
+    if host.get("org_id") != identity["org_id"]:
+        raise ValidationException("The org_id in the identity does not match the org_id in the host.")
 
     identity = Identity(identity)
     return identity
@@ -167,7 +167,7 @@ def parse_operation_message(message):
 def sync_event_message(message, session, event_producer):
     if message["type"] != EventType.delete.name:
         query = session.query(Host).filter(
-            (Host.account == message["host"]["account"]) & (Host.id == UUID(message["host"]["id"]))
+            (Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(message["host"]["id"]))
         )
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
@@ -194,7 +194,7 @@ def update_system_profile(host_data, platform_metadata):
             input_host = deserialize_host(host_data, schema=LimitedHostSchema)
             input_host.id = host_data.get("id")
             staleness_timestamps = Timestamps.from_config(inventory_config())
-            identity = create_mock_identity_with_account(input_host.account)
+            identity = create_mock_identity_with_org_id(input_host.org_id)
             output_host, host_id, insights_id, update_result = host_repository.update_system_profile(
                 input_host, identity, staleness_timestamps, EGRESS_HOST_FIELDS
             )

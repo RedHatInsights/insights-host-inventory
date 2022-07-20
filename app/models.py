@@ -491,7 +491,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
-    account = fields.Str(required=False, validate=marshmallow_validate.Length(min=0, max=10))
+    account = fields.Str(validate=marshmallow_validate.Length(min=0, max=10))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()

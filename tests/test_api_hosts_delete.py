@@ -127,9 +127,8 @@ def test_delete_hosts_using_filter_and_registered_with(
     value,
 ):
     num = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
-    ed = {"org_id": "3340851"}
 
-    created_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
+    created_hosts = db_create_multiple_hosts(how_many=num)
     host_ids = [str(host.id) for host in created_hosts]
 
     # set the new host ids in the xjoin search reference.
@@ -142,7 +141,7 @@ def test_delete_hosts_using_filter_and_registered_with(
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
 
-    new_hosts = db_create_multiple_hosts(how_many=num, extra_data=ed)
+    new_hosts = db_create_multiple_hosts(how_many=num)
     new_ids = [str(host.id) for host in new_hosts]
 
     # delete hosts using the IDs supposedly returned by the query_filter
@@ -179,7 +178,7 @@ def test_delete_all_hosts(
     # for querying for deletion using filters
     patch_xjoin_post(response, status=200)
 
-    # delete all hosts on the account
+    # delete all hosts on the current org_id
     response_status, response_data = api_delete_all_hosts({"confirm_delete_all": True})
 
     assert '"type": "delete"' in event_producer_mock.event
