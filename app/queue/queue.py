@@ -41,6 +41,7 @@ from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.notifications import build_notification_event
 from app.queue.notifications import notification_message_headers
+from app.queue.notifications import NotificationType
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -145,6 +146,10 @@ def _validate_json_object_for_utf8(json_object):
         pass
 
 
+def _build_minimal_host_info(host_data):
+    return {"account_id": host_data.get("account"), "org_id": host_data.get("org_id")}
+
+
 @metrics.ingress_message_parsing_time.time()
 def parse_operation_message(message):
     try:
@@ -220,9 +225,9 @@ def update_system_profile(host_data, platform_metadata):
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
-        except ValidationException:
+        except ValidationException as ve:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(host=input_host, error=ValidationException)
+            send_kafka_error_message(host=_build_minimal_host_info(host_data), error_detail=str(ve.detail))
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -258,9 +263,9 @@ def add_host(host_data, platform_metadata):
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
-        except ValidationException:
+        except ValidationException as ve:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(host=input_host, error=ValidationException)
+            send_kafka_error_message(host=_build_minimal_host_info(host_data), error_detail=str(ve.detail))
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -334,15 +339,16 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(host, error):
+def send_kafka_error_message(host, error_detail):
     # just trying to get all the elements before sorting what goes where
     config = _init_config()
-    event = build_notification_event(EventType.validation_error, host, error)
+    event = build_notification_event(NotificationType.validation_error, host, error_detail)
     event_producer = NotificationEventProducer(config)
-    insights_id = host.canonical_facts.get("insights_id")
+    rh_message_id = _create_message_id()
+    # insights_id = host.canonical_facts.get("insights_id")
     headers = notification_message_headers(
-        EventType.validation_error,
-        insights_id,
-        rh_message_id=_create_message_id(),
+        NotificationType.validation_error,
+        # insights_id,
+        rh_message_id=rh_message_id,
     )
-    event_producer.write_event(event, str(host.id), headers, wait=True)
+    event_producer.write_event(event, str(rh_message_id), headers, wait=True)

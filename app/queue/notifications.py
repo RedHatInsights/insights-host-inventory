@@ -8,10 +8,10 @@ from marshmallow import validate as marshmallow_validate
 
 from app.logging import threadctx
 from app.queue.events import hostname
-from app.queue.metrics import event_serialization_time
+from app.queue.metrics import notification_event_serialization_time
 
-NotificationType = Enum("NotificationType", ("validation_error"), "error")
-event_severity = Enum("warning", "error", "critical")
+NotificationType = Enum("NotificationType", ("validation_error"))
+EventSeverity = Enum("EventSeverity", ("warning", "error", "critical"))
 
 
 # Schemas
@@ -19,7 +19,7 @@ class HostValidationErrorSchema(MarshmallowSchema):
     code = fields.Str(required=True)
     message = fields.Str(required=True, validate=marshmallow_validate.Length(max=1024))
     stack_trace = fields.Str()
-    severity = fields.Str(required=True, validate=marshmallow_validate.OneOf(event_severity))
+    severity = fields.Str(required=True, validate=marshmallow_validate.OneOf(EventSeverity))
 
 
 class ErrorPayloadSchema(MarshmallowSchema):
@@ -41,45 +41,44 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
     account_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     context = fields.Dict()
-    events = fields.List(HostValidationErrorMetadataSchema())
+    events = fields.List(fields.Nested(HostValidationErrorMetadataSchema()))
 
 
 # can be reused from events.py if I import the altered version that includes rh_message_id
-def notification_message_headers(event_type: NotificationType, insights_id: str, rh_message_id: bytearray = None):
+def notification_message_headers(event_type: NotificationType, rh_message_id: bytearray = None):
     return {  # do I need all this information?
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
-        "insights_id": insights_id,
+        # "insights_id": insights_id,
         "rh-message-id": rh_message_id,
     }
 
 
-def host_validation_error_event(event_type, host, error):
-    # figure out how this works if the host isn't created
+def host_validation_error_event(notification_type, host, error_detail):
     validation_error_event = {
         "version": "v1.0.0",
         "bundle": "rhel",
         "application": "inventory",
-        "event_type": event_type.replace("_", "-"),
+        "event_type": notification_type.name.replace("_", "-"),
         "timestamp": datetime.now(timezone.utc),
-        "account_id": host.account,
-        "org_id": host.org_id if host.org_id else None,
+        "account_id": host["account_id"],
+        "org_id": host["org_id"] if host["org_id"] else None,
         "context": {},
         "events": {
             "metadata": {},
             "payload": {
                 "error": {
-                    "code": error.type,
-                    "message": error.title,
-                    "stack_trace": error.detail,
-                    "severity": error.severity,
+                    "code": "VE001",
+                    "message": "Validation error",
+                    "stack_trace": error_detail,
+                    "severity": "error",
                 },
             },
         },
     }
 
-    return (HostValidationErrorNotificationEvent, validation_error_event, error)
+    return (HostValidationErrorNotificationEvent, validation_error_event)
 
 
 NOTIFICATION_TYPE_MAP = {
@@ -87,9 +86,13 @@ NOTIFICATION_TYPE_MAP = {
 }
 
 
-def build_notification_event(event_type, host, error, **kwargs):
-    with event_serialization_time.labels(event_type.name).time():
-        build = NOTIFICATION_TYPE_MAP[event_type]
-        schema, event, error = build(event_type, host, error, **kwargs)
+def build_notification_event(notification_type, host, error, **kwargs):
+    with notification_event_serialization_time.labels(notification_type.name).time():
+        build = NOTIFICATION_TYPE_MAP[notification_type]
+        schema, event = build(notification_type, host, error, **kwargs)
         result = schema().dumps(event)
         return result
+
+
+# def operation_results_to_notification_type(results):
+#     return NotificationType[results.name]

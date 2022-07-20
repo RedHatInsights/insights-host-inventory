@@ -50,7 +50,7 @@ class NotificationEventProducer:
 
         k = key.encode("utf-8") if key else None
         v = event.encode("utf-8")
-        h = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
+        h = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items() if hk != "rh-message-id"]
 
         try:
             send_future = self._kafka_producer.send(self.egress_topic, key=k, value=v, headers=h)

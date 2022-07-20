@@ -153,6 +153,7 @@ def log_add_update_host_succeeded(logger, add_result, host_data, output_host):
 def log_add_host_failure(logger, message, host_data):
     logger.exception(f"Error adding host: {message} ", extra={"host": host_data})
     metrics.add_host_failure.labels("InventoryException", host_data.get("reporter", "null")).inc()
+    # add mesaage stuff here?
 
 
 # update system profile
@@ -164,6 +165,7 @@ def log_update_system_profile_success(logger, host_data):
 def log_update_system_profile_failure(logger, host_data):
     logger.exception("Error updating system profile for host ", extra={"host": host_data})
     metrics.update_system_profile_failure.labels("InventoryException").inc()
+    # add message stuff here?
 
 
 # patch host
