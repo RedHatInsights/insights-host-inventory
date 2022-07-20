@@ -78,6 +78,14 @@ objects:
           value: ${BYPASS_TENANT_TRANSLATION}
         - name: CLOWDER_ENABLED
           value: "true"
+        - name: KAFKA_HOST_INGRESS_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_SYSTEM_PROFILE_TOPIC
+          value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+        - name: KAFKA_CONSUMER_TOPIC
+          value: ${KAFKA_HOST_INGRESS_TOPIC}
+        - name: KAFKA_EVENT_TOPIC
+          value: ${KAFKA_EVENT_TOPIC}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
