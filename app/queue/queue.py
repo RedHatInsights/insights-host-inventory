@@ -227,7 +227,9 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException as ve:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(host=_build_minimal_host_info(host_data), error_detail=str(ve.detail))
+            send_kafka_error_message(
+                host=_build_minimal_host_info(host_data), detail=str(ve.detail), stack_trace=str(ve.messages)
+            )
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -265,7 +267,9 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException as ve:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(host=_build_minimal_host_info(host_data), error_detail=str(ve.detail))
+            send_kafka_error_message(
+                host=_build_minimal_host_info(host_data), detail=str(ve.detail), stack_trace=str(ve.messages)
+            )
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -339,10 +343,10 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(host, error_detail):
+def send_kafka_error_message(host, detail, stack_trace):
     # just trying to get all the elements before sorting what goes where
     config = _init_config()
-    event = build_notification_event(NotificationType.validation_error, host, error_detail)
+    event = build_notification_event(NotificationType.validation_error, host, detail, stack_trace)
     event_producer = NotificationEventProducer(config)
     rh_message_id = _create_message_id()
     # insights_id = host.canonical_facts.get("insights_id")

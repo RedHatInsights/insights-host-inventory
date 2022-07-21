@@ -41,10 +41,9 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
     account_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     context = fields.Dict()
-    events = fields.List(fields.Nested(HostValidationErrorMetadataSchema()))
+    events = fields.Nested(HostValidationErrorMetadataSchema())
 
 
-# can be reused from events.py if I import the altered version that includes rh_message_id
 def notification_message_headers(event_type: NotificationType, rh_message_id: bytearray = None):
     return {  # do I need all this information?
         "event_type": event_type.name,
@@ -55,7 +54,7 @@ def notification_message_headers(event_type: NotificationType, rh_message_id: by
     }
 
 
-def host_validation_error_event(notification_type, host, error_detail):
+def host_validation_error_event(notification_type, host, detail, stack_trace):
     validation_error_event = {
         "version": "v1.0.0",
         "bundle": "rhel",
@@ -70,8 +69,8 @@ def host_validation_error_event(notification_type, host, error_detail):
             "payload": {
                 "error": {
                     "code": "VE001",
-                    "message": "Validation error",
-                    "stack_trace": error_detail,
+                    "message": detail,
+                    "stack_trace": stack_trace,
                     "severity": "error",
                 },
             },
@@ -86,13 +85,9 @@ NOTIFICATION_TYPE_MAP = {
 }
 
 
-def build_notification_event(notification_type, host, error, **kwargs):
+def build_notification_event(notification_type, host, detail, stack_trace, **kwargs):
     with notification_event_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
-        schema, event = build(notification_type, host, error, **kwargs)
+        schema, event = build(notification_type, host, detail, stack_trace, **kwargs)
         result = schema().dumps(event)
         return result
-
-
-# def operation_results_to_notification_type(results):
-#     return NotificationType[results.name]

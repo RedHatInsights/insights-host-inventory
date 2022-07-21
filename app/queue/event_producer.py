@@ -44,7 +44,6 @@ class NotificationEventProducer:
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
         self.egress_topic = config.notification_topic
 
-    # check what else needs to be changed
     def write_event(self, event, key, headers, *, wait=False):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
