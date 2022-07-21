@@ -37,25 +37,24 @@ class Config:
         self.bootstrap_servers = f"{broker_cfg.hostname}:{broker_cfg.port}"
 
         def topic(t):
-            return app_common_python.KafkaTopics[t].name
+            return app_common_python.KafkaTopics[t].name if t else None
 
-        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress"))
-        self.additional_validation_topic = topic(
-            os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1")
-        )
-        self.system_profile_topic = topic(
-            os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC", "platform.inventory.system-profile")
-        )
-        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC", "platform.inventory.host-ingress"))
-        self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notification.ingress"))
-        self.event_topic = topic("platform.inventory.events")
+        self.host_ingress_topic = topic(os.environ.get("KAFKA_HOST_INGRESS_TOPIC"))
+        self.additional_validation_topic = topic(os.environ.get("KAFKA_ADDITIONAL_VALIDATION_TOPIC"))
+        self.system_profile_topic = topic(os.environ.get("KAFKA_SYSTEM_PROFILE_TOPIC"))
+        self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
+        self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
+        self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        # certificates are required in fedramp, but not in managed kafka
         try:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
+        except AttributeError:
+            self.kafka_ssl_cafile = None
+        try:
             self.kafka_sasl_username = broker_cfg.sasl.username
             self.kafka_sasl_password = broker_cfg.sasl.password
         except AttributeError:
-            self.kafka_ssl_cafile = None
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
 
@@ -164,6 +163,7 @@ class Config:
             "enable_auto_commit": False,
             "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "max_partition_fetch_bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,

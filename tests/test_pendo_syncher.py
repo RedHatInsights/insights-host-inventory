@@ -15,7 +15,7 @@ def test_pendo_syncher_request_body(mocker, db_create_host):
 
     host = db_create_host()
 
-    request_body = json.dumps([{"accountId": host.account, "values": {"hostCount": 1}}])
+    request_body = json.dumps([{"accountId": host.org_id, "values": {"hostCount": 1}}])
 
     config = Config(RuntimeEnvironment.PENDO_JOB)
     config.pendo_sync_active = True

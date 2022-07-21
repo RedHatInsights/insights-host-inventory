@@ -19,7 +19,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--id", help="search for a host using id")
 group.add_argument("--hostname", help="search for a host using display_name, fqdn")
 group.add_argument("--insights_id", help="search for a host using insights_id")
-group.add_argument("--account_number", help="dump all hosts associated with account")
+group.add_argument("--org_id", help="dump all hosts associated with the org_id")
 parser.add_argument("--no-pp", help="enable pretty printing", action="store_true")
 args = parser.parse_args()
 
@@ -41,8 +41,8 @@ with application.app_context():
         query_results = Host.query.filter(
             Host.canonical_facts.comparator.contains({"insights_id": args.insights_id})
         ).all()
-    elif args.account_number:
-        query_results = Host.query.filter(Host.account == args.account_number).all()
+    elif args.org_id:
+        query_results = Host.query.filter(Host.org_id == args.org_id).all()
 
     staleness_timestamps = Timestamps.from_config(inventory_config())
     json_host_list = [serialize_host(host, staleness_timestamps) for host in query_results]

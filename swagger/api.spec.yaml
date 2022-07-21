@@ -344,28 +344,6 @@ paths:
                 $ref: '#/components/schemas/TagCountOut'
         '400':
           description: Invalid request.
-  '/orgid/{account}':
-    get:
-      tags:
-        - orgid
-      summary: Translate account to Org ID
-      description: >-
-        Translates an account number to its Org ID
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      operationId: api.host.translate_to_org_id
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - in: path
-          name: account
-          required: true
-          schema:
-            type: string
-          description: The account number to translate
-      responses:
-        '200':
-          description: Successfully translated.
   /tags:
     get:
       tags:
@@ -408,7 +386,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap system values and counts on an account
+      summary: get all sap system values and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_system
@@ -423,7 +401,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account
+            description: sap_system values and counts for the account
             content:
               application/json:
                 schema:
@@ -437,7 +415,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all sap sids values and counts on an account
+      summary: get all sap sids values and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_sap_sids
@@ -453,7 +431,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account
+            description: sap_system values and counts for the account
             content:
               application/json:
                 schema:
@@ -467,7 +445,7 @@ paths:
     get:
       tags:
         - system_profile
-      summary: get all operating system versions and counts on an account
+      summary: get all operating system versions and counts on the account
       description: >-
         Required permissions: inventory:hosts:read
       operationId: api.system_profile.get_operating_system
@@ -482,7 +460,7 @@ paths:
         - $ref: '#/components/parameters/filter_param'
       responses:
         '200':
-            description: sap_system values and counts for account
+            description: operating system versions and counts on the account
             content:
               application/json:
                 schema:
@@ -544,8 +522,8 @@ components:
       name: x-rh-identity
       description: >-
         Base64-encoded JSON identity header provided by 3Scale. Contains an
-        account number of the user issuing the request. Format of the JSON:
-        {"identity": {"account_number": "12345678"}}
+        org_id of the user issuing the request. Format of the JSON:
+        {"identity": {"org_id": "12345678"}}
       x-apikeyInfoFunc: app.auth.authentication_header_handler
   parameters:
     pageParam:
@@ -762,7 +740,7 @@ components:
       name: confirm_delete_all
       schema:
         type: boolean
-      description: Confirmation to delete all hosts on an account
+      description: Confirmation to delete all hosts on the account
       required: false
 
   schemas:
@@ -1062,7 +1040,9 @@ components:
             account:
               description: A Red Hat Account number that owns the host.
               type: string
+              nullable: true
               example: '000102'
+              deprecated: true
             org_id:
               description: The Org ID of the tenant that owns the host.
               type: string
@@ -1114,7 +1094,7 @@ components:
               additionalProperties:
                 $ref: '#components/schemas/PerReporterStaleness'
           required:
-            - account
+            - org_id
     HostOut:
       title: A Host Inventory entry
       description: A database entry representing a single host with its Inventory metadata.

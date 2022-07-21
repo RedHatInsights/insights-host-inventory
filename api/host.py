@@ -48,7 +48,6 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import update_query_for_owner_id
 from lib.middleware import rbac
-from lib.middleware import translate_account_to_org_id
 
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -59,7 +58,7 @@ logger = get_logger(__name__)
 
 def _get_host_list_by_id_list_from_db(host_id_list):
     current_identity = get_current_identity()
-    query = Host.query.filter((Host.account == current_identity.account_number) & Host.id.in_(host_id_list))
+    query = Host.query.filter((Host.org_id == current_identity.org_id) & Host.id.in_(host_id_list))
     return find_non_culled_hosts(update_query_for_owner_id(current_identity, query))
 
 
@@ -179,7 +178,9 @@ def delete_hosts_by_filter(
 
 def _delete_host_list(host_id_list):
     current_identity = get_current_identity()
-    payload_tracker = get_payload_tracker(account=current_identity.account_number, request_id=threadctx.request_id)
+    payload_tracker = get_payload_tracker(
+        account=current_identity.account_number, org_id=current_identity.org_id, request_id=threadctx.request_id
+    )
 
     with PayloadTrackerContext(
         payload_tracker, received_status_message="delete operation", current_operation="delete"
@@ -339,7 +340,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 
     current_identity = get_current_identity()
     query = Host.query.filter(
-        (Host.account == current_identity.account_number)
+        (Host.org_id == current_identity.org_id)
         & Host.id.in_(host_id_list)
         & Host.facts.has_key(namespace)  # noqa: W601 JSONB query filter, not a dict
     )
@@ -351,8 +352,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
     if len(hosts_to_update) != len(host_id_list):
         error_msg = (
             "ERROR: The number of hosts requested does not match the number of hosts found in the host database.  "
-            "This could happen if the namespace does not exist or the account number associated with the call does "
-            "not match the account number associated with one or more the hosts.  Rejecting the fact change request."
+            "This could happen if the namespace does not exist or the org_id associated with the call does "
+            "not match the org_id associated with one or more the hosts.  Rejecting the fact change request."
         )
         logger.debug(error_msg)
         return error_msg, 400
@@ -471,11 +472,3 @@ def host_checkin(body):
         return flask_json_response(serialized_host, 201)
     else:
         flask.abort(404, "No hosts match the provided canonical facts.")
-
-
-@api_operation
-@rbac(Permission.READ)
-@metrics.api_request_time.time()
-def translate_to_org_id(account):
-    org_id = translate_account_to_org_id(account)
-    return flask.Response(f"{account} translates to {org_id}", status.HTTP_200_OK)
