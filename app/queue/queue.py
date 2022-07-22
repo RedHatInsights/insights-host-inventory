@@ -80,7 +80,7 @@ def _formatted_uuid(uuid_string):
     return str(UUID(uuid_string))
 
 
-# ensures correct processing of the notification
+# Ensures correct processing of the notification
 def _create_message_id():
     encoded_id = str(uuid.uuid4()).encode()
     return bytearray(encoded_id)
@@ -147,7 +147,11 @@ def _validate_json_object_for_utf8(json_object):
 
 
 def _build_minimal_host_info(host_data):
-    return {"account_id": host_data.get("account"), "org_id": host_data.get("org_id")}
+    return {
+        "account_id": host_data.get("account"),
+        "org_id": host_data.get("org_id"),
+        "canonical_facts": {"bios_uuid": host_data.get("bios_uuid")},
+    }
 
 
 @metrics.ingress_message_parsing_time.time()
@@ -227,9 +231,7 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException as ve:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(
-                host=_build_minimal_host_info(host_data), detail=str(ve.detail), stack_trace=str(ve.messages)
-            )
+            send_kafka_error_message(host=_build_minimal_host_info(host_data), detail=str(ve.detail))
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -267,9 +269,7 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException as ve:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(
-                host=_build_minimal_host_info(host_data), detail=str(ve.detail), stack_trace=str(ve.messages)
-            )
+            send_kafka_error_message(host=_build_minimal_host_info(host_data), detail=str(ve.detail))
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -343,16 +343,13 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(host, detail, stack_trace):
-    # just trying to get all the elements before sorting what goes where
+def send_kafka_error_message(host, detail):
     config = _init_config()
-    event = build_notification_event(NotificationType.validation_error, host, detail, stack_trace)
+    event = build_notification_event(NotificationType.validation_error, host, detail)
     event_producer = NotificationEventProducer(config)
     rh_message_id = _create_message_id()
-    # insights_id = host.canonical_facts.get("insights_id")
     headers = notification_message_headers(
         NotificationType.validation_error,
-        # insights_id,
         rh_message_id=rh_message_id,
     )
-    event_producer.write_event(event, str(rh_message_id), headers, wait=True)
+    event_producer.write_event(event, host.canonical_facts.bios_uuid, headers, wait=True)

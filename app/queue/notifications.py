@@ -7,6 +7,7 @@ from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 
 from app.logging import threadctx
+from app.models import CanonicalFactsSchema
 from app.queue.events import hostname
 from app.queue.metrics import notification_event_serialization_time
 
@@ -23,6 +24,7 @@ class HostValidationErrorSchema(MarshmallowSchema):
 
 
 class ErrorPayloadSchema(MarshmallowSchema):
+    canonical_facts: fields.Nested(CanonicalFactsSchema())
     error = fields.Nested(HostValidationErrorSchema())
 
 
@@ -45,11 +47,10 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
 
 
 def notification_message_headers(event_type: NotificationType, rh_message_id: bytearray = None):
-    return {  # do I need all this information?
+    return {
         "event_type": event_type.name,
         "request_id": threadctx.request_id,
         "producer": hostname(),
-        # "insights_id": insights_id,
         "rh-message-id": rh_message_id,
     }
 
@@ -67,10 +68,11 @@ def host_validation_error_event(notification_type, host, detail, stack_trace):
         "events": {
             "metadata": {},
             "payload": {
+                "canonical_facts": host["canonical_facts"],
                 "error": {
                     "code": "VE001",
                     "message": detail,
-                    "stack_trace": stack_trace,
+                    "stack_trace": "",
                     "severity": "error",
                 },
             },
@@ -85,9 +87,9 @@ NOTIFICATION_TYPE_MAP = {
 }
 
 
-def build_notification_event(notification_type, host, detail, stack_trace, **kwargs):
+def build_notification_event(notification_type, host, detail, **kwargs):
     with notification_event_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
-        schema, event = build(notification_type, host, detail, stack_trace, **kwargs)
+        schema, event = build(notification_type, host, detail, **kwargs)
         result = schema().dumps(event)
         return result
