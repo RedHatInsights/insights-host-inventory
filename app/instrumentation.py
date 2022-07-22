@@ -12,38 +12,50 @@ from app.queue.metrics import tenant_translator_fetching_failure
 from lib.metrics import pendo_fetching_failure
 
 
-def message_produced(logger, value, key, headers, record_metadata):
+def message_produced(logger, msg):
+    value = msg.value().decode("utf-8")
+    msg_dict = json.loads(value)
+
     status = "PRODUCED"
-    offset = record_metadata.offset
-    timestamp = record_metadata.timestamp
-    topic = record_metadata.topic
+    offset = msg.offset()
+    topic = msg.topic()
+
+    key = msg_dict["host"]["id"]
+    timestamp = msg_dict["timestamp"]
+
+    # headers fields [('event_type', b'<type>', ('request_id', b'<>'), 'producer', b'<>'), 'insights_id', b'<>')]
+    event_type = msg_dict["type"]
+    request_id = msg_dict["metadata"]["request_id"]
+    insights_id = msg_dict["host"]["insights_id"]
+    insights_id = insights_id if insights_id else ""
+
+    headers = [
+        ("event_type", event_type.encode("utf-8")),
+        ("request_id", request_id.encode("utf-8")),
+        # ('producer', b'<>'),
+        ("insights_id", insights_id.encode("utf-8")),
+    ]
+
     extra = {"status": status, "offset": offset, "timestamp": timestamp, "topic": topic, "key": key}
 
     info_extra = {**extra, "headers": headers}
-    info_message = "Message %s offset=%d timestamp=%d topic=%s, key=%s"
-    logger.info(info_message, status, offset, timestamp, topic, key, extra=info_extra)
+    info_message = f"Message status={status}, offset={offset} timestamp={timestamp} topic=%{topic}, key={key}"
+    logger.info(f"{info_message}, extra={info_extra}")
 
-    debug_message = "Message offset=%d timestamp=%d topic=%s key=%s value=%s"
+    debug_message = f"Message offset={offset} timestamp={timestamp}] topic={topic} key={key} value={value}"
     debug_extra = {**extra, "value": value}
-    logger.debug(debug_message, offset, timestamp, topic, key, value, extra=debug_extra)
+    logger.debug(debug_message, extra=debug_extra)
 
-    event_producer_success.labels(event_type=headers["event_type"], topic=topic).inc()
+    event_producer_success.labels(event_type=event_type, topic=topic).inc()
 
 
-def message_not_produced(logger, topic, value, key, headers, error):
+# def message_not_produced(logger, topic, value, key, headers, error):
+# TODO: Does the error object have host info needed to log the failed event for the host.
+def message_not_produced(logger, error):
     status = "NOT PRODUCED"
-    error_message = str(error)
-    extra = {"status": status, "topic": topic, "key": key}
+    logger.error(f"Message status={status}, topic={error.egress_topic}, error={str(error)}")
 
-    info_extra = {**extra, "headers": headers, "error": error_message}
-    info_message = "Message %s topic=%s, key=%s, error=%s"
-    logger.error(info_message, status, topic, key, error, extra=info_extra)
-
-    debug_message = "Message topic=%s key=%s value=%s"
-    debug_extra = {**extra, "value": value}
-    logger.debug(debug_message, topic, key, value, extra=debug_extra)
-
-    event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
+    event_producer_failure.labels(event_type="some_event_producer_error", topic=error.egress_topic).inc()
 
 
 def get_control_rule():
