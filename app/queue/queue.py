@@ -43,6 +43,7 @@ from app.queue.notifications import build_notification_event
 from app.queue.notifications import notification_message_headers
 from app.queue.notifications import NotificationType
 from app.serialization import DEFAULT_FIELDS
+from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from lib import host_repository
 
@@ -150,7 +151,7 @@ def _build_minimal_host_info(host_data):
     return {
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
-        "canonical_facts": {"bios_uuid": host_data.get("bios_uuid")},
+        "canonical_facts": deserialize_canonical_facts(host_data),
     }
 
 
@@ -231,7 +232,7 @@ def update_system_profile(host_data, platform_metadata):
             return output_host, host_id, insights_id, update_result
         except ValidationException as ve:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(host=_build_minimal_host_info(host_data), detail=str(ve.detail))
+            send_kafka_error_message(host=host_data, detail=str(ve.detail))
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -269,7 +270,7 @@ def add_host(host_data, platform_metadata):
             return output_host, host_id, insights_id, add_result
         except ValidationException as ve:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(host=_build_minimal_host_info(host_data), detail=str(ve.detail))
+            send_kafka_error_message(host=host_data, detail=str(ve.detail))
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -345,11 +346,12 @@ def initialize_thread_local_storage(request_id):
 
 def send_kafka_error_message(host, detail):
     config = _init_config()
-    event = build_notification_event(NotificationType.validation_error, host, detail)
+    minimal_host = _build_minimal_host_info(host)
+    event = build_notification_event(NotificationType.validation_error, minimal_host, detail)
     event_producer = NotificationEventProducer(config)
     rh_message_id = _create_message_id()
     headers = notification_message_headers(
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    event_producer.write_event(event, host.canonical_facts.bios_uuid, headers, wait=True)
+    event_producer.write_event(event, minimal_host["canonical_facts"]["bios_uuid"], headers, wait=True)

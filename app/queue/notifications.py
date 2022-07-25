@@ -55,7 +55,7 @@ def notification_message_headers(event_type: NotificationType, rh_message_id: by
     }
 
 
-def host_validation_error_event(notification_type, host, detail, stack_trace):
+def host_validation_error_event(notification_type, host, detail, stack_trace=None):
     validation_error_event = {
         "version": "v1.0.0",
         "bundle": "rhel",
