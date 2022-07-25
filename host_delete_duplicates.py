@@ -46,9 +46,9 @@ def _excepthook(logger, type, value, traceback):
     logger.exception("Host duplicate remover failed", exc_info=value)
 
 
-def run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler):
+def run(config, logger, org_ids_session, hosts_session, misc_session, event_producer, shutdown_handler):
     num_deleted = delete_duplicate_hosts(
-        accounts_session,
+        org_ids_session,
         hosts_session,
         misc_session,
         config.script_chunk_size,
@@ -73,10 +73,10 @@ def main(logger):
     register_shutdown(prometheus_shutdown, "Pushing metrics")
 
     Session = _init_db(config)
-    accounts_session = Session()
+    org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
-    register_shutdown(accounts_session.get_bind().dispose, "Closing database")
+    register_shutdown(org_ids_session.get_bind().dispose, "Closing database")
     register_shutdown(hosts_session.get_bind().dispose, "Closing database")
     register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
@@ -86,8 +86,8 @@ def main(logger):
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    with multi_session_guard([accounts_session, hosts_session, misc_session]):
-        run(config, logger, accounts_session, hosts_session, misc_session, event_producer, shutdown_handler)
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
+        run(config, logger, org_ids_session, hosts_session, misc_session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

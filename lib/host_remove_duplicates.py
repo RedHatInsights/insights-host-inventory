@@ -88,20 +88,20 @@ def _delete_hosts_by_id_list(session, host_id_list):
 
 
 def delete_duplicate_hosts(
-    accounts_session, hosts_session, misc_session, chunk_size, logger, event_producer, interrupt=lambda: False
+    org_ids_session, hosts_session, misc_session, chunk_size, logger, event_producer, interrupt=lambda: False
 ):
     total_deleted = 0
     hosts_query = hosts_session.query(Host)
-    account_query = accounts_session.query(Host.account)
+    org_id_query = org_ids_session.query(Host.org_id)
 
     logger.info(f"Total number of hosts in inventory: {hosts_query.count()}")
-    logger.info(f"Total number of accounts in inventory: {account_query.distinct(Host.account).count()}")
+    logger.info(f"Total number of org_ids in inventory: {org_id_query.distinct(Host.org_id).count()}")
 
-    for account in account_query.distinct(Host.account).yield_per(chunk_size):
-        logger.info(f"Processing account {account}")
+    for org_id in org_id_query.distinct(Host.org_id).yield_per(chunk_size):
+        logger.info(f"Processing org_id {org_id}")
         unique_list = list()
         duplicate_list = list()
-        misc_query = misc_session.query(Host).filter(Host.account == account)
+        misc_query = misc_session.query(Host).filter(Host.org_id == org_id)
 
         def unique(host_list):
             if host_list[0].id not in unique_list:
@@ -112,9 +112,7 @@ def delete_duplicate_hosts(
                     duplicate_list.append(host_id)
                     logger.info(f"{host_id} is a potential duplicate")
 
-        for host in (
-            hosts_query.filter(Host.account == account).order_by(Host.modified_on.desc()).yield_per(chunk_size)
-        ):
+        for host in hosts_query.filter(Host.org_id == org_id).order_by(Host.modified_on.desc()).yield_per(chunk_size):
             canonical_facts = host.canonical_facts
             elevated_cfs = {
                 key: value for key, value in canonical_facts.items() if key in ELEVATED_CANONICAL_FACT_FIELDS
@@ -132,7 +130,7 @@ def delete_duplicate_hosts(
 
             unique(host_matches)
             hosts_session.expunge_all()
-        accounts_session.expunge_all()
+        org_ids_session.expunge_all()
 
         # delete duplicate hosts
         _delete_hosts_by_id_list(misc_session, duplicate_list)

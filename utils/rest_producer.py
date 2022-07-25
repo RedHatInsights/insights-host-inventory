@@ -8,7 +8,7 @@ import requests
 URL = "http://localhost:8080/api/inventory/v1/hosts"
 NUM_HOSTS = 1
 
-account_number = "0000001"
+org_id = "0000001"
 
 bulk_insert = False
 
@@ -17,7 +17,7 @@ headers = {"Content-type": "application/json", "x-rh-insights-request-id": "6543
 # headers["Authorization"] = "Bearer secret"
 # headers["Authorization"] = "Bearer 023e4f11185e4c17478bb9c6750d3068eeebe85b"
 
-identity = {"identity": {"account_number": account_number}}
+identity = {"identity": {"org_id": org_id}}
 headers["x-rh-identity"] = base64.b64encode(json.dumps(identity).encode())
 
 

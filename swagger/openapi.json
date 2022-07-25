@@ -586,37 +586,6 @@
         }
       }
     },
-    "/orgid/{account}": {
-      "get": {
-        "tags": [
-          "orgid"
-        ],
-        "summary": "Translate account to Org ID",
-        "description": "Translates an account number to its Org ID <br /><br /> Required permissions: inventory:hosts:read",
-        "operationId": "api.host.translate_to_org_id",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "The account number to translate"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully translated."
-          }
-        }
-      }
-    },
     "/tags": {
       "get": {
         "tags": [
@@ -702,7 +671,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap system values and counts on an account",
+        "summary": "get all sap system values and counts on the account",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_system",
         "security": [
@@ -732,7 +701,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for the account",
             "content": {
               "application/json": {
                 "schema": {
@@ -755,7 +724,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all sap sids values and counts on an account",
+        "summary": "get all sap sids values and counts on the account",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_sap_sids",
         "security": [
@@ -788,7 +757,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "sap_system values and counts for the account",
             "content": {
               "application/json": {
                 "schema": {
@@ -811,7 +780,7 @@
         "tags": [
           "system_profile"
         ],
-        "summary": "get all operating system versions and counts on an account",
+        "summary": "get all operating system versions and counts on the account",
         "description": "Required permissions: inventory:hosts:read",
         "operationId": "api.system_profile.get_operating_system",
         "security": [
@@ -841,7 +810,7 @@
         ],
         "responses": {
           "200": {
-            "description": "sap_system values and counts for account",
+            "description": "operating system versions and counts on the account",
             "content": {
               "application/json": {
                 "schema": {
@@ -929,7 +898,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-rh-identity",
-        "description": "Base64-encoded JSON identity header provided by 3Scale. Contains an account number of the user issuing the request. Format of the JSON: {\"identity\": {\"account_number\": \"12345678\"}}",
+        "description": "Base64-encoded JSON identity header provided by 3Scale. Contains an org_id of the user issuing the request. Format of the JSON: {\"identity\": {\"org_id\": \"12345678\"}}",
         "x-apikeyInfoFunc": "app.auth.authentication_header_handler"
       }
     },
@@ -1220,7 +1189,7 @@
         "schema": {
           "type": "boolean"
         },
-        "description": "Confirmation to delete all hosts on an account",
+        "description": "Confirmation to delete all hosts on the account",
         "required": false
       }
     },
@@ -1655,7 +1624,9 @@
               "account": {
                 "description": "A Red Hat Account number that owns the host.",
                 "type": "string",
-                "example": "000102"
+                "nullable": true,
+                "example": "000102",
+                "deprecated": true
               },
               "org_id": {
                 "description": "The Org ID of the tenant that owns the host.",
@@ -1716,7 +1687,7 @@
               }
             },
             "required": [
-              "account"
+              "org_id"
             ]
           }
         ]

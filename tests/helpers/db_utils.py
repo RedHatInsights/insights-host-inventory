@@ -41,17 +41,15 @@ def clean_tables():
 
 def minimal_db_host(**values):
     data = {
-        "account": USER_IDENTITY["account_number"],
-        "org_id": USER_IDENTITY["account_number"],
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }
-    if "account" in values:
-        data["account"] = values.get("account")
     if "org_id" in values:
         data["org_id"] = values.get("org_id")
+    else:
+        data["org_id"] = USER_IDENTITY["org_id"]
 
     return Host(**data)
 
@@ -59,7 +57,7 @@ def minimal_db_host(**values):
 def db_host(**values):
     data = {
         "account": USER_IDENTITY["account_number"],
-        "org_id": USER_IDENTITY["account_number"],
+        "org_id": USER_IDENTITY["org_id"],
         "display_name": "test-display-name",
         "ansible_host": "test-ansible-host",
         "canonical_facts": {

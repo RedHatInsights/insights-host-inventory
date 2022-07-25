@@ -46,15 +46,15 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
     Session = _init_db(inventory_config)
-    accounts_session = Session()
+    org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
 
-    with multi_session_guard([accounts_session, hosts_session, misc_session]):
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
-            accounts_session,
+            org_ids_session,
             hosts_session,
             misc_session,
             event_producer_mock,
@@ -113,15 +113,15 @@ def test_delete_dupe_more_hosts_than_chunk_size(
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
     Session = _init_db(inventory_config)
-    accounts_session = Session()
+    org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
 
-    with multi_session_guard([accounts_session, hosts_session, misc_session]):
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
-            accounts_session,
+            org_ids_session,
             hosts_session,
             misc_session,
             event_producer_mock,
@@ -145,15 +145,15 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
     Session = _init_db(inventory_config)
-    accounts_session = Session()
+    org_ids_session = Session()
     hosts_session = Session()
     misc_session = Session()
 
-    with multi_session_guard([accounts_session, hosts_session, misc_session]):
+    with multi_session_guard([org_ids_session, hosts_session, misc_session]):
         num_deleted = host_delete_duplicates_run(
             inventory_config,
             mock.Mock(),
-            accounts_session,
+            org_ids_session,
             hosts_session,
             misc_session,
             event_producer_mock,
@@ -797,7 +797,7 @@ def test_delete_duplicates_multiple_scenarios(
 
 
 @pytest.mark.host_delete_duplicates
-def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_get_host, inventory_config):
+def test_delete_duplicates_multiple_org_ids(event_producer, db_create_host, db_get_host, inventory_config):
     canonical_facts = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
@@ -805,9 +805,9 @@ def test_delete_duplicates_multiple_accounts(event_producer, db_create_host, db_
         "satellite_id": generate_uuid(),
         "fqdn": generate_random_string(),
     }
-    host1 = minimal_db_host(canonical_facts=canonical_facts, account="111111")
+    host1 = minimal_db_host(canonical_facts=canonical_facts, org_id="111111")
     created_host1 = db_create_host(host=host1).id
-    host2 = minimal_db_host(canonical_facts=canonical_facts, account="222222")
+    host2 = minimal_db_host(canonical_facts=canonical_facts, org_id="222222")
     created_host2 = db_create_host(host=host2).id
 
     Session = _init_db(inventory_config)

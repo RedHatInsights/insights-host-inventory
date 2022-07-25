@@ -226,6 +226,25 @@ def test_handle_message_verify_metadata_pass_through(mq_create_or_update_host):
     assert event["platform_metadata"] == metadata
 
 
+def test_handle_message_verify_org_id(mq_create_or_update_host):
+    host_id = generate_uuid()
+    insights_id = generate_uuid()
+    org_id = "1234567890"
+
+    org_identity = deepcopy(SYSTEM_IDENTITY)
+    org_identity["org_id"] = org_id
+    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], org_id=org_id, id=host_id, insights_id=insights_id)
+    metadata = {
+        "request_id": generate_uuid(),
+        "archive_url": "https://some.url",
+        "b64_identity": get_encoded_idstr(identity=org_identity),
+    }
+
+    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata, return_all_data=True)
+
+    assert event["platform_metadata"] == metadata
+
+
 def test_handle_message_verify_message_key_and_metadata_not_required(mocker, mq_create_or_update_host):
     host_id = generate_uuid()
     insights_id = generate_uuid()
