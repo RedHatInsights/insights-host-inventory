@@ -82,8 +82,8 @@ def _formatted_uuid(uuid_string):
 
 
 # Ensures correct processing of the notification
-def _create_message_id():
-    encoded_id = str(uuid.uuid4()).encode()
+def _encode_message_id(message_id):
+    encoded_id = str(message_id).encode()
     return bytearray(encoded_id)
 
 
@@ -346,10 +346,12 @@ def initialize_thread_local_storage(request_id):
 
 def send_kafka_error_message(host, detail):
     config = _init_config()
+    message_id = str(uuid.uuid4())
     minimal_host = _build_minimal_host_info(host)
-    event = build_notification_event(NotificationType.validation_error, minimal_host, detail)
+    print("minimal host", minimal_host)
+    event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
     event_producer = NotificationEventProducer(config)
-    rh_message_id = _create_message_id()
+    rh_message_id = _encode_message_id(message_id)
     headers = notification_message_headers(
         NotificationType.validation_error,
         rh_message_id=rh_message_id,

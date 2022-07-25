@@ -24,7 +24,7 @@ class HostValidationErrorSchema(MarshmallowSchema):
 
 
 class ErrorPayloadSchema(MarshmallowSchema):
-    canonical_facts: fields.Nested(CanonicalFactsSchema())
+    canonical_facts = fields.Nested(CanonicalFactsSchema())
     error = fields.Nested(HostValidationErrorSchema())
 
 
@@ -55,8 +55,9 @@ def notification_message_headers(event_type: NotificationType, rh_message_id: by
     }
 
 
-def host_validation_error_event(notification_type, host, detail, stack_trace=None):
+def host_validation_error_event(notification_type, message_id, host, detail, stack_trace=None):
     validation_error_event = {
+        "id": message_id,
         "version": "v1.0.0",
         "bundle": "rhel",
         "application": "inventory",
@@ -79,6 +80,8 @@ def host_validation_error_event(notification_type, host, detail, stack_trace=Non
         },
     }
 
+    print("validation error event", validation_error_event)
+
     return (HostValidationErrorNotificationEvent, validation_error_event)
 
 
@@ -87,9 +90,9 @@ NOTIFICATION_TYPE_MAP = {
 }
 
 
-def build_notification_event(notification_type, host, detail, **kwargs):
+def build_notification_event(notification_type, message_id, host, detail, **kwargs):
     with notification_event_serialization_time.labels(notification_type.name).time():
         build = NOTIFICATION_TYPE_MAP[notification_type]
-        schema, event = build(notification_type, host, detail, **kwargs)
+        schema, event = build(notification_type, message_id, host, detail, **kwargs)
         result = schema().dumps(event)
         return result
