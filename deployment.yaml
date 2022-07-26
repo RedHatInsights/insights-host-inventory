@@ -343,6 +343,8 @@ objects:
             value: 'true'
           - name: PROMETHEUS_PUSHGATEWAY
             value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -494,6 +496,8 @@ objects:
             value: ${INVENTORY_DB_SSL_CERT}
           - name: KAFKA_BOOTSTRAP_SERVERS
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
