@@ -22,7 +22,6 @@ from app.logging import threadctx
 from app.models import db
 from app.models import SPECIFICATION_DIR
 from app.queue.event_producer import EventProducer
-from app.queue.event_producer import NotificationEventProducer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -204,7 +203,7 @@ def create_app(runtime_environment):
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     if runtime_environment.event_producer_enabled:
-        flask_app.event_producer = EventProducer(app_config)
+        flask_app.event_producer = EventProducer(app_config, app_config.event_topic)
         register_shutdown(flask_app.event_producer.close, "Closing EventProducer")
     else:
         logger.warning(
@@ -212,14 +211,14 @@ def create_app(runtime_environment):
             "The message queue based event notifications have been disabled."
         )
 
-    if runtime_environment.notification_producer_enabled:
-        flask_app.notification_event_producer = NotificationEventProducer(app_config)
-        register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
-    else:
-        logger.warning(
-            "WARNING: The event producer has been disabled.  "
-            "The message queue based notifications have been disabled."
-        )
+    # if runtime_environment.notification_producer_enabled:
+    #     flask_app.notification_event_producer = EventProducer(app_config, app_config.notification_topic)
+    #     register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
+    # else:
+    #     logger.warning(
+    #         "WARNING: The event producer has been disabled.  "
+    #         "The message queue based notifications have been disabled."
+    #     )
 
     payload_tracker_producer = None
     if not runtime_environment.payload_tracker_enabled:

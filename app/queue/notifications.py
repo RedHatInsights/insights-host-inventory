@@ -80,8 +80,6 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         },
     }
 
-    print("validation error event", validation_error_event)
-
     return (HostValidationErrorNotificationEvent, validation_error_event)
 
 

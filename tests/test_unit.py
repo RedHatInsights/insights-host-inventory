@@ -1856,7 +1856,7 @@ class EventProducerTests(TestCase):
         super().setUp()
 
         self.config = Config(RuntimeEnvironment.TEST)
-        self.event_producer = EventProducer(self.config)
+        self.event_producer = EventProducer(self.config, self.config.event_topic)
         self.topic_name = self.config.event_topic
         threadctx.request_id = str(uuid4())
         self.basic_host = {

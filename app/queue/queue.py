@@ -34,7 +34,7 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import NotificationEventProducer
+from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -348,12 +348,12 @@ def send_kafka_error_message(host, detail):
     config = _init_config()
     message_id = str(uuid.uuid4())
     minimal_host = _build_minimal_host_info(host)
-    print("minimal host", minimal_host)
     event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
-    event_producer = NotificationEventProducer(config)
+    event_producer = EventProducer(config, config.notification_topic)
     rh_message_id = _encode_message_id(message_id)
     headers = notification_message_headers(
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    event_producer.write_event(event, minimal_host["canonical_facts"]["bios_uuid"], headers, wait=True)
+    key = minimal_host.get("canonical_facts").get("bios_uuid")
+    event_producer.write_event(event, key, headers, wait=True)
