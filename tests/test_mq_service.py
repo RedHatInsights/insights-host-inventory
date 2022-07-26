@@ -1486,4 +1486,4 @@ def test_create_invalid_host_produces_message(mocker):
 
     with pytest.raises(ValidationException):
         handle_message(json.dumps(message), mock_event_producer, add_host_mock)
-    mock_event_producer.assert_called_once()
+    mock_event_producer.write_event.assert_called_once()
