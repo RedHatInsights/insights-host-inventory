@@ -10,29 +10,16 @@ from app.queue.metrics import rbac_fetching_failure
 from lib.metrics import pendo_fetching_failure
 
 
-def message_produced(logger, msg):
-    value = msg.value().decode("utf-8")
-    msg_dict = json.loads(value)
+def message_produced(logger, message, key, headers):
+    value = message.value().decode("utf-8")
+    message_dict = json.loads(value)
 
     status = "PRODUCED"
-    offset = msg.offset()
-    topic = msg.topic()
+    offset = message.offset()
+    topic = message.topic()
 
-    key = msg_dict["host"]["id"]
-    timestamp = msg_dict["timestamp"]
-
-    # headers fields [('event_type', b'<type>', ('request_id', b'<>'), 'producer', b'<>'), 'insights_id', b'<>')]
-    event_type = msg_dict["type"]
-    request_id = msg_dict["metadata"]["request_id"]
-    insights_id = msg_dict["host"]["insights_id"]
-    insights_id = insights_id if insights_id else ""
-
-    headers = [
-        ("event_type", event_type.encode("utf-8")),
-        ("request_id", request_id.encode("utf-8")),
-        # ('producer', b'<>'),
-        ("insights_id", insights_id.encode("utf-8")),
-    ]
+    key = message_dict["host"]["id"]
+    timestamp = message_dict["timestamp"]
 
     extra = {"status": status, "offset": offset, "timestamp": timestamp, "topic": topic, "key": key}
 
@@ -44,16 +31,17 @@ def message_produced(logger, msg):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, extra=debug_extra)
 
-    event_producer_success.labels(event_type=event_type, topic=topic).inc()
+    event_producer_success.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
 
 
-# def message_not_produced(logger, topic, value, key, headers, error):
-# TODO: Does the error object have host info needed to log the failed event for the host.
-def message_not_produced(logger, error):
+def message_not_produced(logger, error, value, topic, key, headers):
     status = "NOT PRODUCED"
-    logger.error(f"Message status={status}, topic={error.egress_topic}, error={str(error)}")
+    msg = f"Message status={status}, topic={topic}, key={key}, headers={headers}, error={str(error)}, event={value}"
 
-    event_producer_failure.labels(event_type="some_event_producer_error", topic=error.egress_topic).inc()
+    logger.error(msg)
+    logger.debug(msg)
+
+    event_producer_failure.labels(event_type=dict(headers)["event_type"].decode("utf-8"), topic=topic).inc()
 
 
 def get_control_rule():
