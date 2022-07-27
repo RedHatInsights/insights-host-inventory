@@ -15,10 +15,10 @@ def _encode_headers(headers):
 
 
 class EventProducer:
-    def __init__(self, config, event_topic):
+    def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
-        self.egress_topic = event_topic
+        self.egress_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)

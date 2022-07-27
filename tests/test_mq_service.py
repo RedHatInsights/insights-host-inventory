@@ -1466,14 +1466,17 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
 
 
 def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
-    expected_insights_id = generate_uuid()
-    expected_system_profile = valid_system_profile()
+    insights_id = generate_uuid()
+    system_profile = valid_system_profile()
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile=expected_system_profile,
+        insights_id=insights_id,
+        system_profile=system_profile,
     )
 
+    mock_event_producer = mocker.Mock()
+
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        key, event, headers = mq_create_or_update_host(host, event_producer=mock_event_producer, return_all_data=True)
+        mock_event_producer.write_event.assert_called_once_with(event, key, headers)
