@@ -1465,7 +1465,7 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
 
 
-def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
+def test_create_invalid_host_produces_message(mocker, event_datetime_mock, mq_create_or_update_host):
     insights_id = generate_uuid()
     system_profile = valid_system_profile()
 
