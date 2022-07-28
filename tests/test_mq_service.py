@@ -18,6 +18,7 @@ from app.queue.queue import update_system_profile
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
+from tests.helpers.mq_utils import MockMessage
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -36,13 +37,14 @@ from tests.helpers.test_utils import valid_system_profile
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
-def test_event_loop_exception_handling(mocker, flask_app):
+def test_event_loop(mocker, flask_app):
     """
     Test to ensure that an exception in message handler method does not cause the
     event loop to stop processing messages
     """
+    fake_message = MockMessage()
     fake_consumer = mocker.Mock()
-    fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock(), mocker.Mock()]}
+    fake_consumer.poll.return_value = fake_message
 
     fake_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, KeyError("blah"), None])
@@ -53,7 +55,7 @@ def test_event_loop_exception_handling(mocker, flask_app):
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, True)),
     )
-    assert handle_message_mock.call_count == 3
+    assert handle_message_mock.call_count == 1
 
 
 def test_handle_message_failure_invalid_json_message(mocker):
@@ -139,8 +141,9 @@ def test_request_id_is_reset(mocker, flask_app):
 
 
 def test_shutdown_handler(mocker, flask_app):
+    fake_message = MockMessage()
     fake_consumer = mocker.Mock()
-    fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock()]}
+    fake_consumer.poll.return_value = fake_message
 
     fake_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, None])
@@ -153,7 +156,7 @@ def test_shutdown_handler(mocker, flask_app):
     )
     fake_consumer.poll.assert_called_once()
 
-    assert handle_message_mock.call_count == 2
+    assert handle_message_mock.call_count == 1
 
 
 # Leaving this in as a reminder that we need to impliment this test eventually

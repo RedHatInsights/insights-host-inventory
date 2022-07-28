@@ -39,9 +39,6 @@ from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
 
-# from select import KQ_NOTE_RENAME
-# from confluent_kafka import KafkaException
-
 
 logger = get_logger(__name__)
 

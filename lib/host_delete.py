@@ -1,4 +1,4 @@
-from confluent_kafka.error import KafkaError
+from confluent_kafka import KafkaException
 from sqlalchemy.orm.base import instance_state
 
 from app.logging import get_logger
@@ -47,7 +47,7 @@ def _delete_host(session, event_producer, host):
             return host_deleted
     else:
         logger.error(f"host with {host.id} NOT deleted because Kafka server not available.")
-        raise KafkaError("Kafka server not available.  Stopping host deletions.")
+        raise KafkaException("Kafka server not available.  Stopping host deletions.")
 
 
 def _deleted_by_this_query(host):

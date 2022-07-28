@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from confluent_kafka.error import KafkaError
+from confluent_kafka import KafkaException
 
 from app import db
 from app import threadctx
@@ -16,8 +16,6 @@ from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.test_utils import get_staleness_timestamps
-
-# from kafka.errors import KafkaError
 
 
 def test_dont_get_only_culled(mq_create_hosts_in_all_states, api_get):
@@ -306,15 +304,15 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
 
 @pytest.mark.host_reaper
 @pytest.mark.parametrize(
-    "send_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+    "produce_side_effects",
+    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaException()})), (mock.Mock(), KafkaException("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
+    produce_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
 ):
-    mocker.patch("lib.host_delete.kafka_available")
+    mocker.patch("lib.host_delete.kafka_available", return_value=False)
 
-    event_producer._kafka_producer.send.side_effect = send_side_effects
+    event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
 
@@ -329,7 +327,7 @@ def test_reaper_stops_after_kafka_producer_error(
 
     threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
 
-    with pytest.raises(KafkaError):
+    with pytest.raises(KafkaException):
         host_reaper_run(
             inventory_config,
             mock.Mock(),
@@ -339,5 +337,5 @@ def test_reaper_stops_after_kafka_producer_error(
         )
 
     remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 2
-    assert event_producer._kafka_producer.send.call_count == 2
+    assert remaining_hosts.count() == 3
+    assert event_producer._kafka_producer.produce.call_count == 0

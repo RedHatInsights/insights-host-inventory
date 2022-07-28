@@ -58,9 +58,9 @@ def assert_payload_tracker_is_disabled(tracker, kafka_producer, null_producer, s
             null_producer.reset_mock()
 
 
-def assert_mock_send_call(mock_producer, expected_topic, expected_msg):
-    mock_producer.send.assert_called()
-    args, kwargs = mock_producer.send.call_args
+def assert_mock_produce_call(mock_producer, expected_topic, expected_msg):
+    mock_producer.produce.assert_called()
+    args, kwargs = mock_producer.produce.call_args
     actual_topic, actual_msg = args
 
     assert actual_topic == expected_topic

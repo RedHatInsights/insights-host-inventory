@@ -7,7 +7,7 @@ import pytest
 from app.payload_tracker import _UNKNOWN_REQUEST_ID
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from tests.helpers.tracker_utils import assert_mock_send_call
+from tests.helpers.tracker_utils import assert_mock_produce_call
 from tests.helpers.tracker_utils import assert_payload_tracker_is_disabled
 from tests.helpers.tracker_utils import build_expected_tracker_message
 from tests.helpers.tracker_utils import build_payload_tracker_context_error_message
@@ -53,7 +53,7 @@ def test_payload_tracker_configure_topic(payload_tracker, tracker_datetime_mock)
         # FIXME: test other methods
         tracker.payload_received()
 
-        assert_mock_send_call(producer, expected_topic, expected_msg)
+        assert_mock_produce_call(producer, expected_topic, expected_msg)
 
 
 def test_payload_tracker_producer_raises_exception(payload_tracker, tracker_datetime_mock, subtests):
@@ -105,7 +105,7 @@ def test_payload_tracker_account_is_none(payload_tracker, tracker_datetime_mock,
                 status=expected_status, request_id=expected_request_id, datetime_mock=tracker_datetime_mock
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -130,7 +130,7 @@ def test_payload_tracker_pass_status_message(payload_tracker, tracker_datetime_m
                 datetime_mock=tracker_datetime_mock,
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -155,7 +155,7 @@ def test_payload_tracker_set_account_and_request_id(payload_tracker, tracker_dat
                 datetime_mock=tracker_datetime_mock,
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -180,7 +180,7 @@ def test_payload_tracker_set_org_id_and_request_id(payload_tracker, tracker_date
                 datetime_mock=tracker_datetime_mock,
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -210,7 +210,7 @@ def test_payload_tracker_context_error(payload_tracker, tracker_datetime_mock, s
                         datetime_mock=tracker_datetime_mock,
                     )
 
-                    assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+                    assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
                     producer.reset_mock()
                     method_to_raise_exception()
 
@@ -223,7 +223,7 @@ def test_payload_tracker_context_error(payload_tracker, tracker_datetime_mock, s
                 datetime_mock=tracker_datetime_mock,
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -252,7 +252,7 @@ def test_payload_tracker_context_success(payload_tracker, tracker_datetime_mock,
                     datetime_mock=tracker_datetime_mock,
                 )
 
-                assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+                assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
                 producer.reset_mock()
 
@@ -263,7 +263,7 @@ def test_payload_tracker_context_success(payload_tracker, tracker_datetime_mock,
                 datetime_mock=tracker_datetime_mock,
             )
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -295,7 +295,7 @@ def test_payload_tracker_processing_context_error(payload_tracker, tracker_datet
                         datetime_mock=tracker_datetime_mock,
                     )
 
-                    assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+                    assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
                     producer.reset_mock()
                     processing_context.inventory_id = expected_inventory_id
                     method_to_raise_exception()
@@ -313,7 +313,7 @@ def test_payload_tracker_processing_context_error(payload_tracker, tracker_datet
 
             assert tracker.inventory_id is None
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()
 
@@ -344,7 +344,7 @@ def test_payload_tracker_processing_context_success(payload_tracker, tracker_dat
                     datetime_mock=tracker_datetime_mock,
                 )
 
-                assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+                assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
                 processing_context.inventory_id = expected_inventory_id
 
@@ -361,6 +361,6 @@ def test_payload_tracker_processing_context_success(payload_tracker, tracker_dat
 
             assert tracker.inventory_id is None
 
-            assert_mock_send_call(producer, DEFAULT_TOPIC, expected_msg)
+            assert_mock_produce_call(producer, DEFAULT_TOPIC, expected_msg)
 
             producer.reset_mock()

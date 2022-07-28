@@ -16,7 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-from confluent_kafka.error import KafkaError
+from confluent_kafka import KafkaException
 
 from api import api_operation
 from api import custom_escape
@@ -60,15 +60,12 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib import host_kafka
-from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
-
-# from kafka.errors import KafkaError
 
 
 class ApiOperationTestCase(TestCase):
@@ -1871,7 +1868,7 @@ class EventProducerTests(TestCase):
         }
 
     def test_happy_path(self):
-        send = self.event_producer._kafka_producer.send
+        produce = self.event_producer._kafka_producer.produce
         host_id = self.basic_host["id"]
 
         for (event_type, host) in (
@@ -1885,13 +1882,8 @@ class EventProducerTests(TestCase):
 
                 self.event_producer.write_event(event, host_id, headers)
 
-                send.assert_called_once_with(
-                    self.topic_name,
-                    key=host_id.encode("utf-8"),
-                    value=event.encode("utf-8"),
-                    headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
-                )
-                send.reset_mock()
+                produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
+                produce.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_errors_are_caught(self, message_not_produced_mock):
@@ -1901,18 +1893,18 @@ class EventProducerTests(TestCase):
         headers = message_headers(event_type, self.basic_host["id"])
 
         # set up send to return a kafka error to check our handling
-        self.event_producer._kafka_producer.send.side_effect = KafkaError()
+        self.event_producer._kafka_producer.produce.side_effect = KafkaException()
 
-        with self.assertRaises(KafkaError):
+        with self.assertRaises(KafkaException):
             self.event_producer.write_event(event, key, headers)
 
         message_not_produced_mock.assert_called_once_with(
             event_producer_logger,
+            self.event_producer._kafka_producer.produce.side_effect,
+            event.encode("utf-8"),
             self.config.event_topic,
-            event,
-            key,
-            headers,
-            self.event_producer._kafka_producer.send.side_effect,
+            key.encode("utf-8"),
+            [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()],
         )
 
 

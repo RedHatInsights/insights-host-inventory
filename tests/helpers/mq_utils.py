@@ -34,6 +34,17 @@ class MockEventProducer:
         self.wait = wait
 
 
+class MockMessage:
+    def __init__(self):
+        self.message = None
+
+    def value(self):
+        return Mock()
+
+    def error(self):
+        return None
+
+
 class MockFuture:
     def __init__(self):
         self.callbacks = []
