@@ -63,8 +63,8 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "application": "inventory",
         "event_type": notification_type.name.replace("_", "-"),
         "timestamp": datetime.now(timezone.utc),
-        "account_id": host["account_id"],
-        "org_id": host["org_id"] if host["org_id"] else None,
+        "account_id": host.get("account_id"),
+        "org_id": host.get("org_id"),
         "context": {},
         "events": {
             "metadata": {},
