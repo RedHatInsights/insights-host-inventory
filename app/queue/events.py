@@ -25,7 +25,7 @@ def hostname():
 # Schemas
 class SerializedHostSchema(Schema):
     id = fields.UUID()
-    display_name = fields.Str(required=True)  # remove this
+    display_name = fields.Str()
     ansible_host = fields.Str()
     account = fields.Str(required=False)
     org_id = fields.Str(required=True)

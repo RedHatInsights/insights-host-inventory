@@ -297,6 +297,9 @@ class Config:
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)
 
+            if self._runtime_environment.notification_producer_enabled:
+                self.logger.info("Kafka Notification Topic: %s", self.notification_topic)
+
         if self._runtime_environment == RuntimeEnvironment.PENDO_JOB:
             self.logger.info("Pendo Sync Active: %s", self.pendo_sync_active)
             self.logger.info("Pendo Endpoint: %s", self.pendo_endpoint)

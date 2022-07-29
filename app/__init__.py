@@ -211,14 +211,14 @@ def create_app(runtime_environment):
             "The message queue based event notifications have been disabled."
         )
 
-    # if runtime_environment.notification_producer_enabled:
-    #     flask_app.notification_event_producer = EventProducer(app_config, app_config.notification_topic)
-    #     register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
-    # else:
-    #     logger.warning(
-    #         "WARNING: The event producer has been disabled.  "
-    #         "The message queue based notifications have been disabled."
-    #     )
+    if runtime_environment.notification_producer_enabled:
+        flask_app.notification_event_producer = EventProducer(app_config, app_config.notification_topic)
+        register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
+    else:
+        logger.warning(
+            "WARNING: The event producer has been disabled.  "
+            "The message queue based notifications have been disabled."
+        )
 
     payload_tracker_producer = None
     if not runtime_environment.payload_tracker_enabled:
