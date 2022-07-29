@@ -4,9 +4,6 @@ import os
 
 from confluent_kafka import Consumer as KafkaConsumer
 
-# from kafka import KafkaConsumer
-
-
 # from app.models import Host
 # from app.models import SystemProfileSchema
 

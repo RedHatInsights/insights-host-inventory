@@ -338,4 +338,5 @@ def test_reaper_stops_after_kafka_producer_error(
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 3
+    # since kafka was not available none of the hosts were reaped and no event was generated.
     assert event_producer._kafka_producer.produce.call_count == 0

@@ -20,9 +20,6 @@ from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler
 
-# from kafka import KafkaConsumer
-# from kafka import TopicPartition
-
 # from prometheus_client import start_http_server
 
 

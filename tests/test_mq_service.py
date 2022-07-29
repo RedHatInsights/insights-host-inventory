@@ -18,7 +18,7 @@ from app.queue.queue import update_system_profile
 from lib.host_repository import AddHostResult
 from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
-from tests.helpers.mq_utils import MockMessage
+from tests.helpers.mq_utils import FakeMessage
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
@@ -42,9 +42,8 @@ def test_event_loop(mocker, flask_app):
     Test to ensure that an exception in message handler method does not cause the
     event loop to stop processing messages
     """
-    fake_message = MockMessage()
     fake_consumer = mocker.Mock()
-    fake_consumer.poll.return_value = fake_message
+    fake_consumer.poll.return_value = FakeMessage()
 
     fake_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, KeyError("blah"), None])
@@ -55,6 +54,7 @@ def test_event_loop(mocker, flask_app):
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, True)),
     )
+    # confluent_kafka.consumer.poll gets one message at a time, or at least, one message is passed to the caller.
     assert handle_message_mock.call_count == 1
 
 
@@ -141,9 +141,8 @@ def test_request_id_is_reset(mocker, flask_app):
 
 
 def test_shutdown_handler(mocker, flask_app):
-    fake_message = MockMessage()
     fake_consumer = mocker.Mock()
-    fake_consumer.poll.return_value = fake_message
+    fake_consumer.poll.return_value = FakeMessage()
 
     fake_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, None])

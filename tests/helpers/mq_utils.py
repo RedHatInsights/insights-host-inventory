@@ -11,8 +11,6 @@ from confluent_kafka import TopicPartition
 from app.utils import Tag
 from tests.helpers.test_utils import minimal_host
 
-# from kafka import TopicPartition
-
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
 
@@ -34,7 +32,7 @@ class MockEventProducer:
         self.wait = wait
 
 
-class MockMessage:
+class FakeMessage:
     def __init__(self):
         self.message = None
 

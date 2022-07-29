@@ -307,28 +307,11 @@ def test_event_producer_instrumentation(mocker, event_producer, future_mock, db_
 
     url = build_hosts_url(host_list_or_id=created_host.id)
 
-    # TODO: Fix this test to trigger message_processed and message_not_processed
-    # event_producer._kafka_producer.produce.return_value = future_mock
-    # event_producer._kafka_producer.produce.side_effect = future_mock
-
-    # message_produced = mocker.patch("app.queue.event_producer.message_produced")
-    # message_not_produced = mocker.patch("app.queue.event_producer.message_not_produced")
-
     response_status, response_data = api_patch(url, patch_doc)
     assert_response_status(response_status, expected_status=200)
 
-    # message_produced.assert_called_once()
-
-    # for expected_callback, future_callbacks, fire_callbacks in (
-    #     (message_produced, future_mock.callbacks, future_mock.success),
-    #     (message_not_produced, future_mock.errbacks, future_mock.failure),
-    # ):
-    #     assert len(future_callbacks) == 1
-    #     assert future_callbacks[0].method == expected_callback
-
-    #     fire_callbacks()
-    #     args = future_callbacks[0].args + (future_callbacks[0].extra_arg,)
-    #     expected_callback.assert_called_once_with(*args, **future_callbacks[0].kwargs)
+    # TODO: fix/implement the test to exercise "message_processed" and "message_not_processed"
+    # PROBLEM: _kafka_producer.poll() not calling the callback, which get called as expected every where else.
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):

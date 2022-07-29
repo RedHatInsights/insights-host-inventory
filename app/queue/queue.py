@@ -176,7 +176,7 @@ def sync_event_message(message, session, event_producer):
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
-            event_producer.write_event(event, host.id, headers, wait=True)
+            event_producer.write_event(event, host.id, headers)
 
     return
 
@@ -287,15 +287,11 @@ def handle_message(message, event_producer, message_operation=add_host):
             raise
 
 
-# close() check it out it takes 2 args but not sure what is provided.
 def event_loop(consumer, flask_app, event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             message = consumer.poll(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
             if message is None or message.error() is not None:
-                # TODO:
-                # 'Subscribed topic not available' in message.error().str()
-                # what other errors are available?
                 continue
             logger.debug("Message received")
             try:

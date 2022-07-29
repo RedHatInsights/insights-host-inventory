@@ -374,6 +374,7 @@ def test_delete_stops_after_kafka_producer_error(
 
     remaining_hosts = db_get_hosts(host_id_list)
     assert remaining_hosts.count() == 3
+    # since kafka was not available none of the hosts were deleted and no event was generated.
     assert event_producer._kafka_producer.produce.call_count == 0
 
 

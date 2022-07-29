@@ -33,7 +33,7 @@ class EventProducer:
         self.egress_topic = config.event_topic
 
     # TODO: Remove wait parameter
-    def write_event(self, event, key, headers, *, wait=False):
+    def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
         global __event__

@@ -19,8 +19,6 @@ from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
 from lib.system_profile_validate import validate_sp_schemas
 
-# from kafka import KafkaConsumer
-
 
 __all__ = "main"
 

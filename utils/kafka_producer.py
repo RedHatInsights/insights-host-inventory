@@ -6,14 +6,10 @@ import payloads
 from confluent_kafka import Producer as KafkaProducer
 from ttictoc import TicToc
 
-# from unittest.loader import VALID_MODULE_NAME
-
-# from kafka import KafkaProducer
-
 
 HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
-NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 1))
+NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 5))
 
 
 def main():
@@ -23,7 +19,6 @@ def main():
         all_payloads = [payloads.build_mq_payload() for _ in range(NUM_HOSTS)]
     print("Number of hosts (payloads): ", len(all_payloads))
 
-    # producer = KafkaProducer({"bootstrap.servers": BOOTSTRAP_SERVERS}, api_version=(0, 10))
     producer = KafkaProducer({"bootstrap.servers": BOOTSTRAP_SERVERS})
     print("HOST_INGRESS_TOPIC:", HOST_INGRESS_TOPIC)
 
@@ -35,7 +30,6 @@ def main():
 
     with TicToc("Send all hosts to queue"):
         for payload in all_payloads:
-            # producer.send(HOST_INGRESS_TOPIC, value=payload)
             producer.produce(HOST_INGRESS_TOPIC, value=payload, callback=delivery_callback)
     producer.flush()
 
