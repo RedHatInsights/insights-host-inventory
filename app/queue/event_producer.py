@@ -1,4 +1,3 @@
-# from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -32,7 +31,6 @@ class EventProducer:
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers})
         self.egress_topic = config.event_topic
 
-    # TODO: Remove wait parameter
     def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 

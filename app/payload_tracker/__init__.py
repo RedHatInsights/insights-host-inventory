@@ -187,7 +187,6 @@ class KafkaPayloadTracker(PayloadTracker):
             return
 
         try:
-            # self._producer.send(self._topic, message.encode("utf-8"))
             self._producer.produce(self._topic, message.encode("utf-8"))
         except Exception:
             logger.exception("Error sending payload tracker message")
