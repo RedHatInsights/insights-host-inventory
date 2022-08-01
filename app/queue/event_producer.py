@@ -5,28 +5,34 @@ from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
 from app.logging import get_logger
 
-# from confluent_kafka.error import KafkaError
 
 logger = get_logger(__name__)
 
-# global varialbes for recording error with message details.
-# Successfully produced events provide message to callbacks but when
-# an error is encountered, only an error.code() is available but
-# no message details for logging and subsequent investigations.
-__event__ = None
-__headers__ = None
-__key__ = None
-__topic__ = None
 
+class MessageDetails:
+    event: str
+    headers: str
+    key: str
+    topic: str
 
-def delivery_callback(error, message):
-    if error:
-        logger.error("Message not produced.")
-        message_not_produced(logger, error, __event__, __topic__, __key__, __headers__)
+    def __init__(self, event, headers, key, topic):
+        self.event = event
+        self.headers = headers
+        self.key = key
+        self.topic = topic
 
-    else:
-        logger.info("Message produced!")
-        message_produced(logger, message, __key__, __headers__)
+    def send(self, producer):
+        producer.produce(self.topic, self.event, callback=self.on_delivered)
+        producer.poll()
+
+    def on_delivered(self, error, message):
+        if error:
+            logger.error("Message not produced.")
+            message_not_produced(logger, error, self.event, self.topic, self.key, self.headers)
+
+        else:
+            logger.info("Message produced!")
+            message_produced(logger, message, self.key, self.headers)
 
 
 class EventProducer:
@@ -38,23 +44,16 @@ class EventProducer:
     def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
-        global __event__
-        global __headers__
-        global __key__
-        global __topic__
-
-        __key__ = key.encode("utf-8") if key else None
-        __event__ = event.encode("utf-8")
-        __headers__ = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
-        __topic__ = self.egress_topic
+        key = key.encode("utf-8") if key else None
+        event = event.encode("utf-8")
+        headers = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
+        topic = self.egress_topic
 
         try:
-            # TODO: if __value__ does not work, use "event" as passed in
-            self._kafka_producer.produce(__topic__, __event__, callback=delivery_callback)
-            self._kafka_producer.poll()
-        # except KafkaError as error:
+            msg_details = MessageDetails(event, headers, key, topic)
+            msg_details.send(self._kafka_producer)
         except KafkaException as error:
-            message_not_produced(logger, error, __event__, __topic__, __key__, __headers__)
+            message_not_produced(logger, error, event, topic, key, headers)
             raise error
 
     def close(self):
