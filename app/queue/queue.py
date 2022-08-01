@@ -291,22 +291,26 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             message = consumer.poll(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            if message is None or message.error() is not None:
+            # if message is None or message.error() is not None:
+            if message is None:
                 continue
-            logger.debug("Message received")
-            try:
-                handler(message.value(), event_producer)
-                metrics.ingress_message_handler_success.inc()
-            except OperationalError as oe:
-                """sqlalchemy.exc.OperationalError: This error occurs when an
-                authentication failure occurs or the DB is not accessible.
-                Exit the process to restart the pod
-                """
-                logger.error(f"Could not access DB {str(oe)}")
-                sys.exit(3)
-            except Exception:
-                metrics.ingress_message_handler_failure.inc()
-                logger.exception("Unable to process message", extra={"incoming_message": message.value})
+            elif message.error():
+                logger.error(f"Message received but has an error, which is {str(message.error())}")
+            else:
+                try:
+                    logger.info("A message received.")
+                    handler(message.value(), event_producer)
+                    metrics.ingress_message_handler_success.inc()
+                except OperationalError as oe:
+                    """sqlalchemy.exc.OperationalError: This error occurs when an
+                    authentication failure occurs or the DB is not accessible.
+                    Exit the process to restart the pod
+                    """
+                    logger.error(f"Could not access DB {str(oe)}")
+                    sys.exit(3)
+                except Exception:
+                    metrics.ingress_message_handler_failure.inc()
+                    logger.exception("Unable to process message", extra={"incoming_message": message.value})
 
 
 def initialize_thread_local_storage(request_id):

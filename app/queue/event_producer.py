@@ -9,6 +9,10 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
+# global varialbes for recording error with message details.
+# Successfully produced events provide message to callbacks but when
+# an error is encountered, only an error.code() is available but
+# no message details for logging and subsequent investigations.
 __event__ = None
 __headers__ = None
 __key__ = None
