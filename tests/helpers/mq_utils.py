@@ -21,15 +21,13 @@ class MockEventProducer:
         self.key = None
         self.headers = None
         self.topic = None
-        self.wait = None
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
 
-    def write_event(self, event, key, headers, wait=False):
+    def write_event(self, event, key, headers):
         self.event = event
         self.key = key
         self.headers = headers
-        self.wait = wait
 
 
 class FakeMessage:
