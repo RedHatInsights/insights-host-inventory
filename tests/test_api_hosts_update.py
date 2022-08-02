@@ -72,7 +72,7 @@ def test_checkin_canonical_facts(
     assert record.reporter == created_host.reporter
 
     assert_patch_event_is_valid(
-        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name, created_host.facts
+        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name
     )
 
 
