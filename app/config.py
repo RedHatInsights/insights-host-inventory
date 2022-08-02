@@ -45,7 +45,6 @@ class Config:
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
-        self.kafka_security_protocol = "SASL_SSL"
 
         # certificates are required in fedramp, but not in managed kafka
         try:
@@ -58,6 +57,10 @@ class Config:
         except AttributeError:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
+        try:
+            self.kafka_security_protocol = broker_cfg.authtype
+        except AttributeError:
+            self.kafka_security_protocol = "PLAINTEXT"
 
     def non_clowder_config(self):
         self.metrics_port = 9126
