@@ -45,16 +45,13 @@ class Config:
         self.kafka_consumer_topic = topic(os.environ.get("KAFKA_CONSUMER_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+        self.kafka_security_protocol = "SASL_SSL"
 
         # certificates are required in fedramp, but not in managed kafka
         try:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
-            self.kafka_security_protocol = "SASL_SSL"
-            self.kafka_sasl_mechanism = "SCRAM_SHA_512"
         except AttributeError:
             self.kafka_ssl_cafile = None
-            self.kafka_security_protocol = "PLAINTEXT"
-            self.kafka_sasl_mechanism = "PLAIN"
         try:
             self.kafka_sasl_username = broker_cfg.sasl.username
             self.kafka_sasl_password = broker_cfg.sasl.password
@@ -85,7 +82,6 @@ class Config:
         self.kafka_sasl_username = os.environ.get("KAFKA_SASL_USERNAME", "")
         self.kafka_sasl_password = os.environ.get("KAFKA_SASL_PASSWORD", "")
         self.kafka_security_protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
-        self.kafka_sasl_mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper()
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -125,7 +121,7 @@ class Config:
         self.kafka_ssl_configs = {
             "security_protocol": self.kafka_security_protocol,
             "ssl_cafile": self.kafka_ssl_cafile,
-            "sasl_mechanism": self.kafka_sasl_mechanism,
+            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
             "sasl_plain_username": self.kafka_sasl_username,
             "sasl_plain_password": self.kafka_sasl_password,
         }
