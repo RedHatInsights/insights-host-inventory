@@ -44,6 +44,7 @@ def minimal_db_host(**values):
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
+        "facts": [],
         **values,
     }
     if "org_id" in values:

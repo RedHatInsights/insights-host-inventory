@@ -72,7 +72,7 @@ def test_checkin_canonical_facts(
     assert record.reporter == created_host.reporter
 
     assert_patch_event_is_valid(
-        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name
+        created_host, event_producer_mock, "123456", event_datetime_mock, created_host.display_name, created_host.facts
     )
 
 
@@ -224,6 +224,7 @@ def test_patch_produces_update_event_no_request_id(
         event_producer=event_producer_mock,
         expected_request_id="-1",
         expected_timestamp=event_datetime_mock,
+        facts=created_host.facts,
     )
 
 
@@ -246,6 +247,7 @@ def test_patch_produces_update_event_with_request_id(
         event_producer=event_producer_mock,
         expected_request_id=request_id,
         expected_timestamp=event_datetime_mock,
+        facts=created_host.facts,
     )
 
 
@@ -268,6 +270,7 @@ def test_patch_produces_update_event_no_insights_id(
         event_producer=event_producer_mock,
         expected_request_id="-1",
         expected_timestamp=event_datetime_mock,
+        facts=created_host.facts,
     )
 
 
@@ -284,6 +287,7 @@ def test_patch_by_namespace_produces_update_event(event_producer_mock, event_dat
         expected_request_id="-1",
         expected_timestamp=event_datetime_mock,
         display_name="test-display-name",
+        facts=created_host.facts,
     )
 
 

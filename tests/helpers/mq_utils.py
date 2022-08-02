@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 from kafka import TopicPartition
 
+from app.serialization import serialize_facts
 from app.utils import Tag
 from tests.helpers.test_utils import minimal_host
 
@@ -111,6 +112,7 @@ def assert_patch_event_is_valid(
     display_name="patch_event_test",
     stale_timestamp=None,
     reporter=None,
+    facts=[],
 ):
     stale_timestamp = stale_timestamp or host.stale_timestamp.astimezone(timezone.utc)
     reporter = reporter or host.reporter
@@ -132,6 +134,7 @@ def assert_patch_event_is_valid(
             "bios_uuid": host.canonical_facts.get("bios_uuid"),
             "ip_addresses": host.canonical_facts.get("ip_addresses"),
             "mac_addresses": host.canonical_facts.get("mac_addresses"),
+            "facts": serialize_facts(facts) if facts else facts,
             "satellite_id": host.canonical_facts.get("satellite_id"),
             "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
             "system_profile": host.system_profile_facts,
