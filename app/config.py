@@ -51,16 +51,11 @@ class Config:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
         except AttributeError:
             self.kafka_ssl_cafile = None
-        try:
-            self.kafka_sasl_username = broker_cfg.sasl.username
-            self.kafka_sasl_password = broker_cfg.sasl.password
-            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
-            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
-        except AttributeError:
-            self.kafka_sasl_username = ""
-            self.kafka_sasl_password = ""
-            self.kafka_sasl_mechanism = "PLAIN"
-            self.kafka_security_protocol = "PLAINTEXT"
+
+        self.kafka_sasl_username = broker_cfg.sasl.username
+        self.kafka_sasl_password = broker_cfg.sasl.password
+        self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+        self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
 
     def non_clowder_config(self):
         self.metrics_port = 9126
