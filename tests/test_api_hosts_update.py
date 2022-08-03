@@ -301,7 +301,8 @@ def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
     assert event_producer.write_event.call_count == 2
 
 
-def test_event_producer_instrumentation(mocker, event_producer, future_mock, db_create_host, api_patch):
+# TODO: Question: Is this test really needed?  Is this the correct place for this tests?
+def test_event_producer_instrumentation(mocker, event_producer, db_create_host, api_patch):
     created_host = db_create_host()
     patch_doc = {"display_name": "patch_event_test"}
 
@@ -310,8 +311,17 @@ def test_event_producer_instrumentation(mocker, event_producer, future_mock, db_
     response_status, response_data = api_patch(url, patch_doc)
     assert_response_status(response_status, expected_status=200)
 
-    # TODO: fix/implement the test to exercise "message_processed" and "message_not_processed"
-    # PROBLEM: _kafka_producer.poll() not calling the callback, which get called as expected every where else.
+    # TODO: Replace future_mocks with "MessageDetails.on_delivered()" calls.
+    # for expected_callback, future_callbacks, fire_callbacks in (
+    #     (message_produced, future_mock.callbacks, future_mock.success),
+    #     (message_not_produced, future_mock.errbacks, future_mock.failure),
+    # ):
+    #     assert len(future_callbacks) == 1
+    #     assert future_callbacks[0].method == expected_callback
+
+    #     fire_callbacks()
+    #     args = future_callbacks[0].args + (future_callbacks[0].extra_arg,)
+    #     expected_callback.assert_called_once_with(*args, **future_callbacks[0].kwargs)
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):
