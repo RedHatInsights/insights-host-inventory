@@ -51,11 +51,16 @@ class Config:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
         except AttributeError:
             self.kafka_ssl_cafile = None
-
-        self.kafka_sasl_username = broker_cfg.sasl.username
-        self.kafka_sasl_password = broker_cfg.sasl.password
-        self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
-        self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+        try:
+            self.kafka_sasl_username = broker_cfg.sasl.username
+            self.kafka_sasl_password = broker_cfg.sasl.password
+            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
+        except AttributeError:
+            self.kafka_sasl_username = ""
+            self.kafka_sasl_password = ""
+            self.kafka_sasl_mechanism = "PLAIN"
+            self.kafka_security_protocol = "PLAINTEXT"
 
     def non_clowder_config(self):
         self.metrics_port = 9126
@@ -285,7 +290,6 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
             self.logger.info("Kafka Bootstrap Servers: %s", self.bootstrap_servers)
-            self.logger.info("Kafka Security Protocol: %s", self.kafka_security_protocol)
 
             if self._runtime_environment == RuntimeEnvironment.SERVICE:
                 self.logger.info("Kafka Host Ingress Topic: %s", self.host_ingress_topic)
