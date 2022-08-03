@@ -290,6 +290,7 @@ class Config:
 
         if self._runtime_environment == RuntimeEnvironment.SERVICE or self._runtime_environment.event_producer_enabled:
             self.logger.info("Kafka Bootstrap Servers: %s", self.bootstrap_servers)
+            self.logger.info("Kafka Security Protocol: %s", self.kafka_security_protocol)
 
             if self._runtime_environment == RuntimeEnvironment.SERVICE:
                 self.logger.info("Kafka Host Ingress Topic: %s", self.host_ingress_topic)
