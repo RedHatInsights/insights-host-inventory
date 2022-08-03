@@ -27,6 +27,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
         return_all_data=False,
         event_producer=event_producer_mock,
         message_operation=add_host,
+        notification_event_producer=notification_event_producer_mock,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
@@ -96,11 +97,27 @@ def event_producer(flask_app, kafka_producer):
 
 
 @pytest.fixture(scope="function")
+def notification_event_producer(flask_app, kafka_producer):
+    config = flask_app.config["INVENTORY_CONFIG"]
+    flask_app.notification_event_producer = EventProducer(config, config.notification_topic)
+    yield flask_app.notification_event_producer
+    flask_app.notification_event_producer = None
+
+
+@pytest.fixture(scope="function")
 def event_producer_mock(flask_app, mocker):
     flask_app.event_producer = MockEventProducer()
     mocker.patch("lib.host_delete.kafka_available")
     yield flask_app.event_producer
     flask_app.event_producer = None
+
+
+@pytest.fixture(scope="function")
+def notification_event_producer_mock(flask_app, mocker):
+    flask_app.notification_event_producer = MockEventProducer()
+    mocker.patch("lib.host_delete.kafka_available")
+    yield flask_app.notification_event_producer
+    flask_app.notification_event_producer = None
 
 
 @pytest.fixture(scope="function")
