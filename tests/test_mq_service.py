@@ -1324,9 +1324,10 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
         handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
 
 
-def test_owner_id_different_from_cn(mocker, mock_notification_event_producer):
+def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
