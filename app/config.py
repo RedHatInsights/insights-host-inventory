@@ -46,6 +46,7 @@ class Config:
         self.notification_topic = topic(os.environ.get("KAFKA_NOTIFICATION_TOPIC"))
         self.event_topic = topic(os.environ.get("KAFKA_EVENT_TOPIC"))
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
+
         # certificates are required in fedramp, but not in managed kafka
         try:
             self.kafka_ssl_cafile = self._kafka_ca(broker_cfg.cacert)
@@ -54,9 +55,13 @@ class Config:
         try:
             self.kafka_sasl_username = broker_cfg.sasl.username
             self.kafka_sasl_password = broker_cfg.sasl.password
+            self.kafka_sasl_mechanism = broker_cfg.sasl.saslMechanism
+            self.kafka_security_protocol = broker_cfg.sasl.securityProtocol
         except AttributeError:
             self.kafka_sasl_username = ""
             self.kafka_sasl_password = ""
+            self.kafka_sasl_mechanism = "PLAIN"
+            self.kafka_security_protocol = "PLAINTEXT"
 
     def non_clowder_config(self):
         self.metrics_port = 9126
@@ -81,6 +86,8 @@ class Config:
         self.kafka_ssl_cafile = os.environ.get("KAFKA_SSL_CAFILE")
         self.kafka_sasl_username = os.environ.get("KAFKA_SASL_USERNAME", "")
         self.kafka_sasl_password = os.environ.get("KAFKA_SASL_PASSWORD", "")
+        self.kafka_security_protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
+        self.kafka_sasl_mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper()
 
     def __init__(self, runtime_environment):
         self.logger = get_logger(__name__)
@@ -118,9 +125,9 @@ class Config:
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         self.kafka_ssl_configs = {
-            "security_protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "security_protocol": self.kafka_security_protocol,
             "ssl_cafile": self.kafka_ssl_cafile,
-            "sasl_mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
+            "sasl_mechanism": self.kafka_sasl_mechanism,
             "sasl_plain_username": self.kafka_sasl_username,
             "sasl_plain_password": self.kafka_sasl_password,
         }

@@ -106,7 +106,7 @@ def serialize_host(host, staleness_timestamps, fields=DEFAULT_FIELDS):
     if "ansible_host" in fields:
         serialized_host["ansible_host"] = host.ansible_host
     if "facts" in fields:
-        serialized_host["facts"] = _serialize_facts(host.facts)
+        serialized_host["facts"] = serialize_facts(host.facts)
     if "reporter" in fields:
         serialized_host["reporter"] = host.reporter
     if "per_reporter_staleness" in fields:
@@ -172,7 +172,7 @@ def _deserialize_facts(data):
     return facts
 
 
-def _serialize_facts(facts):
+def serialize_facts(facts):
     return [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()]
 
 
