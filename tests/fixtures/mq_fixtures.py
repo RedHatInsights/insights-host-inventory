@@ -20,7 +20,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(flask_app, event_producer_mock):
+def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_producer_mock):
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,
@@ -33,7 +33,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock):
             platform_metadata = get_platform_metadata()
         host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
-        handle_message(json.dumps(message), event_producer, message_operation)
+        handle_message(json.dumps(message), event_producer, notification_event_producer, message_operation)
         event = json.loads(event_producer.event)
 
         if return_all_data:
@@ -115,7 +115,7 @@ def event_producer_mock(flask_app, mocker):
 @pytest.fixture(scope="function")
 def notification_event_producer_mock(flask_app, mocker):
     flask_app.notification_event_producer = MockEventProducer()
-    mocker.patch("lib.host_delete.kafka_available")
+    mocker.patch("lib.host_kafka.kafka_available")
     yield flask_app.notification_event_producer
     flask_app.notification_event_producer = None
 

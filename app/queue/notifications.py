@@ -73,7 +73,7 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
                 "error": {
                     "code": "VE001",
                     "message": detail,
-                    "stack_trace": "",
+                    "stack_trace": stack_trace,
                     "severity": "error",
                 },
             },

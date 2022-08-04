@@ -34,7 +34,6 @@ from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.queue import metrics
-from app.queue.event_producer import EventProducer
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -79,12 +78,6 @@ def _decode_id(encoded_id):
 # receives an uuid string w/o dashes and outputs an uuid string with dashes
 def _formatted_uuid(uuid_string):
     return str(UUID(uuid_string))
-
-
-# Ensures correct processing of the notification
-def _encode_message_id(message_id):
-    encoded_id = str(message_id).encode()
-    return bytearray(encoded_id)
 
 
 def _get_identity(host, metadata):
@@ -230,9 +223,8 @@ def update_system_profile(host_data, platform_metadata):
             log_update_system_profile_success(logger, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, update_result
-        except ValidationException as ve:
+        except ValidationException:
             metrics.update_system_profile_failure.labels("ValidationException").inc()
-            send_kafka_error_message(host=host_data, detail=str(ve.detail))
             raise
         except InventoryException:
             log_update_system_profile_failure(logger, host_data)
@@ -268,9 +260,8 @@ def add_host(host_data, platform_metadata):
             log_add_update_host_succeeded(logger, add_result, host_data, output_host)
             payload_tracker_processing_ctx.inventory_id = output_host["id"]
             return output_host, host_id, insights_id, add_result
-        except ValidationException as ve:
+        except ValidationException:
             metrics.add_host_failure.labels("ValidationException", host_data.get("reporter", "null")).inc()
-            send_kafka_error_message(host=host_data, detail=str(ve.detail))
             raise
         except InventoryException as ie:
             log_add_host_failure(logger, str(ie.detail), host_data)
@@ -285,7 +276,7 @@ def add_host(host_data, platform_metadata):
 
 
 @metrics.ingress_message_handler_time.time()
-def handle_message(message, event_producer, message_operation=add_host):
+def handle_message(message, event_producer, notification_event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -312,13 +303,14 @@ def handle_message(message, event_producer, message_operation=add_host):
                 ve,
                 extra={"host": {"reporter": host.get("reporter")}},
             )
+            send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
             raise
         except ValueError as ve:
             logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
 
 
-def event_loop(consumer, flask_app, event_producer, handler, interrupt):
+def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
@@ -326,7 +318,7 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                 for message in messages:
                     logger.debug("Message received")
                     try:
-                        handler(message.value, event_producer)
+                        handler(message.value, event_producer, notification_event_producer)
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
@@ -344,16 +336,14 @@ def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
 
 
-def send_kafka_error_message(host, detail):
-    config = _init_config()
+def send_kafka_error_message(notification_event_producer, host, detail):
     message_id = str(uuid.uuid4())
     minimal_host = _build_minimal_host_info(host)
     event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
-    event_producer = EventProducer(config, config.notification_topic)
-    rh_message_id = _encode_message_id(message_id)
+    rh_message_id = bytearray(message_id.encode())  # ensures the correct processing of the message
     headers = notification_message_headers(
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
     key = minimal_host.get("canonical_facts").get("bios_uuid")
-    event_producer.write_event(event, key, headers, wait=True)
+    notification_event_producer.write_event(event, key, headers, wait=True)
