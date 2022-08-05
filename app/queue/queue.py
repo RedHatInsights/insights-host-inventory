@@ -15,7 +15,6 @@ from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
-from app.config import Config
 from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
@@ -53,12 +52,6 @@ EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
-
-
-def _init_config():
-    config = Config(RUNTIME_ENVIRONMENT)
-    config.log_configuration()
-    return config
 
 
 class OperationSchema(Schema):
