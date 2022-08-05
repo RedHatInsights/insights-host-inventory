@@ -8,6 +8,7 @@ from marshmallow import fields
 from marshmallow import Schema
 
 from app.logging import threadctx
+from app.models import FactsSchema
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -36,6 +37,7 @@ class SerializedHostSchema(Schema):
     bios_uuid = fields.Str()
     ip_addresses = fields.List(fields.Str())
     mac_addresses = fields.List(fields.Str())
+    facts = fields.List(fields.Nested(FactsSchema))
     provider_id = fields.Str()
     provider_type = fields.Str()
     created = fields.Str()
