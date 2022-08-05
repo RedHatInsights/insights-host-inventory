@@ -7,7 +7,6 @@ pyvenv.cfg
 tags
 .coverage
 .pytest_cache/
-/.sonar/sonar-scanner.properties
 /.scannerwork/
 
 swagger/inventory-schemas/
