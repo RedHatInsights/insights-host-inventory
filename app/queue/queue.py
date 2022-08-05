@@ -318,7 +318,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                 for message in messages:
                     logger.debug("Message received")
                     try:
-                        handler(message.value, event_producer, notification_event_producer)
+                        handler(message.value, event_producer, notification_event_producer=notification_event_producer)
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
