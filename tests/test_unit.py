@@ -41,7 +41,6 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
-from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -390,10 +389,10 @@ class ConfigTestCase(TestCase):
     def test_kafka_producer_int_params(self):
         for param in (
             "retries",
-            "batch_size",
-            "linger_ms",
-            "retry_backoff_ms",
-            "max_in_flight_requests_per_connection",
+            "batch.size",
+            "linger.ms",
+            "retry.backoff.ms",
+            "max.in.flight.requests.per.connection",
         ):
             with self.subTest(param=param):
                 with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "2020"}):
@@ -402,10 +401,10 @@ class ConfigTestCase(TestCase):
     def test_kafka_producer_int_params_invalid(self):
         for param in (
             "retries",
-            "batch_size",
-            "linger_ms",
-            "retry_backoff_ms",
-            "max_in_flight_requests_per_connection",
+            "batch.size",
+            "linger.ms",
+            "retry.backoff.ms",
+            "max.in.flight.requests.per.connection",
         ):
             with self.subTest(param=param):
                 with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "abc"}):
@@ -418,10 +417,10 @@ class ConfigTestCase(TestCase):
         for param, expected_value in (
             ("acks", 1),
             ("retries", 0),
-            ("batch_size", 16384),
-            ("linger_ms", 0),
-            ("retry_backoff_ms", 100),
-            ("max_in_flight_requests_per_connection", 5),
+            ("batch.size", 16384),
+            ("linger.ms", 0),
+            ("retry.backoff.ms", 100),
+            ("max.in.flight.requests.per.connection", 5),
         ):
             with self.subTest(param=param):
                 self.assertEqual(config.kafka_producer[param], expected_value)
@@ -1890,7 +1889,7 @@ class EventProducerTests(TestCase):
                 poll.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
-    def test_kafka_errors_are_caught(self, message_not_produced_mock):
+    def test_kafka_exceptions_are_caught(self, message_not_produced_mock):
         event_type = EventType.created
         event = build_event(event_type, self.basic_host)
         key = self.basic_host["id"]
@@ -1901,15 +1900,6 @@ class EventProducerTests(TestCase):
 
         with self.assertRaises(KafkaException):
             self.event_producer.write_event(event, key, headers)
-
-        message_not_produced_mock.assert_called_once_with(
-            event_producer_logger,
-            self.event_producer._kafka_producer.produce.side_effect,
-            event.encode("utf-8"),
-            self.config.event_topic,
-            key.encode("utf-8"),
-            [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()],
-        )
 
 
 class ModelsSystemProfileNormalizerFilterKeysTestCase(TestCase):

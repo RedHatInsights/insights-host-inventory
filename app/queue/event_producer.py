@@ -15,7 +15,7 @@ class MessageDetails:
     key: str
     topic: str
 
-    def __init__(self, event, headers, key, topic):
+    def __init__(self, topic, event, headers, key):
         self.event = event
         self.headers = headers
         self.key = key
@@ -27,33 +27,31 @@ class MessageDetails:
 
     def on_delivered(self, error, message):
         if error:
-            logger.error("Message not produced.")
-            message_not_produced(logger, error, self.event, self.topic, self.key, self.headers)
+            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
 
         else:
-            logger.info("Message produced!")
             message_produced(logger, message, self.key, self.headers)
 
 
 class EventProducer:
     def __init__(self, config):
         logger.info("Starting EventProducer()")
-        self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers})
+        self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.egress_topic = config.event_topic
 
     def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
-        key = key.encode("utf-8") if key else None
-        event = event.encode("utf-8")
-        headers = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
+        k = key.encode("utf-8") if key else None
+        v = event.encode("utf-8")
+        h = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
         topic = self.egress_topic
 
         try:
-            msg_details = MessageDetails(event, headers, key, topic)
+            msg_details = MessageDetails(topic, event=v, headers=h, key=k)
             msg_details.send(self._kafka_producer)
         except KafkaException as error:
-            message_not_produced(logger, error, event, topic, key, headers)
+            message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
 
     def close(self):

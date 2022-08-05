@@ -291,7 +291,6 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             message = consumer.poll(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            # if message is None or message.error() is not None:
             if message is None:
                 continue
             elif message.error():

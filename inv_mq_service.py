@@ -29,6 +29,7 @@ def main():
             "group.id": config.host_ingress_consumer_group,
             "bootstrap.servers": config.bootstrap_servers,
             "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
         }
     )
     consumer.subscribe([config.kafka_consumer_topic])
