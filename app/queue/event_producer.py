@@ -20,6 +20,8 @@ class MessageDetails:
         self.headers = headers
         self.key = key
         self.topic = topic
+        self.message_produced_called = False
+        self.message_not_produced_called = False
 
     def send(self, producer):
         producer.produce(self.topic, self.event, callback=self.on_delivered)
@@ -27,9 +29,11 @@ class MessageDetails:
 
     def on_delivered(self, error, message):
         if error:
+            self.message_not_produced_called = True
             message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
 
         else:
+            self.message_produced_called = True
             message_produced(logger, message, self.key, self.headers)
 
 
@@ -38,6 +42,7 @@ class EventProducer:
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.egress_topic = config.event_topic
+        self._message_details = MessageDetails(topic=None, event=None, headers=None, key=None)
 
     def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
@@ -48,9 +53,17 @@ class EventProducer:
         topic = self.egress_topic
 
         try:
-            msg_details = MessageDetails(topic, event=v, headers=h, key=k)
-            msg_details.send(self._kafka_producer)
+            self._message_details.topic = self.egress_topic
+            self._message_details.event = v
+            self._message_details.headers = h
+            self._message_details.key = k
+            self._message_details.send(self._kafka_producer)
         except KafkaException as error:
+            self._message_details.message_not_produced_called = True
+            message_not_produced(logger, error, topic, event=v, key=k, headers=h)
+            raise error
+        except Exception as error:
+            self._message_details.message_not_produced_called = True
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
 
