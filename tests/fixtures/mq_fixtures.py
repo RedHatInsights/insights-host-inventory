@@ -115,7 +115,6 @@ def event_producer_mock(flask_app, mocker):
 @pytest.fixture(scope="function")
 def notification_event_producer_mock(flask_app, mocker):
     flask_app.notification_event_producer = MockEventProducer()
-    mocker.patch("lib.host_kafka.kafka_available")
     yield flask_app.notification_event_producer
     flask_app.notification_event_producer = None
 

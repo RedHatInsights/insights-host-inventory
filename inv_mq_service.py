@@ -39,7 +39,7 @@ def main():
     register_shutdown(event_producer.close, "Closing producer")
 
     notification_event_producer = EventProducer(config, config.notification_topic)
-    register_shutdown(event_producer.close, "Closing notification producer")
+    register_shutdown(notification_event_producer.close, "Closing notification producer")
 
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()

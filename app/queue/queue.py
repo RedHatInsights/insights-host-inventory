@@ -16,7 +16,6 @@ from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.culling import Timestamps
-from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.instrumentation import log_add_host_attempt
@@ -51,7 +50,6 @@ logger = get_logger(__name__)
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_MS = 1000
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
-RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 
 
 class OperationSchema(Schema):
@@ -137,6 +135,7 @@ def _build_minimal_host_info(host_data):
     return {
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
+        "insights_id": host_data.get("insights_id"),
         "canonical_facts": deserialize_canonical_facts(host_data),
     }
 
@@ -338,5 +337,5 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    key = minimal_host.get("canonical_facts").get("bios_uuid")
+    key = minimal_host.get("insights_id")
     notification_event_producer.write_event(event, key, headers, wait=True)

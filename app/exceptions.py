@@ -1,10 +1,9 @@
 class InventoryException(Exception):
-    def __init__(self, status=400, title=None, detail=None, type="about:blank", severity=None):
+    def __init__(self, status=400, title=None, detail=None, type="about:blank"):
         self.status = status
         self.title = title
         self.detail = detail
         self.type = type
-        self.severity = severity
 
     def to_json(self):
         return {
@@ -12,7 +11,6 @@ class InventoryException(Exception):
             "status": self.status,
             "title": self.title,
             "type": self.type,
-            "severity": self.severity,
         }
 
 

@@ -34,14 +34,14 @@ class HostValidationErrorMetadataSchema(MarshmallowSchema):
 
 
 class HostValidationErrorNotificationEvent(MarshmallowSchema):
-    id: fields.UUID(required=True)
+    id = fields.UUID(required=True)
     version = fields.Str(required=True, validate=marshmallow_validate.Length(max=10))
     bundle = fields.Str(required=True, validate=marshmallow_validate.Equal("rhel"))
     application = fields.Str(required=True, validate=marshmallow_validate.Equal("inventory"))
     event_type = fields.Str(required=True, validate=marshmallow_validate.Length(max=256))
     timestamp = fields.DateTime(required=True, format="iso8601")
-    account_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
-    org_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
+    account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
+    org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     context = fields.Dict()
     events = fields.Nested(HostValidationErrorMetadataSchema())
 
@@ -69,7 +69,8 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "events": {
             "metadata": {},
             "payload": {
-                "canonical_facts": host["canonical_facts"],
+                "canonical_facts": host.get("canonical_facts"),
+                "insights_id": host.get("insights_id"),
                 "error": {
                     "code": "VE001",
                     "message": detail,
