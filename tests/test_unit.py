@@ -1883,7 +1883,7 @@ class EventProducerTests(TestCase):
                 self.event_producer.write_event(event, host_id, headers)
 
                 produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
-                poll.assert_called_once_with()  # calls on callback
+                poll.assert_called_once()  # calls on callback
 
                 produce.reset_mock()
                 poll.reset_mock()
@@ -1900,53 +1900,6 @@ class EventProducerTests(TestCase):
 
         with self.assertRaises(KafkaException):
             self.event_producer.write_event(event, key, headers)
-
-
-class MessageProductionTests(TestCase):
-    def setUp(self):
-        super().setUp()
-
-        self.config = Config(RuntimeEnvironment.TEST)
-        self.event_producer = EventProducer(self.config)
-        self.topic_name = self.config.event_topic
-        threadctx.request_id = str(uuid4())
-        self.basic_host = {
-            "id": str(uuid4()),
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
-            "reporter": "test_reporter",
-            "account": "test",
-            "org_id": "test",
-            "fqdn": "fqdn",
-        }
-
-    def test_message_produced(self):
-        host_id = self.basic_host["id"]
-
-        for (event_type, host) in (
-            (EventType.created, self.basic_host),
-            (EventType.updated, self.basic_host),
-            (EventType.delete, deserialize_host(self.basic_host)),
-        ):
-            with self.subTest(event_type=event_type):
-                event = build_event(event_type, host)
-                headers = message_headers(event_type, host_id)
-
-                self.event_producer.write_event(event, host_id, headers)
-                assert self.event_producer._message_details.message_produced_called is True
-
-    def test_message_not_produced(self):
-        event_type = EventType.created
-        event = build_event(event_type, self.basic_host)
-        key = self.basic_host["id"]
-        headers = message_headers(event_type, self.basic_host["id"])
-
-        # set topic to None to make write_event fail.
-        self.event_producer.egress_topic = None
-
-        with self.assertRaises(Exception):
-            self.event_producer.write_event(event, key, headers)
-
-        assert self.event_producer._message_details.message_not_produced_called is True
 
 
 class ModelsSystemProfileNormalizerFilterKeysTestCase(TestCase):

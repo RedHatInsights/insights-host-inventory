@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import marshmallow
 import pytest
+from confluent_kafka import KafkaError
 from sqlalchemy.exc import OperationalError
 
 from app import UNKNOWN_REQUEST_ID_VALUE
@@ -37,7 +38,7 @@ from tests.helpers.test_utils import valid_system_profile
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
 
 
-def test_event_loop(mocker, flask_app):
+def test_event_loop_exception_handling(mocker, flask_app):
     """
     Test to ensure that an exception in message handler method does not cause the
     event loop to stop processing messages
@@ -52,10 +53,30 @@ def test_event_loop(mocker, flask_app):
         flask_app,
         fake_event_producer,
         handler=handle_message_mock,
-        interrupt=mocker.Mock(side_effect=(False, True)),
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )
-    # confluent_kafka.consumer.poll gets one message at a time, or at least, one message is passed to the caller.
-    assert handle_message_mock.call_count == 1
+    assert handle_message_mock.call_count == 3
+
+
+def test_event_loop_with_error_message_handling(mocker, flask_app):
+    """
+    Test to ensure that an error in message handler method does not cause the
+    event loop to stop processing messages
+    """
+    fake_consumer = mocker.Mock()
+    fake_consumer.poll.return_value = FakeMessage("some_error")
+
+    fake_event_producer = None
+    handle_message_mock = mocker.Mock(side_effect=[None, KafkaError(100), None])
+    event_loop(
+        fake_consumer,
+        flask_app,
+        fake_event_producer,
+        handler=handle_message_mock,
+        interrupt=mocker.Mock(side_effect=(False, False, False, True)),
+    )
+    # only messages with error provided.
+    assert handle_message_mock.call_count == 0
 
 
 def test_handle_message_failure_invalid_json_message(mocker):

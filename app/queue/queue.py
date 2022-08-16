@@ -294,10 +294,14 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
             if message is None:
                 continue
             elif message.error():
+                # This error is returned by the very first of consumer.poll() against a newly started Kafka.
+                # message.error() produces:
+                # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
                 logger.error(f"Message received but has an error, which is {str(message.error())}")
             else:
                 try:
-                    logger.info("A message received.")
+                    logger.info("Message received.")
                     handler(message.value(), event_producer)
                     metrics.ingress_message_handler_success.inc()
                 except OperationalError as oe:

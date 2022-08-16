@@ -4,6 +4,7 @@ from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 
 from confluent_kafka import TopicPartition
@@ -24,22 +25,31 @@ class MockEventProducer:
         self.topic = None
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
+        self._message_details = Mock()
 
     def write_event(self, event, key, headers):
         self.event = event
         self.key = key
         self.headers = headers
 
+        self._message_details.topic = "platform.inventory.events"
+        self._message_details.event = event
+        self._message_details.key = key
+        self._message_details.headers = headers
+        self._message_details.send = MagicMock()
+        self._message_details.on_delivered = MagicMock()  # does it need args, like error and message.
+
 
 class FakeMessage:
-    def __init__(self):
-        self.message = None
+    def __init__(self, error=None, message=None):
+        self.message = message
+        self._error = error
 
     def value(self):
         return Mock()
 
     def error(self):
-        return None
+        return self._error
 
 
 class MockFuture:

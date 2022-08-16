@@ -305,13 +305,11 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
 @pytest.mark.host_reaper
 @pytest.mark.parametrize(
     "produce_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaException()})), (mock.Mock(), KafkaException("oops"))),
+    ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
     produce_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
 ):
-    mocker.patch("lib.host_delete.kafka_available", return_value=False)
-
     event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
@@ -337,6 +335,5 @@ def test_reaper_stops_after_kafka_producer_error(
         )
 
     remaining_hosts = db_get_hosts(created_host_ids)
-    assert remaining_hosts.count() == 3
-    # since kafka was not available none of the hosts were reaped and no event was generated.
-    assert event_producer._kafka_producer.produce.call_count == 0
+    assert remaining_hosts.count() == 2
+    assert event_producer._kafka_producer.produce.call_count == 2

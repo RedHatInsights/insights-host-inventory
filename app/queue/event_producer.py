@@ -20,8 +20,6 @@ class MessageDetails:
         self.headers = headers
         self.key = key
         self.topic = topic
-        self.message_produced_called = False
-        self.message_not_produced_called = False
 
     def send(self, producer):
         producer.produce(self.topic, self.event, callback=self.on_delivered)
@@ -29,11 +27,9 @@ class MessageDetails:
 
     def on_delivered(self, error, message):
         if error:
-            self.message_not_produced_called = True
             message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
 
         else:
-            self.message_produced_called = True
             message_produced(logger, message, self.key, self.headers)
 
 
@@ -59,11 +55,9 @@ class EventProducer:
             self._message_details.key = k
             self._message_details.send(self._kafka_producer)
         except KafkaException as error:
-            self._message_details.message_not_produced_called = True
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
         except Exception as error:
-            self._message_details.message_not_produced_called = True
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
 

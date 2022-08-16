@@ -351,31 +351,30 @@ def test_delete_hosts_chunk_size(
 
 @pytest.mark.parametrize(
     "produce_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaException()})), (mock.Mock(), KafkaException("oops"))),
+    (
+        (mock.Mock(), KafkaException()),
+        (mock.Mock(), KafkaException("oops")),
+    ),
 )
 def test_delete_stops_after_kafka_producer_error(
     produce_side_effects,
-    event_producer_mock,
     event_producer,
     db_create_multiple_hosts,
     api_delete_host,
     db_get_hosts,
-    mocker,
 ):
-    mocker.patch("lib.host_delete.kafka_available", return_value=False)
-    event_producer._kafka_producer.produce.side_effect = produce_side_effects
-
     hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
+
+    event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
     assert_response_status(response_status, expected_status=500)
 
     remaining_hosts = db_get_hosts(host_id_list)
-    assert remaining_hosts.count() == 3
-    # since kafka was not available none of the hosts were deleted and no event was generated.
-    assert event_producer._kafka_producer.produce.call_count == 0
+    assert remaining_hosts.count() == 2
+    assert event_producer._kafka_producer.produce.call_count == 2
 
 
 class DeleteHostsMock:

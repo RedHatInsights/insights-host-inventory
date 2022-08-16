@@ -1,9 +1,11 @@
 import json
 import time
 from threading import Thread
+from unittest.mock import MagicMock
 
 import pytest
 
+from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
@@ -301,27 +303,48 @@ def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
     assert event_producer.write_event.call_count == 2
 
 
-# TODO: Question: Is this test really needed?  Is this the correct place for this tests?
-def test_event_producer_instrumentation(mocker, event_producer, db_create_host, api_patch):
+def test_event_producer_message_produced(mocker, event_producer, db_create_host, api_patch):
     created_host = db_create_host()
+
+    fake_msg_produced = mocker.patch("app.queue.event_producer.message_produced")
+    headers = MagicMock()
+    message = MagicMock()
+
+    msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(None, message)
+
     patch_doc = {"display_name": "patch_event_test"}
 
     url = build_hosts_url(host_list_or_id=created_host.id)
 
     response_status, response_data = api_patch(url, patch_doc)
+
     assert_response_status(response_status, expected_status=200)
+    assert fake_msg_produced.called_once()
 
-    # TODO: Replace future_mocks with "MessageDetails.on_delivered()" calls.
-    # for expected_callback, future_callbacks, fire_callbacks in (
-    #     (message_produced, future_mock.callbacks, future_mock.success),
-    #     (message_not_produced, future_mock.errbacks, future_mock.failure),
-    # ):
-    #     assert len(future_callbacks) == 1
-    #     assert future_callbacks[0].method == expected_callback
 
-    #     fire_callbacks()
-    #     args = future_callbacks[0].args + (future_callbacks[0].extra_arg,)
-    #     expected_callback.assert_called_once_with(*args, **future_callbacks[0].kwargs)
+def test_event_producer_message_not_produced(mocker, event_producer, db_create_host, api_patch):
+    created_host = db_create_host()
+    url = build_hosts_url(host_list_or_id=created_host.id)
+
+    fake_msg_not_produced = mocker.patch("app.queue.event_producer.message_not_produced")
+    headers = MagicMock()
+    message = MagicMock()
+    error = MagicMock()
+
+    # corrupt the host to prevent saving the host and producing an event.
+    # Should generate a call to message_not_produced function.
+    created_host.id = None
+
+    msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
+
+    patch_doc = {"display_name": "patch_event_test"}
+
+    response_status, response_data = api_patch(url, patch_doc)
+
+    assert_response_status(response_status, expected_status=500)
+    assert fake_msg_not_produced.called_once()
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):
