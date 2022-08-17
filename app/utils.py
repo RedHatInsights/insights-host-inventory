@@ -387,3 +387,13 @@ class Tag:
                     for value in nested_tags[namespace][key]:
                         tags.append(Tag(Tag.serialize_namespace(namespace), key, value))
         return tags
+
+    @staticmethod
+    def create_flat_tags_from_structured(structured_tags):
+        """
+        takes a nesting of tags and returns an array of structured tags
+        """
+        if structured_tags is None:
+            return []
+
+        return [{"namespace": tag.namespace, "key": tag.key, "value": tag.value} for tag in structured_tags]
