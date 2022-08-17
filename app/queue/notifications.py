@@ -7,7 +7,6 @@ from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 
 from app.logging import threadctx
-from app.models import CanonicalFactsSchema
 from app.queue.events import hostname
 from app.queue.metrics import notification_event_serialization_time
 
@@ -24,7 +23,7 @@ class HostValidationErrorSchema(MarshmallowSchema):
 
 
 class ErrorPayloadSchema(MarshmallowSchema):
-    canonical_facts = fields.Nested(CanonicalFactsSchema())
+    display_name = fields.Str()
     error = fields.Nested(HostValidationErrorSchema())
 
 
@@ -65,11 +64,11 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "timestamp": datetime.now(timezone.utc),
         "account_id": host.get("account_id"),
         "org_id": host.get("org_id"),
-        "context": {},
+        "context": {"event_name": "Host Validation Error"},
         "events": {
             "metadata": {},
             "payload": {
-                "canonical_facts": host.get("canonical_facts"),
+                "display_name": host.get("display_name"),
                 "insights_id": host.get("insights_id"),
                 "error": {
                     "code": "VE001",

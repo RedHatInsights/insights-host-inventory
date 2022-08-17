@@ -40,7 +40,6 @@ from app.queue.notifications import build_notification_event
 from app.queue.notifications import notification_message_headers
 from app.queue.notifications import NotificationType
 from app.serialization import DEFAULT_FIELDS
-from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from lib import host_repository
 
@@ -136,7 +135,7 @@ def _build_minimal_host_info(host_data):
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
         "insights_id": host_data.get("insights_id"),
-        "canonical_facts": deserialize_canonical_facts(host_data),
+        "display_name": host_data.get("display_name"),
     }
 
 
