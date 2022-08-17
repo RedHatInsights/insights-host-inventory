@@ -114,114 +114,95 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
             assert response_data["total"] == 1
 
 
-# TODO: Uncomment this.
-# It's gonna be really complicated to rewrite, so I'm coming back to it.
-# def test_get_filtered_by_search_tags_of_multiple_hosts(mq_create_four_specific_hosts, api_get, subtests):
-#     """
-#     send a request for tags to one host with some searchTerm
-#     """
-#     created_hosts = mq_create_four_specific_hosts
+def test_get_filtered_by_search_tags_of_multiple_hosts(api_get, patch_xjoin_post, mocker, subtests):
+    """
+    send a request for tags to one host with some searchTerm
+    """
+    patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE_WITH_TAGS})
+    host_list = XJOIN_HOSTS_RESPONSE_WITH_TAGS["hosts"]["data"]
+    for search, results in (
+        (
+            "",
+            {
+                host_list[0]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "dev"},
+                    {"namespace": "insights-client", "key": "database", "value": None},
+                    {"namespace": "insights-client", "key": "os", "value": "fedora"},
+                ],
+                host_list[1]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "stage"},
+                    {"namespace": "insights-client", "key": "os", "value": "macos"},
+                ],
+                host_list[2]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "prod"},
+                ],
+            },
+        ),
+        (
+            "env",
+            {
+                host_list[0]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "dev"},
+                ],
+                host_list[1]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "stage"},
+                ],
+                host_list[2]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "prod"},
+                ],
+            },
+        ),
+        (
+            "prod",
+            {
+                host_list[0]["id"]: [],
+                host_list[1]["id"]: [],
+                host_list[2]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "prod"},
+                ],
+            },
+        ),
+        (
+            "insights",
+            {
+                host_list[0]["id"]: [
+                    {"namespace": "insights-client", "key": "database", "value": None},
+                    {"namespace": "insights-client", "key": "os", "value": "fedora"},
+                ],
+                host_list[1]["id"]: [
+                    {"namespace": "insights-client", "key": "os", "value": "macos"},
+                ],
+                host_list[2]["id"]: [],
+            },
+        ),
+        (
+            "e",
+            {
+                host_list[0]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "dev"},
+                    {"namespace": "insights-client", "key": "database", "value": None},
+                    {"namespace": "insights-client", "key": "os", "value": "fedora"},
+                ],
+                host_list[1]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "stage"},
+                    {"namespace": "insights-client", "key": "os", "value": "macos"},
+                ],
+                host_list[2]["id"]: [
+                    {"namespace": "Sat", "key": "env", "value": "prod"},
+                ],
+            },
+        ),
+        (" ", {host_list[0]["id"]: [], host_list[1]["id"]: [], host_list[2]["id"]: []}),
+    ):
+        with subtests.test(search=search, xjoin_query=results):
+            host_id = generate_uuid()
+            url = build_host_tags_url(host_list_or_id=host_id, query=f"?search={search}")
+            response_status, response_data = api_get(url)
 
-#     for search, results in (
-#         (
-#             "",
-#             {
-#                 created_hosts[0].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS1", "key": "key2", "value": "val1"},
-#                     {"namespace": "SPECIAL", "key": "tag", "value": "ToFind"},
-#                     {"namespace": "no", "key": "key", "value": None},
-#                 ],
-#                 created_hosts[1].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-#                     {"namespace": "NS3", "key": "key3", "value": "val3"},
-#                 ],
-#                 created_hosts[2].id: [
-#                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-#                     {"namespace": "NS3", "key": "key3", "value": "val3"},
-#                     {"namespace": "NS1", "key": "key3", "value": "val3"},
-#                     {"namespace": None, "key": "key4", "value": "val4"},
-#                     {"namespace": None, "key": "key5", "value": None},
-#                 ],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (
-#             "To",
-#             {
-#                 created_hosts[0].id: [{"namespace": "SPECIAL", "key": "tag", "value": "ToFind"}],
-#                 created_hosts[1].id: [],
-#                 created_hosts[2].id: [],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (
-#             "NS1",
-#             {
-#                 created_hosts[0].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS1", "key": "key2", "value": "val1"},
-#                 ],
-#                 created_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-#                 created_hosts[2].id: [{"namespace": "NS1", "key": "key3", "value": "val3"}],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (
-#             "key1",
-#             {
-#                 created_hosts[0].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-#                 created_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-#                 created_hosts[2].id: [],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (
-#             "val1",
-#             {
-#                 created_hosts[0].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS1", "key": "key2", "value": "val1"},
-#                 ],
-#                 created_hosts[1].id: [{"namespace": "NS1", "key": "key1", "value": "val1"}],
-#                 created_hosts[2].id: [],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (
-#             "e",
-#             {
-#                 created_hosts[0].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS1", "key": "key2", "value": "val1"},
-#                     {"namespace": "no", "key": "key", "value": None},
-#                 ],
-#                 created_hosts[1].id: [
-#                     {"namespace": "NS1", "key": "key1", "value": "val1"},
-#                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-#                     {"namespace": "NS3", "key": "key3", "value": "val3"},
-#                 ],
-#                 created_hosts[2].id: [
-#                     {"namespace": "NS2", "key": "key2", "value": "val2"},
-#                     {"namespace": "NS3", "key": "key3", "value": "val3"},
-#                     {"namespace": "NS1", "key": "key3", "value": "val3"},
-#                     {"namespace": None, "key": "key4", "value": "val4"},
-#                     {"namespace": None, "key": "key5", "value": None},
-#                 ],
-#                 created_hosts[3].id: [],
-#             },
-#         ),
-#         (" ", {created_hosts[0].id: [], created_hosts[1].id: [], created_hosts[2].id: [], created_hosts[3].id: []}),
-#     ):
-#         with subtests.test(search=search):
-#             url = build_host_tags_url(host_list_or_id=created_hosts, query=f"?search={search}")
-#             response_status, response_data = api_get(url)
+            assert response_status == 200
 
-#             assert response_status == 200
-#             assert len(results.keys()) == len(response_data["results"].keys())
-#             for host_id, tags in results.items():
-#                 assert len(tags) == len(response_data["results"][host_id])
+            # Assert that the appropriate tags are filtered out in the response
+            assert response_data["results"] == results
 
 
 def test_get_tags_count_of_host_that_does_not_exist(api_get, patch_xjoin_post):

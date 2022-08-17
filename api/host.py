@@ -42,6 +42,7 @@ from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
+from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -390,8 +391,9 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
 
     host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
+    filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
-    return _build_paginated_host_tags_response(total, page, per_page, host_list)
+    return _build_paginated_host_tags_response(total, page, per_page, filtered_list)
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):

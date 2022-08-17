@@ -357,13 +357,15 @@ class Tag:
         takes structured tags and returns an array of structured tags that are filtered by a searchterm
         """
 
+        if searchTerm is None:
+            return tags
         if tags is None:
             tags = {}
 
         filtered_tags = []
 
         for tag in tags:
-            if any(filter(lambda x: x is not None and searchTerm in x, tag.__data.values())):
+            if any(filter(lambda x: x is not None and searchTerm in x, list(tag.values()))):
                 filtered_tags.append(tag)
 
         return filtered_tags
