@@ -224,12 +224,12 @@ def test_get_list_of_tags_with_host_filters(patch_xjoin_post, api_get, subtests)
 #                 assert len(tags) == len(response_data["results"][host_id])
 
 
-def test_get_tags_count_of_hosts_that_doesnt_exist(mq_create_four_specific_hosts, api_get):
+def test_get_tags_count_of_host_that_does_not_exist(api_get, patch_xjoin_post):
     """
-    send a request for some hosts that don't exist
+    send a request for some host that doesn't exist
     """
-    host_id = "fa28ec9b-5555-4b96-9b72-96129e0c3336"
-    url = build_tags_count_url(host_list_or_id=host_id)
+    patch_xjoin_post(response={"data": EMPTY_HOSTS_RESPONSE})
+    url = build_tags_count_url(host_list_or_id="fa28ec9b-5555-4b96-9b72-96129e0c3336")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
