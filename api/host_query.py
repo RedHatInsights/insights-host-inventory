@@ -1,6 +1,3 @@
-from collections import namedtuple
-from enum import Enum
-
 from app import inventory_config
 from app.culling import Timestamps
 from app.serialization import DEFAULT_FIELDS
@@ -8,10 +5,6 @@ from app.serialization import serialize_host
 
 
 __all__ = ("build_paginated_host_list_response", "staleness_timestamps")
-
-OrderBy = Enum("OrderBy", ("display_name", "id", "modified_on"))
-OrderHow = Enum("OrderHow", ("ASC", "DESC"))
-Order = namedtuple("Order", ("by", "how"))
 
 
 def build_paginated_host_list_response(total, page, per_page, host_list, additional_fields=tuple()):

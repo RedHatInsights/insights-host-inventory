@@ -13,10 +13,10 @@ from api import metrics
 from api.host_query import build_paginated_host_list_response
 from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
-from api.host_query_db import params_to_order_by as params_to_order_by_db
 from api.host_query_xjoin import get_host_ids_list as get_host_ids_list_xjoin
 from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
+from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
 from app import db
 from app import inventory_config
@@ -42,7 +42,6 @@ from app.queue.events import message_headers
 from app.queue.queue import EGRESS_HOST_FIELDS
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
-from app.utils import Tag
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
@@ -379,37 +378,10 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict):
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None):
 
-    query = _get_host_list_by_id_list_from_db(host_id_list)
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
+    counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
 
-    try:
-        order_by = params_to_order_by_db(order_by, order_how)
-    except ValueError as e:
-        flask.abort(400, str(e))
-    else:
-        query = query.order_by(*order_by)
-    query = query.paginate(page, per_page, True)
-
-    counts = _count_tags(query.items)
-
-    return _build_paginated_host_tags_response(query.total, page, per_page, counts)
-
-
-# returns counts in format [{id: count}, {id: count}]
-def _count_tags(host_list):
-    counts = {}
-
-    for host in host_list:
-        host_tag_count = 0
-        if host.tags is not None:  # fixme: Host tags should never be None, in DB neither NULL nor 'null'
-            for namespace in host.tags:
-                for tag in host.tags[namespace]:
-                    if len(host.tags[namespace][tag]) == 0:
-                        host_tag_count += 1  # for tags with no value
-                    else:
-                        host_tag_count += len(host.tags[namespace][tag])
-        counts[str(host.id)] = host_tag_count
-
-    return counts
+    return _build_paginated_host_tags_response(total, page, per_page, counts)
 
 
 @api_operation
@@ -417,37 +389,9 @@ def _count_tags(host_list):
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None):
 
-    query = _get_host_list_by_id_list_from_db(host_id_list)
+    host_list, total = get_host_tags_list_by_id_list(host_id_list, page, per_page, order_by, order_how)
 
-    try:
-        order_by = params_to_order_by_db(order_by, order_how)
-    except ValueError as e:
-        flask.abort(400, str(e))
-    else:
-        query = query.order_by(*order_by)
-
-    query = query.paginate(page, per_page, True)
-
-    tags = _build_serialized_tags(query.items, search)
-
-    return _build_paginated_host_tags_response(query.total, page, per_page, tags)
-
-
-def _build_serialized_tags(host_list, search):
-    response_tags = {}
-
-    for host in host_list:
-        if search is None:
-            tags = Tag.create_tags_from_nested(host.tags)
-        else:
-            tags = Tag.filter_tags(Tag.create_tags_from_nested(host.tags), search)
-        tag_dictionaries = []
-        for tag in tags:
-            tag_dictionaries.append(tag.data())
-
-        response_tags[str(host.id)] = tag_dictionaries
-
-    return response_tags
+    return _build_paginated_host_tags_response(total, page, per_page, host_list)
 
 
 def _build_paginated_host_tags_response(total, page, per_page, tags_list):
