@@ -107,6 +107,7 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
     handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, add_host_mock)
 
     mock_event_producer.write_event.assert_called_once()
+    mock_notification_event_producer.write_event.assert_not_called()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
         "platform_metadata": get_platform_metadata(identity),
