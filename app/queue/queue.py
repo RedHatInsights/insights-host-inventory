@@ -136,6 +136,7 @@ def _build_minimal_host_info(host_data):
         "org_id": host_data.get("org_id"),
         "insights_id": host_data.get("insights_id"),
         "display_name": host_data.get("display_name"),
+        "id": host_data.get("id"),
     }
 
 

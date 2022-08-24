@@ -22,14 +22,15 @@ class HostValidationErrorSchema(MarshmallowSchema):
     severity = fields.Str(required=True, validate=marshmallow_validate.OneOf(EventSeverity))
 
 
-class ErrorPayloadSchema(MarshmallowSchema):
+class PayloadSchema(MarshmallowSchema):
+    host_id = fields.UUID(required=True)
     display_name = fields.Str()
     error = fields.Nested(HostValidationErrorSchema())
 
 
 class HostValidationErrorMetadataSchema(MarshmallowSchema):
     metadata = fields.Dict(validate=marshmallow_validate.Equal({}))
-    payload = fields.Nested(ErrorPayloadSchema())
+    payload = fields.Nested(PayloadSchema())
 
 
 class HostValidationErrorNotificationEvent(MarshmallowSchema):
@@ -68,6 +69,7 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "events": {
             "metadata": {},
             "payload": {
+                "host_id": host.get("host_id"),
                 "display_name": host.get("display_name"),
                 "insights_id": host.get("insights_id"),
                 "error": {
