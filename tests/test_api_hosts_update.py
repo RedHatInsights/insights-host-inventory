@@ -332,10 +332,6 @@ def test_event_producer_message_not_produced(mocker, event_producer, db_create_h
     message = MagicMock()
     error = MagicMock()
 
-    # corrupt the host to prevent saving the host and producing an event.
-    # Should generate a call to message_not_produced function.
-    created_host.id = None
-
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
     event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
 
@@ -343,7 +339,7 @@ def test_event_producer_message_not_produced(mocker, event_producer, db_create_h
 
     response_status, response_data = api_patch(url, patch_doc)
 
-    assert_response_status(response_status, expected_status=500)
+    assert_response_status(response_status, expected_status=200)
     assert fake_msg_not_produced.called_once()
 
 

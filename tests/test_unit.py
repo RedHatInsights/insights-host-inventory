@@ -41,6 +41,7 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import SystemProfileNormalizer
 from app.queue.event_producer import EventProducer
+from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
@@ -1895,11 +1896,23 @@ class EventProducerTests(TestCase):
         key = self.basic_host["id"]
         headers = message_headers(event_type, self.basic_host["id"])
 
-        # set up send to return a kafka error to check our handling
-        self.event_producer._kafka_producer.produce.side_effect = KafkaException()
+        kafkex = KafkaException()
+        self.event_producer._kafka_producer.produce.side_effect = kafkex
 
         with self.assertRaises(KafkaException):
             self.event_producer.write_event(event, key, headers)
+
+        # convert headers to a list of tuples as done write_event
+        headersTuple = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
+
+        message_not_produced_mock.assert_called_once_with(
+            event_producer_logger,
+            kafkex,
+            self.config.event_topic,
+            event=str(event).encode("utf-8"),
+            key=key.encode("utf-8"),
+            headers=headersTuple,
+        )
 
 
 class ModelsSystemProfileNormalizerFilterKeysTestCase(TestCase):

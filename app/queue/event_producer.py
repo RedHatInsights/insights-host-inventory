@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 class MessageDetails:
     event: str
-    headers: str
+    headers: list(tuple())
     key: str
     topic: str
 

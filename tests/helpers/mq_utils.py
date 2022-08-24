@@ -37,7 +37,6 @@ class MockEventProducer:
         self._message_details.key = key
         self._message_details.headers = headers
         self._message_details.send = MagicMock()
-        self._message_details.on_delivered = MagicMock()  # does it need args, like error and message.
 
 
 class FakeMessage:
