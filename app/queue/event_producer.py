@@ -38,7 +38,6 @@ class EventProducer:
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.egress_topic = config.event_topic
-        self._message_details = MessageDetails(topic=None, event=None, headers=None, key=None)
 
     def write_event(self, event, key, headers):
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
@@ -49,11 +48,8 @@ class EventProducer:
         topic = self.egress_topic
 
         try:
-            self._message_details.topic = self.egress_topic
-            self._message_details.event = v
-            self._message_details.headers = h
-            self._message_details.key = k
-            self._message_details.send(self._kafka_producer)
+            messageDetails = MessageDetails(topic, v, h, k)
+            messageDetails.send(self._kafka_producer)
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
