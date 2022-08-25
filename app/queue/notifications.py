@@ -43,7 +43,7 @@ class HostValidationErrorNotificationEvent(MarshmallowSchema):
     account_id = fields.Str(validate=marshmallow_validate.Length(min=0, max=36))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=0, max=36))
     context = fields.Dict()
-    events = fields.Nested(HostValidationErrorMetadataSchema())
+    events = fields.List(fields.Nested(HostValidationErrorMetadataSchema()))
 
 
 def notification_message_headers(event_type: NotificationType, rh_message_id: bytearray = None):
@@ -63,23 +63,25 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "application": "inventory",
         "event_type": notification_type.name.replace("_", "-"),
         "timestamp": datetime.now(timezone.utc),
-        "account_id": host.get("account_id"),
+        "account_id": host.get("account_id") or "",
         "org_id": host.get("org_id"),
         "context": {"event_name": "Host Validation Error"},
-        "events": {
-            "metadata": {},
-            "payload": {
-                "host_id": host.get("host_id"),
-                "display_name": host.get("display_name"),
-                "insights_id": host.get("insights_id"),
-                "error": {
-                    "code": "VE001",
-                    "message": detail,
-                    "stack_trace": stack_trace,
-                    "severity": "error",
+        "events": [
+            {
+                "metadata": {},
+                "payload": {
+                    "host_id": host.get("id"),
+                    "display_name": host.get("display_name"),
+                    "insights_id": host.get("insights_id"),
+                    "error": {
+                        "code": "VE001",
+                        "message": detail,
+                        "stack_trace": stack_trace,
+                        "severity": "error",
+                    },
                 },
-            },
-        },
+            }
+        ],
     }
 
     return (HostValidationErrorNotificationEvent, validation_error_event)
