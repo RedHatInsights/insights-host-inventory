@@ -51,11 +51,11 @@ from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
-from app.serialization import _serialize_facts
 from app.serialization import _serialize_uuid
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
+from app.serialization import serialize_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
@@ -1464,7 +1464,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
 
 @patch("app.serialization._serialize_tags")
-@patch("app.serialization._serialize_facts")
+@patch("app.serialization.serialize_facts")
 @patch("app.serialization.serialize_canonical_facts")
 class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTestCase):
     def test_with_all_fields(self, serialize_canonical_facts, serialize_facts, serialize_tags):
@@ -1703,7 +1703,7 @@ class SerializationDeserializeFactsTestCase(TestCase):
 
 class SerializationSerializeFactsTestCase(TestCase):
     def test_empty_dict_becomes_empty_list(self):
-        self.assertEqual([], _serialize_facts({}))
+        self.assertEqual([], serialize_facts({}))
 
     def test_non_empty_namespaces_become_list_of_dicts(self):
         facts = {
@@ -1711,7 +1711,7 @@ class SerializationSerializeFactsTestCase(TestCase):
             "second namespace": {"third key": "third value"},
         }
         self.assertEqual(
-            [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()], _serialize_facts(facts)
+            [{"namespace": namespace, "facts": facts} for namespace, facts in facts.items()], serialize_facts(facts)
         )
 
     def test_empty_namespaces_have_facts_as_empty_dicts(self):
@@ -1720,7 +1720,7 @@ class SerializationSerializeFactsTestCase(TestCase):
                 facts = {"first namespace": empty_value, "second namespace": {"first key": "first value"}}
                 self.assertEqual(
                     [{"namespace": namespace, "facts": facts or {}} for namespace, facts in facts.items()],
-                    _serialize_facts(facts),
+                    serialize_facts(facts),
                 )
 
 
