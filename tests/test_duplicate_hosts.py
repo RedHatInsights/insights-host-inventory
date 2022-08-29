@@ -71,7 +71,7 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
 
 @pytest.mark.host_delete_duplicates
 def test_delete_dupe_more_hosts_than_chunk_size(
-    event_producer_mock, db_get_host, db_create_multiple_hosts, db_create_host, inventory_config
+    event_producer_mock, db_get_host, db_create_bulk_hosts, db_create_host, inventory_config
 ):
     canonical_facts_1 = {
         "provider_id": generate_uuid(),
@@ -96,8 +96,7 @@ def test_delete_dupe_more_hosts_than_chunk_size(
 
     created_new_host_1 = db_create_host(host=new_host_1)
 
-    # create big chunk of hosts
-    db_create_multiple_hosts(how_many=num_hosts)
+    db_create_bulk_hosts(how_many=num_hosts)
 
     # create another host after
     old_host_2 = minimal_db_host(canonical_facts=canonical_facts_2)
@@ -586,7 +585,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 @pytest.mark.host_delete_duplicates
 @pytest.mark.parametrize("script_function", ["run", "main"])
 def test_delete_duplicates_multiple_scenarios(
-    event_producer, db_create_host, db_create_multiple_hosts, db_get_host, inventory_config, script_function
+    event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config, script_function
 ):
     chunk_size = inventory_config.script_chunk_size
 
@@ -653,7 +652,7 @@ def test_delete_duplicates_multiple_scenarios(
         elevated_matching_created_hosts.append(db_create_host(host=host).id)
 
     # Create a lot of hosts to test that the script deletes duplicates in multiple chunks
-    db_create_multiple_hosts(how_many=chunk_size)
+    db_create_bulk_hosts(how_many=chunk_size)
 
     # Hosts with more canonical facts
     for _ in range(elevated_matching_host_count):
@@ -712,7 +711,7 @@ def test_delete_duplicates_multiple_scenarios(
         without_elevated_matching_created_hosts.append(db_create_host(host=host).id)
 
     # Create a lot of hosts to test that the script deletes duplicates in multiple chunks
-    db_create_multiple_hosts(how_many=chunk_size)
+    db_create_bulk_hosts(how_many=chunk_size)
 
     # Hosts with the same amount of canonical facts
     for _ in range(without_elevated_matching_host_count):
