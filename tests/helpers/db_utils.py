@@ -40,6 +40,11 @@ def clean_tables():
 
 
 def minimal_db_host(**values):
+    data = minimal_db_host_dict(**values)
+    return Host(**data)
+
+
+def minimal_db_host_dict(**values):
     data = {
         "canonical_facts": {"insights_id": generate_uuid()},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
@@ -51,7 +56,7 @@ def minimal_db_host(**values):
     else:
         data["org_id"] = USER_IDENTITY["org_id"]
 
-    return Host(**data)
+    return data
 
 
 def db_host(**values):
