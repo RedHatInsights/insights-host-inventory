@@ -19,12 +19,13 @@ $defs:
     type: object
     properties:
       device:
-        example: "/dev/fdd0"
+        example: "/dev/fdd0, /dev/sda1, /dev/nvme2"
         type: string
         maxLength: 2048
       label:
         description: User-defined mount label
         type: string
+        example: "foo, bar, baz"
         maxLength: 1024
       options:
         description: Mount options for nested object
@@ -32,14 +33,15 @@ $defs:
           uid: "0"
           ro: true
         "$ref": "#/$defs/NestedObject"
+        x-indexed: false
       mount_point:
         description: The mount point
-        example: "/mnt/remote_nfs_shares"
+        example: "/mnt/remote_nfs_shares, /mnt/local_nfs, /mnt/foo"
         type: string
         maxLength: 2048
       type:
         description: The mount type
-        example: "ext3"
+        example: "ext1, ext2, ext3"
         type: string
         maxLength: 256
   YumRepo:
@@ -49,9 +51,11 @@ $defs:
       id:
         type: string
         maxLength: 256
+        example: "abc, dfg, pop"
       name:
         type: string
         maxLength: 1024
+        example: "abc, dfg, pop"
       gpgcheck:
         type: boolean
       enabled:
@@ -60,6 +64,7 @@ $defs:
         type: string
         format: uri
         maxLength: 2048
+        example: "abc, dfg, pop"
   DnfModule:
     description: Representation of one DNF module
     type: object
@@ -67,9 +72,11 @@ $defs:
       name:
         type: string
         maxLength: 128
+        example: "abc, dfg, pop"
       stream:
         type: string
         maxLength: 2048
+        example: "abc, dfg, pop"
   InstalledProduct:
     description: Representation of one installed product
     type: object
@@ -77,14 +84,15 @@ $defs:
       name:
         type: string
         maxLength: 512
+        example: "abc, dfg, pop"
       id:
         description: The product ID
-        example: "71"
         type: string
         maxLength: 64
+        example: "abc, dfg, pop"
       status:
         description: Subscription status for product
-        example: "Subscribed"
+        example: "Subscribed, inactive, canceled"
         type: string
         maxLength: 256
   NetworkInterface:
@@ -95,42 +103,43 @@ $defs:
         type: array
         items:
           description: The ipv4 address of the system
-          example: "192.0.2.146"
+          example: "227.161.169.210 30.143.76.153 233.87.178.7, 60.209.47.155 40.124.217.134, 67.77.119.70"
           type: string
           format: ipv4
       ipv6_addresses:
         type: array
         items:
           description: The ipv6 address of the system
-          example: "0123:4567:89ab:cdef:0123:4567:89ab:cdef"
+          example: "8886:2565:f753:1bbb:1d08:4239:c470:a889, dd2e:879f:afff:7845:b346:bb88:bcf2:4b1b, e979:3081:7218:4c98:fd19:5777:309a:957b"
           type: string
           format: ipv6
       mtu:
         description: MTU (Maximum transmission unit)
         type: integer
+        format: int32
         minimum: 0
-        maximum: 18446744073709551615
+        maximum: 2147483647
       mac_address:
         description: MAC address (with or without colons)
-        example: "00:00:00:00:00:00"
+        example: "00:00:00:00:00:00, 100000000000, 20:00:00:00:00:00"
         type: string
         pattern: "^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|^[A-Fa-f0-9]{12}$|^([A-Fa-f0-9]{2}[:-]){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$"
         maxLength: 59
       name:
         description: Name of interface
         type: string
-        example: eth0
+        example: "eth0, eth1, eth2"
         minLength: 1
         maxLength: 50
       state:
         description: Interface state (UP, DOWN, UNKNOWN)
         type: string
-        example: "UP"
+        example: "UP, DOWN, UNKNOWN"
         maxLength: 25
       type:
         description: Interface type (ether, loopback)
         type: string
-        example: "ether"
+        example: "ether, infiniband, loopback"
         maxLength: 18
   RPMOSTreeDeployment:
     description: Limited deployment information from systems managed by rpm-ostree as reported by rpm-ostree status --json
@@ -139,42 +148,42 @@ $defs:
     properties:
       id:
         description: ID of the deployment
-        example: "fedora-silverblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0"
+        example: "fedora-silverblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-blackpink-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-orangeblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0"
         type: string
         minLength: 1
         maxLength: 255
       checksum:
         description: The checksum / commit of the deployment
-        example: "63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb"
+        example: "63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 73335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 83335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb"
         type: string
         maxLength: 64
         pattern: "^[a-fA-F0-9]{64}$"
       origin:
         description: The origin repo from which the commit was installed
-        example: "fedora/33/x86_64/silverblue"
+        example: "fedora/33/x86_64/silverblue, fedora/31/x86_64/blackpink, fedora/34/x86_64/orangeblue"
         type: string
         minLength: 1
         maxLength: 255
       osname:
         description: The operating system name
-        example: "fedora-silverblue"
+        example: "fedora-silverblue, fedora-blackpink, fedora-orangeblue"
         type: string
         minLength: 1
         maxLength: 255
       version:
         description: The version of the deployment
-        example: "33.21"
+        example: "33.21, 31.12, 33.45"
         type: string
         minLength: 1
         maxLength: 255
       booted:
         description: Whether the deployment is currently booted
-        example: True
         type: boolean
+        example: true
       pinned:
         description: Whether the deployment is currently pinned
-        example: False
         type: boolean
+        example: false
   SystemProfile:
     title: SystemProfile
     description: Representation of the system profile fields
@@ -185,47 +194,53 @@ $defs:
         type: string
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
-        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136, ffdfd200-f5b9-4e57-b080-f5e257349df0, e2357169-f5e2-4afa-b509-ab1be3f30807
       rhc_client_id:
         description: A UUID associated with a cloud_connector
         type: string
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
-        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136, 33cd8e39-13bb-4d02-8316-84b850dc5136, 2fa3e796-10e2-11ec-82a8-0242ac130003
       rhc_config_state:
         description: A UUID associated with the config manager state
         type: string
         pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
         maxLength: 36
-        example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        example: 22cd8e39-13bb-4d02-8316-84b850dc5136, 2c68e8ec-10e2-11ec-82a8-0242ac130003, 2fa3e796-10e2-11ec-82a8-0242ac130003
       cpu_model:
         description: The cpu model name
         type: string
         maxLength: 100
-        example: 'Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz'
+        example: 'Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz, Intel(R) Xeon(R) CPU E9-7800 0 @ 1.90GHz, Intel(R) I7(R) CPU I7-10900k 0 @ 4.90GHz'
       number_of_cpus:
         type: integer
+        format: int32
         minimum: 0
-        maximum: 4294967295
+        maximum: 2147483647
       number_of_sockets:
         type: integer
+        format: int32
         minimum: 0
-        maximum: 4294967295
+        maximum: 2147483647
       cores_per_socket:
         type: integer
+        format: int32
         minimum: 0
-        maximum: 4294967295
+        maximum: 2147483647
       system_memory_bytes:
         type: integer
         format: int64
+        # The MAX_SAFE_INTEGER limit in JavaScript will lead to errors if we don't constrain our int64 values.
         minimum: 0
-        maximum: 18446744073709551615
+        maximum: 9007199254740991
       infrastructure_type:
         type: string
         maxLength: 100
+        example: "physical, virtual, imaginary"
       infrastructure_vendor:
         type: string
         maxLength: 100
+        example: "ex1, ex2, baremetal"
       network_interfaces:
         type: array  # techincally a set, ordering is not important
         items:
@@ -237,18 +252,23 @@ $defs:
       bios_vendor:
         type: string
         maxLength: 100
+        example: "ex1, ex2, ex3"
       bios_version:
         type: string
         maxLength: 100
+        example: "ex1, ex2, ex3"
       bios_release_date:
         type: string
         x-indexed: false
+        x-wildcard: true
         maxLength: 50
+        example: "ex1, ex2, ex3"
       cpu_flags:
         type: array
         items:
           type: string
           maxLength: 30
+          example: "ex1, ex2, ex3"
       operating_system:
         description: Object for OS details. Supports range operations
         type: object
@@ -271,27 +291,32 @@ $defs:
             maximum: 99
           name:
             description: Name of the distro/os
-            example: "RHEL"
             type: string
             maxLength: 6
             enum: [RHEL, CentOS]
+            example: "RHEL, CentOS, RHEL"
       os_release:
         type: string
         maxLength: 100
+        x-wildcard: true
+        example: "7.4, 8.2, 7.5"
       os_kernel_version:
         type: string
         maxLength: 20
         pattern: '^\d+\.\d+\.\d+(\.\d+)?$'
         description: The kernel version represented with a three, optionally four, number scheme.
-        example: '3.10.0'
+        example: '4.18.2, 4.5.0, 5.1.0'
+        x-wildcard: true
       arch:
         type: string
         maxLength: 50
+        example: "ARM, x86_64, RISC-V"
       kernel_modules:
         type: array
         items:
           type: string
           maxLength: 255
+          example: "ex1, ex2, ex3"
       last_boot_time:
         type: string
         format: date-time
@@ -303,12 +328,15 @@ $defs:
           description: A single running process. This will be truncated to 1000 characters when saved.
           type: string
           maxLength: 1000
+          example: "ex1, ex2, ex3"
       subscription_status:
         type: string
         maxLength: 100
+        example: "ex1, ex2, ex3"
       subscription_auto_attach:
         type: string
         maxLength: 100
+        example: "ex1, ex2, ex3"
       katello_agent_running:
         type: boolean
       satellite_managed:
@@ -316,6 +344,7 @@ $defs:
       cloud_provider:
         type: string
         maxLength: 100
+        example: "aws, ms, ibm"
       yum_repos:
         type: array  # technically a set, ordering is not important
         x-indexed: false
@@ -334,17 +363,20 @@ $defs:
         description: The version number of insights client. supports wildcards
         x-wildcard: true
         maxLength: 50
+        example: "3.0.1-2.el4_2, 5.0.6-2.el7_6, 6.0.6-2.el8_4"
       insights_egg_version:
         type: string
         maxLength: 50
+        example: "2.3, 4.4, 5.1"
       captured_date:
         type: string
         maxLength: 32
+        example: "ex1, ex2, ex3"
       installed_packages:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
           description: A NEVRA string for a single installed package
-          example: "krb5-libs-0:-1.16.1-23.fc29.i686"
+          example: "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686"
           type: string
           maxLength: 512
       installed_packages_delta:
@@ -352,14 +384,14 @@ $defs:
         x-indexed: false
         items:
           description: A NEVRA string for a single installed package
-          example: "krb5-libs-0:-1.16.1-23.fc29.i686"
+          example: "krb5-libs-0:-1.16.1-23.fc29.i686, arb5-libs-0:-1.16.1-23.fc29.i686, brb5-libs-0:-1.16.1-23.fc29.i686"
           type: string
           maxLength: 512
       gpg_pubkeys:
         type: array  # technically a set, ordered by RPM sorting algorithm
         items:
           description: A package name string of a single imported GPG pubkey
-          example: "gpg-pubkey-11111111-22222222"
+          example: "gpg-pubkey-11111111-22222222, gpg-pubkey-22222222-22222222, gpg-pubkey-22222222-33333333"
           type: string
           maxLength: 512
       installed_services:
@@ -367,11 +399,13 @@ $defs:
         items:
           type: string
           maxLength: 512
+          example: "ex1, ex2, ex3"
       enabled_services:
         type: array
         items:
           type: string
           maxLength: 512
+          example: "ex1, ex2, ex3"
       sap_system:
         type: boolean
         description: Indicates if SAP is installed on the system
@@ -381,37 +415,37 @@ $defs:
         items:
           description: The SAP system ID (SID)
           type: string
-          example: "H2O"
+          example: "H2O, ABC, XYZ"
           maxLength: 3
           pattern: '^[A-Z][A-Z0-9]{2}$'
       sap_instance_number:
         type: string
         description: The instance number of the SAP HANA system (a two-digit number between 00 and 99)
-        example: '03'
+        example: '03, 05, 99'
         maxLength: 2
         pattern: '^[0-9]{2}$'
       sap_version:
         type: string
         description: The version of the SAP HANA lifecycle management program
-        example:  '1.00.122.04.1478575636'
+        example:  '1.00.122.04.1478575636, 2.00.122.04.1478575636, 3.00.122.04.1478575636'
         maxLength: 22
         pattern: '^[0-9]\.[0-9]{2}\.[0-9]{3}\.[0-9]{2}\.[0-9]{10}$'
       tuned_profile:
         type: string
         maxLength: 256
         description: Current profile resulting from command tuned-adm active
-        example: 'desktop'
+        example: 'desktop, example, laptop'
       selinux_current_mode:
         type: string
         enum: [enforcing, permissive, disabled]
         maxLength: 10
         description: The current SELinux mode, either enforcing, permissive, or disabled
-        example: 'enforcing'
+        example: 'enforcing, not_enforcing, sleeping'
       selinux_config_file:
         type: string
         maxLength: 128
         description: The SELinux mode provided in the config file
-        example: 'permissive'
+        example: 'permissive, sleepy, authoritative'
       is_marketplace:
         description: Indicates whether the host is part of a marketplace install from AWS, Azure, etc.
         type: boolean
@@ -420,13 +454,13 @@ $defs:
         enum: [edge]
         maxLength: 4
         description: Indicates the type of host.
-        example: 'edge'
+        example: 'edge, edge, edge'
       greenboot_status:
         type: string
         enum: [red, green]
         maxLength: 5
         description: Indicates the greenboot status of an edge device.
-        example: 'red'
+        example: 'green, red, purple'
       greenboot_fallback_detected:
         type: boolean
         description: Indicates whether greenboot detected a rolled back update on an edge device.
@@ -441,7 +475,7 @@ $defs:
         properties:
           version:
             description: System release set by subscription-manager
-            example: "8.1"
+            example: "8.1, 7.5, 9.9"
             type: string
             maxLength: 255
       system_purpose:
@@ -453,19 +487,19 @@ $defs:
             type: string
             maxLength: 17
             enum: ['Production', 'Development/Test', 'Disaster Recovery']
-            example: 'Production'
+            example: 'Production, Development/Test, Disaster Recovery'
           role:
             description: The intended role of the system
             type: string
             maxLength: 37
             enum: ['Red Hat Enterprise Linux Server', 'Red Hat Enterprise Linux Workstation', 'Red Hat Enterprise Linux Compute Node']
-            example: 'Red Hat Enterprise Linux Server'
+            example: 'Red Hat Enterprise Linux Server, Red Hat Enterprise Linux Workstation, Red Hat Enterprise Linux Compute Node'
           sla:
             description: The intended SLA of the system
             type: string
             maxLength: 12
             enum: ['Premium', 'Standard', 'Self-Support']
-            example: 'Premium'
+            example: 'Premium, Standard, Self-Support'
       ansible:
         description: Object containing data specific to Ansible Automation Platform
         type: object
@@ -473,28 +507,28 @@ $defs:
           controller_version:
             description: The ansible-tower or automation-controller version on the host
             type: string
-            example:  '1.2.3'
+            example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           hub_version:
             description: The automation-hub version on the host
             type: string
-            example:  '4.5.6'
+            example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           catalog_worker_version:
             description: The catalog-worker version on the host
             type: string
-            example:  '7.8.9'
+            example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           sso_version:
             description: The SSO version on the host
             type: string
-            example:  '10.11.12'
+            example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
@@ -505,6 +539,6 @@ $defs:
           version:
             description: MSSQL version number
             type: string
-            example: '15.2.0'
+            example: '15.2.0, 12.5.3, 10.1.0'
             maxLength: 30
             x-wildcard: true
