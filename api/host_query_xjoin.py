@@ -55,6 +55,35 @@ QUERY = """query Query(
         }
     }
 }"""
+HOST_TAGS_QUERY = """query Query(
+    $limit: Int!,
+    $offset: Int!,
+    $order_by: HOSTS_ORDER_BY,
+    $order_how: ORDER_DIR,
+    $filter: [HostFilter!]
+) {
+    hosts(
+        limit: $limit,
+        offset: $offset,
+        order_by: $order_by,
+        order_how: $order_how,
+        filter: {
+            AND: $filter,
+        }
+    ) {
+        meta {
+            total,
+        }
+        data {
+            id,
+            tags {
+                data {
+                    namespace, key, value
+                }
+            },
+        }
+    }
+}"""
 HOST_IDS_QUERY = """query Query(
     $limit: Int!,
     $filter: [HostFilter!],
@@ -109,6 +138,31 @@ def get_host_list_using_filters(all_filters, page, per_page, param_order_by, par
     return map(deserialize_host, response["data"]), total, additional_fields
 
 
+def get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how):
+    limit, offset = pagination_params(page, per_page)
+    xjoin_order_by, xjoin_order_how = params_to_order(param_order_by, param_order_how)
+
+    variables = {
+        "limit": limit,
+        "offset": offset,
+        "order_by": xjoin_order_by,
+        "order_how": xjoin_order_how,
+        "filter": all_filters,
+    }
+    response = graphql_query(HOST_TAGS_QUERY, variables, log_get_host_list_failed)
+    if response is None or "hosts" not in response:
+        # Log an error implicating xjoin, then abort with status 503
+        logger.error("xjoin-search responded with invalid format")
+        flask.abort(503)
+
+    response = response["hosts"]
+
+    total = response["meta"]["total"]
+    check_pagination(offset, total)
+
+    return {host["id"]: host["tags"]["data"] for host in response["data"]}, total
+
+
 def get_host_list(
     display_name,
     fqdn,
@@ -153,6 +207,15 @@ def get_host_list_by_id_list(host_id_list, page, per_page, param_order_by, param
         all_filters += owner_id_filter()
 
     return get_host_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how, fields)
+
+
+def get_host_tags_list_by_id_list(host_id_list, page, per_page, param_order_by, param_order_how):
+    all_filters = host_id_list_query_filter(host_id_list)
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        all_filters += owner_id_filter()
+
+    return get_host_tags_list_using_filters(all_filters, page, per_page, param_order_by, param_order_how)
 
 
 def get_host_ids_list(
