@@ -25,7 +25,10 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
+from app.queue.metrics import notification_event_producer_failure
+from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
+from app.queue.notifications import NotificationType
 from app.validators import verify_uuid_format  # noqa: 401
 from lib.handlers import register_shutdown
 
@@ -55,10 +58,19 @@ class Permission(Enum):
 
 
 def initialize_metrics(config):
-    topic_name = config.event_topic
+    event_topic_name = config.event_topic
+    notification_topic_name = config.notification_topic
     for event_type in EventType:
-        event_producer_failure.labels(event_type=event_type.name, topic=topic_name)
-        event_producer_success.labels(event_type=event_type.name, topic=topic_name)
+        event_producer_failure.labels(event_type=event_type.name, topic=event_topic_name)
+        event_producer_success.labels(event_type=event_type.name, topic=event_topic_name)
+
+    for notification_type in NotificationType:
+        notification_event_producer_failure.labels(
+            notification_type=notification_type.name, topic=notification_topic_name
+        )
+        notification_event_producer_success.labels(
+            notification_type=notification_type.name, topic=notification_topic_name
+        )
 
     rbac_access_denied.labels(required_permission=Permission.READ.value)
     rbac_access_denied.labels(required_permission=Permission.WRITE.value)
@@ -191,12 +203,21 @@ def create_app(runtime_environment):
         threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
 
     if runtime_environment.event_producer_enabled:
-        flask_app.event_producer = EventProducer(app_config)
+        flask_app.event_producer = EventProducer(app_config, app_config.event_topic)
         register_shutdown(flask_app.event_producer.close, "Closing EventProducer")
     else:
         logger.warning(
             "WARNING: The event producer has been disabled.  "
             "The message queue based event notifications have been disabled."
+        )
+
+    if runtime_environment.notification_producer_enabled:
+        flask_app.notification_event_producer = EventProducer(app_config, app_config.notification_topic)
+        register_shutdown(flask_app.notification_event_producer.close, "Closing NotificationEventProducer")
+    else:
+        logger.warning(
+            "WARNING: The event producer has been disabled.  "
+            "The message queue based notifications have been disabled."
         )
 
     payload_tracker_producer = None

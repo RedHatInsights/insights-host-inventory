@@ -5,6 +5,8 @@ from flask import g
 from app.queue import metrics
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
+from app.queue.metrics import notification_event_producer_failure
+from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.metrics import rbac_fetching_failure
 from lib.metrics import pendo_fetching_failure
@@ -25,7 +27,10 @@ def message_produced(logger, value, key, headers, record_metadata):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, offset, timestamp, topic, key, value, extra=debug_extra)
 
-    event_producer_success.labels(event_type=headers["event_type"], topic=topic).inc()
+    if "notification" in topic:
+        notification_event_producer_success.labels(event_type=headers["event_type"], topic=topic).inc()
+    else:
+        event_producer_success.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
 def message_not_produced(logger, topic, value, key, headers, error):
@@ -41,7 +46,10 @@ def message_not_produced(logger, topic, value, key, headers, error):
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, topic, key, value, extra=debug_extra)
 
-    event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
+    if "notification" in topic:
+        notification_event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
+    else:
+        event_producer_failure.labels(event_type=headers["event_type"], topic=topic).inc()
 
 
 def get_control_rule():

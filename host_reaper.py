@@ -92,7 +92,7 @@ def main(logger):
     session = Session()
     register_shutdown(session.get_bind().dispose, "Closing database")
 
-    event_producer = EventProducer(config)
+    event_producer = EventProducer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()

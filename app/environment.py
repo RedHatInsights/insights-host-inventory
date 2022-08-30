@@ -21,6 +21,10 @@ class RuntimeEnvironment(Enum):
         return self in (self.SERVER, self.JOB)
 
     @property
+    def notification_producer_enabled(self):
+        return self in (self.SERVER, self.JOB)
+
+    @property
     def metrics_endpoint_enabled(self):
         return self == self.SERVER
 
