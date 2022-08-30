@@ -6,7 +6,6 @@ from prometheus_client import push_to_gateway
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.culling import Conditions
 from app.environment import RuntimeEnvironment
@@ -16,6 +15,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success

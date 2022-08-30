@@ -6,7 +6,7 @@ from kafka.errors import KafkaError
 
 from app import db
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url

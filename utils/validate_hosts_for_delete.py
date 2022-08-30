@@ -1,11 +1,11 @@
 from marshmallow import ValidationError
 
 from app import create_app
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.events import build_event
 from app.queue.events import EventType
 

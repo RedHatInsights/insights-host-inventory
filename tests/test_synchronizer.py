@@ -4,7 +4,7 @@ import pytest
 
 from app import db
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid

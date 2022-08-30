@@ -12,7 +12,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
 
 from api.metrics import outbound_http_response_time
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.instrumentation import pendo_failure
@@ -20,6 +19,7 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from lib.db import session_guard
 from lib.handlers import register_shutdown
 from lib.handlers import ShutdownHandler

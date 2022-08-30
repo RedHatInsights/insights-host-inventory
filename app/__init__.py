@@ -21,6 +21,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
 from app.models import SPECIFICATION_DIR
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
@@ -37,7 +38,6 @@ logger = get_logger(__name__)
 
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
-UNKNOWN_REQUEST_ID_VALUE = None
 
 # temporary replaced for ESSNTL-746 - correct normalization of the bundled spec
 # SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")

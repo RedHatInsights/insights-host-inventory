@@ -13,12 +13,12 @@ from app import IDENTITY_HEADER
 from app import inventory_config
 from app import Permission
 from app import REQUEST_ID_HEADER
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 
 
 logger = get_logger(__name__)

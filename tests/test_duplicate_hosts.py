@@ -6,9 +6,9 @@ from unittest import mock
 import pytest
 
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.logging import get_logger
 from app.models import ProviderType
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from host_delete_duplicates import _init_db as _init_db
 from host_delete_duplicates import main as host_delete_duplicates_main
 from host_delete_duplicates import run as host_delete_duplicates_run

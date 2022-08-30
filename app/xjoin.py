@@ -9,8 +9,8 @@ from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
 from app import inventory_config
 from app import REQUEST_ID_HEADER
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.culling import staleness_to_conditions
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 
 __all__ = (
     "graphql_query",

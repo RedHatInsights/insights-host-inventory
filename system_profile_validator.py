@@ -9,12 +9,12 @@ from requests import get
 from requests import post
 from requests.auth import HTTPBasicAuth
 
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from lib.system_profile_validate import get_schema
 from lib.system_profile_validate import get_schema_from_url
 from lib.system_profile_validate import validate_sp_schemas

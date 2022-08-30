@@ -9,11 +9,11 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from app import create_app
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from app.queue.queue import sync_event_message
 from lib.db import session_guard

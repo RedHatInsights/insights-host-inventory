@@ -11,7 +11,6 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -31,6 +30,7 @@ from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue import metrics
 from app.queue.events import build_event
 from app.queue.events import EventType

@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from app.payload_tracker import _UNKNOWN_REQUEST_ID
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from tests.helpers.tracker_utils import assert_mock_send_call
 from tests.helpers.tracker_utils import assert_payload_tracker_is_disabled
 from tests.helpers.tracker_utils import build_expected_tracker_message
@@ -26,7 +26,7 @@ def test_payload_tracker_is_disabled_using_env_var(mocker, payload_tracker, trac
         assert_payload_tracker_is_disabled(tracker, kafka_producer_mock, null_producer_mock, subtests)
 
 
-@pytest.mark.parametrize("invalid_request_id", [None, _UNKNOWN_REQUEST_ID])
+@pytest.mark.parametrize("invalid_request_id", [None, UNKNOWN_REQUEST_ID_VALUE])
 def test_payload_tracker_is_disabled_by_invalid_request_id(
     invalid_request_id, mocker, payload_tracker, tracker_datetime_mock, subtests
 ):

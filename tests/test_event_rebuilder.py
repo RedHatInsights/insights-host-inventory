@@ -5,7 +5,7 @@ import pytest
 
 from app import db
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
+from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.events import build_event
 from app.queue.events import EventType
 from rebuild_events_topic import run as rebuild_events_run
