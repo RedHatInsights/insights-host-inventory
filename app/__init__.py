@@ -37,7 +37,7 @@ logger = get_logger(__name__)
 
 IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
-UNKNOWN_REQUEST_ID_VALUE = "-1"
+UNKNOWN_REQUEST_ID_VALUE = None
 
 # temporary replaced for ESSNTL-746 - correct normalization of the bundled spec
 # SPECIFICATION_FILE = join(SPECIFICATION_DIR, "api.spec.yaml")
