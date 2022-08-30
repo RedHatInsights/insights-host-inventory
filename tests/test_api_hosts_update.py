@@ -311,7 +311,7 @@ def test_event_producer_message_produced(mocker, event_producer, db_create_host,
     message = MagicMock()
 
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
-    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(None, message)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(None, message, msgdet)
 
     patch_doc = {"display_name": "patch_event_test"}
 
@@ -333,7 +333,7 @@ def test_event_producer_message_not_produced(mocker, event_producer, db_create_h
     error = MagicMock()
 
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
-    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message, msgdet)
 
     patch_doc = {"display_name": "patch_event_test"}
 

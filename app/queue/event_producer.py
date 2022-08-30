@@ -1,3 +1,5 @@
+from functools import partial
+
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -10,27 +12,17 @@ logger = get_logger(__name__)
 
 
 class MessageDetails:
-    event: str
-    headers: list(tuple())
-    key: str
-    topic: str
-
-    def __init__(self, topic, event, headers, key):
+    def __init__(self, topic: str, event: str, headers: list(tuple()), key: str):
         self.event = event
         self.headers = headers
         self.key = key
         self.topic = topic
 
-    def send(self, producer):
-        producer.produce(self.topic, self.event, callback=self.on_delivered)
-        producer.poll()
-
-    def on_delivered(self, error, message):
+    def on_delivered(self, error, message, msgdet):
         if error:
-            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
-
+            message_not_produced(logger, error, self.topic, self.event, msgdet.key, msgdet.headers)
         else:
-            message_produced(logger, message, self.key, self.headers)
+            message_produced(logger, message, msgdet.key, msgdet.headers)
 
 
 class EventProducer:
@@ -49,7 +41,10 @@ class EventProducer:
 
         try:
             messageDetails = MessageDetails(topic, v, h, k)
-            messageDetails.send(self._kafka_producer)
+            self._kafka_producer.produce(
+                topic, v, callback=partial(messageDetails.on_delivered, msgdet=messageDetails)
+            )
+            self._kafka_producer.poll()
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error

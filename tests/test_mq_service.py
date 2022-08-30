@@ -65,12 +65,11 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
     """
     fake_consumer = mocker.Mock(**{"poll.side_effect": [FakeMessage(), FakeMessage("oops"), FakeMessage()]})
 
-    fake_event_producer = event_producer
     handle_message_mock = mocker.Mock(side_effect=None)
     event_loop(
         fake_consumer,
         flask_app,
-        fake_event_producer,
+        event_producer,
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, False, False, True)),
     )

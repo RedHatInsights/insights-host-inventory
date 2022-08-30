@@ -393,7 +393,7 @@ def test_delete_with_callback_receiving_error(
     message_not_produced_mock = mocker.patch("app.queue.event_producer.message_not_produced")
 
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=host.id)
-    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message, msgdet)
 
     response_status, response_data = api_delete_host(",".join([str(host.id)]))
 
