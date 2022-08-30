@@ -643,14 +643,16 @@ class TagToNestedTestCase(TestCase):
 
 
 class TagFilterTagsTestCase(TestCase):
-    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_tags, searchTerm):
-        filtered_tags = Tag.filter_tags(structured_tags, searchTerm)
-        self.assertEqual(len(filtered_tags), len(expected_filtered_tags))
+    def _base_structured_to_filtered_test(self, structured_tags, expected_filtered_structured_tags, searchTerm):
+        flat_tags = Tag.create_flat_tags_from_structured(structured_tags)
+        expected_filtered_flat_tags = Tag.create_flat_tags_from_structured(expected_filtered_structured_tags)
+        filtered_tags = Tag.filter_tags(flat_tags, searchTerm)
+        self.assertEqual(len(filtered_tags), len(expected_filtered_flat_tags))
 
         for i in range(len(filtered_tags)):
-            self.assertEqual(filtered_tags[i].namespace, expected_filtered_tags[i].namespace)
-            self.assertEqual(filtered_tags[i].key, expected_filtered_tags[i].key)
-            self.assertEqual(filtered_tags[i].value, expected_filtered_tags[i].value)
+            self.assertEqual(filtered_tags[i]["namespace"], expected_filtered_flat_tags[i]["namespace"])
+            self.assertEqual(filtered_tags[i]["key"], expected_filtered_flat_tags[i]["key"])
+            self.assertEqual(filtered_tags[i]["value"], expected_filtered_flat_tags[i]["value"])
 
     def test_simple_filter(self):
         structured_tags = [Tag("NS1", "key", "val"), Tag(None, "key", "something"), Tag("NS2", "key2")]

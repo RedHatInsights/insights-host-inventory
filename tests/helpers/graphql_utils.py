@@ -36,6 +36,55 @@ XJOIN_HOSTS_RESPONSE_FOR_FILTERING = {
     }
 }
 
+XJOIN_HOSTS_RESPONSE_WITH_TAGS = {
+    "hosts": {
+        "meta": {"total": 3},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "tags": {
+                    "data": [
+                        {"namespace": "Sat", "key": "env", "value": "dev"},
+                        {"namespace": "insights-client", "key": "database", "value": None},
+                        {"namespace": "insights-client", "key": "os", "value": "fedora"},
+                    ],
+                },
+            },
+            {
+                "id": "22cd8e39-13bb-4d02-8316-84b850dc5136",
+                "tags": {
+                    "data": [
+                        {"namespace": "Sat", "key": "env", "value": "stage"},
+                        {"namespace": "insights-client", "key": "os", "value": "macos"},
+                    ],
+                },
+            },
+            {
+                "id": "38019c6d-263d-431a-c987-9bd3b4badfec",
+                "tags": {
+                    "data": [
+                        {"namespace": "Sat", "key": "env", "value": "prod"},
+                    ],
+                },
+            },
+        ],
+    }
+}
+
+XJOIN_HOSTS_NO_TAGS_RESPONSE = {
+    "hosts": {
+        "meta": {"total": 1},
+        "data": [
+            {
+                "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
+                "tags": {
+                    "data": [],
+                },
+            },
+        ],
+    }
+}
+
 XJOIN_HOSTS_RESPONSE = {
     "hosts": {
         "meta": {"total": 2},
