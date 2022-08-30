@@ -12,7 +12,6 @@ from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from app.queue.metrics import event_producer_failure
 from app.queue.metrics import event_producer_success
@@ -101,5 +100,5 @@ if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     sys.excepthook = partial(_excepthook, logger)
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     main(logger)

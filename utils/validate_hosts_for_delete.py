@@ -5,7 +5,6 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.events import build_event
 from app.queue.events import EventType
 
@@ -24,7 +23,7 @@ def test_validations(host):
 def main():
     flask_app = create_app(RuntimeEnvironment.COMMAND)
     with flask_app.app_context() as ctx:
-        threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+        threadctx.request_id = None
         ctx.push()
     query = Host.query
     logger.info("Validating delete event for hosts.")

@@ -21,7 +21,6 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import db
 from app.models import SPECIFICATION_DIR
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.metrics import event_producer_failure
@@ -200,7 +199,7 @@ def create_app(runtime_environment):
 
     @flask_app.before_request
     def set_request_id():
-        threadctx.request_id = request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE)
+        threadctx.request_id = request.headers.get(REQUEST_ID_HEADER)
 
     if runtime_environment.event_producer_enabled:
         flask_app.event_producer = EventProducer(app_config, app_config.event_topic)

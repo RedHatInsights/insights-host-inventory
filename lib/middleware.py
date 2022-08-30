@@ -18,7 +18,6 @@ from app.auth.identity import IdentityType
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 
 
 logger = get_logger(__name__)
@@ -41,7 +40,7 @@ def tenant_translator_url() -> str:
 def get_rbac_permissions():
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE),
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
 
     request_session = Session()

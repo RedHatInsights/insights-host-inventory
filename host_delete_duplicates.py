@@ -11,7 +11,6 @@ from app.environment import RuntimeEnvironment
 from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.event_producer import EventProducer
 from lib.db import multi_session_guard
 from lib.handlers import register_shutdown
@@ -96,5 +95,5 @@ if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     sys.excepthook = partial(_excepthook, logger)
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     main(logger)

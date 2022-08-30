@@ -30,7 +30,6 @@ from app.models import LimitedHostSchema
 from app.payload_tracker import get_payload_tracker
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
-from app.payload_tracker import UNKNOWN_REQUEST_ID_VALUE
 from app.queue import metrics
 from app.queue.events import build_event
 from app.queue.events import EventType
@@ -272,7 +271,7 @@ def handle_message(message, event_producer, notification_event_producer, message
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
-    request_id = platform_metadata.get("request_id", UNKNOWN_REQUEST_ID_VALUE)
+    request_id = platform_metadata.get("request_id")
     initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)

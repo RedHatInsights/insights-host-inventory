@@ -11,7 +11,6 @@ logger = get_logger(__name__)
 
 _CFG = None
 _PRODUCER = None
-UNKNOWN_REQUEST_ID_VALUE = None
 
 
 def init_payload_tracker(config, producer=None):
@@ -30,7 +29,7 @@ def init_payload_tracker(config, producer=None):
 
 def get_payload_tracker(account=None, org_id=None, request_id=None):
 
-    if _CFG.payload_tracker_enabled is False or request_id == UNKNOWN_REQUEST_ID_VALUE:
+    if _CFG.payload_tracker_enabled is False or request_id is None:
         return NullPayloadTracker()
 
     payload_tracker = KafkaPayloadTracker(
