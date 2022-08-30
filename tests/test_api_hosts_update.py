@@ -303,44 +303,30 @@ def test_patch_by_namespace_on_multiple_hosts_produces_multiple_update_events(
     assert event_producer.write_event.call_count == 2
 
 
-def test_event_producer_message_produced(mocker, event_producer, db_create_host, api_patch):
+@pytest.mark.parametrize(
+    "patched_function,error",
+    (
+        ("message_produced", None),
+        ("message_not_produced", MagicMock()),
+    ),
+)
+def test_event_producer_instrumentation(mocker, event_producer, db_create_host, api_patch, patched_function, error):
     created_host = db_create_host()
+    url = build_hosts_url(host_list_or_id=created_host.id)
 
-    fake_msg_produced = mocker.patch("app.queue.event_producer.message_produced")
+    mocked_callback_function = mocker.patch(f"app.queue.event_producer.{patched_function}")
     headers = MagicMock()
     message = MagicMock()
 
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
-    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(None, message, msgdet)
-
-    patch_doc = {"display_name": "patch_event_test"}
-
-    url = build_hosts_url(host_list_or_id=created_host.id)
-
-    response_status, response_data = api_patch(url, patch_doc)
-
-    assert_response_status(response_status, expected_status=200)
-    assert fake_msg_produced.called_once()
-
-
-def test_event_producer_message_not_produced(mocker, event_producer, db_create_host, api_patch):
-    created_host = db_create_host()
-    url = build_hosts_url(host_list_or_id=created_host.id)
-
-    fake_msg_not_produced = mocker.patch("app.queue.event_producer.message_not_produced")
-    headers = MagicMock()
-    message = MagicMock()
-    error = MagicMock()
-
-    msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
-    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message, msgdet)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
 
     patch_doc = {"display_name": "patch_event_test"}
 
     response_status, response_data = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=200)
-    assert fake_msg_not_produced.called_once()
+    assert mocked_callback_function.called_once()
 
 
 def test_add_facts_without_fact_dict(api_patch, db_create_host):
