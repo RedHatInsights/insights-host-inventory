@@ -45,11 +45,13 @@ def test_event_loop_exception_handling(mocker, flask_app):
     fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock(), mocker.Mock()]}
 
     fake_event_producer = None
+    fake_notification_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, KeyError("blah"), None])
     event_loop(
         fake_consumer,
         flask_app,
         fake_event_producer,
+        fake_notification_event_producer,
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, True)),
     )
@@ -60,9 +62,10 @@ def test_handle_message_failure_invalid_json_message(mocker):
     invalid_message = "failure {} "
 
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     with pytest.raises(json.decoder.JSONDecodeError):
-        handle_message(invalid_message, mock_event_producer)
+        handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
 
     mock_event_producer.assert_not_called()
 
@@ -71,9 +74,10 @@ def test_handle_message_failure_invalid_message_format(mocker):
     invalid_message = json.dumps({"operation": "add_host", "NOTdata": {}})  # Missing data field
 
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     with pytest.raises(marshmallow.exceptions.ValidationError):
-        handle_message(invalid_message, mock_event_producer)
+        handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
 
     mock_event_producer.assert_not_called()
 
@@ -94,14 +98,16 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
         ),
     )
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(account=identity["account_number"], insights_id=expected_insights_id)
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
 
-    handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+    handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, add_host_mock)
 
     mock_event_producer.write_event.assert_called_once()
+    mock_notification_event_producer.write_event.assert_not_called()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
         "platform_metadata": get_platform_metadata(identity),
@@ -115,6 +121,7 @@ def test_handle_message_happy_path(identity, mocker, event_datetime_mock, flask_
 def test_request_id_is_reset(mocker, flask_app):
     with flask_app.app_context():
         mock_event_producer = mocker.Mock()
+        mock_notification_event_producer = mocker.Mock()
         add_host_mock = mocker.patch(
             "app.queue.queue.add_host",
             return_value=(
@@ -126,14 +133,14 @@ def test_request_id_is_reset(mocker, flask_app):
         )
 
         message = wrap_message(minimal_host().data(), "add_host", get_platform_metadata())
-        handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+        handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, add_host_mock)
         assert json.loads(mock_event_producer.write_event.call_args[0][0])["metadata"][
             "request_id"
         ] == get_platform_metadata().get("request_id")
         assert threadctx.request_id == get_platform_metadata().get("request_id")
 
         message = wrap_message(minimal_host().data(), "add_host", {})
-        handle_message(json.dumps(message), mock_event_producer, add_host_mock)
+        handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, add_host_mock)
 
         assert threadctx.request_id == UNKNOWN_REQUEST_ID_VALUE
 
@@ -143,11 +150,13 @@ def test_shutdown_handler(mocker, flask_app):
     fake_consumer.poll.return_value = {"poll1": [mocker.Mock(), mocker.Mock()]}
 
     fake_event_producer = None
+    fake_notification_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, None])
     event_loop(
         fake_consumer,
         flask_app,
         fake_event_producer,
+        fake_notification_event_producer,
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, True)),
     )
@@ -173,7 +182,7 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name):
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
 
     with pytest.raises(UnicodeError):
-        handle_message(invalid_message, mocker.Mock(), add_host)
+        handle_message(invalid_message, mocker.Mock(), mocker.Mock(), add_host)
 
     add_host.assert_not_called()
 
@@ -206,7 +215,7 @@ def test_handle_message_unicode_not_damaged(mocker, flask_app, subtests, db_get_
             host_id = generate_uuid()
             add_host.reset_mock()
             add_host.return_value = ({"id": host_id}, host_id, None, AddHostResult.updated)
-            handle_message(message, mocker.Mock(), add_host)
+            handle_message(message, mocker.Mock(), mocker.Mock(), add_host)
             add_host.assert_called_once_with(json.loads(message)["data"], mocker.ANY)
 
 
@@ -1200,7 +1209,7 @@ def test_handle_message_side_effect(mocker, flask_app):
     message = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata()))
 
     with pytest.raises(expected_exception=OperationalError):
-        handle_message(message, mocker.MagicMock())
+        handle_message(message, mocker.MagicMock(), mocker.Mock())
 
 
 @pytest.mark.parametrize("platform_metadata", (None, {}, {"request_id": "12345"}))
@@ -1221,13 +1230,14 @@ def test_update_system_profile_no_identity(mocker, event_datetime_mock, flask_ap
     )
 
     # Just make sure it doesn't complain about missing Identity/metadata
-    handle_message(json.dumps(message), mocker.Mock(), update_system_profile)
+    handle_message(json.dumps(message), mocker.Mock(), mocker.Mock(), update_system_profile)
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
 def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
 
@@ -1237,7 +1247,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1252,7 +1262,7 @@ def test_rhsm_reporter_and_no_platform_metadata(mocker, flask_app):
     message = wrap_message(host.data(), "add_host")
 
     # We just want to verify that no error gets thrown here.
-    handle_message(json.dumps(message), mocker.Mock())
+    handle_message(json.dumps(message), mocker.Mock(), mocker.Mock())
 
 
 def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
@@ -1270,6 +1280,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
         ),
     )
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -1282,7 +1293,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
 
-    handle_message(json.dumps(message), mock_event_producer, mock_add_host)
+    handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, mock_add_host)
 
     mock_event_producer.write_event.assert_called_once()
 
@@ -1298,6 +1309,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
 def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     expected_insights_id = generate_uuid()
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -1310,12 +1322,13 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
     with pytest.raises(ValueError):
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
 
 
 def test_owner_id_different_from_cn(mocker):
     expected_insights_id = generate_uuid()
     mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
 
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -1326,7 +1339,7 @@ def test_owner_id_different_from_cn(mocker):
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
 
     with pytest.raises(ValidationException) as ve:
-        handle_message(json.dumps(message), mock_event_producer)
+        handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
 
 
@@ -1463,3 +1476,19 @@ def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_up
     host_from_db = db_get_host(created_host.id)
 
     assert created_host.mac_addresses == host_from_db.canonical_facts["mac_addresses"]
+
+
+def test_create_invalid_host_produces_message(mocker, event_datetime_mock, mq_create_or_update_host):
+    insights_id = generate_uuid()
+    system_profile = valid_system_profile()
+    mock_notification_event_producer = mocker.Mock()
+
+    host = minimal_host(
+        account=SYSTEM_IDENTITY["account_number"],
+        insights_id=insights_id,
+        system_profile=system_profile,
+    )
+
+    with pytest.raises(ValidationException):
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()

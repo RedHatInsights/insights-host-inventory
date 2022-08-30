@@ -80,7 +80,7 @@ def main(logger):
     register_shutdown(hosts_session.get_bind().dispose, "Closing database")
     register_shutdown(misc_session.get_bind().dispose, "Closing database")
 
-    event_producer = EventProducer(config)
+    event_producer = EventProducer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
 
     shutdown_handler = ShutdownHandler()

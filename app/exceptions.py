@@ -6,7 +6,12 @@ class InventoryException(Exception):
         self.type = type
 
     def to_json(self):
-        return {"detail": self.detail, "status": self.status, "title": self.title, "type": self.type}
+        return {
+            "detail": self.detail,
+            "status": self.status,
+            "title": self.title,
+            "type": self.type,
+        }
 
 
 class InputFormatException(InventoryException):

@@ -1,6 +1,7 @@
 import base64
 import json
 import sys
+import uuid
 from copy import deepcopy
 from uuid import UUID
 
@@ -35,6 +36,9 @@ from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
+from app.queue.notifications import build_notification_event
+from app.queue.notifications import notification_message_headers
+from app.queue.notifications import NotificationType
 from app.serialization import DEFAULT_FIELDS
 from app.serialization import deserialize_host
 from lib import host_repository
@@ -124,6 +128,16 @@ def _validate_json_object_for_utf8(json_object):
             _validate_json_object_for_utf8(item)
     else:
         pass
+
+
+def _build_minimal_host_info(host_data):
+    return {
+        "account_id": host_data.get("account"),
+        "org_id": host_data.get("org_id"),
+        "insights_id": host_data.get("insights_id"),
+        "display_name": host_data.get("display_name"),
+        "id": host_data.get("id"),
+    }
 
 
 @metrics.ingress_message_parsing_time.time()
@@ -254,7 +268,7 @@ def add_host(host_data, platform_metadata):
 
 
 @metrics.ingress_message_handler_time.time()
-def handle_message(message, event_producer, message_operation=add_host):
+def handle_message(message, event_producer, notification_event_producer, message_operation=add_host):
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -281,13 +295,14 @@ def handle_message(message, event_producer, message_operation=add_host):
                 ve,
                 extra={"host": {"reporter": host.get("reporter")}},
             )
+            send_kafka_error_message(notification_event_producer, host=host, detail=str(ve.detail))
             raise
         except ValueError as ve:
             logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
 
 
-def event_loop(consumer, flask_app, event_producer, handler, interrupt):
+def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
             msgs = consumer.poll(timeout_ms=CONSUMER_POLL_TIMEOUT_MS)
@@ -295,7 +310,7 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
                 for message in messages:
                     logger.debug("Message received")
                     try:
-                        handler(message.value, event_producer)
+                        handler(message.value, event_producer, notification_event_producer=notification_event_producer)
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
@@ -311,3 +326,16 @@ def event_loop(consumer, flask_app, event_producer, handler, interrupt):
 
 def initialize_thread_local_storage(request_id):
     threadctx.request_id = request_id
+
+
+def send_kafka_error_message(notification_event_producer, host, detail):
+    message_id = str(uuid.uuid4())
+    minimal_host = _build_minimal_host_info(host)
+    event = build_notification_event(NotificationType.validation_error, message_id, minimal_host, detail)
+    rh_message_id = bytearray(message_id.encode())  # ensures the correct processing of the message
+    headers = notification_message_headers(
+        NotificationType.validation_error,
+        rh_message_id=rh_message_id,
+    )
+    key = minimal_host.get("insights_id")
+    notification_event_producer.write_event(event, key, headers, wait=True)

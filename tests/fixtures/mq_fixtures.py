@@ -20,19 +20,20 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
-def mq_create_or_update_host(flask_app, event_producer_mock):
+def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_producer_mock):
     def _mq_create_or_update_host(
         host_data,
         platform_metadata=None,
         return_all_data=False,
         event_producer=event_producer_mock,
         message_operation=add_host,
+        notification_event_producer=notification_event_producer_mock,
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
         host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
-        handle_message(json.dumps(message), event_producer, message_operation)
+        handle_message(json.dumps(message), event_producer, notification_event_producer, message_operation)
         event = json.loads(event_producer.event)
 
         if return_all_data:
@@ -89,9 +90,18 @@ def kafka_producer(mocker):
 
 @pytest.fixture(scope="function")
 def event_producer(flask_app, kafka_producer):
-    flask_app.event_producer = EventProducer(flask_app.config["INVENTORY_CONFIG"])
+    config = flask_app.config["INVENTORY_CONFIG"]
+    flask_app.event_producer = EventProducer(config, config.event_topic)
     yield flask_app.event_producer
     flask_app.event_producer = None
+
+
+@pytest.fixture(scope="function")
+def notification_event_producer(flask_app, kafka_producer):
+    config = flask_app.config["INVENTORY_CONFIG"]
+    flask_app.notification_event_producer = EventProducer(config, config.notification_topic)
+    yield flask_app.notification_event_producer
+    flask_app.notification_event_producer = None
 
 
 @pytest.fixture(scope="function")
@@ -100,6 +110,13 @@ def event_producer_mock(flask_app, mocker):
     mocker.patch("lib.host_delete.kafka_available")
     yield flask_app.event_producer
     flask_app.event_producer = None
+
+
+@pytest.fixture(scope="function")
+def notification_event_producer_mock(flask_app, mocker):
+    flask_app.notification_event_producer = MockEventProducer()
+    yield flask_app.notification_event_producer
+    flask_app.notification_event_producer = None
 
 
 @pytest.fixture(scope="function")

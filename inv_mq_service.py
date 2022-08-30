@@ -35,15 +35,24 @@ def main():
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
 
-    event_producer = EventProducer(config)
+    event_producer = EventProducer(config, config.event_topic)
     register_shutdown(event_producer.close, "Closing producer")
+
+    notification_event_producer = EventProducer(config, config.notification_topic)
+    register_shutdown(notification_event_producer.close, "Closing notification producer")
 
     shutdown_handler = ShutdownHandler()
     shutdown_handler.register()
 
-    message_handler = partial(handle_message, message_operation=topic_to_handler[config.kafka_consumer_topic])
+    message_handler = partial(
+        handle_message,
+        message_operation=topic_to_handler[config.kafka_consumer_topic],
+        notification_event_producer=notification_event_producer,
+    )
 
-    event_loop(consumer, application, event_producer, message_handler, shutdown_handler.shut_down)
+    event_loop(
+        consumer, application, event_producer, notification_event_producer, message_handler, shutdown_handler.shut_down
+    )
 
 
 if __name__ == "__main__":
