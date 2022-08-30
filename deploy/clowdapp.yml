@@ -72,6 +72,8 @@ objects:
           value: ${KAFKA_SASL_MECHANISM}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
         - name: TENANT_TRANSLATOR_URL
           value: http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}/internal/orgIds
         - name: BYPASS_TENANT_TRANSLATION
@@ -134,6 +136,8 @@ objects:
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
@@ -205,6 +209,8 @@ objects:
           value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
@@ -270,6 +276,8 @@ objects:
           value: ${KAFKA_HOST_INGRESS_TOPIC}
         - name: KAFKA_EVENT_TOPIC
           value: ${KAFKA_EVENT_TOPIC}
+        - name: KAFKA_NOTIFICATION_TOPIC
+          value: ${KAFKA_NOTIFICATION_TOPIC}
         - name: KAFKA_SYSTEM_PROFILE_TOPIC
           value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
         - name: KAFKA_HOST_INGRESS_GROUP
@@ -345,6 +353,8 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -421,6 +431,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
           - name: KAFKA_SYSTEM_PROFILE_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
@@ -498,6 +510,8 @@ objects:
             value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
           - name: KAFKA_EVENT_TOPIC
             value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: platform.payload-status
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -624,6 +638,8 @@ objects:
       - topicName: platform.payload-status
         partitions: 1
       - topicName: ${KAFKA_EVENT_TOPIC}
+        partitions: 1
+      - topicName: ${KAFKA_NOTIFICATION_TOPIC}
         partitions: 1
       - topicName: ${KAFKA_HOST_INGRESS_TOPIC}
         partitions: 1
@@ -752,6 +768,9 @@ parameters:
 - name: KAFKA_EVENT_TOPIC
   description: The topic for Host data that were processed by Inventory
   value: platform.inventory.events
+- name: KAFKA_NOTIFICATION_TOPIC
+  description: The topic containing messages to be sent as notifications
+  value: platform.notification.ingress
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
