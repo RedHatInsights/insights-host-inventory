@@ -16,7 +16,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
-from kafka.errors import KafkaError
+from confluent_kafka import KafkaException
 
 from api import api_operation
 from api import custom_escape
@@ -60,7 +60,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.utils import Tag
 from lib import host_kafka
-from tests.helpers.mq_utils import expected_encoded_headers
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
@@ -391,10 +390,10 @@ class ConfigTestCase(TestCase):
     def test_kafka_producer_int_params(self):
         for param in (
             "retries",
-            "batch_size",
-            "linger_ms",
-            "retry_backoff_ms",
-            "max_in_flight_requests_per_connection",
+            "batch.size",
+            "linger.ms",
+            "retry.backoff.ms",
+            "max.in.flight.requests.per.connection",
         ):
             with self.subTest(param=param):
                 with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "2020"}):
@@ -403,10 +402,10 @@ class ConfigTestCase(TestCase):
     def test_kafka_producer_int_params_invalid(self):
         for param in (
             "retries",
-            "batch_size",
-            "linger_ms",
-            "retry_backoff_ms",
-            "max_in_flight_requests_per_connection",
+            "batch.size",
+            "linger.ms",
+            "retry.backoff.ms",
+            "max.in.flight.requests.per.connection",
         ):
             with self.subTest(param=param):
                 with set_environment({f"KAFKA_PRODUCER_{param.upper()}": "abc"}):
@@ -419,10 +418,10 @@ class ConfigTestCase(TestCase):
         for param, expected_value in (
             ("acks", 1),
             ("retries", 0),
-            ("batch_size", 16384),
-            ("linger_ms", 0),
-            ("retry_backoff_ms", 100),
-            ("max_in_flight_requests_per_connection", 5),
+            ("batch.size", 16384),
+            ("linger.ms", 0),
+            ("retry.backoff.ms", 100),
+            ("max.in.flight.requests.per.connection", 5),
         ):
             with self.subTest(param=param):
                 self.assertEqual(config.kafka_producer[param], expected_value)
@@ -1871,7 +1870,8 @@ class EventProducerTests(TestCase):
         }
 
     def test_happy_path(self):
-        send = self.event_producer._kafka_producer.send
+        produce = self.event_producer._kafka_producer.produce
+        poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
         for (event_type, host) in (
@@ -1885,34 +1885,35 @@ class EventProducerTests(TestCase):
 
                 self.event_producer.write_event(event, host_id, headers)
 
-                send.assert_called_once_with(
-                    self.topic_name,
-                    key=host_id.encode("utf-8"),
-                    value=event.encode("utf-8"),
-                    headers=expected_encoded_headers(event_type, threadctx.request_id, host_id),
-                )
-                send.reset_mock()
+                produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
+                poll.assert_called_once()  # calls on callback
+
+                produce.reset_mock()
+                poll.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
-    def test_kafka_errors_are_caught(self, message_not_produced_mock):
+    def test_kafka_exceptions_are_caught(self, message_not_produced_mock):
         event_type = EventType.created
         event = build_event(event_type, self.basic_host)
         key = self.basic_host["id"]
         headers = message_headers(event_type, self.basic_host["id"])
 
-        # set up send to return a kafka error to check our handling
-        self.event_producer._kafka_producer.send.side_effect = KafkaError()
+        kafkex = KafkaException()
+        self.event_producer._kafka_producer.produce.side_effect = kafkex
 
-        with self.assertRaises(KafkaError):
+        with self.assertRaises(KafkaException):
             self.event_producer.write_event(event, key, headers)
+
+        # convert headers to a list of tuples as done write_event
+        headersTuple = [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
 
         message_not_produced_mock.assert_called_once_with(
             event_producer_logger,
+            kafkex,
             self.config.event_topic,
-            event,
-            key,
-            headers,
-            self.event_producer._kafka_producer.send.side_effect,
+            event=str(event).encode("utf-8"),
+            key=key.encode("utf-8"),
+            headers=headersTuple,
         )
 
 

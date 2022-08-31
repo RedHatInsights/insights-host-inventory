@@ -2,7 +2,7 @@ import json
 import logging
 import os
 
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer as KafkaConsumer
 
 # from app.models import Host
 # from app.models import SystemProfileSchema

@@ -4,9 +4,10 @@ from collections import namedtuple
 from datetime import timedelta
 from datetime import timezone
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 
-from kafka import TopicPartition
+from confluent_kafka import TopicPartition
 
 from app.serialization import serialize_facts
 from app.utils import Tag
@@ -25,12 +26,30 @@ class MockEventProducer:
         self.wait = None
         self._kafka_producer = Mock()
         self._kafka_producer.flush = Mock(return_value=True)
+        self._message_details = Mock()
 
-    def write_event(self, event, key, headers, wait=False):
+    def write_event(self, event, key, headers):
         self.event = event
         self.key = key
         self.headers = headers
-        self.wait = wait
+
+        self._message_details.topic = "platform.inventory.events"
+        self._message_details.event = event
+        self._message_details.key = key
+        self._message_details.headers = headers
+        self._message_details.send = MagicMock()
+
+
+class FakeMessage:
+    def __init__(self, error=None, message=None):
+        self.message = message
+        self._error = error
+
+    def value(self):
+        return Mock()
+
+    def error(self):
+        return self._error
 
 
 class MockFuture:

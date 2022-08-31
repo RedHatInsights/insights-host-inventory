@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from datetime import timedelta
 
-from kafka import TopicPartition
+from confluent_kafka import TopicPartition
 from marshmallow import ValidationError
 from requests import get
 from yaml import safe_load

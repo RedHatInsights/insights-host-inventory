@@ -1,7 +1,7 @@
 from typing import Optional
 
 import flask
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer as KafkaConsumer
 
 from api import api_operation
 from api import build_collection_response

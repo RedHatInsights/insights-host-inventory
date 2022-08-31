@@ -1,9 +1,9 @@
 from enum import Enum
 
 import flask
+from confluent_kafka.error import KafkaError
 from flask import current_app
 from flask_api import status
-from kafka.errors import KafkaError
 from marshmallow import ValidationError
 
 from api import api_operation
