@@ -586,7 +586,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 def test_delete_duplicates_multiple_scenarios(
     event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config, script_function
 ):
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     chunk_size = inventory_config.script_chunk_size
 
     # Customer scenario
