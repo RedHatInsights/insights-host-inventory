@@ -14,6 +14,7 @@ components:
       schema:
         type: integer
         minimum: 1
+        maximum: 21474837
         default: 1
       description: A page number of the items to return.
     perPageParam:
