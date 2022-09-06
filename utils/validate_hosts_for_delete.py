@@ -1,7 +1,6 @@
 from marshmallow import ValidationError
 
 from app import create_app
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
@@ -24,7 +23,7 @@ def test_validations(host):
 def main():
     flask_app = create_app(RuntimeEnvironment.COMMAND)
     with flask_app.app_context() as ctx:
-        threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+        threadctx.request_id = None
         ctx.push()
     query = Host.query
     logger.info("Validating delete event for hosts.")
