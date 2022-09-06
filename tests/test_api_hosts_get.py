@@ -7,6 +7,7 @@ from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_query_test
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_response_status
+from tests.helpers.api_utils import build_fields_query_parameters
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_order_query_parameters
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
@@ -149,6 +150,21 @@ def test_only_order_how(mq_create_three_specific_hosts, api_get, subtests):
         with subtests.test(url=url):
             order_query_parameters = build_order_query_parameters(order_by=None, order_how="ASC")
             response_status, response_data = api_get(url, query_parameters=order_query_parameters)
+            assert response_status == 400
+
+
+def test_invalid_fields(mq_create_three_specific_hosts, api_get, subtests):
+    created_hosts = mq_create_three_specific_hosts
+
+    urls = (
+        HOST_URL,
+        build_hosts_url(host_list_or_id=created_hosts),
+        build_system_profile_url(host_list_or_id=created_hosts),
+    )
+    for url in urls:
+        with subtests.test(url=url):
+            fields_query_parameters = build_fields_query_parameters(fields="i_love_ketchup")
+            response_status, response_data = api_get(url, query_parameters=fields_query_parameters)
             assert response_status == 400
 
 
@@ -321,7 +337,7 @@ def test_sp_sparse_fields_xjoin_response_translation(patch_xjoin_post, api_get):
             ],
         ),
         (
-            "?fields[system_profile]=unknown_field",
+            "?fields[system_profile]=arch",
             [{"id": host_one_id, "system_profile_facts": {}}, {"id": host_two_id, "system_profile_facts": {}}],
         ),
         (
