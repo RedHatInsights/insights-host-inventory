@@ -85,7 +85,10 @@ def test_create_then_delete_without_request_id(
     assert_response_status(response_status, expected_status=200)
 
     assert_delete_event_is_valid(
-        event_producer=event_producer_mock, host=host, timestamp=event_datetime_mock, expected_request_id="-1"
+        event_producer=event_producer_mock,
+        host=host,
+        timestamp=event_datetime_mock,
+        expected_request_id=None,
     )
 
 

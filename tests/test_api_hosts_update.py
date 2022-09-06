@@ -222,7 +222,7 @@ def test_patch_produces_update_event_no_request_id(
     assert_patch_event_is_valid(
         host=created_host,
         event_producer=event_producer_mock,
-        expected_request_id="-1",
+        expected_request_id=None,
         expected_timestamp=event_datetime_mock,
     )
 
@@ -266,7 +266,7 @@ def test_patch_produces_update_event_no_insights_id(
     assert_patch_event_is_valid(
         host=created_host,
         event_producer=event_producer_mock,
-        expected_request_id="-1",
+        expected_request_id=None,
         expected_timestamp=event_datetime_mock,
     )
 
@@ -281,7 +281,7 @@ def test_patch_by_namespace_produces_update_event(event_producer_mock, event_dat
     assert_patch_event_is_valid(
         host=created_host,
         event_producer=event_producer_mock,
-        expected_request_id="-1",
+        expected_request_id=None,
         expected_timestamp=event_datetime_mock,
         display_name="test-display-name",
     )

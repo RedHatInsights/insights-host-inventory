@@ -7,7 +7,6 @@ import marshmallow
 import pytest
 from sqlalchemy.exc import OperationalError
 
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -142,7 +141,7 @@ def test_request_id_is_reset(mocker, flask_app):
         message = wrap_message(minimal_host().data(), "add_host", {})
         handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, add_host_mock)
 
-        assert threadctx.request_id == UNKNOWN_REQUEST_ID_VALUE
+        assert threadctx.request_id is None
 
 
 def test_shutdown_handler(mocker, flask_app):

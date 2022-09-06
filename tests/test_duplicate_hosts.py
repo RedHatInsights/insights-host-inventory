@@ -6,7 +6,6 @@ from unittest import mock
 import pytest
 
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.logging import get_logger
 from app.models import ProviderType
 from host_delete_duplicates import _init_db as _init_db
@@ -43,7 +42,7 @@ def test_delete_duplicate_host(event_producer_mock, db_create_host, db_get_host,
     old_host_id = created_old_host.id
     assert created_old_host.canonical_facts["provider_id"] == created_new_host.canonical_facts["provider_id"]
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
 
     Session = _init_db(inventory_config)
     org_ids_session = Session()
@@ -109,7 +108,7 @@ def test_delete_dupe_more_hosts_than_chunk_size(
     assert created_old_host_1.id != created_new_host_1.id
     assert created_old_host_2.id != created_new_host_2.id
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
 
     Session = _init_db(inventory_config)
     org_ids_session = Session()
@@ -141,7 +140,7 @@ def test_no_hosts_delete_when_no_dupes(event_producer_mock, db_get_host, db_crea
     created_hosts = db_create_multiple_hosts(how_many=num_hosts)
     created_host_ids = [str(host.id) for host in created_hosts]
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
 
     Session = _init_db(inventory_config)
     org_ids_session = Session()
@@ -587,7 +586,7 @@ def test_delete_duplicates_last_modified(event_producer, db_create_multiple_host
 def test_delete_duplicates_multiple_scenarios(
     event_producer, db_create_host, db_create_bulk_hosts, db_get_host, inventory_config, script_function
 ):
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     chunk_size = inventory_config.script_chunk_size
 
     # Customer scenario

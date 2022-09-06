@@ -11,7 +11,6 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import OperationalError
 
 from app import inventory_config
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth.identity import create_mock_identity_with_org_id
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -272,7 +271,7 @@ def handle_message(message, event_producer, notification_event_producer, message
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
-    request_id = platform_metadata.get("request_id", UNKNOWN_REQUEST_ID_VALUE)
+    request_id = platform_metadata.get("request_id")
     initialize_thread_local_storage(request_id)
 
     payload_tracker = get_payload_tracker(request_id=request_id)
