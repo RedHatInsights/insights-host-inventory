@@ -2,7 +2,7 @@ import flask
 from flask_api import status
 
 from api.host_query_xjoin import owner_id_filter
-from app.__init__ import process_system_profile_spec
+from api.validate_fields import validate_fields_in_schema
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import log_get_sparse_system_profile_failed
@@ -97,11 +97,8 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     }
 
     if fields.get("system_profile"):
+        validate_fields_in_schema(fields)
         variables["fields"] = list(fields.get("system_profile").keys())
-        system_profile_schema = process_system_profile_spec()
-        for field in variables["fields"]:
-            if field not in system_profile_schema.keys():
-                flask.abort(400, "Requested system_profile field is not present in the schema.")
         sp_query = SYSTEM_PROFILE_SPARSE_QUERY
 
     response = graphql_query(sp_query, variables, log_get_sparse_system_profile_failed)
