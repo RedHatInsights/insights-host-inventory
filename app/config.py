@@ -134,7 +134,6 @@ class Config:
 
         # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
         self.kafka_consumer = {
-            "group_id": "inventory-events-rebuild",
             "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
             "max_in_flight_requests_per_connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
@@ -163,6 +162,7 @@ class Config:
         }
 
         self.events_kafka_consumer = {
+            "group_id": "inventory-events-rebuild",
             "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
             "max_in_flight_requests_per_connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
