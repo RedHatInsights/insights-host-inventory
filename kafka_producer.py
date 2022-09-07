@@ -1,11 +1,11 @@
 import logging
 import os
 
+from kafka import KafkaProducer
 from ttictoc import TicToc
 
 from app import create_app
 from app.environment import RuntimeEnvironment
-from app.queue.event_producer import EventProducer
 from lib.handlers import register_shutdown
 from utils import payloads
 
@@ -23,12 +23,14 @@ def main():
         all_payloads = [payloads.build_mq_payload() for _ in range(NUM_HOSTS)]
     print("Number of hosts (payloads): ", len(all_payloads))
 
-    producer = EventProducer(config, "platform.inventory.host-ingress")
+    producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
+
     register_shutdown(producer.close, "Closing producer")
 
     with TicToc("Send all hosts to queue"):
         for payload in all_payloads:
-            producer.write_event("platform.inventory.host-ingress", value=payload)
+            producer.send("platform.inventory.host-ingress", value=payload)
+
     producer.flush()
 
 
