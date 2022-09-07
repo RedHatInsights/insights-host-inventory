@@ -41,7 +41,8 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     partitions = []
 
     # Seek to beginning
-    for partition_id in consumer.partitions_for_topic(config.event_topic) or []:
+    for partition_id in consumer.partitions_for_topic(config.event_topic):
+        logger.debug(f"Appending partition {partition_id} for topic: {config.event_topic}")
         partitions.append(TopicPartition(config.event_topic, partition_id))
 
     consumer.assign(partitions)
@@ -49,6 +50,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     consumer.seek_to_beginning(*partitions)
     total_messages_processed = 0
 
+    logger.debug("About to start the consumer loop")
     while num_messages > 0 and not shutdown_handler.shut_down():
         num_messages = 0
         msgs = consumer.poll(timeout_ms=1000)
@@ -86,6 +88,7 @@ def main(logger):
     # start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
+        config.event_topic,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
