@@ -41,6 +41,8 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     partitions = []
 
     # Seek to beginning
+    logger.debug(f"Partitions for topic {config.event_topic}:")
+    logger.debug(consumer.partitions_for_topic(config.event_topic))
     for partition_id in consumer.partitions_for_topic(config.event_topic):
         logger.debug(f"Appending partition {partition_id} for topic: {config.event_topic}")
         partitions.append(TopicPartition(config.event_topic, partition_id))
@@ -88,7 +90,6 @@ def main(logger):
     # start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
-        config.event_topic,
         bootstrap_servers=config.bootstrap_servers,
         api_version=(0, 10, 1),
         value_deserializer=lambda m: m.decode(),
