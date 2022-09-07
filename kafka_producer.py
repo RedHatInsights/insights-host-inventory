@@ -6,6 +6,7 @@ from ttictoc import TicToc
 from app import create_app
 from app.environment import RuntimeEnvironment
 from app.queue.event_producer import EventProducer
+from lib.handlers import register_shutdown
 from utils import payloads
 
 
@@ -23,10 +24,11 @@ def main():
     print("Number of hosts (payloads): ", len(all_payloads))
 
     producer = EventProducer(config, "platform.inventory.host-ingress")
+    register_shutdown(producer.close, "Closing producer")
 
     with TicToc("Send all hosts to queue"):
         for payload in all_payloads:
-            producer.send("platform.inventory.host-ingress", value=payload)
+            producer.write_event("platform.inventory.host-ingress", value=payload)
     producer.flush()
 
 
