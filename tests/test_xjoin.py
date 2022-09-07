@@ -2514,11 +2514,11 @@ def test_sp_sparse_xjoin_query_translation(
 @pytest.mark.parametrize(
     "query,fields",
     (
-        ("?fields[system_profile]=sp_field1", ["sp_field1"]),
-        ("?fields[system_profile]=sp_field1,sp_field2,sp_field3", ["sp_field1", "sp_field2", "sp_field3"]),
+        ("?fields[system_profile]=arch", ["arch"]),
+        ("?fields[system_profile]=arch,operating_system,os_release", ["arch", "operating_system", "os_release"]),
         (
-            "?fields[system_profile]=sp_field1&fields[system_profile]=sp_field2,sp_field3",
-            ["sp_field1", "sp_field2", "sp_field3"],
+            "?fields[system_profile]=arch&fields[system_profile]=operating_system,os_release",
+            ["arch", "operating_system", "os_release"],
         ),
     ),
 )

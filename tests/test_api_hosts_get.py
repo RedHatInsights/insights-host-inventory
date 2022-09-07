@@ -400,7 +400,7 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get):
 
 def test_host_list_sp_fields_requested(patch_xjoin_post, api_get):
     patch_xjoin_post(response={"data": XJOIN_HOSTS_RESPONSE})
-    fields = ["test_data", "random", "owner_id"]
+    fields = ["arch", "operating_system", "owner_id"]
     response_status, response_data = api_get(HOST_URL + f"?fields[system_profile]={','.join(fields)}")
 
     assert response_status == 200
