@@ -2,12 +2,13 @@ import logging
 import os
 
 import payloads
-from kafka import KafkaProducer
 from ttictoc import TicToc
 
+from app.config import Config
+from app.environment import RuntimeEnvironment
+from app.queue.event_producer import EventProducer
 
-HOST_INGRESS_TOPIC = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
-BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
+
 NUM_HOSTS = int(os.environ.get("NUM_HOSTS", 20))
 
 
@@ -18,12 +19,13 @@ def main():
         all_payloads = [payloads.build_mq_payload() for _ in range(NUM_HOSTS)]
     print("Number of hosts (payloads): ", len(all_payloads))
 
-    producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS, api_version=(0, 10))
-    print("HOST_INGRESS_TOPIC:", HOST_INGRESS_TOPIC)
+    config = Config(RuntimeEnvironment.JOB)
+
+    producer = EventProducer(config, "platform.inventory.host-ingress")
 
     with TicToc("Send all hosts to queue"):
         for payload in all_payloads:
-            producer.send(HOST_INGRESS_TOPIC, value=payload)
+            producer.send("platform.inventory.host-ingress", value=payload)
     producer.flush()
 
 
