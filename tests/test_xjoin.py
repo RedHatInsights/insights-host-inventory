@@ -2515,10 +2515,10 @@ def test_sp_sparse_xjoin_query_translation(
     "query,fields",
     (
         ("?fields[system_profile]=arch", ["arch"]),
-        ("?fields[system_profile]=arch,operating_system,os_release", ["arch", "operating_system", "os_release"]),
+        ("?fields[system_profile]=arch,kernel_modules,os_release", ["arch", "kernel_modules", "os_release"]),
         (
-            "?fields[system_profile]=arch&fields[system_profile]=operating_system,os_release",
-            ["arch", "operating_system", "os_release"],
+            "?fields[system_profile]=arch&fields[system_profile]=kernel_modules,os_release",
+            ["arch", "kernel_modules", "os_release"],
         ),
     ),
 )

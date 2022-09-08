@@ -114,7 +114,7 @@ XJOIN_HOSTS_RESPONSE = {
                 },
                 "system_profile_facts": {
                     "arch": "1.2.3",
-                    "operating_system": ["data"],
+                    "kernel_modules": ["data"],
                     "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
                 },
             },
@@ -148,7 +148,7 @@ XJOIN_HOSTS_RESPONSE = {
                         "stale_timestamp": "2020-02-10T08:07:03.354307+00:00",
                     }
                 },
-                "system_profile_facts": {"arch": "1.2.3", "operating_system": ["data"]},
+                "system_profile_facts": {"arch": "1.2.3", "kernel_modules": ["data"]},
             },
         ],
     }
@@ -162,7 +162,7 @@ XJOIN_INVALID_SYSTEM_PROFILE = {
                 "id": "6e7b6317-0a2d-4552-a2f2-b7da0aece49d",
                 "system_profile_facts": {
                     "arch": "1.2.3",
-                    "operating_system": ["data"],
+                    "kernel_modules": ["data"],
                     "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
                     "disk_devices": [{"options": {"": "invalid"}}],  # Invalid key (empty)
                 },
