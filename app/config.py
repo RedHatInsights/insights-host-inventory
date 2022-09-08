@@ -162,6 +162,7 @@ class Config:
         }
 
         self.events_kafka_consumer = {
+            "group_id": "inventory-events-rebuild",
             "auto_offset_reset": "earliest",
             "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
             "max_in_flight_requests_per_connection": int(
