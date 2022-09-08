@@ -24,3 +24,15 @@ def pytest_assertrepr_compare(config, op, left, right):
     if isinstance(left, HostWrapper) and isinstance(right, HostWrapper) and op == "==":
         res = config.hook.pytest_assertrepr_compare(config=config, op=op, left=repr(left), right=repr(right))
         return res[0]
+
+
+def pytest_sessionfinish():
+    """Remove handlers from all loggers"""
+    import logging
+
+    loggers = [logging.getLogger()] + list(logging.Logger.manager.loggerDict.values())
+    for logger in loggers:
+        if not hasattr(logger, "handlers"):
+            continue
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
