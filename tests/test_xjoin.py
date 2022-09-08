@@ -586,7 +586,7 @@ def test_response_pagination(page, limit, offset, mocker, graphql_query_empty_re
     )
 
 
-@pytest.mark.parametrize("page,per_page", ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)))
+@pytest.mark.parametrize("page,per_page", ((0, 10), (-1, 10), (1, 0), (1, -5), (1, 101), (21474838, 100)))
 def test_response_invalid_pagination(page, per_page, graphql_query_empty_response, api_get):
     url = build_hosts_url(query=f"?per_page={quote(per_page)}&page={quote(page)}")
     response_status, response_data = api_get(url)
@@ -1092,7 +1092,7 @@ def test_tags_response_pagination(page, limit, offset, mocker, graphql_tag_query
     )
 
 
-@pytest.mark.parametrize("page,per_page", [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101)])
+@pytest.mark.parametrize("page,per_page", [(0, 10), (-1, 10), (1, 0), (1, -5), (1, 101), (21474838, 100)])
 def test_tags_response_invalid_pagination(page, per_page, api_get):
     url = build_tags_url(query=f"?per_page={per_page}&page={page}")
     response_status, response_data = api_get(url)

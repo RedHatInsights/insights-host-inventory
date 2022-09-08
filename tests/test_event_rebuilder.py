@@ -5,7 +5,6 @@ import pytest
 
 from app import db
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.queue.events import build_event
 from app.queue.events import EventType
 from rebuild_events_topic import run as rebuild_events_run
@@ -16,7 +15,7 @@ from tests.helpers.test_utils import generate_uuid
 
 def test_no_delete_when_hosts_present(mocker, db_create_host, inventory_config):
     event_producer_mock = mock.Mock()
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     event_list = []
 
     for _ in range(4):
@@ -44,7 +43,7 @@ def test_creates_delete_event_when_missing_from_db(
     mocker, db_create_host, inventory_config, num_existing, num_missing
 ):
     event_producer_mock = mock.Mock()
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     event_list = []
     existing_hosts_created = 0
     missing_hosts_id_list = []

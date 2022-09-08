@@ -14,6 +14,9 @@ components:
       schema:
         type: integer
         minimum: 1
+        # page * (per_page -1) must be less than 2,147,483,647 (signed int32 max)
+        # per_page max is 100, so page max is 21474837.
+        maximum: 21474837
         default: 1
       description: A page number of the items to return.
     perPageParam:

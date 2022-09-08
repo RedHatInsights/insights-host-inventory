@@ -6,7 +6,6 @@ from kafka.errors import KafkaError
 
 from app import db
 from app import threadctx
-from app import UNKNOWN_REQUEST_ID_VALUE
 from host_reaper import run as host_reaper_run
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
@@ -162,8 +161,7 @@ def test_culled_host_is_removed(
 
     assert db_get_host(created_host.id)
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
-
+    threadctx.request_id = None
     host_reaper_run(
         inventory_config,
         mock.Mock(),
@@ -190,7 +188,7 @@ def test_culled_edge_host_is_not_removed(event_producer_mock, db_create_host, db
 
     assert db_get_host(created_host_id)
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     host_reaper_run(
         inventory_config,
         mock.Mock(),
@@ -222,7 +220,7 @@ def test_non_culled_host_is_not_removed(event_producer_mock, db_create_host, db_
 
     assert created_host_ids == sorted(host.id for host in retrieved_hosts)
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     host_reaper_run(
         inventory_config,
         mock.Mock(),
@@ -253,7 +251,7 @@ def test_reaper_shutdown_handler(db_create_host, db_get_hosts, inventory_config,
 
     fake_event_producer = mock.Mock()
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
 
     host_reaper_run(
         inventory_config,
@@ -279,7 +277,7 @@ def test_unknown_host_is_not_removed(
     assert retrieved_host.stale_timestamp is None
     assert retrieved_host.reporter is None
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
     host_reaper_run(
         inventory_config,
         mock.Mock(),
@@ -325,7 +323,7 @@ def test_reaper_stops_after_kafka_producer_error(
     hosts = db_get_hosts(created_host_ids)
     assert hosts.count() == host_count
 
-    threadctx.request_id = UNKNOWN_REQUEST_ID_VALUE
+    threadctx.request_id = None
 
     with pytest.raises(KafkaError):
         host_reaper_run(

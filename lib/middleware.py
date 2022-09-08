@@ -13,7 +13,6 @@ from app import IDENTITY_HEADER
 from app import inventory_config
 from app import Permission
 from app import REQUEST_ID_HEADER
-from app import UNKNOWN_REQUEST_ID_VALUE
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import rbac_failure
@@ -41,7 +40,7 @@ def tenant_translator_url() -> str:
 def get_rbac_permissions():
     request_header = {
         IDENTITY_HEADER: request.headers[IDENTITY_HEADER],
-        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER, UNKNOWN_REQUEST_ID_VALUE),
+        REQUEST_ID_HEADER: request.headers.get(REQUEST_ID_HEADER),
     }
 
     request_session = Session()
