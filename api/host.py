@@ -18,6 +18,7 @@ from api.host_query_xjoin import get_host_list as get_host_list_xjoin
 from api.host_query_xjoin import get_host_list_by_id_list
 from api.host_query_xjoin import get_host_tags_list_by_id_list
 from api.sparse_host_list_system_profile import get_sparse_system_profile
+from api.validate_fields import validate_fields_in_schema
 from app import db
 from app import inventory_config
 from app import Permission
@@ -85,6 +86,8 @@ def get_host_list(
 
     total = 0
     host_list = ()
+
+    validate_fields_in_schema(fields)
 
     try:
         host_list, total, additional_fields = get_host_list_xjoin(
@@ -253,6 +256,7 @@ def delete_by_id(host_id_list):
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+    validate_fields_in_schema(fields)
     try:
         host_list, total, additional_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields
@@ -271,6 +275,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
 @rbac(Permission.READ)
 @metrics.api_request_time.time()
 def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=None, fields=None):
+    validate_fields_in_schema(fields)
     try:
         total, response_list = get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields)
     except ValueError as e:
