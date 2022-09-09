@@ -45,7 +45,6 @@ from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
-from app.serialization import _deserialize_all_canonical_facts
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -54,6 +53,7 @@ from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
 from app.serialization import _serialize_uuid
 from app.serialization import DEFAULT_FIELDS
+from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_facts
@@ -1625,11 +1625,9 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
         self.assertEqual(result, canonical_facts)
 
     def test_empty_fields_are_not_rejected_when_all_is_passed(self):
-        canonical_facts = {"fqdn": "some fqdn"}
-        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
+        canonical_facts = {"fqdn": "some fqdn", "insights_id": str(uuid4())}
         expected = {
             **canonical_facts,
-            "insights_id": None,
             "ip_addresses": None,
             "mac_addresses": None,
             "bios_uuid": None,
@@ -1638,7 +1636,7 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
             "satellite_id": None,
             "subscription_manager_id": None,
         }
-        result = _deserialize_all_canonical_facts(input)
+        result = deserialize_canonical_facts(canonical_facts, all=True)
         self.assertEqual(result, expected)
 
 
