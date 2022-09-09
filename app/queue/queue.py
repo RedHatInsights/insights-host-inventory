@@ -46,7 +46,7 @@ from lib import host_repository
 logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
-CONSUMER_POLL_TIMEOUT_SECONDS = 1000
+CONSUMER_POLL_TIMEOUT_SECONDS = 1
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
