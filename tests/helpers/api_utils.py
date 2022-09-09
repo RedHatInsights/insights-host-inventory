@@ -316,6 +316,14 @@ def build_order_query_parameters(order_by=None, order_how=None):
     return query_parameters
 
 
+def build_fields_query_parameters(fields=None):
+    query_parameters = {}
+    if fields:
+        query_parameters["fields"] = fields
+
+    return query_parameters
+
+
 def _build_url(base_url=HOST_URL, path=None, host_list_or_id=None, query=None):
     url = base_url
 
