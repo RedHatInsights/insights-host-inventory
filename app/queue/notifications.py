@@ -7,7 +7,6 @@ from marshmallow import Schema as MarshmallowSchema
 from marshmallow import validate as marshmallow_validate
 
 from app.logging import threadctx
-from app.models import CanonicalFactsSchema
 from app.queue.events import hostname
 from app.queue.metrics import notification_event_serialization_time
 

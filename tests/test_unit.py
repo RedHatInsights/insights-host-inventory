@@ -45,6 +45,7 @@ from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
+from app.serialization import _deserialize_all_canonical_facts
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
