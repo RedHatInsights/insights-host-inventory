@@ -45,6 +45,7 @@ from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import build_event
 from app.queue.events import EventType
 from app.queue.events import message_headers
+from app.serialization import _deserialize_all_canonical_facts
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -1622,6 +1623,23 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
         input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
+
+    def test_empty_fields_are_not_rejected_when_all_is_passed(self):
+        canonical_facts = {"fqdn": "some fqdn"}
+        input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
+        expected = {
+            **canonical_facts,
+            "insights_id": None,
+            "ip_addresses": None,
+            "mac_addresses": None,
+            "bios_uuid": None,
+            "provider_id": None,
+            "provider_type": None,
+            "satellite_id": None,
+            "subscription_manager_id": None,
+        }
+        result = _deserialize_all_canonical_facts(input)
+        self.assertEqual(result, expected)
 
 
 class SerializationSerializeCanonicalFactsTestCase(TestCase):
