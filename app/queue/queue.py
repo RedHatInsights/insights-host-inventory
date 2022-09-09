@@ -306,22 +306,20 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
     with flask_app.app_context():
         while not interrupt():
             messages = consumer.consume(num_messages=MAX_POLL_RECORDS, timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            for message in messages:
-                if message is None:
+            for msg in messages:
+                if msg is None:
                     continue
-                elif message.error():
-                    # This error is returned by the very first of consumer.poll() against a newly started Kafka.
-                    # message.error() produces:
+                elif msg.error():
+                    # This error is returned by the very first of consumer.consume() against a newly started Kafka.
+                    # msg.error() produces:
                     # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
                     #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                    logger.error(f"Message received but has an error, which is {str(message.error())}")
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
                     metrics.ingress_message_handler_failure.inc()
                 else:
                     logger.debug("Message received")
                     try:
-                        handler(
-                            message.value(), event_producer, notification_event_producer=notification_event_producer
-                        )
+                        handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an
@@ -332,7 +330,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         sys.exit(3)
                     except Exception:
                         metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": message.value})
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value})
 
 
 def initialize_thread_local_storage(request_id):
