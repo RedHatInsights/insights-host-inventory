@@ -47,6 +47,7 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_SECONDS = 1
+MAX_POLL_RECORDS = 10000
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -304,31 +305,34 @@ def handle_message(message, event_producer, notification_event_producer, message
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
-            message = consumer.poll(timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
-            if message is None:
-                continue
-            elif message.error():
-                # This error is returned by the very first of consumer.poll() against a newly started Kafka.
-                # message.error() produces:
-                # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                logger.error(f"Message received but has an error, which is {str(message.error())}")
-                metrics.ingress_message_handler_failure.inc()
-            else:
-                logger.debug("Message received")
-                try:
-                    handler(message.value(), event_producer, notification_event_producer=notification_event_producer)
-                    metrics.ingress_message_handler_success.inc()
-                except OperationalError as oe:
-                    """sqlalchemy.exc.OperationalError: This error occurs when an
-                    authentication failure occurs or the DB is not accessible.
-                    Exit the process to restart the pod
-                    """
-                    logger.error(f"Could not access DB {str(oe)}")
-                    sys.exit(3)
-                except Exception:
+            messages = consumer.consume(num_messages=MAX_POLL_RECORDS, timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+            for message in messages:
+                if message is None:
+                    continue
+                elif message.error():
+                    # This error is returned by the very first of consumer.poll() against a newly started Kafka.
+                    # message.error() produces:
+                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                    logger.error(f"Message received but has an error, which is {str(message.error())}")
                     metrics.ingress_message_handler_failure.inc()
-                    logger.exception("Unable to process message", extra={"incoming_message": message.value})
+                else:
+                    logger.debug("Message received")
+                    try:
+                        handler(
+                            message.value(), event_producer, notification_event_producer=notification_event_producer
+                        )
+                        metrics.ingress_message_handler_success.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
+                        metrics.ingress_message_handler_failure.inc()
+                        logger.exception("Unable to process message", extra={"incoming_message": message.value})
 
 
 def initialize_thread_local_storage(request_id):

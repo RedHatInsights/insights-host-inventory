@@ -42,7 +42,7 @@ def test_event_loop_exception_handling(mocker, event_producer, flask_app):
     event loop to stop processing messages
     """
     fake_consumer = mocker.Mock()
-    fake_consumer.poll.return_value = FakeMessage()
+    fake_consumer.consume.return_value = [FakeMessage()]
 
     fake_notification_event_producer = None
     handle_message_mock = mocker.Mock(side_effect=[None, KeyError("blah"), None])
@@ -62,7 +62,7 @@ def test_event_loop_with_error_message_handling(mocker, event_producer, flask_ap
     Test to ensure that event loop does not stop processing messages when
     consumer.poll() gets an error in message handler method.
     """
-    fake_consumer = mocker.Mock(**{"poll.side_effect": [FakeMessage(), FakeMessage("oops"), FakeMessage()]})
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage("oops")], [FakeMessage()]]})
     fake_notification_event_producer = None
 
     handle_message_mock = mocker.Mock(side_effect=None)
@@ -166,7 +166,7 @@ def test_request_id_is_reset(mocker, flask_app):
 
 
 def test_shutdown_handler(mocker, flask_app):
-    fake_consumer = mocker.Mock(**{"poll.side_effect": [FakeMessage(), FakeMessage()]})
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage()]]})
 
     fake_event_producer = None
     fake_notification_event_producer = None
@@ -179,7 +179,7 @@ def test_shutdown_handler(mocker, flask_app):
         handler=handle_message_mock,
         interrupt=mocker.Mock(side_effect=(False, True)),
     )
-    fake_consumer.poll.assert_called_once()
+    fake_consumer.consume.assert_called_once()
 
     assert handle_message_mock.call_count == 1
 
