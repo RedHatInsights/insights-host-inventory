@@ -53,6 +53,7 @@ from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
 from app.serialization import _serialize_uuid
 from app.serialization import DEFAULT_FIELDS
+from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_facts
@@ -1621,6 +1622,21 @@ class SerializationDeserializeCanonicalFactsTestCase(TestCase):
         input = {**canonical_facts, "insights_id": "", "ip_addresses": [], "mac_addresses": tuple()}
         result = _deserialize_canonical_facts(input)
         self.assertEqual(result, canonical_facts)
+
+    def test_empty_fields_are_not_rejected_when_all_is_passed(self):
+        canonical_facts = {"fqdn": "some fqdn", "insights_id": str(uuid4())}
+        expected = {
+            **canonical_facts,
+            "ip_addresses": None,
+            "mac_addresses": None,
+            "bios_uuid": None,
+            "provider_id": None,
+            "provider_type": None,
+            "satellite_id": None,
+            "subscription_manager_id": None,
+        }
+        result = deserialize_canonical_facts(canonical_facts, all=True)
+        self.assertEqual(result, expected)
 
 
 class SerializationSerializeCanonicalFactsTestCase(TestCase):
