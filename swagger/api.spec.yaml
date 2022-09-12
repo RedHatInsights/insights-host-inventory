@@ -733,6 +733,7 @@ components:
       description: Fetches only mentioned system_profile fields
       style: deepObject
       explode: true
+      x-validator: sparseFields
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
     confirmDeleteAll:
