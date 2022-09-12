@@ -171,7 +171,6 @@ class Config:
             "enable_auto_commit": False,
             "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
             "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "max_partition_fetch_bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
             "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
             "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,
