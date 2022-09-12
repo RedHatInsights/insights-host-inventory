@@ -55,11 +55,14 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     return schema.build_model(validated_data, canonical_facts, facts, tags)
 
 
-def deserialize_canonical_facts(raw_data):
+def deserialize_canonical_facts(raw_data, all=False):
     try:
         validated_data = CanonicalFactsSchema().load(raw_data)
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
+
+    if all:
+        return _deserialize_all_canonical_facts(validated_data)
     return _deserialize_canonical_facts(validated_data)
 
 
@@ -150,6 +153,10 @@ def _recursive_casefold(field_data):
 
 def _deserialize_canonical_facts(data):
     return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+
+
+def _deserialize_all_canonical_facts(data):
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
 
 
 def serialize_canonical_facts(canonical_facts):
