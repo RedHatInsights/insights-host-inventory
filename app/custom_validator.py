@@ -28,10 +28,8 @@ class CustomParameterValidator(ParameterValidator):
     def __init__(self, *args, system_profile_spec, **kwargs):
         super().__init__(*args, **kwargs)
         self.sp_spec = system_profile_spec
-        self.strict_validation = True
 
     def validate_query_parameter_list(self, request):
-        super().validate_query_parameter_list(request)
         for param in [
             p
             for p in self.parameters.get("query", [])
@@ -46,6 +44,8 @@ class CustomParameterValidator(ParameterValidator):
                         flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
             else:
                 flask.abort(400)
+
+        return super().validate_query_parameter_list(request)
 
 
 def build_validator_map(system_profile_spec):
