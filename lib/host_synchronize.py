@@ -37,7 +37,7 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             # pace the events production speed as flush completes sending all buffered records.
             event_producer._kafka_producer.flush(300)
         except ProduceError:
-            raise ProduceError(f"ProduceError: failure to flush {chunk_size} records within 300 seconds")
+            raise ProduceError(f"ProduceError: Kafka failure to flush {chunk_size} records within 300 seconds")
 
         # load next chunk using keyset pagination
         host_list = query.filter(Host.id > host_list[-1].id).limit(chunk_size).all()
