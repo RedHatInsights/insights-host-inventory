@@ -13,16 +13,6 @@ objects:
     appName: host-inventory
     jobs:
       - synchronizer
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - org-id-populator
 parameters:
-- name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
-  value: '1'
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
