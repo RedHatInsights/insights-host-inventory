@@ -526,8 +526,6 @@ objects:
             value: ${KAFKA_PRODUCER_RETRIES}
           - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
             value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES
-            value: '3145728'
           - name: NAMESPACE
             valueFrom:
               fieldRef:
