@@ -25,7 +25,7 @@ def message_produced(logger, message, key, headers):
     extra = {"status": status, "offset": offset, "timestamp": timestamp, "topic": topic, "key": key}
 
     info_extra = {**extra, "headers": headers}
-    info_message = f"Message status={status}, offset={offset} timestamp={timestamp} topic=%{topic}, key={key}"
+    info_message = f"Message status={status}, offset={offset} timestamp={timestamp} topic={topic}, key={key}"
     logger.info(f"{info_message}, extra={info_extra}")
 
     debug_message = f"Message offset={offset} timestamp={timestamp}] topic={topic} key={key} value={value}"
