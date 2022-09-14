@@ -1899,13 +1899,35 @@ class EventProducerTests(TestCase):
                 event = build_event(event_type, host)
                 headers = message_headers(event_type, host_id)
 
-                self.event_producer.write_event(event, host_id, headers)
+                self.event_producer.write_event(event, host_id, headers, wait=True)
 
                 produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
                 flush.assert_called_once()
 
                 produce.reset_mock()
                 flush.reset_mock()
+
+    def test_producer_poll(self):
+        produce = self.event_producer._kafka_producer.produce
+        poll = self.event_producer._kafka_producer.poll
+        host_id = self.basic_host["id"]
+
+        for (event_type, host) in (
+            (EventType.created, self.basic_host),
+            (EventType.updated, self.basic_host),
+            (EventType.delete, deserialize_host(self.basic_host)),
+        ):
+            with self.subTest(event_type=event_type):
+                event = build_event(event_type, host)
+                headers = message_headers(event_type, host_id)
+
+                self.event_producer.write_event(event, host_id, headers, wait=False)
+
+                produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
+                poll.assert_called_once()
+
+                produce.reset_mock()
+                poll.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_exceptions_are_caught(self, message_not_produced_mock):

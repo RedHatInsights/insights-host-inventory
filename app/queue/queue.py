@@ -191,7 +191,7 @@ def sync_event_message(message, session, event_producer):
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
-            event_producer.write_event(event, host.id, headers)
+            event_producer.write_event(event, host.id, headers, wait=True)
 
     return
 
@@ -350,4 +350,4 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         rh_message_id=rh_message_id,
     )
     key = minimal_host.get("insights_id")
-    notification_event_producer.write_event(event, key, headers)
+    notification_event_producer.write_event(event, key, headers, wait=True)

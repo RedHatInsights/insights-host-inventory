@@ -39,7 +39,7 @@ def _delete_host(session, event_producer, host):
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
-            event_producer.write_event(event, str(host.id), headers)
+            event_producer.write_event(event, str(host.id), headers, wait=True)
             delete_query.session.commit()
             return host_deleted
         else:
