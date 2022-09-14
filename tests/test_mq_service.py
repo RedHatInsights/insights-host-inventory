@@ -166,7 +166,8 @@ def test_request_id_is_reset(mocker, flask_app):
 
 
 def test_shutdown_handler(mocker, flask_app):
-    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage()], [FakeMessage()]]})
+    fake_consumer = mocker.Mock()
+    fake_consumer.consume.return_value = [FakeMessage(), FakeMessage()]
 
     fake_event_producer = None
     fake_notification_event_producer = None
@@ -181,7 +182,7 @@ def test_shutdown_handler(mocker, flask_app):
     )
     fake_consumer.consume.assert_called_once()
 
-    assert handle_message_mock.call_count == 1
+    assert handle_message_mock.call_count == 2
 
 
 # Leaving this in as a reminder that we need to impliment this test eventually
