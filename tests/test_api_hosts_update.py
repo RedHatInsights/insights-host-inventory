@@ -319,7 +319,7 @@ def test_event_producer_instrumentation(mocker, event_producer, db_create_host, 
     message = MagicMock()
 
     msgdet = MessageDetails(topic=None, event=message, headers=headers, key=created_host.id)
-    event_producer._kafka_producer.produce.return_effects = msgdet.on_delivered(error, message, msgdet)
+    event_producer._kafka_producer.produce.return_effects = msgdet.on_delivered(error, message)
 
     patch_doc = {"display_name": "patch_event_test"}
 

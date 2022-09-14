@@ -186,6 +186,8 @@ class Config:
             **self.kafka_ssl_configs,
         }
 
+        self.max_poll_records = int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000"))
+
         self.payload_tracker_kafka_producer = {"bootstrap.servers": self.bootstrap_servers, **self.kafka_ssl_configs}
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")

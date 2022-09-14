@@ -1,5 +1,3 @@
-from functools import partial
-
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -23,15 +21,15 @@ class MessageDetails:
         self.key = key
         self.topic = topic
 
-    def on_delivered(self, error, message, msgdet):
+    def on_delivered(self, error, message):
         if error:
-            message_not_produced(logger, error, self.topic, self.event, msgdet.key, msgdet.headers)
+            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
         else:
-            message_produced(logger, message, msgdet.key, msgdet.headers)
+            message_produced(logger, message, self.headers)
 
 
 class EventProducer:
-    def __init__(self, config, topic=None):
+    def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
         self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.egress_topic = topic if topic else config.event_topic
@@ -46,9 +44,7 @@ class EventProducer:
 
         try:
             messageDetails = MessageDetails(topic, v, h, k)
-            self._kafka_producer.produce(
-                topic, v, callback=partial(messageDetails.on_delivered, msgdet=messageDetails)
-            )
+            self._kafka_producer.produce(topic, v, callback=messageDetails.on_delivered)
             self._kafka_producer.poll()
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)

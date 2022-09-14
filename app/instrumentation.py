@@ -12,9 +12,10 @@ from app.queue.metrics import rbac_fetching_failure
 from lib.metrics import pendo_fetching_failure
 
 
-def message_produced(logger, message, key, headers):
+def message_produced(logger, message, headers):
     value = message.value().decode("utf-8")
     message_dict = json.loads(value)
+    key = message_dict["host"]["id"]
 
     status = "PRODUCED"
     offset = message.offset()
@@ -28,7 +29,7 @@ def message_produced(logger, message, key, headers):
     info_message = f"Message status={status}, offset={offset} timestamp={timestamp} topic={topic}, key={key}"
     logger.info(f"{info_message}, extra={info_extra}")
 
-    debug_message = f"Message offset={offset} timestamp={timestamp}] topic={topic} key={key} value={value}"
+    debug_message = f"Message offset={offset} timestamp={timestamp} topic={topic} key={key} value={value}"
     debug_extra = {**extra, "value": value}
     logger.debug(debug_message, extra=debug_extra)
 

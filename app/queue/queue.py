@@ -48,7 +48,6 @@ logger = get_logger(__name__)
 
 EGRESS_HOST_FIELDS = DEFAULT_FIELDS + ("tags", "system_profile")
 CONSUMER_POLL_TIMEOUT_SECONDS = 1
-MAX_POLL_RECORDS = 10000
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -307,7 +306,9 @@ def handle_message(message, event_producer, notification_event_producer, message
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
-            messages = consumer.consume(num_messages=MAX_POLL_RECORDS, timeout=CONSUMER_POLL_TIMEOUT_SECONDS)
+            messages = consumer.consume(
+                num_messages=inventory_config().max_poll_records, timeout=CONSUMER_POLL_TIMEOUT_SECONDS
+            )
             for msg in messages:
                 if msg is None:
                     continue
@@ -332,7 +333,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         sys.exit(3)
                     except Exception:
                         metrics.ingress_message_handler_failure.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value})
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
 
 def initialize_thread_local_storage(request_id):
