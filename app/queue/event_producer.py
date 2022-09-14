@@ -45,7 +45,7 @@ class EventProducer:
         try:
             messageDetails = MessageDetails(topic, v, h, k)
             self._kafka_producer.produce(topic, v, callback=messageDetails.on_delivered)
-            self._kafka_producer.poll()
+            self._kafka_producer.flush()
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error

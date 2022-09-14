@@ -1887,7 +1887,7 @@ class EventProducerTests(TestCase):
 
     def test_happy_path(self):
         produce = self.event_producer._kafka_producer.produce
-        poll = self.event_producer._kafka_producer.poll
+        flush = self.event_producer._kafka_producer.flush
         host_id = self.basic_host["id"]
 
         for (event_type, host) in (
@@ -1902,10 +1902,10 @@ class EventProducerTests(TestCase):
                 self.event_producer.write_event(event, host_id, headers)
 
                 produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
-                poll.assert_called_once()
+                flush.assert_called_once()
 
                 produce.reset_mock()
-                poll.reset_mock()
+                flush.reset_mock()
 
     @patch("app.queue.event_producer.message_not_produced")
     def test_kafka_exceptions_are_caught(self, message_not_produced_mock):
