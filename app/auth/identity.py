@@ -76,7 +76,6 @@ class Identity:
         elif obj:
             ischema = IdentitySchema()
             result = ischema.load(obj)
-            print(result)
 
             self.is_trusted_system = False
             self.account_number = result.get("account_number")
