@@ -134,7 +134,6 @@ def _build_minimal_host_info(host_data):
     return {
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
-        "insights_id": host_data.get("insights_id"),
         "display_name": host_data.get("display_name"),
         "id": host_data.get("id"),
         "canonical_facts": deserialize_canonical_facts(host_data, all=True),
@@ -338,5 +337,5 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    key = minimal_host.get("insights_id")
+    key = minimal_host.get("canonical_facts" or {}).get("insights_id")
     notification_event_producer.write_event(event, key, headers, wait=True)
