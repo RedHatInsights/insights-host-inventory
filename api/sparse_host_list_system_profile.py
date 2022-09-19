@@ -1,8 +1,6 @@
 import flask
-from flask_api import status
 
 from api.host_query_xjoin import owner_id_filter
-from api.validate_fields import validate_fields_in_schema
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.instrumentation import log_get_sparse_system_profile_failed
@@ -72,9 +70,6 @@ SYSTEM_PROFILE_FULL_QUERY = """
 
 
 def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields):
-    if fields and not fields.get("system_profile"):
-        flask.abort(400, status.HTTP_400_BAD_REQUEST)
-
     limit, offset = pagination_params(page, per_page)
 
     try:
@@ -97,7 +92,6 @@ def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how,
     }
 
     if fields.get("system_profile"):
-        validate_fields_in_schema(fields)
         variables["fields"] = list(fields.get("system_profile").keys())
         sp_query = SYSTEM_PROFILE_SPARSE_QUERY
 
