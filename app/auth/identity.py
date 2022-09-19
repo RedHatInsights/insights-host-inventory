@@ -3,11 +3,7 @@ from base64 import b64decode
 from enum import Enum
 from json import loads
 
-from marshmallow import EXCLUDE
-from marshmallow import fields
-from marshmallow import INCLUDE
-from marshmallow import Schema as MarshmallowSchema
-from marshmallow import validate as marshmallow_validate
+import marshmallow as m
 
 from app.logging import get_logger
 from app.logging import threadctx
@@ -74,8 +70,7 @@ class Identity:
             threadctx.org_id = "<<TRUSTED IDENTITY>>"
 
         elif obj:
-            ischema = IdentitySchema()
-            result = ischema.load(obj)
+            result = IdentitySchema().load(obj)
 
             self.is_trusted_system = False
             self.account_number = result.get("account_number")
@@ -84,12 +79,10 @@ class Identity:
             self.org_id = result.get("org_id")
 
             if self.identity_type == IdentityType.USER:
-                uschema = UserIdentitySchema()
-                result = uschema.load(obj)
+                result = UserIdentitySchema().load(obj)
                 self.user = result.get("user")
             elif self.identity_type == IdentityType.SYSTEM:
-                sschema = SystemIdentitySchema()
-                result = sschema.load(obj)
+                result = SystemIdentitySchema().load(obj)
                 self.system = result.get("system")
 
             threadctx.org_id = self.org_id
@@ -117,51 +110,40 @@ class Identity:
         return self.org_id == other.org_id
 
 
-class IdentityLowerString(fields.String):
+class IdentityLowerString(m.fields.String):
     def _deserialize(self, value, *args, **kwargs):
         return super()._deserialize(value.lower(), *args, **kwargs)
 
 
-class IdentityBaseSchema(MarshmallowSchema):
+class IdentityBaseSchema(m.Schema):
+    class Meta:
+        unknown = m.EXCLUDE
+
     def handle_error(self, err, data, **kwargs):
         raise ValueError(err.messages)
 
 
 class IdentitySchema(IdentityBaseSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
-    type = fields.String(validate=marshmallow_validate.OneOf(IdentityType.__members__.values()))
-    auth_type = IdentityLowerString(validate=marshmallow_validate.OneOf(AuthType.__members__.values()))
-    account_number = fields.Str(validate=marshmallow_validate.Length(min=1, max=36))
-
-
-class UserInfoIdentitySchema(IdentityBaseSchema):
-    class Meta:
-        unknown = INCLUDE
+    org_id = m.fields.Str(required=True, validate=m.validate.Length(min=1, max=36))
+    type = m.fields.String(validate=m.validate.OneOf(IdentityType.__members__.values()))
+    auth_type = IdentityLowerString(validate=m.validate.OneOf(AuthType.__members__.values()))
+    account_number = m.fields.Str(validate=m.validate.Length(min=1, max=36))
 
 
 class UserIdentitySchema(IdentityBaseSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    user = fields.Nested(UserInfoIdentitySchema)
+    user = m.fields.Dict()
 
 
 class SystemInfoIdentitySchema(IdentityBaseSchema):
     class Meta:
-        unknown = INCLUDE
+        unknown = m.INCLUDE
 
-    cert_type = IdentityLowerString(required=True, validate=marshmallow_validate.OneOf(CertType.__members__.values()))
-    cn = fields.Str(required=True)
+    cert_type = IdentityLowerString(required=True, validate=m.validate.OneOf(CertType.__members__.values()))
+    cn = m.fields.Str(required=True)
 
 
 class SystemIdentitySchema(IdentityBaseSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    system = fields.Nested(SystemInfoIdentitySchema, required=True)
+    system = m.fields.Nested(SystemInfoIdentitySchema, required=True)
 
 
 # Messages from the system_profile topic don't need to provide a real Identity,
