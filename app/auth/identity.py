@@ -125,7 +125,7 @@ class IdentityBaseSchema(m.Schema):
 
 class IdentitySchema(IdentityBaseSchema):
     org_id = m.fields.Str(required=True, validate=m.validate.Length(min=1, max=36))
-    type = m.fields.String(validate=m.validate.OneOf(IdentityType.__members__.values()))
+    type = m.fields.String(required=True, validate=m.validate.OneOf(IdentityType.__members__.values()))
     auth_type = IdentityLowerString(validate=m.validate.OneOf(AuthType.__members__.values()))
     account_number = m.fields.Str(validate=m.validate.Length(min=1, max=36))
 
