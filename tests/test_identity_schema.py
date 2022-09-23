@@ -6,8 +6,6 @@ from app.auth.identity import AuthType
 from app.auth.identity import CertType
 from app.auth.identity import IdentitySchema
 from app.auth.identity import IdentityType
-from app.auth.identity import SystemIdentitySchema
-from app.auth.identity import UserIdentitySchema
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 
@@ -27,15 +25,16 @@ def identity_test_common(identity):
         account_number_len = len(result.get("account_number"))
         assert account_number_len > 0 and org_id_len <= 36
 
-
-def system_identity_test_common(identity):
-    result = SystemIdentitySchema().load(identity)
-    assert "system" in result
-    system = result.get("system")
-    assert type(system) is dict
-    assert "cert_type" in system
-    assert system.get("cert_type") in CertType.__members__.values()
-    assert "cn" in system
+    if result.get("type") == IdentityType.USER:
+        assert "user" in result
+        assert type(result.get("user")) is dict
+    else:  # IdentityType.SYSTEM
+        assert "system" in result
+        system = result.get("system")
+        assert type(system) is dict
+        assert "cert_type" in system
+        assert system.get("cert_type") in CertType.__members__.values()
+        assert "cn" in system
 
 
 @pytest.mark.parametrize("identity", (USER_IDENTITY, SYSTEM_IDENTITY))
@@ -44,14 +43,14 @@ def test_validate_valid_identity_schema(identity):
 
 
 def test_validate_valid_user_identity_schema():
-    result = UserIdentitySchema().load(USER_IDENTITY)
+    result = IdentitySchema().load(USER_IDENTITY)
 
     if "user" in result:
         assert type(result.get("user")) is dict
 
 
 def test_validate_valid_system_identity_schema():
-    system_identity_test_common(SYSTEM_IDENTITY)
+    identity_test_common(SYSTEM_IDENTITY)
 
 
 @pytest.mark.parametrize("required", ("type", "org_id"))
@@ -66,7 +65,7 @@ def test_system_identity_missing_system():
     bad_identity = SYSTEM_IDENTITY.copy()
     bad_identity.pop("system", None)
     with pytest.raises(ValueError):
-        system_identity_test_common(bad_identity)
+        identity_test_common(bad_identity)
 
 
 @pytest.mark.parametrize("required", ("cert_type", "cn"))
@@ -75,7 +74,7 @@ def test_system_identity_missing_required(required):
     assert "system" in bad_identity
     bad_identity["system"].pop(required, None)
     with pytest.raises(ValueError):
-        system_identity_test_common(bad_identity)
+        identity_test_common(bad_identity)
 
 
 @pytest.mark.parametrize(
@@ -101,4 +100,4 @@ def test_bad_cert_type():
     bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     bad_identity["system"]["cert_type"] = "bad_value"
     with pytest.raises(ValueError):
-        system_identity_test_common(bad_identity)
+        identity_test_common(bad_identity)

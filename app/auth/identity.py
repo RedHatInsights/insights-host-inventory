@@ -77,12 +77,9 @@ class Identity:
             self.auth_type = result.get("auth_type")
             self.identity_type = result.get("type")
             self.org_id = result.get("org_id")
-
-            if self.identity_type == IdentityType.USER:
-                result = UserIdentitySchema().load(obj)
+            if "user" in result:
                 self.user = result.get("user")
-            elif self.identity_type == IdentityType.SYSTEM:
-                result = SystemIdentitySchema().load(obj)
+            if "system" in result:
                 self.system = result.get("system")
 
             threadctx.org_id = self.org_id
@@ -117,7 +114,7 @@ class IdentityLowerString(m.fields.String):
 
 class IdentityBaseSchema(m.Schema):
     class Meta:
-        unknown = m.EXCLUDE
+        unknown = m.INCLUDE
 
     def handle_error(self, err, data, **kwargs):
         raise ValueError(err.messages)
@@ -129,15 +126,21 @@ class IdentitySchema(IdentityBaseSchema):
     auth_type = IdentityLowerString(validate=m.validate.OneOf(AuthType.__members__.values()))
     account_number = m.fields.Str(validate=m.validate.Length(min=1, max=36))
 
+    @m.post_load
+    def user_system_check(self, in_data, **kwargs):
+        if in_data["type"] == IdentityType.USER:
+            result = UserIdentitySchema().load(in_data)
+        else:
+            result = SystemIdentitySchema().load(in_data)
+
+        return result
+
 
 class UserIdentitySchema(IdentityBaseSchema):
     user = m.fields.Dict()
 
 
 class SystemInfoIdentitySchema(IdentityBaseSchema):
-    class Meta:
-        unknown = m.INCLUDE
-
     cert_type = IdentityLowerString(required=True, validate=m.validate.OneOf(CertType.__members__.values()))
     cn = m.fields.Str(required=True)
 
