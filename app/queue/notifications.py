@@ -23,8 +23,10 @@ class HostValidationErrorSchema(MarshmallowSchema):
 
 
 class PayloadSchema(MarshmallowSchema):
+    request_id = fields.Str(required=True)
     host_id = fields.UUID(required=True)
     display_name = fields.Str()
+    canonical_facts = fields.Dict()
     error = fields.Nested(HostValidationErrorSchema())
 
 
@@ -70,9 +72,10 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
             {
                 "metadata": {},
                 "payload": {
+                    "request_id": threadctx.request_id,
                     "host_id": host.get("id"),
                     "display_name": host.get("display_name"),
-                    "insights_id": host.get("insights_id"),
+                    "canonical_facts": host.get("canonical_facts"),
                     "error": {
                         "code": "VE001",
                         "message": detail,

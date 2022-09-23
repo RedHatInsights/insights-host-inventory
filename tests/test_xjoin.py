@@ -2396,84 +2396,85 @@ def test_query_with_owner_id_satellite_identity(mocker, subtests, graphql_query_
     (
         (
             {
-                "fields": ["field_1", "field_2", "field_3"],
+                "fields": ["arch", "operating_system", "os_release"],
                 "limit": 50,
                 "offset": 0,
                 "order_by": "modified_on",
                 "order_how": "DESC",
             },
-            "?fields[system_profile]=field_1,field_2,field_3",
+            "?fields[system_profile]=arch,operating_system,os_release",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 2,
                 "offset": 0,
                 "order_by": "modified_on",
                 "order_how": "DESC",
             },
-            "?fields[system_profile]=field_1,field_2&per_page=2",
+            "?fields[system_profile]=arch,operating_system&per_page=2",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 1,
                 "offset": 1,
                 "order_by": "modified_on",
                 "order_how": "DESC",
             },
-            "?fields[system_profile]=field_1,field_2&per_page=1&page=2",
+            "?fields[system_profile]=arch,operating_system&per_page=1&page=2",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 50,
                 "offset": 0,
                 "order_by": "display_name",
                 "order_how": "ASC",
             },
-            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC",
+            "?fields[system_profile]=arch,operating_system&order_by=display_name&order_how=ASC",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 1,
                 "offset": 1,
                 "order_by": "display_name",
                 "order_how": "ASC",
             },
-            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC&per_page=1&page=2",
+            "?fields[system_profile]=arch,operating_system&order_by=display_name&order_how=ASC&per_page=1&page=2",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 1,
                 "offset": 1,
                 "order_by": "modified_on",
                 "order_how": "DESC",
             },
-            "?fields[system_profile]=field_1,field_2&order_by=updated&order_how=DESC&per_page=1&page=2",
+            "?fields[system_profile]=arch,operating_system&order_by=updated&order_how=DESC&per_page=1&page=2",
         ),
         (
             {
-                "fields": ["field_1", "field_2", "field_3", "field_4"],
+                "fields": ["arch", "operating_system", "os_release", "last_boot_time"],
                 "limit": 1,
                 "offset": 1,
                 "order_by": "display_name",
                 "order_how": "ASC",
             },
-            "?fields[system_profile]=field_1,field_2&order_by=display_name&order_how=ASC&per_page=1\
-                &fields[system_profile]=field_3,field_4&page=2",
+            "?fields[system_profile]=arch,operating_system&order_by=display_name&order_how=ASC&per_page=1\
+                &fields[system_profile]=os_release,last_boot_time&page=2",
         ),
         (
             {
-                "fields": ["field_1", "field_2"],
+                "fields": ["arch", "operating_system"],
                 "limit": 50,
                 "offset": 0,
                 "order_by": "operating_system",
                 "order_how": "DESC",
             },
-            "?fields[system_profile]=field_1,field_2&order_by=operating_system&order_how=DESC&per_page=50&page=1",
+            "?fields[system_profile]=arch,operating_system&order_by=operating_system&order_how=DESC"
+            "&per_page=50&page=1",
         ),
     ),
 )
@@ -2513,11 +2514,11 @@ def test_sp_sparse_xjoin_query_translation(
 @pytest.mark.parametrize(
     "query,fields",
     (
-        ("?fields[system_profile]=sp_field1", ["sp_field1"]),
-        ("?fields[system_profile]=sp_field1,sp_field2,sp_field3", ["sp_field1", "sp_field2", "sp_field3"]),
+        ("?fields[system_profile]=arch", ["arch"]),
+        ("?fields[system_profile]=arch,kernel_modules,os_release", ["arch", "kernel_modules", "os_release"]),
         (
-            "?fields[system_profile]=sp_field1&fields[system_profile]=sp_field2,sp_field3",
-            ["sp_field1", "sp_field2", "sp_field3"],
+            "?fields[system_profile]=arch&fields[system_profile]=kernel_modules,os_release",
+            ["arch", "kernel_modules", "os_release"],
         ),
     ),
 )

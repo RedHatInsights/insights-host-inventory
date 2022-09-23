@@ -1,5 +1,4 @@
 import flask
-from flask_api import status
 
 from api.host_query_xjoin import owner_id_filter
 from app.auth import get_current_identity
@@ -71,9 +70,6 @@ SYSTEM_PROFILE_FULL_QUERY = """
 
 
 def get_sparse_system_profile(host_id_list, page, per_page, order_by, order_how, fields):
-    if fields and not fields.get("system_profile"):
-        flask.abort(400, status.HTTP_400_BAD_REQUEST)
-
     limit, offset = pagination_params(page, per_page)
 
     try:

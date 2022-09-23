@@ -14,7 +14,7 @@ from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
 from app import payload_tracker
 from app.config import Config
-from app.custom_validator import VALIDATOR_MAP
+from app.custom_validator import build_validator_map
 from app.exceptions import InventoryException
 from app.logging import configure_logging
 from app.logging import get_logger
@@ -162,6 +162,9 @@ def create_app(runtime_environment):
 
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
+
+    sp_spec = process_system_profile_spec()
+
     for api_url in app_config.api_urls:
         if api_url:
             connexion_app.add_api(
@@ -171,7 +174,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=True,
                 base_path=api_url,
-                validator_map=VALIDATOR_MAP,
+                validator_map=build_validator_map(system_profile_spec=sp_spec),
             )
             logger.info("Listening on API: %s", api_url)
 
@@ -184,12 +187,12 @@ def create_app(runtime_environment):
     flask_app.config["SQLALCHEMY_ECHO"] = False
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = app_config.db_uri
-    flask_app.config["SQLALCHEMY_POOL_SIZE"] = app_config.db_pool_size
-    flask_app.config["SQLALCHEMY_POOL_TIMEOUT"] = app_config.db_pool_timeout
+    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
+    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
 
     flask_app.config["INVENTORY_CONFIG"] = app_config
 
-    flask_app.config["SYSTEM_PROFILE_SPEC"] = process_system_profile_spec()
+    flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
 
     db.init_app(flask_app)
 
