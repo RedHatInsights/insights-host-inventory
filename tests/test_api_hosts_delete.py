@@ -356,8 +356,9 @@ def test_delete_hosts_chunk_size(
 
 @pytest.mark.parametrize("send_side_effects", ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))))
 def test_delete_stops_after_kafka_exception(
-    send_side_effects, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+    mocker, send_side_effects, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
 ):
+    mocker.patch("lib.host_delete.kafka_available")
     hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
 
@@ -379,6 +380,7 @@ def test_delete_with_callback_receiving_error(
     api_delete_host,
     db_get_hosts,
 ):
+    mocker.patch("lib.host_delete.kafka_available")
     host = db_create_host()
     headers = mock.MagicMock()
     message = mock.MagicMock()
