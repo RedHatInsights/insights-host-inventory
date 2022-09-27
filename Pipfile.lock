@@ -57,19 +57,19 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:8567dee549430a53210c6b898dea3a8fc8ee9d7934ec1df7545c547cacbb2b8f",
-                "sha256:b97e17c930a7f45b50f94956a4474c1cd7b828e3dcd8a84dd0e3306ca6189335"
+                "sha256:a6229f9b31f7fe372475c0ee60483b3ec827e4b76275d5239fbfd590cd0b217f",
+                "sha256:f8b1da2b41e88c58db51db0c6eff6ca564258948ce4a5ac7e96ac35a469b0d4f"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==1.27.63"
+            "version": "==1.27.75"
         },
         "certifi": {
             "hashes": [
-                "sha256:84c85a9078b11105f04f3036a9482ae10e4621616db313fe045dd24743a0820d",
-                "sha256:fe86415d55e84719d75f8b69414f6438ac3547d2078ab91b67e779ef69378412"
+                "sha256:36973885b9542e6bd01dea287b2b4b3b21236307c56324fcc3f1160f2d655ed5",
+                "sha256:e232343de1ab72c2aa521b625c80f699e356830fd0e2c620b465b304b17b0516"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==2022.6.15"
+            "version": "==2022.9.14"
         },
         "chardet": {
             "hashes": [
@@ -320,7 +320,7 @@
                 "sha256:3724869b363ba630a272a5f89f68c070352137b8fd1757650017b7e06fda163f",
                 "sha256:8efcb8004681b5f71d09c983ad5a9e6f5c40601a6ec469148753292abc0da534"
             ],
-            "markers": "python_version >= '3.7'",
+            "index": "pypi",
             "version": "==1.2.2"
         },
         "markupsafe": {
@@ -1057,11 +1057,11 @@
         },
         "identify": {
             "hashes": [
-                "sha256:25851c8c1370effb22aaa3c987b30449e9ff0cece408f810ae6ce408fdd20893",
-                "sha256:887e7b91a1be152b0d46bbf072130235a8117392b9f1828446079a816a05ef44"
+                "sha256:322a5699daecf7c6fd60e68852f36f2ecbb6a36ff6e6e973e0d2bb6fca203ee6",
+                "sha256:ef78c0d96098a3b5fe7720be4a97e73f439af7cf088ebf47b620aeaa10fadf97"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2.5.3"
+            "version": "==2.5.5"
         },
         "importlib-metadata": {
             "hashes": [
@@ -1283,11 +1283,11 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:014f766e4134d0008dcaa1f95bafa0fb0f575795d07cae50b1bee514185d6782",
-                "sha256:035ed57acce4ac35c82c9d8802202b0e71adac011a511ff650cbcf9635006a22"
+                "sha256:227ea1b9994fdc5ea31977ba3383ef296d7472ea85be9d6732e42a91c04e80da",
+                "sha256:d07dfc5df5e4e0dbc92862350ad87a36ed505b978f6c39609dc489eadd5b0d27"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==20.16.4"
+            "version": "==20.16.5"
         },
         "wcwidth": {
             "hashes": [
