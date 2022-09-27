@@ -3,6 +3,8 @@ from base64 import b64decode
 from enum import Enum
 from json import loads
 
+import marshmallow as m
+
 from app.logging import get_logger
 from app.logging import threadctx
 
@@ -68,44 +70,22 @@ class Identity:
             threadctx.org_id = "<<TRUSTED IDENTITY>>"
 
         elif obj:
+            result = IdentitySchema().load(obj)
+
             self.is_trusted_system = False
-            self.account_number = obj.get("account_number")
-            self.auth_type = obj.get("auth_type")
-            self.identity_type = obj.get("type")
-            self.org_id = obj.get("org_id")
+            self.account_number = result.get("account_number")
+            self.auth_type = result.get("auth_type")
+            self.identity_type = result.get("type")
+            self.org_id = result.get("org_id")
+            if "user" in result:
+                self.user = result.get("user")
+            if "system" in result:
+                self.system = result.get("system")
 
-            # Ensure org_id availability
-            if not self.org_id:
-                raise ValueError("The org_id is mandatory.")
-            elif not self.identity_type or self.identity_type not in IdentityType.__members__.values():
-                raise ValueError("Identity type invalid or missing in provided Identity")
-            elif self.auth_type is None:
-                raise ValueError("Identity is missing auth_type field")
-            elif self.auth_type is not None:
-                self.auth_type = self.auth_type.lower()
-                if self.auth_type not in AuthType.__members__.values():
-                    raise ValueError(f"The auth_type {self.auth_type} is invalid")
+            threadctx.org_id = self.org_id
 
-            if self.identity_type == IdentityType.USER:
-                self.user = obj.get("user")
-
-            elif self.identity_type == IdentityType.SYSTEM:
-                self.system = obj.get("system")
-                if not self.system:
-                    raise ValueError("The identity.system field is mandatory for system-type identities")
-                elif not self.system.get("cert_type"):
-                    raise ValueError("The cert_type field is mandatory for system-type identities")
-                elif self.system["cert_type"].lower() not in CertType.__members__.values():
-                    raise ValueError(f"The cert_type {self.system['cert_type']} is invalid.")
-                elif not self.system.get("cn"):
-                    raise ValueError("The cn field is mandatory for system-type identities")
-                else:
-                    self.system["cert_type"] = self.system["cert_type"].lower()
-
-            threadctx.org_id = obj["org_id"]
-
-            if obj.get("account_number"):
-                threadctx.account_number = obj["account_number"]
+            if self.account_number:
+                threadctx.account_number = self.account_number
 
         else:
             raise ValueError("Neither the org_id or token has been set")
@@ -127,7 +107,49 @@ class Identity:
         return self.org_id == other.org_id
 
 
+class IdentityLowerString(m.fields.String):
+    def _deserialize(self, value, *args, **kwargs):
+        return super()._deserialize(value.lower(), *args, **kwargs)
+
+
+class IdentityBaseSchema(m.Schema):
+    class Meta:
+        unknown = m.INCLUDE
+
+    def handle_error(self, err, data, **kwargs):
+        raise ValueError(err.messages)
+
+
+class IdentitySchema(IdentityBaseSchema):
+    org_id = m.fields.Str(required=True, validate=m.validate.Length(min=1, max=36))
+    type = m.fields.String(required=True, validate=m.validate.OneOf(IdentityType.__members__.values()))
+    auth_type = IdentityLowerString(validate=m.validate.OneOf(AuthType.__members__.values()))
+    account_number = m.fields.Str(validate=m.validate.Length(min=1, max=36))
+
+    @m.post_load
+    def user_system_check(self, in_data, **kwargs):
+        if in_data["type"] == IdentityType.USER:
+            result = UserIdentitySchema().load(in_data)
+        else:
+            result = SystemIdentitySchema().load(in_data)
+
+        return result
+
+
+class UserIdentitySchema(IdentityBaseSchema):
+    user = m.fields.Dict()
+
+
+class SystemInfoIdentitySchema(IdentityBaseSchema):
+    cert_type = IdentityLowerString(required=True, validate=m.validate.OneOf(CertType.__members__.values()))
+    cn = m.fields.Str(required=True)
+
+
+class SystemIdentitySchema(IdentityBaseSchema):
+    system = m.fields.Nested(SystemInfoIdentitySchema, required=True)
+
+
 # Messages from the system_profile topic don't need to provide a real Identity,
 # So this helper function creates a basic User-type identity from the host data.
 def create_mock_identity_with_org_id(org_id):
-    return Identity({"org_id": org_id, "type": IdentityType.USER, "auth_type": AuthType.BASIC})
+    return Identity({"org_id": org_id, "type": IdentityType.USER.value, "auth_type": AuthType.BASIC})
