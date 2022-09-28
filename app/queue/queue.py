@@ -135,7 +135,7 @@ def _build_minimal_host_info(host_data):
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
         "display_name": host_data.get("display_name"),
-        "id": host_data.get("id"),
+        "id": host_data.get("host_id"),
         "canonical_facts": deserialize_canonical_facts(host_data, all=True),
     }
 
