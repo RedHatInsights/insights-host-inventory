@@ -127,6 +127,7 @@ def _get_field_filter(field_name, props):
 
 def process_spec(spec, process_unindexed=False):
     system_profile_spec_processed = {}
+    unindexed_fields = []
     for field, props in spec.items():
         if props.get("x-indexed", True) or process_unindexed:
             field_filter = _get_field_filter(field, props)
@@ -140,7 +141,10 @@ def process_spec(spec, process_unindexed=False):
             if field_filter == "object":
                 system_profile_spec_processed[field]["children"] = process_spec(props["properties"], True)
 
-    return system_profile_spec_processed
+        if props.get("x-indexed", False):
+            unindexed_fields.append(field)
+
+    return system_profile_spec_processed, unindexed_fields
 
 
 def process_system_profile_spec():
@@ -163,7 +167,7 @@ def create_app(runtime_environment):
     parser = TranslatingParser(SPECIFICATION_FILE)
     parser.parse()
 
-    sp_spec = process_system_profile_spec()
+    sp_spec, unindexed_fields = process_system_profile_spec()
 
     for api_url in app_config.api_urls:
         if api_url:
@@ -174,7 +178,7 @@ def create_app(runtime_environment):
                 validate_responses=True,
                 strict_validation=True,
                 base_path=api_url,
-                validator_map=build_validator_map(system_profile_spec=sp_spec),
+                validator_map=build_validator_map(system_profile_spec=sp_spec, unindexed_fields=unindexed_fields),
             )
             logger.info("Listening on API: %s", api_url)
 
@@ -193,6 +197,7 @@ def create_app(runtime_environment):
     flask_app.config["INVENTORY_CONFIG"] = app_config
 
     flask_app.config["SYSTEM_PROFILE_SPEC"] = sp_spec
+    flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
     db.init_app(flask_app)
 

@@ -25,9 +25,10 @@ class CustomResponseValidator(ResponseValidator):
 
 
 class CustomParameterValidator(ParameterValidator):
-    def __init__(self, *args, system_profile_spec, **kwargs):
+    def __init__(self, *args, system_profile_spec, unindexed_fields, **kwargs):
         super().__init__(*args, **kwargs)
         self.sp_spec = system_profile_spec
+        self.unindexed_fields = unindexed_fields
 
     def validate_query_parameter_list(self, request):
         for param in [
@@ -39,7 +40,10 @@ class CustomParameterValidator(ParameterValidator):
             if "system_profile" in fields:
                 query_fields = list(fields.get("system_profile").keys())
                 system_profile_schema = self.sp_spec
+                unindexed_fields = self.unindexed_fields
                 for field in query_fields:
+                    if field in unindexed_fields:
+                        flask.abort(400, f"Requested field '{field}' is not indexed and not filterable.")
                     if field not in system_profile_schema.keys():
                         flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
             else:
@@ -48,8 +52,10 @@ class CustomParameterValidator(ParameterValidator):
         return super().validate_query_parameter_list(request)
 
 
-def build_validator_map(system_profile_spec):
+def build_validator_map(system_profile_spec, unindexed_fields):
     return {
         "response": CustomResponseValidator,
-        "parameter": functools.partial(CustomParameterValidator, system_profile_spec=system_profile_spec),
+        "parameter": functools.partial(
+            CustomParameterValidator, system_profile_spec=system_profile_spec, unindexed_fields=unindexed_fields
+        ),
     }
