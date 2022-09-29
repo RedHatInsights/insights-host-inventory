@@ -1887,7 +1887,7 @@ class EventProducerTests(TestCase):
 
     def test_happy_path(self):
         produce = self.event_producer._kafka_producer.produce
-        flush = self.event_producer._kafka_producer.flush
+        poll = self.event_producer._kafka_producer.poll
         host_id = self.basic_host["id"]
 
         for (event_type, host) in (
@@ -1899,13 +1899,13 @@ class EventProducerTests(TestCase):
                 event = build_event(event_type, host)
                 headers = message_headers(event_type, host_id)
 
-                self.event_producer.write_event(event, host_id, headers, wait=True)
+                self.event_producer.write_event(event, host_id, headers)
 
                 produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
-                flush.assert_called_once()
+                poll.assert_called_once()
 
                 produce.reset_mock()
-                flush.reset_mock()
+                poll.reset_mock()
 
     def test_producer_poll(self):
         produce = self.event_producer._kafka_producer.produce
