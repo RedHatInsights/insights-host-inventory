@@ -86,10 +86,12 @@ HOST_TAGS_QUERY = """query Query(
 }"""
 HOST_IDS_QUERY = """query Query(
     $limit: Int!,
+    $offset: Int!,
     $filter: [HostFilter!],
 ) {
     hosts(
         limit: $limit,
+        offset: $offset,
         filter: {
             AND: $filter,
         }
@@ -247,10 +249,19 @@ def get_host_ids_list(
     if current_identity.identity_type == IdentityType.SYSTEM:
         all_filters += owner_id_filter()
 
-    variables = {"limit": 100, "filter": all_filters}  # maximum limit handled by xjoin.
-    response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
+    id_list = []
+    offset = 0
+    total = 1
+    # Get the list of IDs from xjoin, 100 at a time (since that's the max xjoin can return).
+    while offset < total:
+        variables = {"limit": 100, "offset": offset, "filter": all_filters}
+        response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
+        total = response["meta"]["total"]
+        id_list.extend([x["id"] for x in response["data"]])
+        # Next loop, query the next 100 records.
+        offset += 100
 
-    return [x["id"] for x in response["data"]]
+    return id_list
 
 
 def owner_id_filter():
