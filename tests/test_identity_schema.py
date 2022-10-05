@@ -53,7 +53,7 @@ def test_validate_valid_system_identity_schema():
     identity_test_common(SYSTEM_IDENTITY)
 
 
-@pytest.mark.parametrize("required", ("type", "org_id"))
+@pytest.mark.parametrize("required", ("type", "auth_type", "org_id"))
 def test_identity_missing_required(required):
     bad_identity = USER_IDENTITY.copy()
     bad_identity.pop(required, None)
@@ -70,6 +70,14 @@ def test_system_identity_missing_system():
 
 @pytest.mark.parametrize("required", ("cert_type", "cn"))
 def test_system_identity_missing_required(required):
+    # Test blank values
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
+    assert "system" in bad_identity
+    bad_identity["system"][required] = ""
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test missing values
     bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     assert "system" in bad_identity
     bad_identity["system"].pop(required, None)
