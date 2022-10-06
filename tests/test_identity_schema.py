@@ -23,7 +23,7 @@ def identity_test_common(identity):
 
     if "account_number" in result:
         account_number_len = len(result.get("account_number"))
-        assert account_number_len > 0 and org_id_len <= 36
+        assert account_number_len >= 0 and org_id_len <= 36
 
     if result.get("type") == IdentityType.USER:
         assert "user" in result
@@ -79,7 +79,7 @@ def test_system_identity_missing_required(required):
 
 @pytest.mark.parametrize(
     "test_field,bad_value",
-    [("org_id", ""), ("org_id", "X" * 37), ("account_number", ""), ("account_number", "X" * 37)],
+    [("org_id", ""), ("org_id", "X" * 37), ("account_number", "X" * 37)],
 )
 def test_string_length(test_field, bad_value):
     bad_identity = USER_IDENTITY.copy()
