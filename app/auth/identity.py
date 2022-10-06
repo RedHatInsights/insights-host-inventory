@@ -123,7 +123,7 @@ class IdentityBaseSchema(m.Schema):
 class IdentitySchema(IdentityBaseSchema):
     org_id = m.fields.Str(required=True, validate=m.validate.Length(min=1, max=36))
     type = m.fields.String(required=True, validate=m.validate.OneOf(IdentityType.__members__.values()))
-    auth_type = IdentityLowerString(validate=m.validate.OneOf(AuthType.__members__.values()))
+    auth_type = IdentityLowerString(required=True, validate=m.validate.OneOf(AuthType.__members__.values()))
     account_number = m.fields.Str(validate=m.validate.Length(min=0, max=36))
 
     @m.post_load
@@ -142,7 +142,7 @@ class UserIdentitySchema(IdentityBaseSchema):
 
 class SystemInfoIdentitySchema(IdentityBaseSchema):
     cert_type = IdentityLowerString(required=True, validate=m.validate.OneOf(CertType.__members__.values()))
-    cn = m.fields.Str(required=True)
+    cn = m.fields.Str(required=True, validate=m.validate.Length(min=1))
 
 
 class SystemIdentitySchema(IdentityBaseSchema):
