@@ -256,7 +256,7 @@ def get_host_ids_list(
     while offset < total:
         variables = {"limit": 100, "offset": offset, "filter": all_filters}
         response = graphql_query(HOST_IDS_QUERY, variables, log_get_host_list_failed)["hosts"]
-        total = response["meta"]["total"]
+        total = int(response["meta"]["total"])
         id_list.extend([x["id"] for x in response["data"]])
         # Next loop, query the next 100 records.
         offset += 100
