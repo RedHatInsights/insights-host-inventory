@@ -16,7 +16,6 @@ from tests.helpers.test_utils import get_platform_metadata
 from tests.helpers.test_utils import get_staleness_timestamps
 from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 @pytest.fixture(scope="function")
@@ -31,7 +30,7 @@ def mq_create_or_update_host(flask_app, event_producer_mock, notification_event_
     ):
         if not platform_metadata:
             platform_metadata = get_platform_metadata()
-        host_data.data()["account"] = SYSTEM_IDENTITY.get("account_number")
+
         message = wrap_message(host_data.data(), platform_metadata=platform_metadata)
         handle_message(json.dumps(message), event_producer, notification_event_producer, message_operation)
         event = json.loads(event_producer.event)

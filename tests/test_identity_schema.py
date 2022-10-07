@@ -23,7 +23,7 @@ def identity_test_common(identity):
 
     if "account_number" in result:
         account_number_len = len(result.get("account_number"))
-        assert account_number_len > 0 and org_id_len <= 36
+        assert account_number_len >= 0 and org_id_len <= 36
 
     if result.get("type") == IdentityType.USER:
         assert "user" in result
@@ -53,7 +53,7 @@ def test_validate_valid_system_identity_schema():
     identity_test_common(SYSTEM_IDENTITY)
 
 
-@pytest.mark.parametrize("required", ("type", "org_id"))
+@pytest.mark.parametrize("required", ("type", "auth_type", "org_id"))
 def test_identity_missing_required(required):
     bad_identity = USER_IDENTITY.copy()
     bad_identity.pop(required, None)
@@ -70,6 +70,14 @@ def test_system_identity_missing_system():
 
 @pytest.mark.parametrize("required", ("cert_type", "cn"))
 def test_system_identity_missing_required(required):
+    # Test blank values
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
+    assert "system" in bad_identity
+    bad_identity["system"][required] = ""
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test missing values
     bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     assert "system" in bad_identity
     bad_identity["system"].pop(required, None)
@@ -79,7 +87,7 @@ def test_system_identity_missing_required(required):
 
 @pytest.mark.parametrize(
     "test_field,bad_value",
-    [("org_id", ""), ("org_id", "X" * 37), ("account_number", ""), ("account_number", "X" * 37)],
+    [("org_id", ""), ("org_id", "X" * 37), ("account_number", "X" * 37)],
 )
 def test_string_length(test_field, bad_value):
     bad_identity = USER_IDENTITY.copy()

@@ -6,6 +6,7 @@ from tests.helpers.db_utils import assert_host_missing_from_db
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import SYSTEM_IDENTITY
 
 
 def test_find_host_using_subset_canonical_fact_match(db_create_host):
@@ -167,6 +168,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
 @mark.parametrize("changing_id", ("insights_id", "subscription_manager_id"))
 def test_rhsm_conduit_elevated_id_priority_no_identity(mq_create_or_update_host, changing_id):
     base_canonical_facts = {
+        "account": SYSTEM_IDENTITY["account_number"],
         "provider_type": ProviderType.AWS,  # Doesn't matter
         "provider_id": generate_uuid(),
         "insights_id": generate_uuid(),

@@ -77,7 +77,8 @@ def _get_identity(host, metadata):
     else:
         if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
             identity = deepcopy(SYSTEM_IDENTITY)
-            identity["account_number"] = host.get("account")
+            if "account" in host:
+                identity["account_number"] = host["account"]
             identity["org_id"] = host.get("org_id")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
@@ -134,9 +135,8 @@ def _build_minimal_host_info(host_data):
     return {
         "account_id": host_data.get("account"),
         "org_id": host_data.get("org_id"),
-        "insights_id": host_data.get("insights_id"),
         "display_name": host_data.get("display_name"),
-        "id": host_data.get("id"),
+        "id": host_data.get("host_id"),
         "canonical_facts": deserialize_canonical_facts(host_data, all=True),
     }
 
@@ -338,5 +338,5 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    key = minimal_host.get("insights_id")
+    key = minimal_host.get("canonical_facts" or {}).get("insights_id")
     notification_event_producer.write_event(event, key, headers, wait=True)

@@ -56,13 +56,14 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
 
 
 def deserialize_canonical_facts(raw_data, all=False):
+    if all:
+        return _deserialize_all_canonical_facts(raw_data)
+
     try:
-        validated_data = CanonicalFactsSchema().load(raw_data)
+        validated_data = CanonicalFactsSchema().load(raw_data, partial=all)
     except ValidationError as e:
         raise ValidationException(str(e.messages)) from None
 
-    if all:
-        return _deserialize_all_canonical_facts(validated_data)
     return _deserialize_canonical_facts(validated_data)
 
 
