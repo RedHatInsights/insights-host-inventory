@@ -406,7 +406,14 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
     assert str(ve.value) == "The owner in host does not match the owner in identity"
 
 
-def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host):
+@pytest.mark.parametrize(
+    "with_account",
+    (
+        True,
+        False,
+    ),
+)
+def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_update_host, with_account):
     """
     Tests adding a host with reporter rhsm-conduit and no cn
     """
@@ -415,9 +422,14 @@ def test_add_host_rhsm_conduit_without_cn(event_datetime_mock, mq_create_or_upda
     metadata_without_b64 = get_platform_metadata(identity=SYSTEM_IDENTITY)
     del metadata_without_b64["b64_identity"]
 
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"], reporter="rhsm-conduit", subscription_manager_id=sub_mangager_id
-    )
+    if with_account:
+        host = minimal_host(
+            account=SYSTEM_IDENTITY.get("account_number"),
+            reporter="rhsm-conduit",
+            subscription_manager_id=sub_mangager_id,
+        )
+    else:
+        host = minimal_host(reporter="rhsm-conduit", subscription_manager_id=sub_mangager_id)
 
     key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata_without_b64, return_all_data=True)
 

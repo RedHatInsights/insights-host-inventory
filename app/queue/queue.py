@@ -77,7 +77,8 @@ def _get_identity(host, metadata):
     else:
         if host.get("reporter") == "rhsm-conduit" and host.get("subscription_manager_id"):
             identity = deepcopy(SYSTEM_IDENTITY)
-            identity["account_number"] = host.get("account")
+            if "account" in host:
+                identity["account_number"] = host["account"]
             identity["org_id"] = host.get("org_id")
             identity["system"]["cn"] = _formatted_uuid(host.get("subscription_manager_id"))
         elif metadata:
