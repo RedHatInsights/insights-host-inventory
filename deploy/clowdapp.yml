@@ -770,7 +770,7 @@ parameters:
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 - name: TENANT_TRANSLATOR_HOST
-  value: 'apicast.3scale-dev.svc.cluster.local'
+  value: 'gateway.3scale-dev.svc.cluster.local'
 - name: TENANT_TRANSLATOR_PORT
   value: '8892'
 - name: GUNICORN_WORKERS
