@@ -167,6 +167,46 @@ def test_delete_hosts_using_filter_and_registered_with(
     assert len(new_hosts) == remaining_hosts.count()
 
 
+@pytest.mark.parametrize(
+    "total_hosts,expected_times_called",
+    (
+        ("105", 2),
+        ("729", 8),
+        ("2048", 21),
+    ),
+)
+def test_delete_over_100_filtered_hosts(
+    api_delete_filtered_hosts,
+    patch_xjoin_post,
+    mocker,
+    total_hosts,
+    expected_times_called,
+):
+    hosts_per_call = len(XJOIN_HOSTS_RESPONSE_FOR_FILTERING["hosts"]["data"])
+
+    # set the new host ids in the xjoin search reference.
+    resp = deepcopy(XJOIN_HOSTS_RESPONSE_FOR_FILTERING)
+    resp["hosts"]["meta"]["total"] = total_hosts
+    response = {"data": resp}
+
+    # Make the new hosts available in xjoin-search to make them available
+    # for querying for deletion using filters
+    patched_post = patch_xjoin_post(response, status=200)
+    patched_delete = mocker.patch("api.host._delete_host_list")
+
+    # delete hosts using the IDs supposedly returned by the query_filter
+    response_status, response_data = api_delete_filtered_hosts({"staleness": "stale"})
+
+    # Just double-check that it didn't error out
+    assert_response_status(response_status, expected_status=202)
+
+    assert patched_post.call_count == expected_times_called
+
+    # The actual number of hosts deleted should be equal to this,
+    # because only hosts_per_call hosts are returned on each call
+    assert len(patched_delete.call_args[0][0]) == hosts_per_call * expected_times_called
+
+
 def test_delete_all_hosts(
     event_producer_mock, db_create_multiple_hosts, db_get_hosts, api_delete_all_hosts, patch_xjoin_post
 ):
