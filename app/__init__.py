@@ -139,7 +139,7 @@ def process_spec(spec, process_unindexed=False):
             }
 
             if field_filter == "object":
-                system_profile_spec_processed[field]["children"] = process_spec(props["properties"], True)
+                system_profile_spec_processed[field]["children"], _ = process_spec(props["properties"], True)
 
         if not props.get("x-indexed", True):
             unindexed_fields.append(field)

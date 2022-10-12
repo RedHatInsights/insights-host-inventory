@@ -2258,7 +2258,7 @@ def test_query_hosts_filter_deep_objects(mocker, subtests, flask_app, graphql_qu
     with flask_app.app_context():
         mocker.patch(
             "api.filtering.filtering.system_profile_spec",
-            return_value=process_spec(system_profile_deep_object_spec()["$defs"]["SystemProfile"]["properties"]),
+            return_value=process_spec(system_profile_deep_object_spec()["$defs"]["SystemProfile"]["properties"])[0],
         )
 
         for http_query, graphql_query in zip(http_queries, graphql_queries):
