@@ -2284,6 +2284,23 @@ def test_query_hosts_filter_deep_objects(mocker, subtests, flask_app, graphql_qu
                 graphql_query_empty_response.reset_mock()
 
 
+# system_profile fields not in schema validation failstate tests
+def test_query_hosts_filter_spf_not_in_schema_exception_handling(subtests, api_get):
+    http_queries = (
+        "filter[system_profile][i_love_ketchup]=yum",
+        "filter[system_profile][fake_field][fake_sub_field]=3.14",
+    )
+
+    for http_query in http_queries:
+        with subtests.test(http_query=http_query):
+            url = build_hosts_url(query=f"?{http_query}")
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 400
+            assert response_data["title"] == "Validation Error"
+
+
 # system_profile ansible failstate tests
 def test_query_hosts_filter_spf_ansible_exception_handling(subtests, api_get):
     http_queries = (
