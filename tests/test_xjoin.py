@@ -1011,6 +1011,25 @@ def test_query_variables_tags_collection_csv(mocker, assert_tag_query_host_filte
     )
 
 
+def test_query_variables_tags_collection_encoded_commas(mocker, assert_tag_query_host_filter_single_call):
+    assert_tag_query_host_filter_single_call(
+        build_tags_url(query="?tags=Sat/env=prod%2Cstage,insights-client/os=fedora%2Cubuntu"),
+        host_filter={
+            "AND": (
+                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod,stage"}}},
+                {
+                    "tag": {
+                        "namespace": {"eq": "insights-client"},
+                        "key": {"eq": "os"},
+                        "value": {"eq": "fedora,ubuntu"},
+                    }
+                },
+            ),
+            "OR": mocker.ANY,
+        },
+    )
+
+
 def test_query_variables_tags_without_namespace(mocker, assert_tag_query_host_filter_single_call):
     assert_tag_query_host_filter_single_call(
         build_tags_url(query="?tags=env=prod"),
