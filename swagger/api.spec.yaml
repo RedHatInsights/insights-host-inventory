@@ -664,6 +664,8 @@ components:
       in: query
       description: filters out hosts not tagged by the given tags
       required: false
+      style: spaceDelimited
+      explode: true
       schema:
         type: array
         items:
