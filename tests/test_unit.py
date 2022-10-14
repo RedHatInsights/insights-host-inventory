@@ -574,8 +574,8 @@ class TagFromStringTestCase(TestCase):
 
     def test_special_characters_decode(self):
         self.assertEqual(
-            Tag.from_string("Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%2C%27-%2Bal"),
-            Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}','-+al"),
+            Tag.from_string("Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal"),
+            Tag("Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al"),
         )
 
     def test_special_characters_allowed(self):

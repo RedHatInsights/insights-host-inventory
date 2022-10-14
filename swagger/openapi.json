@@ -1094,13 +1094,13 @@
         "in": "query",
         "description": "filters out hosts not tagged by the given tags",
         "required": false,
-        "style": "spaceDelimited",
+        "style": "pipeDelimited",
         "explode": true,
         "schema": {
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^([^=/\\s]+/)?[^=/\\s]+(=[^=/\\s]+)?$"
+            "pattern": "^([^=/\\|]+/)?[^=/\\|]+(=[^=/\\|]+)?$"
           }
         }
       },
