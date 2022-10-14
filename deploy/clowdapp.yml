@@ -536,6 +536,8 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: CLOWDER_ENABLED
             value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -785,6 +787,8 @@ parameters:
   value: '2'
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
+- name: SCRIPT_CHUNK_SIZE
+  value: '500'
 
 #floorist
 - name: MEMORY_LIMIT_FLOO
