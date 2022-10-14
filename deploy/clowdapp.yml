@@ -539,10 +539,10 @@ objects:
         resources:
           limits:
             cpu: ${CPU_LIMIT}
-            memory: ${MEMORY_LIMIT}
+            memory: ${MEMORY_LIMIT_SYNC}
           requests:
             cpu: ${CPU_REQUEST}
-            memory: ${MEMORY_REQUEST}
+            memory: ${MEMORY_REQUEST_SYNC}
     - name: floorist
       schedule: ${FLOORIST_SCHEDULE}
       suspend: ${{FLOORIST_SUSPEND}}
@@ -661,6 +661,9 @@ parameters:
 - description: memory limit of service
   name: MEMORY_LIMIT
   value: 512Mi
+- description: memory limit of host-synchronizer
+  name: MEMORY_LIMIT_SYNC
+  value: 1Gi
 - description: memory limit of reaper
   name: MEMORY_LIMIT_REAPER
   value: 512Mi
@@ -670,6 +673,9 @@ parameters:
 - description: request limit for reaper
   name: MEMORY_REQUEST_REAPER
   value: 256Mi
+- description: request limit for host-synchronizer
+  name: MEMORY_REQUEST_SYNC
+  value: 512Mi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
