@@ -180,18 +180,20 @@ def parse_operation_message(message):
 
 
 def sync_event_message(message, session, event_producer):
+    host_id = message["host"]["id"]
+    logger.info(f"Processing host with ID {host_id}")
     if message["type"] != EventType.delete.name:
-        query = session.query(Host).filter(
-            (Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(message["host"]["id"]))
-        )
+        logger.info(f"Latest event is not a delete for host {host_id}")
+        query = session.query(Host).filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
-            host.id = message["host"]["id"]
+            host.id = host_id
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
             event_producer.write_event(event, host.id, headers, wait=True)
+            logger.info(f"Host {host_id} not found in DB; DELETE event produced.")
 
     return
 
