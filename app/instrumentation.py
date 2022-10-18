@@ -15,7 +15,15 @@ from lib.metrics import pendo_fetching_failure
 def message_produced(logger, message, headers):
     value = message.value().decode("utf-8")
     message_dict = json.loads(value)
-    key = message_dict["host"]["id"]
+
+    # create and update hosts has host
+    if "host" in message_dict.keys():
+        key = message_dict["host"]["id"]
+    # delete host provides has "id" only
+    elif "id" in message_dict.keys():
+        key = message_dict["id"]
+    else:
+        key = "Not provided by the caller"
 
     status = "PRODUCED"
     offset = message.offset()
