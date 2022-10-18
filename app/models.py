@@ -17,7 +17,7 @@ from marshmallow import fields
 from marshmallow import post_load
 from marshmallow import pre_load
 from marshmallow import Schema as MarshmallowSchema
-from marshmallow import validate as marshmallow_validate
+from marshmallow import validate as mv
 from marshmallow import validates
 from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
@@ -41,9 +41,9 @@ logger = get_logger(__name__)
 
 db = SQLAlchemy()
 
-TAG_NAMESPACE_VALIDATION = marshmallow_validate.Length(max=255)
-TAG_KEY_VALIDATION = marshmallow_validate.Length(min=1, max=255)
-TAG_VALUE_VALIDATION = marshmallow_validate.Length(max=255)
+TAG_NAMESPACE_VALIDATION = mv.And(mv.Length(max=255), mv.ContainsNoneOf([","]))
+TAG_KEY_VALIDATION = mv.And(mv.Length(min=1, max=255), mv.ContainsNoneOf([","]))
+TAG_VALUE_VALIDATION = mv.And(mv.Length(max=255), mv.ContainsNoneOf([","]))
 
 SPECIFICATION_DIR = "./swagger/"
 SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
@@ -390,50 +390,50 @@ class Host(LimitedHost):
 
 
 class DiskDeviceSchema(MarshmallowSchema):
-    device = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    label = fields.Str(validate=marshmallow_validate.Length(max=1024))
+    device = fields.Str(validate=mv.Length(max=2048))
+    label = fields.Str(validate=mv.Length(max=1024))
     options = fields.Dict(validate=check_empty_keys)
-    mount_point = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    type = fields.Str(validate=marshmallow_validate.Length(max=256))
+    mount_point = fields.Str(validate=mv.Length(max=2048))
+    type = fields.Str(validate=mv.Length(max=256))
 
 
 class RhsmSchema(MarshmallowSchema):
-    version = fields.Str(validate=marshmallow_validate.Length(max=255))
+    version = fields.Str(validate=mv.Length(max=255))
 
 
 class OperatingSystemSchema(MarshmallowSchema):
     major = fields.Int()
     minor = fields.Int()
-    name = fields.Str(validate=marshmallow_validate.Length(max=4))
+    name = fields.Str(validate=mv.Length(max=4))
 
 
 class YumRepoSchema(MarshmallowSchema):
-    id = fields.Str(validate=marshmallow_validate.Length(max=256))
-    name = fields.Str(validate=marshmallow_validate.Length(max=1024))
+    id = fields.Str(validate=mv.Length(max=256))
+    name = fields.Str(validate=mv.Length(max=1024))
     gpgcheck = fields.Bool()
     enabled = fields.Bool()
-    base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
+    base_url = fields.Str(validate=mv.Length(max=2048))
 
 
 class DnfModuleSchema(MarshmallowSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(max=128))
-    stream = fields.Str(validate=marshmallow_validate.Length(max=128))
+    name = fields.Str(validate=mv.Length(max=128))
+    stream = fields.Str(validate=mv.Length(max=128))
 
 
 class InstalledProductSchema(MarshmallowSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(max=512))
-    id = fields.Str(validate=marshmallow_validate.Length(max=64))
-    status = fields.Str(validate=marshmallow_validate.Length(max=256))
+    name = fields.Str(validate=mv.Length(max=512))
+    id = fields.Str(validate=mv.Length(max=64))
+    status = fields.Str(validate=mv.Length(max=256))
 
 
 class NetworkInterfaceSchema(MarshmallowSchema):
     ipv4_addresses = fields.List(fields.Str())
     ipv6_addresses = fields.List(fields.Str())
-    state = fields.Str(validate=marshmallow_validate.Length(max=25))
+    state = fields.Str(validate=mv.Length(max=25))
     mtu = fields.Int()
-    mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
-    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
-    type = fields.Str(validate=marshmallow_validate.Length(max=18))
+    mac_address = fields.Str(validate=mv.Length(max=59))
+    name = fields.Str(validate=mv.Length(min=1, max=50))
+    type = fields.Str(validate=mv.Length(max=18))
 
 
 class FactsSchema(MarshmallowSchema):
@@ -457,14 +457,12 @@ class CanonicalFactsSchema(MarshmallowSchema):
     insights_id = fields.Str(validate=verify_uuid_format)
     subscription_manager_id = fields.Str(validate=verify_uuid_format)
     satellite_id = fields.Str(validate=verify_satellite_id)
-    fqdn = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
+    fqdn = fields.Str(validate=mv.Length(min=1, max=255))
     bios_uuid = fields.Str(validate=verify_uuid_format)
     ip_addresses = fields.List(fields.Str(validate=verify_ip_address_format))
-    mac_addresses = fields.List(
-        fields.Str(validate=verify_mac_address_format), validate=marshmallow_validate.Length(min=1)
-    )
-    provider_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=500))
-    provider_type = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
+    mac_addresses = fields.List(fields.Str(validate=verify_mac_address_format), validate=mv.Length(min=1))
+    provider_id = fields.Str(validate=mv.Length(min=1, max=500))
+    provider_type = fields.Str(validate=mv.Length(min=1, max=50))
 
     @validates_schema
     def validate_provider(self, data, **kwargs):
@@ -489,10 +487,10 @@ class LimitedHostSchema(CanonicalFactsSchema):
     class Meta:
         unknown = EXCLUDE
 
-    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
-    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
-    account = fields.Str(validate=marshmallow_validate.Length(min=0, max=10))
-    org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
+    display_name = fields.Str(validate=mv.Length(min=1, max=200))
+    ansible_host = fields.Str(validate=mv.Length(min=0, max=255))
+    account = fields.Str(validate=mv.Length(min=0, max=10))
+    org_id = fields.Str(required=True, validate=mv.Length(min=1, max=36))
     facts = fields.List(fields.Nested(FactsSchema))
     system_profile = fields.Dict()
     tags = fields.Raw()
@@ -593,7 +591,7 @@ class HostSchema(LimitedHostSchema):
         unknown = EXCLUDE
 
     stale_timestamp = fields.DateTime(required=True, timezone=True)
-    reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
+    reporter = fields.Str(required=True, validate=mv.Length(min=1, max=255))
 
     @staticmethod
     def build_model(data, canonical_facts, facts, tags):
@@ -617,8 +615,8 @@ class HostSchema(LimitedHostSchema):
 
 
 class PatchHostSchema(MarshmallowSchema):
-    ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
-    display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
+    ansible_host = fields.Str(validate=mv.Length(min=0, max=255))
+    display_name = fields.Str(validate=mv.Length(min=1, max=200))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
