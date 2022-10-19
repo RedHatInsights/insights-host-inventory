@@ -665,7 +665,7 @@ parameters:
   value: 512Mi
 - description: memory limit of host-synchronizer
   name: MEMORY_LIMIT_SYNC
-  value: 1Gi
+  value: 3Gi
 - description: memory limit of reaper
   name: MEMORY_LIMIT_REAPER
   value: 512Mi
@@ -677,7 +677,7 @@ parameters:
   value: 256Mi
 - description: request limit for host-synchronizer
   name: MEMORY_REQUEST_SYNC
-  value: 512Mi
+  value: 3Gi
 - description: Replica count for p1 consumer
   name: REPLICAS_P1
   value: "5"
