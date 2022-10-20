@@ -1901,7 +1901,9 @@ class EventProducerTests(TestCase):
 
                 self.event_producer.write_event(event, host_id, headers)
 
-                produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
+                produce.assert_called_once_with(
+                    self.topic_name, event.encode("utf-8"), callback=ANY, timestamp=ANY, headers=ANY
+                )
                 poll.assert_called_once()
 
                 produce.reset_mock()
@@ -1923,7 +1925,9 @@ class EventProducerTests(TestCase):
 
                 self.event_producer.write_event(event, host_id, headers)
 
-                produce.assert_called_once_with(self.topic_name, event.encode("utf-8"), callback=ANY)
+                produce.assert_called_once_with(
+                    self.topic_name, event.encode("utf-8"), callback=ANY, timestamp=ANY, headers=ANY
+                )
                 poll.assert_called_once()
 
                 produce.reset_mock()

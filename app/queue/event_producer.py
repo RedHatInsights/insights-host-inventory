@@ -1,3 +1,5 @@
+import time
+
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -44,7 +46,9 @@ class EventProducer:
 
         try:
             messageDetails = MessageDetails(topic, v, h, k)
-            self._kafka_producer.produce(topic, v, callback=messageDetails.on_delivered)
+            self._kafka_producer.produce(
+                topic, v, callback=messageDetails.on_delivered, timestamp=round(time.time() * 1000), headers=h
+            )
             if wait:
                 self._kafka_producer.flush()
             else:
