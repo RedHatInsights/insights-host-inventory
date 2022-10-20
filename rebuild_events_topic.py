@@ -53,10 +53,12 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     total_messages_processed = 0
 
     logger.debug("About to start the consumer loop")
-    while num_messages > 0 and not shutdown_handler.shut_down():
+    while num_messages > 0:
+        logger.debug("Entered first loop")
         num_messages = 0
         msgs = consumer.poll(timeout_ms=1000)
         for _, messages in msgs.items():
+            logger.debug("Entered second loop")
             for message in messages:
                 logger.debug("Message received")
                 try:
