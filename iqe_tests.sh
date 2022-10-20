@@ -19,7 +19,7 @@ export REF_ENV="insights-stage"
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 
 IQE_PLUGINS="host_inventory"
-IQE_MARKER_EXPRESSION="not resilience and not cert_auth and not rbac_dependent and not should_fail"
+IQE_MARKER_EXPRESSION="not resilience and should_fail"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="3h"
 
@@ -71,4 +71,3 @@ oc_wrapper delete cji $CJI_NAME -n $NAMESPACE
 source $CICD_ROOT/cji_smoke_test.sh
 
 source $CICD_ROOT/post_test_results.sh
-# testing
