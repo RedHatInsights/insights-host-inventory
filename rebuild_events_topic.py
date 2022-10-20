@@ -56,8 +56,7 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     while num_messages > 0:
         logger.debug("Entered first loop")
         num_messages = 0
-        msgs = consumer.poll(timeout_ms=1000)
-        for _, messages in msgs.items():
+        for partition, messages in consumer.poll(timeout_ms=60000, max_records=500).items():
             logger.debug("Entered second loop")
             for message in messages:
                 logger.debug("Message received")
