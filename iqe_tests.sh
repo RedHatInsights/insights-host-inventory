@@ -19,7 +19,7 @@ export REF_ENV="insights-stage"
 COMPONENT_NAME="host-inventory"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 
 IQE_PLUGINS="host_inventory"
-IQE_MARKER_EXPRESSION="not resilience and not cert_auth and not rbac_dependent and not should_fail"
+IQE_MARKER_EXPRESSION="resilience"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="3h"
 
@@ -66,9 +66,8 @@ bonfire namespace extend $NAMESPACE --duration 3h
 source $CICD_ROOT/cji_smoke_test.sh
 
 # Run resilience (graceful shutdown) tests
-IQE_MARKER_EXPRESSION="resilience and not should_fail"
 oc_wrapper delete cji $CJI_NAME -n $NAMESPACE
+IQE_MARKER_EXPRESSION="resilience and should_fail"
 source $CICD_ROOT/cji_smoke_test.sh
 
 source $CICD_ROOT/post_test_results.sh
-# testing
