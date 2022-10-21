@@ -46,8 +46,9 @@ class EventProducer:
 
         try:
             messageDetails = MessageDetails(topic, v, h, k)
+
             self._kafka_producer.produce(
-                topic, v, callback=messageDetails.on_delivered, timestamp=round(time.time() * 1000), headers=h
+                topic, v, k, callback=messageDetails.on_delivered, timestamp=round(time.time() * 1000), headers=h
             )
             if wait:
                 self._kafka_producer.flush()
