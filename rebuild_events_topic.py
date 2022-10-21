@@ -53,13 +53,10 @@ def run(config, logger, session, consumer, event_producer, shutdown_handler):
     total_messages_processed = 0
 
     logger.debug("About to start the consumer loop")
-    while num_messages > 0:
-        logger.debug("Entered first loop")
+    while num_messages > 0 and not shutdown_handler.shut_down():
         num_messages = 0
         for partition, messages in consumer.poll(timeout_ms=60000, max_records=500).items():
-            logger.debug("Entered second loop")
             for message in messages:
-                logger.debug("Message received")
                 try:
                     sync_event_message(json.loads(message.value), session, event_producer)
                     # TODO: Metrics
