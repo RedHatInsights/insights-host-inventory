@@ -12,7 +12,6 @@ export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export GIT_COMMIT=$(git rev-parse HEAD)
 export REF_ENV="insights-stage"
-export DEPLOY_TIMEOUT="3h"
 
 # --------------------------------------------
 # Options that must be configured by app owner
@@ -43,7 +42,7 @@ function check_image () {
         "https://quay.io/api/v1/repository/$QUAY_REPO/tag/?specificTag=$IMAGE_TAG" \
     )
     # find all non-expired tags
-    VALID_TAGS_LENGTH=$(echo $RESPONSE | jq '[ .tags[] | select(.end_ts == null) ] | length')
+    VALID_TAGS_LENGTH=$(echo $RESPONSE | jq '[ .tags[] ] | length')
     if [[ "$VALID_TAGS_LENGTH" -gt 0 ]]; then
       echo "Found image '$IMAGE:$IMAGE_TAG'"
       return 0
@@ -61,12 +60,8 @@ then
   exit 1
 fi
 
-# Deploy ephemeral env and run base IQE tests
+# Deploy ephemeral env and run IQE tests
 source $CICD_ROOT/deploy_ephemeral_env.sh
+bonfire namespace extend $NAMESPACE --duration 3h
 source $CICD_ROOT/cji_smoke_test.sh
-
-# Run resilience (graceful shutdown) tests
-IQE_MARKER_EXPRESSION="resilience"
-source $CICD_ROOT/cji_smoke_test.sh
-
 source $CICD_ROOT/post_test_results.sh
