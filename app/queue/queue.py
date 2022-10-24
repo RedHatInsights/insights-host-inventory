@@ -181,9 +181,7 @@ def parse_operation_message(message):
 
 def sync_event_message(message, session, event_producer):
     host_id = message["host"]["id"]
-    logger.info(f"Processing host with ID {host_id}")
     if message["type"] != EventType.delete.name:
-        logger.info(f"Latest event is not a delete for host {host_id}")
         query = session.query(Host).filter((Host.org_id == message["host"]["org_id"]) & (Host.id == UUID(host_id)))
         # If the host doesn't exist in the DB, produce a Delete event.
         if not query.count():
@@ -193,7 +191,11 @@ def sync_event_message(message, session, event_producer):
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
             event_producer.write_event(event, host.id, headers, wait=True)
-            logger.info(f"Host {host_id} not found in DB; DELETE event produced.")
+            logger.info(f"{host_id}: Latest event is not a delete, and host not found in DB; DELETE event produced.")
+        else:
+            logger.info(f"{host_id}: Latest event is not a delete, but host found in DB.")
+    else:
+        logger.info(f"{host_id}: Latest event is a delete.")
 
     return
 
