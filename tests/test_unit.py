@@ -1906,7 +1906,6 @@ class EventProducerTests(TestCase):
                     event.encode("utf-8"),
                     host_id.encode("utf-8"),
                     callback=ANY,
-                    timestamp=ANY,
                     headers=ANY,
                 )
                 poll.assert_called_once()
@@ -1935,7 +1934,7 @@ class EventProducerTests(TestCase):
                     event.encode("utf-8"),
                     host_id.encode("utf-8"),
                     callback=ANY,
-                    timestamp=ANY,
+                    # timestamp=ANY,
                     headers=ANY,
                 )
                 poll.assert_called_once()
