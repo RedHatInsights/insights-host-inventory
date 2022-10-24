@@ -190,7 +190,7 @@ def sync_event_message(message, session, event_producer):
             event = build_event(EventType.delete, host)
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
-            event_producer.write_event(event, host.id, headers, wait=True)
+            event_producer.write_event(event, host.id, headers)
             logger.info(f"{host_id}: Latest event is not a delete, and host not found in DB; DELETE event produced.")
         else:
             logger.info(f"{host_id}: Latest event is not a delete, but host found in DB.")
@@ -354,4 +354,4 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         rh_message_id=rh_message_id,
     )
     key = minimal_host.get("canonical_facts" or {}).get("insights_id")
-    notification_event_producer.write_event(event, key, headers, wait=True)
+    notification_event_producer.write_event(event, key, headers)
