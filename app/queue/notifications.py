@@ -77,7 +77,6 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
                 "metadata": {},
                 "payload": {
                     "request_id": threadctx.request_id,
-                    "host_id": host.get("id"),
                     "display_name": host.get("display_name"),
                     "canonical_facts": host.get("canonical_facts"),
                     "error": {
