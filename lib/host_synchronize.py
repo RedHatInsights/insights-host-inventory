@@ -27,7 +27,8 @@ def synchronize_hosts(select_query, event_producer, chunk_size, config, interrup
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.updated, insights_id)
             # in case of a failed update event, event_producer logs the message.
-            event_producer.write_event(event, str(host.id), headers, wait=True)
+            # add back "wait=True", if needed.
+            event_producer.write_event(event, str(host.id), headers)
             synchronize_host_count.inc()
             logger.info("Synchronized host: %s", str(host.id))
 
