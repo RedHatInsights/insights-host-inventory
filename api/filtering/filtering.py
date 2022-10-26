@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 NIL_STRING = "nil"
 NOT_NIL_STRING = "not_nil"
-OR_FIELDS = ("owner_id", "rhc_client_id", "host_type")
+OR_FIELDS = ("owner_id", "rhc_client_id", "host_type", "update_method")
 
 
 def _invalid_value_error(field_name, field_value):

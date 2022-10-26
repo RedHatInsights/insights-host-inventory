@@ -471,6 +471,7 @@ def create_system_profile():
         "selinux_current_mode": "enforcing",
         "selinux_config_file": "enforcing",
         "operating_system": {"name": "RHEL", "major": 8, "minor": 1},
+        "update_method": "yum",  # "dnf, rpm-ostree, yum"
     }
 
 

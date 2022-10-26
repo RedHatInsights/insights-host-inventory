@@ -60,6 +60,7 @@ INVALID_SYSTEM_PROFILES = (
     {"cpu_model": "x" * 101},
     {"rhc_client_id": "x" * 12},
     {"rhc_client_id": "plxi13y1-99ut-3rdf-bc10-84opf904lfad"},
+    {"update_method": "inv_method"},
 )
 
 MOCK_DEEPOBJECT_SPEC = {
