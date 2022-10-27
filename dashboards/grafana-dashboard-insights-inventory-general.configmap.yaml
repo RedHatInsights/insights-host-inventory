@@ -898,7 +898,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "sum_over_time(inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}[$__range:59m])",
+              "expr": "sum_over_time(sum(inventory_delete_host_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"})[$__range:59m])",
               "instant": true,
               "interval": "5m",
               "refId": "A"
@@ -1260,7 +1260,7 @@ data:
           "tableColumn": "",
           "targets": [
             {
-              "expr": "increase(inventory_reaper_fail_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}[$__range])",
+              "expr": "sum(increase(inventory_reaper_fail_count_total{exported_job=~\"inventory-reaper-host-inventory-stage|inventory-reaper-host-inventory-prod\"}[$__range]))",
               "interval": "5m",
               "refId": "A"
             }
@@ -2537,6 +2537,108 @@ data:
             "align": false,
             "alignLevel": null
           }
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "C_IyqZfnz"
+          },
+          "description": "The available IOPS burst balance for the Prod HBI DB. When it runs out, DB performance is greatly reduced.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "id": 88,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "C_IyqZfnz"
+              },
+              "dimensions": {
+                "DBInstanceIdentifier": "host-inventory-prod"
+              },
+              "expression": "",
+              "id": "",
+              "label": "",
+              "matchExact": true,
+              "metricEditorMode": 0,
+              "metricName": "BurstBalance",
+              "metricQueryType": 0,
+              "namespace": "AWS/RDS",
+              "period": "",
+              "queryMode": "Metrics",
+              "refId": "A",
+              "region": "default",
+              "sqlExpression": "",
+              "statistic": "Average"
+            }
+          ],
+          "title": "IOPS Burst Balance (Prod)",
+          "type": "timeseries"
         },
         {
           "aliasColors": {},
