@@ -997,15 +997,15 @@ def test_query_variables_tags_collection_multi(mocker, assert_tag_query_host_fil
 
 def test_query_variables_tags_collection_encoded_commas(mocker, assert_tag_query_host_filter_single_call):
     assert_tag_query_host_filter_single_call(
-        build_tags_url(query="?tags=Sat/env=prod%2Cstage&tags=insights-client/os=fedora%2Cubuntu"),
+        build_tags_url(query="?tags=Sat/env=prod%2Cstage&tags=insights-client/Location=Santa%20Fe%2C%20NM"),
         host_filter={
             "AND": (
                 {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod,stage"}}},
                 {
                     "tag": {
                         "namespace": {"eq": "insights-client"},
-                        "key": {"eq": "os"},
-                        "value": {"eq": "fedora,ubuntu"},
+                        "key": {"eq": "Location"},
+                        "value": {"eq": "Santa Fe, NM"},
                     }
                 },
             ),
