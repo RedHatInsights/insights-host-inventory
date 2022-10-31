@@ -326,7 +326,7 @@ def test_add_edge_host(event_datetime_mock, mq_create_or_update_host, db_get_hos
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
         insights_id=expected_insights_id,
-        system_profile={"owner_id": OWNER_ID, "host_type": "edge", "update_method": "dnf"},
+        system_profile={"owner_id": OWNER_ID, "host_type": "edge", "system_update_method": "dnf"},
     )
 
     expected_results = {"host": {**host.data()}}
@@ -500,8 +500,8 @@ def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
 
 
 @pytest.mark.system_profile
-def test_add_host_with_invalid_update_method(mq_create_or_update_host):
-    system_profile = {"owner_id": OWNER_ID, "update_method": "Whooping-cranes"}
+def test_add_host_with_invalid_system_update_method(mq_create_or_update_host):
+    system_profile = {"owner_id": OWNER_ID, "system_update_method": "Whooping-cranes"}
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):

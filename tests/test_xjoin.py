@@ -1972,13 +1972,18 @@ def test_query_hosts_filter_update_method_multiple(
     mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
 ):
     query_params = (
-        "?filter[system_profile][update_method][eq][]=dnf",
-        "?filter[system_profile][update_method][eq][]=rpm-ostree"
-        "&filter[system_profile][update_method][eq][]=random-type",
+        "?filter[system_profile][system_update_method][eq][]=dnf",
+        "?filter[system_profile][system_update_method][eq][]=rpm-ostree"
+        "&filter[system_profile][system_update_method][eq][]=random-type",
     )
     queries = (
-        {"OR": [{"spf_update_method": {"eq": "dnf"}}]},
-        {"OR": [{"spf_update_method": {"eq": "rpm-ostree"}}, {"spf_update_method": {"eq": "random-type"}}]},
+        {"OR": [{"spf_system_update_method": {"eq": "dnf"}}]},
+        {
+            "OR": [
+                {"spf_system_update_method": {"eq": "rpm-ostree"}},
+                {"spf_system_update_method": {"eq": "random-type"}},
+            ]
+        },
     )
 
     for param, query in zip(query_params, queries):

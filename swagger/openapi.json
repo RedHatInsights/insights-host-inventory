@@ -2406,7 +2406,7 @@
               }
             }
           },
-          "update_method": {
+          "system_update_method": {
             "description": "System update method",
             "type": "string",
             "maxLength": 10,
@@ -2415,7 +2415,7 @@
               "rpm-ostree",
               "yum"
             ],
-            "example": "dnf, rpm-ostree, yum"
+            "example": "rpm-ostree"
           }
         }
       },
