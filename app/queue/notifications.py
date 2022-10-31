@@ -67,13 +67,16 @@ def host_validation_error_event(notification_type, message_id, host, detail, sta
         "timestamp": datetime.now(timezone.utc),
         "account_id": host.get("account_id") or "",
         "org_id": host.get("org_id"),
-        "context": {"event_name": "Host Validation Error"},
+        "context": {
+            "event_name": "Host Validation Error",
+            "display_name": host.get("display_name"),
+            "inventory_id": host.get("id"),
+        },
         "events": [
             {
                 "metadata": {},
                 "payload": {
                     "request_id": threadctx.request_id,
-                    "host_id": host.get("id"),
                     "display_name": host.get("display_name"),
                     "canonical_facts": host.get("canonical_facts"),
                     "error": {

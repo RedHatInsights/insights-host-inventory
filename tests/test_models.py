@@ -189,7 +189,7 @@ def test_host_schema_valid_tags(tags):
 
 
 @pytest.mark.parametrize("tags", [[{"namespace": "Sat/"}], [{"value": "bad_tag"}]])
-def test_host_schema_invalid_tags_required_field(tags):
+def test_host_schema_invalid_tags(tags):
     host = {
         "fqdn": "fred.flintstone.com",
         "display_name": "display_name",
@@ -204,31 +204,6 @@ def test_host_schema_invalid_tags_required_field(tags):
     error_messages = exception.value.normalized_messages()
     assert "tags" in error_messages
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
-
-
-@pytest.mark.parametrize(
-    "tags,invalid_field",
-    [
-        ([{"namespace": "foo,bar", "key": "env", "value": "ok"}], "namespace"),
-        ([{"namespace": "Sat", "key": "env,loc", "value": "ok"}], "key"),
-        ([{"namespace": "Sat", "key": "env", "value": "prod,stage"}], "value"),
-    ],
-)
-def test_host_schema_tags_invalid_characters(tags, invalid_field):
-    host = {
-        "fqdn": "fred.flintstone.com",
-        "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
-        "tags": tags,
-        "stale_timestamp": now().isoformat(),
-        "reporter": "test",
-    }
-    with pytest.raises(MarshmallowValidationError) as exception:
-        HostSchema().load(host)
-
-    error_messages = exception.value.normalized_messages()
-    assert "tags" in error_messages
-    assert error_messages["tags"] == {0: {invalid_field: ["One or more of the choices you made was in: ,."]}}
 
 
 @pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
