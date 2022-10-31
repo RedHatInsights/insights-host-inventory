@@ -191,7 +191,7 @@ def sync_event_message(message, session, event_producer):
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
             # add back "wait=True", if needed.
-            event_producer.write_event(event, host.id, headers)
+            event_producer.write_event(event, host.id, headers, wait=True)
             logger.info(f"{host_id}: Latest event is not a delete, and host not found in DB; DELETE event produced.")
         else:
             logger.info(f"{host_id}: Latest event is not a delete, but host found in DB.")
@@ -294,7 +294,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             event = build_event(event_type, output_host, platform_metadata=platform_metadata)
 
             headers = message_headers(operation_result, insights_id)
-            event_producer.write_event(event, str(host_id), headers)
+            event_producer.write_event(event, str(host_id), headers, wait=True)
         except ValidationException as ve:
             logger.error(
                 "Validation error while adding or updating host: %s",
@@ -355,4 +355,4 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         rh_message_id=rh_message_id,
     )
     key = minimal_host.get("canonical_facts" or {}).get("insights_id")
-    notification_event_producer.write_event(event, key, headers)
+    notification_event_producer.write_event(event, key, headers, wait=True)

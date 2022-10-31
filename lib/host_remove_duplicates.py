@@ -141,7 +141,7 @@ def delete_duplicate_hosts(
             insights_id = host.canonical_facts.get("insights_id")
             headers = message_headers(EventType.delete, insights_id)
             # add back "wait=True", if needed.
-            event_producer.write_event(event, str(host.id), headers)
+            event_producer.write_event(event, str(host.id), headers, wait=True)
 
         total_deleted += len(duplicate_list)
 
