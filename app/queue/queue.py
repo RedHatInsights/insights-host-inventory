@@ -312,7 +312,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             raise
 
     execTime = (datetime.now()-enterTime).microseconds
-    logger.info(f"app.queue.queue.handle_message execution time: {execTime} microseconds")
+    logger.info(f"TIMECHECK: app.queue.queue.handle_message execution time: {execTime} microseconds")
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
@@ -320,13 +320,13 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
         while not interrupt():
 
             enterTime = datetime.now()
-            logger.info(f"TIMECHECK: app.queue.event_producer.event loop() before consume: {enterTime}")
+            logger.info(f"TIMECHECK: app.queue.event_producer.event_loop() before consume: {enterTime}")
             messages = consumer.consume(
                 num_messages=inventory_config().max_poll_records, timeout=CONSUMER_POLL_TIMEOUT_SECONDS
             )
             execTime = (datetime.now()-enterTime).microseconds
 
-            logger.info(f"app.queue.event_producer.event loop() time to consume: {execTime} microseconds")
+            logger.info(f"TIMECHECK: app.queue.event_producer.event_loop() time to consume: {execTime} microseconds")
 
             for msg in messages:
                 if msg is None:
@@ -347,7 +347,7 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                         handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
 
                         execTime = datetime.now()
-                        logger.info(f"app.queue.event_producer.event loop().handler execution time: {execTime} microseconds")
+                        logger.info(f"TIMECHECK: app.queue.event_producer.event loop().handler execution time: {execTime} microseconds")
 
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
