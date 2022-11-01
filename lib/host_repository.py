@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
@@ -65,11 +66,18 @@ def add_host(input_host, identity, staleness_offset, update_system_profile=True,
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(identity, canonical_facts):
+
+    enterTime = datetime.now()
+    logger.info(f"TIMECHECK: lib.host_repository.find_existing_host() enter time: {enterTime}")
+
     logger.debug("find_existing_host(%s, %s)", identity, canonical_facts)
     existing_host = _find_host_by_elevated_ids(identity, canonical_facts)
 
     if not existing_host:
         existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
+
+    execTime = (datetime.now() - enterTime).microseconds
+    logger.info(f"TIMECHECK: lib.host_repository.find_existing_host() execution time: {execTime} microseconds")
 
     return existing_host
 
@@ -159,6 +167,9 @@ def find_non_culled_hosts(query):
 def create_new_host(input_host, staleness_offset, fields):
     logger.debug("Creating a new host")
 
+    enterTime = datetime.now()
+    logger.info(f"TIMECHECK: lib.host_repository.create_new_host() enter time: {enterTime}")
+
     input_host.save()
     db.session.commit()
 
@@ -167,6 +178,10 @@ def create_new_host(input_host, staleness_offset, fields):
 
     output_host = serialize_host(input_host, staleness_offset, fields)
     insights_id = input_host.canonical_facts.get("insights_id")
+
+    execTime = (datetime.now() - enterTime).microseconds
+    logger.info(f"TIMECHECK: lib.host_repository.create_new_host() execution time: {execTime} microseconds")
+
     return output_host, input_host.id, insights_id, AddHostResult.created
 
 
@@ -174,6 +189,9 @@ def create_new_host(input_host, staleness_offset, fields):
 def update_existing_host(existing_host, input_host, staleness_offset, update_system_profile, fields):
     logger.debug("Updating an existing host")
     logger.debug(f"existing host = {existing_host}")
+
+    enterTime = datetime.now()
+    logger.info(f"TIMECHECK: lib.host_repository.update_existing_host() enter time: {enterTime}")
 
     existing_host.update(input_host, update_system_profile)
     db.session.commit()
@@ -183,6 +201,10 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
 
     output_host = serialize_host(existing_host, staleness_offset, fields)
     insights_id = existing_host.canonical_facts.get("insights_id")
+
+    execTime = (datetime.now() - enterTime).microseconds
+    logger.info(f"TIMECHECK: lib.host_repository.update_existing_host() exeuction time: {execTime} microseconds")
+
     return output_host, existing_host.id, insights_id, AddHostResult.updated
 
 

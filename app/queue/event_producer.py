@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 
@@ -21,6 +23,9 @@ class EventProducer:
         self.egress_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
+        enterTime = datetime.now()
+        logger.info(f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() enter time: {enterTime}")
+
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
@@ -38,6 +43,11 @@ class EventProducer:
 
             if wait:
                 send_future.get()
+
+        execTime = (datetime.now() - enterTime).microseconds
+        logger.info(
+            f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() execution time: {execTime} microseconds"
+        )
 
     def close(self):
         self._kafka_producer.flush()
