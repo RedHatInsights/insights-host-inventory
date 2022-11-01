@@ -367,24 +367,24 @@ def test_query_variables_invalid(query, mocker, graphql_query_empty_response, ap
 @pytest.mark.parametrize(
     "tags,query_param",
     (
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), f"?tags={quote('a/b=c')}"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), f"?tags={quote('a/b')}"),
         (
             (
                 {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
                 {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
             ),
-            "a/b=c,d/e=f",
+            f"?tags={quote('a/b=c')}&tags={quote('d/e=f')}",
         ),
         (
             ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
-            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            "?tags=" + quote(quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c")),
         ),
-        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), f"?tags={quote('ɑ/β=ɣ')}"),
     ),
 )
 def test_query_variables_tags(tags, query_param, mocker, graphql_query_empty_response, api_get):
-    url = build_hosts_url(query=f"?tags={quote(query_param)}")
+    url = build_hosts_url(query=f"{query_param}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -652,9 +652,7 @@ def test_query_variables_staleness(
 
 
 def test_query_multiple_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
-    staleness = "fresh,stale_warning"
-
-    url = build_hosts_url(query=f"?staleness={staleness}")
+    url = build_hosts_url(query="?staleness=fresh&staleness=stale_warning")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -930,9 +928,8 @@ def test_tags_query_variables_staleness(
 
 
 def test_tags_multiple_query_variables_staleness(culling_datetime_mock, assert_tag_query_host_filter_single_call):
-    staleness = "fresh,stale_warning"
     assert_tag_query_host_filter_single_call(
-        build_tags_url(query=f"?staleness={staleness}"),
+        build_tags_url(query="?staleness=fresh&staleness=stale_warning"),
         host_filter={
             "OR": [
                 {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
@@ -998,13 +995,19 @@ def test_query_variables_tags_collection_multi(mocker, assert_tag_query_host_fil
     )
 
 
-def test_query_variables_tags_collection_csv(mocker, assert_tag_query_host_filter_single_call):
+def test_query_variables_tags_collection_encoded_commas(mocker, assert_tag_query_host_filter_single_call):
     assert_tag_query_host_filter_single_call(
-        build_tags_url(query="?tags=Sat/env=prod,insights-client/os=fedora"),
+        build_tags_url(query="?tags=Sat/env=prod%2Cstage&tags=insights-client/Location=Santa%20Fe%2C%20NM"),
         host_filter={
             "AND": (
-                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod"}}},
-                {"tag": {"namespace": {"eq": "insights-client"}, "key": {"eq": "os"}, "value": {"eq": "fedora"}}},
+                {"tag": {"namespace": {"eq": "Sat"}, "key": {"eq": "env"}, "value": {"eq": "prod,stage"}}},
+                {
+                    "tag": {
+                        "namespace": {"eq": "insights-client"},
+                        "key": {"eq": "Location"},
+                        "value": {"eq": "Santa Fe, NM"},
+                    }
+                },
             ),
             "OR": mocker.ANY,
         },
@@ -1226,26 +1229,26 @@ def test_system_profile_sap_system_endpoint(mocker, graphql_system_profile_sap_s
 @pytest.mark.parametrize(
     "tags,query_param",
     (
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), f"?tags={quote('a/b=c')}"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), f"?tags={quote('a/b')}"),
         (
             (
                 {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
                 {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
             ),
-            "a/b=c,d/e=f",
+            f"?tags={quote('a/b=c')}&tags={quote('d/e=f')}",
         ),
         (
             ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
-            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            "?tags=" + quote(quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c")),
         ),
-        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), f"?tags={quote('ɑ/β=ɣ')}"),
     ),
 )
 def test_system_profile_sap_system_endpoint_tags(
     tags, query_param, mocker, graphql_system_profile_sap_system_query_empty_response, api_get
 ):
-    url = build_system_profile_sap_system_url(query=f"?tags={quote(query_param)}")
+    url = build_system_profile_sap_system_url(query=query_param)
 
     response_status, response_data = api_get(url)
 
@@ -1331,26 +1334,26 @@ def test_system_profile_sap_sids_endpoint(mocker, graphql_system_profile_sap_sid
 @pytest.mark.parametrize(
     "tags,query_param",
     (
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), "a/b=c"),
-        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), "a/b"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},), f"?tags={quote('a/b=c')}"),
+        (({"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": None}},), f"?tags={quote('a/b')}"),
         (
             (
                 {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
                 {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
             ),
-            "a/b=c,d/e=f",
+            f"?tags={quote('a/b=c')}&tags={quote('d/e=f')}",
         ),
         (
             ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
-            quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c"),
+            "?tags=" + quote(quote("a/a=a") + "/" + quote("b/b=b") + "=" + quote("c/c=c")),
         ),
-        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), "ɑ/β=ɣ"),
+        (({"namespace": {"eq": "ɑ"}, "key": {"eq": "β"}, "value": {"eq": "ɣ"}},), f"?tags={quote('ɑ/β=ɣ')}"),
     ),
 )
 def test_system_profile_sap_sids_endpoint_tags(
     tags, query_param, mocker, graphql_system_profile_sap_sids_query_empty_response, api_get
 ):
-    url = build_system_profile_sap_sids_url(query=f"?tags={quote(query_param)}")
+    url = build_system_profile_sap_sids_url(query=query_param)
 
     response_status, response_data = api_get(url)
 
@@ -1745,7 +1748,7 @@ def test_xjoin_search_query_using_hostfilter_display_name(
                 {"namespace": {"eq": "a"}, "key": {"eq": "b"}, "value": {"eq": "c"}},
                 {"namespace": {"eq": "d"}, "key": {"eq": "e"}, "value": {"eq": "f"}},
             ),
-            "a/b=c,d/e=f",
+            ["a/b=c", "d/e=f"],
         ),
         (
             ({"namespace": {"eq": "a/a=a"}, "key": {"eq": "b/b=b"}, "value": {"eq": "c/c=c"}},),
