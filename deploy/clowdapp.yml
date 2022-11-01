@@ -649,8 +649,7 @@ objects:
             "system_profile_facts"->'insights_client_version' AS "insights_client_version",
             "system_profile_facts"->'insights_egg_version' AS "insights_egg_version",
             "system_profile_facts"->'satellite_managed' AS "is_satellite_managed",
-            "system_profile_facts"->'subscription_status' AS "subscription_status",
-            "system_profile_facts"->'system_update_method' AS "system_update_method",
+            "system_profile_facts"->'subscription_status' AS "subscription_status"
           FROM "hosts"
 parameters:
 - name: LOG_LEVEL
