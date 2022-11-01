@@ -3,6 +3,7 @@ import json
 import sys
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from uuid import UUID
 
 from marshmallow import fields
@@ -275,6 +276,9 @@ def add_host(host_data, platform_metadata):
 
 @metrics.ingress_message_handler_time.time()
 def handle_message(message, event_producer, notification_event_producer, message_operation=add_host):
+    enterTime = datetime.now()
+    logger.info(f"TIMECHECK: app.queue.queue.handle_message() enter time: {enterTime}")
+
     validated_operation_msg = parse_operation_message(message)
     platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -307,13 +311,23 @@ def handle_message(message, event_producer, notification_event_producer, message
             logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
 
+    execTime = (datetime.now()-enterTime).microseconds
+    logger.info(f"app.queue.queue.handle_message execution time: {execTime} microseconds")
+
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
     with flask_app.app_context():
         while not interrupt():
+
+            enterTime = datetime.now()
+            logger.info(f"TIMECHECK: app.queue.event_producer.event loop() before consume: {enterTime}")
             messages = consumer.consume(
                 num_messages=inventory_config().max_poll_records, timeout=CONSUMER_POLL_TIMEOUT_SECONDS
             )
+            execTime = (datetime.now()-enterTime).microseconds
+
+            logger.info(f"app.queue.event_producer.event loop() time to consume: {execTime} microseconds")
+
             for msg in messages:
                 if msg is None:
                     continue
@@ -327,7 +341,14 @@ def event_loop(consumer, flask_app, event_producer, notification_event_producer,
                 else:
                     logger.debug("Message received")
                     try:
+                        enterTime = datetime.now()
+                        logger.info(f"TIMECHECK: app.queue.event_producer.event_loop().handler before: {enterTime}")
+
                         handler(msg.value(), event_producer, notification_event_producer=notification_event_producer)
+
+                        execTime = datetime.now()
+                        logger.info(f"app.queue.event_producer.event loop().handler execution time: {execTime} microseconds")
+
                         metrics.ingress_message_handler_success.inc()
                     except OperationalError as oe:
                         """sqlalchemy.exc.OperationalError: This error occurs when an

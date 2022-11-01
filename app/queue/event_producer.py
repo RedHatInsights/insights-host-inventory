@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer as KafkaProducer
 
@@ -22,10 +24,16 @@ class MessageDetails:
         self.topic = topic
 
     def on_delivered(self, error, message):
+        enterTime = datetime.now()
+        logger.info(f"TIMECHECK: app.queue.event_producer.MessageDetails.on_delivered() enter time: {enterTime}")
+
         if error:
             message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
         else:
             message_produced(logger, message, self.headers)
+
+        execTime = (datetime.now()-enterTime).microseconds
+        logger.info(f"TIMECHECK: app.queue.event_producer.MessageDetails.on_delivered() execution time: {execTime} microseconds")
 
 
 class EventProducer:
@@ -35,6 +43,9 @@ class EventProducer:
         self.egress_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
+        enterTime = datetime.now()
+        logger.info(f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() enter time: {enterTime}")
+
         logger.debug("Topic: %s, key: %s, event: %s, headers: %s", self.egress_topic, key, event, headers)
 
         k = key.encode("utf-8") if key else None
@@ -56,6 +67,9 @@ class EventProducer:
         except Exception as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
+
+        execTime = (datetime.now()-enterTime).microseconds
+        logger.info(f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() execution time: {execTime} microseconds")
 
     def close(self):
         self._kafka_producer.flush()
