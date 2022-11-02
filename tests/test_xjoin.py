@@ -1971,6 +1971,47 @@ def test_query_hosts_filter_spf_host_type_multiple(
             graphql_query_empty_response.reset_mock()
 
 
+def test_query_hosts_filter_update_method_multiple(
+    mocker, subtests, graphql_query_empty_response, patch_xjoin_post, api_get
+):
+    query_params = (
+        "?filter[system_profile][system_update_method][eq][]=dnf",
+        "?filter[system_profile][system_update_method][eq][]=rpm-ostree"
+        "&filter[system_profile][system_update_method][eq][]=random-type",
+    )
+    queries = (
+        {"OR": [{"spf_system_update_method": {"eq": "dnf"}}]},
+        {
+            "OR": [
+                {"spf_system_update_method": {"eq": "rpm-ostree"}},
+                {"spf_system_update_method": {"eq": "random-type"}},
+            ]
+        },
+    )
+
+    for param, query in zip(query_params, queries):
+        with subtests.test(param=param, query=query):
+            url = build_hosts_url(query=param)
+
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200
+
+            graphql_query_empty_response.assert_called_once_with(
+                HOST_QUERY,
+                {
+                    "order_by": mocker.ANY,
+                    "order_how": mocker.ANY,
+                    "limit": mocker.ANY,
+                    "offset": mocker.ANY,
+                    "filter": ({"OR": mocker.ANY}, query),
+                    "fields": mocker.ANY,
+                },
+                mocker.ANY,
+            )
+            graphql_query_empty_response.reset_mock()
+
+
 def test_spf_host_type_invalid_field_value(subtests, graphql_query_empty_response, patch_xjoin_post, api_get):
     query_params = (
         "?filter[system_profile][host_type][foo]=what",

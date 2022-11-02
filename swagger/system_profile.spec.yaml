@@ -577,3 +577,9 @@ $defs:
             example: '15.2.0, 12.5.3, 10.1.0'
             maxLength: 30
             x-wildcard: true
+      system_update_method:
+        description: System update method
+        type: string
+        maxLength: 10
+        enum: [dnf, rpm-ostree, yum]
+        example: "rpm-ostree"
