@@ -489,7 +489,7 @@ $defs:
         enum: [edge]
         maxLength: 4
         description: Indicates the type of host.
-        example: 'edge, edge, edge'
+        example: 'edge, None'
       greenboot_status:
         type: string
         enum: [red, green]
@@ -582,4 +582,4 @@ $defs:
         type: string
         maxLength: 10
         enum: [dnf, rpm-ostree, yum]
-        example: "rpm-ostree"
+        example: "dnf, rpm-ostree, yum"
