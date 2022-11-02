@@ -32,8 +32,8 @@ class MessageDetails:
         else:
             message_produced(logger, message, self.headers)
 
-        execTime = (datetime.now()-enterTime).microseconds
-        logger.info(f"TIMECHECK: app.queue.event_producer.MessageDetails.on_delivered() execution time: {execTime} microseconds")
+        execTime = datetime.now() - enterTime
+        logger.info(f"TIMECHECK: app.queue.event_producer.MessageDetails.on_delivered() execution time: {execTime}")
 
 
 class EventProducer:
@@ -68,8 +68,8 @@ class EventProducer:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
 
-        execTime = (datetime.now()-enterTime).microseconds
-        logger.info(f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() execution time: {execTime} microseconds")
+        execTime = datetime.now() - enterTime
+        logger.info(f"TIMECHECK: app.queue.event_producer.EventProducer.write_event() execution time: {execTime}")
 
     def close(self):
         self._kafka_producer.flush()

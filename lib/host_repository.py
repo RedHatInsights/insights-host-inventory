@@ -75,8 +75,8 @@ def find_existing_host(identity, canonical_facts):
     if not existing_host:
         existing_host = find_host_by_multiple_canonical_facts(identity, canonical_facts)
 
-    execTime = (datetime.now()-enterTime).microseconds
-    logger.info(f"TIMECHECK: lib.host_repository.find_existing_host() execution time: {execTime} microseconds")
+    execTime = datetime.now() - enterTime
+    logger.info(f"TIMECHECK: lib.host_repository.find_existing_host() execution time: {execTime}")
 
     return existing_host
 
@@ -178,8 +178,8 @@ def create_new_host(input_host, staleness_offset, fields):
     output_host = serialize_host(input_host, staleness_offset, fields)
     insights_id = input_host.canonical_facts.get("insights_id")
 
-    execTime = (datetime.now()-enterTime).microseconds
-    logger.info(f"TIMECHECK: lib.host_repository.create_new_host() execution time: {execTime} microseconds")
+    execTime = datetime.now() - enterTime
+    logger.info(f"TIMECHECK: lib.host_repository.create_new_host() execution time: {execTime}")
 
     return output_host, input_host.id, insights_id, AddHostResult.created
 
@@ -201,8 +201,8 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
     output_host = serialize_host(existing_host, staleness_offset, fields)
     insights_id = existing_host.canonical_facts.get("insights_id")
 
-    execTime = (datetime.now()-enterTime).microseconds
-    logger.info(f"TIMECHECK: lib.host_repository.update_existing_host() exeuction time: {execTime} microseconds")
+    execTime = datetime.now() - enterTime
+    logger.info(f"TIMECHECK: lib.host_repository.update_existing_host() exeuction time: {execTime}")
 
     return output_host, existing_host.id, insights_id, AddHostResult.updated
 
