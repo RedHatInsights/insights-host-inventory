@@ -2541,7 +2541,7 @@ data:
         {
           "datasource": {
             "type": "cloudwatch",
-            "uid": "C_IyqZfnz"
+            "uid": "yL__iMf7z"
           },
           "description": "The available IOPS burst balance for the Prod HBI DB. When it runs out, DB performance is greatly reduced.",
           "fieldConfig": {
@@ -2616,7 +2616,7 @@ data:
             {
               "datasource": {
                 "type": "cloudwatch",
-                "uid": "C_IyqZfnz"
+                "uid": "yL__iMf7z"
               },
               "dimensions": {
                 "DBInstanceIdentifier": "host-inventory-prod"
