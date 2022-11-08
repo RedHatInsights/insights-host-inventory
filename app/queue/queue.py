@@ -305,6 +305,8 @@ def handle_message(message, event_producer, notification_event_producer, message
         except ValueError as ve:
             logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
             raise
+        except InventoryException as ie:
+            send_kafka_error_message(notification_event_producer, host, str(ie.detail))
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
