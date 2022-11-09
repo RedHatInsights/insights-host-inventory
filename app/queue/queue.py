@@ -310,6 +310,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             raise
         except InventoryException as ie:
             send_kafka_error_message(notification_event_producer, host, str(ie.detail))
+            raise
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
