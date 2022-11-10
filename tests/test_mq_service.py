@@ -67,6 +67,7 @@ def test_handle_message_failure_invalid_json_message(mocker):
         handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
 
     mock_event_producer.assert_not_called()
+    mock_notification_event_producer.assert_not_called()
 
 
 def test_handle_message_failure_invalid_message_format(mocker):
@@ -79,6 +80,7 @@ def test_handle_message_failure_invalid_message_format(mocker):
         handle_message(invalid_message, mock_event_producer, mock_notification_event_producer)
 
     mock_event_producer.assert_not_called()
+    mock_notification_event_producer.assert_not_called()
 
 
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY))
@@ -367,10 +369,11 @@ def test_add_host_with_system_profile(event_datetime_mock, mq_create_or_update_h
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host):
+def test_add_host_with_wrong_owner(mocker, event_datetime_mock, mq_create_or_update_host):
     """
     Tests adding a host with message containing system profile
     """
+    mock_notification_event_producer = mocker.Mock()
     expected_insights_id = generate_uuid()
     expected_system_profile = valid_system_profile()
 
@@ -381,8 +384,11 @@ def test_add_host_with_wrong_owner(event_datetime_mock, mq_create_or_update_host
     )
 
     with pytest.raises(ValidationException) as ve:
-        key, event, headers = mq_create_or_update_host(host, return_all_data=True)
+        key, event, headers = mq_create_or_update_host(
+            host, return_all_data=True, notification_event_producer=mock_notification_event_producer
+        )
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -479,42 +485,50 @@ def test_add_host_with_tags(event_datetime_mock, mq_create_or_update_host):
         {"namespace": "NS", "value": "a" * 256},
     ],
 )
-def test_add_host_with_invalid_tags(tag, mq_create_or_update_host):
+def test_add_host_with_invalid_tags(tag, mocker, mq_create_or_update_host):
     """
     Tests adding a host with message containing invalid tags
     """
+    mock_notification_event_producer = mocker.Mock()
     insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=[tag])
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.system_profile
-def test_add_host_empty_keys_system_profile(mq_create_or_update_host):
+def test_add_host_empty_keys_system_profile(mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     system_profile = {"owner_id": OWNER_ID, "disk_devices": [{"options": {"": "invalid"}}]}
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.system_profile
-def test_add_host_with_invalid_system_update_method(mq_create_or_update_host):
+def test_add_host_with_invalid_system_update_method(mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     system_profile = {"owner_id": OWNER_ID, "system_update_method": "Whooping-cranes"}
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.system_profile
 @pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
-def test_add_host_long_strings_system_profile(mq_create_or_update_host, system_profile):
+def test_add_host_long_strings_system_profile(mocker, mq_create_or_update_host, system_profile):
+    mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.system_profile
@@ -558,7 +572,8 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_
     }
 
 
-def test_add_host_externalized_system_profile(mq_create_or_update_host):
+def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     orig_spec = system_profile_specification()
     mock_spec = deepcopy(orig_spec)
     mock_spec["$defs"]["SystemProfile"]["properties"]["number_of_cpus"]["minimum"] = 2
@@ -566,7 +581,8 @@ def test_add_host_externalized_system_profile(mq_create_or_update_host):
     with mock_system_profile_specification(mock_spec):
         host_to_create = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"number_of_cpus": 1})
         with pytest.raises(ValidationException):
-            mq_create_or_update_host(host_to_create)
+            mq_create_or_update_host(host_to_create, notification_event_producer=mock_notification_event_producer)
+        mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, db_get_host):
@@ -579,14 +595,16 @@ def test_add_host_with_owner_id(event_datetime_mock, mq_create_or_update_host, d
     assert created_host_from_db.system_profile_facts == {"owner_id": OWNER_ID}
 
 
-def test_add_host_with_owner_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+def test_add_host_with_owner_incorrect_format(mocker, event_datetime_mock, mq_create_or_update_host, db_get_host):
     """
     Tests that owner_id in the system profile is rejected if it's in the wrong format
     """
+    mock_notification_event_producer = mocker.Mock()
     owner_id = "Mike Wazowski"
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": owner_id})
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update_host, db_get_host):
@@ -603,10 +621,13 @@ def test_add_host_with_operating_system(event_datetime_mock, mq_create_or_update
     assert created_host_from_db.system_profile_facts.get("operating_system") == operating_system
 
 
-def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq_create_or_update_host, db_get_host):
+def test_add_host_with_operating_system_incorrect_format(
+    mocker, event_datetime_mock, mq_create_or_update_host, db_get_host
+):
     """
     Tests that operating_system in the system profile is rejected if it's in the wrong format
     """
+    mock_notification_event_producer = mocker.Mock()
     operating_system_list = [
         {"major": "bananas", "minor": 1, "name": "RHEL"},
         {"major": 1, "minor": "oranges", "name": "RHEL"},
@@ -618,7 +639,8 @@ def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq
             system_profile={"operating_system": operating_system, "owner_id": OWNER_ID},
         )
         with pytest.raises(ValidationException):
-            mq_create_or_update_host(host)
+            mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+        mock_notification_event_producer.write_event.assert_called()
 
 
 @pytest.mark.parametrize(
@@ -628,7 +650,8 @@ def test_add_host_with_operating_system_incorrect_format(event_datetime_mock, mq
         [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
     ),
 )
-def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
+def test_add_host_empty_keys_facts(facts, mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     insights_id = generate_uuid()
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -638,11 +661,13 @@ def test_add_host_empty_keys_facts(facts, mq_create_or_update_host):
     )
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
-def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_update_host):
+def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     insights_id = generate_uuid()
     host = minimal_host(
         account=SYSTEM_IDENTITY["account_number"],
@@ -652,7 +677,8 @@ def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mq_create_or_upd
     )
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_add_host_with_sap_system(event_datetime_mock, mq_create_or_update_host):
@@ -687,11 +713,13 @@ def test_add_host_with_no_tags(tags, mq_create_or_update_host, db_get_host_by_in
     assert record.tags == {}
 
 
-def test_add_host_with_null_tags(mq_create_or_update_host):
+def test_add_host_with_null_tags(mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     host = minimal_host(tags=None)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_add_host_with_tag_list(mq_create_or_update_host, db_get_host_by_insights_id):
@@ -764,12 +792,14 @@ def test_add_host_with_tag_dict(mq_create_or_update_host, db_get_host_by_insight
         {"namespace": {"": ["value"]}},
     ),
 )
-def test_add_host_with_invalid_tags_2(tags, mq_create_or_update_host):
+def test_add_host_with_invalid_tags_2(tags, mocker, mq_create_or_update_host):
+    mock_notification_event_producer = mocker.Mock()
     insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=insights_id, tags=tags)
 
     with pytest.raises(ValidationException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_update_display_name(mq_create_or_update_host, db_get_host_by_insights_id):
@@ -1032,16 +1062,18 @@ def test_add_host_stale_timestamp(event_datetime_mock, mq_create_or_update_host)
 
 
 @pytest.mark.parametrize("field_to_remove", ["stale_timestamp", "reporter"])
-def test_add_host_stale_timestamp_missing_culling_fields(field_to_remove, mq_create_or_update_host):
+def test_add_host_stale_timestamp_missing_culling_fields(mocker, field_to_remove, mq_create_or_update_host):
     """
     tests to check the API will reject a host if it doesn't have both
     culling fields. This should raise InventoryException.
     """
+    mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
     delattr(host, field_to_remove)
 
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -1054,15 +1086,17 @@ def test_add_host_stale_timestamp_missing_culling_fields(field_to_remove, mq_cre
         {"stale_timestamp": None, "reporter": "puptoo"},
     ),
 )
-def test_add_host_stale_timestamp_invalid_culling_fields(additional_data, mq_create_or_update_host):
+def test_add_host_stale_timestamp_invalid_culling_fields(mocker, additional_data, mq_create_or_update_host):
     """
     tests to check the API will reject a host if it doesn’t have both
     culling fields. This should raise InventoryException.
     """
+    mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], **additional_data)
 
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(host)
+        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_valid_string_is_ok():
@@ -1189,7 +1223,8 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     }
 
 
-def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
+def test_update_system_profile_not_found(mocker, mq_create_or_update_host, db_get_host):
+    mock_notification_event_producer = mocker.Mock()
     expected_insights_id = generate_uuid()
     input_host = minimal_host(
         insights_id=expected_insights_id, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1}
@@ -1202,19 +1237,30 @@ def test_update_system_profile_not_found(mq_create_or_update_host, db_get_host):
 
     # Should raise an exception due to missing host
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(input_host, message_operation=update_system_profile)
+        mq_create_or_update_host(
+            input_host,
+            notification_event_producer=mock_notification_event_producer,
+            message_operation=update_system_profile,
+        )
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
-def test_update_system_profile_not_provided(mq_create_or_update_host, db_get_host):
+def test_update_system_profile_not_provided(mocker, mq_create_or_update_host, db_get_host):
     expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
     input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
     first_host_from_event = mq_create_or_update_host(input_host)
     first_host_from_db = db_get_host(first_host_from_event.id)
+    mock_notification_event_producer = mocker.Mock()
 
     input_host = minimal_host(id=str(first_host_from_db.id), system_profile={})
 
     with pytest.raises(InventoryException):
-        mq_create_or_update_host(input_host, message_operation=update_system_profile)
+        mq_create_or_update_host(
+            input_host,
+            notification_event_producer=mock_notification_event_producer,
+            message_operation=update_system_profile,
+        )
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_handle_message_side_effect(mocker, flask_app):
@@ -1361,6 +1407,7 @@ def test_owner_id_different_from_cn(mocker):
     with pytest.raises(ValidationException) as ve:
         handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
     assert str(ve.value) == "The owner in host does not match the owner in identity"
+    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_change_owner_id_of_existing_host(mq_create_or_update_host, db_get_host):
@@ -1448,9 +1495,9 @@ def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_g
     assert created_host.id == str(host_from_db.id)
 
 
-def test_add_host_with_canonical_facts_MAC_address_incorrect_format(mq_create_or_update_host, subtests):
+def test_add_host_with_canonical_facts_MAC_address_incorrect_format(mocker, mq_create_or_update_host, subtests):
     """
-    Tests that a validation eception is raised when MAC adrress is in the wrong format.
+    Tests that a validation exception is raised when MAC address is in the wrong format.
     """
     bad_address_list = [
         "bad",  # just a random string
@@ -1466,12 +1513,14 @@ def test_add_host_with_canonical_facts_MAC_address_incorrect_format(mq_create_or
         "99:40:16:A9:3821",  # missing one dilimiter
         "99:40:16:A9:38::21",  # too many delimiters
     ]
+    mock_notification_event_producer = mocker.Mock()
 
     for bad_address in bad_address_list:
         with subtests.test(bad_address=bad_address):
             host = minimal_host(mac_addresses=[bad_address])
             with pytest.raises(ValidationException):
-                mq_create_or_update_host(host)
+                mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
+            mock_notification_event_producer.write_event.assert_called()
 
 
 def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_update_host, db_get_host):
