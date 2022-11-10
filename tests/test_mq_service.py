@@ -1314,6 +1314,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker, event_datetime_mock, flask_app
 
     with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
+    mock_notification_event_producer.assert_not_called()
 
 
 # Adding a host requires identity or rhsm-conduit reporter, which does not have identity
@@ -1362,6 +1363,7 @@ def test_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_app):
     handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer, mock_add_host)
 
     mock_event_producer.write_event.assert_called_once()
+    mock_notification_event_producer.assert_not_called()
 
     assert json.loads(mock_event_producer.write_event.call_args[0][0]) == {
         "timestamp": timestamp_iso,
@@ -1389,6 +1391,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker, event_datetime_mock, flask_ap
     message = wrap_message(host.data(), "add_host", platform_metadata)
     with pytest.raises(ValueError):
         handle_message(json.dumps(message), mock_event_producer, mock_notification_event_producer)
+    mock_notification_event_producer.assert_not_called()
 
 
 def test_owner_id_different_from_cn(mocker):
