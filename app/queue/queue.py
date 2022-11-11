@@ -91,8 +91,10 @@ def _get_identity(host, metadata):
 
     if host.get("org_id") != identity["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
-
-    identity = Identity(identity)
+    try:
+        identity = Identity(identity)
+    except ValueError as e:
+        raise ValidationException(str(e))
     return identity
 
 
