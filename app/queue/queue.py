@@ -91,8 +91,10 @@ def _get_identity(host, metadata):
 
     if host.get("org_id") != identity["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
-
-    identity = Identity(identity)
+    try:
+        identity = Identity(identity)
+    except ValueError as e:
+        raise ValidationException(str(e))
     return identity
 
 
@@ -304,6 +306,9 @@ def handle_message(message, event_producer, notification_event_producer, message
             raise
         except ValueError as ve:
             logger.error("Value error while adding or updating host: %s", ve, extra={"reporter": host.get("reporter")})
+            raise
+        except InventoryException as ie:
+            send_kafka_error_message(notification_event_producer, host, str(ie.detail))
             raise
 
 
