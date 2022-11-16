@@ -95,8 +95,8 @@ Install pre-commit hooks to your local repository by running:
 pre-commit install
 ```
 
-After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
-make sure all checks pass before submitting a pull request. Thanks!
+After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected, but the altered files from the linting will be ready for you to commit again if the issue was automatically correctable.
+Please make sure all checks pass before submitting a pull request. Thanks!
 
 ## Running the server locally
 
@@ -298,7 +298,7 @@ When all of these checks pass and a reviewer approves the changes the pull reque
 ### 2. Latest image and smoke tests
 
 When a pull request is merged to master, a new container image is built and tagged as [insights-inventory:latest](https://quay.io/repository/cloudservices/insights-inventory?tab=tags).
-This image is then automatically deployed to the [Stage environment](https://console-openshift-console.apps.crcs02ue1.urby.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-stage) automatically.
+This image is then automatically deployed to the [Stage environment](https://console-openshift-console.apps.crcs02ue1.urby.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-stage).
 
 ### 3. QE testing in the Stage environment
 
