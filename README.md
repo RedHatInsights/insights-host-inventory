@@ -336,3 +336,16 @@ A non-exhaustive list of things to watch includes:
 
 Should unexpected problems occur during the deployment, it is possible to do a rollback.
 This is done by updating the `ref` parameter in deploy-clowder.yml to point to the previous commit SHA, or by reverting the MR that triggered the production deployment.
+
+## Updating the System Profile
+
+In order to add or update a field on the System Profile, first follow the instructions in the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas#contributing).
+After an inventory-schemas PR has been accepted and merged, HBI must be updated to keep its own schema in sync.
+To do this, simply run this command:
+
+```bash
+make update-schema
+```
+
+This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
+Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
