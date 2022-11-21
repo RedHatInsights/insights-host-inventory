@@ -283,9 +283,9 @@ This section describes the process of getting a code change from a pull request 
 
 It all starts with a [pull request](https://github.com/RedHatInsights/insights-host-inventory/pulls).
 When a new pull request is opened, some jobs are run automatically.
-These jobs are defined in app-interface [here](https://github.com/RedHatInsights/insights-host-inventory/blob/master/Jenkinsfile).
+These jobs are defined in app-interface [here](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/build.yml).
 
-* `host-inventory pr-checker` runs the following:
+* [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check) runs the following:
   * [database migrations](#initialize-the-database)
   * [code style checks](#contributing)
   * unit tests
