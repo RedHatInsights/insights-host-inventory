@@ -197,7 +197,8 @@ matches the provided `identity.system.cn` value.
 
 ## Using the legacy api
 
-In order to use the legacy API, you need to set this environment variable:
+Some apps still need to use the legacy API path, which by default is `/r/insights/platform/inventory/v1/`.
+In case legacy apps require this prefix to be changed, it can be modified using this environment variable:
 
 ```bash
  export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
