@@ -290,7 +290,7 @@ These jobs are defined in app-interface [here](https://gitlab.cee.redhat.com/ser
   * [code style checks](#contributing)
   * unit tests
 * `ci.ext.devshift.net PR build - All tests` runs _all_ of the IQE tests on the PR's code.
-* `host-inventory build-master` builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
+* [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/) builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
 
 Should any of these fail this is indicated directly on the pull request.
 
