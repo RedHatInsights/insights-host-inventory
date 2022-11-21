@@ -271,7 +271,7 @@ from inside of the cluster.
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
-Cron jobs push their metrics to a
+Cron jobs such as `reaper` and `sp-validator` push their metrics to a
 [Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
 running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
 
