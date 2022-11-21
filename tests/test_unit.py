@@ -64,6 +64,7 @@ from lib import host_kafka
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -796,7 +797,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             },
             "reporter": "puptoo",
         }
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         full_input = {
             **canonical_facts,
             **unchanged_input,
@@ -828,7 +829,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
 
     def test_with_only_required_fields(self):
         org_id = "some org_id"
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         reporter = "puptoo"
         canonical_facts = {"fqdn": "some fqdn"}
 
@@ -854,7 +855,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             self.assertEqual({}, host.system_profile_facts)
 
     def test_with_invalid_input(self):
-        stale_timestamp = datetime.now(timezone.utc).isoformat()
+        stale_timestamp = now().isoformat()
         inputs = (
             {},
             {"org_id": "some org_id", "stale_timestamp": stale_timestamp},
@@ -957,7 +958,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
             "org_id": "some org_id",
             "reporter": "puptoo",
         }
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
         full_input = {
             **canonical_facts,
             **unchanged_input,
@@ -996,7 +997,7 @@ class SerializationDeserializeHostCompoundTestCase(TestCase):
         host = deserialize_host(
             {
                 "org_id": "3340851",
-                "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+                "stale_timestamp": now().isoformat(),
                 "reporter": "puptoo",
                 "fqdn": "some fqdn",
                 "tags": tags,
@@ -1056,7 +1057,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
@@ -1095,7 +1096,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
@@ -1135,7 +1136,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
@@ -1178,7 +1179,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "cores_per_socket": 3,
                 "system_memory_bytes": 4,
             },
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
@@ -1216,7 +1217,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "some reporter",
         }
         host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
@@ -1345,7 +1346,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
-            "stale_timestamp": datetime.now(timezone.utc),
+            "stale_timestamp": now(),
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -1355,8 +1356,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
         host_attr_data = {
             "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow(),
+            "created_on": now(),
+            "modified_on": now(),
             "per_reporter_staleness": host.per_reporter_staleness,
         }
         for k, v in host_attr_data.items():
@@ -1393,7 +1394,7 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
     def test_with_only_required_fields(self):
         unchanged_data = {"display_name": None, "org_id": "some org_id", "account": None, "reporter": "yupana"}
         host_init_data = {
-            "stale_timestamp": datetime.now(timezone.utc),
+            "stale_timestamp": now(),
             "canonical_facts": {"fqdn": "some fqdn"},
             **unchanged_data,
             "facts": {},
@@ -1402,8 +1403,8 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
 
         host_attr_data = {
             "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow(),
+            "created_on": now(),
+            "modified_on": now(),
             "per_reporter_staleness": host.per_reporter_staleness,
         }
         for k, v in host_attr_data.items():
@@ -1445,10 +1446,10 @@ class SerializationSerializeHostCompoundTestCase(SerializationSerializeHostBaseT
             with self.subTest(
                 stale_warning_offset_days=stale_warning_offset_days, culled_offset_days=culled_offset_days
             ):
-                stale_timestamp = datetime.now(timezone.utc) + timedelta(days=1)
+                stale_timestamp = now() + timedelta(days=1)
                 host = Host({"fqdn": "some fqdn"}, facts={}, stale_timestamp=stale_timestamp, reporter="some reporter")
 
-                for k, v in (("id", uuid4()), ("created_on", datetime.utcnow()), ("modified_on", datetime.utcnow())):
+                for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
                     setattr(host, k, v)
 
                 config = CullingConfig(timedelta(days=stale_warning_offset_days), timedelta(days=culled_offset_days))
@@ -1481,7 +1482,7 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
             {"namespace": "some namespace", "key": "another key", "value": "value"},
             {"namespace": "another namespace", "key": "key", "value": "value"},
         ]
-        stale_timestamp = datetime.now(timezone.utc)
+        stale_timestamp = now()
 
         unchanged_data = {
             "display_name": "some display name",
@@ -1504,8 +1505,8 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
 
         host_attr_data = {
             "id": uuid4(),
-            "created_on": datetime.utcnow(),
-            "modified_on": datetime.utcnow(),
+            "created_on": now(),
+            "modified_on": now(),
             "per_reporter_staleness": host.per_reporter_staleness,
         }
         for k, v in host_attr_data.items():
@@ -1513,9 +1514,9 @@ class SerializationSerializeHostMockedTestCase(SerializationSerializeHostBaseTes
 
         staleness_offset = Mock(
             **{
-                "stale_timestamp.return_value": datetime.now(timezone.utc),
-                "stale_timestamp.stale_warning_timestamp": datetime.now(timezone.utc) + timedelta(hours=1),
-                "stale_timestamp.culled_timestamp": datetime.now(timezone.utc) + timedelta(hours=2),
+                "stale_timestamp.return_value": now(),
+                "stale_timestamp.stale_warning_timestamp": now() + timedelta(hours=1),
+                "stale_timestamp.culled_timestamp": now() + timedelta(hours=2),
             }
         )
         actual = serialize_host(host, staleness_offset, DEFAULT_FIELDS + ("tags",))
@@ -1551,7 +1552,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
             system_profile_facts=system_profile_facts,
-            stale_timestamp=datetime.utcnow(),
+            stale_timestamp=now(),
             reporter="yupana",
         )
         host.id = uuid4()
@@ -1564,7 +1565,7 @@ class SerializationSerializeHostSystemProfileTestCase(TestCase):
         host = Host(
             canonical_facts={"fqdn": "some fqdn"},
             display_name="some display name",
-            stale_timestamp=datetime.utcnow(),
+            stale_timestamp=now(),
             reporter="yupana",
         )
         host.id = uuid4()
@@ -1741,8 +1742,8 @@ class SerializationSerializeFactsTestCase(TestCase):
 
 class SerializationSerializeDatetime(TestCase):
     def test_utc_timezone_is_used(self):
-        now = datetime.now(timezone.utc)
-        self.assertEqual(now.isoformat(), _serialize_datetime(now))
+        _now = now()
+        self.assertEqual(_now.isoformat(), _serialize_datetime(_now))
 
     def test_iso_format_is_used(self):
         dt = datetime(2019, 7, 3, 1, 1, 4, 20647, timezone.utc)
@@ -1764,7 +1765,7 @@ class HostUpdateStaleTimestamp(TestCase):
         return Host(**{"canonical_facts": {"fqdn": "some fqdn"}, **values})
 
     def test_always_updated(self):
-        old_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+        old_stale_timestamp = now() + timedelta(days=2)
         old_reporter = "old reporter"
         stale_timestamps = (old_stale_timestamp - timedelta(days=1), old_stale_timestamp - timedelta(days=2))
         reporters = (old_reporter, "new reporter")
@@ -1772,7 +1773,7 @@ class HostUpdateStaleTimestamp(TestCase):
             with self.subTest(stale_timestamps=new_stale_timestamp, reporter=new_reporter):
                 host = self._make_host(stale_timestamp=old_stale_timestamp, reporter=old_reporter)
 
-                new_stale_timestamp = datetime.now(timezone.utc) + timedelta(days=2)
+                new_stale_timestamp = now() + timedelta(days=2)
                 host._update_stale_timestamp(new_stale_timestamp, new_reporter)
 
                 self.assertEqual(new_stale_timestamp, host.stale_timestamp)
@@ -1878,7 +1879,7 @@ class EventProducerTests(TestCase):
         threadctx.request_id = str(uuid4())
         self.basic_host = {
             "id": str(uuid4()),
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "test_reporter",
             "account": "test",
             "org_id": "test",
@@ -2113,7 +2114,7 @@ class ModelsSystemProfileTestCase(TestCase):
             "account": "0000001",
             "org_id": "3340851",
             "system_profile": system_profile,
-            "stale_timestamp": datetime.now(timezone.utc).isoformat(),
+            "stale_timestamp": now().isoformat(),
             "reporter": "test",
         }
 

@@ -2,9 +2,7 @@ import json
 import math
 import unittest.mock as mock
 from base64 import b64encode
-from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from itertools import product
 from struct import unpack
 from urllib.parse import parse_qs
@@ -16,6 +14,7 @@ from urllib.parse import urlunsplit
 import dateutil.parser
 
 from app.auth.identity import IdentityType
+from tests.helpers.test_utils import now
 
 HOST_URL = "/api/inventory/v1/hosts"
 TAGS_URL = "/api/inventory/v1/tags"
@@ -144,7 +143,7 @@ def assert_host_was_updated(original_host, updated_host):
 def assert_host_was_created(create_host_response):
     assert create_host_response["status"] == 201
     created_time = dateutil.parser.parse(create_host_response["host"]["created"])
-    current_timestamp = datetime.now(timezone.utc)
+    current_timestamp = now()
     assert current_timestamp > created_time
     assert (current_timestamp - timedelta(minutes=15)) < created_time
 
