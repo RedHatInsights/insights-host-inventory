@@ -1,9 +1,9 @@
 from enum import Enum
 
 import flask
+from confluent_kafka.error import KafkaError
 from flask import current_app
 from flask_api import status
-from kafka.errors import KafkaError
 from marshmallow import ValidationError
 
 from api import api_operation
@@ -284,7 +284,7 @@ def get_host_system_profile_by_id(host_id_list, page=1, per_page=100, order_by=N
 def _emit_patch_event(serialized_host, host_id, insights_id):
     headers = message_headers(EventType.updated, insights_id)
     event = build_event(EventType.updated, serialized_host)
-    current_app.event_producer.write_event(event, str(host_id), headers)
+    current_app.event_producer.write_event(event, str(host_id), headers, wait=True)
 
 
 @api_operation

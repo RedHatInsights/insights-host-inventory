@@ -167,6 +167,7 @@ def create_new_host(input_host, staleness_offset, fields):
 
     output_host = serialize_host(input_host, staleness_offset, fields)
     insights_id = input_host.canonical_facts.get("insights_id")
+
     return output_host, input_host.id, insights_id, AddHostResult.created
 
 
@@ -183,6 +184,7 @@ def update_existing_host(existing_host, input_host, staleness_offset, update_sys
 
     output_host = serialize_host(existing_host, staleness_offset, fields)
     insights_id = existing_host.canonical_facts.get("insights_id")
+
     return output_host, existing_host.id, insights_id, AddHostResult.updated
 
 

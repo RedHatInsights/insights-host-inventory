@@ -6,7 +6,7 @@ from datetime import timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from kafka import TopicPartition
+from confluent_kafka import TopicPartition
 
 from app.serialization import serialize_facts
 from app.utils import Tag
@@ -31,6 +31,18 @@ class MockEventProducer:
         self.key = key
         self.headers = headers
         self.wait = wait
+
+
+class FakeMessage:
+    def __init__(self, error=None, message=None):
+        self.message = message
+        self._error = error
+
+    def value(self):
+        return Mock()
+
+    def error(self):
+        return self._error
 
 
 class MockFuture:

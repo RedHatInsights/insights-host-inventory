@@ -2,10 +2,12 @@ from copy import deepcopy
 from unittest import mock
 
 import pytest
-from kafka.errors import KafkaError
+from confluent_kafka import KafkaException
 
 from api.host import _get_host_list_by_id_list_from_db
 from app.models import Host
+from app.queue.event_producer import logger as event_producer_logger
+from app.queue.event_producer import MessageDetails
 from lib.host_delete import delete_hosts
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -392,17 +394,15 @@ def test_delete_hosts_chunk_size(
     query_wrapper.query.limit.assert_called_with(5)
 
 
-@pytest.mark.parametrize(
-    "send_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
-)
-def test_delete_stops_after_kafka_producer_error(
-    send_side_effects, event_producer_mock, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
+@pytest.mark.parametrize("send_side_effects", ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))))
+def test_delete_stops_after_kafka_exception(
+    mocker, send_side_effects, event_producer, db_create_multiple_hosts, api_delete_host, db_get_hosts
 ):
-    event_producer._kafka_producer.send.side_effect = send_side_effects
-
+    mocker.patch("lib.host_delete.kafka_available")
     hosts = db_create_multiple_hosts(how_many=3)
     host_id_list = [str(host.id) for host in hosts]
+
+    event_producer._kafka_producer.produce.side_effect = send_side_effects
 
     response_status, response_data = api_delete_host(",".join(host_id_list))
 
@@ -410,7 +410,35 @@ def test_delete_stops_after_kafka_producer_error(
 
     remaining_hosts = db_get_hosts(host_id_list)
     assert remaining_hosts.count() == 2
-    assert event_producer._kafka_producer.send.call_count == 2
+    assert event_producer._kafka_producer.produce.call_count == 2
+
+
+def test_delete_with_callback_receiving_error(
+    mocker,
+    event_producer,
+    db_create_host,
+    api_delete_host,
+    db_get_hosts,
+):
+    mocker.patch("lib.host_delete.kafka_available")
+    host = db_create_host()
+    headers = mock.MagicMock()
+    message = mock.MagicMock()
+    error = mock.MagicMock()
+    message_not_produced_mock = mocker.patch("app.queue.event_producer.message_not_produced")
+
+    msgdet = MessageDetails(topic=None, event=message, headers=headers, key=host.id)
+    event_producer._kafka_producer.produce.side_effects = msgdet.on_delivered(error, message)
+
+    response_status, response_data = api_delete_host(",".join([str(host.id)]))
+
+    assert_response_status(response_status, expected_status=200)
+
+    remaining_hosts = db_get_hosts([host.id])
+
+    assert remaining_hosts.count() == 0
+    assert event_producer._kafka_producer.produce.call_count == 1
+    message_not_produced_mock.assert_called_once_with(event_producer_logger, error, None, message, host.id, headers)
 
 
 class DeleteHostsMock:

@@ -125,72 +125,70 @@ class Config:
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         self.kafka_ssl_configs = {
-            "security_protocol": self.kafka_security_protocol,
-            "ssl_cafile": self.kafka_ssl_cafile,
-            "sasl_mechanism": self.kafka_sasl_mechanism,
-            "sasl_plain_username": self.kafka_sasl_username,
-            "sasl_plain_password": self.kafka_sasl_password,
+            "security.protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "ssl.ca.location": self.kafka_ssl_cafile,
+            "sasl.mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
+            "sasl.username": self.kafka_sasl_username,
+            "sasl.password": self.kafka_sasl_password,
         }
 
-        # https://kafka-python.readthedocs.io/en/master/apidoc/KafkaConsumer.html#kafka.KafkaConsumer
+        # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         self.kafka_consumer = {
-            "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max_in_flight_requests_per_connection": int(
+            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
+            "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
-            "auto_offset_reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
-            "auto_commit_interval_ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
-            "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10")),
-            "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
+            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
+            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
+            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,
         }
 
         self.validator_kafka_consumer = {
             "group_id": "inventory-sp-validator",
-            "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max_in_flight_requests_per_connection": int(
+            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
+            "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
-            "enable_auto_commit": False,
-            "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
-            "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "enable.auto.commit": False,
+            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
+            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,
         }
 
         self.events_kafka_consumer = {
             "group_id": "inventory-events-rebuild",
-            "auto_offset_reset": "earliest",
-            "request_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
-            "max_in_flight_requests_per_connection": int(
+            "auto.offset.reset": "earliest",
+            "request.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_REQUEST_TIMEOUT_MS", "305000")),
+            "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_CONSUMER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
             ),
-            "enable_auto_commit": False,
-            "max_poll_records": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000")),
-            "max_poll_interval_ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
-            "session_timeout_ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
-            "heartbeat_interval_ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
+            "enable.auto.commit": False,
+            "max.poll.interval.ms": int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS", "300000")),
+            "max_partition_fetch_bytes": int(os.environ.get("KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTES", "3145728")),
+            "session.timeout.ms": int(os.environ.get("KAFKA_CONSUMER_SESSION_TIMEOUT_MS", "10000")),
+            "heartbeat.interval.ms": int(os.environ.get("KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS", "3000")),
             **self.kafka_ssl_configs,
         }
 
-        # https://kafka-python.readthedocs.io/en/1.4.7/apidoc/KafkaProducer.html#kafkaproducer
         self.kafka_producer = {
             "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
-            "batch_size": int(os.environ.get("KAFKA_PRODUCER_BATCH_SIZE", "16384")),
-            "linger_ms": int(os.environ.get("KAFKA_PRODUCER_LINGER_MS", "0")),
-            "retry_backoff_ms": int(os.environ.get("KAFKA_PRODUCER_RETRY_BACKOFF_MS", "100")),
-            "max_in_flight_requests_per_connection": int(
-                os.environ.get("KAFKA_PRODUCER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION", "5")
+            "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "16384")),
+            "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "0")),
+            "retry.backoff.ms": int(os.environ.get("KAFKA_PRODUCER_RETRY.BACKOFF.MS", "100")),
+            "max.in.flight.requests.per.connection": int(
+                os.environ.get("KAFKA_PRODUCER_MAX.IN.FLIGHT.REQUESTS.PER.CONNECTION", "5")
             ),
             **self.kafka_ssl_configs,
         }
 
-        self.payload_tracker_kafka_producer = {"bootstrap_servers": self.bootstrap_servers, **self.kafka_ssl_configs}
+        self.max_poll_records = int(os.environ.get("KAFKA_CONSUMER_MAX_POLL_RECORDS", "10000"))
 
+        self.payload_tracker_kafka_producer = {"bootstrap.servers": self.bootstrap_servers, **self.kafka_ssl_configs}
         self.payload_tracker_service_name = os.environ.get("PAYLOAD_TRACKER_SERVICE_NAME", "inventory")
         payload_tracker_enabled = os.environ.get("PAYLOAD_TRACKER_ENABLED", "true")
         self.payload_tracker_enabled = payload_tracker_enabled.lower() == "true"

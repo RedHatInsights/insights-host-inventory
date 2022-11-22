@@ -2,8 +2,8 @@ import json
 import sys
 from functools import partial
 
-from kafka import KafkaConsumer
-from kafka import TopicPartition
+from confluent_kafka import Consumer as KafkaConsumer
+from confluent_kafka import TopicPartition
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker

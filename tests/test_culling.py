@@ -2,7 +2,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from kafka.errors import KafkaError
+from confluent_kafka import KafkaException
 
 from app import db
 from app import threadctx
@@ -302,15 +302,15 @@ def assert_system_culling_data(response_host, expected_stale_timestamp, expected
 
 @pytest.mark.host_reaper
 @pytest.mark.parametrize(
-    "send_side_effects",
-    ((mock.Mock(), mock.Mock(**{"get.side_effect": KafkaError()})), (mock.Mock(), KafkaError("oops"))),
+    "produce_side_effects",
+    ((mock.Mock(), KafkaException()), (mock.Mock(), KafkaException("oops"))),
 )
 def test_reaper_stops_after_kafka_producer_error(
-    send_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
+    produce_side_effects, event_producer, db_create_multiple_hosts, db_get_hosts, inventory_config, mocker
 ):
     mocker.patch("lib.host_delete.kafka_available")
 
-    event_producer._kafka_producer.send.side_effect = send_side_effects
+    event_producer._kafka_producer.produce.side_effect = produce_side_effects
 
     staleness_timestamps = get_staleness_timestamps()
 
@@ -325,7 +325,7 @@ def test_reaper_stops_after_kafka_producer_error(
 
     threadctx.request_id = None
 
-    with pytest.raises(KafkaError):
+    with pytest.raises(KafkaException):
         host_reaper_run(
             inventory_config,
             mock.Mock(),
@@ -336,4 +336,4 @@ def test_reaper_stops_after_kafka_producer_error(
 
     remaining_hosts = db_get_hosts(created_host_ids)
     assert remaining_hosts.count() == 2
-    assert event_producer._kafka_producer.send.call_count == 2
+    assert event_producer._kafka_producer.produce.call_count == 2

@@ -3,8 +3,8 @@ import sys
 from functools import partial
 from os import getenv
 
+from confluent_kafka import Consumer as KafkaConsumer
 from dateutil import parser
-from kafka import KafkaConsumer
 from requests import get
 from requests import post
 from requests.auth import HTTPBasicAuth

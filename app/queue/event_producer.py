@@ -1,5 +1,5 @@
-from kafka import KafkaProducer
-from kafka.errors import KafkaError
+from confluent_kafka import KafkaException
+from confluent_kafka import Producer as KafkaProducer
 
 from app.instrumentation import message_not_produced
 from app.instrumentation import message_produced
@@ -14,10 +14,24 @@ def _encode_headers(headers):
     return [(hk, (hv or "").encode("utf-8")) for hk, hv in headers.items()]
 
 
+class MessageDetails:
+    def __init__(self, topic: str, event: str, headers: list(tuple()), key: str):
+        self.event = event
+        self.headers = headers
+        self.key = key
+        self.topic = topic
+
+    def on_delivered(self, error, message):
+        if error:
+            message_not_produced(logger, error, self.topic, self.event, self.key, self.headers)
+        else:
+            message_produced(logger, message, self.headers)
+
+
 class EventProducer:
     def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
-        self._kafka_producer = KafkaProducer(bootstrap_servers=config.bootstrap_servers, **config.kafka_producer)
+        self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
         self.egress_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
@@ -26,18 +40,22 @@ class EventProducer:
         k = key.encode("utf-8") if key else None
         v = event.encode("utf-8")
         h = _encode_headers(headers)
+        topic = self.egress_topic
 
         try:
-            send_future = self._kafka_producer.send(self.egress_topic, key=k, value=v, headers=h)
-        except KafkaError as error:
-            message_not_produced(logger, self.egress_topic, event, key, headers, error)
-            raise error
-        else:
-            send_future.add_callback(message_produced, logger, event, key, headers)
-            send_future.add_errback(message_not_produced, logger, self.egress_topic, event, key, headers)
+            messageDetails = MessageDetails(topic, v, h, k)
 
+            self._kafka_producer.produce(topic, v, k, callback=messageDetails.on_delivered, headers=h)
             if wait:
-                send_future.get()
+                self._kafka_producer.flush()
+            else:
+                self._kafka_producer.poll()
+        except KafkaException as error:
+            message_not_produced(logger, error, topic, event=v, key=k, headers=h)
+            raise error
+        except Exception as error:
+            message_not_produced(logger, error, topic, event=v, key=k, headers=h)
+            raise error
 
     def close(self):
         self._kafka_producer.flush()

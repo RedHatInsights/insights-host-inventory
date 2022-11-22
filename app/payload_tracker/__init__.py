@@ -2,7 +2,7 @@ import abc
 import json
 from datetime import datetime
 
-from kafka import KafkaProducer
+from confluent_kafka import Producer as KafkaProducer
 
 from app.logging import get_logger
 from app.payload_tracker import metrics
@@ -186,7 +186,7 @@ class KafkaPayloadTracker(PayloadTracker):
             return
 
         try:
-            self._producer.send(self._topic, message.encode("utf-8"))
+            self._producer.produce(self._topic, message.encode("utf-8"))
         except Exception:
             logger.exception("Error sending payload tracker message")
             metrics.payload_tracker_message_send_failure.inc()
