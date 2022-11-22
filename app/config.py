@@ -125,9 +125,9 @@ class Config:
         self.kubernetes_namespace = os.environ.get("NAMESPACE")
 
         self.kafka_ssl_configs = {
-            "security.protocol": os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper(),
+            "security.protocol": self.kafka_security_protocol,
             "ssl.ca.location": self.kafka_ssl_cafile,
-            "sasl.mechanism": os.environ.get("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
+            "sasl.mechanism": self.kafka_sasl_mechanism,
             "sasl.username": self.kafka_sasl_username,
             "sasl.password": self.kafka_sasl_password,
         }
