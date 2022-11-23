@@ -53,7 +53,7 @@ def graphql_query(query_string, variables, failure_logger):
         logger.error("xjoin-search returned status: %s", status)
         abort(500, "Error, request could not be completed")
 
-    logger.debug("QUERY: response %s", response.text)
+    logger.info("QUERY: response: %s", response.text)
     response_body = response.json()
     return response_body["data"]
 
