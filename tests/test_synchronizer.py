@@ -56,4 +56,4 @@ def test_synchronize_multiple_host_events(event_producer, kafka_producer, db_cre
     )
 
     assert event_count == host_count
-    assert event_producer._kafka_producer.send.call_count == host_count
+    assert event_producer._kafka_producer.produce.call_count == host_count

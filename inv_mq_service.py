@@ -1,6 +1,6 @@
 from functools import partial
 
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer as KafkaConsumer
 from prometheus_client import start_http_server
 
 from app import create_app
@@ -25,13 +25,14 @@ def main():
     topic_to_handler = {config.host_ingress_topic: add_host, config.system_profile_topic: update_system_profile}
 
     consumer = KafkaConsumer(
-        config.kafka_consumer_topic,
-        group_id=config.host_ingress_consumer_group,
-        bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10, 1),
-        value_deserializer=lambda m: m.decode(),
-        **config.kafka_consumer,
+        {
+            "group.id": config.host_ingress_consumer_group,
+            "bootstrap.servers": config.bootstrap_servers,
+            "auto.offset.reset": "earliest",
+            **config.kafka_consumer,
+        }
     )
+    consumer.subscribe([config.kafka_consumer_topic])
     consumer_shutdown = partial(consumer.close, autocommit=True)
     register_shutdown(consumer_shutdown, "Closing consumer")
 
