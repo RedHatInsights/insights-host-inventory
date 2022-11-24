@@ -89,7 +89,9 @@ def _get_identity(host, metadata):
         else:
             raise ValidationException("platform_metadata is mandatory")
 
-    if host.get("org_id") != identity["org_id"]:
+    if not host.get("org_id"):
+        raise ValidationException("org_id must be provided")
+    elif host.get("org_id") != identity["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
     try:
         identity = Identity(identity)
@@ -310,6 +312,7 @@ def handle_message(message, event_producer, notification_event_producer, message
             raise
         except InventoryException as ie:
             send_kafka_error_message(notification_event_producer, host, str(ie.detail))
+            raise
 
 
 def event_loop(consumer, flask_app, event_producer, notification_event_producer, handler, interrupt):
