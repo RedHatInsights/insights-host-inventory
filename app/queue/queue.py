@@ -356,5 +356,7 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    key = minimal_host.get("canonical_facts" or {}).get("insights_id")
+    insights_id = minimal_host.get("canonical_facts" or {}).get("insights_id")
+    key = insights_id if type(insights_id) is str else None
+
     notification_event_producer.write_event(event, key, headers, wait=True)
