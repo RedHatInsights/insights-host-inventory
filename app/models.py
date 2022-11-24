@@ -214,11 +214,6 @@ class Host(LimitedHost):
         reporter=None,
         per_reporter_staleness=None,
     ):
-        if not canonical_facts:
-            raise InventoryException(
-                title="Invalid request", detail="At least one of the canonical fact fields must be present."
-            )
-
         if not stale_timestamp or not reporter:
             raise InventoryException(
                 title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
@@ -483,6 +478,11 @@ class CanonicalFactsSchema(MarshmallowSchema):
         # check for white spaces, tabs, and newline characters only
         if provider_id and provider_id.isspace():
             raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
+
+    @validates_schema
+    def validate_fields(self, data, **kwargs):
+        if not any(data.keys()):
+            raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
 
 class LimitedHostSchema(CanonicalFactsSchema):

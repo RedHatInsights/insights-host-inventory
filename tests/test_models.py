@@ -206,7 +206,7 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
+@pytest.mark.parametrize("missing_field", ["stale_timestamp", "reporter"])
 def test_host_models_missing_fields(missing_field):
     limited_values = {
         "account": USER_IDENTITY["account_number"],
@@ -513,6 +513,11 @@ def test_valid_providers(provider):
 def test_invalid_providers(canonical_facts):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema().load(canonical_facts)
+
+
+def test_empty_canonical_facts():
+    with pytest.raises(MarshmallowValidationError):
+        CanonicalFactsSchema().load({})
 
 
 @pytest.mark.parametrize(
