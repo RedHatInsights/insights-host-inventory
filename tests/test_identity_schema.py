@@ -55,14 +55,28 @@ def test_validate_valid_system_identity_schema():
 
 @pytest.mark.parametrize("required", ("type", "auth_type", "org_id"))
 def test_identity_missing_required(required):
-    bad_identity = USER_IDENTITY.copy()
+    # Test missing values
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     bad_identity.pop(required, None)
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test blank values
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
+    bad_identity[required] = ""
     with pytest.raises(ValueError):
         identity_test_common(bad_identity)
 
 
 def test_system_identity_missing_system():
-    bad_identity = SYSTEM_IDENTITY.copy()
+    # Test blank system
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
+    bad_identity["system"] = {}
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test missing system
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     bad_identity.pop("system", None)
     with pytest.raises(ValueError):
         identity_test_common(bad_identity)
@@ -98,8 +112,15 @@ def test_string_length(test_field, bad_value):
 
 @pytest.mark.parametrize("test_field", ("type", "auth_type"))
 def test_not_one_of(test_field):
-    bad_identity = USER_IDENTITY.copy()
+    # Test invalid value
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
     bad_identity[test_field] = "bad_value"
+    with pytest.raises(ValueError):
+        identity_test_common(bad_identity)
+
+    # Test blank value
+    bad_identity = copy.deepcopy(SYSTEM_IDENTITY)
+    bad_identity[test_field] = ""
     with pytest.raises(ValueError):
         identity_test_common(bad_identity)
 
