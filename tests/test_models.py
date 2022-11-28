@@ -515,11 +515,6 @@ def test_invalid_providers(canonical_facts):
         CanonicalFactsSchema().load(canonical_facts)
 
 
-def test_empty_canonical_facts():
-    with pytest.raises(MarshmallowValidationError):
-        CanonicalFactsSchema().load({})
-
-
 @pytest.mark.parametrize(
     "ip_addresses", (["127.0.0.1"], ["1.2.3.4"], ["2001:db8:3333:4444:5555:6666:7777:8888"], ["::"], ["2001:db8::"])
 )

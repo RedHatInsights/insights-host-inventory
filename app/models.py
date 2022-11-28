@@ -51,18 +51,6 @@ SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 # set edge host stale_timestamp way out in future to Year 2260
 EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
 
-CANONICAL_FACTS_FIELDS = (
-    "insights_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "provider_id",
-    "provider_type",
-)
-
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -233,6 +221,9 @@ class Host(LimitedHost):
 
         if tags is None:
             raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
+
+        if not canonical_facts:
+            raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
         super().__init__(
             canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts
@@ -491,10 +482,10 @@ class CanonicalFactsSchema(MarshmallowSchema):
         if provider_id and provider_id.isspace():
             raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
 
-    @validates_schema
-    def validate_fields(self, data, **kwargs):
-        if not any(x in CANONICAL_FACTS_FIELDS for x in data.keys()):
-            raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
+    # @validates_schema
+    # def validate_fields(self, data, **kwargs):
+    #     if not any(CANONICAL_FACTS_FIELDS in data.keys()):
+    #         raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
 
 class LimitedHostSchema(CanonicalFactsSchema):

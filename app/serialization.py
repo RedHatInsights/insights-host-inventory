@@ -5,7 +5,6 @@ from marshmallow import ValidationError
 
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
-from app.models import CANONICAL_FACTS_FIELDS
 from app.models import CanonicalFactsSchema
 from app.models import Host as Host
 from app.models import HostSchema
@@ -13,6 +12,19 @@ from app.utils import Tag
 
 
 __all__ = ("deserialize_host", "serialize_host", "serialize_host_system_profile", "serialize_canonical_facts")
+
+
+_CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
 
 DEFAULT_FIELDS = (
     "id",
@@ -141,15 +153,15 @@ def _recursive_casefold(field_data):
 
 
 def _deserialize_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) for field in CANONICAL_FACTS_FIELDS if data.get(field)}
+    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def _deserialize_all_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
 
 
 def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in CANONICAL_FACTS_FIELDS}
+    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
 
 
 def _deserialize_facts(data):
