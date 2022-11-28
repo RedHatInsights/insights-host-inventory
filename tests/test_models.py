@@ -228,6 +228,27 @@ def test_host_models_missing_fields(missing_field):
         Host(**values)
 
 
+def test_host_models_missing_canonical_facts():
+    limited_values = {
+        "account": USER_IDENTITY["account_number"],
+        "canonical_facts": {"fqdn": "foo.qoo.doo.noo"},
+        "system_profile_facts": {"number_of_cpus": 1},
+    }
+    if "canonical_facts" in limited_values:
+        limited_values["canonical_facts"] = None
+
+    # LimitedHost should be fine with these missing values
+    LimitedHost(**limited_values)
+
+    values = {**limited_values, "stale_timestamp": now(), "reporter": "reporter"}
+    if "canonical_facts" in values:
+        values["canonical_facts"] = None
+
+    # Host should complain about the missing values
+    with pytest.raises(MarshmallowValidationError):
+        Host(**values)
+
+
 def test_host_schema_timezone_enforced():
     host = {
         "fqdn": "scooby.doo.com",
