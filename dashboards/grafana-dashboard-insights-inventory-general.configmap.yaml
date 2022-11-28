@@ -579,7 +579,7 @@ data:
           ],
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{group='inventory-mq', topic=~'platform.inventory.host-ingress.*'}[5m])) by (topic)",
+              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[5m])) by (topic)",
               "instant": true,
               "interval": "1s",
               "legendFormat": "{{topic}}",
@@ -1328,7 +1328,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{group='inventory-mq', topic=~'platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2491,7 +2491,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(kafka_consumergroup_group_lag{group='inventory-mq', topic=~'platform.inventory.host-ingress.*'}) by (topic)",
+              "expr": "sum(kafka_consumergroup_group_lag{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2690,7 +2690,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(kafka_consumergroup_group_offset{group='inventory-mq', topic=~'platform.inventory.host-ingress.*'}[1m])) by (topic)",
+              "expr": "sum(increase(kafka_consumergroup_group_offset{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
@@ -2787,7 +2787,7 @@ data:
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(kafka_server_brokertopicmetrics_messagesin_total{topic=~'platform.inventory.host-ingress.*'}[1m])) by (topic)",
+              "expr": "sum(increase(kafka_server_brokertopicmetrics_messagesin_total{topic=~'(platform-mq-stage.|platform-mq-prod)?platform.inventory.host-ingress.*'}[1m])) by (topic)",
               "interval": "1m",
               "legendFormat": "topic",
               "refId": "A"
