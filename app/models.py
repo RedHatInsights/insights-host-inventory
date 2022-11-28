@@ -51,6 +51,18 @@ SYSTEM_PROFILE_SPECIFICATION_FILE = "system_profile.spec.yaml"
 # set edge host stale_timestamp way out in future to Year 2260
 EDGE_HOST_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=timezone.utc)
 
+CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
+
 
 class ProviderType(str, Enum):
     ALIBABA = "alibaba"
@@ -481,7 +493,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
 
     @validates_schema
     def validate_fields(self, data, **kwargs):
-        if not any(data.keys()):
+        if not any(CANONICAL_FACTS_FIELDS in data.keys()):
             raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
 
