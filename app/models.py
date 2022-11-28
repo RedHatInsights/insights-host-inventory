@@ -493,7 +493,7 @@ class CanonicalFactsSchema(MarshmallowSchema):
 
     @validates_schema
     def validate_fields(self, data, **kwargs):
-        if not any(CANONICAL_FACTS_FIELDS in data.keys()):
+        if not any(x in CANONICAL_FACTS_FIELDS for x in data.keys()):
             raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
 
