@@ -89,7 +89,9 @@ def _get_identity(host, metadata):
         else:
             raise ValidationException("platform_metadata is mandatory")
 
-    if host.get("org_id") != identity["org_id"]:
+    if not host.get("org_id"):
+        raise ValidationException("org_id must be provided")
+    elif host.get("org_id") != identity["org_id"]:
         raise ValidationException("The org_id in the identity does not match the org_id in the host.")
     try:
         identity = Identity(identity)
@@ -357,5 +359,7 @@ def send_kafka_error_message(notification_event_producer, host, detail):
         NotificationType.validation_error,
         rh_message_id=rh_message_id,
     )
-    key = minimal_host.get("canonical_facts" or {}).get("insights_id")
+    insights_id = minimal_host.get("canonical_facts" or {}).get("insights_id")
+    key = insights_id if type(insights_id) is str else None
+
     notification_event_producer.write_event(event, key, headers, wait=True)
