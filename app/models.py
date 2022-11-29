@@ -29,6 +29,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from yaml import safe_load
 
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
@@ -214,16 +215,14 @@ class Host(LimitedHost):
         reporter=None,
         per_reporter_staleness=None,
     ):
+        if not canonical_facts:
+            raise ValidationException("At least one of the canonical fact fields must be present.")
+
         if not stale_timestamp or not reporter:
-            raise InventoryException(
-                title="Invalid request", detail="Both stale_timestamp and reporter fields must be present."
-            )
+            raise ValidationException("Both stale_timestamp and reporter fields must be present.")
 
         if tags is None:
-            raise InventoryException(title="Invalid request", detail="The tags field cannot be null.")
-
-        if not canonical_facts:
-            raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
+            raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
             canonical_facts, display_name, ansible_host, account, org_id, facts, tags, system_profile_facts
@@ -481,11 +480,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
         # check for white spaces, tabs, and newline characters only
         if provider_id and provider_id.isspace():
             raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
-
-    # @validates_schema
-    # def validate_fields(self, data, **kwargs):
-    #     if not any(CANONICAL_FACTS_FIELDS in data.keys()):
-    #         raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
