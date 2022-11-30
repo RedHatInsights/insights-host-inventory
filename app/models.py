@@ -481,11 +481,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
         if provider_id and provider_id.isspace():
             raise MarshmallowValidationError("Provider id can not be just blank, whitespaces or tabs")
 
-    @validates_schema
-    def validate_fields(self, data, **kwargs):
-        if not any(data.keys()):
-            raise MarshmallowValidationError("At least one of the canonical fact fields must be present.")
-
 
 class LimitedHostSchema(CanonicalFactsSchema):
     class Meta:
