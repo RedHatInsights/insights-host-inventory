@@ -7,7 +7,7 @@ from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
 
 from app import db
-from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostSchema
@@ -224,7 +224,7 @@ def test_host_models_missing_fields(missing_field):
         values[missing_field] = None
 
     # Host should complain about the missing values
-    with pytest.raises(InventoryException):
+    with pytest.raises(ValidationException):
         Host(**values)
 
 
