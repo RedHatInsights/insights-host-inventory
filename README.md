@@ -10,7 +10,7 @@ If you're looking for API, integration or user documentation for HBI please see 
 This project uses [Snappy compression](http://google.github.io/snappy/) to enhance its Kafka usage.
 The `python-snappy` package requires the core Snappy library to be installed on the machine, so start off by running the following:
 
-```
+```bash
 sudo dnf install snappy
 ```
 
@@ -19,20 +19,20 @@ sudo dnf install snappy
 This project uses pipenv to manage the development and deployment environments.
 To set the project up for development, we recommend using [pyenv](https://github.com/pyenv/pyenv) to install/manage the appropriate python (currently 3.8.x), pip and pipenv version. Once you have pipenv, do the following:
 
-```
+```bash
 pipenv install --dev
 ```
 
 Afterwards you can activate the virtual environment by running:
 
-```
+```bash
 pipenv shell
 ```
 
 Included is a docker-compose file `dev.yml` that will start a postgres database that is
 useful for development.
 
-```
+```bash
 docker-compose -f dev.yml up
 ```
 
@@ -45,7 +45,7 @@ The database migration scripts determine the DB location, username,
 password and db name from the INVENTORY_DB_HOST, INVENTORY_DB_USER,
 INVENTORY_DB_PASS and INVENTORY_DB_NAME environment variables.
 
-```
+```bash
 python manage.py db upgrade
 ```
 
@@ -53,21 +53,21 @@ By default the database container will use a bit of local storage so that data
 you enter will be persisted across multiple starts of the container.  If you
 want to destroy that data do the following:
 
-```
+```bash
 docker-compose down
 ```
 
 ## Running the Tests
 
-It is possible to run the tests using pytest:
+You can run the tests using pytest:
 
-```
+```bash
 pytest --cov=.
 ```
 
 Or you can run the tests individually:
 
-```
+```bash
 ./test_api.py
 pytest test_db_model.py
 ./test_unit.py
@@ -92,13 +92,13 @@ afterwards. Other formats and text files are linted as well.
 Install pre-commit hooks to your local repository by running:
 
 ```bash
-$ pre-commit install
+pre-commit install
 ```
 
-After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
-make sure all checks pass before submitting a pull request. Thanks!
+After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected, but the altered files from the linting will be ready for you to commit again if the issue was automatically correctable.
+Please make sure all checks pass before submitting a pull request. Thanks!
 
-# Running the server locally
+## Running the server locally
 
 Prometheus was designed to run in a multi-threaded
 environment whereas gunicorn uses a multi-process
@@ -112,32 +112,30 @@ environment needs to point to this directory.  The
 contents of this directory need to be removed between
 runs.
 
-A command to run the server in a cluster.
+If running the server in a cluster, you can use this command:
 
-```
+```bash
 gunicorn -c gunicorn.conf.py run
 ```
 
-Running the server locally for development. In this case it’s not necessary to
-care about the Prometheus temp directory or to set the
-_prometheus_multiproc_dir_ environment variable. This is done automatically.
+When running the server locally for development, the Prometheus configuration is done automatically.
+You can run the server locally using this command:
 
-```
+```bash
 python run_gunicorn.py
 ```
 
-# Running all services locally
+## Running all services locally
 
 Honcho provides a command to run MQ and web services at once:
 
+```bash
+honcho start
 ```
-$ honcho start
-```
-
 
 ## Config env vars
 
-```
+```bash
  prometheus_multiproc_dir=/path/to/prometheus_dir
  APP_NAME="inventory"
  PATH_PREFIX="/r/insights/platform"
@@ -162,7 +160,7 @@ For Kafka messages, the Identity must be set in the `platform_metadata.b64_ident
 When testing the API, it must be provided in the authentication header `x-rh-identity` on each call to the service.
 For testing purposes, this required identity header can be set to the following:
 
-```
+```curl
 x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiJ0ZXN0IiwidHlwZSI6IlVzZXIiLCJhdXRoX3R5cGUiOiJiYXNpYy1hdXRoIiwidXNlciI6eyJ1c2VybmFtZSI6InR1c2VyQHJlZGhhdC5jb20iLCJlbWFpbCI6InR1c2VyQHJlZGhhdC5jb20iLCJmaXJzdF9uYW1lIjoidGVzdCIsImxhc3RfbmFtZSI6InVzZXIiLCJpc19hY3RpdmUiOnRydWUsImlzX29yZ19hZG1pbiI6ZmFsc2UsImlzX2ludGVybmFsIjp0cnVlLCJsb2NhbGUiOiJlbl9VUyJ9fX0=
 ```
 
@@ -174,7 +172,7 @@ This is the Base64 encoding of the following JSON document:
 
 The above header has the "User" identity type, but it's possible to use a "System" type header as well.
 
-```
+```curl
 x-rh-identity: eyJpZGVudGl0eSI6eyJvcmdfaWQiOiAidGVzdCIsICJhdXRoX3R5cGUiOiAiY2VydC1hdXRoIiwgInN5c3RlbSI6IHsiY2VydF90eXBlIjogInN5c3RlbSIsICJjbiI6ICJwbHhpMTN5MS05OXV0LTNyZGYtYmMxMC04NG9wZjkwNGxmYWQifSwidHlwZSI6ICJTeXN0ZW0ifX0=
 ```
 
@@ -199,9 +197,10 @@ matches the provided `identity.system.cn` value.
 
 ## Using the legacy api
 
-In case one needs to do this:
+Some apps still need to use the legacy API path, which by default is `/r/insights/platform/inventory/v1/`.
+In case legacy apps require this prefix to be changed, it can be modified using this environment variable:
 
-```
+```bash
  export INVENTORY_LEGACY_API_URL="/r/insights/platform/inventory/api/v1"
 ```
 
@@ -210,7 +209,7 @@ In case one needs to do this:
 The inventory service has been integrated with the Payload Tracker service.  The payload
 tracker integration can be configured using the following environment variables:
 
-```
+```bash
 KAFKA_BOOTSTRAP_SERVERS=localhost:29092
 PAYLOAD_TRACKER_KAFKA_TOPIC=platform.payload-status
 PAYLOAD_TRACKER_SERVICE_NAME=inventory
@@ -238,213 +237,116 @@ The payload tracker status logging for the delete operation is similar. The over
 of the payload will only be logged as an "error" if the entire delete operation fails
 (a 404 due to the hosts not existing, db down, etc).
 
-## Integrating with Cross Join (xjoin)
-
-1. Clone [xjoin-kstreams](https://github.com/RedHatInsights/xjoin-kstreams/)
-2. Follow the instructions for local development in the [xjoin-kstreams README](https://github.com/RedHatInsights/xjoin-kstreams/#xjoin-kstreams). Stop after you run `dev/start.sh`. This will create a docker-compose environment with the following.
-    | Service | Port on localhost |
-    | ------- | ----------------- |
-    | Inventory DB | 5432 |
-    | Advisor DB | 5433 |
-    | Vulnerability DB | 5434 |
-    | Zookeeper | 2181 |
-    | Kafka | 29092 |
-    | Kafka Connect | 8083 |
-    | Kafka Schema Registry | 8081 |
-    | xjoin-search | 4000 |
-    | ElasticSearch | 9200, 9300 |
-
-3. `cd` into the root of this project (host inventory)
-4. Run the inventory-mq-service
-```
-make run_inv_mq_service
-```
-
-5. Run the inventory api
-```
-make run_inv_web_service
-```
-
-6. Produce a kafka message
-```
-make run_inv_mq_service_test_producer
-```
-
-7. Validate the host is in xjoin
-```
-curl \
--H 'Content-Type: application/json' \
--H 'x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19' \
---data-binary '{"query":"{hosts(limit:10,offset:0){meta{count,total}data{id org_id display_name}}}"}' \
-http://localhost:4000/graphql
-```
-
-8. Now you can curl against the inventory-api with xjoin enabled
-```
-curl \
--H 'x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6InRlc3QiLCJ0eXBlIjoiVXNlciIsInVzZXIiOnsidXNlcm5hbWUiOiJ0dXNlckByZWRoYXQuY29tIiwiZW1haWwiOiJ0dXNlckByZWRoYXQuY29tIiwiZmlyc3RfbmFtZSI6InRlc3QiLCJsYXN0X25hbWUiOiJ1c2VyIiwiaXNfYWN0aXZlIjp0cnVlLCJpc19vcmdfYWRtaW4iOmZhbHNlLCJpc19pbnRlcm5hbCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifX19' \
--H 'x-rh-cloud-bulk-query-source: xjoin' \
-localhost:8080/api/inventory/v1/hosts
-```
-
-# Generating a migration script
+## Generating a database migration script
 
 Run this command to generate a new revision in `migrations/versions`
 
-```
+```bash
 python manage.py db revision -m "Description of revision"
 ```
 
-# Building a container image
+## Building a docker container image
 
-Inventory uses [Source-To-Image (S2I)](https://github.com/openshift/source-to-image) for building of container images.
-The container image is built by running
-
-```
-s2i build . centos/python-36-centos7 inventory -e ENABLE_PIPENV=true
-```
-
-## Building with docker
-
-In addition, a [Dockerfile](./dev.dockerfile) is provided.
+A [Dockerfile](./dev.dockerfile) is provided for building local Docker containers.
 The container image built this way is only intended for development purposes (e.g. orchestrating the container using docker-compose) and must not be used for production deployment.
 
-**Note** some of the packages require a subscription, make sure the host building the image is attached to a valid subscription providing RHEL
+**Note** some of the packages require a subscription. Make sure the host building the image is attached to a valid subscription providing RHEL.
 
-```
+```bash
 docker build . -f dev.dockerfile -t inventory:dev
 ```
 
 By default, the container runs the database migrations and then starts the inventory-mq service.
 
-# Deployment
+## Metrics
 
 The application provides some management information about itself. These
 endpoints are exposed at the root path _/_ and thus are accessible only
-from inside of the deployment cluster.
+from inside of the cluster.
 
-* _/health_ responds with _200_ to any GET requests, point your liveness
+* _/health_ responds with _200_ to any GET requests; point your liveness
   or readiness probe here.
 * _/metrics_ offers metrics and monitoring intended to be pulled by
   [Prometheus](https://prometheus.io).
 * _/version_ responds with a json doc that contains the build version info
   (the value of the OPENSHIFT_BUILD_COMMIT environment variable)
 
-Cron jobs push their metrics to a
+Cron jobs such as `reaper` and `sp-validator` push their metrics to a
 [Prometheus Pushgateway](https://github.com/prometheus/pushgateway/) instance
 running at _PROMETHEUS_PUSHGATEWAY_. Defaults to _localhost:9091_.
 
-# Release process
+## Release process
 
 This section describes the process of getting a code change from a pull request all the way to production.
 
-## 1. Pull request
+### 1. Pull request
 
 It all starts with a [pull request](https://github.com/RedHatInsights/insights-host-inventory/pulls).
-When a new pull request is opened the following checks are [run automatically](https://github.com/RedHatInsights/insights-host-inventory/blob/master/Jenkinsfile):
+When a new pull request is opened, some jobs are run automatically.
+These jobs are defined in app-interface [here](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/build.yml).
 
-* [database migrations](#initialize-the-database)
-* [code style checks](#contributing)
-* unit tests
+* [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check) runs the following:
+  * [database migrations](#initialize-the-database)
+  * [code style checks](#contributing)
+  * unit tests
+* `ci.ext.devshift.net PR build - All tests` runs _all_ of the IQE tests on the PR's code.
+* [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/) builds the container image, and pushes it to Quay, where it is scanned for vulnerabilities.
 
 Should any of these fail this is indicated directly on the pull request.
 
-When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from the [@RedHatInsights/host-based-inventory-committers ](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers) team.
+When all of these checks pass and a reviewer approves the changes the pull request can be merged by someone from the [@RedHatInsights/host-based-inventory-committers](https://github.com/orgs/RedHatInsights/teams/host-based-inventory-committers) team.
 
-## 2. Latest image and smoke tests
+### 2. Latest image and smoke tests
 
-When a pull request is merged to master a new container image is built and tagged as [insights-inventory:latest](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/latest?tab=body).
-The latest image is deployed to the [CI environment](https://console.insights-dev.openshift.com/console/project/platform-ci/overview) automatically. This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 1)_
+When a pull request is merged to master, a new container image is built and tagged as [insights-inventory:latest](https://quay.io/repository/cloudservices/insights-inventory?tab=tags).
+This image is then automatically deployed to the [Stage environment](https://console-openshift-console.apps.crcs02ue1.urby.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-stage).
 
-Afterwards, the smoke tests are started automatically. These consist of a subset of [IQE tests](https://gitlab.cee.redhat.com/insights-qe) that cover inventory, advisor, engine and the ingress service.
+### 3. QE testing in the Stage environment
 
-Once the smoke test run finishes the results are reported in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 2)_
+Once the image lands in the Stage environment, the QE testing can begin.
+People in [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) run the full IQE test suite against Stage, and then report the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
 
-If the smoke tests pass, the container image is re-tagged as [insights-inventory:stable](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/stable?tab=body)
+### 4. Promoting the image to the production environment
 
-### Suppressing automatic propagation to stable
-
-In certain situations it may be desired for an image to stay deployed in CI only for some time before proceeding with the QA deployment.
-An example would be a possibly breaking change where we want to give integrators some time to test the integration in CI first.
-This can be achieved by setting the `promote-stable` key to `false` in the [inventory-pipeline config map](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/config-maps/inventory-pipeline).
-This change needs to be made **before the given commit is merged to master**.
-
-## 3. Vortex
-
-[Vortex](https://github.com/RedHatInsights/e2e-deploy/blob/master/docs/pipeline.md#overview) is a process that picks stable images of platform components and tests them together. The process is automated and runs periodically.
-By default the [vortex job](https://jenkins-insights-qe-ci.cloud.paas.psi.redhat.com/blue/organizations/jenkins/vortex-test-suite/activity) runs around every two hours.
-
-Once the vortex tests are finished the stable inventory image is tagged as [insights-inventory:qa](https://console.insights-dev.openshift.com/console/project/buildfactory/browse/images/insights-inventory/qa?tab=body) and deployed to the [QA environment](https://console.insights-dev.openshift.com/console/project/platform-qa/overview).
-This is announced in [#platform-inventory-standup slack channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T) as _Inventory release pipeline (step 3)_.
-
-## 4. QE testing in the QA environment
-
-Once the stable image lands in the QA environment, the QE testing can begin.
-
-People in [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) Slack group handle this part.
-They trigger the QE testing jobs \[[1](https://jenkins-jenkins.5a9f.insights-dev.openshiftapps.com/view/QE/job/qe/job/iqe-inventory-plugin-kafka-qa/)\]\[[2](https://insights-stg-jenkins.rhev-ci-vms.eng.rdu2.redhat.com/view/Inventory/job/iqe-host-inventory-qa-basic/)\]. Optionally, manual testing may be performed to validate certain features / bug fixes.
-
-Once all of this is finished, a [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) representative (manually) reports the results in the [#platform-inventory-standup channel](https://app.slack.com/client/T026NJJ6Z/CQFKM031T).
-
-## 5. Promoting the image to stage environment
-
-This step can be performed in parallel with step 4.
-
-In order to promote a new image to the stage environment it is necessary to update the [deploy.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy.yml) file.
-The `IMAGE_TAG` parameter needs to be updated to the current _PROMO_CODE_ (truncated to first 7 characters).
-This applies to the following components:
-
-* insights-inventory-reaper
-* insights-inventory-mq-service
-* insights-inventory
-
-The `IMAGE_TAG` parameter should be updated for the stage namespace for each of the aforementioned components.
-Note that `insights-host-delete`, which uses a different image, should not be updated.
-
-There is a script _utils/deploy.py_ that can be used to automatically update the `IMAGE_TAG`. Possible usage using
-_sponge_ from [_moreutils_](http://joeyh.name/code/moreutils/):
-
-```bash
-$ pipenv run python utils/deploy.py -s PROMO_CODE < ../app-interface/data/services/insights/host-inventory/deploy.yml | sponge ../app-interface/data/services/insights/host-inventory/deploy.yml
-```
+In order to promote a new image to the production environment, it is necessary to update the [deploy-clowder.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/deploy-clowder.yml) file.
+The `ref` parameter on the `prod-host-inventory-prod` namespace needs to be updated to the SHA of the validated image.
 
 Once the change has been made, submit a merge request to [app-interface](https://gitlab.cee.redhat.com/service/app-interface).
-For the CI pipeline to run tests on your fork, add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
+For the CI pipeline to run tests on your fork, you'll need to add [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer.
 See this [guide](https://docs.gitlab.com/ee/user/project/members/share_project_with_groups.html#sharing-a-project-with-a-group-of-users) on how to do that.
 
-After the MR has been opened, get somebody from [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) to approve the MR by adding a `/lgtm` comment.
-Afterwards, the MR is merged automatically and changes are deployed to the stage environment.
+After the MR has been opened, somebody from [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) will review and approve the MR by adding a `/lgtm` comment.
+Afterwards, the MR will be merged automatically and the changes will be deployed to the production environment.
+The engineer who approved the MR is then **responsible for monitoring of the rollout of the new image**.
 
-Once that happens, contact [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) and request the image to be tested in the stage environment.
-
-## 6. Promoting the image to production
-
-Once [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) finishes testing of the image in both qa and stage environments (i.e. steps 4 and 5 are completed) they propose a release to production.
-
-They do so by opening a MR in [app-interface](https://gitlab.cee.redhat.com/service/app-interface) to update the `IMAGE_TAG` in the production namespace to the _PROMO_CODE_.
-The same steps to create a MR to app-interface are followed as defined in step 5 except that the `IMAGE_TAG` parameter for the prod (instead of stage) namespace is changed.
-
-```bash
-$ pipenv run python utils/deploy.py -p PROMO_CODE < ../app-interface/data/services/insights/host-inventory/deploy.yml | sponge ../app-interface/data/services/insights/host-inventory/deploy.yml
-```
-
-### Service owner approval
-
-Once the MR has been created, an engineer, who is a member of [AppSRE/insights-host-inventory](https://github.com/orgs/app-sre/teams/insights-host-inventory) and has been trained to perform inventory releases, approves the MR by adding a `/lgtm` comment.
-The engineer is then **responsible for monitoring of the rollout of the new image**.
+Once that happens, contact [@platform-inventory-qe](https://app.slack.com/client/T026NJJ6Z/browse-user-groups/user_groups/S011SJB6S5R) and request the image to be re-tested in the production environment.
+The new image will also be tested automatically when the [Full Prod Check pipeline](https://main-jenkins-csb-insights-qe.apps.ocp-c1.prod.psi.redhat.com/job/inventory/job/prod-basic/) is run (twice daily).
 
 ### Monitoring of deployment
 
 It is essential to monitor the health of the service during and after the production deployment.
 A non-exhaustive list of things to watch includes:
 
-* Inventory deployments in [platform-prod OSD namespace](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/topology/ns/platform-prod/list)
+* Deployments in the [host-inventory-prod OSD namespace](https://console-openshift-console.apps.crcp01ue1.o9m8.p1.openshiftapps.com/k8s/cluster/projects/host-inventory-prod)
   * primarily ensure that the new pods are spun up properly
-* [#team-insights-alerts Slack channel](https://app.slack.com/client/T027F3GAJ/C015X9ZF621/details) for any inventory-related Prometheus alerts
-* [Inventory Dashboard](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&var-datasource=crcp01ue1-prometheus) for any anomalies such as error rate or consumer lag
-* [Kibana](https://kibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com/app/kibana#/discover?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-15m,to:now))&_a=(columns:!(_source),filters:!(),index:'43c5fed0-d5ce-11ea-b58c-a7c95afd7a5d',interval:auto,query:(language:lucene,query:'(@log_stream:%20%22inventory-reaper%22%20OR%20@log_stream:%20%22inventory-mq%22%20OR%20@log_stream:%20%22insights-inventory%22)%20AND%20levelname:%20ERROR'),sort:!(!('@timestamp',desc)))) for any error-level log entries
+* [#team-consoledot-inventory Slack channel](https://app.slack.com/client/T027F3GAJ/C01A49ZGQ05) for any inventory-related Prometheus alerts
+* [Inventory Dashboard](https://grafana.app-sre.devshift.net/d/EiIhtC0Wa/inventory?orgId=1&refresh=5m) for any anomalies such as error rate or consumer lag
+* [Kibana](https://kibana.apps.crcp01ue1.o9m8.p1.openshiftapps.com/app/kibana#/discover?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-24h,to:now))&_a=(columns:!(_source),filters:!(),index:'43c5fed0-d5ce-11ea-b58c-a7c95afd7a5d',interval:auto,query:(language:lucene,query:'@log_group:%20%22host-inventory-prod%22%20AND%20levelname:%20ERROR'),sort:!(!('@timestamp',desc)))) for any error-level log entries
 
 ### Deployment rollback
 
 Should unexpected problems occur during the deployment, it is possible to do a rollback.
-This is done by updating the `IMAGE_TAG` parameters in deploy.yml to point to a previous _PROMO_CODE_.
+This is done by updating the `ref` parameter in deploy-clowder.yml to point to the previous commit SHA, or by reverting the MR that triggered the production deployment.
+
+## Updating the System Profile
+
+In order to add or update a field on the System Profile, first follow the instructions in the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas#contributing).
+After an inventory-schemas PR has been accepted and merged, HBI must be updated to keep its own schema in sync.
+To do this, simply run this command:
+
+```bash
+make update-schema
+```
+
+This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
+Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
