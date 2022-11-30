@@ -206,7 +206,7 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("missing_field", ["stale_timestamp", "reporter"])
+@pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
 def test_host_models_missing_fields(missing_field):
     limited_values = {
         "account": USER_IDENTITY["account_number"],
