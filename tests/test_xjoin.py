@@ -104,6 +104,7 @@ def test_query_all_hosts(mocker, graphql_query_empty_response, api_get):
                         {"stale_timestamp": mocker.ANY},
                         {"stale_timestamp": mocker.ANY},
                         {"stale_timestamp": mocker.ANY},
+                        {"stale_timestamp": mocker.ANY},
                     )
                 },
             ),
@@ -615,22 +616,6 @@ def test_query_variables_default_except_staleness(mocker, graphql_query_empty_re
     )
 
 
-def test_query_variables_default_staleness(mocker, culling_datetime_mock, graphql_query_empty_response, api_get):
-    response_status, response_data = api_get(HOST_URL)
-
-    assert response_status == 200
-
-    assert_graph_query_single_call_with_staleness(
-        mocker,
-        graphql_query_empty_response,
-        (
-            {"gt": "2019-12-16T10:10:06.754201+00:00"},  # fresh
-            {"gt": "2019-12-09T10:10:06.754201+00:00", "lte": "2019-12-16T10:10:06.754201+00:00"},  # stale
-            {"eq": None},  # unknown
-        ),
-    )
-
-
 @pytest.mark.parametrize(
     "staleness,expected",
     (
@@ -876,37 +861,6 @@ def test_tags_query_host_filters(assert_tag_query_host_filter_for_field, field, 
 def test_tags_query_host_filters_casefolding(assert_tag_query_host_filter_for_field, field, matcher, value):
     assert_tag_query_host_filter_for_field(
         build_tags_url(query=f"?{field}={quote(value.replace('*',''))}"), field, matcher, value
-    )
-
-
-def test_tags_query_variables_default_staleness(
-    mocker, culling_datetime_mock, graphql_tag_query_empty_response, api_get
-):
-    response_status, response_data = api_get(TAGS_URL)
-
-    assert response_status == 200
-
-    graphql_tag_query_empty_response.assert_called_once_with(
-        TAGS_QUERY,
-        {
-            "order_by": mocker.ANY,
-            "order_how": mocker.ANY,
-            "limit": mocker.ANY,
-            "offset": mocker.ANY,
-            "hostFilter": {
-                "OR": [
-                    {"stale_timestamp": {"gt": "2019-12-16T10:10:06.754201+00:00"}},
-                    {
-                        "stale_timestamp": {
-                            "gt": "2019-12-09T10:10:06.754201+00:00",
-                            "lte": "2019-12-16T10:10:06.754201+00:00",
-                        }
-                    },
-                    {"stale_timestamp": {"eq": None}},
-                ]
-            },
-        },
-        mocker.ANY,
     )
 
 
