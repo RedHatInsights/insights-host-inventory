@@ -1066,6 +1066,7 @@
           "default": [
             "fresh",
             "stale",
+            "stale_warning",
             "unknown"
           ]
         },

@@ -643,6 +643,7 @@ components:
         default:
           - fresh
           - stale
+          - stale_warning
           - unknown
       description: "Culling states of the hosts. Default: fresh,stale,unknown"
     stalenessNoDefaultsParam:
