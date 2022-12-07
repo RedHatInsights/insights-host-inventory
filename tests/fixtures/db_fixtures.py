@@ -8,6 +8,7 @@ from sqlalchemy_utils import drop_database
 from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
+from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from tests.helpers.db_utils import db_group
@@ -65,6 +66,30 @@ def db_get_host_by_insights_id(flask_app):
         return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
     return _db_get_host_by_insights_id
+
+
+@pytest.fixture(scope="function")
+def db_get_group(flask_app):
+    def _db_get_group(group_id):
+        return Group.query.get(group_id)
+
+    return _db_get_group
+
+
+@pytest.fixture(scope="function")
+def db_get_hosts_for_group(flask_app):
+    def _db_get_hosts_for_group(group_id):
+        return Host.query.join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group_id).all()
+
+    return _db_get_hosts_for_group
+
+
+@pytest.fixture(scope="function")
+def db_get_groups_for_host(flask_app):
+    def _db_get_groups_for_host(host_id):
+        return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
+
+    return _db_get_groups_for_host
 
 
 @pytest.fixture(scope="function")
@@ -132,9 +157,8 @@ def models_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def db_create_group(flask_app):
-    def _db_create_group(identity=SYSTEM_IDENTITY, group=None, extra_data=None):
-        extra_data = extra_data or {}
-        group = group or db_group(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
+    def _db_create_group(identity=SYSTEM_IDENTITY, name=None):
+        group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name)
         db.session.add(group)
         db.session.commit()
         return group
@@ -144,8 +168,8 @@ def db_create_group(flask_app):
 
 @pytest.fixture(scope="function")
 def db_create_host_group_assoc(flask_app):
-    def _db_create_host_group_assoc(identity=SYSTEM_IDENTITY, host_group=None):
-        host_group = host_group or HostGroupAssoc(org_id=identity["org_id"], account=identity["account_number"])
+    def _db_create_host_group_assoc(host_id, group_id):
+        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
         db.session.add(host_group)
         db.session.commit()
         return host_group

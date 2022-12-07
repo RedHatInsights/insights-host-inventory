@@ -540,60 +540,71 @@ def test_invalid_ip_addresses(ip_addresses):
         CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
 
 
-def test_create_group_happy(db_create_group):
+def test_create_group_happy(db_create_group, db_get_group):
     # Create a group successfully
+    group_name = "Host Group 1"
 
-    db_create_group(
-        extra_data={
-            "name": "Host Group 1",
-        },
-    )
+    created_group = db_create_group(name=group_name)
+
+    assert db_get_group(created_group.id).name == group_name
 
 
 def test_create_group_no_name(db_create_group):
     # Make sure we can't create a group with an empty name
 
     with pytest.raises(ValidationException):
-        db_create_group(
-            extra_data={
-                "name": None,
-            },
-        )
+        db_create_group(name=None)
 
 
-def test_create_group_existing_name_diff_org(db_create_group):
+def test_create_group_existing_name_diff_org(db_create_group, db_get_group):
     # Make sure we can't create two groups with the same name in the same org
+    group_name = "TestGroup_diff_org"
+
+    group1 = db_create_group(name=group_name)
+    assert db_get_group(group1.id).name == group_name
 
     diff_identity = deepcopy(SYSTEM_IDENTITY)
     diff_identity["org_id"] = "diff_id"
     diff_identity["account"] = "diff_id"
 
-    db_create_group(
-        extra_data={
-            "name": "TestGroup",
-        },
+    group2 = db_create_group(
+        diff_identity,
+        name=group_name,
     )
 
-    db_create_group(
-        diff_identity,
-        extra_data={
-            "name": "TestGroup",
-        },
-    )
+    assert db_get_group(group2.id).name == group_name
 
 
 def test_create_group_existing_name_same_org(db_create_group):
     # Make sure we can't create two groups with the same name in the same org
+    group_name = "TestGroup"
+    db_create_group(name=group_name)
+    with pytest.raises(IntegrityError):
+        db_create_group(name=group_name)
 
-    db_create_group(
+
+def test_host_group_happy(
+    db_create_host, db_create_group, db_create_host_group_assoc, db_get_hosts_for_group, db_get_groups_for_host
+):
+    # Verify that the display_name is populated from the fqdn
+    host_display_name = "hostgroup test host"
+    group_name = "Test Group Happy"
+
+    created_host = db_create_host(
+        SYSTEM_IDENTITY,
         extra_data={
-            "name": "TestGroup",
+            "display_name": host_display_name,
+            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         },
     )
 
-    with pytest.raises(IntegrityError):
-        db_create_group(
-            extra_data={
-                "name": "TestGroup",
-            },
-        )
+    created_group = db_create_group(name=group_name)
+
+    # Put the created host in the created group
+    db_create_host_group_assoc(host_id=created_host.id, group_id=created_group.id)
+
+    retrieved_host = db_get_hosts_for_group(created_group.id)[0]
+    assert retrieved_host.display_name == host_display_name
+
+    retrieved_group = db_get_groups_for_host(created_host.id)[0]
+    assert retrieved_group.name == group_name
