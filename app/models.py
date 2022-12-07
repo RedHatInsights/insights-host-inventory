@@ -25,6 +25,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Index
 from sqlalchemy import orm
 from sqlalchemy import text
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from yaml import safe_load
@@ -389,7 +390,10 @@ class Host(LimitedHost):
 
 class Group(db.Model):
     __tablename__ = "groups"
-    __table_args__ = (Index("idxgrouporgid", "org_id"),)
+    __table_args__ = (
+        UniqueConstraint("name", "org_id"),
+        Index("idxgrouporgid", "org_id"),
+    )
 
     def __init__(
         self,
@@ -397,14 +401,25 @@ class Group(db.Model):
         account=None,
         name=None,
     ):
+        if not org_id:
+            raise ValidationException("Group org_id cannot be null.")
+        if not name:
+            raise ValidationException("Group name cannot be null.")
+
         self.org_id = org_id
         self.account = account
         self.name = name
 
+    def update(self, input_group):
+        if input_group.name is not None:
+            self.name = input_group.name
+        if input_group.account is not None:
+            self.account = input_group.account
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
-    org_id = db.Column(db.String(36))
-    name = db.Column(db.String(255))
+    org_id = db.Column(db.String(36), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
 

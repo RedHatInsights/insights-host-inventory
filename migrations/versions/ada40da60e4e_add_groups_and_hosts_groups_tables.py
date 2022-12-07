@@ -21,13 +21,13 @@ def upgrade():
     # Create the "groups" table
     op.create_table(
         "groups",
-        sa.Column("id", postgresql.UUID(), nullable=False),
+        sa.Column("id", postgresql.UUID(), primary_key=True),
         sa.Column("org_id", sa.String(length=36), nullable=False),
         sa.Column("account", sa.String(length=10), nullable=True),
-        sa.Column("name", sa.String(length=255), nullable=True),
-        sa.Column("created_on", sa.DateTime(), nullable=True),
-        sa.Column("modified_on", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("created_on", sa.DateTime(), nullable=False),
+        sa.Column("modified_on", sa.DateTime(), nullable=False),
+        sa.UniqueConstraint("org_id", "name"),
     )
 
     op.create_index("idxgrouporgid", "groups", ["org_id"])

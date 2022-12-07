@@ -9,6 +9,8 @@ from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
 from app.models import Host
+from app.models import HostGroupAssoc
+from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import now
@@ -126,3 +128,26 @@ def db_create_host_in_unknown_state(db_create_host):
 def models_datetime_mock(mocker):
     mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def db_create_group(flask_app):
+    def _db_create_group(identity=SYSTEM_IDENTITY, group=None, extra_data=None):
+        extra_data = extra_data or {}
+        group = group or db_group(org_id=identity["org_id"], account=identity["account_number"], **extra_data)
+        db.session.add(group)
+        db.session.commit()
+        return group
+
+    return _db_create_group
+
+
+@pytest.fixture(scope="function")
+def db_create_host_group_assoc(flask_app):
+    def _db_create_host_group_assoc(identity=SYSTEM_IDENTITY, host_group=None):
+        host_group = host_group or HostGroupAssoc(org_id=identity["org_id"], account=identity["account_number"])
+        db.session.add(host_group)
+        db.session.commit()
+        return host_group
+
+    return _db_create_host_group_assoc

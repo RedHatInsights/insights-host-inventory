@@ -7,6 +7,7 @@ from sqlalchemy.exc import InvalidRequestError
 from app.auth.identity import Identity
 from app.culling import Timestamps
 from app.models import db
+from app.models import Group
 from app.models import Host
 from app.serialization import serialize_host
 from app.utils import HostWrapper
@@ -81,6 +82,21 @@ def db_host(**values):
         **values,
     }
     return Host(**data)
+
+
+def db_group(**values):
+    data = db_group_dict(**values)
+    return Group(**data)
+
+
+def db_group_dict(**values):
+    data = {**values}
+    if "org_id" in values:
+        data["org_id"] = values.get("org_id")
+    else:
+        data["org_id"] = USER_IDENTITY["org_id"]
+
+    return data
 
 
 def update_host_in_db(host_id, **data_to_update):

@@ -1,10 +1,12 @@
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
 from sqlalchemy.exc import DataError
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.exceptions import ValidationException
@@ -536,3 +538,62 @@ def test_valid_ip_addresses(ip_addresses):
 def test_invalid_ip_addresses(ip_addresses):
     with pytest.raises(MarshmallowValidationError):
         CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
+
+
+def test_create_group_happy(db_create_group):
+    # Create a group successfully
+
+    db_create_group(
+        extra_data={
+            "name": "Host Group 1",
+        },
+    )
+
+
+def test_create_group_no_name(db_create_group):
+    # Make sure we can't create a group with an empty name
+
+    with pytest.raises(ValidationException):
+        db_create_group(
+            extra_data={
+                "name": None,
+            },
+        )
+
+
+def test_create_group_existing_name_diff_org(db_create_group):
+    # Make sure we can't create two groups with the same name in the same org
+
+    diff_identity = deepcopy(SYSTEM_IDENTITY)
+    diff_identity["org_id"] = "diff_id"
+    diff_identity["account"] = "diff_id"
+
+    db_create_group(
+        extra_data={
+            "name": "TestGroup",
+        },
+    )
+
+    db_create_group(
+        diff_identity,
+        extra_data={
+            "name": "TestGroup",
+        },
+    )
+
+
+def test_create_group_existing_name_same_org(db_create_group):
+    # Make sure we can't create two groups with the same name in the same org
+
+    db_create_group(
+        extra_data={
+            "name": "TestGroup",
+        },
+    )
+
+    with pytest.raises(IntegrityError):
+        db_create_group(
+            extra_data={
+                "name": "TestGroup",
+            },
+        )
