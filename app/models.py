@@ -21,6 +21,7 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import ForeignKey
 from sqlalchemy import Index
 from sqlalchemy import orm
 from sqlalchemy import text
@@ -384,6 +385,47 @@ class Host(LimitedHost):
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
             f"canonical_facts={self.canonical_facts}>"
         )
+
+
+class Group(db.Model):
+    __tablename__ = "groups"
+    __table_args__ = (Index("idxgrouporgid", "org_id"),)
+
+    def __init__(
+        self,
+        org_id=None,
+        account=None,
+        name=None,
+    ):
+        self.org_id = org_id
+        self.account = account
+        self.name = name
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account = db.Column(db.String(10))
+    org_id = db.Column(db.String(36))
+    name = db.Column(db.String(255))
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+
+
+class HostGroupAssoc(db.Model):
+    __tablename__ = "hosts_groups"
+    __table_args__ = (
+        Index("idxhostsgroups", "host_id", "group_id"),
+        Index("idxgroups_hosts", "group_id", "host_id"),
+    )
+
+    def __init__(
+        self,
+        host_id,
+        group_id,
+    ):
+        self.host_id = host_id
+        self.group_id = group_id
+
+    host_id = db.Column(UUID(as_uuid=True), ForeignKey("hosts.id"), primary_key=True)
+    group_id = db.Column(UUID(as_uuid=True), ForeignKey("groups.id"), primary_key=True)
 
 
 class DiskDeviceSchema(MarshmallowSchema):

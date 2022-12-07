@@ -18,6 +18,7 @@ depends_on = None
 
 
 def upgrade():
+    # Create the "groups" table
     op.create_table(
         "groups",
         sa.Column("id", postgresql.UUID(), nullable=False),
@@ -31,11 +32,11 @@ def upgrade():
 
     op.create_index("idxgrouporgid", "groups", ["org_id"])
 
+    # Create the hosts_groups association table
     op.create_table(
         "hosts_groups",
-        sa.Column("group_id", postgresql.UUID(), sa.ForeignKey("groups.id"), nullable=False),
-        sa.Column("host_id", postgresql.UUID(), sa.ForeignKey("hosts.id"), nullable=False),
-        sa.PrimaryKeyConstraint("group_id", "host_id", name="hosts_groups_pk"),
+        sa.Column("group_id", postgresql.UUID(), sa.ForeignKey("groups.id"), primary_key=True),
+        sa.Column("host_id", postgresql.UUID(), sa.ForeignKey("hosts.id"), primary_key=True),
     )
 
     op.create_index("idxhostsgroups", "hosts_groups", ["host_id", "group_id"], unique=True)
