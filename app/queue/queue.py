@@ -196,11 +196,6 @@ def sync_event_message(message, session, event_producer):
             headers = message_headers(EventType.delete, insights_id)
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
-            logger.info(f"{host_id}: Latest event is not a delete, and host not found in DB; DELETE event produced.")
-        else:
-            logger.info(f"{host_id}: Latest event is not a delete, but host found in DB.")
-    else:
-        logger.info(f"{message['id']}: Latest event is a delete.")
 
     return
 
