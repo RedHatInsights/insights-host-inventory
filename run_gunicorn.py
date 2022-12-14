@@ -32,7 +32,7 @@ def run_server():
     variables.
     """
     bind = f"0.0.0.0:{LISTEN_PORT}"
-    run(("gunicorn", "--log-level=debug", f"--bind={bind}", "run"))
+    run(("gunicorn", "--log-level=debug", f"--bind={bind}", "--workers=4", "run"))
 
 
 if __name__ == "__main__":
