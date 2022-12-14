@@ -782,7 +782,7 @@ parameters:
 - name: TENANT_TRANSLATOR_PORT
   value: '8892'
 - name: GUNICORN_WORKERS
-  value: '1'
+  value: '4'
 - name: GUNICORN_THREADS
   value: '2'
 - name: GUNICORN_REQUEST_FIELD_LIMIT
