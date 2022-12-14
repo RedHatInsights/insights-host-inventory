@@ -1018,8 +1018,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
         Marshmallow ValidationError mock.
         """
 
-        def __init__(self, messages):
+        def __init__(self, messages, data):
             self.messages = messages
+            self.data = data
 
     def _assertRaisedContext(self, exception, context):
         self.assertIs(context, exception.__context__)
@@ -1290,7 +1291,9 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
     @patch("app.serialization.ValidationError", new=ValidationError)
     def test_invalid_host_error(self, deserialize_canonical_facts, deserialize_facts, deserialize_tags, host):
-        caught_exception = self.ValidationError(["first message", "second message"])
+        data = {"field_1": "data_1"}
+        messages = {"field_1": "Invalid value.", "field_2": "Missing required field."}
+        caught_exception = self.ValidationError(messages, data)
         host_schema = Mock(**{"return_value.load.side_effect": caught_exception})
 
         with self.assertRaises(ValidationException) as raises_context:
@@ -1298,7 +1301,7 @@ class SerializationDeserializeHostMockedTestCase(TestCase):
 
         raised_exception = raises_context.exception
 
-        self.assertEqual(str(caught_exception.messages), str(raised_exception))
+        self.assertTrue(str(caught_exception.messages) in str(raised_exception))
         self._assertRaisedContext(raised_exception, caught_exception)
         self._assertRaisedFromNone(raised_exception)
 
