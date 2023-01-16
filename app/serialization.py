@@ -47,7 +47,9 @@ def deserialize_host(raw_data, schema=HostSchema, system_profile_spec=None):
     try:
         validated_data = schema(system_profile_schema=system_profile_spec).load(raw_data)
     except ValidationError as e:
-        raise ValidationException(str(e.messages)) from None
+        # Get the field name and data for each invalid field
+        invalid_data = {k: e.data.get(k, "<missing>") for k in e.messages.keys()}
+        raise ValidationException(str(e.messages) + "; Invalid data: " + str(invalid_data)) from None
 
     canonical_facts = _deserialize_canonical_facts(validated_data)
     facts = _deserialize_facts(validated_data.get("facts"))
