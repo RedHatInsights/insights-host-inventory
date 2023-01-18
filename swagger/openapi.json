@@ -586,6 +586,301 @@
         }
       }
     },
+    "/groups": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Read the entire list of groups",
+        "description": "Read the entire list of all groups available to the account. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupName"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/orderHowParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the groups list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Create a new group matching the provided name and list of hosts IDs",
+        "description": "Creates a new group containing the hosts associated with the host IDs provided. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create a record for a group.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created new Group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/groups/{group_id}": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Find a group by its ID",
+        "description": "Find a group by its ID. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "api.host.merge_groups",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Merge group information",
+        "description": "Merge group information. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the new information to merge with the original one.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully merged group information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Replace group information",
+        "description": "Replace information from a group. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "requestBody": {
+          "description": "A dictionary with the information to replace the original one.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully replaced group information.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "api.host.delete_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete a group",
+        "description": "Delete a group. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Group was successfully deleted."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/groups/{group_id_list}": {
+      "get": {
+        "operationId": "api.host.get_groups_by_id",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Find groups by their IDs",
+        "description": "Find one or more groups by their ID. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupIdList"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully searched for groups.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      }
+    },
+    "/groups/{group_id}/{host_id_list}": {
+      "delete": {
+        "operationId": "api.host.delete_hosts_from_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete one or more hosts from a group",
+        "description": "Delete one or more hosts from a group. <br /><br /> Required permissions: inventory:groups:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          },
+          {
+            "$ref": "#/components/parameters/hostIdList"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully deleted hosts."
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
     "/tags": {
       "get": {
         "tags": [
@@ -1194,6 +1489,40 @@
         },
         "description": "Confirmation to delete all hosts on the account",
         "required": false
+      },
+      "groupName": {
+        "in": "query",
+        "name": "name",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Filter by group name",
+        "required": false
+      },
+      "groupId": {
+        "in": "path",
+        "name": "group_id",
+        "description": "Group ID.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+          "format": "uuid"
+        }
+      },
+      "groupIdList": {
+        "in": "path",
+        "name": "group_id_list",
+        "description": "A comma separated list of group IDs.",
+        "required": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+            "format": "uuid"
+          }
+        }
       }
     },
     "schemas": {
@@ -1881,6 +2210,121 @@
             }
           ]
         }
+      },
+      "GroupIn": {
+        "title": "Group In",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "id": {
+                "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+                "type": "string",
+                "example": "3f01b55457674041b75e41829bcee1dc"
+              },
+              "name": {
+                "description": "A group’s human-readable name.",
+                "type": "string",
+                "example": null,
+                "nullable": true
+              },
+              "host_ids": {
+                "description": "A comma separated list of host IDs that belong to the group.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "GroupOut": {
+        "title": "Group Out",
+        "description": "Data of a single group belonging to an account.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "id": {
+                "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+                "type": "string",
+                "example": "3f01b55457674041b75e41829bcee1dc"
+              },
+              "name": {
+                "description": "A group’s human-readable name.",
+                "type": "string",
+                "example": null,
+                "nullable": true
+              },
+              "host_ids": {
+                "description": "A comma separated list of host IDs that belong to the group.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "created_at": {
+                "description": "A timestamp when the entry was created.",
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "description": "A timestamp when the entry was last updated.",
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "GroupQueryOutput": {
+        "title": "An Inventory Groups query result",
+        "description": "A paginated group search query result with group entries and their Inventory metadata.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Actual group search query result entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateGroup": {
+        "title": "Group creation data",
+        "description": "Data required to create a group.",
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "name": {
+                "description": "Name of the group.",
+                "type": "string",
+                "example": "sre-group"
+              },
+              "host_ids": {
+                "description": "List of host ids.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
       },
       "SystemProfile": {
         "title": "SystemProfile",
