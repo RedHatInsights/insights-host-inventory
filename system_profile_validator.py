@@ -124,11 +124,12 @@ def main(logger):
     for pr_number in prs_to_validate:
 
         consumer = KafkaConsumer(
-            bootstrap_servers=config.bootstrap_servers,
-            api_version=(0, 10, 1),
-            value_deserializer=lambda m: m.decode(),
-            **config.validator_kafka_consumer,
+            {
+                "bootstrap.servers": config.bootstrap_servers,
+                **config.validator_kafka_consumer,
+            }
         )
+
         sp_spec = None
 
         # Get spec file from PR

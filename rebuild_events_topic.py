@@ -88,10 +88,10 @@ def main(logger):
     # start_http_server(config.metrics_port)
 
     consumer = KafkaConsumer(
-        bootstrap_servers=config.bootstrap_servers,
-        api_version=(0, 10, 1),
-        value_deserializer=lambda m: m.decode(),
-        **config.events_kafka_consumer,
+        {
+            "bootstrap.servers": config.bootstrap_servers,
+            **config.events_kafka_consumer,
+        }
     )
 
     register_shutdown(session.get_bind().dispose, "Closing database")
