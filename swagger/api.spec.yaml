@@ -346,7 +346,7 @@ paths:
           description: Invalid request.
   /groups:
     get:
-      # operationId: api.host.get_group_list
+      operationId: api.group.get_group_list
       tags:
         - groups
       summary: Read the entire list of groups
@@ -370,7 +370,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupQueryOutput'
     post:
-      # operationId: api.host.create_group
+      operationId: api.group.create_group
       tags:
         - groups
       summary: Create a new group matching the provided name and list of hosts IDs
@@ -397,7 +397,7 @@ paths:
                 $ref: '#/components/schemas/GroupOut'
   '/groups/{group_id}':
     get:
-      # operationId: api.host.get_group
+      operationId: api.group.get_group
       tags:
         - groups
       summary: Find a group by its ID
@@ -417,7 +417,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupOut'
     patch:
-      # operationId: api.host.merge_group
+      operationId: api.group.merge_group
       tags:
         - groups
       summary: Merge group information
@@ -448,7 +448,7 @@ paths:
         '404':
           description: Group not found.
     put:
-      # operationId: api.host.replace_group_details
+      operationId: api.group.replace_group_details
       tags:
         - groups
       summary: Replace group information
@@ -479,7 +479,7 @@ paths:
         '404':
           description: Group not found.
     delete:
-      #operationId: api.host.delete_group
+      operationId: api.group.delete_group
       tags:
         - groups
       summary: Delete a group
@@ -498,7 +498,7 @@ paths:
           description: Invalid request.
   '/groups/{group_id_list}':
     get:
-      # operationId: api.host.get_groups_by_id
+      operationId: api.group.get_groups_by_id
       tags:
         - groups
       summary: Find groups by their IDs
@@ -523,7 +523,7 @@ paths:
           description: Groups not found.
   '/groups/{group_id}/{host_id_list}':
     delete:
-      #operationId: api.host.delete_hosts_from_group
+      operationId: api.group.delete_hosts_from_group
       tags:
         - groups
       summary: Delete one or more hosts from a group

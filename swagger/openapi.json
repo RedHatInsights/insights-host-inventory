@@ -588,6 +588,7 @@
     },
     "/groups": {
       "get": {
+        "operationId": "api.group.get_group_list",
         "tags": [
           "groups"
         ],
@@ -629,6 +630,7 @@
         }
       },
       "post": {
+        "operationId": "api.group.create_group",
         "tags": [
           "groups"
         ],
@@ -669,6 +671,7 @@
     },
     "/groups/{group_id}": {
       "get": {
+        "operationId": "api.group.get_group",
         "tags": [
           "groups"
         ],
@@ -698,6 +701,7 @@
         }
       },
       "patch": {
+        "operationId": "api.group.merge_group",
         "tags": [
           "groups"
         ],
@@ -744,6 +748,7 @@
         }
       },
       "put": {
+        "operationId": "api.group.replace_group_details",
         "tags": [
           "groups"
         ],
@@ -790,6 +795,7 @@
         }
       },
       "delete": {
+        "operationId": "api.group.delete_group",
         "tags": [
           "groups"
         ],
@@ -817,6 +823,7 @@
     },
     "/groups/{group_id_list}": {
       "get": {
+        "operationId": "api.group.get_groups_by_id",
         "tags": [
           "groups"
         ],
@@ -854,6 +861,7 @@
     },
     "/groups/{group_id}/{host_id_list}": {
       "delete": {
+        "operationId": "api.group.delete_hosts_from_group",
         "tags": [
           "groups"
         ],
