@@ -301,7 +301,7 @@
         ],
         "summary": "Update a host",
         "description": "Update a host <br /><br /> Required permissions: inventory:hosts:write",
-        "operationId": "api.host.patch_by_id",
+        "operationId": "api.host.patch_host_by_id",
         "security": [
           {
             "ApiKeyAuth": []
