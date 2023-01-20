@@ -10,11 +10,11 @@ def get_group():
     pass
 
 
-def merge_group():
+def patch_group_by_id():
     pass
 
 
-def replace_group_details():
+def update_group_details():
     pass
 
 

@@ -701,7 +701,7 @@
         }
       },
       "patch": {
-        "operationId": "api.group.merge_group",
+        "operationId": "api.group.patch_group_by_id",
         "tags": [
           "groups"
         ],
@@ -748,7 +748,7 @@
         }
       },
       "put": {
-        "operationId": "api.group.replace_group_details",
+        "operationId": "api.group.update_group_details",
         "tags": [
           "groups"
         ],
