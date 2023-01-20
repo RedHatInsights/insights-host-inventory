@@ -269,7 +269,7 @@
         ],
         "summary": "Delete hosts by IDs",
         "description": "Delete hosts by IDs <br /><br /> Required permissions: inventory:hosts:write",
-        "operationId": "api.host.delete_by_id",
+        "operationId": "api.host.delete_host_by_id",
         "security": [
           {
             "ApiKeyAuth": []
@@ -588,7 +588,6 @@
     },
     "/groups": {
       "get": {
-        "operationId": "api.host.get_group_list",
         "tags": [
           "groups"
         ],
@@ -630,7 +629,6 @@
         }
       },
       "post": {
-        "operationId": "api.host.create_group",
         "tags": [
           "groups"
         ],
@@ -671,7 +669,6 @@
     },
     "/groups/{group_id}": {
       "get": {
-        "operationId": "api.host.get_group",
         "tags": [
           "groups"
         ],
@@ -701,7 +698,6 @@
         }
       },
       "patch": {
-        "operationId": "api.host.merge_group",
         "tags": [
           "groups"
         ],
@@ -748,7 +744,6 @@
         }
       },
       "put": {
-        "operationId": "api.host.replace_group_details",
         "tags": [
           "groups"
         ],
@@ -795,7 +790,6 @@
         }
       },
       "delete": {
-        "operationId": "api.host.delete_group",
         "tags": [
           "groups"
         ],
@@ -823,7 +817,6 @@
     },
     "/groups/{group_id_list}": {
       "get": {
-        "operationId": "api.host.get_groups_by_id",
         "tags": [
           "groups"
         ],
@@ -861,7 +854,6 @@
     },
     "/groups/{group_id}/{host_id_list}": {
       "delete": {
-        "operationId": "api.host.delete_hosts_from_group",
         "tags": [
           "groups"
         ],
