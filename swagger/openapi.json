@@ -682,6 +682,11 @@
             "ApiKeyAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successfully searched for group.",
