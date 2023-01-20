@@ -240,7 +240,7 @@ def delete_all_hosts(confirm_delete_all=None):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def delete_by_id(host_id_list):
+def delete_host_by_id(host_id_list):
     delete_count = _delete_host_list(host_id_list)
 
     if not delete_count:
@@ -290,7 +290,7 @@ def _emit_patch_event(serialized_host, host_id, insights_id):
 @api_operation
 @rbac(Permission.WRITE)
 @metrics.api_request_time.time()
-def patch_by_id(host_id_list, body):
+def patch_host_by_id(host_id_list, body):
     try:
         validated_patch_host_data = PatchHostSchema().load(body)
     except ValidationError as e:

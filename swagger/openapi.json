@@ -588,6 +588,7 @@
     },
     "/groups": {
       "get": {
+        "operationId": "api.host.get_group_list",
         "tags": [
           "groups"
         ],
@@ -629,6 +630,7 @@
         }
       },
       "post": {
+        "operationId": "api.host.create_group",
         "tags": [
           "groups"
         ],
@@ -669,6 +671,7 @@
     },
     "/groups/{group_id}": {
       "get": {
+        "operationId": "api.host.get_group",
         "tags": [
           "groups"
         ],
@@ -693,7 +696,7 @@
         }
       },
       "patch": {
-        "operationId": "api.host.merge_groups",
+        "operationId": "api.host.merge_group",
         "tags": [
           "groups"
         ],
@@ -740,6 +743,7 @@
         }
       },
       "put": {
+        "operationId": "api.host.replace_group_details",
         "tags": [
           "groups"
         ],
@@ -845,7 +849,7 @@
             "description": "Invalid request."
           },
           "404": {
-            "description": "Group not found."
+            "description": "Groups not found."
           }
         }
       }
@@ -2211,6 +2215,25 @@
           ]
         }
       },
+      "GroupId": {
+        "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
+        "type": "string",
+        "example": "3f01b55457674041b75e41829bcee1dc"
+      },
+      "GroupName": {
+        "description": "A group’s human-readable name.",
+        "type": "string",
+        "nullable": true,
+        "example": "sre-group"
+      },
+      "HostIds": {
+        "description": "A comma separated list of host IDs that belong to the group.",
+        "type": "array",
+        "nullable": true,
+        "items": {
+          "type": "string"
+        }
+      },
       "GroupIn": {
         "title": "Group In",
         "description": "Data of a single group belonging to an account.",
@@ -2219,22 +2242,13 @@
           {
             "properties": {
               "id": {
-                "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
-                "type": "string",
-                "example": "3f01b55457674041b75e41829bcee1dc"
+                "$ref": "#/components/schemas/GroupId"
               },
               "name": {
-                "description": "A group’s human-readable name.",
-                "type": "string",
-                "example": null,
-                "nullable": true
+                "$ref": "#/components/schemas/GroupName"
               },
               "host_ids": {
-                "description": "A comma separated list of host IDs that belong to the group.",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+                "$ref": "#/components/schemas/HostIds"
               }
             }
           }
@@ -2244,44 +2258,32 @@
         "title": "Group Out",
         "description": "Data of a single group belonging to an account.",
         "type": "object",
-        "allOf": [
-          {
-            "properties": {
-              "id": {
-                "description": "A durable and reliable platform-wide group identifier. Applications should use this identifier to reference groups.",
-                "type": "string",
-                "example": "3f01b55457674041b75e41829bcee1dc"
-              },
-              "name": {
-                "description": "A group’s human-readable name.",
-                "type": "string",
-                "example": null,
-                "nullable": true
-              },
-              "host_ids": {
-                "description": "A comma separated list of host IDs that belong to the group.",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "created_at": {
-                "description": "A timestamp when the entry was created.",
-                "type": "string",
-                "format": "date-time"
-              },
-              "updated_at": {
-                "description": "A timestamp when the entry was last updated.",
-                "type": "string",
-                "format": "date-time"
-              }
-            }
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          },
+          "host_ids": {
+            "$ref": "#/components/schemas/HostIds"
+          },
+          "created_at": {
+            "description": "A timestamp when the entry was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "A timestamp when the entry was last updated.",
+            "type": "string",
+            "format": "date-time"
           }
-        ]
+        }
       },
       "GroupQueryOutput": {
         "title": "An Inventory Groups query result",
         "description": "A paginated group search query result with group entries and their Inventory metadata.",
+        "type": "object",
         "allOf": [
           {
             "$ref": "#/components/schemas/PaginationOut"
@@ -2311,16 +2313,10 @@
           {
             "properties": {
               "name": {
-                "description": "Name of the group.",
-                "type": "string",
-                "example": "sre-group"
+                "$ref": "#/components/schemas/GroupName"
               },
               "host_ids": {
-                "description": "List of host ids.",
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+                "$ref": "#/components/schemas/HostIds"
               }
             }
           }

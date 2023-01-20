@@ -346,9 +346,9 @@ paths:
           description: Invalid request.
   /groups:
     get:
-      # operationId: api.host.get_group_list
+      operationId: api.host.get_group_list
       tags:
-        - groups # TODO: leave this?
+        - groups
       summary: Read the entire list of groups
       description: >-
         Read the entire list of all groups available to the account.
@@ -370,7 +370,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupQueryOutput'
     post:
-      # operationId: api.host.create_group
+      operationId: api.host.create_group
       tags:
         - groups
       summary: Create a new group matching the provided name and list of hosts IDs
@@ -397,7 +397,7 @@ paths:
                 $ref: '#/components/schemas/GroupOut'
   '/groups/{group_id}':
     get:
-      # operationId: api.host.get_group
+      operationId: api.host.get_group
       tags:
         - groups
       summary: Find a group by its ID
@@ -415,7 +415,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupOut'
     patch:
-      operationId: api.host.merge_groups
+      operationId: api.host.merge_group
       tags:
         - groups
       summary: Merge group information
@@ -446,7 +446,7 @@ paths:
         '404':
           description: Group not found.
     put:
-      # operationId: api.host.replace_group_info
+      operationId: api.host.replace_group_details
       tags:
         - groups
       summary: Replace group information
@@ -518,7 +518,7 @@ paths:
         '400':
           description: Invalid request.
         '404':
-          description: Group not found.
+          description: Groups not found.
   '/groups/{group_id}/{host_id_list}':
     delete:
       operationId: api.host.delete_hosts_from_group
@@ -1446,6 +1446,24 @@ components:
               key: web
               value: null
             count: -1
+    GroupId:
+      description: >-
+        A durable and reliable platform-wide group identifier. Applications
+        should use this identifier to reference groups.
+      type: string
+      example: 3f01b55457674041b75e41829bcee1dc
+    GroupName:
+      description: >-
+        A group’s human-readable name.
+      type: string
+      nullable: true
+      example: sre-group
+    HostIds:
+      description: A comma separated list of host IDs that belong to the group.
+      type: array
+      nullable: true
+      items:
+        type: string
     GroupIn:
       title: Group In
       description: >-
@@ -1454,60 +1472,37 @@ components:
       allOf:
         - properties:
             id:
-              description: >-
-                A durable and reliable platform-wide group identifier. Applications
-                should use this identifier to reference groups.
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
+              $ref: "#/components/schemas/GroupId"
             name:
-              description: >-
-                A group’s human-readable name.
-              type: string
-              example: # TODO: figure out an example
-              nullable: true
+              $ref: "#/components/schemas/GroupName"
             host_ids:
-              description: A comma separated list of host IDs that belong to the group.
-              type: array
-              items:
-                type: string
+              $ref: "#/components/schemas/HostIds"
     GroupOut:
       title: Group Out
       description: >-
         Data of a single group belonging to an account.
       type: object
-      allOf:
-        - properties:
-            id:
-              description: >-
-                A durable and reliable platform-wide group identifier. Applications
-                should use this identifier to reference groups.
-              # TODO: figure out if is also platform-wide
-              type: string
-              example: 3f01b55457674041b75e41829bcee1dc
-            name:
-              description: >-
-                A group’s human-readable name.
-              type: string
-              example: # TODO: figure out an example
-              nullable: true
-            host_ids:
-              description: A comma separated list of host IDs that belong to the group.
-              type: array
-              items:
-                type: string
-            created_at:
-              description: A timestamp when the entry was created.
-              type: string
-              format: date-time
-            updated_at:
-              description: A timestamp when the entry was last updated.
-              type: string
-              format: date-time
+      properties:
+        id:
+          $ref: "#/components/schemas/GroupId"
+        name:
+          $ref: "#/components/schemas/GroupName"
+        host_ids:
+          $ref: "#/components/schemas/HostIds"
+        created_at:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated_at:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
     GroupQueryOutput:
       title: An Inventory Groups query result
       description: >-
         A paginated group search query result with group entries and their
         Inventory metadata.
+      type: object
       allOf:
       - $ref: '#/components/schemas/PaginationOut'
       - type: object
@@ -1527,14 +1522,9 @@ components:
       allOf:
         - properties:
             name:
-              description: Name of the group.
-              type: string
-              example: sre-group
+              $ref: "#/components/schemas/GroupName"
             host_ids:
-              description: List of host ids.
-              type:  array
-              items:
-                type: string
+              $ref: "#/components/schemas/HostIds"
 
     # include renames for system_profile
     SystemProfile:
