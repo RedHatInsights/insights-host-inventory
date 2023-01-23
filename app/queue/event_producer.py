@@ -59,3 +59,4 @@ class EventProducer:
 
     def close(self):
         self._kafka_producer.flush()
+        self._kafka_producer.close()

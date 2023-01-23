@@ -785,9 +785,9 @@ parameters:
 - name: TENANT_TRANSLATOR_PORT
   value: '8892'
 - name: GUNICORN_WORKERS
-  value: '4'
+  value: '1'
 - name: GUNICORN_THREADS
-  value: '8'
+  value: '2'
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
 - name: SCRIPT_CHUNK_SIZE
