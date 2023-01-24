@@ -4,12 +4,11 @@ def get_group_list(
     per_page=100,
     order_by=None,
     order_how=None,
-    staleness=None,
 ):
     pass
 
 
-def create_group(body):
+def create_group(group_data):
     pass
 
 
@@ -17,11 +16,11 @@ def get_group(group_id):
     pass
 
 
-def patch_group_by_id(group_id, body):
+def patch_group_by_id(group_id, group_dat):
     pass
 
 
-def update_group_details(group_id, body):
+def update_group_details(group_id, group_daty):
     pass
 
 
