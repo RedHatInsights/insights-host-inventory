@@ -64,6 +64,8 @@ fi
 source $CICD_ROOT/deploy_ephemeral_env.sh
 bonfire namespace extend $NAMESPACE --duration 3h
 
+# Workaround for bonfire CICD script issue: https://github.com/RedHatInsights/bonfire/issues/283
+# Restart `oc logs -f` after 1 hour
 sed -i \
 's/oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f &/ \
 oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f \&\n \
