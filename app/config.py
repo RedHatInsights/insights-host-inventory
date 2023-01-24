@@ -220,6 +220,9 @@ class Config:
             self.bypass_rbac = "true"
             self.bypass_tenant_translation = "true"
 
+        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
+        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
+
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
