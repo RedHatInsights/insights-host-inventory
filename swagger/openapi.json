@@ -592,8 +592,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Read the entire list of groups",
-        "description": "Read the entire list of all groups available to the account. <br /><br /> Required permissions: inventory:groups:read",
+        "summary": "Read the entire list of groups [Not Implemented]",
+        "description": "Read the entire list of all groups available to the account. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -634,8 +634,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Create a new group matching the provided name and list of hosts IDs",
-        "description": "Creates a new group containing the hosts associated with the host IDs provided. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Create a new group matching the provided name and list of hosts IDs [Not Implemented]",
+        "description": "Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -675,8 +675,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Find a group by its ID",
-        "description": "Find a group by its ID. <br /><br /> Required permissions: inventory:groups:read",
+        "summary": "Find a group by its ID [Not Implemented]",
+        "description": "Find a group by its ID. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -705,8 +705,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Merge group information",
-        "description": "Merge group information. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Merge group information [Not Implemented]",
+        "description": "Merge group information. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -752,8 +752,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Replace group information",
-        "description": "Replace information from a group. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Replace group information [Not Implemented]",
+        "description": "Replace information from a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -799,8 +799,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Delete a group",
-        "description": "Delete a group. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Delete a group [Not Implemented]",
+        "description": "Delete a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -827,8 +827,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Find groups by their IDs",
-        "description": "Find one or more groups by their ID. <br /><br /> Required permissions: inventory:groups:read",
+        "summary": "Find groups by their IDs [Not Implemented]",
+        "description": "Find one or more groups by their IDs. [Not Implemented] <br /><br /> Required permissions: inventory:groups:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -865,8 +865,8 @@
         "tags": [
           "groups"
         ],
-        "summary": "Delete one or more hosts from a group",
-        "description": "Delete one or more hosts from a group. <br /><br /> Required permissions: inventory:groups:write",
+        "summary": "Delete one or more hosts from a group [Not Implemented]",
+        "description": "Delete one or more hosts from a group. [Not Implemented] <br /><br /> Required permissions: inventory:groups:write",
         "security": [
           {
             "ApiKeyAuth": []
