@@ -540,13 +540,16 @@ def test_invalid_ip_addresses(ip_addresses):
         CanonicalFactsSchema().load({"ip_addresses": ip_addresses})
 
 
-def test_create_group_happy(db_create_group, db_get_group):
-    # Create a group successfully
+def test_create_delete_group_happy(db_create_group, db_get_group, db_delete_group):
     group_name = "Host Group 1"
 
+    # Verify that the group is created successfully
     created_group = db_create_group(name=group_name)
-
     assert db_get_group(created_group.id).name == group_name
+
+    # Verify that the same group is deleted successfully
+    db_delete_group(created_group.id)
+    assert db_get_group(created_group.id) is None
 
 
 def test_create_group_no_name(db_create_group):
