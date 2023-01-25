@@ -583,28 +583,51 @@ def test_create_group_existing_name_same_org(db_create_group):
         db_create_group(name=group_name)
 
 
-def test_host_group_happy(
-    db_create_host, db_create_group, db_create_host_group_assoc, db_get_hosts_for_group, db_get_groups_for_host
+def test_add_delete_host_group_happy(
+    db_create_host,
+    db_create_group,
+    db_create_host_group_assoc,
+    db_get_hosts_for_group,
+    db_get_groups_for_host,
+    db_remove_hosts_from_group,
 ):
-    # Verify that the display_name is populated from the fqdn
-    host_display_name = "hostgroup test host"
+    hosts_to_create = 3
+    host_display_name_base = "hostgroup test host"
     group_name = "Test Group Happy"
 
-    created_host = db_create_host(
-        SYSTEM_IDENTITY,
-        extra_data={
-            "display_name": host_display_name,
-            "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
-        },
-    )
-
+    # Create a group to associate with the hosts
     created_group = db_create_group(name=group_name)
+    created_host_list = []
 
-    # Put the created host in the created group
-    db_create_host_group_assoc(host_id=created_host.id, group_id=created_group.id)
+    for index in range(hosts_to_create):
+        created_host = db_create_host(
+            SYSTEM_IDENTITY,
+            extra_data={
+                "display_name": f"{host_display_name_base}_{index}",
+                "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            },
+        )
 
-    retrieved_host = db_get_hosts_for_group(created_group.id)[0]
-    assert retrieved_host.display_name == host_display_name
+        # Put the created host in the created group
+        db_create_host_group_assoc(host_id=created_host.id, group_id=created_group.id)
 
-    retrieved_group = db_get_groups_for_host(created_host.id)[0]
-    assert retrieved_group.name == group_name
+        # Assert that the host that was just inserted has the correct group
+        retrieved_group = db_get_groups_for_host(created_host.id)[0]
+        assert retrieved_group.name == group_name
+        created_host_list.append(created_host)
+
+    # Fetch the list of hosts that we just created
+    retrieved_host_list = db_get_hosts_for_group(created_group.id)
+
+    # Verify that each host we created is present in the retrieved list
+    for host in created_host_list:
+        assert host in retrieved_host_list
+
+    # Remove all hosts but one from the group
+    host_ids_to_remove = [host.id for host in created_host_list][1:hosts_to_create]
+    db_remove_hosts_from_group(host_ids_to_remove, created_group.id)
+
+    # Assert that the first host is still in the group (and that the others are not)
+    retrieved_host_list = db_get_hosts_for_group(created_group.id)
+    assert len(retrieved_host_list) == 1
+    assert created_host_list[0].id == retrieved_host_list[0].id

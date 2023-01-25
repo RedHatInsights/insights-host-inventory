@@ -397,9 +397,9 @@ class Group(db.Model):
 
     def __init__(
         self,
-        org_id=None,
+        org_id,
+        name,
         account=None,
-        name=None,
     ):
         if not org_id:
             raise ValidationException("Group org_id cannot be null.")

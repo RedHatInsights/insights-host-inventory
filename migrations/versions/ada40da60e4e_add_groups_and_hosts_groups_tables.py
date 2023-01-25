@@ -25,8 +25,8 @@ def upgrade():
         sa.Column("org_id", sa.String(length=36), nullable=False),
         sa.Column("account", sa.String(length=10), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("created_on", sa.DateTime(), nullable=False),
-        sa.Column("modified_on", sa.DateTime(), nullable=False),
+        sa.Column("created_on", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("modified_on", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("org_id", "name"),
     )
 

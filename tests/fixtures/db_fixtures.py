@@ -175,3 +175,25 @@ def db_create_host_group_assoc(flask_app):
         return host_group
 
     return _db_create_host_group_assoc
+
+
+@pytest.fixture(scope="function")
+def db_remove_hosts_from_group(flask_app):
+    def _db_remove_hosts_from_group(host_id_list, group_id):
+        delete_query = db.session.query(HostGroupAssoc).filter(
+            HostGroupAssoc.group_id == group_id, HostGroupAssoc.host_id.in_(host_id_list)
+        )
+        delete_query.delete(synchronize_session="fetch")
+        delete_query.session.commit()
+
+    return _db_remove_hosts_from_group
+
+
+@pytest.fixture(scope="function")
+def db_delete_group(flask_app):
+    def _db_delete_group(group_id):
+        delete_query = db.session.query(Group).filter(Group.id == group_id)
+        delete_query.delete(synchronize_session="fetch")
+        delete_query.session.commit()
+
+    return _db_delete_group
