@@ -13,6 +13,6 @@ from lib.middleware import rbac
 def get_test_toggle():
     # TODO: Remove once it's no longer useful.
     # This endpoint just exists to make it easier to check the connection to the Unleash server.
-    flag_value, using_default = get_flag_value(FLAG_INVENTORY_GROUPS)
-    json_data = {"flag_value": flag_value, "using_fallback_value": using_default}
+    flag_value, using_fallback = get_flag_value(FLAG_INVENTORY_GROUPS)
+    json_data = {"flag_value": flag_value, "using_fallback_value": using_fallback}
     return flask_json_response(json_data)

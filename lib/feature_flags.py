@@ -16,10 +16,14 @@ def custom_fallback(feature_name: str, context: dict) -> bool:
     raise AttributeError(f"Unleash toggle {feature_name} not found!")
 
 
+# Gets a feature flag's value from Unleash, if available.
+# Accepts a feature flag in the format:
+#   (<feature_flag_name>, <fallback_value>)
+# Returns a tuple containing the flag's value and whether or not the fallback value was used.
 def get_flag_value(feature_flag: Tuple[str, bool]) -> Tuple[bool, bool]:
     try:
         # Attempt to get the feature flag via Unleash
         return UNLEASH.client.is_enabled(feature_flag[0], fallback_function=custom_fallback), False
     except AttributeError:
-        # Return the default value if not connected to Unleash
+        # Return the flag's fallback value if not connected to Unleash
         return feature_flag[1], True

@@ -1,10 +1,14 @@
 from collections import namedtuple
 from itertools import product
 from tempfile import TemporaryFile
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from pytest import mark
 from yaml import safe_load
 
+from lib.feature_flags import get_flag_value
+from lib.feature_flags import UNLEASH
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -80,6 +84,7 @@ resourceTemplates:
 
 
 Args = namedtuple("Args", ("promo_code", "targets"))
+TEST_FEATURE_FLAG = ("foo.bar.test-feature", False)
 
 
 def _run_deploy(promo_code, targets, inp_):
@@ -122,3 +127,21 @@ def test_deploy_image_tag_is_replaced(args_targets):
 def test_deploy_formatting_is_not_changed():
     result = _run_deploy("abcd1234", ["prod", "stage"], DEPLOY_YML)
     assert _head(result) == _head(DEPLOY_YML)
+
+
+def test_feature_flag_no_fallback(mocker):
+    unleash_mock = MagicMock()
+    unleash_mock.is_enabled.return_value = True
+    with patch.object(UNLEASH, "client", unleash_mock):
+        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        assert flag_value
+        assert not using_fallback
+
+
+def test_feature_flag_fallback(mocker):
+    unleash_mock = MagicMock()
+    unleash_mock.is_enabled.side_effect = AttributeError("something went wrong :<")
+    with patch.object(UNLEASH, "client", unleash_mock):
+        flag_value, using_fallback = get_flag_value(TEST_FEATURE_FLAG)
+        assert not flag_value
+        assert using_fallback

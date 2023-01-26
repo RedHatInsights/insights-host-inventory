@@ -207,6 +207,11 @@ def create_app(runtime_environment):
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url
         flask_app.config["UNLEASH_CUSTOM_HEADERS"] = {"Authorization": app_config.unleash_token}
         init_unleash_app(flask_app)
+    else:
+        logger.warning(
+            "WARNING: No API token was provided for Unleash server connection.  "
+            "Feature flag toggles will default to their fallback values."
+        )
 
     db.init_app(flask_app)
 
