@@ -216,12 +216,16 @@ class Config:
             self.pendo_timeout = int(os.environ.get("PENDO_TIMEOUT", "240"))
             self.pendo_request_size = int(os.environ.get("PENDO_REQUEST_SIZE", "500"))
 
+        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
+        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
+        self.bypass_unleash = (
+            os.environ.get("BYPASS_UNLEASH", "false").lower() == "true" if self.unleash_token else True
+        )
+
         if self._runtime_environment == RuntimeEnvironment.TEST:
             self.bypass_rbac = "true"
             self.bypass_tenant_translation = "true"
-
-        self.unleash_url = os.environ.get("UNLEASH_URL", "http://unleash:4242/api")
-        self.unleash_token = os.environ.get("UNLEASH_TOKEN", "")
+            self.bypass_unleash = "true"
 
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
@@ -286,6 +290,8 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+
+            self.logger.info("Unleash (feature flags) Bypassed: %s", self.bypass_unleash)
 
             self.logger.info(
                 "Bypassing tenant translation for hosts missing org_id: %s", self.bypass_tenant_translation

@@ -129,7 +129,7 @@ def test_deploy_formatting_is_not_changed():
     assert _head(result) == _head(DEPLOY_YML)
 
 
-def test_feature_flag_no_fallback(mocker):
+def test_feature_flag_no_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
     with patch.object(UNLEASH, "client", unleash_mock):
@@ -138,7 +138,7 @@ def test_feature_flag_no_fallback(mocker):
         assert not using_fallback
 
 
-def test_feature_flag_fallback(mocker):
+def test_feature_flag_fallback(enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = AttributeError("something went wrong :<")
     with patch.object(UNLEASH, "client", unleash_mock):

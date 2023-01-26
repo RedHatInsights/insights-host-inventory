@@ -201,7 +201,7 @@ def create_app(runtime_environment):
     flask_app.config["UNINDEXED_FIELDS"] = unindexed_fields
 
     # Configure Unleash (feature flags)
-    if app_config.unleash_token:
+    if app_config.unleash_token and not app_config.bypass_unleash:
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
         flask_app.config["UNLEASH_ENVIRONMENT"] = "default"
         flask_app.config["UNLEASH_URL"] = app_config.unleash_url

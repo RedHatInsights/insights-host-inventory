@@ -20,6 +20,7 @@ def prometheus_temp_dir():
         putenv(PROMETHEUS_ENV_VAR, temp_dir)
         putenv("BYPASS_RBAC", "true")
         putenv("BYPASS_TENANT_TRANSLATION", "true")
+        putenv("BYPASS_UNLEASH", "true")
         try:
             yield
         finally:
