@@ -349,9 +349,9 @@ paths:
       operationId: api.group.get_group_list
       tags:
         - groups
-      summary: Read the entire list of groups
+      summary: Read the entire list of groups [Not Implemented]
       description: >-
-        Read the entire list of all groups available to the account.
+        Read the entire list of all groups available to the account. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -373,9 +373,9 @@ paths:
       operationId: api.group.create_group
       tags:
         - groups
-      summary: Create a new group matching the provided name and list of hosts IDs
+      summary: Create a new group matching the provided name and list of hosts IDs [Not Implemented]
       description: >-
-        Creates a new group containing the hosts associated with the host IDs provided.
+        Creates a new group containing the hosts associated with the host IDs provided. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -400,9 +400,9 @@ paths:
       operationId: api.group.get_group
       tags:
         - groups
-      summary: Find a group by its ID
+      summary: Find a group by its ID [Not Implemented]
       description: >-
-        Find a group by its ID.
+        Find a group by its ID. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -420,9 +420,9 @@ paths:
       operationId: api.group.patch_group_by_id
       tags:
         - groups
-      summary: Merge group information
+      summary: Merge group information [Not Implemented]
       description: >-
-        Merge group information.
+        Merge group information. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -451,9 +451,9 @@ paths:
       operationId: api.group.update_group_details
       tags:
         - groups
-      summary: Replace group information
+      summary: Replace group information [Not Implemented]
       description: >-
-        Replace information from a group.
+        Replace information from a group. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -482,9 +482,9 @@ paths:
       operationId: api.group.delete_group
       tags:
         - groups
-      summary: Delete a group
+      summary: Delete a group [Not Implemented]
       description: >-
-        Delete a group.
+        Delete a group. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:write
       security:
@@ -501,9 +501,9 @@ paths:
       operationId: api.group.get_groups_by_id
       tags:
         - groups
-      summary: Find groups by their IDs
+      summary: Find groups by their IDs [Not Implemented]
       description: >-
-        Find one or more groups by their ID.
+        Find one or more groups by their IDs. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:read
       security:
@@ -526,9 +526,9 @@ paths:
       operationId: api.group.delete_hosts_from_group
       tags:
         - groups
-      summary: Delete one or more hosts from a group
+      summary: Delete one or more hosts from a group [Not Implemented]
       description: >-
-        Delete one or more hosts from a group.
+        Delete one or more hosts from a group. [Not Implemented]
         <br /><br />
         Required permissions: inventory:groups:write
       security:
