@@ -87,6 +87,7 @@ objects:
             secretKeyRef:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
+              optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -176,6 +177,7 @@ objects:
             secretKeyRef:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -256,6 +258,7 @@ objects:
             secretKeyRef:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -330,6 +333,7 @@ objects:
             secretKeyRef:
               name: ${UNLEASH_SECRET_NAME}
               key: CLIENT_ACCESS_TOKEN
+              optional: true
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 3
@@ -406,6 +410,7 @@ objects:
               secretKeyRef:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -487,6 +492,7 @@ objects:
               secretKeyRef:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -533,6 +539,7 @@ objects:
               secretKeyRef:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
@@ -594,6 +601,7 @@ objects:
               secretKeyRef:
                 name: ${UNLEASH_SECRET_NAME}
                 key: CLIENT_ACCESS_TOKEN
+                optional: true
         resources:
           limits:
             cpu: ${CPU_LIMIT}
