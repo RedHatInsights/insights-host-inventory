@@ -8,7 +8,10 @@ from sqlalchemy_utils import drop_database
 from app import db
 from app.config import Config
 from app.config import RuntimeEnvironment
+from app.models import Group
 from app.models import Host
+from app.models import HostGroupAssoc
+from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.db_utils import minimal_db_host_dict
 from tests.helpers.test_utils import now
@@ -63,6 +66,30 @@ def db_get_host_by_insights_id(flask_app):
         return Host.query.filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
     return _db_get_host_by_insights_id
+
+
+@pytest.fixture(scope="function")
+def db_get_group(flask_app):
+    def _db_get_group(group_id):
+        return Group.query.get(group_id)
+
+    return _db_get_group
+
+
+@pytest.fixture(scope="function")
+def db_get_hosts_for_group(flask_app):
+    def _db_get_hosts_for_group(group_id):
+        return Host.query.join(HostGroupAssoc).filter(HostGroupAssoc.group_id == group_id).all()
+
+    return _db_get_hosts_for_group
+
+
+@pytest.fixture(scope="function")
+def db_get_groups_for_host(flask_app):
+    def _db_get_groups_for_host(host_id):
+        return Group.query.join(HostGroupAssoc).filter(HostGroupAssoc.host_id == host_id).all()
+
+    return _db_get_groups_for_host
 
 
 @pytest.fixture(scope="function")
@@ -126,3 +153,47 @@ def db_create_host_in_unknown_state(db_create_host):
 def models_datetime_mock(mocker):
     mock = mocker.patch("app.models.datetime", **{"now.return_value": now()})
     return mock.now.return_value
+
+
+@pytest.fixture(scope="function")
+def db_create_group(flask_app):
+    def _db_create_group(identity=SYSTEM_IDENTITY, name=None):
+        group = db_group(org_id=identity["org_id"], account=identity["account_number"], name=name)
+        db.session.add(group)
+        db.session.commit()
+        return group
+
+    return _db_create_group
+
+
+@pytest.fixture(scope="function")
+def db_create_host_group_assoc(flask_app):
+    def _db_create_host_group_assoc(host_id, group_id):
+        host_group = HostGroupAssoc(host_id=host_id, group_id=group_id)
+        db.session.add(host_group)
+        db.session.commit()
+        return host_group
+
+    return _db_create_host_group_assoc
+
+
+@pytest.fixture(scope="function")
+def db_remove_hosts_from_group(flask_app):
+    def _db_remove_hosts_from_group(host_id_list, group_id):
+        delete_query = db.session.query(HostGroupAssoc).filter(
+            HostGroupAssoc.group_id == group_id, HostGroupAssoc.host_id.in_(host_id_list)
+        )
+        delete_query.delete(synchronize_session="fetch")
+        delete_query.session.commit()
+
+    return _db_remove_hosts_from_group
+
+
+@pytest.fixture(scope="function")
+def db_delete_group(flask_app):
+    def _db_delete_group(group_id):
+        delete_query = db.session.query(Group).filter(Group.id == group_id)
+        delete_query.delete(synchronize_session="fetch")
+        delete_query.session.commit()
+
+    return _db_delete_group
