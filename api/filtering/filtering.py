@@ -12,6 +12,8 @@ from api.filtering.filtering_common import SUPPORTED_FORMATS
 from app import custom_filter_fields
 from app import inventory_config
 from app import system_profile_spec
+from app.auth import get_current_identity
+from app.auth.identity import IdentityType
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.utils import Tag
@@ -315,7 +317,7 @@ def build_tag_query_dict_tuple(tags):
 
 
 def host_id_list_query_filter(host_id_list):
-    return (
+    all_filters = (
         {
             "stale_timestamp": {
                 "gt": str((datetime.now(timezone.utc) - inventory_config().culling_culled_offset_delta).isoformat())
@@ -329,18 +331,28 @@ def host_id_list_query_filter(host_id_list):
         },
     )
 
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        all_filters += owner_id_filter()
+
+    return all_filters
+
+
+def owner_id_filter():
+    return ({"spf_owner_id": {"eq": get_current_identity().system["cn"]}},)
+
 
 def query_filters(
-    fqdn,
-    display_name,
-    hostname_or_id,
-    insights_id,
-    provider_id,
-    provider_type,
-    tags,
-    staleness,
-    registered_with,
-    filter,
+    fqdn=None,
+    display_name=None,
+    hostname_or_id=None,
+    insights_id=None,
+    provider_id=None,
+    provider_type=None,
+    tags=None,
+    staleness=None,
+    registered_with=None,
+    filter=None,
 ):
     num_ids = 0
     for id_param in [fqdn, display_name, hostname_or_id, insights_id]:
@@ -373,13 +385,6 @@ def query_filters(
     else:
         query_filters = ()
 
-    if tags:
-        tag_filters = build_tag_query_dict_tuple(tags)
-        query_filters += ({"OR": tag_filters},)
-    if staleness:
-        staleness_filters = tuple(staleness_filter(staleness))
-        query_filters += ({"OR": staleness_filters},)
-
     if registered_with:
         query_filters += build_registered_with_filter(registered_with)
     if provider_type:
@@ -387,11 +392,22 @@ def query_filters(
     if provider_id:
         query_filters += ({"provider_id": {"eq": provider_id.casefold()}},)
 
+    if tags:
+        tag_filters = build_tag_query_dict_tuple(tags)
+        query_filters += ({"OR": tag_filters},)
+    if staleness:
+        staleness_filters = tuple(staleness_filter(staleness))
+        query_filters += ({"OR": staleness_filters},)
+
     for key in filter:
         if key == "system_profile":
             query_filters += build_system_profile_filter(filter["system_profile"])
         else:
             raise ValidationException("filter key is invalid")
+
+    current_identity = get_current_identity()
+    if current_identity.identity_type == IdentityType.SYSTEM:
+        query_filters += owner_id_filter()
 
     logger.debug(query_filters)
     return query_filters
