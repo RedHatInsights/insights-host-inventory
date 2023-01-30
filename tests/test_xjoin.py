@@ -1257,7 +1257,7 @@ def test_system_profile_sap_system_endpoint_tags(
 
     response_status, response_data = api_get(url)
 
-    tag_filters = tuple({"tag": item} for item in tags)
+    tag_filters = ({"OR": tuple({"tag": item} for item in tags)},)
     assert response_status == 200
     graphql_system_profile_sap_system_query_empty_response.assert_called_once_with(
         SAP_SYSTEM_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}, "limit": 50, "offset": 0}, mocker.ANY
@@ -1362,7 +1362,7 @@ def test_system_profile_sap_sids_endpoint_tags(
 
     response_status, response_data = api_get(url)
 
-    tag_filters = tuple({"tag": item} for item in tags)
+    tag_filters = ({"OR": tuple({"tag": item} for item in tags)},)
     assert response_status == 200
     graphql_system_profile_sap_sids_query_empty_response.assert_called_once_with(
         SAP_SIDS_QUERY, {"hostFilter": {"OR": mocker.ANY, "AND": tag_filters}, "limit": 50, "offset": 0}, mocker.ANY
